@@ -1,6 +1,14 @@
-# See https://www.dartlang.org/guides/libraries/private-files
+# ============================================================================
+# Plotlines — monorepo .gitignore
+# Sectioned to match Plotlines_ARCHITECTURE.md's component map (§3):
+# Flutter client (Tier 3), plotlines-core (Tier 1, Python), plotlines-service
+# (Tier 2, FastAPI sidecar/hosted), plus cross-cutting build/secret/OS noise.
+# ============================================================================
 
-# Files and directories created by pub
+# ----------------------------------------------------------------------------
+# Flutter / Dart client (Tier 3 — §9)
+# See https://www.dartlang.org/guides/libraries/private-files
+# ----------------------------------------------------------------------------
 .dart_tool/
 .packages
 build/
@@ -10,9 +18,6 @@ pubspec.lock
 # Directory created by dartdoc
 # If you don't generate documentation locally you can remove this line.
 doc/api/
-
-# dotenv environment variables file
-.env*
 
 # Avoid committing generated Javascript files:
 *.dart.js
@@ -27,3 +32,108 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# Platform-specific build output (Android/iOS/desktop runners, Xcode user state)
+*.iml
+.gradle/
+local.properties
+**/android/**/gradle-wrapper.jar
+**/android/.gradle/
+**/android/captures/
+**/android/local.properties
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/*.xcuserstate
+**/*.xcworkspace/xcuserdata/
+
+# drift/SQLite local dev databases (Tier 3 local store — §9.2)
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+# ----------------------------------------------------------------------------
+# Python — plotlines-core (Tier 1, §6) and plotlines-service (Tier 2, §7)
+# ----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Packaging / distribution
+*.egg-info/
+.eggs/
+dist/
+wheels/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test / coverage artifacts (§14.1, §14.2)
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# Committed golden-route graph fixtures (§14.1) are intentionally NOT
+# ignored — only large/derived caches below are. Keep fixtures under
+# version control; ignore ad hoc local caches instead:
+.cache/
+graph_cache/
+tile_cache/
+elevation_cache/
+
+# ----------------------------------------------------------------------------
+# Sidecar packaging (§4, §12) — frozen binaries are build output, not source
+# ----------------------------------------------------------------------------
+*.spec
+sidecar_dist/
+sidecar_build/
+*.exe
+*.dmg
+*.AppImage
+
+# ----------------------------------------------------------------------------
+# Secrets & credentials (§10.2 "absent, not unused" applies to the repo too)
+# ----------------------------------------------------------------------------
+# dotenv environment variables file
+.env*
+*.pem
+*.p12
+*.mobileprovision
+*.keystore
+*.jks
+secrets.json
+credentials.json
+
+# ----------------------------------------------------------------------------
+# IDE / editor
+# ----------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ----------------------------------------------------------------------------
+# OS noise
+# ----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+# WSL/Windows "mark of the web" sidecar files left on downloaded documents
+*:Zone.Identifier
+
+# ----------------------------------------------------------------------------
+# Logs
+# ----------------------------------------------------------------------------
+*.log
