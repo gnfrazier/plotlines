@@ -7,7 +7,7 @@ companion: Plotlines_PRD.md
 
 # Plotlines — Architecture Design
 
-**Status:** Draft · **Version:** 1.0 · **Companion docs:** `Plotlines_PRD.md` (89 FRs / 96 stories — the source of truth for *what* and *why*), `Plotlines_Research_Spikes.md` (feasibility unknowns to prove before building). This document covers *how*.
+**Status:** Draft · **Version:** 1.0 · **Companion docs:** `Plotlines_PRD.md` (89 FRs / 95 stories — the source of truth for *what* and *why*), `Plotlines_Research_Spikes.md` (feasibility unknowns to prove before building). This document covers *how*.
 
 This is a clean-sheet architecture for a new repository. It draws on hard-won structure from the Cycle Tour Planner proof-of-concept — the pure-library core, the sidecar model, the same-site session, the fetch-once caching discipline — but it is not a port. Where Plotlines' scope changed the shape of the problem (multimodal routing, field execution, peer field-intel, request/response sharing), the architecture is rebuilt to fit, not patched to cope.
 
@@ -290,29 +290,44 @@ class WeightProfile:
     surface_pref: dict[str, float]     # FR4 — paved / gravel / singletrack
     poi_bonus: dict[str, float]        # FR5 — Author-set POI type + density
     detour_budget: float               # max multiple of shortest-path distance
-    # --- multimodal extensions (FR13, FR14) ---
-    water_type: float = 0.0            # flatwater ↔ whitewater
-    max_water_class: int | None = None # I–V ceiling
+    # --- multimodal extensions (FR14) ---
     terrain_technicality: float = 0.0  # land exposure/scramble
 ```
+
+**`water_type` and `max_water_class` are gone (D19).** They were FR13's flatwater↔whitewater
+weight and FR14's class ceiling, and both score against a per-edge difficulty rating that
+SPIKE-04 found does not exist in any usable source. Keeping them as inert fields would
+repeat exactly the mistake D6 rejected with `turn_count`. Re-adding them, if American
+Whitewater licensing or OSM adoption ever supplies the data, is two fields and a scoring
+clause — the structure is unchanged, which was the point of D5.
+
+`terrain_technicality` stays, but note it has **not** been validated the way the water
+terms were: SPIKE-04 was a paddling spike and did not measure `sac_scale` / `mtb:scale`
+density. Treat it as unproven, not proven.
 
 **Deliberate departures from CTP's scoring model, driven by the PRD rescope:**
 
 - **"Fewest turns" is gone.** CTP had a `turn_count` weight and a fifth fixed theme for it; the Plotlines PRD removed it (PRD §4.3). The profile has no turn term. This is a real deletion, not a rename — carrying it forward would reintroduce scope the rebrand cut.
 - **Climbing and traffic are single continuous weights** ("peaks", "cars"), not flat-vs-climbing / quiet-vs-direct theme pairs. Fewer knobs, more range.
 - **"Art/history" is not a theme.** It is `poi_bonus` with an Author-set POI type (FR5).
-- **The profile carries multimodal terms.** Water type, class ceiling, and terrain technicality extend the same structure the scorer already consumes — so paddling routing is not a parallel scorer (PRD M1's explicit requirement).
+- **The profile carries multimodal terms.** Terrain technicality extends the same structure the scorer already consumes — so multimodal routing is not a parallel scorer (PRD M1's explicit requirement). The water terms were removed with D19; the mechanism they demonstrated is unaffected, and that is what M1 actually requires.
 
 ### 6.4 Multimodal routing (FR10–FR16) — and its data dependency
 
 Each travel mode builds its own graph (`multimodal/`): cycling and hiking over the road/path network, paddling over the waterway network. The scorer is mode-agnostic — it consumes a `WeightProfile` and a graph — but the *graph construction* and the *available edge attributes* are mode-specific.
 
-**This is where the architecture meets its single biggest unknown, and the doc must be honest about it.** Cycling/hiking graphs come from OSM, which is proven. The paddling graph — the waterway network, put-ins/take-outs, portages, class ratings, gauge readings — **may not have adequate open data** (see `Plotlines_Research_Spikes.md` SPIKE-04). The architecture is built so that paddling data enters through the *same provider interfaces* as everything else (§13), which means:
+**This was the architecture's single biggest unknown. SPIKE-04 has now answered it, and the provider boundary is what saved the design.** Cycling/hiking graphs come from OSM, which is proven. The paddling graph is not one source but four questions, and they came back differently (`spikes/SPIKE-04/results/RESULTS.md`):
 
-- If OSM waterway data suffices, paddling is a built-in provider like cycling.
-- If it requires a third-party source (e.g. a whitewater database, a government gauge API), that source is a `ShapeDataProvider`/`EdgeDataProvider` plugin — and the routing core does not change to accommodate it.
+| | Answer | Source |
+|---|---|---|
+| Waterway network | **Yes** — connected, directed, uniformly attributed | **USGS NHDPlus HR**, not OSM |
+| Gauge readings | **Yes**, including which reach a gauge governs | USGS Water Data APIs + NLDI |
+| Access points | **Partial** — thin in OSM, denser but per-state in agency GIS | OSM + state GIS |
+| Class ratings | **No** — zero graded features in all three regions tested | none on acceptable terms |
 
-So the architecture does not *depend* on the spike's outcome to be correct — but the *product scope* of paddling-in-MVP does. The core is designed to absorb either answer; the PRD's "full multimodal MVP" commitment is what's at risk if SPIKE-04 comes back thin. This is the right place for that risk to live: in a provider boundary, not in the solver.
+**The load-bearing consequence: OSM is not sufficient, so `WaterwayDataProvider` is a real implementation and not a formality.** Paddling's network comes from a different source than cycling's, with a different topology model (declared `fromnode`/`tonode` rather than inferred shared vertices) and a different notion of edge scale (Strahler stream order rather than a mapper's river-versus-stream call). Had paddling been hardcoded into the core alongside cycling, that difference would now be a rewrite. It is a provider swap instead.
+
+**The absent class ratings did not change this design — they removed one capability from the PRD.** What cannot be built is *edge exclusion* by class band, because no per-edge class exists to compare against. **The PRD took that call on 2026-08-14: FR13 retired, stories B4 and B5 removed, FR14 narrowed to an advisory gauge band.** Recorded here as D19, because it also removed two `WeightProfile` fields (§6.3).
 
 ### 6.5 Elevation — void handling
 
@@ -649,7 +664,16 @@ All follow P7: fetch once, cache with a volatility-matched TTL, never re-request
 | **Weather** (Open-Meteo) | Historical + forecast | Forecast: short. Historical: long/bundled | **CC BY 4.0 — required** |
 | **Geocoding** (Nominatim via OSMnx) | Location search | Medium | OSM / ODbL |
 | **OSM Overpass** (via OSMnx) | Graph + POI tags | Long (OSMnx handles) | OSM / ODbL |
-| **Multimodal data** (paddling network / class / gauge) | Paddling routing | Per-source — see §13, SPIKE-04 | Per-source license |
+| **USGS NHDPlus HR** (waterway network) | Paddling graph | Long (hydrography is static) | US public domain — credit requested |
+| **USGS Water Data APIs + NLDI** (gauge readings, gauge→reach) | Paddling feasibility (FR14) | Gauge values: short. Reach linkage: long | US public domain — credit requested |
+
+**Paddling class ratings have no source** and are therefore not in this table — SPIKE-04
+found none available on acceptable terms (`spikes/SPIKE-04/results/RESULTS.md` §2). Class
+is Author-declared, not fetched.
+
+**Migration already scheduled:** USGS WaterServices (`waterservices.usgs.gov`) is
+decommissioned in Q1 2027. Build against `api.waterdata.usgs.gov` — the OGC API - Features
+successor, verified equivalent by SPIKE-04 §5 — from the first line of code.
 
 ### 11.1 Elevation cache — the two-phase model
 
@@ -753,7 +777,12 @@ class WaterwayDataProvider(Protocol):        # Plotlines addition
     def fetch_waterways(self, bbox: BBox) -> WaterwayGraph: ...
 ```
 
-The core's own OSM lookups (lodging, POI types) **implement these same interfaces** — which is the proof the interfaces are real. If the built-in OSM path cannot be expressed as a provider, the interface is wrong, and we learn that at M1, not at M9. `WaterwayDataProvider` is the seam through which SPIKE-04's answer plugs in, whatever it turns out to be.
+The core's own OSM lookups (lodging, POI types) **implement these same interfaces** — which is the proof the interfaces are real. If the built-in OSM path cannot be expressed as a provider, the interface is wrong, and we learn that at M1, not at M9.
+
+`WaterwayDataProvider` is the seam SPIKE-04's answer plugs into, and the answer is now known: **implement it against USGS NHDPlus HR (network) and the USGS Water Data APIs + NLDI (gauge, reach linkage) — not OSM** (§6.4). Two consequences for its shape:
+
+- **`WaterwayGraph` edges need a `reachcode`.** It is the identifier USGS gauges are indexed by, so carrying it turns "which gauge governs this segment" into a lookup rather than a spatial nearest-neighbour guess — which is wrong precisely at confluences and below dams. Dropping it costs nothing until FR14, then costs a re-fetch of the whole network.
+- **It reads from a local extract, not a live service.** SPIKE-04 §8 could not complete a single region's pull from the public Overpass instance without tiling and retries. Same rule as §14.1's committed graph fixtures, for the same reason.
 
 ### 13.3 Dart-side output interface
 
@@ -818,7 +847,7 @@ Risks introduced *by this design* — distinct from the product risks in the PRD
 | # | Risk | Severity | Mitigation |
 |---|---|---|---|
 | A1 | **iOS cannot spawn the sidecar** (§4.1) — threatens offline generation on iOS | **HIGH** | Prototype the frozen sidecar on Android early; treat iOS as precompute-and-download; **SPIKE-09 may dissolve this** if the Dart engine serves iOS's simple-P2P need (§5.6). Do not assume it away. |
-| A2 | **Paddling data may not exist** at the quality multimodal-MVP assumes (§6.4) | **HIGH** | Isolated behind `WaterwayDataProvider` (§13.2) so the *core* is safe either way; **SPIKE-04 gates the paddling-in-MVP scope decision**, not the architecture. |
+| A2 | **Paddling data may not exist** at the quality multimodal-MVP assumes (§6.4) | **HIGH → partly realised** | **SPIKE-04 ran (2026-08-14).** Network and gauge data are solid (USGS); **class ratings do not exist** in open data and the authoritative source prohibits reuse. The architecture is unharmed — the isolation behind `WaterwayDataProvider` (§13.2) is exactly what absorbed it — but one PRD acceptance criterion (B4/B5 class-band enforcement) cannot be met from open data. Residual risk moves to the **PRD scope call**, not the design. |
 | A3 | **Field Runtime battery cost** — continuous GPS for a full day (§5) | **HIGH** | Adaptive-accuracy controller (FR54a): coarse tier while stowed, high accuracy only near a trigger or when the screen is active. **SPIKE-07 measures the real saving.** |
 | A4 | **Backgrounded GPS-triggered audio** may not survive screen-lock across OS versions (§5.2) | **HIGH** | Platform-specific background-execution setup; **SPIKE-06 proves it on real iOS/Android hardware before the field tier is committed.** |
 | A5 | Frozen Python binary (150–300 MB) stacks on heavier offline packages (audio + multimodal) | Medium | Accepted; strip deps; consider post-install sidecar download rather than bundling; budget package size via SPIKE-10. |
@@ -856,6 +885,7 @@ Decisions made *in this document* (PRD decisions are logged in the PRD; feasibil
 | D16 | **Manual GitHub Releases for desktop at MVP**, with client+sidecar shipped as one pinned unit and a seam for a later in-app update check | Zero update infrastructure; single installer keeps the two artifacts in lockstep inherently; the version seam makes an in-app check a later addition, not a rework (§12.2) | Full silent auto-update (code signing + feed server + delta patching for a 150–300 MB binary — not MVP); no update story at all (drift and stale installs) |
 | D17 | **Stock Postgres at MVP; PostGIS is a gated upgrade** | The DB is a sync-and-relay store, not a query engine — all geospatial work is upstream in the core/Field Runtime (P1). Carrying PostGIS now is an unused dependency | PostGIS from day one (unused until a server-side spatial query exists — §10.5, trigger A12) |
 | D18 | **Golden-route testing + committed graph fixtures** as the core's primary safeguard; P1 boundary enforced as a CI gate | A pure core makes silent scoring regressions the main risk; golden routes catch them and committed fixtures keep the suite deterministic and offline (§14) | Live-graph tests (non-deterministic, hammer the commons); relying on review to catch scoring drift |
+| D19 | **Paddling difficulty is advisory, not a routing constraint** — PRD stories **B4 and B5 removed** and FR13 retired (2026-08-14) | **SPIKE-04 determined they were too hard to build**, and specifically that the difficulty half is not buildable *at all* on available data rather than merely expensive: enforcing an ability band requires a class rating on every candidate edge, and one graded feature exists across the 41,937 km² tested (58 across North America). The authoritative source, American Whitewater, prohibits reuse and offers no API, so this is a licensing problem with a lead time, not an engineering backlog item. Building the input without the data would have shipped a control that silently does nothing. What survives is the half that *is* grounded: an Author-set gauge band checked against a real USGS reading (FR14/FR14a, story B8), and Author-drawn portages (FR15/B6) | Shipping B4/B5 with Author-declared class as the only input (a routing filter over a field one person typed in, applied to edges with no class at all — worse than absent, because it looks like a safety feature); deferring paddling out of MVP entirely (the network and gauge halves are real and work); scraping American Whitewater (prohibited) |
 
 ---
 
@@ -864,10 +894,10 @@ Decisions made *in this document* (PRD decisions are logged in the PRD; feasibil
 | # | Question | Gated by / needed by |
 |---|---|---|
 | Q1 | **iOS routing strategy** — precompute-and-download, or Dart-engine-only with no iOS sidecar? | **SPIKE-09** (Dart offline engine capability), then the Mobile milestone |
-| Q2 | **Paddling data source** — OSM-sufficient, or a third-party `WaterwayDataProvider`? Shapes paddling-in-MVP scope | **SPIKE-04**, before multimodal build |
+| ~~Q2~~ | ~~**Paddling data source** — OSM-sufficient, or a third-party `WaterwayDataProvider`?~~ **Resolved by SPIKE-04 (2026-08-14): OSM is not sufficient.** Network from USGS NHDPlus HR, gauge from the USGS Water Data APIs + NLDI, access points from OSM plus per-state GIS, **class ratings from nowhere**. See §6.4, §13.2, and `spikes/SPIKE-04/results/RESULTS.md`. | Done — the residual is a PRD scope call, not an architectural one |
 | Q3 | **Trigger overlap/priority thresholds** (§5.2) — exact queueing and preemption rules for dense narration/hazard stretches | Before the field-execution build; a tuning question, not a structural one |
-| Q4 | **Frozen-binary tool** (PyInstaller vs. Nuitka vs. platform-specific) — affects size (A5) and startup time | Sidecar prototype |
-| Q5 | **Sidecar ships in the installer, or downloads on first run?** Trades install size against a first-launch network dependency | Sidecar prototype |
+| ~~Q4~~ | ~~**Frozen-binary tool** (PyInstaller vs. Nuitka vs. platform-specific)~~ **Resolved by SPIKE-00: PyInstaller `--onedir`.** Revisit trigger in `packaging/TODO.md` | Done |
+| ~~Q5~~ | ~~**Sidecar ships in the installer, or downloads on first run?**~~ **Resolved by SPIKE-00: bundle in the installer.** Revisit trigger in `packaging/TODO.md` | Done |
 | Q6 | **Group-relay transport** — simple polling vs. push; how notes reach approaching members promptly without draining battery | **SPIKE-11**, before the group tier |
 | Q7 | **Medical/allergy volunteered-field handling** — how prominently surfaced to the Author, and its group-visibility default (a privacy call flagged in the PRD) | Before profile-sharing build |
 | Q8 | **Plugin distribution** — pub.dev + PyPI, or a bundled registry? | Leg 7 |

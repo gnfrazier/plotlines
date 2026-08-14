@@ -48,7 +48,7 @@ These values are the filter for every requirement. A feature that doesn't serve 
 
 - **Routing core** (OSMnx + FastAPI backend, Dart/Flutter client) on Desktop and Web, with a Dart-first offline engine for Mobile.
 - **Theme-driven route weighting**: climbing, traffic tolerance, surface distribution, POI density — each a weight, not a mode.
-- **Multi-day trip logistics**: waypoints, daily distance/elevation splitting, route alternatives per day, lodging and campground data, group-size-aware planning, historical weather.
+- **Multi-day trip logistics**: waypoints, daily distance/elevation splitting, route alternatives per day, lodging and campground data, group-size-aware planning, historical weather, and river gauge readings for paddling segments.
 - **Content/curation layer**: POI narration, POI-themed trips, narrative arc, trip-scoped route/POI feedback, GeoJSON export.
 - **Export pipeline**: GPX / TCX / FIT as the interop path to external platforms.
 - **Lightweight accounts, sync, and a web option** for the core loop.
@@ -76,6 +76,7 @@ Where Cycle Tour Planner over-engineered, Plotlines keeps the intent and drops t
 - **Route themes** collapse into **weights**: flattest↔most-climbing is one weight; traffic tolerance is one weight; art/history becomes an Author-set **POI type** on the density weight — not a bespoke theme each.
 - **Auth** collapses from a passkey cascade to magic-link.
 - **Sync** keeps the version-checked conditional write and drops everything heavier.
+- **Paddling difficulty** collapses from *routing constraint* to *advisory check*: the Author sets a gauge band, Plotlines shows the reading against it and warns. There is no class-rating weight and no ability-band route filter — SPIKE-04 established that no usable data source publishes per-reach difficulty, so those would have been configuration surface the engine could never honour. This is a simplification forced by evidence rather than chosen for elegance, and it is the one entry here that *lost* a capability rather than a mechanism.
 
 ---
 
@@ -86,7 +87,7 @@ Plotlines inherits the "leg" structure from the rebrand-plan. Legs are capabilit
 | Leg | Theme | Disposition (per rebrand-plan) |
 |---|---|---|
 | **1–2** | Routing core, FastAPI, Desktop client, GPX/TCX/FIT export, security & QA hardening | **Done / kept as-is.** The foundation and the intended interop path. |
-| **3** | Multi-day trip logistics — waypoints, daily splits, surface scoring, weighting, per-day alternatives, lodging/campground, group-size planning, historical weather | **Keep, nearly all.** This is the differentiated territory. |
+| **3** | Multi-day trip logistics — waypoints, daily splits, surface scoring, weighting, per-day alternatives, lodging/campground, group-size planning, historical weather, **river gauge readings (FR14a)** | **Keep, nearly all.** This is the differentiated territory. Gauge data joins weather here: both are external, time-varying, age-stamped reads against an authored plan, so they share a leg, a caching pattern, and a staleness rule. |
 | **4** | Accounts, sync & Web | **Rescoped lighter.** Magic-link auth, core web loop, version-checked sync, stateless guest, direct elevation calls. |
 | **5** | Mobile & offline | **Rescoped simple.** Point-to-point offline routing only; live navigation cut. |
 | **6** | Content layer — POI narration, themed trips, trip-scoped feedback, GeoJSON export | **Keep as-is — and elevated.** The strongest anchor for the rebrand thesis. |
@@ -123,9 +124,10 @@ FRs are numbered fresh in Plotlines' own sequence. The **Origin** column traces 
 | **FR10** | Authors create **route segments** with a start, end, and primary travel mode, and Plotlines supports multiple modes as first-class (cycling, hiking, paddling, and further modes) rather than cycling-only. | Plotlines Story 2 |
 | **FR11** | Authors **order and sequence** segments within a day to compose multimodal days, with a warning when adjacent segment endpoints fall more than a set distance apart. | Plotlines Story 3 |
 | **FR12** | Authors place **transition nodes** between modes, marking where Characters switch activities, stash/retrieve gear, or execute put-ins/take-outs, with attached instructions. | Plotlines Story 15 |
-| **FR13** | Authors set **whitewater difficulty and water-type** weighting (flatwater ↔ whitewater, class rating) on paddling segments, so routing matches the group's ability and equipment. | Plotlines 10e/10f |
-| **FR14** | Authors define **min/max technical parameters** for paddling/technical land segments (river gauge height, water class I–V, terrain technicality/exposure) so options match group ability. | Plotlines Story 18 |
-| **FR15** | Authors define **portages and water-trail connections** on paddle segments — exit bank, portage distance, surface, elevation change, mandatory-hazard flag — calculated separately from water distance and auto-included in cue sheets/itineraries. | Plotlines Story 23 |
+| ~~**FR13**~~ | ~~Authors set **whitewater difficulty and water-type** weighting (flatwater ↔ whitewater, class rating) on paddling segments, so routing matches the group's ability and equipment.~~ **Removed — SPIKE-04.** No per-edge class rating exists in any usable data source, so a class weight has nothing to score against. See the decision log entry and §8. *(FR number retired, not reused.)* | Plotlines 10e/10f |
+| **FR14** | Authors set an **advisory gauge band** (minimum/maximum flow or stage) on a paddling segment, and a **terrain technicality/exposure** level on a technical land segment. Plotlines shows the current reading against the band and warns outside it; it never filters or excludes routes on this basis. | Plotlines Story 18 |
+| **FR14a** | Plotlines reads **river gauge data from USGS** (`api.waterdata.usgs.gov`) for gauged segments, age-stamps every reading, and states plainly when a segment has no gauge — surfaced to both Author and Character. Delivered in **Leg 3, alongside historical weather**, and following FR66's rule: a stale reading is labelled, never silently presented as current. | SPIKE-04 |
+| **FR15** | Authors **draw portages and water-trail connections** on paddle segments — exit bank, portage distance, surface, elevation change, mandatory-hazard flag — calculated separately from water distance and auto-included in cue sheets/itineraries. The portage line is Author-drawn (SPIKE-04 found no open portage-route data); mapped hazards may be surfaced to prompt one. | Plotlines Story 23 |
 | **FR16** | Authors configure **mode- and terrain-specific travel speeds** (e.g., pavement vs. singletrack, flatwater vs. moving water, ascent rate), choosing a system default, a custom Author pace, or the aggregated participant pace, feeding realistic moving time and ETAs. | Plotlines Story 29 |
 
 ### Multi-Day Trip Logistics (Leg 3)
@@ -317,21 +319,24 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 **As an** Author, **I want to** define transition nodes between modes **so that** Characters know where to switch activities, stash gear, or put in / take out.
 *AC:* Transition node placeable between two segments; carries Author instructions (parking, gear stash, put-in/take-out); appears on Character timeline at the mode change.
 
-**B4 — Set whitewater and water-type weighting** *[MVP]* — *FR13*
-**As an** Author on a paddling segment, **I want to** weight flatwater ↔ whitewater and set a class rating **so that** routing keeps the group within its ability and equipment. *(Note: fixes the inverted "so that" in the source story — routing keeps Characters within ability, not beyond it.)*
-*AC:* Flatwater–whitewater weight and class-rating input on paddle segments; routing respects the setting; never routes toward water that exceeds the stated ability band.
-
-**B5 — Set water and technical difficulty parameters** *[MVP]* — *FR14*
-**As an** Author on paddling/technical land segments, **I want to** define min/max gauge height, water class (I–V), or terrain technicality/exposure **so that** options match the group's technical ability.
-*AC:* Class ratings and gauge thresholds definable per segment; terrain technicality/exposure scale for land; options outside the band are excluded or flagged.
+> **B4 and B5 were removed after SPIKE-04 (2026-08-14).** Both depended on knowing the
+> difficulty class of the water a route would cross, and no usable source publishes it:
+> one graded feature across the three regions tested, 58 across all of North America, and
+> the authoritative US inventory prohibits reuse. Their story numbers are retired rather
+> than reused. The surviving, buildable half — an Author-set gauge band checked against a
+> real reading — is **B8** below. See the decision log and §8.
 
 **B6 — Define portages and water-trail connections** *[P1]* — *FR15*
-**As an** Author, **I want to** define portages with exit bank and trail characteristics **so that** Characters can execute water-to-land transitions safely.
-*AC:* Portage placeable on a paddle segment with exit bank (river left/right); portage distance, surface, and elevation change computed separately from water distance; mandatory portages (dams/falls) flag a prominent warning; auto-included in cue sheets/itineraries; entry/exit nodes can be rest/way/regroup points with notes.
+**As an** Author, **I want to** draw portages with exit bank and trail characteristics **so that** Characters can execute water-to-land transitions safely.
+*AC:* Portage line **drawn by the Author** on a paddle segment with exit bank (river left/right); portage distance, surface, and elevation change computed from that line, separately from water distance; mandatory portages (dams/falls) flag a prominent warning; auto-included in cue sheets/itineraries; entry/exit nodes can be rest/way/regroup points with notes. Mapped hazards (dams, weirs, falls) may be surfaced on the segment to prompt the Author to draw one — **but the app never claims a portage route it does not have**, because no open dataset carries them (SPIKE-04 §6).
 
 **B7 — Model mode/terrain travel speeds** *[P1]* — *FR16, FR31*
 **As an** Author, **I want to** configure travel speeds by mode and terrain **so that** metrics show realistic moving time and ETAs.
 *AC:* Base speeds adjustable per mode and terrain (pavement/gravel/singletrack, flat/steep, flatwater/moving water); choose system default, custom Author pace, or aggregated participant pace; dashboard updates moving time, elapsed time (incl. stops), and ETA; itineraries show elapsed time beside distance and elevation.
+
+**B8 — Set a gauge band and see the river's level against it** *[Leg 3]* — *FR14, FR14a*
+**As an** Author on a paddling segment, **I want to** set a minimum and maximum flow or stage and see the current reading against it **so that** I know whether the trip I am planning is runnable — and so that Characters know on the morning of the trip.
+*AC:* Author sets a min/max band per paddling segment, choosing the unit (cubic feet per second **or** gauge height — SPIKE-04 §5 confirmed USGS publishes both, and paddlers quote flow more often than stage). Terrain technicality/exposure is settable on technical land segments as an Author-declared level. The segment shows the governing gauge's latest reading, **age-stamped**, and warns when the reading sits outside the band. A segment with no gauge says so plainly rather than showing a blank or a guess. **The band is advisory: it warns, it never excludes or reroutes.** Author and Character see the same reading and the same warning.
 
 ### Epic C — Author: Multi-Day Logistics
 
@@ -641,7 +646,7 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 
 **M1 — Model themes as data** *[MVP]* — *design goal*
 **As a** Developer, **I want** every theme to be a `WeightProfile` instance fed to one scoring function **so that** a new theme is a config entry, not new code.
-*AC:* Each theme is values in a shared `WeightProfile` (elevation, traffic class, surface penalty, POI bonus, detour budget, plus mode-specific weights like whitewater class/water type); one scoring function consumes any profile; adding a theme requires only a new profile entry; mode-specific weights extend the same structure, not a parallel scorer.
+*AC:* Each theme is values in a shared `WeightProfile` (elevation, traffic class, surface penalty, POI bonus, detour budget, plus mode-specific weights such as terrain technicality); one scoring function consumes any profile; adding a theme requires only a new profile entry; mode-specific weights extend the same structure, not a parallel scorer. *(The whitewater-class and water-type weights that used to illustrate this were removed with FR13 — see ARCH D19. The requirement is the extension mechanism, which is unaffected; re-adding a mode weight if data appears is a profile field, which is the point.)*
 
 **M2 — Resolve weights per edge via a position lookup** *[MVP]* — *FR36 seam*
 **As a** Developer, **I want** the solver to read an edge's weight via `weights.at(position)` from day one **so that** scoped/segment-varying weighting later is a one-function change.
@@ -683,6 +688,7 @@ Deliberately unresolved, carried forward or newly surfaced:
 - **In-field peer intel is intentionally in-scope, and route-anchored.** Route amendments (FR56 / I9) and field notes (FR56a / I9a–b) let any participant share time-sensitive intel with the trip roster peer-to-peer — resolved this way deliberately, because the Author may be riding the trip and unable to relay in real time. This is bounded to one trip's roster, anchored to points on the shared route, and advisory (recipients Accept/Decline/ignore; nothing changes a path without consent). It is **not** the social-platform territory the non-goal guards against — no friend graph, no cross-trip feed, no open messaging. The remaining design question is presentation, not permission: how notes and flagged amendments are surfaced/queued so a busy stretch doesn't overwhelm the Character.
 - **Cue HUD vs. "no real-time route guidance."** The auto-updating HUD with live ETA recalculation (FR50–FR51) is authored-content playback, not turn-by-turn routing — but the line is fine. Worth confirming during Design that the HUD never crosses into wrong-turn recalculation or "follow the line" guidance.
 - **Multimodal MVP breadth.** Cycling, hiking, and paddling are first-class in MVP. The exact set of *further* modes (skiing, climbing, packrafting, etc.) and their weight/parameter profiles is a scoping decision; the `WeightProfile` model (M1) is designed to absorb them without new scorers.
+- **Paddling difficulty — decided, and worth revisiting if the data changes.** SPIKE-04 ([results](../spikes/SPIKE-04/results/RESULTS.md)) found the paddling network and live gauge readings solid and public-domain (USGS), and **class ratings absent**: one graded feature across the three regions tested, 58 across all of North America, and the authoritative US inventory prohibits reuse. **Decided 2026-08-14: FR13 removed, stories B4 and B5 removed, FR14 narrowed to an advisory gauge band (B8, Leg 3), FR15/B6 portages made Author-drawn.** What remains open is not the decision but its trigger: **if a data agreement with American Whitewater becomes possible — or the OSM whitewater schema gains North American adoption — the class-band capability becomes buildable and should be reconsidered on its merits.** Nothing in the current design forecloses it: re-adding the class term is two fields on `WeightProfile` and a scoring clause (ARCH §6.3, D19) once a data source exists — not a redesign.
 - **Unified "share with Author" surface.** Profile field-sharing is now a request/response negotiation (FR78/FR78a — Author requests, Character grants/declines/volunteers), while transit/arrival sharing (FR30) is a simpler per-field opt-in. Design should decide whether these live in one "what I share with the Author" surface or two, and whether transit sharing should also adopt the request/response pattern.
 - **Leg 7 interface shape.** The concrete data-input contract and output-destination list are intentionally open (FR84).
 - **Default download regions.** The packaged first-region set is not yet pinned; Character first-start download is written generically until it is.
@@ -695,8 +701,9 @@ Deliberately unresolved, carried forward or newly surfaced:
 
 Every user story in `Plotlines.md` is represented in this PRD. Consolidations of note:
 
-- Author 10a–10d → FR2–FR5, FR8 (weights); 10e/10f/18 → FR13–FR14 (water/technical); 29 → FR16, FR31 (speeds/ETA).
+- Author 10a–10d → FR2–FR5, FR8 (weights); 29 → FR16, FR31 (speeds/ETA).
+- **Author 10e/10f/18 (water/technical) are no longer fully represented.** They mapped to FR13–FR14; FR13 was removed and FR14 narrowed after SPIKE-04, so the *class-rating* half of those source stories is deliberately unbuilt. Story 18's gauge half survives as FR14/FR14a (story B8) and its terrain-technicality half as FR14. This is the one place a source story was dropped on evidence rather than consolidated.
 - Author 1, 9 → FR17–FR18; 20 → FR19; 19 → FR20; 4/5 → FR21; 13 → FR22; 11 → FR23; 12 → FR35; 15 → FR12; 23 → FR15; 32 → FR24; 33 → FR25; 34 → FR26; 27 → FR27, FR53; 28 → FR28; 17 → FR29–FR30; 16 → FR38; 21/22 → FR31–FR32; 7/8 → FR33; 14 → FR34; 24/25 → FR48; 26 → FR46; 31 → FR82; 35/36 → FR55–FR56; 37 → FR74.
 - Character C1–C13 map to their Author counterparts' Character-facing FRs; C17 → FR72; C18 → FR73; C19 → FR79; C20 → FR54; C21 → FR75; C22 → FR50; C23 → FR51; C24 → FR52; C11 → FR53; C14 → FR44–FR45; C5 → FR66; C6 → FR77.
 - System S1 → FR79; S2 → FR77; S3 → FR68; S4 → FR69; S5 → FR70; S6 → FR71; S8 → FR76; S9 → FR83. Developer D1 → M8.
-- Two source defects corrected: Story 10e's inverted "so that" (now routes *within* ability, FR13/B4), and Story 10c's mileage target folded into FR8/FR5.
+- Two source defects corrected: Story 10e's inverted "so that" (routing was to keep Characters *within* ability, not beyond it — moot now that FR13/B4 are removed), and Story 10c's mileage target folded into FR8/FR5.

@@ -248,6 +248,18 @@ Broadened scope per the rebrand discussion: gathering what OSM has for other hum
 
 No existing hook in the app at all — this is a different medium (water, not road/trail).
 
+> **Measured, 2026-08-14 (SPIKE-04).** This table has now been checked against real tag
+> density in the NC / Wisconsin / Southern CA regions —
+> [`spikes/SPIKE-04/results/RESULTS.md`](../spikes/SPIKE-04/results/RESULTS.md) has the
+> per-region counts. The short version: the **access** rows are real but thin, and the
+> **difficulty** rows are effectively empty in North America.
+> `whitewater:section_grade` has 2,338 uses worldwide, of which **2,046 are in Europe and
+> 58 in all of North America** — and zero in any region tested, including Western NC.
+> `canoe=*` and `portage=*` are the opposite: North America uses them *more* than Europe
+> does (51,929 and 8,841 versus 31,093 and 1,708), so this is a continent that maps
+> paddling **access** and does not map paddling **difficulty**. Treat every "Candidate"
+> below as *schema exists, data may not*.
+
 | Tag                                                                                     | Description                                                               | Status                                                                |
 | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `canoe=put_in`                                                                          | Land/water transition point for launching                                 | Candidate — the paddling equivalent of a trailhead                    |
@@ -309,12 +321,13 @@ OSM's climbing schema is deep — route-level bolt counts, per-region grading sy
 
 ## Open items
 
-- No region-specific validation yet — this list isn't checked against actual tag density in the NC/Wisconsin/Southern CA extracts. Some "candidate" tags may be rare-to-absent or so common they're noise; needs a taginfo/extract pass before wiring any of these into `ctp_core`.
+- ~~No region-specific validation yet~~ — **done for the paddling section only** (SPIKE-04, 2026-08-14): counts per region are in `spikes/SPIKE-04/results/RESULTS.md`, and the "rare-to-absent" worry was justified — the whitewater difficulty tags are absent outright. **The cycling, hiking, nordic, and climbing sections are still unvalidated** against these regions and still need the same taginfo/extract pass before anything is wired into the core.
 - "Candidate (caution)" tags need a concrete filter rule (name-tag required, `denotation=` for trees, minimum park size, etc.) before they're usable — flagged, not resolved.
 - Ties into FR23 (building/architectural interest theme) and the Leg 6 content-layer direction in `rebrand-plan.md` — this file is the tag-level detail underneath that decision, not a replacement for it.
 - The greenway/rail-trail tagging pattern described above (highway + surface + name, no dedicated key) is inferred from general OSM tagging convention, not confirmed against this project's actual extracts — verify before relying on it to detect greenways programmatically.
 - Routing-input tags here overlap with FR3 (lowest-traffic) and FR12 (surface-type scoring) — this file catalogs the tags: deciding how they fold into those themes' actual weight functions is separate, unstarted work.
 - POI-candidate cyclist amenities (repair stations, parking, bike shops) aren't attached to any FR yet — closest existing hook is FR14's lodging-style provider pattern in `providers.py`, but no functional requirement currently covers "cyclist support amenities" as a category.
 - MTB, paddling, nordic skiing, hiking, and climbing have zero existing FR/theme coverage — everything under "Other Human-Powered Outdoor Activities" is pure gathering per the broadened brief, not a scoped feature.
-- Regional fit varies a lot by activity and hasn't been checked: paddling is plausible in NC (whitewater rivers), nordic skiing fits Wisconsin's climate far better than NC or Southern CA, climbing fits Southern CA and the NC mountains. Worth weighing before any of this becomes a real feature rather than reference material.
+- Regional fit varies a lot by activity and hasn't been checked, **except paddling, which now has been**: the guess that "paddling is plausible in NC" was right about the *rivers* and wrong about the *data*. Western NC has the whitewater and OSM carries none of its grading. Nordic skiing, climbing, and MTB regional fit are still unchecked.
+- **OSM is not the paddling network source.** SPIKE-04 found USGS NHDPlus HR carries roughly twice the paddleable-scale river length in the same bboxes, with declared topology and flow direction, where OSM has neither — and OSM has no equivalent of NHD's artificial paths across lakes, which is why a third of Western NC's mapped boat ramps sit up to 3 km from anything a router would consider water. The tags above stay useful for **access points, hazards, and `canoe=*` legality**; the graph itself comes from elsewhere (ARCH §6.4, §13.2).
 - If any of these activities becomes a real mode rather than reference material, it likely needs its own `WeightProfile`/theme set analogous to the five cycling themes, not a bolt-on to the existing ones — rivers, singletrack, piste, and trails are structurally different routing graphs from roads.

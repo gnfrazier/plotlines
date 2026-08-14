@@ -4,7 +4,7 @@
 
 **How to read the priority:** **Scope-shaping** spikes can send you back to revise the PRD if they come back negative. **Implementation-informing** spikes won't change scope but determine how a committed feature is built. Do the scope-shaping ones first.
 
-**Companion to:** `Plotlines_PRD.md` (89 FRs / 96 stories).
+**Companion to:** `Plotlines_PRD.md` (89 FRs / 95 stories).
 
 ---
 
@@ -14,22 +14,25 @@
 0. Frozen sidecar packaging — the desktop-MVP foundation — **ARCH §4, A1/A5, Q4/Q5**
 
 **Scope-shaping (later milestones):**
-1. Multimodal / paddling data availability — **FR13–FR15**
+1. ~~Multimodal / paddling data availability~~ — **complete (SPIKE-04, 2026-08-14)**
 2. Backgrounded GPS-triggered audio on real devices — **FR49, FR47, FR50a**
 3. Via-node loop routing — **FR8a**
 4. Dart-first offline engine at feature scale — **FR63, FR64**
 
 Everything below these is implementation-informing rather than scope-shaping.
 
-**Note on sequencing:** SPIKE-00 is the only one that blocks the *near-term* build. SPIKE-01 (via-node) and SPIKE-04 (paddling) are the routing unknowns worth running alongside early desktop work; the rest gate later milestones (field execution, mobile, Web) and can wait for those.
+**Note on sequencing:** SPIKE-00 was the only one that blocked the *near-term* build. SPIKE-01 (via-node) and SPIKE-04 (paddling) were the routing unknowns worth running alongside early desktop work; the rest gate later milestones (field execution, mobile, Web) and can wait for those.
+
+**Status (2026-08-14):** **SPIKE-00 and SPIKE-04 are both complete.** SPIKE-04 came back negative on class ratings and reshaped PRD scope accordingly (B4/B5 removed — ARCH D19), which is the outcome this whole document exists to make cheap. **SPIKE-01 (via-node loops) is now the next unrun scope-shaping spike**, and the only routing unknown still open before the MVP routing build.
 
 ---
 
 ## Packaging & distribution (desktop MVP foundation)
 
-### SPIKE-00 — Frozen sidecar packaging
+### SPIKE-00 — Frozen sidecar packaging ✅ **COMPLETE**
 **Covers:** ARCH §4 (portability), risks A1/A5, Open Questions Q4/Q5 — the foundation of desktop MVP
-**Priority:** Scope-shaping — **and the only spike that blocks the near-term build**
+**Priority:** Scope-shaping — **was the only spike blocking the near-term build**
+**Run:** 2026-08-13 (Linux) + 2026-08-14 (Windows) · **Result:** [`spikes/SPIKE-00/results/RESULTS.md`](../spikes/SPIKE-00/results/RESULTS.md) and [`WINDOWS.md`](../spikes/SPIKE-00/results/WINDOWS.md) — **the sidecar model holds (ARCH D1 confirmed).** Q4 → PyInstaller `--onedir`; Q5 → bundle in the installer. Identical routes on both platforms; §7.3's stop contract corrected for Windows. **Closed.**
 **Unknown:** Can `plotlines-core` plus its heavy native dependency tree (GDAL, GEOS, rasterio, numpy, shapely) actually be frozen into a standalone binary that the Flutter app spawns as a child process, serves FastAPI on loopback, and shuts down cleanly — at an acceptable binary size and cold-start time? Every other spike concerns a later milestone; this one gates the thing being built first.
 **Spike question:** On your primary desktop platform, freeze `service`+`core` (try PyInstaller and Nuitka — Q4) into a single binary; confirm it spawns, answers a `/health` and a real `/segments/generate` call over loopback, and terminates on signal. Measure binary size and cold-start-to-ready time. Repeat on a second desktop OS to expose cross-platform surprises. Assess bundle-in-installer vs. download-on-first-run (Q5) from the resulting size.
 **Decides:** Whether the sidecar model (ARCH D1) holds for desktop as designed, and the answers to Q4 (which freezer) and Q5 (bundle vs. download). A negative result reshapes the entire desktop delivery approach before any UI is built.
@@ -65,9 +68,12 @@ Everything below these is implementation-informing rather than scope-shaping.
 
 ## Multimodal routing data
 
-### SPIKE-04 — Paddling network & difficulty data availability
-**Covers:** FR13, FR14, FR15 (Stories B4, B5, B6, H11)
-**Priority:** Scope-shaping — **highest risk in the PRD**
+### SPIKE-04 — Paddling network & difficulty data availability ✅ **COMPLETE**
+**Covers:** FR14, FR14a, FR15 (Stories B6, B8, H11) — *originally FR13–FR15 / B4, B5, B6, H11*
+**Priority:** Scope-shaping — **was the highest risk in the PRD**
+**Run:** 2026-08-14 · **Result:** [`spikes/SPIKE-04/results/RESULTS.md`](../spikes/SPIKE-04/results/RESULTS.md) — **network yes, gauge yes, access partial, class no, portage no.**
+The waterway network and live gauge data are solid and public-domain, but from **USGS (NHDPlus HR / Water Data APIs / NLDI), not OSM** — which resolved ARCH Q2 and makes `WaterwayDataProvider` a real implementation. **Class ratings do not exist in open data** (one graded feature across all three regions; 58 in all of North America) and American Whitewater prohibits reuse of its inventory.
+**Scope decision taken (2026-08-14, PRD §8 / ARCH D19):** FR13 retired, **stories B4 and B5 removed** as unbuildable, FR14 narrowed to an advisory gauge band (new story B8, Leg 3, alongside weather), FR15/B6 portages made Author-drawn. Paddling stays a first-class mode. **Closed — reopen only if American Whitewater licensing or North American OSM adoption makes per-reach class ratings available.**
 **Unknown:** Does usable data exist to route and grade paddling segments? Cycling on OSM is proven; the waterway network, put-ins/take-outs, portages, class ratings, and gauge readings are not.
 **Spike question:** For 2–3 representative regions, assess whether OSM carries the paddling waterway graph and access points; identify whether class ratings and gauge heights require third-party sources (e.g. American Whitewater, USGS water-services gauge APIs) and whether those are licensable/usable.
 **Decides:** Whether full multimodal MVP (cycling + hiking + paddling as equals) is grounded in real data, or whether paddling scope must be narrowed, deferred, or made dependent on a data partnership.
@@ -165,8 +171,8 @@ Everything below these is implementation-informing rather than scope-shaping.
 
 | Spike | Covers | Priority | Reshapes scope? |
 |---|---|---|---|
-| **SPIKE-00 Frozen sidecar** | ARCH §4, A1/A5 | Scope-shaping | **Yes — blocks desktop MVP** |
-| SPIKE-04 Paddling data | FR13–15 | Scope-shaping | **Yes — highest routing risk** |
+| ~~**SPIKE-00 Frozen sidecar**~~ | ARCH §4, A1/A5 | Scope-shaping | **Run 2026-08-13/14 — closed.** Sidecar model holds; Q4/Q5 answered |
+| ~~SPIKE-04 Paddling data~~ | FR14–15 | Scope-shaping | **Complete 2026-08-14.** Network/gauge yes (USGS), class no → **B4/B5 removed**, FR14 narrowed (ARCH D19) |
 | SPIKE-06 Backgrounded GPS audio | FR49, FR47, FR50a | Scope-shaping | Yes |
 | SPIKE-12 Backgrounded audio playback | FR49, FR50a | Scope-shaping | Yes (pairs with 06) |
 | SPIKE-01 Via-node loops | FR8a | Scope-shaping | Yes (MVP/P1 call) |
