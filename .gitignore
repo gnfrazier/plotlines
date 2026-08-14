@@ -97,6 +97,16 @@ elevation_cache/
 # at (copied from committed fixtures — reproducible, so not worth committing twice)
 cache/
 
+# SPIKE-01/02/03 routing fixtures: 29 MB of graphs + DEMs across three regions.
+# A deliberate exception to the keep-fixtures-committed rule above, on two grounds:
+# they are exploratory spike inputs rather than §14.1 golden-route fixtures, and they
+# rebuild from one command in ~2 min:
+#     .venv/bin/python spikes/shared/regions.py
+# Region bboxes live in spikes/shared/regions.py, which IS committed — that file, not
+# the .graphml, is the reproducible definition. Promote a fixture here to committed if
+# a golden test ever depends on it.
+spikes/shared/fixtures/
+
 # ----------------------------------------------------------------------------
 # Sidecar packaging (§4, §12) — frozen binaries are build output, not source
 # ----------------------------------------------------------------------------

@@ -5,12 +5,18 @@ WeightProfile (plain data), and there is exactly one scoring function that consu
 Adding a theme must never mean adding a code path.
 
 SPIKE-00 scope: enough real factors to make edge costs vary meaningfully across a real
-graph. The production factor set, normalisation, and min/max bands (FR6/SPIKE-03) are
-not settled here.
+graph. SPIKE-01/02/03 added `peaks` (FR2) — see below — and left everything else
+untouched so SPIKE-00's measured routes remain reproducible.
+
+Author-facing scale: the PRD states weights as 0.0–5.0 (FR2–FR5). Internally they are
+0.0–1.0 (and -1..1 for `peaks`), so a UI value maps linearly: `w = ui / 5.0`, and for
+peaks `w = (ui - 2.5) / 2.5`, since FR2's scale is explicitly bipolar
+("flat ↔ maximal climbing") with a neutral middle.
 """
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 
 # Surface desirability, 0.0 (avoid) .. 1.0 (ideal), for a general "bike" profile.
@@ -37,6 +43,10 @@ class WeightProfile:
     surface: float = 0.5     # prefer good surface
     scenic: float = 0.5      # prefer green/park/water-adjacent ways
     directness: float = 0.5  # penalise detour; 1.0 ≈ shortest path
+    # FR2 "peaks", the one bipolar weight: -1.0 avoid climbing .. 0.0 indifferent ..
+    # +1.0 seek climbing. Zero is the identity, which is why adding it did not change
+    # any route SPIKE-00 measured.
+    peaks: float = 0.0
     extras: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -44,6 +54,22 @@ class WeightProfile:
             val = getattr(self, key)
             if not 0.0 <= val <= 1.0:
                 raise ValueError(f"weight {key}={val} outside 0.0..1.0")
+        if not -1.0 <= self.peaks <= 1.0:
+            raise ValueError(f"weight peaks={self.peaks} outside -1.0..1.0")
+
+    def replace(self, **changes) -> WeightProfile:
+        """A copy with some weights changed — what a band search walks over."""
+        return dataclasses.replace(self, **changes)
+
+
+#: Weight names the band search may tune, with their legal range.
+TUNABLE: dict[str, tuple[float, float]] = {
+    "quiet": (0.0, 1.0),
+    "surface": (0.0, 1.0),
+    "scenic": (0.0, 1.0),
+    "directness": (0.0, 1.0),
+    "peaks": (-1.0, 1.0),
+}
 
 
 def _first(value):
@@ -51,8 +77,22 @@ def _first(value):
     return value[0] if isinstance(value, list) and value else value
 
 
-def edge_cost(data: dict, profile: WeightProfile) -> float:
-    """The one scoring function. Returns a positive cost for one edge."""
+#: Grade at which the climbing term saturates. Above ~12% a cyclist is walking, so
+#: more gradient stops reading as "more climbing" and starts reading as "impassable".
+_GRADE_SATURATION = 0.12
+
+
+def features(data: dict) -> tuple[float, float, float, bool, float]:
+    """Static per-edge features: (length_m, stress, surface_quality, scenic, grade).
+
+    Cached onto the edge dict. SPIKE-03's band search re-solves one graph dozens of
+    times per scenario, and re-parsing OSM tag lists on every Dijkstra relaxation made
+    the search a measurement of string handling rather than of routing.
+    """
+    cached = data.get("_pl_feat")
+    if cached is not None:
+        return cached
+
     length = float(data.get("length", 1.0)) or 1.0
 
     highway = _first(data.get("highway")) or "unclassified"
@@ -68,11 +108,32 @@ def edge_cost(data: dict, profile: WeightProfile) -> float:
         token in name for token in ("trail", "creek", "park", "greenway", "path")
     ) or highway in ("cycleway", "path")
 
+    # `grade_abs` is baked in at fixture-build time by osmnx from node elevations.
+    try:
+        grade = abs(float(_first(data.get("grade_abs")) or 0.0))
+    except (TypeError, ValueError):
+        grade = 0.0
+
+    feat = (length, stress, quality, scenic_hit, grade)
+    data["_pl_feat"] = feat
+    return feat
+
+
+def edge_cost(data: dict, profile: WeightProfile) -> float:
+    """The one scoring function. Returns a positive cost for one edge."""
+    length, stress, quality, scenic_hit, grade = features(data)
+
     penalty = 1.0
     penalty += profile.quiet * stress * 2.0
     penalty += profile.surface * (1.0 - quality) * 1.5
     if scenic_hit:
         penalty -= profile.scenic * 0.35
+
+    # FR2. Positive peaks discount steep edges (seek them), negative peaks charge for
+    # them (stay flat). The clamp below keeps every cost strictly positive, which
+    # Dijkstra requires — a "seek climbing" weight must never buy a negative edge.
+    if profile.peaks:
+        penalty -= profile.peaks * (min(grade, _GRADE_SATURATION) / _GRADE_SATURATION) * 0.6
 
     # directness pulls every penalty back toward pure distance
     penalty = 1.0 + (penalty - 1.0) * (1.0 - profile.directness)

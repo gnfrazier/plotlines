@@ -1,0 +1,869 @@
+{
+  "spike": "SPIKE-03",
+  "question": "Does compromise-finding across bounded (min/max) weights converge to a good route, or do bands over-constrain?",
+  "target_m": 20000.0,
+  "metrics_banded": [
+    "distance_m",
+    "climb_m",
+    "traffic",
+    "unpaved_frac",
+    "scenic_frac"
+  ],
+  "envelopes": {
+    "boulder": {
+      "distance_m": [
+        16128.479,
+        23645.412
+      ],
+      "climb_m": [
+        153.889,
+        353.7
+      ],
+      "traffic": [
+        0.17,
+        0.441
+      ],
+      "unpaved_frac": [
+        0.0,
+        0.035
+      ],
+      "scenic_frac": [
+        0.334,
+        0.6
+      ],
+      "_spread": {
+        "distance_m": 7516.933,
+        "climb_m": 199.811,
+        "traffic": 0.271,
+        "unpaved_frac": 0.035,
+        "scenic_frac": 0.267
+      }
+    },
+    "davis": {
+      "distance_m": [
+        17255.166,
+        22877.336
+      ],
+      "climb_m": [
+        13.491,
+        25.004
+      ],
+      "traffic": [
+        0.184,
+        0.422
+      ],
+      "unpaved_frac": [
+        0.0,
+        0.0
+      ],
+      "scenic_frac": [
+        0.1,
+        0.62
+      ],
+      "_spread": {
+        "distance_m": 5622.17,
+        "climb_m": 11.513,
+        "traffic": 0.237,
+        "unpaved_frac": 0.0,
+        "scenic_frac": 0.52
+      }
+    },
+    "viroqua": {
+      "distance_m": [
+        17022.979,
+        22881.715
+      ],
+      "climb_m": [
+        175.148,
+        288.412
+      ],
+      "traffic": [
+        0.348,
+        0.475
+      ],
+      "unpaved_frac": [
+        0.005,
+        0.078
+      ],
+      "scenic_frac": [
+        0.093,
+        0.19
+      ],
+      "_spread": {
+        "distance_m": 5858.735,
+        "climb_m": 113.264,
+        "traffic": 0.128,
+        "unpaved_frac": 0.073,
+        "scenic_frac": 0.097
+      }
+    }
+  },
+  "grid": [
+    {
+      "region": "boulder",
+      "climb_min_m": 100.0,
+      "traffic_max": 0.15,
+      "feasible": true,
+      "solves": 14,
+      "elapsed_ms": 2755.6,
+      "climb_m": 162.9,
+      "traffic": 0.12,
+      "distance_m": 19798.0,
+      "overlap_frac": 0.0199,
+      "winning_profile": "quiet_flat+tuned",
+      "worst_violation": null
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 100.0,
+      "traffic_max": 0.25,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 220.6,
+      "climb_m": 221.5,
+      "traffic": 0.1979,
+      "distance_m": 20349.2,
+      "overlap_frac": 0.0137,
+      "winning_profile": "balanced",
+      "worst_violation": null
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 100.0,
+      "traffic_max": 0.35,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 219.4,
+      "climb_m": 221.5,
+      "traffic": 0.1979,
+      "distance_m": 20349.2,
+      "overlap_frac": 0.0137,
+      "winning_profile": "balanced",
+      "worst_violation": null
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 200.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 28,
+      "elapsed_ms": 5395.0,
+      "climb_m": 200.4,
+      "traffic": 0.1618,
+      "distance_m": 22352.5,
+      "overlap_frac": 0.0157,
+      "winning_profile": "quiet_flat+tuned",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 200.0,
+      "traffic_max": 0.25,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 238.8,
+      "climb_m": 221.5,
+      "traffic": 0.1979,
+      "distance_m": 20349.2,
+      "overlap_frac": 0.0137,
+      "winning_profile": "balanced",
+      "worst_violation": null
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 200.0,
+      "traffic_max": 0.35,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 236.5,
+      "climb_m": 221.5,
+      "traffic": 0.1979,
+      "distance_m": 20349.2,
+      "overlap_frac": 0.0137,
+      "winning_profile": "balanced",
+      "worst_violation": null
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 300.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 30,
+      "elapsed_ms": 5631.4,
+      "climb_m": 302.0,
+      "traffic": 0.179,
+      "distance_m": 23740.3,
+      "overlap_frac": 0.0591,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 300.0,
+      "traffic_max": 0.25,
+      "feasible": true,
+      "solves": 6,
+      "elapsed_ms": 1297.0,
+      "climb_m": 314.0,
+      "traffic": 0.2091,
+      "distance_m": 23645.4,
+      "overlap_frac": 0.0264,
+      "winning_profile": "quiet_climby",
+      "worst_violation": null
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 300.0,
+      "traffic_max": 0.35,
+      "feasible": true,
+      "solves": 4,
+      "elapsed_ms": 831.1,
+      "climb_m": 353.7,
+      "traffic": 0.2547,
+      "distance_m": 22961.9,
+      "overlap_frac": 0.0264,
+      "winning_profile": "climby",
+      "worst_violation": null
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 400.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 30,
+      "elapsed_ms": 5987.1,
+      "climb_m": 305.4,
+      "traffic": 0.1793,
+      "distance_m": 23754.8,
+      "overlap_frac": 0.0591,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 400.0,
+      "traffic_max": 0.25,
+      "feasible": false,
+      "solves": 26,
+      "elapsed_ms": 5518.1,
+      "climb_m": 356.1,
+      "traffic": 0.2553,
+      "distance_m": 22982.2,
+      "overlap_frac": 0.0264,
+      "winning_profile": "climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "boulder",
+      "climb_min_m": 400.0,
+      "traffic_max": 0.35,
+      "feasible": false,
+      "solves": 26,
+      "elapsed_ms": 5548.1,
+      "climb_m": 356.1,
+      "traffic": 0.2553,
+      "distance_m": 22982.2,
+      "overlap_frac": 0.0264,
+      "winning_profile": "climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 100.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 28,
+      "elapsed_ms": 3200.0,
+      "climb_m": 15.0,
+      "traffic": 0.163,
+      "distance_m": 18104.1,
+      "overlap_frac": 0.0056,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 100.0,
+      "traffic_max": 0.25,
+      "feasible": false,
+      "solves": 26,
+      "elapsed_ms": 3299.8,
+      "climb_m": 25.4,
+      "traffic": 0.2392,
+      "distance_m": 19468.3,
+      "overlap_frac": 0.0055,
+      "winning_profile": "climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 100.0,
+      "traffic_max": 0.35,
+      "feasible": false,
+      "solves": 30,
+      "elapsed_ms": 3891.6,
+      "climb_m": 26.1,
+      "traffic": 0.3006,
+      "distance_m": 18816.7,
+      "overlap_frac": 0.0077,
+      "winning_profile": "climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 200.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 28,
+      "elapsed_ms": 3420.5,
+      "climb_m": 15.0,
+      "traffic": 0.163,
+      "distance_m": 18104.1,
+      "overlap_frac": 0.0056,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 200.0,
+      "traffic_max": 0.25,
+      "feasible": false,
+      "solves": 26,
+      "elapsed_ms": 3528.6,
+      "climb_m": 25.4,
+      "traffic": 0.2392,
+      "distance_m": 19468.3,
+      "overlap_frac": 0.0055,
+      "winning_profile": "climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 200.0,
+      "traffic_max": 0.35,
+      "feasible": false,
+      "solves": 30,
+      "elapsed_ms": 3903.1,
+      "climb_m": 26.1,
+      "traffic": 0.3006,
+      "distance_m": 18816.7,
+      "overlap_frac": 0.0077,
+      "winning_profile": "climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 300.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 28,
+      "elapsed_ms": 3257.7,
+      "climb_m": 15.0,
+      "traffic": 0.163,
+      "distance_m": 18104.1,
+      "overlap_frac": 0.0056,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 300.0,
+      "traffic_max": 0.25,
+      "feasible": false,
+      "solves": 26,
+      "elapsed_ms": 3427.7,
+      "climb_m": 25.4,
+      "traffic": 0.2392,
+      "distance_m": 19468.3,
+      "overlap_frac": 0.0055,
+      "winning_profile": "climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 300.0,
+      "traffic_max": 0.35,
+      "feasible": false,
+      "solves": 30,
+      "elapsed_ms": 3779.3,
+      "climb_m": 26.1,
+      "traffic": 0.3006,
+      "distance_m": 18816.7,
+      "overlap_frac": 0.0077,
+      "winning_profile": "climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 400.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 28,
+      "elapsed_ms": 3236.7,
+      "climb_m": 15.0,
+      "traffic": 0.163,
+      "distance_m": 18104.1,
+      "overlap_frac": 0.0056,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 400.0,
+      "traffic_max": 0.25,
+      "feasible": false,
+      "solves": 26,
+      "elapsed_ms": 3315.1,
+      "climb_m": 25.4,
+      "traffic": 0.2392,
+      "distance_m": 19468.3,
+      "overlap_frac": 0.0055,
+      "winning_profile": "climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "davis",
+      "climb_min_m": 400.0,
+      "traffic_max": 0.35,
+      "feasible": false,
+      "solves": 30,
+      "elapsed_ms": 3844.7,
+      "climb_m": 26.1,
+      "traffic": 0.3006,
+      "distance_m": 18816.7,
+      "overlap_frac": 0.0077,
+      "winning_profile": "climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 100.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 28,
+      "elapsed_ms": 716.5,
+      "climb_m": 176.5,
+      "traffic": 0.3476,
+      "distance_m": 17989.6,
+      "overlap_frac": 0.1234,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 100.0,
+      "traffic_max": 0.25,
+      "feasible": false,
+      "solves": 28,
+      "elapsed_ms": 712.3,
+      "climb_m": 176.5,
+      "traffic": 0.3476,
+      "distance_m": 17989.6,
+      "overlap_frac": 0.1234,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 100.0,
+      "traffic_max": 0.35,
+      "feasible": true,
+      "solves": 6,
+      "elapsed_ms": 160.8,
+      "climb_m": 175.1,
+      "traffic": 0.3476,
+      "distance_m": 17988.7,
+      "overlap_frac": 0.1234,
+      "winning_profile": "quiet_climby",
+      "worst_violation": null
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 200.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 28,
+      "elapsed_ms": 712.2,
+      "climb_m": 176.5,
+      "traffic": 0.3476,
+      "distance_m": 17989.6,
+      "overlap_frac": 0.1234,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 200.0,
+      "traffic_max": 0.25,
+      "feasible": false,
+      "solves": 28,
+      "elapsed_ms": 703.4,
+      "climb_m": 176.5,
+      "traffic": 0.3476,
+      "distance_m": 17989.6,
+      "overlap_frac": 0.1234,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 200.0,
+      "traffic_max": 0.35,
+      "feasible": false,
+      "solves": 28,
+      "elapsed_ms": 718.5,
+      "climb_m": 176.5,
+      "traffic": 0.3476,
+      "distance_m": 17989.6,
+      "overlap_frac": 0.1234,
+      "winning_profile": "quiet_climby+tuned",
+      "worst_violation": "climb_m"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 300.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 23,
+      "elapsed_ms": 557.8,
+      "climb_m": 288.4,
+      "traffic": 0.4016,
+      "distance_m": 22881.7,
+      "overlap_frac": 0.0293,
+      "winning_profile": "rough",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 300.0,
+      "traffic_max": 0.25,
+      "feasible": false,
+      "solves": 23,
+      "elapsed_ms": 560.1,
+      "climb_m": 288.4,
+      "traffic": 0.4016,
+      "distance_m": 22881.7,
+      "overlap_frac": 0.0293,
+      "winning_profile": "rough",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 300.0,
+      "traffic_max": 0.35,
+      "feasible": false,
+      "solves": 23,
+      "elapsed_ms": 554.4,
+      "climb_m": 288.4,
+      "traffic": 0.4016,
+      "distance_m": 22881.7,
+      "overlap_frac": 0.0293,
+      "winning_profile": "rough",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 400.0,
+      "traffic_max": 0.15,
+      "feasible": false,
+      "solves": 23,
+      "elapsed_ms": 562.6,
+      "climb_m": 288.4,
+      "traffic": 0.4016,
+      "distance_m": 22881.7,
+      "overlap_frac": 0.0293,
+      "winning_profile": "rough",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 400.0,
+      "traffic_max": 0.25,
+      "feasible": false,
+      "solves": 23,
+      "elapsed_ms": 559.4,
+      "climb_m": 288.4,
+      "traffic": 0.4016,
+      "distance_m": 22881.7,
+      "overlap_frac": 0.0293,
+      "winning_profile": "rough",
+      "worst_violation": "traffic"
+    },
+    {
+      "region": "viroqua",
+      "climb_min_m": 400.0,
+      "traffic_max": 0.35,
+      "feasible": false,
+      "solves": 23,
+      "elapsed_ms": 548.5,
+      "climb_m": 288.4,
+      "traffic": 0.4016,
+      "distance_m": 22881.7,
+      "overlap_frac": 0.0293,
+      "winning_profile": "rough",
+      "worst_violation": "climb_m"
+    }
+  ],
+  "grid_summary": {
+    "boulder": {
+      "cells": 12,
+      "feasible": 7,
+      "feasible_pct": 58.3,
+      "median_solves": 14,
+      "max_elapsed_ms": 5987.1
+    },
+    "davis": {
+      "cells": 12,
+      "feasible": 0,
+      "feasible_pct": 0.0,
+      "median_solves": 28,
+      "max_elapsed_ms": 3903.1
+    },
+    "viroqua": {
+      "cells": 12,
+      "feasible": 1,
+      "feasible_pct": 8.3,
+      "median_solves": 23,
+      "max_elapsed_ms": 718.5
+    }
+  },
+  "band_widths": [
+    {
+      "region": "boulder",
+      "band_half_width_frac": 0.4,
+      "band": "climbing between 152 m and 355 m",
+      "centred_on_m": 253.8,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 220.2,
+      "climb_m": 221.5
+    },
+    {
+      "region": "boulder",
+      "band_half_width_frac": 0.2,
+      "band": "climbing between 203 m and 305 m",
+      "centred_on_m": 253.8,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 226.1,
+      "climb_m": 221.5
+    },
+    {
+      "region": "boulder",
+      "band_half_width_frac": 0.1,
+      "band": "climbing between 228 m and 279 m",
+      "centred_on_m": 253.8,
+      "feasible": true,
+      "solves": 15,
+      "elapsed_ms": 3236.4,
+      "climb_m": 264.6
+    },
+    {
+      "region": "boulder",
+      "band_half_width_frac": 0.05,
+      "band": "climbing between 241 m and 266 m",
+      "centred_on_m": 253.8,
+      "feasible": true,
+      "solves": 15,
+      "elapsed_ms": 3105.3,
+      "climb_m": 264.6
+    },
+    {
+      "region": "davis",
+      "band_half_width_frac": 0.4,
+      "band": "climbing between 12 m and 27 m",
+      "centred_on_m": 19.2,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 172.4,
+      "climb_m": 18.4
+    },
+    {
+      "region": "davis",
+      "band_half_width_frac": 0.2,
+      "band": "climbing between 15 m and 23 m",
+      "centred_on_m": 19.2,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 174.0,
+      "climb_m": 18.4
+    },
+    {
+      "region": "davis",
+      "band_half_width_frac": 0.1,
+      "band": "climbing between 17 m and 21 m",
+      "centred_on_m": 19.2,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 167.8,
+      "climb_m": 18.4
+    },
+    {
+      "region": "davis",
+      "band_half_width_frac": 0.05,
+      "band": "climbing between 18 m and 20 m",
+      "centred_on_m": 19.2,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 165.6,
+      "climb_m": 18.4
+    },
+    {
+      "region": "viroqua",
+      "band_half_width_frac": 0.4,
+      "band": "climbing between 139 m and 324 m",
+      "centred_on_m": 231.8,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 24.9,
+      "climb_m": 277.4
+    },
+    {
+      "region": "viroqua",
+      "band_half_width_frac": 0.2,
+      "band": "climbing between 185 m and 278 m",
+      "centred_on_m": 231.8,
+      "feasible": true,
+      "solves": 1,
+      "elapsed_ms": 24.8,
+      "climb_m": 277.4
+    },
+    {
+      "region": "viroqua",
+      "band_half_width_frac": 0.1,
+      "band": "climbing between 209 m and 255 m",
+      "centred_on_m": 231.8,
+      "feasible": true,
+      "solves": 3,
+      "elapsed_ms": 83.6,
+      "climb_m": 254.1
+    },
+    {
+      "region": "viroqua",
+      "band_half_width_frac": 0.05,
+      "band": "climbing between 220 m and 243 m",
+      "centred_on_m": 231.8,
+      "feasible": false,
+      "solves": 27,
+      "elapsed_ms": 733.3,
+      "climb_m": 249.7
+    }
+  ],
+  "quality": [
+    {
+      "region": "boulder",
+      "bands": "climbing at least 254 m; traffic exposure at most 33%",
+      "feasible": true,
+      "solves": 4,
+      "distance_error": 0.1481,
+      "overlap_frac": 0.0264,
+      "max_grade": 0.4192,
+      "closed": true,
+      "metrics": {
+        "distance_m": 22961.9252,
+        "climb_m": 353.7004,
+        "descent_m": 353.7004,
+        "traffic": 0.2547,
+        "unpaved_frac": 0.0,
+        "scenic_frac": 0.4502,
+        "max_grade": 0.4192,
+        "overlap_frac": 0.0264,
+        "edge_count": 251,
+        "overlap_near_frac": 0.01,
+        "overlap_far_frac": 0.0164
+      }
+    },
+    {
+      "region": "davis",
+      "bands": "climbing at least 19 m; traffic exposure at most 33%",
+      "feasible": true,
+      "solves": 4,
+      "distance_error": -0.0402,
+      "overlap_frac": 0.0075,
+      "max_grade": 0.086,
+      "closed": true,
+      "metrics": {
+        "distance_m": 19195.1842,
+        "climb_m": 25.0045,
+        "descent_m": 25.0045,
+        "traffic": 0.2444,
+        "unpaved_frac": 0.0,
+        "scenic_frac": 0.4031,
+        "max_grade": 0.086,
+        "overlap_frac": 0.0075,
+        "edge_count": 300,
+        "overlap_near_frac": 0.0025,
+        "overlap_far_frac": 0.005
+      }
+    },
+    {
+      "region": "viroqua",
+      "bands": "climbing at least 232 m; traffic exposure at most 42%",
+      "feasible": true,
+      "solves": 5,
+      "distance_error": 0.1428,
+      "overlap_frac": 0.0339,
+      "max_grade": 0.1208,
+      "closed": true,
+      "metrics": {
+        "distance_m": 22855.4753,
+        "climb_m": 284.6827,
+        "descent_m": 284.6827,
+        "traffic": 0.4058,
+        "unpaved_frac": 0.072,
+        "scenic_frac": 0.1451,
+        "max_grade": 0.1208,
+        "overlap_frac": 0.0339,
+        "edge_count": 152,
+        "overlap_near_frac": 0.0111,
+        "overlap_far_frac": 0.0228
+      }
+    }
+  ],
+  "overall": {
+    "cells": 36,
+    "feasible": 8,
+    "feasible_pct": 22.2
+  },
+  "environment": {
+    "started_utc": "2026-08-14T18:42:19+00:00",
+    "python": "3.12.12",
+    "platform": "Linux x86_64",
+    "regions": {
+      "boulder": {
+        "name": "Boulder, CO",
+        "character": "mountain-adjacent city \u2014 foothills against a street grid",
+        "nodes": 9471,
+        "edges": 24320,
+        "network_km": 1440.2,
+        "surface_tagged_pct": 81.7,
+        "graded_pct": 80.6,
+        "load_seconds": 0.87
+      },
+      "davis": {
+        "name": "Davis, CA",
+        "character": "flat cycling town \u2014 dense bike network, no relief",
+        "nodes": 5373,
+        "edges": 13750,
+        "network_km": 939.3,
+        "surface_tagged_pct": 34.4,
+        "graded_pct": 79.0,
+        "load_seconds": 0.5
+      },
+      "viroqua": {
+        "name": "Viroqua, WI (Driftless)",
+        "character": "rural coulee country \u2014 steep, gravel, near-empty roads",
+        "nodes": 2094,
+        "edges": 5062,
+        "network_km": 993.0,
+        "surface_tagged_pct": 24.5,
+        "graded_pct": 93.1,
+        "load_seconds": 0.22
+      }
+    }
+  },
+  "self_check": {
+    "passed": true,
+    "failures": []
+  }
+}

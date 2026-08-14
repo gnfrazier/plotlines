@@ -1,0 +1,395 @@
+{
+  "spike": "SPIKE-02",
+  "question": "Can the solver name which constraints conflict and propose the nearest relaxation, rather than returning an empty result?",
+  "target_m": 20000.0,
+  "scenarios": [
+    {
+      "scenario": "flat_town_wants_mountains",
+      "region": "davis",
+      "why": "One band, no competition: the terrain simply has no climbing to give.",
+      "bands": "climbing at least 300 m",
+      "expected_kind": "unattainable",
+      "kind": "unattainable",
+      "kind_correct": true,
+      "expected_metrics": [
+        "climb_m"
+      ],
+      "named_metrics": [
+        "climb_m"
+      ],
+      "naming_correct": true,
+      "feasible": false,
+      "explanation": "This is a limit of the terrain, not of the other settings: climbing at least 300 m \u2014 nothing reachable from here at this distance goes beyond 26 m (range seen 13 m\u201326 m)",
+      "relaxations": [
+        {
+          "metric": "climb_m",
+          "from": "climbing at least 300 m",
+          "to": "climbing at least 21 m",
+          "trade_off": "accepts climbing of 26 m; no other band affected",
+          "reached_by": "climby+tuned"
+        }
+      ],
+      "relaxation_checks": [
+        {
+          "metric": "climb_m",
+          "from": "climbing at least 300 m",
+          "to": "climbing at least 21 m",
+          "trade_off": "accepts climbing of 26 m; no other band affected",
+          "applying_it_routes": true,
+          "solves": 4
+        }
+      ],
+      "relaxations_all_work": true,
+      "solves": 46,
+      "elapsed_ms": 5734.4,
+      "envelope": {
+        "climb_m": [
+          13.491,
+          26.089
+        ]
+      }
+    },
+    {
+      "scenario": "nowhere_climbs_this_much",
+      "region": "boulder",
+      "why": "An impossible number beside a slack one \u2014 the slack band must not be blamed.",
+      "bands": "climbing at least 1,500 m; traffic exposure at most 40%",
+      "expected_kind": "unattainable",
+      "kind": "unattainable",
+      "kind_correct": true,
+      "expected_metrics": [
+        "climb_m"
+      ],
+      "named_metrics": [
+        "climb_m"
+      ],
+      "naming_correct": true,
+      "feasible": false,
+      "explanation": "This is a limit of the terrain, not of the other settings: climbing at least 1,500 m \u2014 nothing reachable from here at this distance goes beyond 356 m (range seen 154 m\u2013356 m)",
+      "relaxations": [
+        {
+          "metric": "climb_m",
+          "from": "climbing at least 1,500 m",
+          "to": "climbing at least 338 m",
+          "trade_off": "accepts climbing of 356 m; traffic exposure 26% (still inside its band)",
+          "reached_by": "climby+tuned"
+        }
+      ],
+      "relaxation_checks": [
+        {
+          "metric": "climb_m",
+          "from": "climbing at least 1,500 m",
+          "to": "climbing at least 338 m",
+          "trade_off": "accepts climbing of 356 m; traffic exposure 26% (still inside its band)",
+          "applying_it_routes": true,
+          "solves": 4
+        }
+      ],
+      "relaxations_all_work": true,
+      "solves": 42,
+      "elapsed_ms": 8731.0,
+      "envelope": {
+        "climb_m": [
+          153.889,
+          356.101
+        ],
+        "traffic": [
+          0.17,
+          0.441
+        ]
+      }
+    },
+    {
+      "scenario": "climb_without_traffic",
+      "region": "boulder",
+      "why": "The classic FR9 case: both reachable alone, the climbing is up the busy road.",
+      "bands": "climbing at least 280 m; traffic exposure at most 14%",
+      "expected_kind": "combination",
+      "kind": "combination",
+      "kind_correct": true,
+      "expected_metrics": [
+        "climb_m",
+        "traffic"
+      ],
+      "named_metrics": [
+        "climb_m",
+        "traffic"
+      ],
+      "naming_correct": true,
+      "feasible": false,
+      "explanation": "Each of these is reachable on its own, but no route was found meeting them together: climbing at least 280 m and traffic exposure at most 14%. Loosen one.",
+      "relaxations": [
+        {
+          "metric": "traffic",
+          "from": "traffic exposure at most 14%",
+          "to": "traffic exposure at most 19%",
+          "trade_off": "accepts traffic exposure of 18%; climbing 302 m (still inside its band)",
+          "reached_by": "quiet_climby+tuned"
+        }
+      ],
+      "relaxation_checks": [
+        {
+          "metric": "traffic",
+          "from": "traffic exposure at most 14%",
+          "to": "traffic exposure at most 19%",
+          "trade_off": "accepts traffic exposure of 18%; climbing 302 m (still inside its band)",
+          "applying_it_routes": true,
+          "solves": 13
+        }
+      ],
+      "relaxations_all_work": true,
+      "solves": 44,
+      "elapsed_ms": 8257.1,
+      "envelope": {
+        "climb_m": [
+          153.889,
+          353.7
+        ],
+        "traffic": [
+          0.17,
+          0.441
+        ]
+      }
+    },
+    {
+      "scenario": "scenic_and_silent",
+      "region": "boulder",
+      "why": "Predicted to conflict; does not. Scenic and quiet correlate here.",
+      "bands": "scenic share at least 55%; traffic exposure at most 12%",
+      "expected_kind": "none",
+      "kind": "none",
+      "kind_correct": true,
+      "expected_metrics": [],
+      "named_metrics": [],
+      "naming_correct": true,
+      "feasible": true,
+      "explanation": "all bands satisfied",
+      "relaxations": [],
+      "relaxation_checks": [],
+      "relaxations_all_work": false,
+      "solves": 14,
+      "elapsed_ms": 2655.3,
+      "envelope": {
+        "scenic_frac": [
+          0.334,
+          0.746
+        ],
+        "traffic": [
+          0.12,
+          0.441
+        ]
+      }
+    },
+    {
+      "scenario": "gravel_minimum",
+      "region": "viroqua",
+      "why": "Probes FR4's weight shape, not the terrain \u2014 see the surface finding.",
+      "bands": "unpaved share at least 30%",
+      "expected_kind": "unattainable",
+      "kind": "unattainable",
+      "kind_correct": true,
+      "expected_metrics": [
+        "unpaved_frac"
+      ],
+      "named_metrics": [
+        "unpaved_frac"
+      ],
+      "naming_correct": true,
+      "feasible": false,
+      "explanation": "This is a limit of the terrain, not of the other settings: unpaved share at least 30% \u2014 nothing reachable from here at this distance goes beyond 8% (range seen 1%\u20138%)",
+      "relaxations": [
+        {
+          "metric": "unpaved_frac",
+          "from": "unpaved share at least 30%",
+          "to": "unpaved share at least 7%",
+          "trade_off": "accepts unpaved share of 8%; no other band affected",
+          "reached_by": "flat+tuned"
+        }
+      ],
+      "relaxation_checks": [
+        {
+          "metric": "unpaved_frac",
+          "from": "unpaved share at least 30%",
+          "to": "unpaved share at least 7%",
+          "trade_off": "accepts unpaved share of 8%; no other band affected",
+          "applying_it_routes": true,
+          "solves": 3
+        }
+      ],
+      "relaxations_all_work": true,
+      "solves": 46,
+      "elapsed_ms": 1287.4,
+      "envelope": {
+        "unpaved_frac": [
+          0.005,
+          0.078
+        ]
+      }
+    },
+    {
+      "scenario": "three_way",
+      "region": "boulder",
+      "why": "Three bands: does the deletion filter narrow to the ones that actually bind?",
+      "bands": "climbing at least 260 m; traffic exposure at most 15%; scenic share at least 45%",
+      "expected_kind": "combination",
+      "kind": "combination",
+      "kind_correct": true,
+      "expected_metrics": [
+        "climb_m",
+        "traffic"
+      ],
+      "named_metrics": [
+        "climb_m",
+        "traffic"
+      ],
+      "naming_correct": true,
+      "feasible": false,
+      "explanation": "Each of these is reachable on its own, but no route was found meeting them together: climbing at least 260 m and traffic exposure at most 15%. Loosen one.",
+      "relaxations": [
+        {
+          "metric": "traffic",
+          "from": "traffic exposure at most 15%",
+          "to": "traffic exposure at most 19%",
+          "trade_off": "accepts traffic exposure of 18%; climbing 302 m (still inside its band)",
+          "reached_by": "quiet_climby+tuned"
+        }
+      ],
+      "relaxation_checks": [
+        {
+          "metric": "traffic",
+          "from": "traffic exposure at most 15%",
+          "to": "traffic exposure at most 19%",
+          "trade_off": "accepts traffic exposure of 18%; climbing 302 m (still inside its band)",
+          "applying_it_routes": true,
+          "solves": 13
+        }
+      ],
+      "relaxations_all_work": true,
+      "solves": 78,
+      "elapsed_ms": 14984.0,
+      "envelope": {
+        "climb_m": [
+          153.889,
+          353.7
+        ],
+        "traffic": [
+          0.17,
+          0.441
+        ],
+        "scenic_frac": [
+          0.334,
+          0.629
+        ]
+      }
+    },
+    {
+      "scenario": "control_easy",
+      "region": "boulder",
+      "why": "False-positive check: comfortably satisfiable.",
+      "bands": "climbing at least 100 m; traffic exposure at most 45%",
+      "expected_kind": "none",
+      "kind": "none",
+      "kind_correct": true,
+      "expected_metrics": [],
+      "named_metrics": [],
+      "naming_correct": true,
+      "feasible": true,
+      "explanation": "all bands satisfied",
+      "relaxations": [],
+      "relaxation_checks": [],
+      "relaxations_all_work": false,
+      "solves": 1,
+      "elapsed_ms": 217.7,
+      "envelope": {
+        "climb_m": [
+          221.513,
+          221.513
+        ],
+        "traffic": [
+          0.198,
+          0.198
+        ]
+      }
+    },
+    {
+      "scenario": "control_snug",
+      "region": "viroqua",
+      "why": "False-positive check with less slack.",
+      "bands": "climbing at least 200 m; traffic exposure at most 45%",
+      "expected_kind": "none",
+      "kind": "none",
+      "kind_correct": true,
+      "expected_metrics": [],
+      "named_metrics": [],
+      "naming_correct": true,
+      "feasible": true,
+      "explanation": "all bands satisfied",
+      "relaxations": [],
+      "relaxation_checks": [],
+      "relaxations_all_work": false,
+      "solves": 1,
+      "elapsed_ms": 27.1,
+      "envelope": {
+        "climb_m": [
+          277.414,
+          277.414
+        ],
+        "traffic": [
+          0.436,
+          0.436
+        ]
+      }
+    }
+  ],
+  "totals": {
+    "scenarios": 8,
+    "kind_correct": 8,
+    "naming_correct": 8,
+    "false_positives": 0,
+    "conflicts_with_working_relaxation": 5,
+    "conflict_scenarios": 5,
+    "median_solves": 44,
+    "max_elapsed_ms": 14984.0
+  },
+  "environment": {
+    "started_utc": "2026-08-14T18:42:19+00:00",
+    "python": "3.12.12",
+    "platform": "Linux x86_64",
+    "regions": {
+      "boulder": {
+        "name": "Boulder, CO",
+        "character": "mountain-adjacent city \u2014 foothills against a street grid",
+        "nodes": 9471,
+        "edges": 24320,
+        "network_km": 1440.2,
+        "surface_tagged_pct": 81.7,
+        "graded_pct": 80.6,
+        "load_seconds": 0.87
+      },
+      "davis": {
+        "name": "Davis, CA",
+        "character": "flat cycling town \u2014 dense bike network, no relief",
+        "nodes": 5373,
+        "edges": 13750,
+        "network_km": 939.3,
+        "surface_tagged_pct": 34.4,
+        "graded_pct": 79.0,
+        "load_seconds": 0.5
+      },
+      "viroqua": {
+        "name": "Viroqua, WI (Driftless)",
+        "character": "rural coulee country \u2014 steep, gravel, near-empty roads",
+        "nodes": 2094,
+        "edges": 5062,
+        "network_km": 993.0,
+        "surface_tagged_pct": 24.5,
+        "graded_pct": 93.1,
+        "load_seconds": 0.22
+      }
+    }
+  },
+  "self_check": {
+    "passed": true,
+    "failures": []
+  }
+}
