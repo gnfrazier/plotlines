@@ -1,0 +1,192 @@
+{
+  "label": "nuitka",
+  "command": [
+    "packaging/dist/nuitka/plotlines-sidecar"
+  ],
+  "runs": [
+    {
+      "pid": 37996,
+      "port": 54109,
+      "http_listening_s": 0.9,
+      "cold_start_to_ready_s": 1.079,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.47,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.025,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 22.64,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "shutdown_s": 0.385,
+      "shutdown": "graceful-sigterm",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 38014,
+      "port": 45751,
+      "http_listening_s": 0.894,
+      "cold_start_to_ready_s": 1.064,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.451,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.026,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 23.14,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "shutdown_s": 0.393,
+      "shutdown": "graceful-sigterm",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 38032,
+      "port": 46707,
+      "http_listening_s": 0.906,
+      "cold_start_to_ready_s": 1.081,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.474,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.025,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 22.35,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "shutdown_s": 0.285,
+      "shutdown": "graceful-sigterm",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 38050,
+      "port": 36867,
+      "http_listening_s": 0.822,
+      "cold_start_to_ready_s": 1.106,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.472,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.025,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 22.9,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "shutdown_s": 0.389,
+      "shutdown": "graceful-sigterm",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 38068,
+      "port": 35027,
+      "http_listening_s": 0.824,
+      "cold_start_to_ready_s": 1.097,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.475,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.026,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 23.57,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "shutdown_s": 0.39,
+      "shutdown": "graceful-sigterm",
+      "exit_code": 0,
+      "orphans": "none"
+    }
+  ],
+  "passed": true,
+  "cold_start_median_s": 1.081,
+  "cold_start_min_s": 1.064,
+  "cold_start_max_s": 1.106
+}

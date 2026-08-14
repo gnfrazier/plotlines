@@ -93,6 +93,9 @@ htmlcov/
 graph_cache/
 tile_cache/
 elevation_cache/
+# osmnx's Overpass response cache, and the derived --cache-dir a sidecar is pointed
+# at (copied from committed fixtures — reproducible, so not worth committing twice)
+cache/
 
 # ----------------------------------------------------------------------------
 # Sidecar packaging (§4, §12) — frozen binaries are build output, not source

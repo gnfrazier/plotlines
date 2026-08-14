@@ -1,0 +1,192 @@
+{
+  "label": "pyinstaller-onefile",
+  "command": [
+    "packaging/dist/pyinstaller-onefile/plotlines-sidecar"
+  ],
+  "runs": [
+    {
+      "pid": 37892,
+      "port": 47669,
+      "http_listening_s": 2.349,
+      "cold_start_to_ready_s": 2.375,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.43,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.022,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 20.35,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "shutdown_s": 0.328,
+      "shutdown": "graceful-sigterm",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 37913,
+      "port": 57419,
+      "http_listening_s": 2.128,
+      "cold_start_to_ready_s": 2.128,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.418,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.025,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 22.96,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "shutdown_s": 0.38,
+      "shutdown": "graceful-sigterm",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 37932,
+      "port": 46815,
+      "http_listening_s": 2.129,
+      "cold_start_to_ready_s": 2.129,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.446,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.024,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 21.66,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "shutdown_s": 0.389,
+      "shutdown": "graceful-sigterm",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 37953,
+      "port": 41247,
+      "http_listening_s": 2.146,
+      "cold_start_to_ready_s": 2.146,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.416,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.025,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 22.68,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "shutdown_s": 0.435,
+      "shutdown": "graceful-sigterm",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 37974,
+      "port": 60551,
+      "http_listening_s": 2.175,
+      "cold_start_to_ready_s": 2.175,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.425,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.022,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 20.36,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "shutdown_s": 0.376,
+      "shutdown": "graceful-sigterm",
+      "exit_code": 0,
+      "orphans": "none"
+    }
+  ],
+  "passed": true,
+  "cold_start_median_s": 2.146,
+  "cold_start_min_s": 2.128,
+  "cold_start_max_s": 2.375
+}

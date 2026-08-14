@@ -4,12 +4,13 @@ version = "0.0.1"
 description = "Plotlines routing core — pure Python library (P1: no fastapi import). See ARCH §6."
 requires-python = ">=3.11"
 dependencies = [
-    # Geospatial stack — intentionally unpinned at scaffold time (setup-prompt.md Phase 2).
-    # Add these when core routing/graph work actually begins:
-    # "osmnx",
-    # "shapely",
-    # "rasterio",
-    # "numpy",
+    # Geospatial stack. Enabled for SPIKE-00 (frozen sidecar packaging) — this is the
+    # heavy native dependency tree the freeze has to survive (ARCH §4, risk A5).
+    "osmnx>=2.0",
+    "shapely>=2.0",
+    "rasterio>=1.3",
+    "numpy>=1.26",
+    "networkx>=3.0",
 ]
 
 [build-system]

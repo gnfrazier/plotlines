@@ -6,10 +6,16 @@ requires-python = ">=3.11"
 dependencies = [
     "plotlines-core",
     "fastapi",
+    "uvicorn",
 ]
 
+[project.scripts]
+# Same entrypoint the frozen binary exposes, so a source run and a frozen run are
+# invoked identically (ARCH §7.3's spawn contract).
+plotlines-sidecar = "plotlines_service.__main__:main"
+
 [tool.uv.sources]
-plotlines-core = { path = "../core" }
+plotlines-core = { path = "../core", editable = true }
 
 [build-system]
 requires = ["hatchling"]
