@@ -25,6 +25,7 @@ The line here is the one already drawn in the earlier conversation ("can I get t
 | **Sidecar** | Frozen binary, spawn/health/lifecycle, direct external calls (Phase-1 elevation) | ARCH §4, §7.3, §11.1 |
 | **Local storage** | drift (SQLite) for trips; no sync | ARCH §9.2 |
 | **About surface** | Attribution (required), app+sidecar version | ARCH §12.4 |
+| **UI reference** | Author Desktop wireframe imported from Claude Design → `client/design/` | §2.4 |
 | **Distribution** | Manual GitHub Releases, signed installer | ARCH §12.2–12.3 |
 
 ### 1.2 Explicitly skipped for desktop MVP
@@ -71,6 +72,7 @@ plotlines/
 │   ├── lib/
 │   │   ├── presentation/  state/  domain/  data/
 │   │   └── ...
+│   ├── design/               # imported Claude Design wireframe (Author Desktop) — the presentation reference
 │   └── test/
 ├── packaging/                # frozen-binary build, installers, signing
 │   └── version.lock          # single source of truth for the paired version
@@ -86,6 +88,12 @@ plotlines/
 ### 2.3 The P1 boundary as a CI gate
 
 `core/` may not import `fastapi`. This is a CI lint (ARCH §14.5, risk A7), not a review convention. Put it in the workflow on day one — it is the cheapest possible defense of the principle the whole two-deployment model rests on, and it is nearly free before there's code to violate it.
+
+### 2.4 The desktop UI reference — Claude Design wireframe
+
+The MVP desktop UI targets the **Author Desktop** persona, and its wireframe lives in a Claude Design project (`Plotlines Author Desktop.dc.html`). It is imported into the repo at `client/design/` as the **source-of-truth visual reference** the Flutter `presentation/` layer is built against — imported as reference, not as shipped code. The import is done via the Claude Design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`) from within Claude Code, where the connector and auth live; the setup prompt handles this as a distinct phase.
+
+Two boundaries matter. First, **importing the wireframe and implementing it in Flutter are separate steps** — the setup run imports the reference; translating it into widgets is later work, reviewed on its own. Second, **the wireframe may show more than MVP builds** (§1.2 skips whole tiers); where the design depicts screens or components outside MVP scope, that is a mismatch to flag and scope deliberately, not to build silently.
 
 ---
 
@@ -142,11 +150,12 @@ The concrete "open the empty repo and do this" order:
 2. **Stand up `core/` with the P1 CI lint** (no `fastapi` import) before writing routing code (§2.3).
 3. **Commit the first graph fixture** and write one golden-route test — establish the pattern before the solver grows (ARCH §14.1).
 4. **Wire `version.lock`** and the client↔sidecar version check, even against a stub sidecar (§2.2). The seam matters more than the content this early.
-5. **Prototype the frozen sidecar** on your desktop platform; resolve Q4 (freezer) and Q5 (bundle vs. download) from what you learn (§3).
-6. **Run SPIKE-04 (paddling data)** in parallel — it's the one open scope decision (§1.3) and it doesn't block the cycling path.
-7. **Stub the error taxonomy** (§4) as a single error-handling surface, so states are handled uniformly from the first screen rather than retrofitted.
+5. **Import the Author Desktop wireframe** from Claude Design into `client/design/` (§2.4) so `presentation/` has a reference to build against.
+6. **Prototype the frozen sidecar** on your desktop platform; resolve Q4 (freezer) and Q5 (bundle vs. download) from what you learn (§3).
+7. **Run SPIKE-04 (paddling data)** in parallel — it's the one open scope decision (§1.3) and it doesn't block the cycling path.
+8. **Stub the error taxonomy** (§4) as a single error-handling surface, so states are handled uniformly from the first screen rather than retrofitted.
 
-Items 2–4 are the ones that are painful to retrofit and cheap to establish now. Everything else builds on them.
+Items 2–4 are the ones that are painful to retrofit and cheap to establish now (the P1 CI gate, the first golden test, the version-lock seam). Everything else — including the design import (5) and the sidecar prototype (6) — builds on them.
 
 ---
 

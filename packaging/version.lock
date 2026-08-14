@@ -1,0 +1,3 @@
+# Single source of truth. Both the frozen sidecar and the Flutter client stamp
+# themselves from this and check it at runtime (ARCH §12.1, A8).
+0.0.1

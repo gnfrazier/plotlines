@@ -107,8 +107,13 @@ sidecar_build/
 # ----------------------------------------------------------------------------
 # Secrets & credentials (§10.2 "absent, not unused" applies to the repo too)
 # ----------------------------------------------------------------------------
-# dotenv environment variables file
+# dotenv environment variables file — .env.example is the committed template,
+# carved back out below (MVP doc §5: elevation API key lives in service/ config,
+# never in the client, never in the repo)
 .env*
+!.env.example
+!**/.env.example
+*.local
 *.pem
 *.p12
 *.mobileprovision

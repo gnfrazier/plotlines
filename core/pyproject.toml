@@ -1,0 +1,20 @@
+[project]
+name = "plotlines-core"
+version = "0.0.1"
+description = "Plotlines routing core — pure Python library (P1: no fastapi import). See ARCH §6."
+requires-python = ">=3.11"
+dependencies = [
+    # Geospatial stack — intentionally unpinned at scaffold time (setup-prompt.md Phase 2).
+    # Add these when core routing/graph work actually begins:
+    # "osmnx",
+    # "shapely",
+    # "rasterio",
+    # "numpy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["plotlines_core"]
