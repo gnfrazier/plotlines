@@ -5,7 +5,12 @@ It must prove the frozen binary can be driven by something that knows nothing ab
 Python packaging.
 
   find free port → spawn child → poll /health until ready → real /segments/generate
-  over loopback → SIGTERM → confirm clean exit → confirm no orphans
+  over loopback → graceful stop → confirm clean exit → confirm no orphans
+
+Runs on POSIX and on Windows. The two diverge in exactly the place §7.3 is most
+specific — process control — so those calls live behind the shim in "platform
+primitives" below instead of being sprinkled through the run. What differs and why:
+spikes/SPIKE-00/results/WINDOWS.md.
 
 Usage:
   python lifecycle.py <binary-or-cmd...> --cache-dir DIR [--label NAME] [--runs N]
@@ -16,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import signal
 import socket
 import subprocess
@@ -26,6 +32,92 @@ import urllib.request
 
 READY_TIMEOUT_S = 120.0
 SHUTDOWN_GRACE_S = 10.0
+
+IS_WINDOWS = sys.platform == "win32"
+
+# ── platform primitives ──────────────────────────────────────────────────────
+#
+# §7.3 is written in POSIX terms — spawn into a new session, SIGTERM, escalate to
+# SIGKILL, check the process group for orphans. None of those three exist on
+# Windows, and the naive translations are all wrong in the same direction: they
+# look like they work while actually hard-killing the child.
+#
+#   spawn      start_new_session=True raises ValueError on Windows. The analogue
+#              is CREATE_NEW_PROCESS_GROUP, which is also what makes the child
+#              addressable by a console control event without hitting this parent.
+#   stop       Popen.terminate() and send_signal(SIGTERM) both call
+#              TerminateProcess() on Windows — an unblockable kill, no handler,
+#              no cleanup. CTRL_BREAK_EVENT is the only stop the child can catch,
+#              and it is delivered to the process *group* we created above.
+#   orphans    There are no process groups to poll and no reparenting, so a dead
+#              PPID proves nothing. Snapshot the children while the sidecar is
+#              alive, then check those PIDs for liveness after it exits.
+
+
+def _spawn_kwargs() -> dict:
+    if IS_WINDOWS:
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def _stop_signal() -> tuple:
+    """(signal to send, label recorded in the report)."""
+    if IS_WINDOWS:
+        return signal.CTRL_BREAK_EVENT, "graceful-ctrl-break"
+    return signal.SIGTERM, "graceful-sigterm"
+
+
+def _pid_alive(pid: int) -> bool:
+    if not IS_WINDOWS:
+        try:
+            os.kill(pid, 0)
+            return True
+        except (ProcessLookupError, PermissionError):
+            return False
+    import ctypes
+
+    PROCESS_QUERY_LIMITED_INFORMATION, STILL_ACTIVE = 0x1000, 259
+    k32 = ctypes.windll.kernel32
+    handle = k32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False
+    code = ctypes.c_ulong()
+    ok = k32.GetExitCodeProcess(handle, ctypes.byref(code))
+    k32.CloseHandle(handle)
+    return bool(ok) and code.value == STILL_ACTIVE
+
+
+def _child_pids(pid: int) -> list[int]:
+    """Direct children of `pid` — must be called while the parent is still alive.
+
+    Windows keeps no parent link after exit and never reparents, so this snapshot
+    is the only chance to learn what a crashed sidecar would leave behind.
+    """
+    if not IS_WINDOWS:
+        return []
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+             f"(Get-CimInstance Win32_Process -Filter 'ParentProcessId={pid}')"
+             ".ProcessId"],
+            capture_output=True, text=True, timeout=30,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [int(tok) for tok in out.split() if tok.strip().isdigit()]
+
+
+def _orphan_check(proc: subprocess.Popen, children: list[int]) -> str:
+    if not IS_WINDOWS:
+        try:
+            os.killpg(os.getpgid(proc.pid), 0)
+            return "process group still alive"
+        except (ProcessLookupError, PermissionError):
+            return "none"
+    survivors = [pid for pid in children if _pid_alive(pid)]
+    if _pid_alive(proc.pid):
+        survivors.append(proc.pid)
+    return "none" if not survivors else f"still alive: {survivors}"
 
 REQUEST = {
     "start": {"lat": 40.015, "lon": -105.285},
@@ -57,7 +149,7 @@ def one_run(cmd: list[str], cache_dir: str) -> dict:
 
     t_spawn = time.perf_counter()
     proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            start_new_session=True)
+                            **_spawn_kwargs())
 
     result: dict = {"pid": proc.pid, "port": port}
     health = None
@@ -115,27 +207,36 @@ def one_run(cmd: list[str], cache_dir: str) -> dict:
         seg["distance_m"] > 100 and len(seg["coordinates"]) >= 10
     )
 
-    # §7.3: SIGTERM → graceful, SIGKILL after grace.
+    # Snapshot children while the sidecar still lives — on Windows this is the only
+    # moment the parent link exists, and it is what the orphan sweep compares against.
+    children = _child_pids(proc.pid)
+    result["child_pids"] = children
+
+    # §7.3: graceful stop → hard kill after grace.
+    stop_signal, stop_label = _stop_signal()
     t0 = time.perf_counter()
-    proc.send_signal(signal.SIGTERM)
+    try:
+        proc.send_signal(stop_signal)
+    except OSError as exc:
+        # Windows: GenerateConsoleCtrlEvent needs the sender to share a console with
+        # the target group. Record the miss rather than papering over it — a client
+        # that cannot deliver this has no graceful path at all.
+        result["stop_signal_error"] = repr(exc)
+        proc.kill()
+        stop_label = "hard-kill-no-console"
     try:
         proc.wait(timeout=SHUTDOWN_GRACE_S)
         result["shutdown_s"] = round(time.perf_counter() - t0, 3)
-        result["shutdown"] = "graceful-sigterm"
+        result["shutdown"] = stop_label
         result["exit_code"] = proc.returncode
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait(timeout=5)
         result["shutdown_s"] = round(time.perf_counter() - t0, 3)
-        result["shutdown"] = "required-sigkill"
+        result["shutdown"] = "required-hard-kill"
         result["exit_code"] = proc.returncode
 
-    # Orphan sweep: did the child leave anything behind in its process group?
-    try:
-        os.killpg(os.getpgid(proc.pid), 0)
-        result["orphans"] = "process group still alive"
-    except (ProcessLookupError, PermissionError):
-        result["orphans"] = "none"
+    result["orphans"] = _orphan_check(proc, children)
 
     proc.stdout.close()
     proc.stderr.close()
@@ -154,9 +255,17 @@ def main() -> int:
     ok = [r for r in runs if "error" not in r]
     report = {
         "label": args.label,
+        "platform": f"{sys.platform} {platform.machine()}",
         "command": args.cmd,
         "runs": runs,
-        "passed": len(ok) == len(runs) and all(r.get("route_ok") for r in ok),
+        # A run that routes correctly but had to be hard-killed, or that leaked a
+        # process, is a §7.3 failure — so it fails the gate too, not just the route.
+        "passed": (
+            len(ok) == len(runs)
+            and all(r.get("route_ok") for r in ok)
+            and all(r.get("shutdown", "").startswith("graceful") for r in ok)
+            and all(r.get("orphans") == "none" for r in ok)
+        ),
     }
     if ok:
         starts = sorted(r["cold_start_to_ready_s"] for r in ok)

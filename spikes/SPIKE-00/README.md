@@ -6,7 +6,10 @@ shapely) be frozen into a standalone binary that the Flutter app spawns as a chi
 process, serves FastAPI on loopback, and shuts down cleanly — at acceptable size and
 cold-start time?
 
-**Results and the Q4/Q5 calls: [`results/RESULTS.md`](results/RESULTS.md).**
+**Results and the Q4/Q5 calls: [`results/RESULTS.md`](results/RESULTS.md)** (Linux x86_64).
+**Second platform: [`results/WINDOWS.md`](results/WINDOWS.md)** — Windows 11 x86_64, which
+closes the spike's two-platform bar and is where the process-lifecycle contract needed
+changing.
 
 ## Layout
 
@@ -15,7 +18,8 @@ cold-start time?
 | `build_fixture.py` | One-time, online. Downloads a real OSM bike graph and writes a synthetic DEM. |
 | `fixtures/` | The downloaded graph + DEM. Committed — the spike must be reproducible offline. |
 | `cache/` | What the sidecar is pointed at via `--cache-dir`. Copied from `fixtures/`. |
-| `harness/lifecycle.py` | Stdlib-only driver for the full ARCH §7.3 spawn protocol. |
+| `harness/lifecycle.py` | Stdlib-only driver for the full ARCH §7.3 spawn protocol. Runs on POSIX and Windows. |
+| `harness/run_matrix.ps1` | Windows measurement pass — every build, plus the separate first-launch measurement. |
 | `results/` | Measurements and the written-up findings. |
 
 The build script itself is **not** here — it is `packaging/build_sidecar.sh`, because it
@@ -34,8 +38,26 @@ python3 spikes/SPIKE-00/harness/lifecycle.py \
   -- packaging/dist/pyinstaller-onedir/plotlines-sidecar/plotlines-sidecar
 ```
 
+### On Windows
+
+Same script, run from Git Bash (which is what `shell: bash` gives you on a
+`windows-latest` runner); the venv lives in `.venv/Scripts` and the harness is invoked
+with the native interpreter:
+
+```powershell
+uv venv --python 3.12 .venv
+$env:VIRTUAL_ENV = "$PWD\.venv"; uv pip install -e ./core -e ./service pyinstaller nuitka
+mkdir spikes\SPIKE-00\cache; copy spikes\SPIKE-00\fixtures\* spikes\SPIKE-00\cache\
+
+bash ./packaging/build_sidecar.sh pyinstaller-onedir
+.\spikes\SPIKE-00\harness\run_matrix.ps1        # every build + first-launch pass
+```
+
+`patchelf` is Linux-only — leave it out of the Windows install list.
+
 The harness exits non-zero if the sidecar fails to become ready, returns a degenerate
-route, or leaves orphan processes — so it works as a CI smoke test unchanged.
+route, needs a hard kill, or leaves orphan processes — so it works as a CI smoke test
+unchanged, on either platform.
 
 ## Scope
 

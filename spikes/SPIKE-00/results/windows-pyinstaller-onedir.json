@@ -1,0 +1,198 @@
+{
+  "label": "pyinstaller-onedir",
+  "platform": "win32 AMD64",
+  "command": [
+    "packaging\\dist\\pyinstaller-onedir\\plotlines-sidecar\\plotlines-sidecar.exe"
+  ],
+  "runs": [
+    {
+      "pid": 4760,
+      "port": 56234,
+      "http_listening_s": 1.577,
+      "cold_start_to_ready_s": 1.577,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.407,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.046,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 23.7,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "child_pids": [],
+      "shutdown_s": 0.341,
+      "shutdown": "graceful-ctrl-break",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 21984,
+      "port": 56240,
+      "http_listening_s": 1.536,
+      "cold_start_to_ready_s": 1.536,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.38,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.028,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 20.6,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "child_pids": [],
+      "shutdown_s": 0.395,
+      "shutdown": "graceful-ctrl-break",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 25652,
+      "port": 56246,
+      "http_listening_s": 1.567,
+      "cold_start_to_ready_s": 1.567,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.376,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.029,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 20.99,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "child_pids": [],
+      "shutdown_s": 0.399,
+      "shutdown": "graceful-ctrl-break",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 22652,
+      "port": 56252,
+      "http_listening_s": 1.565,
+      "cold_start_to_ready_s": 1.565,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.376,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.043,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 23.26,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "child_pids": [],
+      "shutdown_s": 0.395,
+      "shutdown": "graceful-ctrl-break",
+      "exit_code": 0,
+      "orphans": "none"
+    },
+    {
+      "pid": 22556,
+      "port": 56998,
+      "http_listening_s": 1.553,
+      "cold_start_to_ready_s": 1.553,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.381,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.027,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 23.97,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "child_pids": [],
+      "shutdown_s": 0.403,
+      "shutdown": "graceful-ctrl-break",
+      "exit_code": 0,
+      "orphans": "none"
+    }
+  ],
+  "passed": true,
+  "cold_start_median_s": 1.565,
+  "cold_start_min_s": 1.536,
+  "cold_start_max_s": 1.577
+}

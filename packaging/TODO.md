@@ -46,13 +46,48 @@ version, one install**, which is what ARCH §12.1's update flow already assumes.
 **Revisit if:** a platform's compressed sidecar exceeds ~150 MB, or multimodal data
 (SPIKE-04) / narration audio (SPIKE-10) push the installer to a size users notice.
 
+## Confirmed on Windows (2026-08-14)
+
+Both calls above were re-measured on Windows 11 x86_64 and **both hold** —
+[`spikes/SPIKE-00/results/WINDOWS.md`](../spikes/SPIKE-00/results/WINDOWS.md):
+
+| | Linux | Windows |
+|---|---|---|
+| onedir compressed (what ships) | 68.9 MB | **51.7 MB** |
+| onedir steady cold start | 1.25 s | 1.57 s |
+| onedir **first** launch (AV scan) | n/a | **5.5 s** |
+| onefile penalty vs onedir | 1.7× | **4.2×** |
+| Nuitka advantage vs onedir | 0.17 s | 0.50 s |
+
+Q5 gains headroom (51.7 MB is further under the ~150 MB revisit trigger). Q4's
+`--onefile` half hardens — the onefile penalty is 4.2× on Windows, and onedir is again
+smaller compressed. **One Q4 nuance worth recording:** Nuitka's startup advantage is 3×
+larger on Windows (0.50 s vs Linux's 0.17 s), because more of Windows' startup is import
+machinery. It still loses on a 17× build time, +4.1 MB shipped, and the worst first
+launch of any build (11.5 s vs 5.5 s). **Added revisit trigger:** if steady-state cold
+start becomes the binding UX constraint on Windows specifically, Nuitka is worth 0.5 s.
+
 ## Still open
 
-- **Second desktop OS.** SPIKE-00 ran on Linux x86_64 only. Its own "done when" bar is
-  two platforms. macOS (signing, notarization, arm64) and Windows (antivirus behaviour)
-  are unmeasured — this is the top packaging unknown.
-- **Signing and notarization** (ARCH §12.3). Nothing here is signed yet.
-- **Client-side version check.** The sidecar half is done and verified — it stamps
-  itself from `version.lock` and surfaces it via `/health` and `--version`. The Flutter
-  client does not exist yet, so the comparison that refuses a mismatch is unwritten.
-- **CI build matrix.** `build_sidecar.sh` runs locally only.
+- **macOS** — signing, notarization, arm64. Now the only untested desktop platform;
+  SPIKE-00's two-platform bar is met, so this no longer blocks the spike.
+- **Signing and notarization** (ARCH §12.3). Nothing here is signed yet. Windows
+  sharpened the target: SmartScreen gates *shell* launches, not `CreateProcess`, so a
+  spawned sidecar is unaffected even unsigned — **the installer is what needs signing**,
+  and the sidecar inherits trust by being installed rather than downloaded.
+- **Client-side version check.** The sidecar half is done and verified on both platforms
+  (Nuitka included). The Flutter client does not exist yet, so the comparison that
+  refuses a mismatch is unwritten.
+- **Client-side Windows process control** — new, and the one thing that would ship broken
+  if forgotten. The client must spawn `CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW`, hold
+  the sidecar in a **Job Object** (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) so a client crash
+  cannot orphan it, and stop it via `AttachConsole` + `CTRL_BREAK_EVENT`. A GUI process
+  cannot send a console control event without that dance — the send fails outright. See
+  ARCH §7.3 and WINDOWS.md §3.
+- **First-launch antivirus cost in onboarding.** ~5–6.7 s on first run versus ~1.6 s
+  after, on Windows. The §7.3 wait-state design should be sized for the first run. Worth
+  re-measuring once a real installer exists, since install-time file writes may absorb
+  some of the scan.
+- **CI build matrix.** `build_sidecar.sh` now runs on Linux, macOS and Windows (Git Bash
+  / `shell: bash`), and the lifecycle harness runs on both platforms and fails on a
+  non-graceful stop or a leaked process — so it gates correctly as-is. Not yet wired up.

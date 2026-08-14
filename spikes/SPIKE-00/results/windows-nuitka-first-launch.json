@@ -1,0 +1,50 @@
+{
+  "label": "nuitka-first-launch",
+  "platform": "win32 AMD64",
+  "command": [
+    "C:\\Users\\gnfra\\AppData\\Local\\Temp\\plsc-first-39a4a670\\plotlines-sidecar.exe"
+  ],
+  "runs": [
+    {
+      "pid": 17680,
+      "port": 62322,
+      "http_listening_s": 11.436,
+      "cold_start_to_ready_s": 11.478,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.716,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.045,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 31.21,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "child_pids": [],
+      "shutdown_s": 0.375,
+      "shutdown": "graceful-ctrl-break",
+      "exit_code": 0,
+      "orphans": "none"
+    }
+  ],
+  "passed": true,
+  "cold_start_median_s": 11.478,
+  "cold_start_min_s": 11.478,
+  "cold_start_max_s": 11.478
+}

@@ -7,8 +7,11 @@ terminates cleanly on SIGTERM — at sizes and startup times comfortably inside 
 ARCH §4 budgeted. No blocking failure was found. Desktop MVP can proceed on the
 architecture as written.
 
-**One gap, stated up front:** this ran on **one** desktop platform (Linux x86_64 /
-WSL2), not the two the spike's "done when" bar requires. See [Outstanding](#outstanding).
+**Scope of this document:** Linux x86_64 / WSL2 only. The second platform required by
+the spike's "done when" bar was run on 2026-08-14 and is written up separately in
+[`WINDOWS.md`](WINDOWS.md) — it confirms these findings, produces a byte-identical
+route, and turned up one architectural correction (§7.3's stop step is not
+implementable on Windows as originally written). **With that run, SPIKE-00 is closed.**
 
 **Decisions produced:** Q4 → **PyInstaller `--onedir`**. Q5 → **bundle in the
 installer**. Both recorded with revisit triggers in [`packaging/TODO.md`](../../../packaging/TODO.md).
@@ -222,9 +225,8 @@ build. The harness exits non-zero on failure, so it works as a CI gate unchanged
 
 ## 7. What this does *not* prove
 
-- **Only one OS.** Linux x86_64 only. macOS (signing, notarization, arm64) and Windows
-  (antivirus false-positives on frozen binaries are common and sometimes severe) are
-  unmeasured.
+- **Only one OS** *(in this document — Windows has since been measured, see
+  [`WINDOWS.md`](WINDOWS.md); macOS signing, notarization and arm64 remain unmeasured).*
 - **Nothing about mobile.** Android untested; **iOS remains risk A1** and this spike does
   not touch it. ARCH §4.1's precompute-and-download recommendation stands unchanged.
 - **A small graph.** 5k nodes loads in 0.37 s. Metro-scale or multi-region graphs will
@@ -241,9 +243,11 @@ build. The harness exits non-zero on failure, so it works as a CI gate unchanged
 
 ## Outstanding
 
-1. **Run this on a second desktop OS** — the spike's own "done when" bar, and the one
-   thing keeping SPIKE-00 from fully closed. Build script and harness are portable.
-   Windows matters most: it's where frozen-binary antivirus trouble lives.
+1. ~~**Run this on a second desktop OS**~~ — **done 2026-08-14 on Windows 11 x86_64:
+   [`WINDOWS.md`](WINDOWS.md).** Route identical, sizes smaller, the antivirus risk
+   real but bounded (a one-time ~5 s first-launch scan, no false positive). Cost one
+   architecture fix — §7.3's SIGTERM contract does not exist on Windows. macOS remains
+   untested but no longer blocks the spike.
 2. **Re-measure at realistic graph scale** before treating ~1.2 s as the cold-start
    figure the UI's wait-state design assumes.
 3. **Wire the client half of the version check.** The sidecar half is done and verified;

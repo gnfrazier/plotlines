@@ -1,0 +1,11 @@
+=== parent WITH a console (terminal; 5 processes attached) ===
+  CTRL_BREAK_EVENT to the new process group          -> 0 — GRACEFUL (handler ran)   [0.353s]
+  Popen.terminate()  [= TerminateProcess]            -> 1 — not graceful (hard kill)   [0.021s]
+  Popen.send_signal(SIGTERM)  [= TerminateProcess]   -> 1 — not graceful (hard kill)   [0.021s]
+  CTRL_C_EVENT to the new process group              -> 1 — not graceful (hard kill)   [15.035s]   did not stop within grace
+
+=== parent WITHOUT a console (FreeConsole; hwnd=0x0, 0 attached) — the Flutter GUI case ===
+  CTRL_BREAK_EVENT, sent directly                    -> 1 — not graceful (hard kill)   [0.027s]   SEND FAILED: [WinError 6] The handle is invalid
+  CREATE_NO_WINDOW + AttachConsole + CTRL_BREAK      -> 0 — GRACEFUL (handler ran)   [0.362s]
+
+

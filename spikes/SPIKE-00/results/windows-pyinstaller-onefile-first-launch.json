@@ -1,0 +1,52 @@
+{
+  "label": "pyinstaller-onefile-first-launch",
+  "platform": "win32 AMD64",
+  "command": [
+    "C:\\Users\\gnfra\\AppData\\Local\\Temp\\plsc-first-d35ebed4\\plotlines-sidecar.exe"
+  ],
+  "runs": [
+    {
+      "pid": 23256,
+      "port": 52046,
+      "http_listening_s": 8.1,
+      "cold_start_to_ready_s": 8.1,
+      "health": {
+        "status": "ready",
+        "ready": true,
+        "detail": "ready",
+        "version": "0.0.1",
+        "mode": "sidecar",
+        "startup_seconds": 0.658,
+        "graph": {
+          "nodes": 5052,
+          "edges": 12872
+        }
+      },
+      "generate_roundtrip_s": 0.041,
+      "segment": {
+        "distance_m": 4985.0,
+        "node_count": 85,
+        "coordinate_count": 85,
+        "solve_ms": 22.57,
+        "elevation": {
+          "ascent_m": 238.3,
+          "descent_m": 657.4,
+          "min_m": 1653.7,
+          "max_m": 2080.7
+        }
+      },
+      "route_ok": true,
+      "child_pids": [
+        6784
+      ],
+      "shutdown_s": 1.003,
+      "shutdown": "graceful-ctrl-break",
+      "exit_code": 0,
+      "orphans": "none"
+    }
+  ],
+  "passed": true,
+  "cold_start_median_s": 8.1,
+  "cold_start_min_s": 8.1,
+  "cold_start_max_s": 8.1
+}

@@ -403,8 +403,35 @@ App start
   ├── Sidecar dies mid-session → detect → restart once → if that fails,
   │     degrade honestly (cached plotlines still viewable/executable,
   │     new generation unavailable, stated inline)
-  └── App exit → SIGTERM → SIGKILL after grace → orphan sweep next launch
+  └── App exit → graceful stop → hard kill after grace → orphan sweep next launch
+        └── POSIX:   SIGTERM → SIGKILL; child spawned into its own session
+            Windows: AttachConsole + CTRL_BREAK_EVENT → TerminateProcess;
+                     child spawned CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+                     and held in a Job Object (see below — not a detail)
 ```
+
+**The graceful stop is platform-specific, and the Windows form is not optional.**
+Windows cannot deliver SIGTERM: `TerminateProcess()` — which is what a naive port of
+the line above calls, and what both `Popen.terminate()` and `send_signal(SIGTERM)` do
+there — is an unblockable kill that runs no handler, so a request in flight is severed
+rather than finished. The only stop a Windows child can catch is a console control
+event, and **the client is a GUI process with no console**, so it cannot simply send
+one: the call fails with `ERROR_INVALID_HANDLE`. The verified sequence is
+
+1. spawn with `CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW` — the sidecar then owns a
+   console with no visible window, so it is addressable and nothing flashes on screen;
+2. `AttachConsole(pid)`, mute the client's own Ctrl handling with
+   `SetConsoleCtrlHandler(NULL, TRUE)` (the event reaches every process on that
+   console), `GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid)`, then `FreeConsole()`
+   and restore;
+3. hard-kill after the grace period.
+
+The sidecar handles the event as `SIGBREAK` (implemented). **Orphan handling differs in
+the same way:** Windows has no process groups to sweep and never reparents, so a dead
+PPID proves nothing and the next-launch sweep cannot be the only defence — hold the
+sidecar in a Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, the one mechanism
+that reaps the child even when the client crashes without running cleanup. Measured
+and reproducible in SPIKE-00: `spikes/SPIKE-00/results/WINDOWS.md` §3.
 
 **Health returns readiness, not liveness.** A sidecar that is up but still loading a graph is not ready, and the client must know the difference. Note the field-execution consequence: **the Field Runtime (§5) does not depend on the sidecar at all** — a Character executing a downloaded plotline needs no sidecar running, which is exactly why a dead sidecar degrades to "can't generate" but never "can't ride."
 
@@ -660,7 +687,7 @@ The desktop app is the Flutter client **plus** the frozen Python sidecar binary 
 Two rules follow, and they hold regardless of which delivery model is chosen:
 
 - **Client and sidecar version are pinned together and checked at runtime.** The versions are surfaced in `/health` (§7.3); the app refuses to run a client against a mismatched sidecar and fails honestly, the same way it handles a cold-start timeout. A partial update that swapped one artifact but not the other must be detected, not silently tolerated.
-- **An update never clobbers a running sidecar.** If the app is mid-generation, the updater waits for or cleanly terminates the child process via the existing lifecycle (§7.3's SIGTERM → SIGKILL → orphan-sweep), then applies the update. The updater hooks into that lifecycle rather than inventing its own.
+- **An update never clobbers a running sidecar.** If the app is mid-generation, the updater waits for or cleanly terminates the child process via the existing lifecycle (§7.3's graceful-stop → hard-kill → orphan-sweep, in that section's platform-specific form), then applies the update. The updater hooks into that lifecycle rather than inventing its own.
 
 ### 12.2 Delivery model — manual releases for MVP, seam for later
 
@@ -676,7 +703,7 @@ Three models, in increasing order of effort. The recommendation is the first, bu
 
 ### 12.3 Code signing is not optional
 
-Even for manual installs, unsigned desktop apps hit Gatekeeper (macOS) and SmartScreen (Windows) warnings that alarm users and depress adoption. An Apple Developer account (with notarization on macOS) and a Windows code-signing certificate are **costs to budget from the first public release**, not polish for later. Silent auto-update (§12.2, third model) *requires* signing; manual install merely suffers badly without it.
+Even for manual installs, unsigned desktop apps hit Gatekeeper (macOS) and SmartScreen (Windows) warnings that alarm users and depress adoption. SPIKE-00 sharpened where that bites on Windows: SmartScreen gates *shell* launches — a user double-clicking a downloaded file — not `CreateProcess`, so the **spawned sidecar is unaffected even unsigned and even carrying Mark-of-the-Web** (verified). The exposure is the installer, which is therefore the artifact that must be signed; the sidecar inherits trust by being installed rather than downloaded. An Apple Developer account (with notarization on macOS) and a Windows code-signing certificate are **costs to budget from the first public release**, not polish for later. Silent auto-update (§12.2, third model) *requires* signing; manual install merely suffers badly without it.
 
 ### 12.4 The About surface — partly required, partly chosen
 

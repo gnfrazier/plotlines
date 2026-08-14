@@ -64,6 +64,22 @@ def main(argv: list[str] | None = None) -> int:
 
     signal.signal(signal.SIGTERM, _terminate)
 
+    # Windows cannot deliver SIGTERM. `TerminateProcess()` — which is what both
+    # Popen.terminate() and Popen.send_signal(SIGTERM) call there — is an
+    # unblockable hard kill: no handler runs, so the request in flight is severed
+    # and the graceful half of §7.3 simply does not exist. The console control
+    # events are the only interruption Windows will actually deliver to a handler,
+    # so accept CTRL_BREAK (SIGBREAK) as the platform's graceful stop. uvicorn's own
+    # handlers cover SIGINT/SIGTERM only, so without this there is no catchable stop
+    # here at all.
+    #
+    # This is only half the contract: the client cannot simply *send* that event,
+    # because a GUI process has no console and the call fails outright. The spawn
+    # flags and AttachConsole sequence it must use are in ARCH §7.3, measured in
+    # spikes/SPIKE-00/results/WINDOWS.md §3.
+    if hasattr(signal, "SIGBREAK"):  # Windows only
+        signal.signal(signal.SIGBREAK, _terminate)
+
     server.run()
     return 0
 

@@ -5,13 +5,42 @@
 #   ./packaging/build_sidecar.sh pyinstaller-onedir
 #   ./packaging/build_sidecar.sh nuitka
 #
-# The flag sets below are not decoration — each one is a build failure this spike
-# actually hit and fixed. See spikes/SPIKE-00/results/RESULTS.md for the failure log.
+# Runs on Linux/macOS and on Windows under Git Bash (`shell: bash` on a
+# windows-latest CI runner is the same thing). One script rather than a parallel
+# .ps1 on purpose: the flag sets below are not decoration — each one is a build
+# failure this spike actually hit and fixed — and maintaining two copies of them is
+# how a platform silently stops getting a fix. See
+# spikes/SPIKE-00/results/RESULTS.md for the failure log and
+# spikes/SPIKE-00/results/WINDOWS.md for what differs on Windows.
 set -euo pipefail
 
 TARGET="${1:-pyinstaller-onedir}"
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) WINDOWS=1 ;;
+  *)                    WINDOWS=0 ;;
+esac
+
+if [[ "$WINDOWS" == 1 ]]; then
+  # `pwd` under MSYS yields /c/Users/… , which the native Windows Python behind
+  # PyInstaller cannot resolve; -W yields C:/Users/… . And because every path we
+  # hand the freezer is then already Windows-form, MSYS argument mangling can only
+  # corrupt it — notably the `SRC;DEST` of --add-data, whose separator MSYS would
+  # otherwise read as a path-list delimiter.
+  ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -W)"
+  export MSYS2_ARG_CONV_EXCL='*'
+  VENV_BIN_DIR=Scripts   # not bin/
+  EXE=.exe
+  DATA_SEP=';'           # PyInstaller splits --add-data on the host's os.pathsep
+else
+  ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  VENV_BIN_DIR=bin
+  EXE=
+  DATA_SEP=':'
+fi
+
 VENV="$ROOT/.venv"
+VENV_BIN="$VENV/$VENV_BIN_DIR"
 ENTRY="$ROOT/packaging/sidecar_entry.py"
 DIST="$ROOT/packaging/dist/$TARGET"
 WORK="${PLOTLINES_BUILD_WORK:-$ROOT/packaging/build}"
@@ -43,20 +72,23 @@ case "$TARGET" in
   pyinstaller-*)
     args=(--name plotlines-sidecar --noconfirm --clean
           --distpath "$DIST" --workpath "$WORK" --specpath "$WORK"
-          --add-data "$ROOT/packaging/version.lock:.")
+          --add-data "$ROOT/packaging/version.lock${DATA_SEP}.")
     [[ "$TARGET" == *onefile ]] && args+=(--onefile) || args+=(--onedir)
     for p in "${COLLECT_DATA[@]}";       do args+=(--collect-data "$p"); done
     for p in "${COLLECT_SUBMODULES[@]}"; do args+=(--collect-submodules "$p"); done
     for p in "${COPY_METADATA[@]}";      do args+=(--copy-metadata "$p"); done
     for p in "${EXCLUDE[@]}";            do args+=(--exclude-module "$p"); done
-    exec "$VENV/bin/pyinstaller" "${args[@]}" "$ENTRY"
+    exec "$VENV_BIN/pyinstaller$EXE" "${args[@]}" "$ENTRY"
     ;;
   nuitka)
-    # Nuitka standalone shells out to patchelf on Linux. The PyPI wheel provides it
-    # inside the venv, which keeps the build off sudo and off the system package set.
-    export PATH="$VENV/bin:$PATH"
+    # Nuitka standalone shells out to patchelf for ELF builds. The PyPI wheel
+    # provides it inside the venv, which keeps the build off sudo and off the system
+    # package set. Windows needs no patchelf; it wants a C compiler instead, and
+    # --assume-yes-for-downloads lets Nuitka fetch its own MinGW64 rather than
+    # requiring a Visual Studio install.
+    export PATH="$VENV_BIN:$PATH"
     args=(--standalone --assume-yes-for-downloads
-          --output-dir="$WORK/nuitka" --output-filename=plotlines-sidecar
+          --output-dir="$WORK/nuitka" --output-filename="plotlines-sidecar$EXE"
           --include-data-files="$ROOT/packaging/version.lock=version.lock"
           --nofollow-import-to=tkinter --nofollow-import-to=matplotlib
           # editable installs are resolved by a .pth finder Nuitka does not follow
@@ -65,7 +97,7 @@ case "$TARGET" in
     for p in "${COLLECT_SUBMODULES[@]}"; do args+=(--include-package="$p"); done
     for p in "${COPY_METADATA[@]}";      do args+=(--include-distribution-metadata="$p"); done
     for p in "${EXCLUDE[@]}";            do args+=(--nofollow-import-to="$p"); done
-    "$VENV/bin/python" -m nuitka "${args[@]}" "$ENTRY"
+    "$VENV_BIN/python$EXE" -m nuitka "${args[@]}" "$ENTRY"
     rm -rf "$DIST" && mkdir -p "$(dirname "$DIST")"
     mv "$WORK/nuitka/sidecar_entry.dist" "$DIST"
     ;;
