@@ -1,0 +1,14 @@
+<!-- @dsCard group="Components" viewport="700x200" name="Dialog + sheet (PlotDialog)" subtitle="Confirm dialog & bottom sheet" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>body{margin:0;font-family:var(--font-sans);background:var(--canvas);color:var(--text-primary);padding:22px;display:flex;gap:18px;align-items:flex-start}
+.dlg{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px}
+.tt{font-weight:700;font-size:18px}.msg{font-size:14px;color:var(--ink-2);line-height:1.5;margin:8px 0 16px}
+.acts{display:flex;gap:10px;justify-content:flex-end}
+.b{font-weight:700;border-radius:4px;border:none;min-height:44px;padding:0 18px;font-size:15px}
+.ghost{background:transparent;color:var(--ink);font-size:14px}.dng{background:var(--ember);color:#fff}
+.sheet{width:230px;background:var(--paper);border:1px solid var(--line);border-radius:12px 12px 6px 6px;padding:14px 16px}
+.grab{width:40px;height:4px;background:var(--line);border-radius:2px;margin:0 auto 12px}
+.opt{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:14px;border-bottom:1px solid var(--line)}</style></head><body>
+<div class="dlg"><div class="tt">Discard route?</div><div class="msg">This trip has unsynced edits.</div><div class="acts"><button class="b ghost">Cancel</button><button class="b dng">Discard</button></div></div>
+<div class="sheet"><div class="grab"></div><div class="opt">Add regroup point</div><div class="opt">Mark hazard</div><div class="opt" style="border:none">Split leg here</div></div>
+</body></html>

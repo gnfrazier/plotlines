@@ -29,8 +29,15 @@ The planning docs live in `/docs` and are the source of truth:
 
 - `docs/Plotlines_PRD.md` — what/why
 - `docs/Plotlines_ARCHITECTURE.md` — how (tiers, principles, the sidecar model)
-- `docs/Plotlines_MVP_Scope_and_Setup.md` — desktop MVP scope, repo layout, build/version pipeline
+- `docs/Plotlines_MVP_Scope_and_Setup.md` — desktop MVP scope, repo layout, build/version
+  pipeline. **§1.4 is the authoritative desktop-MVP story list** — the PRD's `[MVP]` tag
+  covers field and account work this milestone does not build, and §1.1's capability table
+  names several `[P1]` stories. §1.4 reconciles both and governs where they disagree.
 - `docs/Plotlines_Research_Spikes.md` — feasibility unknowns
+- `docs/Plotlines - Spike Candidates.md` — **provenance, not source of truth.** A
+  technology-choice note from the PRD work, filed 2026-08-15. Its four spike candidates
+  became SPIKE-14 … SPIKE-17 and its other three rows are reconciled at the end of the
+  spikes doc; read those, not this.
 
 ## Monorepo layout
 
@@ -38,8 +45,11 @@ The planning docs live in `/docs` and are the source of truth:
 plotlines/
 ├── core/            # plotlines-core — pure Python routing library (P1: no fastapi import)
 ├── service/         # plotlines-service — FastAPI wrapper (sidecar now, hosted later)
-├── client/          # Flutter app (desktop first); client/design/ holds the Author Desktop
-│                     # wireframe imported from Claude Design — the presentation/ reference
+├── client/          # Flutter app (desktop first)
+│   ├── design/      #   imported Claude Design reference — wireframes, brand guide,
+│   │                #   UI gallery, CSS tokens, specimen cards
+│   └── packages/    #   plotlines_ui — the design system as a Flutter package
+│                    #   (a path dependency, not reference; never yet compiled)
 ├── packaging/        # frozen-binary build, installers, signing; version.lock is the
 │                     # single source of truth both client and sidecar stamp themselves with
 ├── docs/             # PRD, architecture, MVP scope, research spikes

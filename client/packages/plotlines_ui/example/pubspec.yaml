@@ -1,0 +1,15 @@
+name: plotlines_ui_example
+description: Demo app for the Plotlines UI design system.
+publish_to: none
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plotlines_ui:
+    path: ../
+
+flutter:
+  uses-material-design: true

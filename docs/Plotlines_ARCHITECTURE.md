@@ -7,7 +7,7 @@ companion: Plotlines_PRD.md
 
 # Plotlines — Architecture Design
 
-**Status:** Draft · **Version:** 1.0 · **Companion docs:** `Plotlines_PRD.md` (89 FRs / 96 stories — the source of truth for *what* and *why*), `Plotlines_Research_Spikes.md` (feasibility unknowns to prove before building). This document covers *how*.
+**Status:** Draft · **Version:** 1.0 · **Companion docs:** `Plotlines_PRD.md` (100 FRs / 98 stories — the source of truth for *what* and *why*), `Plotlines_Research_Spikes.md` (feasibility unknowns to prove before building). This document covers *how*.
 
 This is a clean-sheet architecture for a new repository. It draws on hard-won structure from the Cycle Tour Planner proof-of-concept — the pure-library core, the sidecar model, the same-site session, the fetch-once caching discipline — but it is not a port. Where Plotlines' scope changed the shape of the problem (multimodal routing, field execution, peer field-intel, request/response sharing), the architecture is rebuilt to fit, not patched to cope.
 
@@ -331,7 +331,19 @@ Each travel mode builds its own graph (`multimodal/`): cycling and hiking over t
 
 ### 6.5 Elevation — void handling
 
-Elevation reads must never block a solve. A missing tile or a data void yields a zero delta for that coordinate (logged once per tile), never an exception and never a mid-solve network fetch. A route through a data void is slightly wrong; a route that hangs is broken. Unchanged from CTP, and still correct.
+Elevation reads must never block a solve, and never raise. The exact fallback policy, validated by the cycling-tour-planner POC (PRD FR85–FR91, SPIKE-18) and carried forward as-is:
+
+- value present at a coordinate → use it
+- `nodata` sentinel → `0.0` (flat-earth) for that coordinate
+- **NaN nodata sentinel → `0.0`, checked explicitly via `isnan`** — `value == ds.nodata` alone misses a NaN nodata value, because under IEEE 754 NaN never equals anything, itself included. This was a real defect found and fixed in the POC (`backend/ctp_core/elevation.py`, `test_elevation.py`); the explicit `isnan` check is required, not optional.
+- coordinate outside every open raster's bounds → `0.0`
+- raster missing on disk, or present but unreadable → `0.0`
+
+Every fallback is **logged once per raster path** (a warn-once set), never once per coordinate — a data void or a missing raster produces one log line total, not a flood.
+
+**Mechanics:** each lookup reads a **single-pixel window** (never a full band — a regional DEM band can be gigabytes in memory), bounds-checked against the raster's extent before the read. Datasets are opened lazily and held for the process lifetime — never reopened per lookup.
+
+A route through a data void is slightly wrong; a route that hangs or throws is broken. Unchanged from CTP in spirit, and now specified exactly rather than in prose.
 
 ### 6.6 Why scoped weighting (FR36) is not a rewrite
 
@@ -364,6 +376,8 @@ Build `weights.at()` returning a constant from the first milestone, and scoped w
 | Tile + elevation cache | Local disk | Shared server-side |
 | CORS | N/A | **N/A** — same-site (§9.3) |
 
+Both the tile cache and the elevation cache follow an **identical bbox-scoped, on-demand pattern** (P7, FR94) — same policy, different payload, not two designs.
+
 Mode is selected by an env var at startup. Endpoints not valid for a mode are **not registered** — not merely guarded. A sidecar has no `/auth/*` or `/groups/*` routes to attack.
 
 ### 7.2 Endpoint surface
@@ -377,8 +391,8 @@ POST   /trips/{id}/export         # → GPX | TCX | FIT | GeoJSON, selectable co
 GET    /geocode?q=…               # Nominatim via OSMnx
 
 # Content — both modes (cache-backed)
-GET    /tiles/{z}/{x}/{y}
-GET    /elevation?bbox=…
+GET    /tiles/{z}/{x}/{y}               # z/x/y range-validated (0≤z≤19, 0≤x,y<2^z) before any upstream work — FR93
+GET    /elevation?bbox=…                # never blocks, never raises — FR88, §6.5
 GET    /weather?lat=…&lon=…&date=…      # historical | forecast, age-stamped
 
 # Accounts — hosted mode only
@@ -660,7 +674,8 @@ All follow P7: fetch once, cache with a volatility-matched TTL, never re-request
 
 | Service | Used for | Cache TTL | Attribution |
 |---|---|---|---|
-| **Elevation** (GeoTIFF DEM) | Elevation enrichment | Long (terrain is static) | **CC BY — required** |
+| **Elevation** — **GEDTM30 via OpenTopography** (GeoTIFF DEM; free-tier capped at 50 calls/24h — FR87, D20) | Elevation enrichment | Long (terrain is static) | **CC BY — required** |
+| **Basemap tiles** (dev: proxy to `tile.openstreetmap.org`; production source TBD — SPIKE-14. Service contract — own-service-only, bbox-scoped on-demand — decided independent of source: FR92–94, D21) | Map rendering | Long | Source-dependent, TBD via SPIKE-14 |
 | **Weather** (Open-Meteo) | Historical + forecast | Forecast: short. Historical: long/bundled | **CC BY 4.0 — required** |
 | **Geocoding** (Nominatim via OSMnx) | Location search | Medium | OSM / ODbL |
 | **OSM Overpass** (via OSMnx) | Graph + POI tags | Long (OSMnx handles) | OSM / ODbL |
@@ -690,9 +705,11 @@ Phase 2 (later) device → hosted cache → (miss) → elevation provider
 
 The client must talk to elevation through the **same interface** in both phases (PRD Developer story M3), so Phase 2 changes a base URL and a cache-lookup step, not the client. Build the indirection from the first milestone even though Phase 1 does not need it — the alternative is a client rewrite later.
 
+**The free-tier daily ceiling, concretely:** the provider is GEDTM30 via OpenTopography (PRD FR85, D20), whose free non-academic key is capped at **50 calls/24h**, and whose API Agreement requires a paid Enterprise key once elevation is integrated into commercial software (PRD FR87). Plotlines' core app remaining free is what keeps Phase-1 usage within the free tier legally — see risk A13.
+
 ### 11.2 Attribution is a build artifact
 
-CC BY sources (elevation, weather) require attribution wherever their data appears: a visible credit in the app's info surface, and attribution embedded in exported files where the format permits (e.g. GPX `<metadata>`). Treat a missing attribution as a **build failure**, not a polish item — it is a license condition.
+CC BY sources (elevation, weather) require attribution wherever their data appears: a visible credit in the app's info surface, and attribution embedded in exported files where the format permits (e.g. GPX `<metadata>`). Treat a missing attribution as a **build failure**, not a polish item — it is a license condition. The exact GEDTM30/Copernicus citation string lives with the About-surface content (PRD FR85, FR86); the NaN/nodata handling this obligation depends on is specified in §6.5.
 
 ### 11.3 Offline package size (FR64) — a real budget
 
@@ -858,6 +875,7 @@ Risks introduced *by this design* — distinct from the product risks in the PRD
 | A10 | **Web ships on `*.onrender.com`** → sessions silently break in Safari/Firefox, fine in Chrome (§9.3) | Low probability, **HIGH impact** | Custom domain is a hard prerequisite for the Web milestone; exit criterion verifies Safari *and* Firefox. Invisible to a Chrome-only test. |
 | A11 | **Group relay drifts toward a social platform** (§8) — scope creep past P9 | Medium | P9 stated as refusals in §8.1; any cross-trip, free-form, or coercive message is a design event. SPIKE-11 validates propagation before build. |
 | A12 | **Server-side spatial query appears without PostGIS** — e.g. push-based note proximity (Q6) needs `ST_DWithin` and the DB is stock Postgres (§10.5) | Low | Written as a **deployment trigger**, not a guess: "a spatial query needs to run in SQL server-side" → enable PostGIS (`CREATE EXTENSION`, one line on Render paid) and migrate the affected columns. Contained change, not a re-platform. |
+| A13 | **OpenTopography's free-tier rate limit** (50 calls/24h) and its commercial-Enterprise-key requirement gate both the Phase-1 elevation architecture and the "core app stays free" posture (§11.1, PRD FR87) | Medium | Tracked explicitly (FR87, D20); introducing a paid tier anywhere in Plotlines would require re-licensing elevation access first. Revisit if/when a paid tier is considered. |
 
 ---
 
@@ -886,6 +904,8 @@ Decisions made *in this document* (PRD decisions are logged in the PRD; feasibil
 | D17 | **Stock Postgres at MVP; PostGIS is a gated upgrade** | The DB is a sync-and-relay store, not a query engine — all geospatial work is upstream in the core/Field Runtime (P1). Carrying PostGIS now is an unused dependency | PostGIS from day one (unused until a server-side spatial query exists — §10.5, trigger A12) |
 | D18 | **Golden-route testing + committed graph fixtures** as the core's primary safeguard; P1 boundary enforced as a CI gate | A pure core makes silent scoring regressions the main risk; golden routes catch them and committed fixtures keep the suite deterministic and offline (§14) | Live-graph tests (non-deterministic, hammer the commons); relying on review to catch scoring drift |
 | D19 | **Paddling difficulty is advisory, not a routing constraint** — PRD stories **B4 and B5 removed** and FR13 retired (2026-08-14) | **SPIKE-04 determined they were too hard to build**, and specifically that the difficulty half is not buildable *at all* on available data rather than merely expensive: enforcing an ability band requires a class rating on every candidate edge, and one graded feature exists across the 41,937 km² tested (58 across North America). The authoritative source, American Whitewater, prohibits reuse and offers no API, so this is a licensing problem with a lead time, not an engineering backlog item. Building the input without the data would have shipped a control that silently does nothing. What survives is the half that *is* grounded: an Author-set gauge band checked against a real USGS reading (FR14/FR14a, story B8), and Author-drawn portages (FR15/B6) | Shipping B4/B5 with Author-declared class as the only input (a routing filter over a field one person typed in, applied to edges with no class at all — worse than absent, because it looks like a safety feature); deferring paddling out of MVP entirely (the network and gauge halves are real and work); scraping American Whitewater (prohibited) |
+| D20 | **Single fused elevation source (GEDTM30/OpenTopography), no secondary/fallback service** | GEDTM30 is already the best-available fused product (Copernicus DEM + ALOS World 3D + ICESat-2/GEDI ground points); a fallback adds complexity without improving coverage. Validated by the cycling-tour-planner POC (SPIKE-18) | An earlier SRTM-primary + open-elevation.com-fallback design — dropped |
+| D21 | **Client-owned tile-service contract**: the client never contacts a third-party tile host directly, regardless of upstream tile source | Keeps licensing/attribution and rate-limit exposure entirely server-side and swappable; the dev-time OSM proxy is temporary implementation, this contract is not (PRD FR92) | Client linking directly to a public tile host — breaks offline-first and puts licensing terms on every device |
 
 ---
 
@@ -901,6 +921,8 @@ Decisions made *in this document* (PRD decisions are logged in the PRD; feasibil
 | Q6 | **Group-relay transport** — simple polling vs. push; how notes reach approaching members promptly without draining battery | **SPIKE-11**, before the group tier |
 | Q7 | **Medical/allergy volunteered-field handling** — how prominently surfaced to the Author, and its group-visibility default (a privacy call flagged in the PRD) | Before profile-sharing build |
 | Q8 | **Plugin distribution** — pub.dev + PyPI, or a bundled registry? | Leg 7 |
+| Q9 | **Concrete tile-generation tooling** — `tilemaker` → MBTiles, or an alternative? | **SPIKE-14** |
+| Q10 | **Region/bbox selection strategy** — fixed named regions, per-trip bounding box, or both — and the first-run experience for a Character with nothing downloaded. Needs a minimum-useful-region sizing criterion and a small pinned bbox for CI. | **SPIKE-14** |
 
 ---
 

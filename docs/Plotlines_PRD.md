@@ -262,6 +262,30 @@ FRs are numbered fresh in Plotlines' own sequence. The **Origin** column traces 
 |---|---|---|
 | **FR84** | Plotlines exposes a **clean two-way interface**: community-contributed **data inputs** that enhance routing, and **outputs** to other platforms. Concrete contract shapes are deliberately left open. | Rebrand-plan Leg 7 |
 
+### Elevation Data (Provider & Handling)
+
+Resolved via prior art from the cycling-tour-planner POC (`backend/ctp_core/elevation.py`) — see **SPIKE-18**.
+
+| FR | Requirement | Origin |
+|---|---|---|
+| **FR85** | Plotlines' elevation source is **GEDTM30** (30 m global ensemble DTM fusing Copernicus DEM, ALOS World 3D, and ICESat-2/GEDI ground points), distributed by OpenTopography, used as the **single** elevation source with **no secondary/fallback elevation service** — GEDTM30 is already the best-available fused product, so a fallback adds complexity without improving coverage. | cycling-tour-planner POC (`backend/ctp_core/elevation.py`); SPIKE-18 |
+| **FR86** | Elevation attribution (CC BY) appears both on the app's About/info surface and **embedded in exported files where the format permits** (e.g. GPX `<metadata>`); a missing attribution is a build failure, not a polish item. | ARCH §11.2/§12.4, extended; SPIKE-18 |
+| **FR87** | OpenTopography's free non-academic API key is capped at **50 calls/24h**, and a paid Enterprise key is required once elevation is integrated into commercial software per OpenTopography's API Agreement. Plotlines' core app remaining free is what keeps Phase-1 elevation usage (FR62) within the free tier legally — this constrains both the architecture and any future monetization model. | cycling-tour-planner POC (`backend/ctp_service` config); SPIKE-18 |
+| **FR88** | Elevation reads **never raise and never block a route solve**. A value present at a coordinate is used; a `nodata` sentinel — **including a raw NaN nodata value, checked explicitly via `isnan`, not `== ds.nodata`** — falls back to `0.0` (flat-earth), as does a coordinate outside every open raster's bounds or a raster missing/unreadable on disk. Each fallback is logged **at most once per raster path**, never once per coordinate. No network fetch may occur inside route computation. | cycling-tour-planner POC (`backend/ctp_core/elevation.py`, `test_elevation.py` — a real NaN-vs-`==` defect found and fixed there); SPIKE-18 |
+| **FR89** | Elevation enrichment annotates every graph node with its elevation and every edge with `elev_gain = max(0.0, elev[v] - elev[u])` — **positive gain only** — matching ARCH §6.1's `enrich_elevation` contract. | cycling-tour-planner POC; SPIKE-18 |
+| **FR90** | The shipped default region's elevation raster is distributed as a **versioned tarball asset**, extracted into a local cache by a documented one-time setup step. Windows setup extracts via `tar -C <dir>`, **never** PowerShell `>` redirection, which corrupts the binary raster. | cycling-tour-planner POC (`README.md`); SPIKE-18 |
+| **FR91** | Elevation enrichment at sidecar startup is a **blocking, minutes-long** operation and must run off the request-handling event loop; per ARCH §7.3's existing readiness-not-liveness health semantics, a sidecar still enriching elevation must report itself **not ready**, never merely "up." | cycling-tour-planner POC (`backend/ctp_service/app.py`); ARCH §7.3, extended |
+
+### Mapping & Tile Service Contract
+
+Only the POC-validated *contract* is decided here — the rendering technology and concrete tile-generation tooling remain **SPIKE-14**'s job, unrun.
+
+| FR | Requirement | Origin |
+|---|---|---|
+| **FR92** | The client talks **only** to Plotlines' own tile service (`GET /tiles/{z}/{x}/{y}`, ARCH §7.2) for basemap tiles; it never contacts a third-party tile host directly. (Today's dev-time backend proxies to a public OSM tile server as a **temporary implementation**; the client-talks-only-to-us **contract is permanent** regardless of what SPIKE-14 decides upstream.) | cycling-tour-planner POC (`backend/ctp_service/app.py`); SPIKE-14 |
+| **FR93** | The tile service **validates `z/x/y` against range** (`0 ≤ z ≤ 19`, `0 ≤ x,y < 2^z`) before doing any upstream work, rejecting out-of-range requests. | cycling-tour-planner POC (security review finding); SPIKE-14 |
+| **FR94** | Tiles are generated and cached **bbox-scoped and on demand**, not served from a standing global tile server; the same cache/pipeline is the origin for both live map requests and offline adventure-package bundles (FR64) — one pipeline, not two. The elevation cache (FR85–91) follows the identical bbox-scoped, on-demand pattern under a separate cache. | cycling-tour-planner POC; SPIKE-14 |
+
 
 ## 7. User Stories (INVEST)
 
@@ -660,7 +684,7 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 
 **M3 — Abstract elevation behind one interface** *[MVP]* — *FR62 seam*
 **As a** Developer, **I want** elevation requested for a bounding box through one interface **so that** adding a shared cache later is a config change, not a client rewrite.
-*AC:* One elevation interface from the first milestone; initial resolution is local-cache-then-direct-provider; a later phase inserts a shared cache ahead of the direct call, changing only order and base URL; the routing core's elevation reads are unchanged.
+*AC:* One elevation interface from the first milestone; initial resolution is local-cache-then-direct-provider; a later phase inserts a shared cache ahead of the direct call, changing only order and base URL; the routing core's elevation reads are unchanged. The direct provider in Phase 1 is GEDTM30/OpenTopography (FR85).
 
 **M4 — Serve web auth same-site** *[MVP]* — *architecture requirement*
 **As a** Developer, **I want** web and API on subdomains of one registered domain with a first-party `SameSite=Lax` session cookie **so that** sessions survive Safari and Firefox third-party-cookie blocking.
@@ -686,6 +710,14 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 **As a** Developer, **I want** the mobile app to minimize GPS/CPU/network wake-ups and keep working under OS power-saving **so that** navigation survives a full day in the field.
 *AC:* Minimized wake-ups during active navigation; no errors/crashes under OS power-saving; core navigation (cue sheet, position, next maneuver) remains available.
 
+**M10 — Ship a single, licensed elevation source with no fallback** *[MVP]* — *FR85, FR88*
+**As a** Developer, **I want** one fused elevation source with an explicit void/nodata/NaN policy **so that** elevation reads are simple, predictable, and never the reason a solve hangs or throws.
+*AC:* GEDTM30/OpenTopography is the only elevation source, no secondary fallback; nodata (including NaN, via explicit `isnan`) and out-of-bounds/missing-raster cases all resolve to `0.0`, logged at most once per raster path; no network call occurs inside a solve.
+
+**M11 — Serve tiles only through our own service** *[MVP]* — *FR92, FR93, FR94*
+**As a** Developer, **I want** the client to depend on one tile contract regardless of the upstream tile source **so that** swapping the basemap vendor or generation tooling (SPIKE-14) never touches client code.
+*AC:* Client requests tiles only from `GET /tiles/{z}/{x}/{y}`; the service validates z/x/y range before any upstream work; tile generation is bbox-scoped and on-demand, shared with the offline-bundle pipeline (FR64).
+
 
 ## 8. Open Items
 
@@ -697,7 +729,7 @@ Deliberately unresolved, carried forward or newly surfaced:
 - **Paddling difficulty — decided, and worth revisiting if the data changes.** SPIKE-04 ([results](../spikes/SPIKE-04/results/RESULTS.md)) found the paddling network and live gauge readings solid and public-domain (USGS), and **class ratings absent**: one graded feature across the three regions tested, 58 across all of North America, and the authoritative US inventory prohibits reuse. **Decided 2026-08-14: FR13 removed, stories B4 and B5 removed, FR14 narrowed to an advisory gauge band (B8, Leg 3), FR15/B6 portages made Author-drawn.** What remains open is not the decision but its trigger: **if a data agreement with American Whitewater becomes possible — or the OSM whitewater schema gains North American adoption — the class-band capability becomes buildable and should be reconsidered on its merits.** Nothing in the current design forecloses it: re-adding the class term is two fields on `WeightProfile` and a scoring clause (ARCH §6.3, D19) once a data source exists — not a redesign.
 - **Unified "share with Author" surface.** Profile field-sharing is now a request/response negotiation (FR78/FR78a — Author requests, Character grants/declines/volunteers), while transit/arrival sharing (FR30) is a simpler per-field opt-in. Design should decide whether these live in one "what I share with the Author" surface or two, and whether transit sharing should also adopt the request/response pattern.
 - **Leg 7 interface shape.** The concrete data-input contract and output-destination list are intentionally open (FR84).
-- **Default download regions.** The packaged first-region set is not yet pinned; Character first-start download is written generically until it is.
+- **Default download regions.** The packaged first-region set is not yet pinned; Character first-start download is written generically until it is. SPIKE-14 must settle: fixed named regions, a per-trip bounding box, or both; the first-run experience for a Character with nothing downloaded; a minimum-useful-region sizing criterion (the cycling-tour-planner POC's first default bbox was too small to produce real routes and had to be widened to an ~80 km square before it worked — a cautionary data point, not a Plotlines default); and a much smaller pinned bbox for CI/tests so they stay fast.
 - **Brand naming & positioning** beyond product/technical scope — not yet settled.
 - **Visual identity & color system** — owned by `Brand Guide.md`, deliberately not duplicated here.
 

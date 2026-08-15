@@ -1,0 +1,10 @@
+:root {
+  --radius-sm: 3px;
+  --radius-md: 4px;   /* default component corner — subtle */
+  --radius-lg: 6px;   /* cards */
+  --radius-xl: 12px;
+  --radius-pill: 999px;
+
+  --stroke-hairline: 1px;
+  --stroke-marker: 2px;   /* icon + map-marker stroke */
+}

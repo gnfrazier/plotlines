@@ -1,0 +1,14 @@
+:root {
+  --font-serif: 'Instrument Serif', Georgia, serif;   /* expressive display */
+  --font-sans:  'Archivo', system-ui, sans-serif;      /* UI / body */
+  --font-mono:  'JetBrains Mono', ui-monospace, monospace; /* data / coordinates */
+
+  /* Type scale (px / line-height) */
+  --type-display: 64px;   --lh-display: 0.92;
+  --type-h1: 40px;        --lh-h1: 1.05;   --w-h1: 800;
+  --type-h2: 28px;        --lh-h2: 1.1;    --w-h2: 700;
+  --type-title: 20px;     --lh-title: 1.2; --w-title: 700;
+  --type-body: 16px;      --lh-body: 1.7;  --w-body: 400;
+  --type-small: 13px;     --lh-small: 1.6; --w-small: 500;
+  --type-data: 12px;      --lh-data: 1.4;  --tracking-data: 0.12em; /* UPPERCASE */
+}

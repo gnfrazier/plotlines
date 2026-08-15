@@ -1,0 +1,66 @@
+:root {
+  /* Base palette — canvas & ink */
+  --canvas: #F4EFE4;
+  --panel:  #EBE3D4;
+  --paper:  #FBF9F3;
+  --ink:    #221F1A;
+  --ink-2:  #544D42;
+  --ink-3:  #8C8476;
+  --line:   #D9D0BE;
+
+  /* Brand + mode accents */
+  --blaze:  #DB5A28;  /* primary action, emphasis */
+  --spruce: #2C4A3B;  /* land / trail modes */
+  --slate:  #3D6577;  /* water / paddle modes (Riverslate) */
+  --gold:   #B5852B;  /* caution / highlights — fills & markers only, never text */
+  --ember:  #9A3412;  /* hazard / high severity */
+
+  /* Semantic aliases */
+  --surface-app:    var(--canvas);
+  --surface-card:   var(--paper);
+  --surface-sunk:   var(--panel);
+  --text-primary:   var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-muted:     var(--ink-3);
+  --border:         var(--line);
+  --primary:        var(--blaze);
+  --on-primary:     #FFFFFF;
+  --success:        var(--spruce);
+  --info:           var(--slate);
+  --warning:        var(--gold);
+  --danger:         var(--ember);
+}
+
+/* Outdoor high-contrast mode — max legibility in glare, toggleable, never default. */
+:root[data-theme="hc"] {
+  --surface-app:  #000000;
+  --surface-card: #000000;
+  --surface-sunk: #0B0B0B;
+  --text-primary: #FFFFFF;
+  --text-secondary: #F2F2F2;
+  --text-muted:   #CFCFCF;
+  --border:       #FFFFFF;
+  --primary:      #FF6A34;
+  --on-primary:   #000000;
+  --success:      #7BD6A9;
+  --info:         #7FC2DB;
+  --warning:      #FFCF33;
+  --danger:       #FF4D3D;
+}
+
+/* Dark (dusk) mode — warm dark, not the outdoor HC mode. */
+:root[data-theme="dark"] {
+  --surface-app:  #17140F;
+  --surface-card: #201C16;
+  --surface-sunk: #2A251D;
+  --text-primary: #F4EFE4;
+  --text-secondary: #D6CDBB;
+  --text-muted:   #9A9080;
+  --border:       #3A342A;
+  --primary:      #E4703F;
+  --on-primary:   #1B1712;
+  --success:      #6FB495;
+  --info:         #6FA6BE;
+  --warning:      #D8A845;
+  --danger:       #D9603F;
+}

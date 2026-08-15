@@ -4,28 +4,35 @@
 
 **How to read the priority:** **Scope-shaping** spikes can send you back to revise the PRD if they come back negative. **Implementation-informing** spikes won't change scope but determine how a committed feature is built. Do the scope-shaping ones first.
 
-**Companion to:** `Plotlines_PRD.md` (89 FRs / 96 stories).
+**Companion to:** `Plotlines_PRD.md` (100 FRs / 98 stories).
 
 ---
 
 ## Priority order (by risk of reshaping scope)
 
 **Gates desktop MVP (do first):**
-0. Frozen sidecar packaging — the desktop-MVP foundation — **ARCH §4, A1/A5, Q4/Q5**
+0. ~~Frozen sidecar packaging — the desktop-MVP foundation~~ — **complete (SPIKE-00, 2026-08-13/14)** — **ARCH §4, A1/A5, Q4/Q5**
+0a. **Vector mapping — `maplibre_gl` + PMTiles** — **SPIKE-14, unrun.** The other half of the desktop foundation: SPIKE-00 proved the sidecar can *compute* a route; nothing yet proves the client can *draw* one. Every Author Desktop screen is map-centric and no document names a tile source, a licence, or a Flutter map package (MVP §1.4.5).
+0b. ~~Elevation data provider & void-handling policy~~ — **complete (SPIKE-18, 2026-08-15, resolved via prior art)** — **ARCH §6.1/§6.5/§11/§11.1, PRD FR85–FR91, MVP §1.4.5**
 
 **Scope-shaping (later milestones):**
 1. ~~Multimodal / paddling data availability~~ — **complete (SPIKE-04, 2026-08-14)**
 2. Backgrounded GPS-triggered audio on real devices — **FR49, FR47, FR50a**
 3. ~~Via-node loop routing~~ — **complete (SPIKE-01, 2026-08-14)**
 4. Dart-first offline engine at feature scale — **FR63, FR64**
+5. Community data-input extensions — **SPIKE-17, FR84** — shape-shaping for Leg 7, and it carries one question that touches MVP principles rather than Leg 7 alone (see the spike)
 
 Everything below these is implementation-informing rather than scope-shaping.
 
-**Note on sequencing:** SPIKE-00 was the only one that blocked the *near-term* build. SPIKE-01 (via-node) and SPIKE-04 (paddling) were the routing unknowns worth running alongside early desktop work; the rest gate later milestones (field execution, mobile, Web) and can wait for those.
+**Note on sequencing:** SPIKE-00 was the only one that blocked the *near-term* build, and it is closed. **SPIKE-14 (vector mapping) now holds that position** — it is the last unrun thing standing between the docs and a desktop client that renders. SPIKE-01 (via-node) and SPIKE-04 (paddling) were the routing unknowns worth running alongside early desktop work; the rest gate later milestones (field execution, mobile, Web) and can wait for those.
 
-**Status (2026-08-15):** **SPIKE-00, SPIKE-01, SPIKE-02, SPIKE-03, SPIKE-04 and SPIKE-05 are complete.** SPIKE-05 came back positive for moving time (7–8% MAPE against real activity files) and negative for elapsed time, and turned up a build consequence: FR16's *system default* pace holds for hiking and fails for cycling, which makes the Character-activity-upload path load-bearing rather than optional. SPIKE-04 came back negative on class ratings and reshaped PRD scope accordingly (B4/B5 removed — ARCH D19), which is the outcome this whole document exists to make cheap. **All routing-algorithm unknowns are now closed** (01/02/03, run together over one shared fixture set — see [`spikes/shared/`](../spikes/shared/README.md)): via-node loops are nearly free (**A9 promoted to MVP at 1–2 nodes; A9a holds 3+ at P1**), A6's AC is deliverable as written, and min/max bands converge provided their defaults come from measured terrain rather than constants (**FR6 reworded to bound the realized attribute**). **The next unrun scope-shaping spikes are SPIKE-06 / SPIKE-12 (backgrounded GPS audio and playback)**, which gate the field-execution milestone rather than the MVP routing build.
+**Status (2026-08-15):** **SPIKE-00, SPIKE-01, SPIKE-02, SPIKE-03, SPIKE-04, SPIKE-05, and SPIKE-18 are complete.** SPIKE-05 came back positive for moving time (7–8% MAPE against real activity files) and negative for elapsed time, and turned up a build consequence: FR16's *system default* pace holds for hiking and fails for cycling, which makes the Character-activity-upload path load-bearing rather than optional. SPIKE-04 came back negative on class ratings and reshaped PRD scope accordingly (B4/B5 removed — ARCH D19), which is the outcome this whole document exists to make cheap. SPIKE-18 (elevation provider) closed same-day, resolved via prior art from the cycling-tour-planner POC rather than a fresh run — see its entry below. **All routing-algorithm unknowns are now closed** (01/02/03, run together over one shared fixture set — see [`spikes/shared/`](../spikes/shared/README.md)): via-node loops are nearly free (**A9 promoted to MVP at 1–2 nodes; A9a holds 3+ at P1**), A6's AC is deliverable as written, and min/max bands converge provided their defaults come from measured terrain rather than constants (**FR6 reworded to bound the realized attribute**). **The next spike to run is SPIKE-14 (vector mapping)** — added 2026-08-15, and the only unrun spike that gates the desktop MVP now that SPIKE-00 and SPIKE-18 are closed. After it, the next scope-shaping ones are **SPIKE-06 / SPIKE-12** (backgrounded GPS audio and playback), which gate the field-execution milestone rather than the MVP build.
 
 **Both implied PRD amendments have been applied (2026-08-14)** — A9 split into A9 (1–2 via-nodes, MVP) and A9a (3+, P1), and FR6 reworded to bound the realized attribute. See [PRD changes these implied](#prd-changes-these-implied) at the end of this document.
+
+**Four spikes added 2026-08-15 (SPIKE-14 … SPIKE-17), none run.** They come from a technology-choice note written during the PRD work and only filed later — [`docs/Plotlines - Spike Candidates.md`](Plotlines%20-%20Spike%20Candidates.md), kept as provenance. They cover the **client** side of the build, which this document had almost nothing on: everything here through SPIKE-13 concerns routing, data availability, packaging, or mobile OS behaviour, and the Flutter client's own rendering, threading, export, and extension questions went unrecorded. **SPIKE-14 gates the desktop MVP** and closes the basemap gap flagged in MVP §1.4.5. SPIKE-16 bears directly on an `[MVP]` story (F3) *and* raises where export runs. The note's summary table also contained three technology calls that are **not** spikes — see [Technology choices from the same note that are not spikes](#technology-choices-from-the-same-note-that-are-not-spikes) below, because one of them conflicts with an architectural principle.
+
+**A fifth spike, SPIKE-18, was also added 2026-08-15 — from a different source.** Unlike SPIKE-14–17, it does not come from the Spike Candidates note; it closes the *other* unassigned decision MVP §1.4.5 flagged (the elevation provider), and it is recorded already-resolved via prior art from a separate working POC (`github.com/gnfrazier/cycling-tour-planner`) rather than as something still to run.
 
 ---
 
@@ -39,6 +46,41 @@ Everything below these is implementation-informing rather than scope-shaping.
 **Spike question:** On your primary desktop platform, freeze `service`+`core` (try PyInstaller and Nuitka — Q4) into a single binary; confirm it spawns, answers a `/health` and a real `/segments/generate` call over loopback, and terminates on signal. Measure binary size and cold-start-to-ready time. Repeat on a second desktop OS to expose cross-platform surprises. Assess bundle-in-installer vs. download-on-first-run (Q5) from the resulting size.
 **Decides:** Whether the sidecar model (ARCH D1) holds for desktop as designed, and the answers to Q4 (which freezer) and Q5 (bundle vs. download). A negative result reshapes the entire desktop delivery approach before any UI is built.
 **Done when:** A frozen binary generates a real route over loopback on two desktop platforms, with size and startup time quantified — or the blocking failure is documented and the delivery model revisited.
+
+---
+
+## Elevation & terrain data (desktop MVP foundation)
+
+### SPIKE-18 — Elevation data provider & void-handling policy ✅ **COMPLETE (resolved via prior art)**
+**Covers:** ARCH §6.1 (`enrich_elevation`), §6.5 (void handling), §11/§11.1/§11.2 (integration table, two-phase cache, attribution); PRD M3/FR62/FR85–FR91; MVP §1.4.5 — the second of the four "decisions this list cannot make for itself"
+**Priority:** Gates desktop MVP — M3 is `[MVP]` and cannot be built against an unnamed provider
+**Run:** N/A — resolved via prior art. The cycling-tour-planner POC (`backend/ctp_core/elevation.py`, `backend/ctp_service`, `README.md`) is a working, tested implementation of this exact provider (GEDTM30 via OpenTopography) that already found and fixed a real NaN-vs-`==` nodata defect (`test_elevation.py`).
+**Unknown:** Which elevation provider to use, under what licence and rate limit, and what void/failure policy keeps a route solve from ever blocking or raising.
+**Decides:** GEDTM30 via OpenTopography as the single source (no fallback), its CC BY attribution and 50 calls/24h free-tier limit, and the exact void/nodata/NaN fallback policy — recorded as PRD FR85–FR91 and ARCH D20.
+**Done when:** A named provider, licence, and void-handling policy are written down and traceable to a working implementation. **Met** — see FR85–FR91, ARCH §6.5, D20.
+
+---
+
+## Client platform & rendering (desktop MVP foundation)
+
+The client half of the foundation. SPIKE-00 proved `plotlines-core` can be frozen and spawned; these two ask whether the Flutter app around it can draw a map and stay responsive. Both were absent from this document until 2026-08-15.
+
+### SPIKE-14 — Vector mapping: `maplibre_gl` + PMTiles
+**Covers:** ARCH §7.2 (`GET /tiles/{z}/{x}/{y}`), §9.2 (tile storage per platform), §11 (which has **no tile-provider row**), §11.3 (offline package size), FR35/FR64 (buffer + offline package, later); MVP §1.4.5 — the first of the four "decisions this list cannot make for itself"
+**Priority:** **Gates desktop MVP** — the only unrun spike in that class
+**Already decided, out of this spike's scope (2026-08-15, from the cycling-tour-planner POC — PRD FR92–94, ARCH D21):** the client talks only to Plotlines' own `GET /tiles/{z}/{x}/{y}` service, never a third-party tile host directly; the service validates `z/x/y` range before any upstream work; tile generation/caching is bbox-scoped and on-demand (not a standing global server), sharing one pipeline with offline bundles. These are contract decisions, not renderer decisions — they hold regardless of what this spike finds below.
+**Unknown:** Every screen in the Author Desktop wireframe is a map, and **no document in this repo names a basemap.** The integration table in ARCH §11 lists elevation, weather, geocoding, OSM Overpass, and USGS — and no tiles. `client/pubspec.yaml` declares no dependencies at all. So three things are unproven at once: that `maplibre_gl` renders and performs acceptably on Flutter *desktop* (its Linux/Windows desktop support is materially less exercised than its mobile support), that PMTiles gives us a single-file offline tile archive the sidecar or the client can serve locally, and — the part that is not a technology question at all — **which tile source we are licensed to use and what attribution it obliges.** Two further unknowns carried over from the tile-contract review: the **concrete tile-generation tooling** (`tilemaker` → MBTiles, or an alternative — ARCH Q9), and the **region/bbox selection strategy** (fixed named regions, per-trip bounding box, or both; the first-run experience for a Character with nothing downloaded; a minimum-useful-region sizing criterion — ARCH Q10). On that last point, the cycling-tour-planner POC's first default bbox was too small to produce real routes and had to be widened to a ~80 km square (Marion, NC) before it worked — a cautionary reference data point on sizing, not a Plotlines default.
+**Spike question:** Render a real routed polyline with node markers over a vector basemap in a Flutter desktop window on at least two desktop platforms. Serve tiles from a local PMTiles archive with the network unplugged (P2), and measure: pan/zoom frame rate at a realistic node count, archive size for a region comparable to a multi-day trip corridor, cold-open time, and memory. Separately, settle the licensing: which tile source (self-hosted from OSM data, a hosted vendor's free tier, a public PMTiles build), under what terms, and what attribution string must appear where — feeding the About surface obligation (ARCH §11.2/§12.4, MVP §1.4.3). Alongside that, settle the tile-generation tooling (Q9) and the region/bbox selection strategy and its minimum-useful-region sizing criterion (Q10), including a small pinned bbox for CI/tests.
+**Decides:** The basemap stack, the offline tile story, and the tile row missing from ARCH §11 — including whether tiles route through the sidecar (`GET /tiles/{z}/{x}/{y}` as designed) or the client reads the PMTiles archive directly, which is a real architectural fork the endpoint surface currently presumes one answer to. A negative result on desktop `maplibre_gl` sends the presentation layer to a different map package before any screen is built.
+**Done when:** A themed route renders offline over a local tile archive on two desktop platforms with quantified performance and size, and the tile source's licence and attribution obligation are written down — or the failure is documented and an alternative package chosen.
+
+### SPIKE-15 — Dart isolates for background processing
+**Covers:** ARCH §9.1 (client layering), Developer story M7 (core-limit parameter — the same "don't starve the UI" concern on the Dart side); FR68/FR70/FR71 and stories L1/L3/L4 (GeoJSON auto-backup, `.zip` archive export/restore); FR64/H7 (offline package assembly, later)
+**Priority:** Implementation-informing
+**Unknown:** The desktop client does not compute routes — the sidecar does — but it *does* parse and hold their output, and Epic L asks it to build and restore `.zip` archives containing GeoJSON, Markdown, and photo binaries "without choking the device" (L3's AC, verbatim). Whether `Isolate.run` is the right mechanism, what the payload-size threshold is at which main-isolate parsing becomes visible, and how much the isolate-boundary copy costs for large geometry are all unmeasured.
+**Spike question:** Parse a realistic multi-day trip payload — routed geometry, elevation samples, nodes — on the main isolate and via `Isolate.run`, and measure dropped frames and wall time for each. Repeat for a representative `.zip` archive (L3) with photo binaries. Find the payload size at which the main isolate visibly stutters, so the threshold is a measured number rather than a guess.
+**Decides:** Whether client-side heavy work needs isolates from the first milestone or only when Epic L lands, and where the size threshold sits. Cheap to get wrong early and annoying to retrofit, since moving work across an isolate boundary later changes the data structures that cross it.
+**Done when:** The stutter threshold is quantified for both the trip payload and the archive path, with a recommendation on which client operations run off the main isolate.
 
 ---
 
@@ -107,6 +149,22 @@ The waterway network and live gauge data are solid and public-domain, but from *
 
 ---
 
+## Export interop
+
+### SPIKE-16 — Byte-accurate FIT export via the Garmin FIT SDK
+**Covers:** FR44, FR45 (story **F3, `[MVP]`**); ARCH §6.1 (`export_trip` in the core), §7.2 (`POST /trips/{id}/export`), §13.3 (the Dart-side output-integration seam); MVP §1.4.5 — the fourth "decision this list cannot make for itself" named FIT as the hard one of the three formats and observed that no library has been chosen
+**Priority:** Implementation-informing — **but it gates an `[MVP]` story and raises an architectural question the routing spikes did not**
+**Unknown:** Two things, and the second is the interesting one.
+
+*First, the format.* GPX and TCX are XML and forgiving; **FIT is a binary protocol with a message/field schema, and head units reject files that are structurally wrong rather than degrading.** FR45 requires waypoints, regroup markers, rest-stop names, and plot-point notes to survive "as native course/turn points **where the target format supports them**" — for FIT that means real `course_point` messages with the right type enum, not a track with names attached. Whether a Python writer can produce a file that a real Garmin, Coros, and Wahoo unit all accept is unproven, and "it parsed in a validator" is not the bar — the bar is a device.
+
+*Second, where export runs.* The architecture puts export in the core: `export_trip(trip, fmt, contents) -> bytes` (§6.1) behind `POST /trips/{id}/export` (§7.2), which keeps one implementation for sidecar and hosted alike (P1/D2). **The spike-candidates note proposes Dart FFI against the official Garmin FIT SDK on the device instead** — which would put one of the four export formats outside the core, on a different code path from the other three, and give sidecar and hosted deployments different FIT writers. That is a real fork, not a detail: it trades a licensing-and-fidelity guarantee for a boundary violation, and it should be decided on measured evidence rather than assumed either way.
+**Spike question:** Produce a course FIT file containing a track, elevation, and several `course_point`s of distinct types (turn, water, food, danger, generic) for a real routed segment. Do it twice — once from Python inside `plotlines-core`, once via Dart FFI against the official Garmin FIT SDK — and **load both onto real head units** from at least two vendors. Record what each device does with every course-point type, whether notes survive, whether the file is accepted at all, and what each path costs to build and ship (the FFI path adds a native dependency per platform to a binary already carrying GDAL/GEOS — ARCH risk A5). Check the FIT SDK's licence terms for redistribution while you are there.
+**Decides:** Which FIT writer F3 ships, and — if the Dart path wins on fidelity — whether that justifies exporting one format outside the core (a P1 boundary question and a Decision Log entry, not a library preference). Also settles what FR45's "where the target format supports them" actually means per device, which currently no one can state.
+**Done when:** A generated FIT course loads and displays its course points correctly on head units from two vendors, with the winning implementation path chosen on evidence and any P1 consequence written up — or the fidelity ceiling is documented so FR45's AC can be narrowed to what devices really do.
+
+---
+
 ## Platform & OS behavior (field execution)
 
 ### SPIKE-06 — Backgrounded GPS-triggered audio on real devices
@@ -163,6 +221,38 @@ The waterway network and live gauge data are solid and public-domain, but from *
 
 ---
 
+## Plugin & community data (Leg 7)
+
+### SPIKE-17 — Community data-input extensions over normalized JSON
+**Covers:** FR84 (Leg 7, deliberately open); ARCH §13.1 (two plugin directions), §13.2 (`EdgeDataProvider` / `NodeDataProvider` / `ShapeDataProvider` / `WaterwayDataProvider`), P6 (plugins extend, never modify), P7 (external resources are borrowed), P3 (server-side state is exceptional and enumerable)
+**Priority:** Scope-shaping for Leg 7 — **and one of its sub-questions reaches back into MVP principles**
+**Unknown:** ARCH §13 defines the *shape* of a data-input plugin and deliberately leaves the contract open, on the reasoning that the built-in OSM path implementing the same interfaces is the proof they are real. That reasoning has never been tested against a **second, differently-shaped source.** The candidate sources are wildly heterogeneous — ArcGIS MapServer REST, OGC API - Features, WaterML, bespoke DOT feeds, vendor APIs with keys and rate limits — and it is unproven that one `annotate_edges` / `fetch_nodes` contract absorbs them, or that a community contributor could write one without touching core code (P6's actual test).
+
+Three specific unknowns sit inside that:
+
+1. **Does the interface hold across source shapes?** SPIKE-04 already produced one hard case — the paddling network needed USGS NHDPlus HR with declared `fromnode`/`tonode` topology and a `reachcode` per edge, not OSM's inferred shared vertices. That is one non-OSM source and it changed the provider's shape. A second and third will say whether §13.2 generalizes or whether it was fitted to two examples.
+2. **Edge-annotation sources are the hard half, and the reason is timing.** A node source (NPS sites, historic markers, campgrounds) is a fetch and a map pin. An **edge** source — realtime traffic, construction, closures — must influence `edge_cost` *during scoring*, which means it has to be resolved and cached before the solve, not fetched during it (ARCH §6.5's rule that nothing blocks a solve). Whether a realtime feed can be usefully snapshotted into a graph annotation, and what staleness rule applies (FR66's age-stamping generalized beyond weather), is unaddressed.
+3. **Does normalization need a server?** The note proposes a *serverless edge proxy* to flatten USGS WaterML and weather APIs into light JSON. That is convenient and it **conflicts with P3 and P2 as written**: P3 enumerates exactly five things the hosted service does and normalization is not among them, and desktop MVP has no hosted tier at all (MVP §1.2). The honest alternatives are per-source adapter code inside the provider (no server, more client code, key handling on device) or a proxy that is explicitly added to P3's list as a sixth item by decision. **Adding it silently would be the P3 violation the principle exists to catch.**
+
+**Spike question:** Implement two data-input providers against the existing §13.2 interfaces without changing core code, chosen to be maximally unlike each other and unlike OSM — suggest **one node source** and **one edge source** from the candidate list below. Record every place the interface had to bend. Then, for the edge source, measure the fetch-and-annotate step against a real graph build: how long, how cacheable, what TTL the data's actual volatility justifies (P7), and what a stale annotation should surface to the Author. Finally, write down what a third-party contributor would have to know to add a third source — the packaging, the key handling, the registration — since FR84's whole claim is that the interface is *clean*.
+
+**Candidate sources** (from the note; the point is heterogeneity, not coverage):
+
+| Kind | Source | Shape |
+|---|---|---|
+| Node | [NPS Data API](https://www.nps.gov/subjects/developer/api-documentation.htm) | REST + JSON, keyed |
+| Node | [Active.com Campground APIs](https://developer.active.com/docs/read/Campground_APIs) | proprietary, keyed — tests the licence/redistribution question |
+| Node | [NC Highway Historical Markers](https://gis2.ncdcr.gov/dncrgis/rest/services/NCHHM_Public/NC_Highway_Historical_Markers/MapServer) | ArcGIS MapServer REST |
+| Shape | [US Scenic Byways](https://geo.dot.gov/server/rest/services/US_Scenic_Byways/MapServer) | ArcGIS MapServer REST — a *route* overlay, exercising `ShapeDataProvider` |
+| Edge | State DOT realtime traffic / construction / closures — [NC TIMS](https://tims.ncdot.gov/tims/V2/webservices), [511 WI](https://511wi.gov/developers/doc), [511 SF Bay](https://511.org/open-data/traffic) | three different bespoke schemas for the same concept — the sharpest test of normalization, and directly relevant to **FR3's traffic weight**, which SPIKE-03 found overstates rural traffic when inferred from highway class alone |
+| Edge/node | [USGS Water Data](https://api.waterdata.usgs.gov/), [CUAHSI WaterOneFlow](https://his.cuahsi.org/wofws.html) | already partly built for FR14a — the known-good baseline to compare the others against |
+| Node/edge | Alternative weather providers | tests swapping a source the core already has a built-in for |
+
+**Decides:** Whether FR84's interface is real or aspirational, what the data-input contract concretely looks like, and whether API normalization needs a server tier — which, if yes, is a **P3 design event requiring an explicit decision**, not a quiet addition. A negative result reshapes Leg 7's promise before anything is published to contributors.
+**Done when:** Two unlike providers annotate a real graph through unchanged core interfaces, with the edge-source timing and staleness rule quantified — or the interface's limits are documented so §13.2 can be revised before Leg 7 commits to it publicly.
+
+---
+
 ## Cross-account sync
 
 ### SPIKE-11 — Group amendment & field-note propagation
@@ -191,19 +281,36 @@ The waterway network and live gauge data are solid and public-domain, but from *
 | Spike | Covers | Priority | Reshapes scope? |
 |---|---|---|---|
 | ~~**SPIKE-00 Frozen sidecar**~~ | ARCH §4, A1/A5 | Scope-shaping | **Run 2026-08-13/14 — closed.** Sidecar model holds; Q4/Q5 answered |
+| **SPIKE-14 Vector mapping (maplibre_gl + PMTiles)** | ARCH §7.2/§9.2/§11, MVP §1.4.5 | **Gates desktop MVP** | **Unrun — the only one left in this class.** No basemap, licence, or map package is named anywhere; also forks on whether tiles go through the sidecar or the client reads PMTiles directly. Tile *contract* (own-service-only, z/x/y validation, bbox-scoped on-demand) already decided (FR92–94, D21); still owns tooling (Q9) and region/bbox strategy (Q10) |
+| ~~SPIKE-18 Elevation provider~~ | ARCH §6.5/§11.1, PRD FR85–91 | Gates desktop MVP | **Complete 2026-08-15 — resolved via prior art.** GEDTM30/OpenTopography, no fallback, exact void/NaN policy (D20) |
 | ~~SPIKE-04 Paddling data~~ | FR14–15 | Scope-shaping | **Complete 2026-08-14.** Network/gauge yes (USGS), class no → **B4/B5 removed**, FR14 narrowed (ARCH D19) |
 | SPIKE-06 Backgrounded GPS audio | FR49, FR47, FR50a | Scope-shaping | Yes |
 | SPIKE-12 Backgrounded audio playback | FR49, FR50a | Scope-shaping | Yes (pairs with 06) |
 | ~~SPIKE-01 Via-node loops~~ | FR8a | Scope-shaping | **Complete 2026-08-14.** Same primitive as start/destination and *cheaper* than an unconstrained loop → **A9 (1–2 vias) promoted to MVP**; **A9a (3+) split out at P1** |
 | SPIKE-09 Dart offline engine | FR63 | Scope-shaping | Yes |
+| **SPIKE-17 Community data extensions** | FR84, ARCH §13 | Scope-shaping (Leg 7) | Yes — and its normalization-proxy sub-question is a **P3 design event** if answered "server", not a library choice |
 | ~~SPIKE-05 Travel-speed calibration~~ | FR16, FR31 | Implementation | **Complete 2026-08-15.** No — ETAs are trustworthy for moving time (7–8%). FR16's system default holds for hiking, fails for cycling |
 | SPIKE-10 Package size | FR64, FR35 | Implementation | Possibly |
+| **SPIKE-16 FIT export (Garmin FIT SDK)** | FR44, FR45 (**F3, MVP**) | Implementation | Possibly — decides which writer ships, and whether one format legitimately runs outside the core (a **P1 boundary** call) |
+| **SPIKE-15 Dart isolates** | ARCH §9.1, M7; FR68/FR70/FR71 | Implementation | No |
 | ~~SPIKE-02 Conflict/relaxation~~ | FR9 | Implementation | **Complete 2026-08-14.** A6's AC deliverable as written; 8/8 named correctly, 0 false conflicts, 5/5 relaxations verified. Diagnosis must be async (1.3–15 s) |
 | ~~SPIKE-03 Weight-band convergence~~ | FR6 | Implementation | **Complete 2026-08-14.** Bands converge; defaults must come from measured envelope (22% → 100% feasible). **FR6/A5 wording conflict needs a decision** |
 | SPIKE-07 Adaptive accuracy | FR54a | Implementation | No |
 | SPIKE-08 Power-saving OEMs | FR67 | Implementation | No |
 | SPIKE-11 Group propagation | FR56, FR56a, FR59 | Implementation | No |
 | SPIKE-13 Magic-link deliverability | FR57 | Implementation | No (high failure cost) |
+
+---
+
+## Technology choices from the same note that are not spikes
+
+[`docs/Plotlines - Spike Candidates.md`](Plotlines%20-%20Spike%20Candidates.md) opened with a summary table of six technology choices. Four became SPIKE-14 … SPIKE-17 above. The other three are recorded here rather than as spikes, because two are already decided and the third is a principle question that no experiment settles.
+
+| Note's recommendation | Status | Note |
+|---|---|---|
+| **Mobile framework — Dart / Flutter** | **Already decided.** ARCH §3, §9; the whole sidecar model (D1) exists *because* the client is Flutter and the core is Python | No spike needed — this is the premise, not a candidate. Recorded for provenance. |
+| **Local database — Drift (SQLite) *or Isar*** | **Already decided: drift.** ARCH §9.2 names drift for Desktop and Mobile; MVP §1.1 repeats it | **Isar is a genuine alternative the architecture never considered**, and the note's stated reason — "clean isolate support" — is the one axis on which it might beat drift, which ties it to SPIKE-15. Not worth a spike on its own; if SPIKE-15 finds drift's isolate story is the bottleneck, reopen it as an ARCH decision then. Until that evidence exists, changing a decided component would be churn. |
+| **API normalization — Serverless Edge Proxy** | **Not a technology choice — a principle question.** Folded into **SPIKE-17** as its third sub-question | It reads like infrastructure and behaves like scope. **P3 enumerates exactly five things the hosted service does, and normalization is not one of them**; desktop MVP has no hosted tier at all (MVP §1.2). Adopting a proxy is legitimate — as an explicit sixth item added to P3 by decision, which P3 itself calls "a design event." Adopting it quietly, as an implementation detail of a plugin, is the failure mode P3 was written to catch. SPIKE-17 is where the evidence for that decision gets gathered; the decision itself belongs in ARCH's Decision Log. |
 
 ---
 

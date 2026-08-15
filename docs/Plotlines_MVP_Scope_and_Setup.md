@@ -25,8 +25,10 @@ The line here is the one already drawn in the earlier conversation ("can I get t
 | **Sidecar** | Frozen binary, spawn/health/lifecycle, direct external calls (Phase-1 elevation) | ARCH §4, §7.3, §11.1 |
 | **Local storage** | drift (SQLite) for trips; no sync | ARCH §9.2 |
 | **About surface** | Attribution (required), app+sidecar version | ARCH §12.4 |
-| **UI reference** | Author Desktop wireframe imported from Claude Design → `client/design/` | §2.4 |
+| **UI reference** | Author Desktop wireframe + brand guide, UI gallery, and design tokens → `client/design/`; the `plotlines_ui` Flutter package → `client/packages/` | §2.4 |
 | **Distribution** | Manual GitHub Releases, signed installer | ARCH §12.2–12.3 |
+
+> **This table is a capability sketch, not a build list.** It names several capabilities the PRD tags `[P1]`, and it omits obligations that have no story at all. **§1.4 below is the authoritative list and governs where the two disagree.**
 
 ### 1.2 Explicitly skipped for desktop MVP
 
@@ -42,9 +44,85 @@ Each of these is deferred *on purpose*, not forgotten. Naming them keeps them fr
 - **Portability suite (S3–S6 / L1–L4):** GeoJSON auto-backup, archive export/restore — P1, not MVP. (PRD Epic L.)
 - **Plugins:** the Leg-7 interface is designed-for, not built. (ARCH §13.)
 
-### 1.3 The one scope decision still open
+### 1.3 The paddling scope decision — resolved 2026-08-14, one call left
 
-**Paddling in MVP hinges on SPIKE-04.** The PRD commits to full multimodal MVP, but whether paddling has adequate open data is unproven. Build the multimodal *schema* and cycling/hiking for certain; treat paddling as gated on the spike. The core is safe either way (paddling data enters via a provider seam — ARCH §6.4, §13.2); only the product scope is at risk. Run SPIKE-04 early so this resolves before it blocks anything.
+**SPIKE-04 ran and closed.** The original question ("is paddling grounded in real data?") came back **network yes, gauge yes, access partial, class no** — and the PRD already absorbed the negative half: FR13 retired, stories B4/B5 removed, FR14 narrowed to an advisory gauge band (B8), FR15/B6 portages made Author-drawn (ARCH D19). Paddling stays a first-class mode. The core was safe throughout, exactly as predicted, because paddling data enters via a provider seam (ARCH §6.4, §13.2).
+
+**What the spike did *not* decide is whether paddling *routing* is in the desktop MVP.** The answer turned out to be "yes, but from USGS NHDPlus HR, not OSM" — which makes `WaterwayDataProvider` a real implementation with a different topology model (declared `fromnode`/`tonode`), a different edge-scale notion (Strahler order), a `reachcode` on every edge, and a local-extract requirement. That is a substantial build, and none of it is shared with the cycling/hiking graph.
+
+**Proposed call (needs sign-off): multimodal schema + cycling/hiking graphs in desktop MVP; the paddling graph provider lands in Leg 3 alongside B8.** B1–B3's acceptance criteria are met by this — B1 requires that the mode be *selectable from the supported list* and the segment *saved with endpoints and mode*, not that every mode has a live graph. Paddling therefore appears as a first-class mode in the schema, the day composer, and the transition model from day one; what waits is its router. This keeps B8 (gauge band, already tagged Leg 3) and the NHDPlus provider in the same tranche, where they share a data source.
+
+The alternative — building the NHDPlus provider inside desktop MVP — is defensible but roughly doubles the multimodal work for a mode whose advisory layer is already deferred.
+
+### 1.4 The derived desktop-MVP story list *(added 2026-08-15 — needs sign-off)*
+
+§1.1 and §1.2 draw the scope line by *capability*. The PRD draws it by *story priority*. Neither is a build list on its own, and read together they contradict each other in both directions:
+
+- **The PRD's `[MVP]` tag is not the desktop MVP.** Roughly half the `[MVP]` stories are field-execution or account work that §1.2 explicitly cuts — H2, H7, I1, I2, I2a, I3, I5, I6a, K1, K3, K4, M4.
+- **§1.1 promises capabilities the PRD tags `[P1]`** — lodging (C7), historical weather (D3), narrative arc (E2), POI-themed trips (E3), narration trigger metadata (E4), GeoJSON export (E5), itineraries (F2), and travel speeds (B7).
+
+This section resolves both directions into one list. **Where it disagrees with §1.1's capability table, this section governs.**
+
+### 1.4.1 The 27 stories that carry over unchanged
+
+Every story below is `[MVP]` in the PRD *and* survives §1.2's cuts. §1.4.2 then adds four and removes four promises, for **31 stories in total**.
+
+| Epic | Stories | Covers |
+|---|---|---|
+| **A — Theme-driven routing** | A1, A2, A3, A4, A5, A6, A7, A8, A9 | climbing / traffic / surface / POI weights, realized-attribute bands, conflict + relaxation, shape, target distance, 1–2 via-nodes |
+| **B — Multimodal composition** | B1, B2, B3 | mode-per-segment, day sequencing, transition nodes (see §1.3 on paddling's router) |
+| **C — Multi-day logistics** | C1, C2, C3, C4, C5, C11 | duration, start/end/rest days, per-mode daily distance bounds, alternates, waypoints/regroup/rest stops, hazards & cruxes |
+| **D — Metrics** | D1 | live planning dashboard (see the B7 call below) |
+| **E — Curation** | E1 | node notes & media |
+| **F — Outputs** | F1, F3 | per-day cue sheets, export contents & splitting (GPX/TCX/FIT) |
+| **K — Platform** | K5, K8 | display & measurement preferences, reset planning controls |
+| **M — Developer seams** | M1, M2, M3 | themes as data, `weights.at(position)`, one elevation interface |
+
+### 1.4.2 The eight §1.1 promises the PRD tags P1 — proposed calls
+
+| Story | §1.1 promised | Proposed call | Why |
+|---|---|---|---|
+| **B7** travel speeds | "live metrics dashboard" | **Promote, partially** | D1 is `[MVP]` and its AC reads "with FR16, moving time / elapsed time / ETA". D1 cannot ship without B7's model. Promote the *system default* and *custom Author pace* options; **drop "aggregated participant pace"** (needs accounts, out per §1.2). See §1.4.4 — SPIKE-05 also adds a requirement here that the PRD does not yet carry. |
+| **E2** narrative arc | "narrative arc" | **Promote** | Epic E is the PRD's stated thesis, and an arc-stage tag is an enum on nodes/segments plus map/timeline rendering. Cheap, and it is the thing the product is *for*. |
+| **E4** narration trigger | "trigger-distance metadata (authored, not played)" | **Promote the authoring half only** | §1.1 already scoped this precisely. Attach audio to a POI and set its per-node trigger distance; **playback is field execution and stays out**. |
+| **E5** GeoJSON export | "GeoJSON export" | **Promote** | F3 already builds the export pipeline; GeoJSON (RFC 7946) is the cheapest of the four writers, and L1's later auto-backup depends on it. |
+| **C7** lodging | "lodging" | **Demote — drop from §1.1** | Needs an OSM lodging fetch and a map-overlay filter surface. Not on the generate → curate → export path. |
+| **D3** historical weather | "historical weather" | **Demote — drop from §1.1** | Open-Meteo needs no key, so it is cheap, but it is Leg 3 work and B8's gauge band is already deferred to the same tranche. Ship them together. |
+| **E3** POI-themed trips | "POI-themed trips" | **Demote — drop from §1.1** | Unlike E2, this is solver work — POIs become the route's organizing spine, not a tag. Materially different cost from the rest of Epic E. |
+| **F2** itineraries | "itineraries" | **Demote — drop from §1.1** | Master + *tailored individual* itineraries require a roster and partial-attendance data, which require accounts. Structurally blocked by §1.2. |
+
+Net: **+4 promoted (B7 partial, E2, E4 partial, E5), −4 demoted (C7, D3, E3, F2)** — 31 stories total.
+
+### 1.4.3 Four obligations with no story behind them
+
+Each is required by §1.1 or the architecture, and none has a PRD story or acceptance criteria. They need writing before they can be built or tested.
+
+| Obligation | Source | Note |
+|---|---|---|
+| **Local trip save / open / list** | §1.1 "drift (SQLite) for trips" | The only workspace story is **G2 `[P1]`**, which is a portfolio surface with sync badges and roster management. Desktop MVP needs a plainer thing: save a trip locally, reopen it, list what exists. Proposed as a new story **G2a `[MVP]`**. |
+| **Sidecar lifecycle + version check** | ARCH §7.3, §12.1; `packaging/TODO.md` | Spawn, health-poll to readiness, restart-once, graceful stop, orphan sweep — **including the Windows Job Object + `AttachConsole`/`CTRL_BREAK_EVENT` sequence**, which `packaging/TODO.md` flags as the one thing that would ship broken if forgotten. Plus the client↔sidecar version comparison that refuses a mismatch. |
+| **About / attribution surface** | ARCH §11.2, §12.4 | CC BY credits for elevation and weather, OSM/ODbL attribution, app + sidecar version. §11.2 makes a **missing attribution a build failure**, not a polish item. Absent from the Author Desktop wireframe entirely. |
+| **Error & empty-state taxonomy** | §4, §6 item 8 | The eight states in §4 need one shared handling surface, stubbed before the first screen rather than retrofitted. |
+
+### 1.4.4 What the spikes decided that the PRD has not yet absorbed
+
+These are not scope calls — they are findings with build consequences that no requirement currently carries.
+
+1. **Activity upload is load-bearing for cycling ETAs, and no FR describes it.** SPIKE-05 measured cycling's *system default* pace at **31.4% error**, falling to **7.5%** with personal activity data; hiking's default is already fine at 9.6%. FR16 offers only system default / custom Author pace / aggregated participant pace — **there is no activity-upload path in the PRD at all**, and "aggregated participant pace" needs accounts. As written, desktop MVP ships a ~31%-wrong cycling ETA. Either FR16 gains an upload option or D1 states the error honestly.
+2. **A6's diagnosis cannot be synchronous, and has no endpoint.** SPIKE-02 measured **1.3–15.0 s** against a satisfiable solve's 27–218 ms, and concluded the route must return immediately with its violations while the named conflict and relaxations stream after. ARCH §7.2 has one synchronous `POST /segments/generate`.
+3. **A5's band sliders need an envelope probe, which has no endpoint either.** SPIKE-03: fixed absolute defaults are feasible **22% of the time**, envelope-derived defaults **100%**. The probe costs 10 solves and caches per region + distance. Nothing in §7.2 or ARCH §6.1 exposes it.
+4. **FR4's surface weight must be bipolar and the docs still say unipolar.** SPIKE-03 found a 0.0–5.0 per-class weight can only *tolerate* gravel, never *seek* it, so no unpaved-minimum band is satisfiable anywhere. A3's AC still reads "relative 0.0–5.0 weights per surface class" and ARCH §6.3 still types `surface_pref` as `dict[str, float]`. One of the three needs amending.
+5. **Traffic stress inferred from highway class overstates rural traffic.** SPIKE-03 gave rural Viroqua a 35% traffic *floor* on empty county roads. Recorded as a finding; no decision taken. It degrades A2 `[MVP]` directly.
+6. **Distance should be banded by default.** §1.1's routing row already says "banded, not a soft target"; PRD FR8 and A8 still describe a soft target seeding an envelope. Left unbanded, the compromise silently spent up to **+14.8%** extra mileage.
+
+### 1.4.5 Four decisions this list cannot make for itself
+
+Blocking, in the sense that building around a guess costs a rewrite. **One of the four is now resolved** (elevation, via SPIKE-18); **the tile decision is partially resolved** — its service contract is decided, its renderer/tooling still sits with the unrun SPIKE-14; the other two still need a call rather than an experiment.
+
+- **Basemap tile source, licence, and Flutter map package.** Every Author Desktop screen is map-centric. ARCH §7.2 has `GET /tiles/{z}/{x}/{y}` and §11's integration table has rows for elevation, weather, geocoding, OSM Overpass, and USGS — **no tile provider, no TTL, no attribution**. `client/pubspec.yaml` declares no dependencies at all. For an offline-first product this is a licensing question first and a library pick second. **The service *contract* is now decided** (own-service-only, `z/x/y` range validation, bbox-scoped on-demand generation sharing one pipeline with offline bundles — PRD FR92–94, ARCH D21), resolved via prior art from the cycling-tour-planner POC. **→ The renderer, concrete tile-generation tooling (ARCH Q9), and region/bbox selection strategy (ARCH Q10) remain assigned to [SPIKE-14](Plotlines_Research_Spikes.md) (`maplibre_gl` + PMTiles), which gates the desktop MVP and is unrun.**
+- **Elevation provider — resolved.** GEDTM30 via OpenTopography (PRD FR85, ARCH D20), validated by the cycling-tour-planner POC (`backend/ctp_core/elevation.py`) and tracked as **[SPIKE-18](Plotlines_Research_Spikes.md)** (resolved via prior art, not run fresh). The exact void/nodata/NaN fallback policy, the CC BY attribution obligation, and the 50 calls/24h free-tier limit are all recorded (PRD FR85–FR91, ARCH §6.5/§11.1, A13). `service/.env.example`'s *"Provider is not yet selected"* placeholder should be updated to name it once this lands in code. M3 `[MVP]` is now unblocked.
+- **The trip payload schema.** ARCH §10.1 describes `trip.payload JSONB` in prose, §6.1 sketches core signatures, §9.1 names Dart domain classes. Nothing defines the structure that `plotlines-core` emits, drift stores, and Flutter deserializes — the one seam shared by all three artifacts.
+- **Cue derivation.** F1 is `[MVP]` and needs turn detection from a routed polyline (turns, distances, surface shifts, node highlights, hazards). No document specifies the algorithm, and no spike covers it — this one is still unassigned. Related but now assigned: F3's FIT writer went to **[SPIKE-16](Plotlines_Research_Spikes.md)**, which also decides whether FIT export runs in the core (as ARCH §6.1 has it) or on the device via the Garmin FIT SDK.
 
 ---
 
@@ -72,7 +150,13 @@ plotlines/
 │   ├── lib/
 │   │   ├── presentation/  state/  domain/  data/
 │   │   └── ...
-│   ├── design/               # imported Claude Design wireframe (Author Desktop) — the presentation reference
+│   ├── design/               # imported Claude Design reference: wireframes, brand guide,
+│   │   │                     # UI gallery, tokens, specimen cards (§2.4)
+│   │   ├── tokens/  cards/  assets/
+│   │   └── ...
+│   ├── packages/
+│   │   └── plotlines_ui/     # the design system as a Flutter package — a path
+│   │                         # dependency of the app, not a reference document
 │   └── test/
 ├── packaging/                # frozen-binary build, installers, signing
 │   └── version.lock          # single source of truth for the paired version
@@ -94,6 +178,19 @@ plotlines/
 The MVP desktop UI targets the **Author Desktop** persona, and its wireframe lives in a Claude Design project (`Plotlines Author Desktop.dc.html`). It is imported into the repo at `client/design/` as the **source-of-truth visual reference** the Flutter `presentation/` layer is built against — imported as reference, not as shipped code. The import is done via the Claude Design MCP (`https://api.anthropic.com/v1/design/mcp`, auth via `/design-login`) from within Claude Code, where the connector and auth live; the setup prompt handles this as a distinct phase.
 
 Two boundaries matter. First, **importing the wireframe and implementing it in Flutter are separate steps** — the setup run imports the reference; translating it into widgets is later work, reviewed on its own. Second, **the wireframe may show more than MVP builds** (§1.2 skips whole tiers); where the design depicts screens or components outside MVP scope, that is a mismatch to flag and scope deliberately, not to build silently.
+
+**Second import, 2026-08-15 — the rest of the design system.** The first pass took only the Author Desktop wireframe and flagged that the project also held a brand guide, a UI gallery, and a Flutter component package. All three are now imported, split by what they *are*:
+
+- **`client/design/`** — reference. The two wireframes, `Plotlines Brand Guide.dc.html` (the canonical source the rest derives from), `Plotlines UI Gallery.dc.html`, `styles.css` + `tokens/` (six CSS token files), 14 specimen cards, and the design system's own README and SKILL.
+- **`client/packages/plotlines_ui/`** — **code, not reference.** A Material 3 Flutter package: `PlotTheme.light/dark/highContrast`, a `PlotColors` theme extension, `PlotButton`/`Card`/`Badge`/`Dialog`/`ListTile`, and the brand widgets `NodeMarker`, `CueSheetRow`, `ElevationProfile`, `TripCard`. It goes in `packages/` rather than `design/` because `presentation/` will depend on it as a path dependency, which makes it a build input rather than a reference document.
+
+Three caveats travel with it, all recorded in the imported READMEs:
+
+1. **The package has never been compiled.** It was authored in a design environment that cannot run Flutter, so nothing has been through `flutter analyze`. Treat it as a high-fidelity starting point and verify before depending on it.
+2. **Fonts are fetched from the network.** Both the token CSS and `plotlines_ui` load Instrument Serif / Archivo / JetBrains Mono from Google. Reference documents may stay that way; **the shipped client may not** — desktop MVP is offline-first (ARCH P2), so the `.ttf`s must be vendored before release.
+3. **Two brand PNGs could not be imported** — the logo and favicon both exceed the Design MCP's 256 KiB per-read cap and returned truncated. `client/design/assets/README.md` records the gap and how to fetch them by hand.
+
+**The wireframe now visibly predates the requirements it illustrates.** It was drawn before the SPIKE-01/02/03 amendments of 2026-08-14, so it shows no via-node UI (A9 is now `[MVP]`), no min/max band controls (A5), no shape selector beyond "loop" (A7), no rest days or regroup points (C2, C5), and no attribution surface — and its one band-like control offers to *"Lower Peaks min to 1.8"*, bounding the **weight** in exactly the reading FR6 was reworded to reject. `client/design/README.md` carries the full table. This is the "mismatch to flag, not build silently" boundary above, arriving as predicted.
 
 ---
 
@@ -134,7 +231,7 @@ The rule tying these together: **a failure in an optional enrichment (elevation,
 
 Even desktop-only needs the elevation provider's API key. The minimal, correct handling:
 
-- **The elevation API key lives in the sidecar's environment/config, never in the client and never in the repo.** The client never talks to the provider directly (ARCH §11.1) — only the sidecar does — so the key belongs there.
+- **The elevation API key lives in the sidecar's environment/config, never in the client and never in the repo.** The client never talks to the provider directly (ARCH §11.1) — only the sidecar does — so the key belongs there. The provider is OpenTopography (GEDTM30, PRD FR85); its free non-academic key is capped at **50 calls/24h** (FR87), so local dev should avoid hammering it — cache results locally rather than re-fetching on every test run.
 - **Local config file, git-ignored**, with a committed `.example` template so a fresh clone knows what's needed. No secrets in source control, ever.
 - **Weather (Open-Meteo) needs no key** (ARCH §11) — one less thing to manage.
 - **No other secrets exist at MVP** — no DB credentials, no session signing keys, no OAuth tokens, because none of those tiers are built. This is a genuine benefit of the desktop-first scope: the secret surface is exactly one key.
@@ -150,7 +247,7 @@ The concrete "open the empty repo and do this" order:
 2. **Stand up `core/` with the P1 CI lint** (no `fastapi` import) before writing routing code (§2.3).
 3. **Commit the first graph fixture** and write one golden-route test — establish the pattern before the solver grows (ARCH §14.1).
 4. **Wire `version.lock`** and the client↔sidecar version check, even against a stub sidecar (§2.2). The seam matters more than the content this early.
-5. **Import the Author Desktop wireframe** from Claude Design into `client/design/` (§2.4) so `presentation/` has a reference to build against.
+5. ~~**Import the Author Desktop wireframe** from Claude Design into `client/design/` (§2.4) so `presentation/` has a reference to build against.~~ **Done** — the wireframe on 2026-08-13, the rest of the design system (brand guide, UI gallery, tokens, cards, and the `plotlines_ui` Flutter package) on 2026-08-15. See §2.4 for the three caveats that came with it.
 6. **Prototype the frozen sidecar** on your desktop platform; resolve Q4 (freezer) and Q5 (bundle vs. download) from what you learn (§3).
 7. **Run SPIKE-04 (paddling data)** in parallel — it's the one open scope decision (§1.3) and it doesn't block the cycling path.
 8. **Stub the error taxonomy** (§4) as a single error-handling surface, so states are handled uniformly from the first screen rather than retrofitted.

@@ -1,0 +1,19 @@
+name: plotlines_ui
+description: The Plotlines design system for Flutter — Material 3 themed to brand, adaptive across Android, iOS, web, and desktop.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
