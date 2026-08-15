@@ -7,7 +7,7 @@ companion: Plotlines_PRD.md
 
 # Plotlines — Architecture Design
 
-**Status:** Draft · **Version:** 1.0 · **Companion docs:** `Plotlines_PRD.md` (89 FRs / 95 stories — the source of truth for *what* and *why*), `Plotlines_Research_Spikes.md` (feasibility unknowns to prove before building). This document covers *how*.
+**Status:** Draft · **Version:** 1.0 · **Companion docs:** `Plotlines_PRD.md` (89 FRs / 96 stories — the source of truth for *what* and *why*), `Plotlines_Research_Spikes.md` (feasibility unknowns to prove before building). This document covers *how*.
 
 This is a clean-sheet architecture for a new repository. It draws on hard-won structure from the Cycle Tour Planner proof-of-concept — the pure-library core, the sidecar model, the same-site session, the fetch-once caching discipline — but it is not a port. Where Plotlines' scope changed the shape of the problem (multimodal routing, field execution, peer field-intel, request/response sharing), the architecture is rebuilt to fit, not patched to cope.
 

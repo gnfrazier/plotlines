@@ -17,7 +17,7 @@ The line here is the one already drawn in the earlier conversation ("can I get t
 | Area | What ships | Reference |
 |---|---|---|
 | **Routing core** | `plotlines-core` as a pure library: graph build, scoring, elevation, solve, export | ARCH §6 |
-| **Themes/weights** | Climbing, traffic, surface, POI-density weights; min/max bands; shape; target distance; via-node loops | PRD FR2–FR9, FR8a |
+| **Themes/weights** | Climbing, traffic, surface, POI-density weights; min/max bands on *realized* attributes, defaults derived from the region's attainable envelope; shape; target distance (banded, not a soft target); via-node loops at 1–2 nodes (A9; 3+ is A9a, P1) | PRD FR2–FR9, FR8a; SPIKE-01/03 |
 | **Multimodal (schema + cycling/hiking real)** | Mode-per-segment, transitions, day composition; paddling *pending SPIKE-04* | PRD FR10–FR16; SPIKE-04 |
 | **Logistics** | Day splitting, alternates, waypoints/regroup/rest, lodging, historical weather, live metrics dashboard | PRD Epic C, D |
 | **Curation** | Node notes/media, narrative arc, POI-themed trips, trigger-distance metadata (authored, not played) | PRD Epic E |

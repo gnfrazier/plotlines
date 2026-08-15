@@ -4,7 +4,7 @@
 
 **How to read the priority:** **Scope-shaping** spikes can send you back to revise the PRD if they come back negative. **Implementation-informing** spikes won't change scope but determine how a committed feature is built. Do the scope-shaping ones first.
 
-**Companion to:** `Plotlines_PRD.md` (89 FRs / 95 stories).
+**Companion to:** `Plotlines_PRD.md` (89 FRs / 96 stories).
 
 ---
 
@@ -16,14 +16,16 @@
 **Scope-shaping (later milestones):**
 1. ~~Multimodal / paddling data availability~~ — **complete (SPIKE-04, 2026-08-14)**
 2. Backgrounded GPS-triggered audio on real devices — **FR49, FR47, FR50a**
-3. Via-node loop routing — **FR8a**
+3. ~~Via-node loop routing~~ — **complete (SPIKE-01, 2026-08-14)**
 4. Dart-first offline engine at feature scale — **FR63, FR64**
 
 Everything below these is implementation-informing rather than scope-shaping.
 
 **Note on sequencing:** SPIKE-00 was the only one that blocked the *near-term* build. SPIKE-01 (via-node) and SPIKE-04 (paddling) were the routing unknowns worth running alongside early desktop work; the rest gate later milestones (field execution, mobile, Web) and can wait for those.
 
-**Status (2026-08-14):** **SPIKE-00 and SPIKE-04 are both complete.** SPIKE-04 came back negative on class ratings and reshaped PRD scope accordingly (B4/B5 removed — ARCH D19), which is the outcome this whole document exists to make cheap. **SPIKE-01 (via-node loops) is now the next unrun scope-shaping spike**, and the only routing unknown still open before the MVP routing build.
+**Status (2026-08-14):** **SPIKE-00, SPIKE-01, SPIKE-02, SPIKE-03 and SPIKE-04 are complete.** SPIKE-04 came back negative on class ratings and reshaped PRD scope accordingly (B4/B5 removed — ARCH D19), which is the outcome this whole document exists to make cheap. **All routing-algorithm unknowns are now closed** (01/02/03, run together over one shared fixture set — see [`spikes/shared/`](../spikes/shared/README.md)): via-node loops are nearly free (**A9 promoted to MVP at 1–2 nodes; A9a holds 3+ at P1**), A6's AC is deliverable as written, and min/max bands converge provided their defaults come from measured terrain rather than constants (**FR6 reworded to bound the realized attribute**). **The next unrun scope-shaping spikes are SPIKE-06 / SPIKE-12 (backgrounded GPS audio and playback)**, which gate the field-execution milestone rather than the MVP routing build.
+
+**Both implied PRD amendments have been applied (2026-08-14)** — A9 split into A9 (1–2 via-nodes, MVP) and A9a (3+, P1), and FR6 reworded to bound the realized attribute. See [PRD changes these implied](#prd-changes-these-implied) at the end of this document.
 
 ---
 
@@ -42,24 +44,36 @@ Everything below these is implementation-informing rather than scope-shaping.
 
 ## Routing-algorithm feasibility
 
-### SPIKE-01 — Via-node loop routing
+### SPIKE-01 — Via-node loop routing ✅ **COMPLETE**
 **Covers:** FR8a (Story A9)
 **Priority:** Scope-shaping
+**Run:** 2026-08-14 · **Result:** [`spikes/SPIKE-01/results/RESULTS.md`](../spikes/SPIKE-01/results/RESULTS.md) — **A9's own promotion condition is met literally.** Point-to-point, out-and-back, loop, and via-loop are all one call to `solve_circuit(graph, anchors, close=)` with a different anchor list; there is no via-node code path. Out-and-back and a 1-via loop are *the same anchor list*. The cost is not merely acceptable but **negative**: a 1-via loop solves in **48 ms against the unconstrained loop's 295 ms**, because a via *replaces* a synthesised shaping anchor the engine would otherwise have to place and tune. Weights are still honoured — mean edge cost per metre stays within **0.976–1.014** of the same theme's unconstrained loop — and 24/24 runs hit every via and closed.
+**Limit found:** at **three or more via-nodes the target distance stops being honourable** — error jumps from under ±14% to **+30.7% (Boulder) and +81.9% (Viroqua)** — because the vias themselves determine the loop's length and leave the distance search nothing to move. This is exactly the case A9 hands to A6, and that hand-off was verified working (the via-node is named as the binding constraint, not the terrain).
+**Also settled — degenerate routes:** retracing is fixed by *where* the re-ride penalty applies, not how large it is. A flat penalty cannot distinguish "don't ride the corridor back" from "you may ride the café's dead-end lane back". A locality-aware penalty (full charge in the corridor, near-neutral inside a ball of 5% of target distance around Author-designated points) cut corridor doubling from **41.7% to 6.0%** while *improving* distance conformance — the "lollipop": a spur ridden twice, hung off a loop ridden once.
+**Scope decision taken (2026-08-14, PRD FR8a):** the story was **split**. **A9** (one or two via-nodes) promoted from P1 to **MVP** and can be built and closed on its own; **A9a** (three or more) is a new **P1** backlog story where target distance is presented as advisory and A6's relaxation path is offered in the same interaction. **Closed.**
 **Unknown:** Can the OSMnx/solver approach constrain a loop to pass through one or more mandatory via-nodes while still honoring weights and a target distance — without unacceptable compute time or degenerate routes?
 **Spike question:** Generate loops through 1, 2, and 3 forced via-nodes on a real graph; measure solve time and route quality vs. an unconstrained themed loop.
 **Decides:** Whether A9 is promotable to MVP. If via-node and start/destination turn out to be the same constraint primitive, A9 is nearly free and should land in MVP; if not, it stays P1.
 **Done when:** A via-node loop generates in acceptable time and returns a sensible route, or the cost is quantified and the P1/MVP call is made on evidence.
 
-### SPIKE-02 — Conflict detection & relaxation
+### SPIKE-02 — Conflict detection & relaxation ✅ **COMPLETE**
 **Covers:** FR9 (Story A6)
 **Priority:** Implementation-informing
+**Run:** 2026-08-14 · **Result:** [`spikes/SPIKE-02/results/RESULTS.md`](../spikes/SPIKE-02/results/RESULTS.md) — **A6's acceptance criteria are achievable as written; no adjustment to them is needed.** Across 8 scenarios: **8/8 classified correctly, 8/8 named exactly the right constraints, 0 false conflicts** on satisfiable controls, and **5/5 offered relaxations were applied and verified to actually route**. The deletion filter correctly narrowed a three-band conflict to the two bands that actually bind, dropping the one that did not.
+**Key distinction the spike forced:** "name the conflicting constraints" splits in two, and collapsing them produces confidently wrong advice. **Unattainable alone** — the band is outside what the graph can produce at any weights ("nothing from here climbs 300 m in 20 km"; a measurement, and nothing else is at fault). **Conflicting in combination** — each is reachable alone but not together ("the climbing is up the busy road"; the useful offer is which *one* to loosen). Reporting the second as the first would tell an Author their mountain town is flat.
+**Cost, which shapes the UI more than any other finding:** a satisfiable request is ~1 solve (**27–218 ms**), but diagnosis costs **1.3–15.0 s** and scales with the number of bands. **A6's explanation cannot be produced synchronously inside a route request** — return the best-effort route with its violations immediately, then stream the named conflict and relaxations.
+**Honesty boundary:** the search underneath is incomplete, so a combination conflict is worded "no route was **found** meeting them together", never "impossible". Only the unattainable verdict rests on a measurement. **Closed.**
 **Unknown:** Can the solver introspect an infeasible constraint set to name *which* constraints conflict and propose the nearest relaxation — rather than just returning an empty result?
 **Spike question:** Construct several deliberately-infeasible weight/constraint combinations; determine whether the engine can identify the binding constraints and compute a minimal relaxation.
 **Done when:** The engine names a real conflict and a valid relaxation for the test cases, or the limitation is documented so A6's AC can be adjusted.
 
-### SPIKE-03 — Min/max weight-band convergence
+### SPIKE-03 — Min/max weight-band convergence ✅ **COMPLETE**
 **Covers:** FR6 (Story A5)
 **Priority:** Implementation-informing
+**Run:** 2026-08-14 · **Result:** [`spikes/SPIKE-03/results/RESULTS.md`](../spikes/SPIKE-03/results/RESULTS.md) — **bands converge fine; absolute band *defaults* are what over-constrain.** Same solver, same three graphs, same 20 km target: **8/36 (22.2%) feasible with fixed absolute defaults** (climbing 100–400 m × traffic ≤15/25/35%) versus **3/3 with defaults derived from each region's attainable envelope**. The 77.8% failure rate is manufactured entirely by asking for numbers the place cannot produce, and would have read as "min/max bands don't work" had the envelope not been measured separately. **Band sliders must open on the range the region can actually deliver** — probing costs 10 solves and can be cached per region and distance.
+**Band behaviour characterised (the "done when"):** two-sided bands hold down to **±10% of the envelope centre everywhere and ±5% in two regions of three**; solve count is the early-warning signal, climbing toward the budget as a band approaches infeasibility. Precision should be floored in **absolute** units (≈25 m of climbing), not percentages — ±5% of Davis's 19 m is a ±0.95 m window no engine should promise. **Distance must be banded like any other metric**: left unbanded, the compromise silently spent up to **+14.8%** extra mileage to satisfy climbing and traffic.
+**Requirements conflict found and resolved (2026-08-14, PRD FR6 / A5):** FR6 said Authors set a min/max on any **weight**; A5's AC says the engine "returns a route **within all bands** where one exists; where none exists, A6 governs." Both cannot hold. A band on a *weight value* can never be infeasible — any number inside the band is a legal weight — which makes A5's clause unreachable and A6 dead code. This spike therefore treats a band as an acceptance range on the **realised route attribute** ("between 400 and 600 m of climbing"), the only reading under which A5's own AC means anything — and **FR6 has been reworded to bound the attribute**, with A5's AC kept and extended to require envelope-derived defaults and an absolute precision floor. **Closed.**
+**Two weight-shape limits found:** FR4's surface weight is **unipolar** and cannot *seek* gravel (only tolerate it), so no unpaved-minimum band is satisfiable anywhere — it needs a bipolar weight like FR2's `peaks`. And traffic stress inferred from **highway class alone** overstates rural traffic badly, giving rural Viroqua a 35% traffic *floor* on empty county roads.
 **Unknown:** Does compromise-finding across multiple bounded (min/max) weights converge to a good route, or do bands routinely over-constrain into infeasibility?
 **Spike question:** Run realistic competing bands (e.g. high climbing-min + low traffic-max) across varied geographies; measure how often a valid route exists and whether it's good.
 **Done when:** Band behavior is characterized well enough to set sensible default ranges and know how often A6's conflict path will fire.
@@ -175,13 +189,78 @@ The waterway network and live gauge data are solid and public-domain, but from *
 | ~~SPIKE-04 Paddling data~~ | FR14–15 | Scope-shaping | **Complete 2026-08-14.** Network/gauge yes (USGS), class no → **B4/B5 removed**, FR14 narrowed (ARCH D19) |
 | SPIKE-06 Backgrounded GPS audio | FR49, FR47, FR50a | Scope-shaping | Yes |
 | SPIKE-12 Backgrounded audio playback | FR49, FR50a | Scope-shaping | Yes (pairs with 06) |
-| SPIKE-01 Via-node loops | FR8a | Scope-shaping | Yes (MVP/P1 call) |
+| ~~SPIKE-01 Via-node loops~~ | FR8a | Scope-shaping | **Complete 2026-08-14.** Same primitive as start/destination and *cheaper* than an unconstrained loop → **A9 (1–2 vias) promoted to MVP**; **A9a (3+) split out at P1** |
 | SPIKE-09 Dart offline engine | FR63 | Scope-shaping | Yes |
 | SPIKE-05 Travel-speed calibration | FR16, FR31 | Implementation | Possibly |
 | SPIKE-10 Package size | FR64, FR35 | Implementation | Possibly |
-| SPIKE-02 Conflict/relaxation | FR9 | Implementation | No |
-| SPIKE-03 Weight-band convergence | FR6 | Implementation | No |
+| ~~SPIKE-02 Conflict/relaxation~~ | FR9 | Implementation | **Complete 2026-08-14.** A6's AC deliverable as written; 8/8 named correctly, 0 false conflicts, 5/5 relaxations verified. Diagnosis must be async (1.3–15 s) |
+| ~~SPIKE-03 Weight-band convergence~~ | FR6 | Implementation | **Complete 2026-08-14.** Bands converge; defaults must come from measured envelope (22% → 100% feasible). **FR6/A5 wording conflict needs a decision** |
 | SPIKE-07 Adaptive accuracy | FR54a | Implementation | No |
 | SPIKE-08 Power-saving OEMs | FR67 | Implementation | No |
 | SPIKE-11 Group propagation | FR56, FR56a, FR59 | Implementation | No |
 | SPIKE-13 Magic-link deliverability | FR57 | Implementation | No (high failure cost) |
+
+---
+
+## PRD changes these implied
+
+SPIKE-01/02/03 produced two amendments to `Plotlines_PRD.md`. **Both were applied on
+2026-08-14**, and are recorded here with the reasoning that produced them.
+
+### 1. Promote A9 (FR8a) from P1 to MVP, capped at two via-nodes ✅ **applied**
+
+A9's priority note already specifies the condition: *"if via-node support is the natural
+way the router implements start/destination handling (i.e. a loop's start and a
+via-node are the same constraint mechanism), it should land in MVP rather than being
+artificially deferred."* SPIKE-01 confirmed that literally — one `solve_circuit` call
+serves every route shape, and a 1-via loop is **6× faster** than an unconstrained one
+because the via replaces an anchor the engine would otherwise have to search for.
+
+The cap is the new information: beyond two vias the distance envelope cannot be
+honoured (+30.7% to +81.9% error), so a **3+ via-node feature stays P1** and needs
+A6's relaxation UI to go with it.
+
+**Applied:** the story was **split in two** so the MVP half can be built and closed
+without carrying an open caveat. **A9 — Route a loop through one or two designated
+nodes** `[MVP]`, whose AC now also requires a genuine loop with retraced road reported,
+and requires A6 to name the via-node rather than the terrain on infeasibility.
+**A9a — Route a loop through three or more designated nodes** `[P1]`, a new backlog
+story whose AC makes target distance explicitly *advisory*, surfaces the deviation, and
+offers A6's relaxation path in the same interaction. A9a is a UI-and-expectations
+story, not a solver one: at three vias every via was still hit and every loop still
+closed — only the distance envelope broke. FR8a's row names both stories; the MVP scope
+doc's routing row and the 95 → 96 story count were updated to match.
+
+### 2. Resolve the FR6 / A5 disagreement about what a band bounds ✅ **applied**
+
+FR6: *"Authors set a **min and max** on any **weight**."*
+A5 AC: *"engine returns a route **within all bands** where one exists; where none
+exists, A6 governs."*
+
+These cannot both be true. A band on a *weight value* is never infeasible — every
+number inside it is a legal weight — so A5's "where none exists" clause becomes
+unreachable and A6's conflict path becomes dead code for FR6. A band on a *realised
+attribute* ("between 400 and 600 m of climbing") can genuinely be infeasible, which is
+what makes A5's AC and A6 mean something, and is what SPIKE-02 and SPIKE-03 both
+implement and measure against.
+
+**Decision: FR6 reworded to bound the realised attribute**, keeping A5. This was the
+smaller edit and preserved the story that already depends on it; the alternative —
+softening A5's AC to match FR6's literal wording — would have removed the only route by
+which A6 ever fires from a weight band.
+
+**Applied:** FR6 now reads as a band on the realized value of a weighted route
+attribute, explicitly "not the weight setting". A5's AC gained two clauses the spike
+earned: band controls open on the region's attainable envelope rather than a fixed
+absolute scale, and band precision is floored in absolute units so a control cannot ask
+for a resolution the terrain cannot support.
+
+### Lower-priority, implementation-level (no PRD wording change required)
+
+- **FR4's surface weight needs to be bipolar** (−1 avoid … 0 indifferent … +1 seek),
+  matching FR2's `peaks`. As specified it can only *tolerate* unpaved surfaces, never
+  prefer them, so "relative preference across paved / gravel / singletrack" is not
+  currently expressible. No FR text change needed — the requirement is already written
+  as a *relative preference*; the implementation simply has to match it.
+- **Distance should be banded by default**, not treated as a soft target (FR8), or the
+  compromise quietly spends the Author's mileage (+14.8% measured).

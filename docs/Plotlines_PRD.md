@@ -111,10 +111,10 @@ FRs are numbered fresh in Plotlines' own sequence. The **Origin** column traces 
 | **FR3** | A **traffic-tolerance weight** ("cars", 0.0–5.0, decimal) balances quiet roads against direct urban egress via road-class/density thresholds. | CTP FR3, Plotlines 10b |
 | **FR4** | A **surface weight** sets relative preference (0.0–5.0) across paved / gravel / singletrack. | CTP FR4, Plotlines 10d |
 | **FR5** | A **POI-density weight** (0.0–5.0) biases toward more/fewer POIs, with the POI *type* set by the Author (subsumes the former "art/history" theme). | CTP FR5, Plotlines 10c |
-| **FR6** | Authors set a **min and max** on any weight so the engine finds good compromises across competing preferences. | CTP, Plotlines Story 10 |
+| **FR6** | Authors set a **min and max** on any weighted route attribute — climbing, traffic exposure, surface mix, POI density, distance — and the engine searches weight space for a route whose *realized* values fall inside every band, finding good compromises across competing preferences. Bands bound the outcome ("400–600 m of climbing"), not the weight setting. | CTP, Plotlines Story 10; bound-the-attribute wording per SPIKE-03 |
 | **FR7** | Route **shape** (loop, out-and-back, point-to-point) is selectable independently of weights. | CTP FR35 |
 | **FR8** | Target **distance** is settable for loop and out-and-back shapes, seeding the engine's distance envelope. | CTP FR47, Plotlines 10c |
-| **FR8a** | A **loop may be constrained to pass through one or more designated via-nodes** (rest stop, landmark, café, or any node) while returning to start, with weights and target distance still honored around the constraint. | New |
+| **FR8a** | A **loop may be constrained to pass through one or more designated via-nodes** (rest stop, landmark, café, or any node) while returning to start, with weights and target distance still honored around the constraint. *Delivered in two stories: **A9** (one or two via-nodes, MVP) and **A9a** (three or more, P1) — beyond two, the via-nodes fix the loop's length and target distance becomes advisory rather than honored (SPIKE-01).* | New |
 | **FR9** | When constraints conflict, the engine names the conflicting constraints and offers relaxations with their trade-offs — never a silent compromise or raw error. | CTP FR43 |
 
 ### Multimodal Routing & Domain Parameters
@@ -286,8 +286,8 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 *AC:* Density control plus Author-set POI type (e.g., waterfalls, overlooks); daily mileage min/max; engine maximizes high-value POIs of that type within the distance envelope; no separate "art/history" theme exists.
 
 **A5 — Compromise across competing weights** *[MVP]* — *FR6*
-**As an** Author, **I want to** set a min and max on each weight **so that** the engine finds good compromises when preferences pull against each other.
-*AC:* Each weight accepts a min/max band; engine returns a route within all bands where one exists; where none exists, A6 governs.
+**As an** Author, **I want to** set a min and max on each weighted attribute **so that** the engine finds good compromises when preferences pull against each other.
+*AC:* Each weighted attribute accepts a min/max band on its **realized** value; engine returns a route within all bands where one exists; where none exists, A6 governs. Band controls open on the range the region can actually deliver at the chosen distance, not on a fixed absolute scale; band precision is floored in absolute units so a control cannot ask for a resolution the terrain cannot support.
 
 **A6 — Understand why constraints conflict** *[MVP]* — *FR9*
 **As an** Author, **I want** the planner to name conflicting constraints and offer relaxations with trade-offs **so that** I loosen the right one instead of hitting a dead end.
@@ -301,9 +301,15 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 **As an** Author, **I want to** set a target distance for loop and out-and-back segments **so that** the day lands near the mileage I intend.
 *AC:* Target-distance control for loop/out-and-back only; seeds the engine's distance envelope; point-to-point has no target-distance input.
 
-**A9 — Route a loop through a designated node** *[P1 — promotable to MVP]* — *FR8a*
+**A9 — Route a loop through one or two designated nodes** *[MVP]* — *FR8a*
 **As an** Author, **I want to** require a loop to pass through a chosen node (rest stop, landmark, café) while still returning to start **so that** the ride reaches a place that anchors the day without giving up the loop shape.
-*AC:* One or more via-nodes designable on a loop; the generated route passes through each and returns to start; weights and target distance are still honored around the via-node(s); if a via-node makes the loop infeasible within the distance envelope, A6's conflict-explanation path governs. *Priority note: scoped P1, but if via-node support is the natural way the router implements start/destination handling (i.e. a loop's start and a via-node are the same constraint mechanism), it should land in MVP rather than being artificially deferred.*
+*AC:* One or two via-nodes designable on a loop; the generated route passes through each and returns to start; weights and target distance are still honored around the via-node(s); the route is a genuine loop rather than an out-and-back, and any road ridden twice is reported; if a via-node makes the loop infeasible within the distance envelope, A6's conflict-explanation path governs and names the via-node — not the terrain — as the binding constraint.
+*Priority note (resolved 2026-08-14 by SPIKE-01): promoted from P1 to MVP. The condition the original note set was met literally — via-node, start, destination, loop, and out-and-back are one solver call with a different anchor list, and a 1-via loop is ~6× **faster** than an unconstrained one because the via replaces an anchor the engine would otherwise have to search for. Three or more via-nodes split out as A9a.*
+
+**A9a — Route a loop through three or more designated nodes** *[P1]* — *FR8a*
+**As an** Author, **I want to** require a loop to pass through three or more chosen nodes **so that** a day can be anchored to a whole sequence of places, not just one or two.
+*AC:* Three or more via-nodes designable on a loop; the route passes through each and returns to start; **the target distance is presented as advisory rather than honored**, because past two via-nodes the nodes themselves determine the loop's length; the achieved distance and its deviation are surfaced, and A6's relaxation path is offered in the same interaction so the Author can widen the distance band, drop a via-node, or accept the deviation.
+*Split from A9 on 2026-08-14 (SPIKE-01). Measured: at three via-nodes the distance error rose from under ±14% to +30.7% (Boulder) and +81.9% (Viroqua). The routing itself works — every via was hit and every loop closed — so this is a UI-and-expectations problem, not a solver one, which is why it is a separate story rather than a deferred capability.*
 
 ### Epic B — Author: Multimodal Composition
 
