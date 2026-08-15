@@ -1,0 +1,1012 @@
+{
+  "activities": [
+    {
+      "label": "cycling-01",
+      "source_format": "fit",
+      "declared_sport": "cycling",
+      "declared_sub_sport": "generic",
+      "mode": "cycling",
+      "distance_km": 88.19,
+      "moving_s": 14398.0,
+      "elapsed_s": 17766.0,
+      "device_timer_s": 17758.4,
+      "device_elapsed_s": 17758.4,
+      "ascent_m": 1315,
+      "descent_m": 1152,
+      "avg_moving_speed_kmh": 22.05,
+      "speed_cv": 0.533,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 1224,
+          "distance_km": 28.01,
+          "mean_kmh": 23.51,
+          "median_kmh": 23.31
+        },
+        "-4%..-1%": {
+          "samples": 584,
+          "distance_km": 19.0,
+          "mean_kmh": 30.05,
+          "median_kmh": 31.78
+        },
+        "-8%..-4%": {
+          "samples": 315,
+          "distance_km": 7.07,
+          "mean_kmh": 38.2,
+          "median_kmh": 38.9
+        },
+        "1%..4%": {
+          "samples": 717,
+          "distance_km": 18.43,
+          "mean_kmh": 19.25,
+          "median_kmh": 18.27
+        },
+        "4%..8%": {
+          "samples": 579,
+          "distance_km": 9.07,
+          "mean_kmh": 13.57,
+          "median_kmh": 12.63
+        },
+        "<-8%": {
+          "samples": 159,
+          "distance_km": 2.8,
+          "mean_kmh": 45.43,
+          "median_kmh": 46.69
+        },
+        ">8%": {
+          "samples": 300,
+          "distance_km": 3.16,
+          "mean_kmh": 10.6,
+          "median_kmh": 9.27
+        }
+      },
+      "stop_count": 26,
+      "stopped_s": 3368.0,
+      "has_power": false,
+      "has_cadence": false,
+      "has_hr": true,
+      "sample_count": 4434,
+      "quality_flags": [
+        "device_no_pause_detection"
+      ],
+      "classification": {
+        "mode": "cycling",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "road",
+        "terrain_confidence": "low",
+        "evidence": {
+          "avg_moving_speed_kmh": 22.05,
+          "stops_per_km": 0.29,
+          "speed_cv": 0.533,
+          "ascent_per_km": 14.9,
+          "has_power": false,
+          "signals": {
+            "slow_for_a_bike": false,
+            "frequent_stops": false,
+            "ragged_pace": true
+          }
+        }
+      }
+    },
+    {
+      "label": "cycling-02",
+      "source_format": "gpx",
+      "declared_sport": "Ride",
+      "declared_sub_sport": null,
+      "mode": "cycling",
+      "distance_km": 82.79,
+      "moving_s": 11070.0,
+      "elapsed_s": 11757.0,
+      "device_timer_s": null,
+      "device_elapsed_s": null,
+      "ascent_m": 598,
+      "descent_m": 605,
+      "avg_moving_speed_kmh": 26.92,
+      "speed_cv": 0.216,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 5266,
+          "distance_km": 39.87,
+          "mean_kmh": 27.13,
+          "median_kmh": 26.77
+        },
+        "-4%..-1%": {
+          "samples": 2085,
+          "distance_km": 18.07,
+          "mean_kmh": 30.48,
+          "median_kmh": 29.46
+        },
+        "-8%..-4%": {
+          "samples": 222,
+          "distance_km": 2.28,
+          "mean_kmh": 35.15,
+          "median_kmh": 35.17
+        },
+        "1%..4%": {
+          "samples": 2973,
+          "distance_km": 19.85,
+          "mean_kmh": 24.04,
+          "median_kmh": 23.68
+        },
+        "4%..8%": {
+          "samples": 358,
+          "distance_km": 1.93,
+          "mean_kmh": 19.42,
+          "median_kmh": 19.11
+        },
+        "<-8%": {
+          "samples": 17,
+          "distance_km": 0.22,
+          "mean_kmh": 44.71,
+          "median_kmh": 47.06
+        },
+        ">8%": {
+          "samples": 48,
+          "distance_km": 0.17,
+          "mean_kmh": 12.61,
+          "median_kmh": 10.78
+        }
+      },
+      "stop_count": 7,
+      "stopped_s": 112.0,
+      "has_power": true,
+      "has_cadence": true,
+      "has_hr": true,
+      "sample_count": 11075,
+      "quality_flags": [],
+      "classification": {
+        "mode": "cycling",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "road",
+        "terrain_confidence": "medium",
+        "evidence": {
+          "avg_moving_speed_kmh": 26.92,
+          "stops_per_km": 0.08,
+          "speed_cv": 0.216,
+          "ascent_per_km": 7.2,
+          "has_power": true,
+          "signals": {
+            "slow_for_a_bike": false,
+            "frequent_stops": false,
+            "ragged_pace": false
+          }
+        }
+      }
+    },
+    {
+      "label": "cycling-03",
+      "source_format": "fit",
+      "declared_sport": "cycling",
+      "declared_sub_sport": "generic",
+      "mode": "cycling",
+      "distance_km": 99.92,
+      "moving_s": 17061.0,
+      "elapsed_s": 18638.0,
+      "device_timer_s": 15889.4,
+      "device_elapsed_s": 18637.3,
+      "ascent_m": 596,
+      "descent_m": 583,
+      "avg_moving_speed_kmh": 21.08,
+      "speed_cv": 0.244,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 1749,
+          "distance_km": 58.55,
+          "mean_kmh": 21.92,
+          "median_kmh": 23.78
+        },
+        "-4%..-1%": {
+          "samples": 475,
+          "distance_km": 18.06,
+          "mean_kmh": 23.81,
+          "median_kmh": 24.49
+        },
+        "-8%..-4%": {
+          "samples": 76,
+          "distance_km": 1.83,
+          "mean_kmh": 27.68,
+          "median_kmh": 28.52
+        },
+        "1%..4%": {
+          "samples": 494,
+          "distance_km": 18.95,
+          "mean_kmh": 21.63,
+          "median_kmh": 21.36
+        },
+        "4%..8%": {
+          "samples": 97,
+          "distance_km": 1.83,
+          "mean_kmh": 15.59,
+          "median_kmh": 14.91
+        },
+        "<-8%": {
+          "samples": 18,
+          "distance_km": 0.24,
+          "mean_kmh": 33.1,
+          "median_kmh": 35.77
+        },
+        ">8%": {
+          "samples": 29,
+          "distance_km": 0.26,
+          "mean_kmh": 10.69,
+          "median_kmh": 10.68
+        }
+      },
+      "stop_count": 12,
+      "stopped_s": 458.0,
+      "has_power": false,
+      "has_cadence": false,
+      "has_hr": true,
+      "sample_count": 3020,
+      "quality_flags": [],
+      "classification": {
+        "mode": "cycling",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "road",
+        "terrain_confidence": "medium",
+        "evidence": {
+          "avg_moving_speed_kmh": 21.08,
+          "stops_per_km": 0.12,
+          "speed_cv": 0.244,
+          "ascent_per_km": 6.0,
+          "has_power": false,
+          "signals": {
+            "slow_for_a_bike": false,
+            "frequent_stops": false,
+            "ragged_pace": false
+          }
+        }
+      }
+    },
+    {
+      "label": "cycling-04",
+      "source_format": "fit",
+      "declared_sport": "cycling",
+      "declared_sub_sport": "generic",
+      "mode": "cycling",
+      "distance_km": 18.16,
+      "moving_s": 4769.0,
+      "elapsed_s": 5292.0,
+      "device_timer_s": 5164.3,
+      "device_elapsed_s": 5291.0,
+      "ascent_m": 241,
+      "descent_m": 228,
+      "avg_moving_speed_kmh": 13.71,
+      "speed_cv": 0.409,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 450,
+          "distance_km": 5.21,
+          "mean_kmh": 12.16,
+          "median_kmh": 8.87
+        },
+        "-4%..-1%": {
+          "samples": 237,
+          "distance_km": 4.07,
+          "mean_kmh": 14.74,
+          "median_kmh": 11.62
+        },
+        "-8%..-4%": {
+          "samples": 135,
+          "distance_km": 1.72,
+          "mean_kmh": 15.26,
+          "median_kmh": 12.87
+        },
+        "1%..4%": {
+          "samples": 218,
+          "distance_km": 4.38,
+          "mean_kmh": 13.52,
+          "median_kmh": 9.27
+        },
+        "4%..8%": {
+          "samples": 111,
+          "distance_km": 1.75,
+          "mean_kmh": 12.92,
+          "median_kmh": 8.3
+        },
+        "<-8%": {
+          "samples": 29,
+          "distance_km": 0.25,
+          "mean_kmh": 14.34,
+          "median_kmh": 11.89
+        },
+        ">8%": {
+          "samples": 45,
+          "distance_km": 0.28,
+          "mean_kmh": 10.27,
+          "median_kmh": 7.39
+        }
+      },
+      "stop_count": 28,
+      "stopped_s": 523.0,
+      "has_power": false,
+      "has_cadence": false,
+      "has_hr": true,
+      "sample_count": 1350,
+      "quality_flags": [],
+      "classification": {
+        "mode": "cycling",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "offroad",
+        "terrain_confidence": "medium",
+        "evidence": {
+          "avg_moving_speed_kmh": 13.71,
+          "stops_per_km": 1.54,
+          "speed_cv": 0.409,
+          "ascent_per_km": 13.3,
+          "has_power": false,
+          "signals": {
+            "slow_for_a_bike": true,
+            "frequent_stops": true,
+            "ragged_pace": true
+          }
+        }
+      }
+    },
+    {
+      "label": "cycling-05",
+      "source_format": "fit",
+      "declared_sport": "cycling",
+      "declared_sub_sport": "generic",
+      "mode": "cycling",
+      "distance_km": 41.63,
+      "moving_s": 6593.0,
+      "elapsed_s": 8709.0,
+      "device_timer_s": 6949.4,
+      "device_elapsed_s": 8707.6,
+      "ascent_m": 393,
+      "descent_m": 400,
+      "avg_moving_speed_kmh": 22.73,
+      "speed_cv": 0.285,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 2480,
+          "distance_km": 16.09,
+          "mean_kmh": 22.98,
+          "median_kmh": 22.34
+        },
+        "-4%..-1%": {
+          "samples": 1361,
+          "distance_km": 10.23,
+          "mean_kmh": 26.42,
+          "median_kmh": 25.56
+        },
+        "-8%..-4%": {
+          "samples": 239,
+          "distance_km": 2.26,
+          "mean_kmh": 33.11,
+          "median_kmh": 31.41
+        },
+        "1%..4%": {
+          "samples": 1877,
+          "distance_km": 10.45,
+          "mean_kmh": 19.88,
+          "median_kmh": 19.01
+        },
+        "4%..8%": {
+          "samples": 435,
+          "distance_km": 1.91,
+          "mean_kmh": 15.65,
+          "median_kmh": 13.03
+        },
+        "<-8%": {
+          "samples": 36,
+          "distance_km": 0.37,
+          "mean_kmh": 34.85,
+          "median_kmh": 37.25
+        },
+        ">8%": {
+          "samples": 60,
+          "distance_km": 0.26,
+          "mean_kmh": 15.6,
+          "median_kmh": 14.31
+        }
+      },
+      "stop_count": 14,
+      "stopped_s": 357.0,
+      "has_power": true,
+      "has_cadence": true,
+      "has_hr": true,
+      "sample_count": 6755,
+      "quality_flags": [],
+      "classification": {
+        "mode": "cycling",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "road",
+        "terrain_confidence": "medium",
+        "evidence": {
+          "avg_moving_speed_kmh": 22.73,
+          "stops_per_km": 0.34,
+          "speed_cv": 0.285,
+          "ascent_per_km": 9.4,
+          "has_power": true,
+          "signals": {
+            "slow_for_a_bike": false,
+            "frequent_stops": false,
+            "ragged_pace": false
+          }
+        }
+      }
+    },
+    {
+      "label": "cycling-06",
+      "source_format": "gpx",
+      "declared_sport": "Ride",
+      "declared_sub_sport": null,
+      "mode": "cycling",
+      "distance_km": 38.46,
+      "moving_s": 5668.0,
+      "elapsed_s": 6222.0,
+      "device_timer_s": null,
+      "device_elapsed_s": null,
+      "ascent_m": 175,
+      "descent_m": 173,
+      "avg_moving_speed_kmh": 24.43,
+      "speed_cv": 0.289,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 3781,
+          "distance_km": 26.34,
+          "mean_kmh": 24.8,
+          "median_kmh": 25.26
+        },
+        "-4%..-1%": {
+          "samples": 835,
+          "distance_km": 5.56,
+          "mean_kmh": 23.24,
+          "median_kmh": 22.77
+        },
+        "-8%..-4%": {
+          "samples": 40,
+          "distance_km": 0.32,
+          "mean_kmh": 24.15,
+          "median_kmh": 22.54
+        },
+        "1%..4%": {
+          "samples": 828,
+          "distance_km": 5.59,
+          "mean_kmh": 23.99,
+          "median_kmh": 23.45
+        },
+        "4%..8%": {
+          "samples": 80,
+          "distance_km": 0.34,
+          "mean_kmh": 15.23,
+          "median_kmh": 11.29
+        },
+        "<-8%": {
+          "samples": 7,
+          "distance_km": 0.05,
+          "mean_kmh": 27.3,
+          "median_kmh": 24.56
+        },
+        ">8%": {
+          "samples": 10,
+          "distance_km": 0.03,
+          "mean_kmh": 10.72,
+          "median_kmh": 7.32
+        }
+      },
+      "stop_count": 25,
+      "stopped_s": 554.0,
+      "has_power": true,
+      "has_cadence": true,
+      "has_hr": true,
+      "sample_count": 6022,
+      "quality_flags": [],
+      "classification": {
+        "mode": "cycling",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "road",
+        "terrain_confidence": "medium",
+        "evidence": {
+          "avg_moving_speed_kmh": 24.43,
+          "stops_per_km": 0.65,
+          "speed_cv": 0.289,
+          "ascent_per_km": 4.6,
+          "has_power": true,
+          "signals": {
+            "slow_for_a_bike": false,
+            "frequent_stops": false,
+            "ragged_pace": false
+          }
+        }
+      }
+    },
+    {
+      "label": "cycling-07",
+      "source_format": "fit",
+      "declared_sport": "cycling",
+      "declared_sub_sport": "generic",
+      "mode": "cycling",
+      "distance_km": 90.72,
+      "moving_s": 13695.0,
+      "elapsed_s": 16493.0,
+      "device_timer_s": 14021.9,
+      "device_elapsed_s": 16492.8,
+      "ascent_m": 996,
+      "descent_m": 1000,
+      "avg_moving_speed_kmh": 23.85,
+      "speed_cv": 0.277,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 4391,
+          "distance_km": 29.73,
+          "mean_kmh": 23.94,
+          "median_kmh": 23.35
+        },
+        "-4%..-1%": {
+          "samples": 2788,
+          "distance_km": 22.83,
+          "mean_kmh": 28.25,
+          "median_kmh": 27.11
+        },
+        "-8%..-4%": {
+          "samples": 587,
+          "distance_km": 6.24,
+          "mean_kmh": 32.7,
+          "median_kmh": 31.31
+        },
+        "1%..4%": {
+          "samples": 4181,
+          "distance_km": 24.57,
+          "mean_kmh": 21.07,
+          "median_kmh": 20.25
+        },
+        "4%..8%": {
+          "samples": 1175,
+          "distance_km": 5.78,
+          "mean_kmh": 17.55,
+          "median_kmh": 15.65
+        },
+        "<-8%": {
+          "samples": 72,
+          "distance_km": 0.78,
+          "mean_kmh": 34.65,
+          "median_kmh": 32.58
+        },
+        ">8%": {
+          "samples": 162,
+          "distance_km": 0.74,
+          "mean_kmh": 16.35,
+          "median_kmh": 14.41
+        }
+      },
+      "stop_count": 16,
+      "stopped_s": 571.0,
+      "has_power": true,
+      "has_cadence": true,
+      "has_hr": true,
+      "sample_count": 13640,
+      "quality_flags": [],
+      "classification": {
+        "mode": "cycling",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "road",
+        "terrain_confidence": "medium",
+        "evidence": {
+          "avg_moving_speed_kmh": 23.85,
+          "stops_per_km": 0.18,
+          "speed_cv": 0.277,
+          "ascent_per_km": 11.0,
+          "has_power": true,
+          "signals": {
+            "slow_for_a_bike": false,
+            "frequent_stops": false,
+            "ragged_pace": false
+          }
+        }
+      }
+    },
+    {
+      "label": "hiking-01",
+      "source_format": "fit",
+      "declared_sport": "walking",
+      "declared_sub_sport": "generic",
+      "mode": "hiking",
+      "distance_km": 11.59,
+      "moving_s": 11073.0,
+      "elapsed_s": 14099.0,
+      "device_timer_s": 13786.4,
+      "device_elapsed_s": 14098.3,
+      "ascent_m": 435,
+      "descent_m": 453,
+      "avg_moving_speed_kmh": 3.77,
+      "speed_cv": 0.184,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 810,
+          "distance_km": 1.59,
+          "mean_kmh": 2.98,
+          "median_kmh": 3.83
+        },
+        "-4%..-1%": {
+          "samples": 155,
+          "distance_km": 0.8,
+          "mean_kmh": 3.52,
+          "median_kmh": 4.13
+        },
+        "-8%..-4%": {
+          "samples": 230,
+          "distance_km": 1.17,
+          "mean_kmh": 3.79,
+          "median_kmh": 4.2
+        },
+        "1%..4%": {
+          "samples": 182,
+          "distance_km": 1.02,
+          "mean_kmh": 3.9,
+          "median_kmh": 3.96
+        },
+        "4%..8%": {
+          "samples": 289,
+          "distance_km": 1.41,
+          "mean_kmh": 3.31,
+          "median_kmh": 3.69
+        },
+        "<-8%": {
+          "samples": 537,
+          "distance_km": 2.24,
+          "mean_kmh": 3.47,
+          "median_kmh": 4.13
+        },
+        ">8%": {
+          "samples": 514,
+          "distance_km": 2.22,
+          "mean_kmh": 3.35,
+          "median_kmh": 3.63
+        }
+      },
+      "stop_count": 65,
+      "stopped_s": 3026.0,
+      "has_power": false,
+      "has_cadence": true,
+      "has_hr": true,
+      "sample_count": 3156,
+      "quality_flags": [],
+      "classification": {
+        "mode": "hiking",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "trail",
+        "terrain_confidence": "low",
+        "evidence": {
+          "avg_moving_speed_kmh": 3.77,
+          "stops_per_km": 5.61,
+          "speed_cv": 0.184,
+          "ascent_per_km": 37.5,
+          "has_power": false
+        }
+      }
+    },
+    {
+      "label": "hiking-02",
+      "source_format": "fit",
+      "declared_sport": "walking",
+      "declared_sub_sport": "generic",
+      "mode": "hiking",
+      "distance_km": 10.69,
+      "moving_s": 9233.0,
+      "elapsed_s": 14349.0,
+      "device_timer_s": 9606.9,
+      "device_elapsed_s": 14347.9,
+      "ascent_m": 451,
+      "descent_m": 456,
+      "avg_moving_speed_kmh": 4.17,
+      "speed_cv": 0.175,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 630,
+          "distance_km": 1.17,
+          "mean_kmh": 3.26,
+          "median_kmh": 4.03
+        },
+        "-4%..-1%": {
+          "samples": 100,
+          "distance_km": 0.7,
+          "mean_kmh": 4.59,
+          "median_kmh": 4.47
+        },
+        "-8%..-4%": {
+          "samples": 236,
+          "distance_km": 1.47,
+          "mean_kmh": 4.5,
+          "median_kmh": 4.33
+        },
+        "1%..4%": {
+          "samples": 130,
+          "distance_km": 0.9,
+          "mean_kmh": 4.54,
+          "median_kmh": 4.44
+        },
+        "4%..8%": {
+          "samples": 310,
+          "distance_km": 1.6,
+          "mean_kmh": 4.51,
+          "median_kmh": 4.2
+        },
+        "<-8%": {
+          "samples": 637,
+          "distance_km": 2.42,
+          "mean_kmh": 4.28,
+          "median_kmh": 4.13
+        },
+        ">8%": {
+          "samples": 610,
+          "distance_km": 2.25,
+          "mean_kmh": 3.78,
+          "median_kmh": 4.0
+        }
+      },
+      "stop_count": 13,
+      "stopped_s": 374.0,
+      "has_power": false,
+      "has_cadence": true,
+      "has_hr": true,
+      "sample_count": 2736,
+      "quality_flags": [],
+      "classification": {
+        "mode": "hiking",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "trail",
+        "terrain_confidence": "low",
+        "evidence": {
+          "avg_moving_speed_kmh": 4.17,
+          "stops_per_km": 1.22,
+          "speed_cv": 0.175,
+          "ascent_per_km": 42.2,
+          "has_power": false
+        }
+      }
+    },
+    {
+      "label": "hiking-03",
+      "source_format": "fit",
+      "declared_sport": "walking",
+      "declared_sub_sport": "generic",
+      "mode": "hiking",
+      "distance_km": 14.67,
+      "moving_s": 11727.0,
+      "elapsed_s": 13517.0,
+      "device_timer_s": 11720.4,
+      "device_elapsed_s": 13516.6,
+      "ascent_m": 325,
+      "descent_m": 316,
+      "avg_moving_speed_kmh": 4.5,
+      "speed_cv": 0.135,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 1054,
+          "distance_km": 3.85,
+          "mean_kmh": 4.41,
+          "median_kmh": 4.5
+        },
+        "-4%..-1%": {
+          "samples": 392,
+          "distance_km": 2.45,
+          "mean_kmh": 4.86,
+          "median_kmh": 4.74
+        },
+        "-8%..-4%": {
+          "samples": 346,
+          "distance_km": 1.68,
+          "mean_kmh": 4.58,
+          "median_kmh": 4.6
+        },
+        "1%..4%": {
+          "samples": 415,
+          "distance_km": 2.5,
+          "mean_kmh": 4.73,
+          "median_kmh": 4.57
+        },
+        "4%..8%": {
+          "samples": 309,
+          "distance_km": 1.7,
+          "mean_kmh": 4.59,
+          "median_kmh": 4.5
+        },
+        "<-8%": {
+          "samples": 350,
+          "distance_km": 1.23,
+          "mean_kmh": 4.16,
+          "median_kmh": 4.3
+        },
+        ">8%": {
+          "samples": 366,
+          "distance_km": 1.24,
+          "mean_kmh": 4.25,
+          "median_kmh": 4.33
+        }
+      },
+      "stop_count": 4,
+      "stopped_s": 475.0,
+      "has_power": false,
+      "has_cadence": true,
+      "has_hr": true,
+      "sample_count": 3259,
+      "quality_flags": [],
+      "classification": {
+        "mode": "hiking",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "trail",
+        "terrain_confidence": "low",
+        "evidence": {
+          "avg_moving_speed_kmh": 4.5,
+          "stops_per_km": 0.27,
+          "speed_cv": 0.135,
+          "ascent_per_km": 22.2,
+          "has_power": false
+        }
+      }
+    },
+    {
+      "label": "hiking-04",
+      "source_format": "fit",
+      "declared_sport": "walking",
+      "declared_sub_sport": "generic",
+      "mode": "hiking",
+      "distance_km": 5.07,
+      "moving_s": 4368.0,
+      "elapsed_s": 4643.0,
+      "device_timer_s": 4642.4,
+      "device_elapsed_s": 4642.4,
+      "ascent_m": 81,
+      "descent_m": 100,
+      "avg_moving_speed_kmh": 4.18,
+      "speed_cv": 0.135,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 541,
+          "distance_km": 1.79,
+          "mean_kmh": 3.95,
+          "median_kmh": 4.3
+        },
+        "-4%..-1%": {
+          "samples": 193,
+          "distance_km": 0.97,
+          "mean_kmh": 4.26,
+          "median_kmh": 4.44
+        },
+        "-8%..-4%": {
+          "samples": 118,
+          "distance_km": 0.49,
+          "mean_kmh": 4.38,
+          "median_kmh": 4.4
+        },
+        "1%..4%": {
+          "samples": 176,
+          "distance_km": 0.8,
+          "mean_kmh": 4.48,
+          "median_kmh": 4.3
+        },
+        "4%..8%": {
+          "samples": 82,
+          "distance_km": 0.36,
+          "mean_kmh": 4.44,
+          "median_kmh": 4.23
+        },
+        "<-8%": {
+          "samples": 100,
+          "distance_km": 0.33,
+          "mean_kmh": 4.1,
+          "median_kmh": 4.2
+        },
+        ">8%": {
+          "samples": 77,
+          "distance_km": 0.27,
+          "mean_kmh": 3.54,
+          "median_kmh": 3.96
+        }
+      },
+      "stop_count": 8,
+      "stopped_s": 275.0,
+      "has_power": false,
+      "has_cadence": true,
+      "has_hr": true,
+      "sample_count": 1332,
+      "quality_flags": [
+        "device_no_pause_detection"
+      ],
+      "classification": {
+        "mode": "hiking",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "trail",
+        "terrain_confidence": "low",
+        "evidence": {
+          "avg_moving_speed_kmh": 4.18,
+          "stops_per_km": 1.58,
+          "speed_cv": 0.135,
+          "ascent_per_km": 16.0,
+          "has_power": false
+        }
+      }
+    },
+    {
+      "label": "paddling-01",
+      "source_format": "fit",
+      "declared_sport": "paddling",
+      "declared_sub_sport": "generic",
+      "mode": "paddling",
+      "distance_km": 9.34,
+      "moving_s": 7987.0,
+      "elapsed_s": 8897.0,
+      "device_timer_s": 8897.4,
+      "device_elapsed_s": 8897.4,
+      "ascent_m": 36,
+      "descent_m": 26,
+      "avg_moving_speed_kmh": 4.21,
+      "speed_cv": 0.226,
+      "speed_by_grade": {
+        "-1%..1%": {
+          "samples": 1027,
+          "distance_km": 7.07,
+          "mean_kmh": 4.1,
+          "median_kmh": 4.22
+        },
+        "-4%..-1%": {
+          "samples": 104,
+          "distance_km": 0.86,
+          "mean_kmh": 4.08,
+          "median_kmh": 4.02
+        },
+        "-8%..-4%": {
+          "samples": 6,
+          "distance_km": 0.01,
+          "mean_kmh": 3.24,
+          "median_kmh": 3.45
+        },
+        "1%..4%": {
+          "samples": 147,
+          "distance_km": 1.04,
+          "mean_kmh": 3.81,
+          "median_kmh": 4.28
+        },
+        "4%..8%": {
+          "samples": 11,
+          "distance_km": 0.03,
+          "mean_kmh": 2.78,
+          "median_kmh": 3.5
+        },
+        "<-8%": {
+          "samples": 1,
+          "distance_km": 0.0,
+          "mean_kmh": 1.93,
+          "median_kmh": 4.41
+        }
+      },
+      "stop_count": 41,
+      "stopped_s": 910.0,
+      "has_power": false,
+      "has_cadence": true,
+      "has_hr": true,
+      "sample_count": 1426,
+      "quality_flags": [
+        "device_no_pause_detection"
+      ],
+      "classification": {
+        "mode": "paddling",
+        "mode_source": "device",
+        "mode_confidence": "high",
+        "terrain": "water",
+        "terrain_confidence": "high",
+        "evidence": {
+          "avg_moving_speed_kmh": 4.21,
+          "stops_per_km": 4.39,
+          "speed_cv": 0.226,
+          "ascent_per_km": 3.9,
+          "has_power": false
+        }
+      }
+    }
+  ],
+  "ingest_failures": []
+}

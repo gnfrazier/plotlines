@@ -1,0 +1,221 @@
+[
+  {
+    "region": "wnc",
+    "region_name": "Western North Carolina",
+    "area_km2": 13706.9,
+    "network": {
+      "ways": 2201,
+      "ways_without_node_ids": 0,
+      "total_km": 1783.0,
+      "components": 38,
+      "largest_component_km": 386.5,
+      "largest_component_share": 0.217,
+      "components_over_10km": 18,
+      "km_per_1000km2": 130.08,
+      "longest_continuous_run_km": 180.2
+    },
+    "access": {
+      "count": 81,
+      "named": 34,
+      "by_kind": {
+        "whitewater=put_in;egress": 31,
+        "waterway=access_point": 5,
+        "leisure=slipway": 45
+      },
+      "on_network_within_50m": 50,
+      "median_snap_m": 33.2,
+      "p90_snap_m": 1048.0
+    },
+    "class": {
+      "graded_ways": 0,
+      "graded_km": 0.0,
+      "graded_share_of_network": 0.0
+    },
+    "gauge": {
+      "count": 43,
+      "within_50m_of_network": 27,
+      "median_snap_m": 35.8
+    },
+    "route": {
+      "attempted": true,
+      "routed": true,
+      "anchors_on_largest_component": 25,
+      "from": "Champion Park Access",
+      "to": "Redmon Dam River Access",
+      "water_distance_km": 151.1,
+      "path_nodes": 2486
+    },
+    "nhd": {
+      "order3": {
+        "order_min": 3,
+        "flowlines": 34274,
+        "named_share": 0.75,
+        "flowdir_set_share": 1.0,
+        "total_km": 7949.0,
+        "components": 78,
+        "largest_component_km": 3425.2,
+        "largest_component_share": 0.431,
+        "components_over_10km": 29,
+        "km_per_1000km2": 579.93,
+        "longest_continuous_run_km": 216.9
+      },
+      "order4": {
+        "order_min": 4,
+        "flowlines": 17796,
+        "named_share": 0.925,
+        "flowdir_set_share": 1.0,
+        "total_km": 4049.8,
+        "components": 38,
+        "largest_component_km": 1780.6,
+        "largest_component_share": 0.44,
+        "components_over_10km": 20,
+        "km_per_1000km2": 295.4,
+        "longest_continuous_run_km": 214.7
+      }
+    }
+  },
+  {
+    "region": "swwi",
+    "region_name": "Southwest Wisconsin",
+    "area_km2": 7229.2,
+    "network": {
+      "ways": 146,
+      "ways_without_node_ids": 0,
+      "total_km": 888.6,
+      "components": 14,
+      "largest_component_km": 673.2,
+      "largest_component_share": 0.758,
+      "components_over_10km": 10,
+      "km_per_1000km2": 122.83,
+      "longest_continuous_run_km": 227.6
+    },
+    "access": {
+      "count": 59,
+      "named": 18,
+      "by_kind": {
+        "leisure=slipway": 56,
+        "waterway=access_point": 3
+      },
+      "on_network_within_50m": 7,
+      "median_snap_m": 276.8,
+      "p90_snap_m": 8136.7
+    },
+    "class": {
+      "graded_ways": 0,
+      "graded_km": 0.0,
+      "graded_share_of_network": 0.0
+    },
+    "gauge": {
+      "count": 9,
+      "within_50m_of_network": 1,
+      "median_snap_m": 282.2
+    },
+    "route": {
+      "attempted": true,
+      "routed": true,
+      "anchors_on_largest_component": 18,
+      "from": "node/6183084159",
+      "to": "node/230755813",
+      "water_distance_km": 203.3,
+      "path_nodes": 585
+    },
+    "nhd": {
+      "order3": {
+        "order_min": 3,
+        "flowlines": 2909,
+        "named_share": 0.711,
+        "flowdir_set_share": 1.0,
+        "total_km": 2387.8,
+        "components": 35,
+        "largest_component_km": 2011.4,
+        "largest_component_share": 0.842,
+        "components_over_10km": 16,
+        "km_per_1000km2": 330.19,
+        "longest_continuous_run_km": 256.9
+      },
+      "order4": {
+        "order_min": 4,
+        "flowlines": 1564,
+        "named_share": 0.845,
+        "flowdir_set_share": 1.0,
+        "total_km": 1330.6,
+        "components": 21,
+        "largest_component_km": 1205.2,
+        "largest_component_share": 0.906,
+        "components_over_10km": 4,
+        "km_per_1000km2": 183.98,
+        "longest_continuous_run_km": 253.5
+      }
+    }
+  },
+  {
+    "region": "socal",
+    "region_name": "Southern California",
+    "area_km2": 21000.8,
+    "network": {
+      "ways": 670,
+      "ways_without_node_ids": 0,
+      "total_km": 865.0,
+      "components": 116,
+      "largest_component_km": 231.4,
+      "largest_component_share": 0.268,
+      "components_over_10km": 14,
+      "km_per_1000km2": 41.19,
+      "longest_continuous_run_km": 142.5
+    },
+    "access": {
+      "count": 66,
+      "named": 9,
+      "by_kind": {
+        "leisure=slipway": 66
+      },
+      "on_network_within_50m": 2,
+      "median_snap_m": 2293.5,
+      "p90_snap_m": 9497.8
+    },
+    "class": {
+      "graded_ways": 1,
+      "graded_km": 0.0,
+      "graded_share_of_network": 0.0
+    },
+    "gauge": {
+      "count": 60,
+      "within_50m_of_network": 19,
+      "median_snap_m": 1005.6
+    },
+    "route": {
+      "attempted": true,
+      "routed": false,
+      "reason": "only 0 access point(s) sit on the largest component within 200 m",
+      "anchors_on_largest_component": 0
+    },
+    "nhd": {
+      "order3": {
+        "order_min": 3,
+        "flowlines": 21458,
+        "named_share": 0.216,
+        "flowdir_set_share": 1.0,
+        "total_km": 6203.0,
+        "components": 413,
+        "largest_component_km": 864.6,
+        "largest_component_share": 0.139,
+        "components_over_10km": 45,
+        "km_per_1000km2": 295.37,
+        "longest_continuous_run_km": 93.9
+      },
+      "order4": {
+        "order_min": 4,
+        "flowlines": 10243,
+        "named_share": 0.375,
+        "flowdir_set_share": 1.0,
+        "total_km": 3075.1,
+        "components": 97,
+        "largest_component_km": 450.2,
+        "largest_component_share": 0.146,
+        "components_over_10km": 24,
+        "km_per_1000km2": 146.42,
+        "longest_continuous_run_km": 92.0
+      }
+    }
+  }
+]

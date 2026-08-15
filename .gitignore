@@ -107,6 +107,20 @@ cache/
 # a golden test ever depends on it.
 spikes/shared/fixtures/
 
+# SPIKE-05 activity files (.fit/.gpx) — REAL PERSONAL GPS TRACES. Never commit.
+# These are not "large build output that happens to be ignorable"; they are a record of
+# where a specific person went and when. Committing one publishes a home address and a
+# routine, permanently, in a history that is painful to rewrite. The spike is written to
+# read them here and emit only derived metrics (durations, distances, speed
+# distributions) — the derived JSON under spikes/SPIKE-05/results/ IS committed, the
+# traces are not, and no coordinate is allowed to reach the write-up.
+# This is also the shape the product must take: derive locally, share numbers, not tracks
+# (PRD FR78's per-field consent means nothing if the "field" is a location history).
+spikes/fit_files/
+*.fit
+*.gpx
+*.tcx
+
 # ----------------------------------------------------------------------------
 # Sidecar packaging (§4, §12) — frozen binaries are build output, not source
 # ----------------------------------------------------------------------------

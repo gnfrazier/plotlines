@@ -1,0 +1,806 @@
+[
+  {
+    "region": "wnc",
+    "region_name": "Western North Carolina",
+    "area_km2": 13706.9,
+    "bbox": "35.0,-84.0,35.8,-82.3",
+    "probes": [
+      {
+        "group": "network",
+        "label": "waterway=river",
+        "selector": "way[\"waterway\"=\"river\"]({bbox})",
+        "total": 2182,
+        "nodes": 0,
+        "ways": 2182,
+        "relations": 0,
+        "per_1000km2": 159.19
+      },
+      {
+        "group": "network",
+        "label": "waterway=stream",
+        "selector": "way[\"waterway\"=\"stream\"]({bbox})",
+        "total": 60405,
+        "nodes": 0,
+        "ways": 60405,
+        "relations": 0,
+        "per_1000km2": 4406.9
+      },
+      {
+        "group": "network",
+        "label": "waterway=canal",
+        "selector": "way[\"waterway\"=\"canal\"]({bbox})",
+        "total": 19,
+        "nodes": 0,
+        "ways": 19,
+        "relations": 0,
+        "per_1000km2": 1.39
+      },
+      {
+        "group": "network",
+        "label": "waterway=tidal_channel",
+        "selector": "way[\"waterway\"=\"tidal_channel\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "network",
+        "label": "waterway + canoe=*",
+        "selector": "way[\"waterway\"][\"canoe\"]({bbox})",
+        "total": 237,
+        "nodes": 0,
+        "ways": 237,
+        "relations": 0,
+        "per_1000km2": 17.29
+      },
+      {
+        "group": "network",
+        "label": "canoe=* (anything)",
+        "selector": "nwr[\"canoe\"]({bbox})",
+        "total": 313,
+        "nodes": 36,
+        "ways": 277,
+        "relations": 0,
+        "per_1000km2": 22.84
+      },
+      {
+        "group": "network",
+        "label": "route=canoe relations",
+        "selector": "relation[\"route\"=\"canoe\"]({bbox})",
+        "total": 1,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 1,
+        "per_1000km2": 0.07
+      },
+      {
+        "group": "access",
+        "label": "canoe=put_in",
+        "selector": "nwr[\"canoe\"=\"put_in\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "access",
+        "label": "waterway=access_point",
+        "selector": "nwr[\"waterway\"=\"access_point\"]({bbox})",
+        "total": 5,
+        "nodes": 5,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.36
+      },
+      {
+        "group": "access",
+        "label": "whitewater=put_in/egress",
+        "selector": "nwr[\"whitewater\"~\"^(put_in|egress|put_in;egress|egress;put_in)$\"]({bbox})",
+        "total": 31,
+        "nodes": 31,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 2.26
+      },
+      {
+        "group": "access",
+        "label": "leisure=slipway",
+        "selector": "nwr[\"leisure\"=\"slipway\"]({bbox})",
+        "total": 76,
+        "nodes": 63,
+        "ways": 13,
+        "relations": 0,
+        "per_1000km2": 5.54
+      },
+      {
+        "group": "class",
+        "label": "whitewater:section_grade",
+        "selector": "nwr[\"whitewater:section_grade\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "class",
+        "label": "whitewater:rapid_grade",
+        "selector": "nwr[\"whitewater:rapid_grade\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "class",
+        "label": "rapids=*",
+        "selector": "nwr[\"rapids\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "class",
+        "label": "whitewater=rapid",
+        "selector": "nwr[\"whitewater\"=\"rapid\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "portage",
+        "label": "canoe=portage",
+        "selector": "nwr[\"canoe\"=\"portage\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "portage",
+        "label": "whitewater=portage_way",
+        "selector": "nwr[\"whitewater\"=\"portage_way\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "portage",
+        "label": "portage=*",
+        "selector": "nwr[\"portage\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "hazard",
+        "label": "waterfall/weir/dam/lock",
+        "selector": "(nwr[\"waterway\"=\"waterfall\"]({bbox});nwr[\"waterway\"=\"weir\"]({bbox});nwr[\"waterway\"=\"dam\"]({bbox});nwr[\"waterway\"=\"lock_gate\"]({bbox});)",
+        "total": 1262,
+        "nodes": 907,
+        "ways": 354,
+        "relations": 1,
+        "per_1000km2": 92.07
+      },
+      {
+        "group": "hazard",
+        "label": "waterway=canoe_pass",
+        "selector": "nwr[\"waterway\"=\"canoe_pass\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "gauge",
+        "label": "man_made=monitoring_station",
+        "selector": "nwr[\"man_made\"=\"monitoring_station\"]({bbox})",
+        "total": 73,
+        "nodes": 72,
+        "ways": 1,
+        "relations": 0,
+        "per_1000km2": 5.33
+      },
+      {
+        "group": "control",
+        "label": "highway=cycleway",
+        "selector": "way[\"highway\"=\"cycleway\"]({bbox})",
+        "total": 368,
+        "nodes": 0,
+        "ways": 368,
+        "relations": 0,
+        "per_1000km2": 26.85
+      },
+      {
+        "group": "control",
+        "label": "highway + bicycle=*",
+        "selector": "way[\"highway\"][\"bicycle\"]({bbox})",
+        "total": 4084,
+        "nodes": 0,
+        "ways": 4084,
+        "relations": 0,
+        "per_1000km2": 297.95
+      },
+      {
+        "group": "control",
+        "label": "route=bicycle relations",
+        "selector": "relation[\"route\"=\"bicycle\"]({bbox})",
+        "total": 30,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 30,
+        "per_1000km2": 2.19
+      },
+      {
+        "group": "control",
+        "label": "route=hiking relations",
+        "selector": "relation[\"route\"=\"hiking\"]({bbox})",
+        "total": 270,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 270,
+        "per_1000km2": 19.7
+      },
+      {
+        "group": "control",
+        "label": "highway=path/footway",
+        "selector": "(way[\"highway\"=\"path\"]({bbox});way[\"highway\"=\"footway\"]({bbox});way[\"highway\"=\"bridleway\"]({bbox});)",
+        "total": 13406,
+        "nodes": 0,
+        "ways": 13406,
+        "relations": 0,
+        "per_1000km2": 978.05
+      }
+    ]
+  },
+  {
+    "region": "swwi",
+    "region_name": "Southwest Wisconsin",
+    "area_km2": 7229.2,
+    "bbox": "42.9,-91.2,43.4,-89.6",
+    "probes": [
+      {
+        "group": "network",
+        "label": "waterway=river",
+        "selector": "way[\"waterway\"=\"river\"]({bbox})",
+        "total": 143,
+        "nodes": 0,
+        "ways": 143,
+        "relations": 0,
+        "per_1000km2": 19.78
+      },
+      {
+        "group": "network",
+        "label": "waterway=stream",
+        "selector": "way[\"waterway\"=\"stream\"]({bbox})",
+        "total": 2472,
+        "nodes": 0,
+        "ways": 2472,
+        "relations": 0,
+        "per_1000km2": 341.95
+      },
+      {
+        "group": "network",
+        "label": "waterway=canal",
+        "selector": "way[\"waterway\"=\"canal\"]({bbox})",
+        "total": 3,
+        "nodes": 0,
+        "ways": 3,
+        "relations": 0,
+        "per_1000km2": 0.41
+      },
+      {
+        "group": "network",
+        "label": "waterway=tidal_channel",
+        "selector": "way[\"waterway\"=\"tidal_channel\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "network",
+        "label": "waterway + canoe=*",
+        "selector": "way[\"waterway\"][\"canoe\"]({bbox})",
+        "total": 58,
+        "nodes": 0,
+        "ways": 58,
+        "relations": 0,
+        "per_1000km2": 8.02
+      },
+      {
+        "group": "network",
+        "label": "canoe=* (anything)",
+        "selector": "nwr[\"canoe\"]({bbox})",
+        "total": 61,
+        "nodes": 3,
+        "ways": 58,
+        "relations": 0,
+        "per_1000km2": 8.44
+      },
+      {
+        "group": "network",
+        "label": "route=canoe relations",
+        "selector": "relation[\"route\"=\"canoe\"]({bbox})",
+        "total": 2,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 2,
+        "per_1000km2": 0.28
+      },
+      {
+        "group": "access",
+        "label": "canoe=put_in",
+        "selector": "nwr[\"canoe\"=\"put_in\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "access",
+        "label": "waterway=access_point",
+        "selector": "nwr[\"waterway\"=\"access_point\"]({bbox})",
+        "total": 3,
+        "nodes": 3,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.41
+      },
+      {
+        "group": "access",
+        "label": "whitewater=put_in/egress",
+        "selector": "nwr[\"whitewater\"~\"^(put_in|egress|put_in;egress|egress;put_in)$\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "access",
+        "label": "leisure=slipway",
+        "selector": "nwr[\"leisure\"=\"slipway\"]({bbox})",
+        "total": 56,
+        "nodes": 54,
+        "ways": 2,
+        "relations": 0,
+        "per_1000km2": 7.75
+      },
+      {
+        "group": "class",
+        "label": "whitewater:section_grade",
+        "selector": "nwr[\"whitewater:section_grade\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "class",
+        "label": "whitewater:rapid_grade",
+        "selector": "nwr[\"whitewater:rapid_grade\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "class",
+        "label": "rapids=*",
+        "selector": "nwr[\"rapids\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "class",
+        "label": "whitewater=rapid",
+        "selector": "nwr[\"whitewater\"=\"rapid\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "portage",
+        "label": "canoe=portage",
+        "selector": "nwr[\"canoe\"=\"portage\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "portage",
+        "label": "whitewater=portage_way",
+        "selector": "nwr[\"whitewater\"=\"portage_way\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "portage",
+        "label": "portage=*",
+        "selector": "nwr[\"portage\"]({bbox})",
+        "total": 13,
+        "nodes": 0,
+        "ways": 13,
+        "relations": 0,
+        "per_1000km2": 1.8
+      },
+      {
+        "group": "hazard",
+        "label": "waterfall/weir/dam/lock",
+        "selector": "(nwr[\"waterway\"=\"waterfall\"]({bbox});nwr[\"waterway\"=\"weir\"]({bbox});nwr[\"waterway\"=\"dam\"]({bbox});nwr[\"waterway\"=\"lock_gate\"]({bbox});)",
+        "total": 69,
+        "nodes": 32,
+        "ways": 37,
+        "relations": 0,
+        "per_1000km2": 9.54
+      },
+      {
+        "group": "hazard",
+        "label": "waterway=canoe_pass",
+        "selector": "nwr[\"waterway\"=\"canoe_pass\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "gauge",
+        "label": "man_made=monitoring_station",
+        "selector": "nwr[\"man_made\"=\"monitoring_station\"]({bbox})",
+        "total": 11,
+        "nodes": 11,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 1.52
+      },
+      {
+        "group": "control",
+        "label": "highway=cycleway",
+        "selector": "way[\"highway\"=\"cycleway\"]({bbox})",
+        "total": 253,
+        "nodes": 0,
+        "ways": 253,
+        "relations": 0,
+        "per_1000km2": 35.0
+      },
+      {
+        "group": "control",
+        "label": "highway + bicycle=*",
+        "selector": "way[\"highway\"][\"bicycle\"]({bbox})",
+        "total": 578,
+        "nodes": 0,
+        "ways": 578,
+        "relations": 0,
+        "per_1000km2": 79.95
+      },
+      {
+        "group": "control",
+        "label": "route=bicycle relations",
+        "selector": "relation[\"route\"=\"bicycle\"]({bbox})",
+        "total": 11,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 11,
+        "per_1000km2": 1.52
+      },
+      {
+        "group": "control",
+        "label": "route=hiking relations",
+        "selector": "relation[\"route\"=\"hiking\"]({bbox})",
+        "total": 24,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 24,
+        "per_1000km2": 3.32
+      },
+      {
+        "group": "control",
+        "label": "highway=path/footway",
+        "selector": "(way[\"highway\"=\"path\"]({bbox});way[\"highway\"=\"footway\"]({bbox});way[\"highway\"=\"bridleway\"]({bbox});)",
+        "total": 3002,
+        "nodes": 0,
+        "ways": 3002,
+        "relations": 0,
+        "per_1000km2": 415.26
+      }
+    ]
+  },
+  {
+    "region": "socal",
+    "region_name": "Southern California",
+    "area_km2": 21000.8,
+    "bbox": "33.0,-118.7,34.2,-117.0",
+    "probes": [
+      {
+        "group": "network",
+        "label": "waterway=river",
+        "selector": "way[\"waterway\"=\"river\"]({bbox})",
+        "total": 203,
+        "nodes": 0,
+        "ways": 203,
+        "relations": 0,
+        "per_1000km2": 9.67
+      },
+      {
+        "group": "network",
+        "label": "waterway=stream",
+        "selector": "way[\"waterway\"=\"stream\"]({bbox})",
+        "total": 5830,
+        "nodes": 0,
+        "ways": 5830,
+        "relations": 0,
+        "per_1000km2": 277.61
+      },
+      {
+        "group": "network",
+        "label": "waterway=canal",
+        "selector": "way[\"waterway\"=\"canal\"]({bbox})",
+        "total": 430,
+        "nodes": 0,
+        "ways": 430,
+        "relations": 0,
+        "per_1000km2": 20.48
+      },
+      {
+        "group": "network",
+        "label": "waterway=tidal_channel",
+        "selector": "way[\"waterway\"=\"tidal_channel\"]({bbox})",
+        "total": 36,
+        "nodes": 0,
+        "ways": 36,
+        "relations": 0,
+        "per_1000km2": 1.71
+      },
+      {
+        "group": "network",
+        "label": "waterway + canoe=*",
+        "selector": "way[\"waterway\"][\"canoe\"]({bbox})",
+        "total": 2,
+        "nodes": 0,
+        "ways": 2,
+        "relations": 0,
+        "per_1000km2": 0.1
+      },
+      {
+        "group": "network",
+        "label": "canoe=* (anything)",
+        "selector": "nwr[\"canoe\"]({bbox})",
+        "total": 4,
+        "nodes": 0,
+        "ways": 3,
+        "relations": 1,
+        "per_1000km2": 0.19
+      },
+      {
+        "group": "network",
+        "label": "route=canoe relations",
+        "selector": "relation[\"route\"=\"canoe\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "access",
+        "label": "canoe=put_in",
+        "selector": "nwr[\"canoe\"=\"put_in\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "access",
+        "label": "waterway=access_point",
+        "selector": "nwr[\"waterway\"=\"access_point\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "access",
+        "label": "whitewater=put_in/egress",
+        "selector": "nwr[\"whitewater\"~\"^(put_in|egress|put_in;egress|egress;put_in)$\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "access",
+        "label": "leisure=slipway",
+        "selector": "nwr[\"leisure\"=\"slipway\"]({bbox})",
+        "total": 66,
+        "nodes": 35,
+        "ways": 31,
+        "relations": 0,
+        "per_1000km2": 3.14
+      },
+      {
+        "group": "class",
+        "label": "whitewater:section_grade",
+        "selector": "nwr[\"whitewater:section_grade\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "class",
+        "label": "whitewater:rapid_grade",
+        "selector": "nwr[\"whitewater:rapid_grade\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "class",
+        "label": "rapids=*",
+        "selector": "nwr[\"rapids\"]({bbox})",
+        "total": 1,
+        "nodes": 0,
+        "ways": 1,
+        "relations": 0,
+        "per_1000km2": 0.05
+      },
+      {
+        "group": "class",
+        "label": "whitewater=rapid",
+        "selector": "nwr[\"whitewater\"=\"rapid\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "portage",
+        "label": "canoe=portage",
+        "selector": "nwr[\"canoe\"=\"portage\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "portage",
+        "label": "whitewater=portage_way",
+        "selector": "nwr[\"whitewater\"=\"portage_way\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "portage",
+        "label": "portage=*",
+        "selector": "nwr[\"portage\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "hazard",
+        "label": "waterfall/weir/dam/lock",
+        "selector": "(nwr[\"waterway\"=\"waterfall\"]({bbox});nwr[\"waterway\"=\"weir\"]({bbox});nwr[\"waterway\"=\"dam\"]({bbox});nwr[\"waterway\"=\"lock_gate\"]({bbox});)",
+        "total": 509,
+        "nodes": 239,
+        "ways": 253,
+        "relations": 17,
+        "per_1000km2": 24.24
+      },
+      {
+        "group": "hazard",
+        "label": "waterway=canoe_pass",
+        "selector": "nwr[\"waterway\"=\"canoe_pass\"]({bbox})",
+        "total": 0,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 0,
+        "per_1000km2": 0.0
+      },
+      {
+        "group": "gauge",
+        "label": "man_made=monitoring_station",
+        "selector": "nwr[\"man_made\"=\"monitoring_station\"]({bbox})",
+        "total": 446,
+        "nodes": 436,
+        "ways": 10,
+        "relations": 0,
+        "per_1000km2": 21.24
+      },
+      {
+        "group": "control",
+        "label": "highway=cycleway",
+        "selector": "way[\"highway\"=\"cycleway\"]({bbox})",
+        "total": 8418,
+        "nodes": 0,
+        "ways": 8418,
+        "relations": 0,
+        "per_1000km2": 400.84
+      },
+      {
+        "group": "control",
+        "label": "highway + bicycle=*",
+        "selector": "way[\"highway\"][\"bicycle\"]({bbox})",
+        "total": 58487,
+        "nodes": 0,
+        "ways": 58487,
+        "relations": 0,
+        "per_1000km2": 2784.98
+      },
+      {
+        "group": "control",
+        "label": "route=bicycle relations",
+        "selector": "relation[\"route\"=\"bicycle\"]({bbox})",
+        "total": 192,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 192,
+        "per_1000km2": 9.14
+      },
+      {
+        "group": "control",
+        "label": "route=hiking relations",
+        "selector": "relation[\"route\"=\"hiking\"]({bbox})",
+        "total": 72,
+        "nodes": 0,
+        "ways": 0,
+        "relations": 72,
+        "per_1000km2": 3.43
+      },
+      {
+        "group": "control",
+        "label": "highway=path/footway",
+        "selector": "(way[\"highway\"=\"path\"]({bbox});way[\"highway\"=\"footway\"]({bbox});way[\"highway\"=\"bridleway\"]({bbox});)",
+        "total": 354791,
+        "nodes": 0,
+        "ways": 354791,
+        "relations": 0,
+        "per_1000km2": 16894.13
+      }
+    ]
+  }
+]

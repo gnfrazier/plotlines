@@ -1,0 +1,47 @@
+[
+  {
+    "region": "wnc",
+    "sampled": 25,
+    "resolved": 25,
+    "with_reachcode": 25,
+    "with_mainstem": 22,
+    "downstream_example": {
+      "site_no": "021622845",
+      "name": "SOUTH SALUDA RIVER NEAR ROCKY BOTTOM, SC",
+      "reachcode": "03050109000340",
+      "distance_km": 40,
+      "flowlines": 22,
+      "comids": 22
+    }
+  },
+  {
+    "region": "swwi",
+    "sampled": 9,
+    "resolved": 9,
+    "with_reachcode": 9,
+    "with_mainstem": 7,
+    "downstream_example": {
+      "site_no": "05389500",
+      "name": "Mississippi River at McGregor, IA",
+      "reachcode": "07060001000001",
+      "distance_km": 40,
+      "flowlines": 54,
+      "comids": 54
+    }
+  },
+  {
+    "region": "socal",
+    "sampled": 25,
+    "resolved": 25,
+    "with_reachcode": 24,
+    "with_mainstem": 17,
+    "downstream_example": {
+      "site_no": "11042000",
+      "name": "SAN LUIS REY R A OCEANSIDE CA",
+      "reachcode": "18070303000022",
+      "distance_km": 40,
+      "flowlines": 3,
+      "comids": 3
+    }
+  }
+]

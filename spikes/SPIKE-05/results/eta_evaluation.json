@@ -1,0 +1,866 @@
+[
+  {
+    "model": "flat average (baseline \u2014 grade ignored)",
+    "target": "moving",
+    "n": 11,
+    "mape": 10.6,
+    "median_ape": 6.3,
+    "worst_ape": 41.0,
+    "worst_label": "cycling-04",
+    "within_10pct": 6,
+    "within_20pct": 10,
+    "by_mode": {
+      "cycling": {
+        "n": 6,
+        "mape": 8.2,
+        "n_extrapolated": 1,
+        "extrapolated_mape": 41.0,
+        "n_unpredictable": 0
+      },
+      "hiking": {
+        "n": 4,
+        "mape": 6.7,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 0
+      },
+      "paddling": {
+        "n": 0,
+        "mape": null,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 1
+      }
+    },
+    "per_activity": [
+      {
+        "label": "cycling-01",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 14398,
+        "predicted_s": 13493,
+        "ape": 6.3,
+        "note": ""
+      },
+      {
+        "label": "cycling-02",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 11070,
+        "predicted_s": 13244,
+        "ape": 19.6,
+        "note": ""
+      },
+      {
+        "label": "cycling-03",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 17061,
+        "predicted_s": 15033,
+        "ape": 11.9,
+        "note": ""
+      },
+      {
+        "label": "cycling-04",
+        "mode": "cycling",
+        "terrain": "offroad",
+        "actual_s": 4769,
+        "predicted_s": 2816,
+        "ape": 41.0,
+        "note": "extrapolated: no same-terrain example to fit on"
+      },
+      {
+        "label": "cycling-05",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 6593,
+        "predicted_s": 6440,
+        "ape": 2.3,
+        "note": ""
+      },
+      {
+        "label": "cycling-06",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 5668,
+        "predicted_s": 5991,
+        "ape": 5.7,
+        "note": ""
+      },
+      {
+        "label": "cycling-07",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 13695,
+        "predicted_s": 14162,
+        "ape": 3.4,
+        "note": ""
+      },
+      {
+        "label": "hiking-01",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 11073,
+        "predicted_s": 9647,
+        "ape": 12.9,
+        "note": ""
+      },
+      {
+        "label": "hiking-02",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 9233,
+        "predicted_s": 9270,
+        "ape": 0.4,
+        "note": ""
+      },
+      {
+        "label": "hiking-03",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 11727,
+        "predicted_s": 13235,
+        "ape": 12.9,
+        "note": ""
+      },
+      {
+        "label": "hiking-04",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 4368,
+        "predicted_s": 4395,
+        "ape": 0.6,
+        "note": ""
+      },
+      {
+        "label": "paddling-01",
+        "mode": "paddling",
+        "terrain": "water",
+        "actual_s": null,
+        "predicted_s": null,
+        "ape": null,
+        "note": "no other activity of this mode to fit on"
+      }
+    ]
+  },
+  {
+    "model": "literature (system default, no personal data)",
+    "target": "moving",
+    "n": 12,
+    "mape": 22.1,
+    "median_ape": 25.4,
+    "worst_ape": 46.1,
+    "worst_label": "cycling-02",
+    "within_10pct": 3,
+    "within_20pct": 6,
+    "by_mode": {
+      "cycling": {
+        "n": 7,
+        "mape": 31.4,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 0
+      },
+      "hiking": {
+        "n": 4,
+        "mape": 9.6,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 0
+      },
+      "paddling": {
+        "n": 1,
+        "mape": 6.4,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 0
+      }
+    },
+    "per_activity": [
+      {
+        "label": "cycling-01",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 14398,
+        "predicted_s": 20497,
+        "ape": 42.4,
+        "note": ""
+      },
+      {
+        "label": "cycling-02",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 11070,
+        "predicted_s": 16176,
+        "ape": 46.1,
+        "note": ""
+      },
+      {
+        "label": "cycling-03",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 17061,
+        "predicted_s": 19264,
+        "ape": 12.9,
+        "note": ""
+      },
+      {
+        "label": "cycling-04",
+        "mode": "cycling",
+        "terrain": "offroad",
+        "actual_s": 4769,
+        "predicted_s": 5981,
+        "ape": 25.4,
+        "note": ""
+      },
+      {
+        "label": "cycling-05",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 6593,
+        "predicted_s": 8423,
+        "ape": 27.8,
+        "note": ""
+      },
+      {
+        "label": "cycling-06",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 5668,
+        "predicted_s": 7229,
+        "ape": 27.5,
+        "note": ""
+      },
+      {
+        "label": "cycling-07",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 13695,
+        "predicted_s": 18874,
+        "ape": 37.8,
+        "note": ""
+      },
+      {
+        "label": "hiking-01",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 11073,
+        "predicted_s": 9492,
+        "ape": 14.3,
+        "note": ""
+      },
+      {
+        "label": "hiking-02",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 9233,
+        "predicted_s": 8771,
+        "ape": 5.0,
+        "note": ""
+      },
+      {
+        "label": "hiking-03",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 11727,
+        "predicted_s": 11156,
+        "ape": 4.9,
+        "note": ""
+      },
+      {
+        "label": "hiking-04",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 4368,
+        "predicted_s": 3752,
+        "ape": 14.1,
+        "note": ""
+      },
+      {
+        "label": "paddling-01",
+        "mode": "paddling",
+        "terrain": "water",
+        "actual_s": 7987,
+        "predicted_s": 7472,
+        "ape": 6.4,
+        "note": ""
+      }
+    ]
+  },
+  {
+    "model": "personal grade-binned (FR16 custom/aggregated pace)",
+    "target": "moving",
+    "n": 11,
+    "mape": 11.3,
+    "median_ape": 6.5,
+    "worst_ape": 41.0,
+    "worst_label": "cycling-04",
+    "within_10pct": 6,
+    "within_20pct": 10,
+    "by_mode": {
+      "cycling": {
+        "n": 6,
+        "mape": 7.5,
+        "n_extrapolated": 1,
+        "extrapolated_mape": 41.0,
+        "n_unpredictable": 0
+      },
+      "hiking": {
+        "n": 4,
+        "mape": 9.7,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 0
+      },
+      "paddling": {
+        "n": 0,
+        "mape": null,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 1
+      }
+    },
+    "per_activity": [
+      {
+        "label": "cycling-01",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 14398,
+        "predicted_s": 13695,
+        "ape": 4.9,
+        "note": ""
+      },
+      {
+        "label": "cycling-02",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 11070,
+        "predicted_s": 12922,
+        "ape": 16.7,
+        "note": ""
+      },
+      {
+        "label": "cycling-03",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 17061,
+        "predicted_s": 14768,
+        "ape": 13.4,
+        "note": ""
+      },
+      {
+        "label": "cycling-04",
+        "mode": "cycling",
+        "terrain": "offroad",
+        "actual_s": 4769,
+        "predicted_s": 2816,
+        "ape": 41.0,
+        "note": "extrapolated: no same-terrain example to fit on"
+      },
+      {
+        "label": "cycling-05",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 6593,
+        "predicted_s": 6318,
+        "ape": 4.2,
+        "note": ""
+      },
+      {
+        "label": "cycling-06",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 5668,
+        "predicted_s": 5837,
+        "ape": 3.0,
+        "note": ""
+      },
+      {
+        "label": "cycling-07",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 13695,
+        "predicted_s": 14035,
+        "ape": 2.5,
+        "note": ""
+      },
+      {
+        "label": "hiking-01",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 11073,
+        "predicted_s": 9795,
+        "ape": 11.5,
+        "note": ""
+      },
+      {
+        "label": "hiking-02",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 9233,
+        "predicted_s": 9833,
+        "ape": 6.5,
+        "note": ""
+      },
+      {
+        "label": "hiking-03",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 11727,
+        "predicted_s": 13811,
+        "ape": 17.8,
+        "note": ""
+      },
+      {
+        "label": "hiking-04",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 4368,
+        "predicted_s": 4493,
+        "ape": 2.9,
+        "note": ""
+      },
+      {
+        "label": "paddling-01",
+        "mode": "paddling",
+        "terrain": "water",
+        "actual_s": null,
+        "predicted_s": null,
+        "ape": null,
+        "note": "no other activity of this mode to fit on"
+      }
+    ]
+  },
+  {
+    "model": "flat average (baseline \u2014 grade ignored)",
+    "target": "elapsed",
+    "n": 11,
+    "mape": 19.4,
+    "median_ape": 17.7,
+    "worst_ape": 38.5,
+    "worst_label": "cycling-04",
+    "within_10pct": 3,
+    "within_20pct": 6,
+    "by_mode": {
+      "cycling": {
+        "n": 6,
+        "mape": 13.7,
+        "n_extrapolated": 1,
+        "extrapolated_mape": 38.5,
+        "n_unpredictable": 0
+      },
+      "hiking": {
+        "n": 4,
+        "mape": 23.2,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 0
+      },
+      "paddling": {
+        "n": 0,
+        "mape": null,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 1
+      }
+    },
+    "per_activity": [
+      {
+        "label": "cycling-01",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 17766,
+        "predicted_s": 15488,
+        "ape": 12.8,
+        "note": ""
+      },
+      {
+        "label": "cycling-02",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 11757,
+        "predicted_s": 15429,
+        "ape": 31.2,
+        "note": ""
+      },
+      {
+        "label": "cycling-03",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 18638,
+        "predicted_s": 17423,
+        "ape": 6.5,
+        "note": ""
+      },
+      {
+        "label": "cycling-04",
+        "mode": "cycling",
+        "terrain": "offroad",
+        "actual_s": 5292,
+        "predicted_s": 3253,
+        "ape": 38.5,
+        "note": "extrapolated: no same-terrain example to fit on"
+      },
+      {
+        "label": "cycling-05",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 8709,
+        "predicted_s": 7169,
+        "ape": 17.7,
+        "note": ""
+      },
+      {
+        "label": "cycling-06",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 6222,
+        "predicted_s": 6937,
+        "ape": 11.5,
+        "note": ""
+      },
+      {
+        "label": "cycling-07",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 16493,
+        "predicted_s": 16096,
+        "ape": 2.4,
+        "note": ""
+      },
+      {
+        "label": "hiking-01",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 14099,
+        "predicted_s": 13056,
+        "ape": 7.4,
+        "note": ""
+      },
+      {
+        "label": "hiking-02",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 14349,
+        "predicted_s": 11244,
+        "ape": 21.6,
+        "note": ""
+      },
+      {
+        "label": "hiking-03",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 13517,
+        "predicted_s": 18710,
+        "ape": 38.4,
+        "note": ""
+      },
+      {
+        "label": "hiking-04",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 4643,
+        "predicted_s": 5831,
+        "ape": 25.6,
+        "note": ""
+      },
+      {
+        "label": "paddling-01",
+        "mode": "paddling",
+        "terrain": "water",
+        "actual_s": null,
+        "predicted_s": null,
+        "ape": null,
+        "note": "no other activity of this mode to fit on"
+      }
+    ]
+  },
+  {
+    "model": "literature (system default, no personal data)",
+    "target": "elapsed",
+    "n": 12,
+    "mape": 24.2,
+    "median_ape": 25.9,
+    "worst_ape": 60.3,
+    "worst_label": "cycling-02",
+    "within_10pct": 3,
+    "within_20pct": 6,
+    "by_mode": {
+      "cycling": {
+        "n": 7,
+        "mape": 30.8,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 0
+      },
+      "hiking": {
+        "n": 4,
+        "mape": 14.7,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 0
+      },
+      "paddling": {
+        "n": 1,
+        "mape": 16.0,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 0
+      }
+    },
+    "per_activity": [
+      {
+        "label": "cycling-01",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 17766,
+        "predicted_s": 23528,
+        "ape": 32.4,
+        "note": ""
+      },
+      {
+        "label": "cycling-02",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 11757,
+        "predicted_s": 18845,
+        "ape": 60.3,
+        "note": ""
+      },
+      {
+        "label": "cycling-03",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 18638,
+        "predicted_s": 22326,
+        "ape": 19.8,
+        "note": ""
+      },
+      {
+        "label": "cycling-04",
+        "mode": "cycling",
+        "terrain": "offroad",
+        "actual_s": 5292,
+        "predicted_s": 6911,
+        "ape": 30.6,
+        "note": ""
+      },
+      {
+        "label": "cycling-05",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 8709,
+        "predicted_s": 9377,
+        "ape": 7.7,
+        "note": ""
+      },
+      {
+        "label": "cycling-06",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 6222,
+        "predicted_s": 8371,
+        "ape": 34.5,
+        "note": ""
+      },
+      {
+        "label": "cycling-07",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 16493,
+        "predicted_s": 21452,
+        "ape": 30.1,
+        "note": ""
+      },
+      {
+        "label": "hiking-01",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 14099,
+        "predicted_s": 12846,
+        "ape": 8.9,
+        "note": ""
+      },
+      {
+        "label": "hiking-02",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 14349,
+        "predicted_s": 10639,
+        "ape": 25.9,
+        "note": ""
+      },
+      {
+        "label": "hiking-03",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 13517,
+        "predicted_s": 15772,
+        "ape": 16.7,
+        "note": ""
+      },
+      {
+        "label": "hiking-04",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 4643,
+        "predicted_s": 4977,
+        "ape": 7.2,
+        "note": ""
+      },
+      {
+        "label": "paddling-01",
+        "mode": "paddling",
+        "terrain": "water",
+        "actual_s": 8897,
+        "predicted_s": 7472,
+        "ape": 16.0,
+        "note": ""
+      }
+    ]
+  },
+  {
+    "model": "personal grade-binned (FR16 custom/aggregated pace)",
+    "target": "elapsed",
+    "n": 11,
+    "mape": 19.4,
+    "median_ape": 16.9,
+    "worst_ape": 44.4,
+    "worst_label": "hiking-03",
+    "within_10pct": 4,
+    "within_20pct": 7,
+    "by_mode": {
+      "cycling": {
+        "n": 6,
+        "mape": 13.1,
+        "n_extrapolated": 1,
+        "extrapolated_mape": 38.5,
+        "n_unpredictable": 0
+      },
+      "hiking": {
+        "n": 4,
+        "mape": 23.9,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 0
+      },
+      "paddling": {
+        "n": 0,
+        "mape": null,
+        "n_extrapolated": 0,
+        "extrapolated_mape": null,
+        "n_unpredictable": 1
+      }
+    },
+    "per_activity": [
+      {
+        "label": "cycling-01",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 17766,
+        "predicted_s": 15720,
+        "ape": 11.5,
+        "note": ""
+      },
+      {
+        "label": "cycling-02",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 11757,
+        "predicted_s": 15054,
+        "ape": 28.0,
+        "note": ""
+      },
+      {
+        "label": "cycling-03",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 18638,
+        "predicted_s": 17115,
+        "ape": 8.2,
+        "note": ""
+      },
+      {
+        "label": "cycling-04",
+        "mode": "cycling",
+        "terrain": "offroad",
+        "actual_s": 5292,
+        "predicted_s": 3253,
+        "ape": 38.5,
+        "note": "extrapolated: no same-terrain example to fit on"
+      },
+      {
+        "label": "cycling-05",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 8709,
+        "predicted_s": 7033,
+        "ape": 19.2,
+        "note": ""
+      },
+      {
+        "label": "cycling-06",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 6222,
+        "predicted_s": 6759,
+        "ape": 8.6,
+        "note": ""
+      },
+      {
+        "label": "cycling-07",
+        "mode": "cycling",
+        "terrain": "road",
+        "actual_s": 16493,
+        "predicted_s": 15951,
+        "ape": 3.3,
+        "note": ""
+      },
+      {
+        "label": "hiking-01",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 14099,
+        "predicted_s": 13256,
+        "ape": 6.0,
+        "note": ""
+      },
+      {
+        "label": "hiking-02",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 14349,
+        "predicted_s": 11927,
+        "ape": 16.9,
+        "note": ""
+      },
+      {
+        "label": "hiking-03",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 13517,
+        "predicted_s": 19524,
+        "ape": 44.4,
+        "note": ""
+      },
+      {
+        "label": "hiking-04",
+        "mode": "hiking",
+        "terrain": "trail",
+        "actual_s": 4643,
+        "predicted_s": 5961,
+        "ape": 28.4,
+        "note": ""
+      },
+      {
+        "label": "paddling-01",
+        "mode": "paddling",
+        "terrain": "water",
+        "actual_s": null,
+        "predicted_s": null,
+        "ape": null,
+        "note": "no other activity of this mode to fit on"
+      }
+    ]
+  }
+]

@@ -1,0 +1,855 @@
+[
+  {
+    "region": "wnc",
+    "region_name": "Western North Carolina",
+    "area_km2": 13706.9,
+    "sites": {
+      "discharge_cfs": 43,
+      "gauge_height_ft": 43
+    },
+    "sites_per_1000km2": {
+      "discharge_cfs": 3.14,
+      "gauge_height_ft": 3.14
+    },
+    "sites_union": 43,
+    "sampled": 43,
+    "reporting_now": 43,
+    "successor_api": {
+      "monitoring_locations": 529,
+      "latest_continuous_series": 61,
+      "reported_since_2026-01-01": 43
+    },
+    "gauges": [
+      {
+        "site_no": "021622845",
+        "name": "SOUTH SALUDA RIVER NEAR ROCKY BOTTOM, SC",
+        "lat": 35.060819,
+        "lon": -82.70435,
+        "huc": "03050109"
+      },
+      {
+        "site_no": "021622847",
+        "name": "SLICKING CREEK NEAR ROCKY BOTTOM, SC",
+        "lat": 35.067289,
+        "lon": -82.698047,
+        "huc": "03050109"
+      },
+      {
+        "site_no": "02162287",
+        "name": "TABLE ROCK RESERVOIR TAILRACE NR CLEVELAND, SC",
+        "lat": 35.062175,
+        "lon": -82.670008,
+        "huc": "03050109"
+      },
+      {
+        "site_no": "02162290",
+        "name": "SOUTH SALUDA RIVER NEAR CLEVELAND, SC",
+        "lat": 35.063481,
+        "lon": -82.650511,
+        "huc": "03050109"
+      },
+      {
+        "site_no": "02162350",
+        "name": "MIDDLE SALUDA RIVER NEAR CLEVELAND, SC",
+        "lat": 35.120342,
+        "lon": -82.537578,
+        "huc": "03050109"
+      },
+      {
+        "site_no": "021623950",
+        "name": "NORTH SALUDA RIVER NEAR HIGHLAND, SC",
+        "lat": 35.1672222,
+        "lon": -82.3647222,
+        "huc": "03050109"
+      },
+      {
+        "site_no": "021623957",
+        "name": "BIG FALLS CREEK NEAR TIGERVILLE, SC",
+        "lat": 35.170011,
+        "lon": -82.402625,
+        "huc": "03050109"
+      },
+      {
+        "site_no": "0216239615",
+        "name": "N. SALUDA RIVER BL N. SALUDA RES. ABOVE SLATER, SC",
+        "lat": 35.132333,
+        "lon": -82.420083,
+        "huc": "030501090102"
+      },
+      {
+        "site_no": "021623975",
+        "name": "NORTH SALUDA RIVER ABOVE SLATER, SC",
+        "lat": 35.083597,
+        "lon": -82.459953,
+        "huc": "03050109"
+      },
+      {
+        "site_no": "03439000",
+        "name": "FRENCH BROAD RIVER AT ROSMAN, NC",
+        "lat": 35.1433333,
+        "lon": -82.8247222,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "03441000",
+        "name": "DAVIDSON RIVER NEAR BREVARD, NC",
+        "lat": 35.27305556,
+        "lon": -82.7058333,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "03443000",
+        "name": "FRENCH BROAD RIVER AT BLANTYRE, NC",
+        "lat": 35.29916667,
+        "lon": -82.62388889,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "03446000",
+        "name": "MILLS RIVER NEAR MILLS RIVER, NC",
+        "lat": 35.39805556,
+        "lon": -82.595,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "0344632850",
+        "name": "MUD CREEK AT SECONDARY ROAD 1503 NEAR BALFOUR, NC",
+        "lat": 35.335,
+        "lon": -82.4636111,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "03447687",
+        "name": "FRENCH BROAD RIVER NEAR FLETCHER, NC",
+        "lat": 35.42916667,
+        "lon": -82.5525,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "0344878100",
+        "name": "HOMINY CREEK NR WEST ASHEVILLE, NC",
+        "lat": 35.56138889,
+        "lon": -82.5969444,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "0344894205",
+        "name": "NORTH FORK SWANNANOA RIVER NEAR WALKERTOWN, NC",
+        "lat": 35.68569444,
+        "lon": -82.3324167,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "03450000",
+        "name": "BEETREE CREEK NEAR SWANNANOA, NC",
+        "lat": 35.65305556,
+        "lon": -82.4052778,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "03451000",
+        "name": "SWANNANOA RIVER AT BILTMORE, NC",
+        "lat": 35.5683333,
+        "lon": -82.5447222,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "03451500",
+        "name": "FRENCH BROAD RIVER AT ASHEVILLE, NC",
+        "lat": 35.60888889,
+        "lon": -82.5780556,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "03453000",
+        "name": "IVY RIVER NEAR MARSHALL, NC",
+        "lat": 35.7697222,
+        "lon": -82.6208333,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "03453500",
+        "name": "FRENCH BROAD RIVER AT MARSHALL, NC",
+        "lat": 35.78638889,
+        "lon": -82.6608333,
+        "huc": "06010105"
+      },
+      {
+        "site_no": "03455500",
+        "name": "W F PIGEON R ABOVE LAKE LOGAN NR HAZELWOOD, NC",
+        "lat": 35.3961111,
+        "lon": -82.9375,
+        "huc": "06010106"
+      },
+      {
+        "site_no": "03456100",
+        "name": "WEST FORK PIGEON RIVER AT BETHEL, NC",
+        "lat": 35.46388889,
+        "lon": -82.9,
+        "huc": "06010106"
+      },
+      {
+        "site_no": "03456500",
+        "name": "EAST FORK PIGEON RIVER NEAR CANTON, NC",
+        "lat": 35.46166667,
+        "lon": -82.8697222,
+        "huc": "06010106"
+      },
+      {
+        "site_no": "03456991",
+        "name": "PIGEON RIVER NEAR CANTON, NC",
+        "lat": 35.52194444,
+        "lon": -82.8480556,
+        "huc": "06010106"
+      },
+      {
+        "site_no": "03459500",
+        "name": "PIGEON RIVER NEAR HEPCO, NC",
+        "lat": 35.635,
+        "lon": -82.99,
+        "huc": "06010106"
+      },
+      {
+        "site_no": "03460000",
+        "name": "CATALOOCHEE CREEK NEAR CATALOOCHEE, NC",
+        "lat": 35.6672222,
+        "lon": -83.0727778,
+        "huc": "06010106"
+      },
+      {
+        "site_no": "03460795",
+        "name": "PIGEON R BL POWER PLANT NR WATERVILLE, NC",
+        "lat": 35.7836111,
+        "lon": -83.1119444,
+        "huc": "06010106"
+      },
+      {
+        "site_no": "03469251",
+        "name": "WEST PRONG LITTLE PIGEON R NR GATLINBURG, TN",
+        "lat": 35.6995366,
+        "lon": -83.5271088,
+        "huc": "06010107"
+      },
+      {
+        "site_no": "03497300",
+        "name": "LITTLE RIVER ABOVE TOWNSEND, TN",
+        "lat": 35.66453328,
+        "lon": -83.7112821,
+        "huc": "06010201"
+      },
+      {
+        "site_no": "03498500",
+        "name": "LITTLE RIVER NEAR MARYVILLE, TN",
+        "lat": 35.7856337,
+        "lon": -83.8846022,
+        "huc": "06010201"
+      },
+      {
+        "site_no": "03500000",
+        "name": "LITTLE TENNESSEE RIVER NEAR PRENTISS, NC",
+        "lat": 35.15,
+        "lon": -83.3797222,
+        "huc": "06010202"
+      },
+      {
+        "site_no": "0350011450",
+        "name": "CARTOOGECHAYE CREEK AT SR 1148 NEAR FRANKLIN, NC",
+        "lat": 35.15776944,
+        "lon": -83.4243694,
+        "huc": "06010202"
+      },
+      {
+        "site_no": "03503000",
+        "name": "LITTLE TENNESSEE RIVER AT NEEDMORE, NC",
+        "lat": 35.33638889,
+        "lon": -83.5269444,
+        "huc": "06010202"
+      },
+      {
+        "site_no": "03504000",
+        "name": "NANTAHALA RIVER NEAR RAINBOW SPRINGS, NC",
+        "lat": 35.1275,
+        "lon": -83.6186111,
+        "huc": "06010202"
+      },
+      {
+        "site_no": "03505550",
+        "name": "NANTAHALA RIVER NEAR HEWITT, NC",
+        "lat": 35.305,
+        "lon": -83.6522222,
+        "huc": "06010202"
+      },
+      {
+        "site_no": "03508050",
+        "name": "TUCKASEGEE RIVER AT SR 1172 NR CULLOWHEE, NC",
+        "lat": 35.28777778,
+        "lon": -83.14388889,
+        "huc": "06010203"
+      },
+      {
+        "site_no": "03510577",
+        "name": "TUCKASEGEE RIVER AT BARKER'S CREEK, NC",
+        "lat": 35.38444444,
+        "lon": -83.2916667,
+        "huc": "06010203"
+      },
+      {
+        "site_no": "03512000",
+        "name": "OCONALUFTEE RIVER AT BIRDTOWN, NC",
+        "lat": 35.46138889,
+        "lon": -83.3536111,
+        "huc": "06010203"
+      },
+      {
+        "site_no": "03513000",
+        "name": "TUCKASEGEE RIVER AT BRYSON CITY, NC",
+        "lat": 35.4275,
+        "lon": -83.4469444,
+        "huc": "06010203"
+      },
+      {
+        "site_no": "0351706800",
+        "name": "CHEOAH RIVER NR BEARPEN GAP NR TAPOCO, NC",
+        "lat": 35.4383333,
+        "lon": -83.91888889,
+        "huc": "06010204"
+      },
+      {
+        "site_no": "03550000",
+        "name": "VALLEY RIVER AT TOMOTLA, NC",
+        "lat": 35.13888889,
+        "lon": -83.9805556,
+        "huc": "06020002"
+      }
+    ]
+  },
+  {
+    "region": "swwi",
+    "region_name": "Southwest Wisconsin",
+    "area_km2": 7229.2,
+    "sites": {
+      "discharge_cfs": 8,
+      "gauge_height_ft": 8
+    },
+    "sites_per_1000km2": {
+      "discharge_cfs": 1.11,
+      "gauge_height_ft": 1.11
+    },
+    "sites_union": 9,
+    "sampled": 9,
+    "reporting_now": 9,
+    "successor_api": {
+      "monitoring_locations": 192,
+      "latest_continuous_series": 36,
+      "reported_since_2026-01-01": 6
+    },
+    "gauges": [
+      {
+        "site_no": "05389500",
+        "name": "Mississippi River at McGregor, IA",
+        "lat": 43.02701224,
+        "lon": -91.1726298,
+        "huc": "07060001"
+      },
+      {
+        "site_no": "05406457",
+        "name": "BLACK EARTH CREEK NR BREWERY RD AT CROSS PLAINS,WI",
+        "lat": 43.1097222,
+        "lon": -89.6408333,
+        "huc": "07070005"
+      },
+      {
+        "site_no": "05406469",
+        "name": "BREWERY CREEK-UPSTREAM SITE-AT CROSS PLAINS, WI",
+        "lat": 43.12527778,
+        "lon": -89.635,
+        "huc": "07070005"
+      },
+      {
+        "site_no": "05406479",
+        "name": "BLACK EARTH CK NR TREATMENT PLNT @ CROSS PLAINS,WI",
+        "lat": 43.1147222,
+        "lon": -89.6641667,
+        "huc": "07070005"
+      },
+      {
+        "site_no": "05406500",
+        "name": "BLACK EARTH CREEK AT BLACK EARTH, WI",
+        "lat": 43.13416667,
+        "lon": -89.7322222,
+        "huc": "07070005"
+      },
+      {
+        "site_no": "05407000",
+        "name": "WISCONSIN RIVER AT MUSCODA, WI",
+        "lat": 43.19805556,
+        "lon": -90.4433333,
+        "huc": "07070005"
+      },
+      {
+        "site_no": "05410490",
+        "name": "KICKAPOO RIVER AT STEUBEN, WI",
+        "lat": 43.18277778,
+        "lon": -90.8583333,
+        "huc": "07070006"
+      },
+      {
+        "site_no": "05432055",
+        "name": "LIVINGSTON BR PECATONICA RIVER NEAR LIVINGSTON, WI",
+        "lat": 42.9002711,
+        "lon": -90.3731813,
+        "huc": "07090003"
+      },
+      {
+        "site_no": "05411500",
+        "name": "Mississippi River at Clayton, IA",
+        "lat": 42.9035981,
+        "lon": -91.1451296,
+        "huc": "07060003"
+      }
+    ]
+  },
+  {
+    "region": "socal",
+    "region_name": "Southern California",
+    "area_km2": 21000.8,
+    "sites": {
+      "discharge_cfs": 55,
+      "gauge_height_ft": 60
+    },
+    "sites_per_1000km2": {
+      "discharge_cfs": 2.62,
+      "gauge_height_ft": 2.86
+    },
+    "sites_union": 60,
+    "sampled": 60,
+    "reporting_now": 60,
+    "successor_api": {
+      "monitoring_locations": 359,
+      "latest_continuous_series": 69,
+      "reported_since_2026-01-01": 54
+    },
+    "gauges": [
+      {
+        "site_no": "11042000",
+        "name": "SAN LUIS REY R A OCEANSIDE CA",
+        "lat": 33.21809135,
+        "lon": -117.3603045,
+        "huc": "18070303"
+      },
+      {
+        "site_no": "11042800",
+        "name": "WARM SPRINGS C NR MURRIETA CA",
+        "lat": 33.53224867,
+        "lon": -117.1769771,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11042900",
+        "name": "SANTA GERTRUDIS C NR TEMECULA CA",
+        "lat": 33.52447338,
+        "lon": -117.1647469,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11043000",
+        "name": "MURRIETA C A TEMECULA CA",
+        "lat": 33.47975066,
+        "lon": -117.1439203,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11044000",
+        "name": "SANTA MARGARITA R NR TEMECULA CA",
+        "lat": 33.4739175,
+        "lon": -117.1422536,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11044250",
+        "name": "RAINBOW C NR FALLBROOK CA",
+        "lat": 33.4075318,
+        "lon": -117.2008578,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11044300",
+        "name": "SANTA MARGARITA R A FPUD SUMP NR FALLBROOK CA",
+        "lat": 33.41364246,
+        "lon": -117.2411367,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11044350",
+        "name": "SANDIA C NR FALLBROOK CA",
+        "lat": 33.42447545,
+        "lon": -117.2491926,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11044800",
+        "name": "DE LUZ C NR DE LUZ CA",
+        "lat": 33.41975285,
+        "lon": -117.3216944,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11045300",
+        "name": "FALLBROOK C NR FALLBROOK CA",
+        "lat": 33.34697705,
+        "lon": -117.3178047,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11045600",
+        "name": "ONEILL LAKE OUTLET CH NR FALLBROOK CA",
+        "lat": 33.32503314,
+        "lon": -117.3255824,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11045700",
+        "name": "ONEILL LK SPILL CH NR FALLBROOK CA",
+        "lat": 33.3289219,
+        "lon": -117.3272492,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11046000",
+        "name": "SANTA MARGARITA R A YSIDORA CA",
+        "lat": 33.3111436,
+        "lon": -117.3472604,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11046325",
+        "name": "SAN MATEO C A SAN MATEO RD NR SAN ONOFRE CA",
+        "lat": 33.4193333,
+        "lon": -117.5370556,
+        "huc": "18070301"
+      },
+      {
+        "site_no": "11046360",
+        "name": "CRISTIANITOS C AB SAN MATEO C NR SAN CLEMENTE CA",
+        "lat": 33.42641717,
+        "lon": -117.5703242,
+        "huc": "18070301"
+      },
+      {
+        "site_no": "11046530",
+        "name": "SAN JUAN C AT LA NOVIA ST BR AT SAN JUAN CAPIS CA",
+        "lat": 33.50252614,
+        "lon": -117.6480925,
+        "huc": "18070301"
+      },
+      {
+        "site_no": "11047300",
+        "name": "ARROYO TRABUCO A SAN JUAN CAPISTRANO CA",
+        "lat": 33.49835946,
+        "lon": -117.6658707,
+        "huc": "18070301"
+      },
+      {
+        "site_no": "11048175",
+        "name": "AGUA CHINON WASH A PORTOLA SPRINGS RD NR IRVINE CA",
+        "lat": 33.6870833,
+        "lon": -117.6954167,
+        "huc": "18070204"
+      },
+      {
+        "site_no": "11048600",
+        "name": "BONITA C A IRVINE CA",
+        "lat": 33.64502086,
+        "lon": -117.861155,
+        "huc": "18070204"
+      },
+      {
+        "site_no": "11051499",
+        "name": "SANTA ANA R NR MENTONE (RIVER ONLY) CA",
+        "lat": 34.10834489,
+        "lon": -117.1005911,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11051502",
+        "name": "SAR SUPP GAGE NR MENTONE CA",
+        "lat": 34.10834489,
+        "lon": -117.1005911,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11055500",
+        "name": "PLUNGE C NR EAST HIGHLANDS CA",
+        "lat": 34.11834458,
+        "lon": -117.141704,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11055800",
+        "name": "CITY C NR HIGHLAND CA",
+        "lat": 34.14390158,
+        "lon": -117.1886426,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11057500",
+        "name": "SAN TIMOTEO C NR LOMA LINDA CA",
+        "lat": 34.0614024,
+        "lon": -117.2675419,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11058500",
+        "name": "E TWIN C NR ARROWHEAD SPRINGS CA",
+        "lat": 34.1791779,
+        "lon": -117.2655894,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11058600",
+        "name": "WATERMAN CANYON CREEK NR ARROWHEAD SPRINGS CA",
+        "lat": 34.1858333,
+        "lon": -117.2722222,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11059300",
+        "name": "SANTA ANA R A E ST NR SAN BERNARDINO CA",
+        "lat": 34.0650131,
+        "lon": -117.3003208,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11060400",
+        "name": "WARM C NR SAN BERNARDINO CA",
+        "lat": 34.07834596,
+        "lon": -117.3003209,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11062700",
+        "name": "LYTLE C DIV TO FONTANA PH AVM NR FONTANA CA",
+        "lat": 34.1554722,
+        "lon": -117.3975833,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11062800",
+        "name": "FONTANA WATER CO SPILL CH FROM AFTERBAY NR FONTANA",
+        "lat": 34.155565,
+        "lon": -117.3956025,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11065000",
+        "name": "LYTLE C A COLTON CA",
+        "lat": 34.07890146,
+        "lon": -117.3055989,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11066460",
+        "name": "SANTA ANA R A MWD CROSSING CA",
+        "lat": 33.9684722,
+        "lon": -117.4482222,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11070210",
+        "name": "SAN JACINTO R A RAMONA EXPRESSWAY NR LAKEVIEW CA",
+        "lat": 33.83974065,
+        "lon": -117.135866,
+        "huc": "18070202"
+      },
+      {
+        "site_no": "11070270",
+        "name": "PERRIS VALLEY STORM DR A NUEVO RD NR PERRIS CA",
+        "lat": 33.80113024,
+        "lon": -117.2061469,
+        "huc": "18070202"
+      },
+      {
+        "site_no": "11070365",
+        "name": "SAN JACINTO R NR SUN CITY CA",
+        "lat": 33.74613375,
+        "lon": -117.2316953,
+        "huc": "18070202"
+      },
+      {
+        "site_no": "11070465",
+        "name": "SALT C A MURRIETA RD NR SUN CITY CA",
+        "lat": 33.69419084,
+        "lon": -117.205583,
+        "huc": "18070202"
+      },
+      {
+        "site_no": "11070500",
+        "name": "SAN JACINTO R NR ELSINORE CA",
+        "lat": 33.66418858,
+        "lon": -117.293927,
+        "huc": "18070202"
+      },
+      {
+        "site_no": "11071760",
+        "name": "COLDWATER CANYON C NR CORONA CA",
+        "lat": 33.75444444,
+        "lon": -117.4958056,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11071900",
+        "name": "TEMESCAL C A CORONA LK NR CORONA CA",
+        "lat": 33.75027778,
+        "lon": -117.4458333,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11072100",
+        "name": "TEMESCAL C AB MAIN ST A CORONA CA",
+        "lat": 33.8891821,
+        "lon": -117.5628274,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11073300",
+        "name": "SAN ANTONIO C A RIVERSIDE DRIVE NR CHINO CA",
+        "lat": 34.01862319,
+        "lon": -117.7306118,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11073360",
+        "name": "CHINO C A SCHAEFER AVENUE NR CHINO CA",
+        "lat": 34.00390144,
+        "lon": -117.7270006,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11073470",
+        "name": "CUCAMONGA C NR UPLAND CA",
+        "lat": 34.17355556,
+        "lon": -117.63183333,
+        "huc": "180702030704"
+      },
+      {
+        "site_no": "11073495",
+        "name": "CUCAMONGA C NR MIRA LOMA CA",
+        "lat": 33.9827912,
+        "lon": -117.5994966,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11074000",
+        "name": "SANTA ANA R BL PRADO DAM CA",
+        "lat": 33.88334875,
+        "lon": -117.6453296,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11075720",
+        "name": "CARBON C BL CARBON CYN DAM CA",
+        "lat": 33.9133473,
+        "lon": -117.8425461,
+        "huc": "18070106"
+      },
+      {
+        "site_no": "11077500",
+        "name": "SANTIAGO C A SANTA ANA CA",
+        "lat": 33.77029518,
+        "lon": -117.8844902,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11078000",
+        "name": "SANTA ANA R A SANTA ANA CA",
+        "lat": 33.75112815,
+        "lon": -117.9083906,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11085000",
+        "name": "SAN GABRIEL R BL SANTA FE DAM NR BALDWIN PK CA",
+        "lat": 34.11223019,
+        "lon": -117.9695092,
+        "huc": "18070106"
+      },
+      {
+        "site_no": "11087020",
+        "name": "SAN GABRIEL R AB WHITTIER NARROWS DAM CA",
+        "lat": 34.03417767,
+        "lon": -118.0381225,
+        "huc": "18070106"
+      },
+      {
+        "site_no": "11088500",
+        "name": "BREA C BL BREA DAM NR FULLERTON CA",
+        "lat": 33.8877918,
+        "lon": -117.9264369,
+        "huc": "18070106"
+      },
+      {
+        "site_no": "11089500",
+        "name": "FULLERTON C BL FULLERTON DAM NR BREA CA",
+        "lat": 33.89584744,
+        "lon": -117.8861582,
+        "huc": "18070106"
+      },
+      {
+        "site_no": "11092450",
+        "name": "LOS ANGELES R A SEPULVEDA DAM CA",
+        "lat": 34.16167247,
+        "lon": -118.466749,
+        "huc": "18070105"
+      },
+      {
+        "site_no": "11101250",
+        "name": "RIO HONDO AB WHITTIER NARROWS DAM CA",
+        "lat": 34.05834368,
+        "lon": -118.0717348,
+        "huc": "18070105"
+      },
+      {
+        "site_no": "11102300",
+        "name": "RIO HONDO BL WHITTIER NARROWS DAM CA",
+        "lat": 34.0166788,
+        "lon": -118.0884018,
+        "huc": "18070105"
+      },
+      {
+        "site_no": "11042631",
+        "name": "PECHANGA C NR TEMECULA CA",
+        "lat": 33.46416667,
+        "lon": -117.1238889,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11042700",
+        "name": "MURRIETA C NR MURRIETA CA",
+        "lat": 33.5555832,
+        "lon": -117.2314156,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11046050",
+        "name": "SANTA MARGARITA R A MOUTH NR OCEANSIDE CA",
+        "lat": 33.23780556,
+        "lon": -117.3953056,
+        "huc": "18070302"
+      },
+      {
+        "site_no": "11066320",
+        "name": "RIX OUTFLOW A SANTA ANA R NR GRAND TERRACE CA",
+        "lat": 34.0413861,
+        "lon": -117.3545694,
+        "huc": "18070203"
+      },
+      {
+        "site_no": "11075800",
+        "name": "SANTIAGO C A MODJESKA CA",
+        "lat": 33.70890966,
+        "lon": -117.6355943,
+        "huc": "18070203"
+      }
+    ]
+  }
+]
