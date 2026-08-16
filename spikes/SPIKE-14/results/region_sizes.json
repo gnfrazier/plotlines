@@ -1,0 +1,47 @@
+[
+  {
+    "name": "ci-marion-core",
+    "desc": "Marion NC town core \u2014 CI/test fixture",
+    "mb": 1.0,
+    "km_ns": 7,
+    "km_ew": 5,
+    "area_km2": 36,
+    "mb_per_1000km2": 28.1
+  },
+  {
+    "name": "marion-80km-z14",
+    "desc": "Marion NC ~80 km square, z0-14",
+    "mb": 11.5,
+    "km_ns": 80,
+    "km_ew": 80,
+    "area_km2": 6406,
+    "mb_per_1000km2": 1.79
+  },
+  {
+    "name": "marion-80km",
+    "desc": "Marion NC ~80 km square, z0-15 (POC reference bbox)",
+    "mb": 22.0,
+    "km_ns": 80,
+    "km_ew": 80,
+    "area_km2": 6406,
+    "mb_per_1000km2": 3.43
+  },
+  {
+    "name": "boulder",
+    "desc": "Boulder CO \u2014 spike fixture region",
+    "mb": 5.2,
+    "km_ns": 16,
+    "km_ew": 16,
+    "area_km2": 252,
+    "mb_per_1000km2": 20.79
+  },
+  {
+    "name": "wnc-corridor",
+    "desc": "WNC multi-day corridor, z0-15",
+    "mb": 118.1,
+    "km_ns": 134,
+    "km_ew": 235,
+    "area_km2": 31359,
+    "mb_per_1000km2": 3.77
+  }
+]

@@ -169,3 +169,15 @@ Thumbs.db
 # Logs
 # ----------------------------------------------------------------------------
 *.log
+
+# SPIKE-14 vector-mapping inputs: 200 MB of tile archives, an exploded tile tree, and
+# a 56 MB vendored CLI. All three are downloads or derivations of a download, not
+# authored artifacts — the same reasoning as the routing fixtures above. What IS
+# committed is the definition that reproduces them: the bboxes and commands in
+# spikes/SPIKE-14/README.md, and probes/make_route.py for the route payloads.
+# results/ (RESULTS.md, results.json, region_sizes.json, shots/) IS committed — it is
+# the evidence, and the PNGs are ~180 KB each.
+spikes/SPIKE-14/tiles/
+spikes/SPIKE-14/tools/
+spikes/SPIKE-14/harness/assets/tiles/
+spikes/SPIKE-14/harness/assets/route_*.geojson

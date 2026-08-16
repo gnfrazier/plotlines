@@ -1,0 +1,38 @@
+{
+  "day": {
+    "distance_m": 18804.6,
+    "target_m": 20000,
+    "distance_error": -0.0598,
+    "overlap_frac": 0.0088,
+    "overlap_far_frac": 0.0035,
+    "overlap_near_frac": 0.0052,
+    "climb_m": 132.3,
+    "traffic": 0.2103,
+    "scenic_frac": 0.5835,
+    "unpaved_frac": 0.0,
+    "mean_cost_per_m": 1.0924,
+    "node_count": 286,
+    "closed": true,
+    "hit_via": true,
+    "via_count": 0,
+    "solve_ms": 419.7,
+    "solver_calls": 26,
+    "iterations": 8,
+    "vertices": 1164,
+    "markers": 12
+  },
+  "multi": {
+    "vertices": 6864,
+    "markers": 60
+  },
+  "stress": {
+    "vertices": 41179,
+    "markers": 60
+  },
+  "bbox": [
+    -105.2983176,
+    39.9800431,
+    -105.2300146,
+    40.0393719
+  ]
+}
