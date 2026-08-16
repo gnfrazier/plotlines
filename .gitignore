@@ -29,6 +29,9 @@ doc/api/
 *.js_
 *.js.deps
 *.js.map
+# ...but this one is imported design reference (the .dc.html viewer runtime), not
+# dart2js output. Without it both wireframes in client/design/ fail to render.
+!client/design/support.js
 
 .flutter-plugins
 .flutter-plugins-dependencies

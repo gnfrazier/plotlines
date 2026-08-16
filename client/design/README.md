@@ -5,7 +5,9 @@ project **"Plotlines - Design"** (`https://claude.ai/design/p/29bd1f69-ef64-4208
 via the Design MCP. Imported as reference, not as shipped code (MVP doc §2.4, §6 item 5).
 
 Imported in two passes: the Author Desktop wireframe on **2026-08-13**, the rest of the
-design system on **2026-08-15**.
+design system on **2026-08-15**. Re-synced against upstream on **2026-08-16**: the
+wireframes and tokens were already current, and the missing `support.js` was pulled in
+(see Runtime below). `assets/` is still the only outstanding gap.
 
 ## Files
 
@@ -35,6 +37,11 @@ design system on **2026-08-15**.
 - **`support.js`** — the generated `.dc.html` viewer runtime both wireframe files need
   to render (a generic Claude Design shim, not project-specific content). Loaded via
   `<script src="./support.js">`; kept alongside as a sibling file.
+
+  It went missing after the 2026-08-15 import: the stock Flutter `.gitignore` excludes
+  `*.js` (to drop dart2js output), so the file was written but never tracked, and the
+  wireframes have been rendering blank ever since. `.gitignore` now carries an explicit
+  `!client/design/support.js` negation. Don't remove it.
 
 ### Not imported
 - **`assets/`** — the logo and favicon PNGs both exceed the MCP's 256 KiB read cap and
