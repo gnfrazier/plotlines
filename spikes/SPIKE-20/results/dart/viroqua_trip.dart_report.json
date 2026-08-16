@@ -1,0 +1,80 @@
+{
+  "input": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/fixtures/viroqua_trip.json",
+  "failures": [],
+  "input_bytes": 35504,
+  "json_decode_ms": 0.43,
+  "domain_build_ms": 0.556,
+  "json_encode_ms": 2.296,
+  "json_decode_ms_first": 9.664,
+  "domain_build_ms_first": 9.449,
+  "days": 4,
+  "segments": 4,
+  "geometry_vertices": 927,
+  "reserialized_bytes": 35503,
+  "byte_identical_to_producer": true,
+  "drift_write_ms": 62.391,
+  "drift_read_ms": 7.151,
+  "drift_bytes_identical": true,
+  "drift_list_ms": 0.758,
+  "drift_listed_rows": 1,
+  "drift_list_summary_ms": 4.331,
+  "drift_summary_rows": 1,
+  "drift_library_rows": 20,
+  "drift_library_list_ms": 3.403,
+  "drift_library_summary_ms": 0.778,
+  "edit": {
+    "note_node_id": "9f14f72b-b9a8-4929-83aa-f4b7761b71e2",
+    "note_before": "The gravel starts here. Regroup before the descent.",
+    "note_after": "Rewritten by the Author: the gravel starts a kilometre earlier than the map suggests — regroup at the cattle guard.",
+    "segment_id": "c962add8-5c7e-4430-919e-96afa1131839",
+    "via_before": 2,
+    "via_after": 3,
+    "via_added": [
+      -90.8523795,
+      43.559732
+    ],
+    "surface_gravel_before": 5.0,
+    "surface_gravel_after": 2.0,
+    "marked_stale": true
+  },
+  "edit_stable_across_storage": true,
+  "drift_file_bytes": 782336,
+  "probes": [
+    {
+      "probe": "int_where_float",
+      "input": "{\"distance_m\": 4, \"climb_m\": 0.0, \"descent_m\": 0.0}",
+      "strict_as_double": {
+        "ok": false,
+        "error": "type 'int' is not a subtype of type 'double' in type cast"
+      },
+      "shipped_as_num": {
+        "ok": true,
+        "value": "4.0"
+      }
+    },
+    {
+      "probe": "explicit_null",
+      "shipped_reader": {
+        "ok": false,
+        "error": "FormatException: trip.duration is null; the schema forbids null (absent means unset)"
+      }
+    },
+    {
+      "probe": "unknown_key",
+      "shipped_reader": {
+        "ok": false,
+        "error": "FormatException: unread field(s) on trip: [unexpected_field] — the domain layer would have dropped them on the next write"
+      }
+    },
+    {
+      "probe": "non_finite",
+      "input": "{\"ascent_m\": NaN}",
+      "shipped_reader": {
+        "ok": false,
+        "error": "FormatException: Unexpected character (at character 14)"
+      }
+    }
+  ],
+  "reserialized_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/viroqua_trip.dart_reserialized.json",
+  "edited_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/viroqua_trip.dart_edited.json"
+}

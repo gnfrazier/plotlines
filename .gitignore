@@ -187,3 +187,14 @@ spikes/SPIKE-14/harness/assets/route_*.geojson
 # Same rule, one derivation further out: style_labels.json is style_light.json with one
 # property rewritten by probes/simplify_labels.py. The script is the definition.
 spikes/SPIKE-14/harness/assets/style_labels.json
+
+# SPIKE-20 trip-payload round-trip outputs. What is committed is the evidence: the
+# three per-region fixture payloads (~50 KB each — small enough to read, and the
+# thing a reader can re-validate against docs/schemas/trip_payload.schema.json),
+# results.json, and the Dart reports. What is ignored is the derived bulk: the
+# week-scale payload (1.2 MB, built by scaling the fixtures), the Dart side's
+# byte-identical copies of payloads already committed, and the local databases.
+spikes/SPIKE-20/results/fixtures/scaled_week.json
+spikes/SPIKE-20/results/fixtures/probe_shuffled.json
+spikes/SPIKE-20/results/dart/*.dart_reserialized.json
+spikes/SPIKE-20/results/dart/*.dart_edited.json

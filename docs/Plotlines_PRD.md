@@ -241,6 +241,7 @@ FRs are numbered fresh in Plotlines' own sequence. The **Origin** column traces 
 | FR | Requirement | Origin |
 |---|---|---|
 | **FR74** | Authors have a **Trip Library / portfolio workspace** — grid/list of authored trips with thumbnails, key metrics, variant count, group size, and sync badge; filter by mode/duration; search; and per-card Edit / Manage Roster / Export / Clone actions. | Plotlines Story 37 |
+| **FR74a** | Authors **save a trip to local storage, reopen a previously saved trip, and see a list of local trips** (title, modes, last-edited) — the minimal single-device floor FR74's full portfolio view is built on top of. No thumbnails, sync badges, or roster/metrics required; not a duplicate of FR74, its prerequisite. | New; MVP Scope §1.4.3 |
 | **FR75** | Characters have a **Trip Library / travel vault** — joined trips under Active/Upcoming, Offline Ready, and Completed/Archived, each card showing Author, attendance dates, modes, and offline badge, with one-tap download or export and links to recaps. | Plotlines Story C21 |
 | **FR76** | Trip cards show **sync-status badges**: Cloud Synced, This Device, and Offline Ready. | Plotlines Story S8 |
 
@@ -500,6 +501,10 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 **As an** Author, **I want** a portfolio workspace **so that** I can find, organize, and launch trips.
 *AC:* Grid/list of authored trips with thumbnail, title, modes, distance/elevation, day count, variant count, group size, and sync badge; filter by mode/duration and search by title/location; per-card Edit Route / Manage Roster & Preferences / Export Backup / Clone.
 
+**G2a — Save, reopen, and list my local trips** *[MVP]* — *FR74a*
+**As an** Author on a single device with no account, **I want to** save a trip locally, reopen it later, and see a list of what I've saved **so that** I don't lose work between sessions and can find a trip again without G2's full portfolio machinery.
+*AC:* "Save" persists the current trip to local storage (drift) under its title; a list surface shows every locally saved trip with title, modes, and last-edited time, sorted most-recent-first; selecting a list entry reopens it into the planner with all edits intact; no thumbnails, sync badges, group-size, or roster data required — this is the floor, not a preview of G2. Works with no sign-in and no network, consistent with §1.2's no-accounts desktop MVP scope.
+
 ### Epic H — Character: Experience the Journey
 
 **H1 — View my itinerary** *[MVP]* — *FR48*
@@ -656,6 +661,10 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 **As a** User, **I want** clear status badges on trip cards **so that** I know my data is backed up before going offline.
 *AC:* Cards show Cloud Synced, This Device, and Offline Ready distinctly.
 
+**K10 — See required data attribution and app/sidecar version** *[MVP]* — *FR86, FR95*
+**As a** User, **I want** an About/info surface listing every licensed data source's attribution and the app's (and, on desktop, sidecar's) version **so that** Plotlines meets its licence obligations honestly and I can tell what I'm running.
+*AC:* Reachable from every platform surface that displays licensed data, including the lightest ones (e.g. Web-guest) — a footer or menu link suffices, but the surface can never be omitted; shows the CC BY credit for elevation (FR86) and the ODbL `© OpenStreetMap` credit for the basemap (FR95) together, since they are separate obligations under different licences and neither substitutes for the other; shows the running app version and, on desktop, the sidecar version, matching what `/health` reports (M12); **a missing attribution is a build failure, not a polish item** — this surface existing and being correct is a release gate.
+
 ### Epic L — Portability & Durability
 
 **L1 — Auto-back-up trips locally as GeoJSON** *[P1]* — *FR68*
@@ -719,6 +728,14 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 **M11 — Serve tiles only through our own service** *[MVP]* — *FR92, FR93, FR94, FR95*
 **As a** Developer, **I want** the client to depend on one tile contract regardless of the upstream tile source **so that** swapping the basemap vendor or generation tooling never touches client code.
 *AC:* Client requests tiles only from `GET /tiles/{z}/{x}/{y}`; the service validates z/x/y range before any upstream work; tile generation is bbox-scoped and on-demand, shared with the offline-bundle pipeline (FR64); tiles are extracted from a Plotlines-hosted mirror of the Protomaps build rather than fetched from the public channel, and the ODbL `© OpenStreetMap` attribution ships alongside the elevation layer's CC BY (FR86) — both, under different licences.
+
+**M12 — Manage the sidecar's lifecycle and enforce a paired version** *[MVP]* — *architecture requirement (ARCH §7.3, §12.1)*
+**As a** Developer, **I want** the client to spawn, health-poll, restart, stop, and version-check the sidecar exactly as specified **so that** the two-artifact desktop app never hangs, orphans a process, or silently runs the client against mismatched routing code.
+*AC:* Spawn binds an ephemeral port and launches the sidecar with it; the client polls `GET /health` to **readiness**, not mere liveness, with a generous timeout and an honest escalating wait message — never a silent hang; a sidecar that dies mid-session is restarted **once**, and a second failure degrades honestly (cached trips still viewable, generation unavailable, stated inline, per M13); graceful stop is platform-specific — POSIX SIGTERM→SIGKILL; Windows `AttachConsole`+muted Ctrl handling+`CTRL_BREAK_EVENT`→`TerminateProcess`, with the sidecar held in a Job Object (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) so a crashed client cannot orphan it; app start performs an orphan sweep for anything the last session missed; client and sidecar versions are compared via `/health` at startup, and **the app refuses to run on a mismatch** rather than risk platform-divergent routes (A8). Verified by the sidecar-lifecycle test suite (ARCH §14.2): port-in-use, slow cold start, mid-session death + restart, and orphan sweep after an ungraceful exit.
+
+**M13 — Handle every desktop error/empty state through one shared surface** *[MVP]* — *design goal (MVP Scope §4); FR9*
+**As a** Developer, **I want** the desktop app's failure and empty states routed through one shared handling surface rather than ad-hoc dialogs invented at each call site **so that** every failure gets its defined, consistent treatment and a failure in an optional enrichment never destroys the primary work.
+*AC:* One shared surface, driven by a typed state enum, covers all eight desktop states — sidecar starting, sidecar won't start, sidecar died mid-session (M12), no route possible (FR9/A6), no data for the area, elevation void/missing tile, external provider unreachable, export failed — each rendered with its defined treatment (honest wait message, retry, single silent restart then honest degrade, named conflict + relaxation, clear no-data message, silent log-once with no user-facing error, honest degrade, actionable export error); the surface is stubbed before the first screen is built, not retrofitted once screens exist; a failure in an optional enrichment (elevation, weather, export) never blocks generation or discards the route (P5).
 
 
 ## 8. Open Items

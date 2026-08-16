@@ -1,0 +1,931 @@
+{
+  "spike": "SPIKE-20",
+  "question": "One schema for plotlines-core's output, drift's blob, and Flutter's domain classes \u2014 with a real trip round-tripped through all three.",
+  "schema": "docs/schemas/trip_payload.schema.json",
+  "environment": {
+    "started_utc": "2026-08-16T17:32:15+00:00",
+    "python": "3.12.12",
+    "platform": "Linux x86_64",
+    "regions": {
+      "boulder": {
+        "name": "Boulder, CO",
+        "character": "mountain-adjacent city \u2014 foothills against a street grid",
+        "nodes": 9471,
+        "edges": 24320,
+        "network_km": 1440.2,
+        "surface_tagged_pct": 81.7,
+        "graded_pct": 80.6,
+        "load_seconds": 0.84
+      },
+      "davis": {
+        "name": "Davis, CA",
+        "character": "flat cycling town \u2014 dense bike network, no relief",
+        "nodes": 5373,
+        "edges": 13750,
+        "network_km": 939.3,
+        "surface_tagged_pct": 34.4,
+        "graded_pct": 79.0,
+        "load_seconds": 0.48
+      },
+      "viroqua": {
+        "name": "Viroqua, WI (Driftless)",
+        "character": "rural coulee country \u2014 steep, gravel, near-empty roads",
+        "nodes": 2094,
+        "edges": 5062,
+        "network_km": 993.0,
+        "surface_tagged_pct": 24.5,
+        "graded_pct": 93.1,
+        "load_seconds": 0.21
+      }
+    }
+  },
+  "regions": [
+    {
+      "region": "boulder",
+      "build_ms": 83.6,
+      "bytes": 51793,
+      "gzip_bytes": 14141,
+      "days": 4,
+      "segments": 4,
+      "geometry_vertices": 1485,
+      "curated_nodes": 10,
+      "schema_errors": [],
+      "failures": [],
+      "dart": {
+        "input": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/fixtures/boulder_trip.json",
+        "failures": [],
+        "input_bytes": 51767,
+        "json_decode_ms": 0.606,
+        "domain_build_ms": 0.537,
+        "json_encode_ms": 2.347,
+        "json_decode_ms_first": 9.512,
+        "domain_build_ms_first": 10.479,
+        "days": 4,
+        "segments": 4,
+        "geometry_vertices": 1485,
+        "reserialized_bytes": 51766,
+        "byte_identical_to_producer": true,
+        "drift_write_ms": 60.456,
+        "drift_read_ms": 8.686,
+        "drift_bytes_identical": true,
+        "drift_list_ms": 1.035,
+        "drift_listed_rows": 1,
+        "drift_list_summary_ms": 4.381,
+        "drift_summary_rows": 1,
+        "drift_library_rows": 20,
+        "drift_library_list_ms": 4.627,
+        "drift_library_summary_ms": 0.977,
+        "edit": {
+          "note_node_id": "c9423b2e-ff89-45ec-b657-a0a197b64d3b",
+          "note_before": "The gravel starts here. Regroup before the descent.",
+          "note_after": "Rewritten by the Author: the gravel starts a kilometre earlier than the map suggests \u2014 regroup at the cattle guard.",
+          "segment_id": "e2600c9b-82a1-4676-97f4-9a38bd24aa3f",
+          "via_before": 2,
+          "via_after": 3,
+          "via_added": [
+            -105.2194022,
+            40.0197327
+          ],
+          "surface_gravel_before": 5.0,
+          "surface_gravel_after": 2.0,
+          "marked_stale": true
+        },
+        "edit_stable_across_storage": true,
+        "drift_file_bytes": 1126400,
+        "probes": [
+          {
+            "probe": "int_where_float",
+            "input": "{\"distance_m\": 4, \"climb_m\": 0.0, \"descent_m\": 0.0}",
+            "strict_as_double": {
+              "ok": false,
+              "error": "type 'int' is not a subtype of type 'double' in type cast"
+            },
+            "shipped_as_num": {
+              "ok": true,
+              "value": "4.0"
+            }
+          },
+          {
+            "probe": "explicit_null",
+            "shipped_reader": {
+              "ok": false,
+              "error": "FormatException: trip.duration is null; the schema forbids null (absent means unset)"
+            }
+          },
+          {
+            "probe": "unknown_key",
+            "shipped_reader": {
+              "ok": false,
+              "error": "FormatException: unread field(s) on trip: [unexpected_field] \u2014 the domain layer would have dropped them on the next write"
+            }
+          },
+          {
+            "probe": "non_finite",
+            "input": "{\"ascent_m\": NaN}",
+            "shipped_reader": {
+              "ok": false,
+              "error": "FormatException: Unexpected character (at character 14)"
+            }
+          }
+        ],
+        "reserialized_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/boulder_trip.dart_reserialized.json",
+        "edited_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/boulder_trip.dart_edited.json",
+        "ok": true,
+        "wall_ms": 1700.7
+      },
+      "roundtrip_diff": [],
+      "roundtrip_lossless": true,
+      "canonical_identical": true,
+      "dart_schema_errors": [],
+      "edit_diff": [
+        {
+          "path": "/days/1/segments/0/nodes/0/note",
+          "kind": "changed",
+          "left": "\"The gravel starts here. Regroup before the descent.\"",
+          "right": "\"Rewritten by the Author: the gravel starts a kilometre earlier than the map suggests \u2014 regroup at the cattle guard.\"",
+          "expected": "node note reworded (E1)"
+        },
+        {
+          "path": "/days/1/segments/0/solve/stale",
+          "kind": "added",
+          "right": "true",
+          "expected": "derived geometry marked stale"
+        },
+        {
+          "path": "/days/1/segments/0/via/2",
+          "kind": "added",
+          "right": "[-105.2194022, 40.0197327]",
+          "expected": "via-node added (A9 \u2192 A9a boundary)"
+        },
+        {
+          "path": "/days/1/segments/0/weights/surface/gravel",
+          "kind": "changed",
+          "left": "5.0",
+          "right": "2.0",
+          "expected": "surface weight changed (FR4)"
+        }
+      ],
+      "edit_unexpected": [],
+      "edit_schema_errors": []
+    },
+    {
+      "region": "davis",
+      "build_ms": 260.3,
+      "bytes": 51664,
+      "gzip_bytes": 14496,
+      "days": 4,
+      "segments": 4,
+      "geometry_vertices": 1478,
+      "curated_nodes": 10,
+      "schema_errors": [],
+      "failures": [],
+      "dart": {
+        "input": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/fixtures/davis_trip.json",
+        "failures": [],
+        "input_bytes": 51638,
+        "json_decode_ms": 0.438,
+        "domain_build_ms": 0.563,
+        "json_encode_ms": 2.057,
+        "json_decode_ms_first": 10.233,
+        "domain_build_ms_first": 11.274,
+        "days": 4,
+        "segments": 4,
+        "geometry_vertices": 1478,
+        "reserialized_bytes": 51637,
+        "byte_identical_to_producer": true,
+        "drift_write_ms": 65.131,
+        "drift_read_ms": 9.765,
+        "drift_bytes_identical": true,
+        "drift_list_ms": 0.887,
+        "drift_listed_rows": 1,
+        "drift_list_summary_ms": 4.705,
+        "drift_summary_rows": 1,
+        "drift_library_rows": 20,
+        "drift_library_list_ms": 4.886,
+        "drift_library_summary_ms": 0.946,
+        "edit": {
+          "note_node_id": "8d8e0110-bd36-424e-ac3d-b2be0a0f3f93",
+          "note_before": "The gravel starts here. Regroup before the descent.",
+          "note_after": "Rewritten by the Author: the gravel starts a kilometre earlier than the map suggests \u2014 regroup at the cattle guard.",
+          "segment_id": "80065d3c-7fe6-45ed-b195-2d042157e8ce",
+          "via_before": 2,
+          "via_after": 3,
+          "via_added": [
+            -121.7001369,
+            38.559733
+          ],
+          "surface_gravel_before": 5.0,
+          "surface_gravel_after": 2.0,
+          "marked_stale": true
+        },
+        "edit_stable_across_storage": true,
+        "drift_file_bytes": 1126400,
+        "probes": [
+          {
+            "probe": "int_where_float",
+            "input": "{\"distance_m\": 4, \"climb_m\": 0.0, \"descent_m\": 0.0}",
+            "strict_as_double": {
+              "ok": false,
+              "error": "type 'int' is not a subtype of type 'double' in type cast"
+            },
+            "shipped_as_num": {
+              "ok": true,
+              "value": "4.0"
+            }
+          },
+          {
+            "probe": "explicit_null",
+            "shipped_reader": {
+              "ok": false,
+              "error": "FormatException: trip.duration is null; the schema forbids null (absent means unset)"
+            }
+          },
+          {
+            "probe": "unknown_key",
+            "shipped_reader": {
+              "ok": false,
+              "error": "FormatException: unread field(s) on trip: [unexpected_field] \u2014 the domain layer would have dropped them on the next write"
+            }
+          },
+          {
+            "probe": "non_finite",
+            "input": "{\"ascent_m\": NaN}",
+            "shipped_reader": {
+              "ok": false,
+              "error": "FormatException: Unexpected character (at character 14)"
+            }
+          }
+        ],
+        "reserialized_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/davis_trip.dart_reserialized.json",
+        "edited_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/davis_trip.dart_edited.json",
+        "ok": true,
+        "wall_ms": 1726.4
+      },
+      "roundtrip_diff": [],
+      "roundtrip_lossless": true,
+      "canonical_identical": true,
+      "dart_schema_errors": [],
+      "edit_diff": [
+        {
+          "path": "/days/1/segments/0/nodes/0/note",
+          "kind": "changed",
+          "left": "\"The gravel starts here. Regroup before the descent.\"",
+          "right": "\"Rewritten by the Author: the gravel starts a kilometre earlier than the map suggests \u2014 regroup at the cattle guard.\"",
+          "expected": "node note reworded (E1)"
+        },
+        {
+          "path": "/days/1/segments/0/solve/stale",
+          "kind": "added",
+          "right": "true",
+          "expected": "derived geometry marked stale"
+        },
+        {
+          "path": "/days/1/segments/0/via/2",
+          "kind": "added",
+          "right": "[-121.7001369, 38.559733]",
+          "expected": "via-node added (A9 \u2192 A9a boundary)"
+        },
+        {
+          "path": "/days/1/segments/0/weights/surface/gravel",
+          "kind": "changed",
+          "left": "5.0",
+          "right": "2.0",
+          "expected": "surface weight changed (FR4)"
+        }
+      ],
+      "edit_unexpected": [],
+      "edit_schema_errors": []
+    },
+    {
+      "region": "viroqua",
+      "build_ms": 21.8,
+      "bytes": 35530,
+      "gzip_bytes": 9378,
+      "days": 4,
+      "segments": 4,
+      "geometry_vertices": 927,
+      "curated_nodes": 10,
+      "schema_errors": [],
+      "failures": [],
+      "dart": {
+        "input": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/fixtures/viroqua_trip.json",
+        "failures": [],
+        "input_bytes": 35504,
+        "json_decode_ms": 0.43,
+        "domain_build_ms": 0.556,
+        "json_encode_ms": 2.296,
+        "json_decode_ms_first": 9.664,
+        "domain_build_ms_first": 9.449,
+        "days": 4,
+        "segments": 4,
+        "geometry_vertices": 927,
+        "reserialized_bytes": 35503,
+        "byte_identical_to_producer": true,
+        "drift_write_ms": 62.391,
+        "drift_read_ms": 7.151,
+        "drift_bytes_identical": true,
+        "drift_list_ms": 0.758,
+        "drift_listed_rows": 1,
+        "drift_list_summary_ms": 4.331,
+        "drift_summary_rows": 1,
+        "drift_library_rows": 20,
+        "drift_library_list_ms": 3.403,
+        "drift_library_summary_ms": 0.778,
+        "edit": {
+          "note_node_id": "9f14f72b-b9a8-4929-83aa-f4b7761b71e2",
+          "note_before": "The gravel starts here. Regroup before the descent.",
+          "note_after": "Rewritten by the Author: the gravel starts a kilometre earlier than the map suggests \u2014 regroup at the cattle guard.",
+          "segment_id": "c962add8-5c7e-4430-919e-96afa1131839",
+          "via_before": 2,
+          "via_after": 3,
+          "via_added": [
+            -90.8523795,
+            43.559732
+          ],
+          "surface_gravel_before": 5.0,
+          "surface_gravel_after": 2.0,
+          "marked_stale": true
+        },
+        "edit_stable_across_storage": true,
+        "drift_file_bytes": 782336,
+        "probes": [
+          {
+            "probe": "int_where_float",
+            "input": "{\"distance_m\": 4, \"climb_m\": 0.0, \"descent_m\": 0.0}",
+            "strict_as_double": {
+              "ok": false,
+              "error": "type 'int' is not a subtype of type 'double' in type cast"
+            },
+            "shipped_as_num": {
+              "ok": true,
+              "value": "4.0"
+            }
+          },
+          {
+            "probe": "explicit_null",
+            "shipped_reader": {
+              "ok": false,
+              "error": "FormatException: trip.duration is null; the schema forbids null (absent means unset)"
+            }
+          },
+          {
+            "probe": "unknown_key",
+            "shipped_reader": {
+              "ok": false,
+              "error": "FormatException: unread field(s) on trip: [unexpected_field] \u2014 the domain layer would have dropped them on the next write"
+            }
+          },
+          {
+            "probe": "non_finite",
+            "input": "{\"ascent_m\": NaN}",
+            "shipped_reader": {
+              "ok": false,
+              "error": "FormatException: Unexpected character (at character 14)"
+            }
+          }
+        ],
+        "reserialized_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/viroqua_trip.dart_reserialized.json",
+        "edited_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/viroqua_trip.dart_edited.json",
+        "ok": true,
+        "wall_ms": 1686.6
+      },
+      "roundtrip_diff": [],
+      "roundtrip_lossless": true,
+      "canonical_identical": true,
+      "dart_schema_errors": [],
+      "edit_diff": [
+        {
+          "path": "/days/1/segments/0/nodes/0/note",
+          "kind": "changed",
+          "left": "\"The gravel starts here. Regroup before the descent.\"",
+          "right": "\"Rewritten by the Author: the gravel starts a kilometre earlier than the map suggests \u2014 regroup at the cattle guard.\"",
+          "expected": "node note reworded (E1)"
+        },
+        {
+          "path": "/days/1/segments/0/solve/stale",
+          "kind": "added",
+          "right": "true",
+          "expected": "derived geometry marked stale"
+        },
+        {
+          "path": "/days/1/segments/0/via/2",
+          "kind": "added",
+          "right": "[-90.8523795, 43.559732]",
+          "expected": "via-node added (A9 \u2192 A9a boundary)"
+        },
+        {
+          "path": "/days/1/segments/0/weights/surface/gravel",
+          "kind": "changed",
+          "left": "5.0",
+          "right": "2.0",
+          "expected": "surface weight changed (FR4)"
+        }
+      ],
+      "edit_unexpected": [],
+      "edit_schema_errors": []
+    }
+  ],
+  "probe_region": "boulder",
+  "sizing": {
+    "bytes": 51793,
+    "gzip_bytes": 14141,
+    "bytes_without_geometry": 13721,
+    "geometry_share": 0.735,
+    "geometry_vertices": 1485,
+    "bytes_per_vertex": 25.6,
+    "bytes_with_elevation_samples": 61130,
+    "elevation_sample_cost_bytes": 9337,
+    "projected": {
+      "one_spike14_route_6864_vertices": 189698,
+      "seven_days_at_6864_vertices": 1245561,
+      "spike14_worst_case_41k_vertices": 1064867
+    }
+  },
+  "scale_test": {
+    "days": 7,
+    "bytes": 1204186,
+    "gzip_bytes": 281424,
+    "geometry_vertices": 45912,
+    "schema_errors": [],
+    "dart": {
+      "input": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/fixtures/scaled_week.json",
+      "failures": [],
+      "input_bytes": 1204142,
+      "json_decode_ms": 4.038,
+      "domain_build_ms": 4.41,
+      "json_encode_ms": 23.851,
+      "json_decode_ms_first": 17.548,
+      "domain_build_ms_first": 17.372,
+      "days": 7,
+      "segments": 6,
+      "geometry_vertices": 45912,
+      "reserialized_bytes": 1204141,
+      "byte_identical_to_producer": true,
+      "drift_write_ms": 83.958,
+      "drift_read_ms": 13.251,
+      "drift_bytes_identical": true,
+      "drift_list_ms": 7.418,
+      "drift_listed_rows": 1,
+      "drift_list_summary_ms": 4.78,
+      "drift_summary_rows": 1,
+      "drift_library_rows": 20,
+      "drift_library_list_ms": 167.501,
+      "drift_library_summary_ms": 0.868,
+      "edit": {
+        "note_node_id": "1a2494b6-846c-4901-8bfa-8d7fcef1ee1a",
+        "note_before": "The gravel starts here. Regroup before the descent.",
+        "note_after": "Rewritten by the Author: the gravel starts a kilometre earlier than the map suggests \u2014 regroup at the cattle guard.",
+        "segment_id": "4ebc3d91-4d01-4bc9-bfac-a430fddb2306",
+        "via_before": 2,
+        "via_after": 3,
+        "via_added": [
+          -105.2194022,
+          40.0197327
+        ],
+        "surface_gravel_before": 5.0,
+        "surface_gravel_after": 2.0,
+        "marked_stale": true
+      },
+      "edit_stable_across_storage": true,
+      "drift_file_bytes": 25329664,
+      "probes": [
+        {
+          "probe": "int_where_float",
+          "input": "{\"distance_m\": 4, \"climb_m\": 0.0, \"descent_m\": 0.0}",
+          "strict_as_double": {
+            "ok": false,
+            "error": "type 'int' is not a subtype of type 'double' in type cast"
+          },
+          "shipped_as_num": {
+            "ok": true,
+            "value": "4.0"
+          }
+        },
+        {
+          "probe": "explicit_null",
+          "shipped_reader": {
+            "ok": false,
+            "error": "FormatException: trip.duration is null; the schema forbids null (absent means unset)"
+          }
+        },
+        {
+          "probe": "unknown_key",
+          "shipped_reader": {
+            "ok": false,
+            "error": "FormatException: unread field(s) on trip: [unexpected_field] \u2014 the domain layer would have dropped them on the next write"
+          }
+        },
+        {
+          "probe": "non_finite",
+          "input": "{\"ascent_m\": NaN}",
+          "shipped_reader": {
+            "ok": false,
+            "error": "FormatException: Unexpected character (at character 14)"
+          }
+        }
+      ],
+      "reserialized_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/scaled_week.dart_reserialized.json",
+      "edited_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/scaled_week.dart_edited.json",
+      "ok": true,
+      "wall_ms": 2519.9
+    },
+    "roundtrip_lossless": true
+  },
+  "probes": {
+    "key_order": {
+      "schema_errors": [],
+      "dart_ok": true,
+      "identical_after_roundtrip": true,
+      "verdict": "key order carries nothing"
+    },
+    "explicit_null": {
+      "schema_errors": [
+        "days/0/title: None is not of type 'string'"
+      ],
+      "rejected_by_schema": true
+    },
+    "unknown_key": {
+      "schema_errors": [
+        "days/0/segments/0: Additional properties are not allowed ('unexpected_field' was unexpected)"
+      ],
+      "rejected_by_schema": true
+    },
+    "int_where_float": {
+      "before": 3850.0,
+      "after": 3850,
+      "rejected_by_schema": false,
+      "schema_errors": [],
+      "note": "JSON Schema's `number` accepts an integer, so the schema cannot catch this. Only the reader can \u2014 which is why the Dart layer reads every fractional field through `num`."
+    },
+    "non_finite": {
+      "refused_by_producer": true,
+      "error": "Out of range float values are not JSON compliant: nan",
+      "note": "json.dumps writes bare NaN by default, which is not JSON and which Dart's jsonDecode rejects \u2014 a file this codebase could write and the client could not read."
+    }
+  },
+  "fr_coverage": {
+    "requirements": 46,
+    "by_status": {
+      "mapped": 37,
+      "out_of_payload": 5,
+      "placeholder": 1,
+      "gap": 3
+    },
+    "unresolved_pointers": [],
+    "rows": [
+      {
+        "fr": "FR2",
+        "story": "A1",
+        "what": "climbing weight (\"peaks\")",
+        "status": "mapped",
+        "pointer": "/$defs/weight_profile/properties/climbing",
+        "note": "Stored on the Author's 0.0\u20135.0 scale; the solver's bipolar -1..1 form is derived, never stored beside it."
+      },
+      {
+        "fr": "FR3",
+        "story": "A2",
+        "what": "traffic-tolerance weight (\"cars\")",
+        "status": "mapped",
+        "pointer": "/$defs/weight_profile/properties/traffic"
+      },
+      {
+        "fr": "FR4",
+        "story": "A3",
+        "what": "per-class bipolar surface weight",
+        "status": "mapped",
+        "pointer": "/$defs/weight_profile/properties/surface",
+        "note": "One 0\u20135 axis per class (SPIKE-03), not one relative dial."
+      },
+      {
+        "fr": "FR5",
+        "story": "A4",
+        "what": "POI density + Author-set type",
+        "status": "mapped",
+        "pointer": "/$defs/weight_profile/properties/poi"
+      },
+      {
+        "fr": "FR6",
+        "story": "A5",
+        "what": "min/max bands on realised attributes",
+        "status": "mapped",
+        "pointer": "/$defs/band",
+        "note": "`source` distinguishes an envelope-probed default from an Author's own band \u2014 A5's AC requires the first."
+      },
+      {
+        "fr": "FR9",
+        "story": "A6",
+        "what": "named conflicts and relaxations",
+        "status": "mapped",
+        "pointer": "/$defs/violation",
+        "note": "Only the violations are stored. SPIKE-02 measured diagnosis at 1.3\u201315.0 s against a 27\u2013218 ms solve, so the named conflict and its relaxations arrive asynchronously and belong to the response, not the saved trip."
+      },
+      {
+        "fr": "FR7",
+        "story": "A7",
+        "what": "route shape",
+        "status": "mapped",
+        "pointer": "/$defs/segment/properties/shape"
+      },
+      {
+        "fr": "FR8",
+        "story": "A8",
+        "what": "banded target distance",
+        "status": "mapped",
+        "pointer": "/$defs/target_distance"
+      },
+      {
+        "fr": "FR8a",
+        "story": "A9",
+        "what": "via-nodes on a loop",
+        "status": "mapped",
+        "pointer": "/$defs/segment/properties/via",
+        "note": "`solve.hit_via` records that each was actually reached; A9a's advisory case is `target_distance.advisory`, a value rather than a schema change."
+      },
+      {
+        "fr": "FR10",
+        "story": "B1",
+        "what": "segment with start, end, mode",
+        "status": "mapped",
+        "pointer": "/$defs/segment"
+      },
+      {
+        "fr": "FR11",
+        "story": "B2",
+        "what": "segment ordering + endpoint-gap warning",
+        "status": "mapped",
+        "pointer": "/$defs/transition/properties/gap_m",
+        "note": "Order is the `day.segments` array; the gap is measured once by compose_day and stored, not recomputed per render."
+      },
+      {
+        "fr": "FR12",
+        "story": "B3",
+        "what": "transition nodes with instructions",
+        "status": "mapped",
+        "pointer": "/$defs/transition"
+      },
+      {
+        "fr": "FR16",
+        "story": "B7",
+        "what": "mode/terrain travel speeds \u2192 time & ETA",
+        "status": "mapped",
+        "pointer": "/$defs/route_metrics/properties/pace_source",
+        "note": "Promoted partially in \u00a71.4.2. `pace_source` is stored because SPIKE-05 measured the system default at 31.4% error for cycling and 9.6% for hiking \u2014 a number whose trustworthiness depends on where it came from must carry where it came from."
+      },
+      {
+        "fr": "FR16a",
+        "story": "B7",
+        "what": "activity-derived personal pace",
+        "status": "mapped",
+        "pointer": "/$defs/route_metrics/properties/pace_source",
+        "note": "Only the enum value `activity_derived` reaches the payload. The derived profile itself is rider data (FR78-consentable), not trip data."
+      },
+      {
+        "fr": "FR17",
+        "story": "C1",
+        "what": "adventure duration",
+        "status": "mapped",
+        "pointer": "/$defs/duration"
+      },
+      {
+        "fr": "FR18",
+        "story": "C2",
+        "what": "start / end / rest days",
+        "status": "mapped",
+        "pointer": "/$defs/day/properties/roles",
+        "note": "A rest day is `kind: rest` with no segments \u2014 not a separate type, so every roll-up iterates one collection."
+      },
+      {
+        "fr": "FR19",
+        "story": "C3",
+        "what": "per-mode daily distance bounds",
+        "status": "mapped",
+        "pointer": "/$defs/day_limits",
+        "note": "Breaches are stored as data (`roll_up.limit_breaches`), not left to a UI-time comparison one call site can forget."
+      },
+      {
+        "fr": "FR20",
+        "story": "C4",
+        "what": "tagged alternates",
+        "status": "mapped",
+        "pointer": "/$defs/alternate"
+      },
+      {
+        "fr": "FR21",
+        "story": "C5",
+        "what": "waypoints, regroup points, rest stops",
+        "status": "mapped",
+        "pointer": "/$defs/node_kind"
+      },
+      {
+        "fr": "FR27",
+        "story": "C11",
+        "what": "hazard and crux warnings",
+        "status": "mapped",
+        "pointer": "/$defs/hazard"
+      },
+      {
+        "fr": "FR15",
+        "story": "B6",
+        "what": "portages (auto-included in cue sheets)",
+        "status": "mapped",
+        "pointer": "/$defs/portage",
+        "note": "B6 itself is P1, but F1 `[MVP]` requires portages on cue sheets, so the record has to exist in an MVP payload. Always Author-drawn (SPIKE-04)."
+      },
+      {
+        "fr": "FR28",
+        "story": "C12",
+        "what": "scheduled, time-bound events",
+        "status": "mapped",
+        "pointer": "/$defs/scheduled_window",
+        "note": "Same reason as FR15: C12 is P1, F1's AC names events on cue sheets."
+      },
+      {
+        "fr": "FR31",
+        "story": "D1",
+        "what": "live planning dashboard totals",
+        "status": "mapped",
+        "pointer": "/$defs/roll_up"
+      },
+      {
+        "fr": "FR37",
+        "story": "E1",
+        "what": "rich notes and media on any node",
+        "status": "mapped",
+        "pointer": "/$defs/node/properties/note"
+      },
+      {
+        "fr": "FR38",
+        "story": "E2",
+        "what": "narrative-arc stages",
+        "status": "mapped",
+        "pointer": "/$defs/node/properties/arc_stage"
+      },
+      {
+        "fr": "FR40",
+        "story": "E4",
+        "what": "POI audio narration",
+        "status": "mapped",
+        "pointer": "/$defs/narration/properties/media_id"
+      },
+      {
+        "fr": "FR41",
+        "story": "E4",
+        "what": "per-node narration trigger distance",
+        "status": "mapped",
+        "pointer": "/$defs/narration/properties/trigger_distance_m",
+        "note": "Authoring half only \u2014 playback is H2/FR49, out of desktop MVP."
+      },
+      {
+        "fr": "FR43",
+        "story": "E5",
+        "what": "GeoJSON export",
+        "status": "out_of_payload",
+        "pointer": "/$defs/line_string",
+        "note": "An export is a projection of the payload, not a field in it. The payload's geometry is already RFC 7946 in shape and coordinate order, which is what makes E5 a writer rather than a conversion."
+      },
+      {
+        "fr": "FR46",
+        "story": "F1",
+        "what": "per-day cue sheets",
+        "status": "placeholder",
+        "pointer": "/$defs/cue_sheet",
+        "note": "SPIKE-21 derives the cues; SPIKE-20 fixes where they land and what identity they carry."
+      },
+      {
+        "fr": "FR44",
+        "story": "F3",
+        "what": "GPX/TCX/FIT export contents & splitting",
+        "status": "out_of_payload",
+        "pointer": null,
+        "note": "Contents and splitting are parameters of an export request. Storing the last export's toggles in the canonical trip would make an export setting part of the plotline."
+      },
+      {
+        "fr": "FR45",
+        "story": "F3",
+        "what": "waypoints/notes preserved as course points",
+        "status": "mapped",
+        "pointer": "/$defs/node",
+        "note": "What the writers preserve is exactly the node record \u2014 kind, title, note, coordinate \u2014 so the payload is the source and the format is the constraint."
+      },
+      {
+        "fr": "FR74a",
+        "story": "G2a",
+        "what": "save / reopen / list local trips",
+        "status": "mapped",
+        "pointer": "/properties/title",
+        "note": "The list surface reads `title` and the drift row's `updated_at`; the row carries identity and sync state (id, version, dirty, server_version) so a library screen never decodes a payload to draw a list. ARCH \u00a710.3's columns, unchanged."
+      },
+      {
+        "fr": "FR79",
+        "story": "K5",
+        "what": "display & measurement preferences",
+        "status": "out_of_payload",
+        "pointer": null,
+        "note": "User-scoped, not trip-scoped: miles/km and \u00b0F/\u00b0C are applied at render. The payload is SI throughout \u2014 a trip authored in miles and read in kilometres must be the same trip."
+      },
+      {
+        "fr": "FR81",
+        "story": "K8",
+        "what": "reset planning controls",
+        "status": "out_of_payload",
+        "pointer": null,
+        "note": "Reset acts on the unsaved planning state, not on a stored trip."
+      },
+      {
+        "fr": "FR86",
+        "story": "K10",
+        "what": "elevation attribution (CC BY)",
+        "status": "mapped",
+        "pointer": "/$defs/provenance/properties/attribution",
+        "note": "Recorded at write time so the About surface credits the data actually used rather than a hardcoded list that can fall out of date."
+      },
+      {
+        "fr": "FR95",
+        "story": "K10",
+        "what": "basemap attribution (ODbL)",
+        "status": "mapped",
+        "pointer": "/$defs/provenance/properties/attribution",
+        "note": "A separate obligation under a different licence \u2014 both are owed."
+      },
+      {
+        "fr": "FR36",
+        "story": "M2 / C15",
+        "what": "scoped weight profiles",
+        "status": "mapped",
+        "pointer": "/$defs/segment/properties/weights",
+        "note": "Trip default \u2192 day override \u2192 segment override. The scalar case is `defaults.weights` and nothing else, which is exactly the seam M2 asks to exist before scoped weights are needed."
+      },
+      {
+        "fr": "FR62",
+        "story": "M3",
+        "what": "one elevation interface",
+        "status": "mapped",
+        "pointer": "/$defs/elevation"
+      },
+      {
+        "fr": "FR85",
+        "story": "M3",
+        "what": "GEDTM30 as the single elevation source",
+        "status": "mapped",
+        "pointer": "/$defs/elevation/properties/source"
+      },
+      {
+        "fr": "FR88",
+        "story": "M3",
+        "what": "elevation voids never raise or block",
+        "status": "mapped",
+        "pointer": "/$defs/elevation/properties/void_samples",
+        "note": "A void reads 0.0 and is not an error, so a flat profile is ambiguous between flat ground and a missing raster. The count is what disambiguates it \u2014 and it is also what keeps a NaN from reaching JSON."
+      },
+      {
+        "fr": "FR89",
+        "story": "M3",
+        "what": "positive-only elevation gain",
+        "status": "mapped",
+        "pointer": "/$defs/elevation/properties/ascent_m"
+      },
+      {
+        "fr": "M12",
+        "story": "M12",
+        "what": "client\u2194sidecar version check",
+        "status": "mapped",
+        "pointer": "/$defs/provenance/properties/sidecar_version",
+        "note": "The runtime check is against `/health`; what the payload records is which versions produced these bytes, which is the only way a file found later can be read with the right expectations."
+      },
+      {
+        "fr": "M13",
+        "story": "M13",
+        "what": "error & empty-state taxonomy",
+        "status": "out_of_payload",
+        "pointer": null,
+        "note": "A handling surface, not stored data. The one place it touches the payload is the elevation-void rule above, which is deliberately not a user-facing error."
+      },
+      {
+        "fr": "FR14",
+        "story": "B8",
+        "what": "advisory gauge band on a paddling segment",
+        "status": "gap",
+        "pointer": null,
+        "note": "Leg 3, and deliberately absent: SPIKE-19 has not yet confirmed which identifier joins a reach to a gauge after the NHD retirement, and a field shaped around the wrong identifier is worse than no field. Adding it is a `paddling_gauge` object on `segment` \u2014 additive, no restructuring, because segments already carry per-mode detail."
+      },
+      {
+        "fr": "FR22",
+        "story": "C6",
+        "what": "target group-size tier",
+        "status": "gap",
+        "pointer": null,
+        "note": "P1. One enum on the trip root when C6 lands."
+      },
+      {
+        "fr": "FR35",
+        "story": "C14",
+        "what": "offline buffer distance",
+        "status": "gap",
+        "pointer": null,
+        "note": "P1, and arguably not trip canon at all \u2014 it is a download parameter. Recorded so the question is asked rather than assumed."
+      }
+    ]
+  },
+  "failures": [],
+  "passed": true
+}

@@ -95,16 +95,16 @@ Every story below is `[MVP]` in the PRD *and* survives §1.2's cuts. §1.4.2 the
 
 Net: **+4 promoted (B7 partial, E2, E4 partial, E5), −4 demoted (C7, D3, E3, F2)** — 31 stories total.
 
-### 1.4.3 Four obligations with no story behind them
+### 1.4.3 Four obligations, now written up as stories
 
-Each is required by §1.1 or the architecture, and none has a PRD story or acceptance criteria. They need writing before they can be built or tested.
+Each is required by §1.1 or the architecture. As of 2026-08-16, all four have a PRD story and acceptance criteria — **resolved**, not just proposed.
 
-| Obligation | Source | Note |
+| Obligation | Source | Story |
 |---|---|---|
-| **Local trip save / open / list** | §1.1 "drift (SQLite) for trips" | The only workspace story is **G2 `[P1]`**, which is a portfolio surface with sync badges and roster management. Desktop MVP needs a plainer thing: save a trip locally, reopen it, list what exists. Proposed as a new story **G2a `[MVP]`**. |
-| **Sidecar lifecycle + version check** | ARCH §7.3, §12.1; `packaging/TODO.md` | Spawn, health-poll to readiness, restart-once, graceful stop, orphan sweep — **including the Windows Job Object + `AttachConsole`/`CTRL_BREAK_EVENT` sequence**, which `packaging/TODO.md` flags as the one thing that would ship broken if forgotten. Plus the client↔sidecar version comparison that refuses a mismatch. |
-| **About / attribution surface** | ARCH §11.2, §12.4 | CC BY credits for elevation and weather, OSM/ODbL attribution, app + sidecar version. §11.2 makes a **missing attribution a build failure**, not a polish item. Absent from the Author Desktop wireframe entirely. |
-| **Error & empty-state taxonomy** | §4, §6 item 8 | The eight states in §4 need one shared handling surface, stubbed before the first screen rather than retrofitted. |
+| **Local trip save / open / list** | §1.1 "drift (SQLite) for trips" | The only prior workspace story was **G2 `[P1]`**, a portfolio surface with sync badges and roster management — too heavy for desktop MVP's single-device case. **G2a `[MVP]`** (PRD FR74a) now covers the plain thing: save a trip locally, reopen it, list what exists. |
+| **Sidecar lifecycle + version check** | ARCH §7.3, §12.1; `packaging/TODO.md` | **M12 `[MVP]`** — spawn, health-poll to readiness, restart-once, graceful stop, orphan sweep, **including the Windows Job Object + `AttachConsole`/`CTRL_BREAK_EVENT` sequence** `packaging/TODO.md` flags as the one thing that would ship broken if forgotten, plus the client↔sidecar version comparison that refuses a mismatch. |
+| **About / attribution surface** | ARCH §11.2, §12.4 | **K10 `[MVP]`** (PRD FR86, FR95) — CC BY credit for elevation, ODbL credit for the basemap, app + sidecar version, reachable from every surface that shows licensed data. §11.2's **missing attribution is a build failure**, not a polish item, carries through as K10's AC. Still absent from the Author Desktop wireframe itself (§2.4) — a design gap, not a requirements one, now that the story exists. |
+| **Error & empty-state taxonomy** | §4, §6 item 8 | **M13 `[MVP]`** — the eight states in §4 route through one shared handling surface, stubbed before the first screen rather than retrofitted. |
 
 ### 1.4.4 What the spikes decided that the PRD has not yet absorbed
 
@@ -119,7 +119,7 @@ These are not scope calls — they are findings with build consequences that no 
 
 ### 1.4.5 Four decisions this list cannot make for itself
 
-Blocking, in the sense that building around a guess costs a rewrite. **Two of the four are now resolved** — elevation (SPIKE-18, via prior art) and the basemap (SPIKE-14, run 2026-08-15). The other two still need a call rather than an experiment.
+Blocking, in the sense that building around a guess costs a rewrite. **Three of the four are now resolved** — elevation (SPIKE-18, via prior art), the basemap (SPIKE-14, run 2026-08-15), and the trip payload schema (**SPIKE-20, run 2026-08-16**). The last two were initially framed as calls rather than experiments; both turned out to need a spike after all, and SPIKE-20's run is the argument for that framing — the two findings that change the build (a missing staleness flag, and `WeightProfile` meaning three different things) surfaced only when the schema was implemented three times and edited, not when it was drafted. **Only cue derivation (SPIKE-21) remains unrun.**
 
 - **Basemap tile source, licence, and Flutter map package — resolved.** Every Author Desktop screen is map-centric, and for an offline-first product this was a licensing question first and a library pick second. Both halves are now settled by **[SPIKE-14](Plotlines_Research_Spikes.md)** (run 2026-08-15). The service *contract* was already decided via the cycling-tour-planner POC (own-service-only, `z/x/y` range validation, bbox-scoped on-demand generation sharing one pipeline with offline bundles — PRD FR92–94, ARCH D21); the spike added the rest:
   - **Map package: `flutter_map` + `vector_map_tiles`, not `maplibre_gl`** (ARCH D22). The spike's own named candidate turned out to have **no Flutter desktop support at all**, and its successor advertises desktop on pub.dev while throwing `UnsupportedError` at widget construction. `client/pubspec.yaml` can now be filled in against a stack that was actually run on desktop.
@@ -128,8 +128,14 @@ Blocking, in the sense that building around a guess costs a rewrite. **Two of th
   - **Sizing (ARCH Q10): ~3.5 MB per 1,000 km² at z0–15** — 1.0 MB for a CI bbox, 22 MB for an 80 km square, 118 MB for a multi-day corridor.
   - **Both residuals closed the same day (2026-08-15), on a Windows Flutter install.** The stack builds and renders on **Windows** with no source change, measured across the same matrix on byte-identical inputs: on GPU hardware it is 2–3× faster per frame in the median and **no faster in the tail**, so the surviving cost is tile decode rather than drawing — and the client's memory budget is **~1 GB, not the ~700 MB** the software-rasterized Linux pass suggested (ARCH A16). **Labels are fixed in the style, not the renderer** (ARCH D24, A15): `vector_tile_renderer` lacks exactly two constructs the Protomaps themes use, and rewriting them restores street, path and place names at no measurable cost — so the client build should style from a **Plotlines-authored theme generated in the tile pipeline**, and `client/pubspec.yaml` and the tile service can both be filled in against that. Still open and never claimed: **macOS**, and the pre-release `vector_map_tiles` dependency (ARCH A14).
 - **Elevation provider — resolved.** GEDTM30 via OpenTopography (PRD FR85, ARCH D20), validated by the cycling-tour-planner POC (`backend/ctp_core/elevation.py`) and tracked as **[SPIKE-18](Plotlines_Research_Spikes.md)** (resolved via prior art, not run fresh). The exact void/nodata/NaN fallback policy, the CC BY attribution obligation, and the 50 calls/24h free-tier limit are all recorded (PRD FR85–FR91, ARCH §6.5/§11.1, A13). `service/.env.example`'s *"Provider is not yet selected"* placeholder should be updated to name it once this lands in code. M3 `[MVP]` is now unblocked.
-- **The trip payload schema.** ARCH §10.1 describes `trip.payload JSONB` in prose, §6.1 sketches core signatures, §9.1 names Dart domain classes. Nothing defines the structure that `plotlines-core` emits, drift stores, and Flutter deserializes — the one seam shared by all three artifacts.
-- **Cue derivation.** F1 is `[MVP]` and needs turn detection from a routed polyline (turns, distances, surface shifts, node highlights, hazards). No document specifies the algorithm, and no spike covers it — this one is still unassigned. Related but now assigned: F3's FIT writer went to **[SPIKE-16](Plotlines_Research_Spikes.md)**, which also decides whether FIT export runs in the core (as ARCH §6.1 has it) or on the device via the Garmin FIT SDK.
+- **The trip payload schema — resolved.** [SPIKE-20](Plotlines_Research_Spikes.md) was added and **ran the same day (2026-08-16)**, and the answer is checked in: **[`docs/schemas/trip_payload.schema.json`](schemas/trip_payload.schema.json)** is one document serving `plotlines-core`'s return type, drift's `trip.payload`, the hosted JSONB column, and the Flutter domain classes — **with no adapter at any of the three boundaries** (ARCH D27). Proven by round-tripping a real four-day multimodal trip, solved on the SPIKE-01/02/03 graphs, core → drift → Dart → JSON with **zero field loss**; both producers emit byte-identical canonical files. Four consequences for the build, none of them cosmetic:
+  - **`solve.stale` is a new field, and the reason it exists is the finding** (ARCH D29). The payload holds authored inputs and derived outputs together, so an Author edit invalidates geometry, metrics and roll-ups instantly; drift's `dirty` is about sync and cannot say it. Every screen that shows a number derived from a solve has to read this flag.
+  - **The payload stores the Author-facing 0.0–5.0 weight profile, never the solver's internal form** (ARCH D28). The conversion between them is unwritten and `WeightProfile` currently means three different things across the PRD, ARCH §6.3, and the code — recorded as **risk A18**, and it lands with the first weight slider.
+  - **G2a's trip list must project columns.** `SELECT *` across 20 saved week-scale trips costs **137 ms**; an `id`/`name`/`updated_at` projection costs **1.0 ms**. G2a also wants modes per row, which no column carries — add a denormalized `modes` column rather than decoding a payload per entry.
+  - **Sizing, for §1.1's storage row and for SPIKE-15:** a week-long trip is ~1.2 MB of JSON (~280 KB gzipped); on the client, decode + domain build is 9.0 ms but re-serialization (22.7 ms) and the drift write (89 ms) are both past the frame budget.
+
+  Three schema gaps are recorded rather than filled, each additive: FR14's paddling gauge band (waiting on SPIKE-19's identifier question), FR22's group-size tier, FR35's offline buffer distance.
+- **Cue derivation — [SPIKE-21](Plotlines_Research_Spikes.md), added 2026-08-16, not yet run.** F1 is `[MVP]` and needs turn detection from a routed polyline (turns, distances, surface shifts, node highlights, hazards). Built directly on the SPIKE-01/02/03 shared fixtures. **Its SPIKE-20 dependency is discharged**: `day.cue_sheet` exists, round-trips, and gives a derived cue a stable identity (`sequence`, `distance_along_m`, `kind`, `ref_id` back to its source node/hazard/portage) plus a `derived_from.geometry_digest` that is verifiable across languages. What SPIKE-21 still owns is every question about *deriving* a cue. Related but separately assigned: F3's FIT writer went to **[SPIKE-16](Plotlines_Research_Spikes.md)**, which also decides whether FIT export runs in the core (as ARCH §6.1 has it) or on the device via the Garmin FIT SDK.
 
 ---
 
@@ -168,6 +174,8 @@ plotlines/
 ├── packaging/                # frozen-binary build, installers, signing
 │   └── version.lock          # single source of truth for the paired version
 ├── docs/                     # PRD, ARCHITECTURE, SPIKES, this doc
+│   └── schemas/              # trip_payload.schema.json — the one contract core,
+│                             # drift and the Dart domain layer all read (SPIKE-20)
 ├── .github/workflows/        # CI (ARCH §14.5)
 └── README.md
 ```

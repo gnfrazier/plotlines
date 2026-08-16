@@ -1,0 +1,80 @@
+{
+  "input": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/fixtures/scaled_week.json",
+  "failures": [],
+  "input_bytes": 1204142,
+  "json_decode_ms": 4.038,
+  "domain_build_ms": 4.41,
+  "json_encode_ms": 23.851,
+  "json_decode_ms_first": 17.548,
+  "domain_build_ms_first": 17.372,
+  "days": 7,
+  "segments": 6,
+  "geometry_vertices": 45912,
+  "reserialized_bytes": 1204141,
+  "byte_identical_to_producer": true,
+  "drift_write_ms": 83.958,
+  "drift_read_ms": 13.251,
+  "drift_bytes_identical": true,
+  "drift_list_ms": 7.418,
+  "drift_listed_rows": 1,
+  "drift_list_summary_ms": 4.78,
+  "drift_summary_rows": 1,
+  "drift_library_rows": 20,
+  "drift_library_list_ms": 167.501,
+  "drift_library_summary_ms": 0.868,
+  "edit": {
+    "note_node_id": "1a2494b6-846c-4901-8bfa-8d7fcef1ee1a",
+    "note_before": "The gravel starts here. Regroup before the descent.",
+    "note_after": "Rewritten by the Author: the gravel starts a kilometre earlier than the map suggests — regroup at the cattle guard.",
+    "segment_id": "4ebc3d91-4d01-4bc9-bfac-a430fddb2306",
+    "via_before": 2,
+    "via_after": 3,
+    "via_added": [
+      -105.2194022,
+      40.0197327
+    ],
+    "surface_gravel_before": 5.0,
+    "surface_gravel_after": 2.0,
+    "marked_stale": true
+  },
+  "edit_stable_across_storage": true,
+  "drift_file_bytes": 25329664,
+  "probes": [
+    {
+      "probe": "int_where_float",
+      "input": "{\"distance_m\": 4, \"climb_m\": 0.0, \"descent_m\": 0.0}",
+      "strict_as_double": {
+        "ok": false,
+        "error": "type 'int' is not a subtype of type 'double' in type cast"
+      },
+      "shipped_as_num": {
+        "ok": true,
+        "value": "4.0"
+      }
+    },
+    {
+      "probe": "explicit_null",
+      "shipped_reader": {
+        "ok": false,
+        "error": "FormatException: trip.duration is null; the schema forbids null (absent means unset)"
+      }
+    },
+    {
+      "probe": "unknown_key",
+      "shipped_reader": {
+        "ok": false,
+        "error": "FormatException: unread field(s) on trip: [unexpected_field] — the domain layer would have dropped them on the next write"
+      }
+    },
+    {
+      "probe": "non_finite",
+      "input": "{\"ascent_m\": NaN}",
+      "shipped_reader": {
+        "ok": false,
+        "error": "FormatException: Unexpected character (at character 14)"
+      }
+    }
+  ],
+  "reserialized_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/scaled_week.dart_reserialized.json",
+  "edited_path": "/home/greg/projects/plotlines/spikes/SPIKE-20/results/dart/scaled_week.dart_edited.json"
+}
