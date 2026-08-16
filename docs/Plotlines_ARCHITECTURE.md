@@ -248,7 +248,8 @@ def solve_segment(
     via_nodes: list[Coord],          # FR8a — mandatory pass-through points
     shape: RouteShape,               # loop | out_and_back | point_to_point
     weights: WeightProfile,
-    target_distance: float | None,
+    target_distance: float | None,   # banded by default via FR6/FR8 (min/max around
+                                      # this value), never a soft target — SPIKE-03
     cpus: int,                       # a PARAMETER, never discovered (P1)
 ) -> Segment: ...
 
@@ -287,7 +288,9 @@ The core scoring principle survives from CTP and is now more valuable, because P
 class WeightProfile:
     climbing: float                    # PRD FR2 ("peaks")
     traffic: float                     # FR3 ("cars")
-    surface_pref: dict[str, float]     # FR4 — paved / gravel / singletrack
+    surface_pref: dict[str, float]     # FR4 — paved / gravel / singletrack, each
+                                        # 0.0 (avoid) – 5.0 (seek), bipolar per class,
+                                        # not one relative-preference dial (SPIKE-03)
     poi_bonus: dict[str, float]        # FR5 — Author-set POI type + density
     detour_budget: float               # max multiple of shortest-path distance
     # --- multimodal extensions (FR14) ---
@@ -304,6 +307,14 @@ clause — the structure is unchanged, which was the point of D5.
 `terrain_technicality` stays, but note it has **not** been validated the way the water
 terms were: SPIKE-04 was a paddling spike and did not measure `sac_scale` / `mtb:scale`
 density. Treat it as unproven, not proven.
+
+**`surface_pref` is bipolar per class, not a relative-preference dial (SPIKE-03, PRD FR4).**
+A single 0.0–5.0 "relative preference across classes" can only ever *tolerate* more or
+less of a surface — it has no value meaning *seek gravel* — so no unpaved-minimum band
+was satisfiable in any region tested (Viroqua's own attainable envelope tops out at
+7.8% unpaved, on a network that is genuinely gravel country). Each class instead runs
+its own 0.0 (avoid) – 5.0 (seek) axis, the shape FR2's climbing weight already uses.
+This is a semantics fix, not a schema change: `surface_pref` stays `dict[str, float]`.
 
 **Deliberate departures from CTP's scoring model, driven by the PRD rescope:**
 
@@ -384,7 +395,17 @@ Mode is selected by an env var at startup. Endpoints not valid for a mode are **
 
 ```
 # Routing — both modes
-POST   /segments/generate         # mode + shape + weights + via-nodes → Segment
+POST   /segments/generate         # mode + shape + weights + via-nodes → Segment,
+                                   # with band violations named synchronously —
+                                   # best-effort route only, never the relaxations
+POST   /segments/envelope         # attainable range per weighted attribute for this
+                                   # start/shape/distance — band-slider defaults
+                                   # (FR6, A5); ~10 solves, cacheable per region+distance
+                                   # — SPIKE-03
+POST   /segments/diagnose         # submit a violated band set for async diagnosis —
+                                   # FR9, A6; 202 + diagnosis id
+GET    /segments/diagnose/{id}    # poll: named conflict + verified relaxations once
+                                   # ready — SPIKE-02 (1.3–15.0s vs. a solve's 27–218ms)
 POST   /days/compose              # segments + transitions → Day
 POST   /trips/split               # multi-day splitting
 POST   /trips/{id}/export         # → GPX | TCX | FIT | GeoJSON, selectable contents
@@ -413,6 +434,16 @@ GET    /trips/{id}/notes          # notes for approaching members
 POST   /trips/{id}/amendments     # publish an amendment (FR56)
 POST   /trips/{id}/feedback       # trip-scoped feedback + votes (FR42)
 ```
+
+**Conflict diagnosis is asynchronous, not a field on `/segments/generate`'s response.**
+SPIKE-02 measured a satisfiable solve at 27–218 ms against 1.3–15.0 s to produce a
+named conflict with verified relaxations — cost that scales with the number of banded
+attributes, so it cannot sit inside the request an Author is waiting on. `/segments/generate`
+returns the best-effort route and its band violations immediately; a violated request
+is submitted separately to `/segments/diagnose` and polled. **`/segments/envelope`
+exists for the same reason A5's band sliders need it to be cheap and separate:** without
+it, band defaults are read from fixed constants, which SPIKE-03 measured as feasible
+only 22.2% of the time versus 100% when derived from the probe.
 
 **Auth is magic-link only.** CTP's passkey/WebAuthn/QR cascade is gone (PRD §4.3, FR57) — no `/auth/passkey/*`, no `/auth/qr-authorize`. This is a deliberate simplification carried from the PRD, not an omission.
 
@@ -879,6 +910,7 @@ Risks introduced *by this design* — distinct from the product risks in the PRD
 | A14 | **The desktop map stack depends on a pre-release.** The only `vector_map_tiles` line supporting current `flutter_map` is a beta (9.0.0-beta.11); the last stable is two years old, pins `flutter_map ^7`, and **silently drops every road** from the current Protomaps basemap — it does not throw, it just renders an unusable map (SPIKE-14, D22) | Medium | Pin the exact beta and treat a renderer upgrade as a **visual-regression event, not a version bump**: SPIKE-14's harness captures a PNG, and a rendered-tile screenshot diff is the only check that catches "roads stopped drawing". Watch for `vector_map_tiles` 9 stable. Fallback if the line is abandoned: raster tiles through the same FR92 service contract, which costs styling flexibility but no architecture. |
 | A15 | ~~**No basemap labels render**~~ — **resolved 2026-08-15 (SPIKE-14, second pass).** No street or place names rendered on any renderer version, because the Protomaps themes drive labels through `format`/`case`/`is-supported-script` expressions `vector_tile_renderer` does not implement | **Low (was Medium)** | **The renderer was never missing label support — it is missing two constructs a style can avoid.** Rewriting `text-field` to `["get","name"]` on the 10 symbol layers, and downgrading one filter's `["in",["get",K],["literal",[…]]]` to the legacy `["in",K,…]`, brings back street, path and waterway names with halos and line placement, at no measurable frame cost (`spikes/SPIKE-14/probes/simplify_labels.py`). **Decision: generate a Plotlines-authored theme by that transform in the tile pipeline, beside the mirror (D23)** — not a renderer fork, not an upstream contribution, not Flutter-widget labels. Two limits carried: `["get","name"]` is local-name-only (fine for the US/English MVP, a debt for later locales), and the `pois` layer additionally filters on a *per-feature* zoom threshold (`[">=",["zoom"],["get","min_zoom"]]`) the renderer does not implement — replacing it with a static `minzoom` is a cartographic call, and park/peak/beach names are missing until it is made. |
 | A16 | **The desktop client's memory footprint is ~1 GB with a basemap on screen, not the ~700 MB the first measurement suggested** (SPIKE-14 §3.1: 1.0–1.2 GB Windows working set vs ~680 MB Linux RSS; even route-only is 307–432 MB) | Medium | Different metrics on the two platforms — Windows working set counts pages the OS has not needed to reclaim — so the columns are not subtractable and the *order of magnitude* is the finding, not the delta. Budget the client near 1 GB and **re-measure on a release build** before treating either figure as a shipping number. The lever if it matters: tile-cache bounds in `vector_map_tiles`, since the basemap is the entire difference. |
+| A17 | **The traffic-stress model (FR3, A2) infers stress from OSM highway class alone**, which overstates rural traffic — SPIKE-03 measured a **35% traffic-exposure floor** on empty Viroqua county roads tagged `tertiary`/`secondary`, unreachable by any weight setting | Medium | **Recorded, not yet decided.** The routing fixtures already retain `maxspeed`/`lanes` for a richer model; nothing consumes them yet. Revisit before A2 `[MVP]` ships if quiet-rural-route quality matters at launch. |
 
 ---
 
@@ -912,6 +944,8 @@ Decisions made *in this document* (PRD decisions are logged in the PRD; feasibil
 | D22 | **`flutter_map` + `vector_map_tiles` for the desktop map — not `maplibre_gl`** (2026-08-15) | **SPIKE-14 found the GPU-native MapLibre path does not exist on Flutter desktop.** `maplibre_gl` supports android/ios/web only; its successor `maplibre` is *tagged* linux/windows/macos on pub.dev but declares only three plugin implementations and throws `UnsupportedError: MapLibre is not supported on this platform` at widget construction — verified by building and running it. The pure-Dart stack rasterizes onto Flutter's canvas and rendered a real route offline at acceptable frame rates. **Route geometry is free** (0% of frames over the 16.7 ms budget at 41k vertices); the basemap is the entire cost and mostly a first-view one (warm p95 15.5 ms, 2% jank). **Verified on both desktop platforms 2026-08-15**: the same stack builds and renders on Windows with no source change, on byte-identical inputs. On GPU hardware it is 2–3× faster in the median (warm p95 **7.6 ms**, 1% jank) and **no faster in the tail** — so the cost that survives hardware acceleration is **tile decode, not drawing**, which is where optimization belongs if it is ever needed | `maplibre_gl` and `maplibre` — neither runs on desktop. **Caveat carried, not resolved:** the working combination depends on a `vector_map_tiles` **pre-release**; the last stable (8.0.0, Aug 2024) pins `flutter_map ^7` and silently drops every road from the current Protomaps basemap |
 | D23 | **Basemap tiles come from the Protomaps Basemap (OSM-derived, ODbL), mirrored to Plotlines-controlled storage** (2026-08-15) | Fills the tile row §11 had been missing. ODbL "Produced Work" — OSM attribution required, a **different licence from the elevation layer's CC BY** (FR86), so the About surface owes both. Protomaps explicitly discourages hotlinking its build channel (*"copy the tileset to your own Cloud Storage"*), which independently forces the same shape D21/FR92 already required. Daily planet builds verified live: 127.9 GB, z0–15, HTTP range requests, BLAKE3 hashes published (PRD FR95) | Hotlinking the public build channel (against the source's own guidance, and pins a licence obligation onto every device); a hosted vendor's free tier (rate limits and terms on every device, breaks offline-first) |
 | D24 | **Plotlines authors its own basemap theme, generated from the mirrored Protomaps theme by a scripted transform in the tile pipeline** (2026-08-15) | The labels gap (A15) was never a missing renderer feature — `vector_tile_renderer` lacks exactly two constructs the Protomaps v4 themes use, and a style can avoid both: `text-field`'s multi-script name fallback, and the expression form of `in` in a filter. Rewriting them restores street, path and waterway names at no measurable frame cost (SPIKE-14 §2.2, `probes/simplify_labels.py`). Generating the theme rather than hand-maintaining a copy means a mirrored upstream refresh re-derives it, so the theme cannot silently drift from the tiles it styles. The Protomaps themes are **CC0**, so a derived theme carries no attribution burden of its own (the tiles' ODbL obligation is unaffected — D23) | Forking `vector_tile_renderer` to add expression support (a dependency we would then own, on a package already flagged pre-release in A14); contributing the expressions upstream (right long-term, too slow to gate map screens on, and not exclusive of this); drawing labels as Flutter widgets from the `places` layer (re-implements cartography — collision, placement along lines, halos — that the renderer already does); a Protomaps **v3** theme (older expression syntax, but styles tiles we do not serve) |
+| D25 | **Conflict diagnosis is a separate, async endpoint pair** (`POST /segments/diagnose` + `GET /segments/diagnose/{id}`), not a field on `/segments/generate`'s response (2026-08-14, SPIKE-02) | A satisfiable solve costs 27–218 ms; producing a named conflict with verified relaxations costs 1.3–15.0 s and scales with the number of banded attributes — re-searching the graph several times over. Blocking the initial request on that would make every constrained request feel broken | A synchronous diagnosis field on `/segments/generate` (makes every request pay the worst-case diagnosis cost, even satisfiable ones); no diagnosis at all, just a bare 4xx (violates FR9/A6's "never a raw error") |
+| D26 | **`POST /segments/envelope` — a dedicated probe endpoint for band-slider defaults**, distinct from `/segments/generate` (2026-08-14, SPIKE-03) | Band controls must open on what the region can actually deliver, not a fixed absolute scale: fixed defaults were feasible in 22.2% of a test grid, envelope-derived defaults in 100%, on the identical solver. The probe (~10 solves) is cheap and cacheable per region + distance, so it belongs behind its own contract rather than folded into route generation | Deriving envelope defaults client-side from prior route results (no data until a route exists — a cold-start band control cannot draw a range); fixed per-region constants (exactly the failure mode measured) |
 
 ---
 
