@@ -1,0 +1,64 @@
+# CI — placeholder stage (setup-prompt.md Phase 3).
+#
+# For now this workflow does exactly one meaningful thing: enforce the P1 boundary
+# (ARCH §6.1, §14.5, risk A7) — `plotlines-core` may never import `fastapi`. That's the
+# whole reason the core/service split exists, so the gate goes in on commit one, before
+# there's any code to violate it.
+#
+# The core/service test jobs below are no-op placeholders ("no tests yet") so the
+# workflow is green. Real test jobs land with the first core work (MVP doc §6, item 3 —
+# first graph fixture + golden-route test) and the service contract/lifecycle tests
+# (ARCH §14.2). Build, freeze, and Flutter jobs are out of scope until later milestones.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  p1-boundary-lint:
+    name: "P1 boundary: core must not import fastapi"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail if core/ imports fastapi
+        run: |
+          if grep -rnE '^\s*(import fastapi|from fastapi)' core/plotlines_core/; then
+            echo "::error::plotlines-core imported fastapi — this violates P1 (ARCH §6.1, risk A7). core/ must stay a pure library."
+            exit 1
+          fi
+          echo "OK: no fastapi import found in core/plotlines_core/"
+
+  payload-schema:
+    name: "trip payload schema (SPIKE-20)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install jsonschema
+      # Validates the committed fixture payloads against the committed schema and
+      # checks that every FR-map pointer still resolves. Deliberately the light half of
+      # the spike: no graph fixtures, no Dart, no network — the full round trip is
+      # `spikes/SPIKE-20/run.py` and needs both. What this catches is the drift that
+      # actually happens between runs, a schema edit that no longer describes the
+      # payload the core emits (ARCH D27).
+      - run: PYTHONPATH=core python spikes/SPIKE-20/run.py --check-committed
+
+  core-tests:
+    name: "core tests (placeholder)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "no tests yet — lands with the first core work (MVP doc §6, item 3)"
+
+  service-tests:
+    name: "service tests (placeholder)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "no tests yet — lands with service contract/lifecycle tests (ARCH §14.2)"

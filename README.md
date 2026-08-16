@@ -34,6 +34,10 @@ The planning docs live in `/docs` and are the source of truth:
   covers field and account work this milestone does not build, and §1.1's capability table
   names several `[P1]` stories. §1.4 reconciles both and governs where they disagree.
 - `docs/Plotlines_Research_Spikes.md` — feasibility unknowns
+- `docs/schemas/trip_payload.schema.json` — **the trip payload contract, and source of
+  truth for its shape** (SPIKE-20, ARCH D27). One document serving `plotlines-core`'s
+  return type, drift's `trip.payload`, the hosted JSONB column, and the Flutter domain
+  layer. Where an implementation disagrees with it, it wins.
 - `docs/Plotlines - Spike Candidates.md` — **provenance, not source of truth.** A
   technology-choice note from the PRD work, filed 2026-08-15. Its four spike candidates
   became SPIKE-14 … SPIKE-17 and its other three rows are reconciled at the end of the
@@ -53,7 +57,10 @@ plotlines/
 ├── packaging/        # frozen-binary build, installers, signing; version.lock is the
 │                     # single source of truth both client and sidecar stamp themselves with
 ├── docs/             # PRD, architecture, MVP scope, research spikes
-└── .github/workflows/  # CI — currently just the P1 boundary lint (core must not import fastapi)
+│   └── schemas/      #   trip_payload.schema.json — the one contract core, drift and
+│                     #   the Dart domain layer all read (SPIKE-20, ARCH D27)
+└── .github/workflows/  # CI — the P1 boundary lint (core must not import fastapi) and
+                      # the trip-payload schema check
 ```
 
 ## Getting started (desktop dev)
@@ -69,7 +76,10 @@ Toolchain, verified for WSL/Ubuntu:
   run `flutter doctor` to confirm. Needs a working display — WSLg provides this on WSL2.
 - **Git.**
 
-No build/run instructions yet — `core`, `service`, and `client` are scaffolding only at
-this stage (no routing, scoring, or UI implementation). Those land in the next sessions per
+No build/run instructions yet. `client` is scaffolding only (no UI implementation), and
+`service` is the sidecar shell from SPIKE-00. `core` is no longer empty: the spikes landed
+real graph loading, scoring, routing and trip composition under `core/plotlines_core/`
+(SPIKE-00 through SPIKE-03, and SPIKE-20's `trips/`) — spike-driven code in the product's
+own package, not a parallel prototype. The remaining first-week items are in
 `docs/Plotlines_MVP_Scope_and_Setup.md` §6.
 
