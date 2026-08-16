@@ -46,7 +46,7 @@ jobs:
       # the spike: no graph fixtures, no Dart, no network — the full round trip is
       # `spikes/SPIKE-20/run.py` and needs both. What this catches is the drift that
       # actually happens between runs, a schema edit that no longer describes the
-      # payload the core emits (ARCH D27).
+      # payload the core emits (ARCH D28).
       - run: PYTHONPATH=core python spikes/SPIKE-20/run.py --check-committed
 
   core-tests:

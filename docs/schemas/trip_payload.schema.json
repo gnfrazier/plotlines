@@ -1,0 +1,600 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plotlines.app/schemas/trip_payload-1.0.0.json",
+  "title": "Plotlines trip payload",
+  "description": "The canonical plotline (ARCH P8). One document serves three consumers: `plotlines-core`'s return type from compose_day/split_trip (ARCH §6.1), drift's local `trip.payload` column (ARCH §10.3), and the hosted `trip.payload JSONB` column (ARCH §10.1) — deserialized into the Flutter domain layer's Trip/Day/Segment/WeightProfile classes (ARCH §9.1). Written by SPIKE-20. Scope: the 31 desktop-MVP stories of MVP Scope §1.4.1–1.4.2 plus G2a/K10/M12/M13.\n\nRules that hold everywhere in this document:\n  1. UNITS ARE SI. Distances and elevations are metres, durations are seconds, angles are degrees. Miles/feet/°F are a display preference (FR79/K5) applied at render time and never stored.\n  2. COORDINATES ARE [lon, lat], RFC 7946 order, WGS84, at most 7 decimal places (~1 cm).\n  3. ABSENT MEANS UNSET. `null` is never a legal value: a field that has no value is omitted. (Two languages disagree about what a null means; neither disagrees about a missing key.)\n  4. KEY ORDER CARRIES NO MEANING, anywhere, including in map-valued fields. Postgres JSONB does not preserve it.\n  5. EVERY NUMBER THAT CAN BE FRACTIONAL IS A JSON NUMBER AND MUST BE READ AS ONE. A writer may emit `4` where `4.0` was meant; readers must accept both (Dart: `(v as num).toDouble()`).\n  6. `additionalProperties: false` EVERYWHERE. An unknown key is a schema drift bug surfacing at the boundary that introduced it, which is the entire point of having this file.",
+  "type": "object",
+  "required": ["schema_version", "id", "title", "created_at", "updated_at", "days"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "description": "Semver of THIS schema, written by the producer. Not the trip's `version` (ARCH §10.1's FR59 comparison key), which lives in the database column, never in the payload.",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "id": { "$ref": "#/$defs/id" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "created_at": { "$ref": "#/$defs/timestamp" },
+    "updated_at": { "$ref": "#/$defs/timestamp" },
+    "duration": {
+      "$ref": "#/$defs/duration",
+      "description": "FR17 / C1 — single-day, multi-day, or multi-week."
+    },
+    "defaults": {
+      "description": "Tour-level defaults every day and segment resolves against (FR36 / M2's `weights.at(position)` seam). A segment's own `weights` overrides this; the scalar case is this object and nothing else.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "weights": { "$ref": "#/$defs/weight_profile" },
+        "day_limits": { "$ref": "#/$defs/day_limits" }
+      }
+    },
+    "days": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/day" }
+    },
+    "metrics": {
+      "$ref": "#/$defs/roll_up",
+      "description": "FR31 / D1 — trip totals. Derived from the days; stored so a list surface (G2a) can show them without re-deriving."
+    },
+    "provenance": { "$ref": "#/$defs/provenance" }
+  },
+
+  "$defs": {
+    "id": {
+      "description": "Stable identity for a payload object. Survives every edit; never reused. UUID string form.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "timestamp": {
+      "description": "RFC 3339 UTC, second precision, always with the `Z` offset. Local times are a rendering concern.",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "metres": { "type": "number" },
+    "unit_scalar": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "author_weight": {
+      "description": "The Author-facing 0.0–5.0 decimal scale of FR2–FR5. Bipolar by convention: 0.0 avoid, 2.5 indifferent, 5.0 seek. The solver's internal 0..1 (and -1..1 for climbing) form is derived from this, never stored alongside it — two representations of one preference is how they drift apart.",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 5.0
+    },
+    "markdown": {
+      "description": "FR69's portable Markdown. Media are relative references resolved against the trip's media root.",
+      "type": "string"
+    },
+
+    "coord": {
+      "description": "[lon, lat] (RFC 7946), optionally [lon, lat, elevation_m].",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "items": { "type": "number" }
+    },
+
+    "line_string": {
+      "description": "RFC 7946 LineString. `source` records whether the engine solved it or the Author drew it — FR15's portages and any paddling geometry are Author-drawn (SPIKE-04: no open portage data; the paddling router is Leg 3), and a consumer that cannot tell the two apart will present a hand-drawn line with a solved line's authority.",
+      "type": "object",
+      "required": ["type", "coordinates", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "LineString" },
+        "coordinates": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/coord" }
+        },
+        "source": { "enum": ["solved", "authored", "imported"] }
+      }
+    },
+
+    "duration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "start_date": { "$ref": "#/$defs/date" },
+        "end_date": { "$ref": "#/$defs/date" },
+        "day_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "travel_mode": {
+      "description": "FR10 / B1 — cycling, hiking and paddling are first-class equals. Paddling's router lands in Leg 3 (MVP §1.3); the mode is nonetheless authorable from day one, which is exactly what B1's AC requires.",
+      "enum": ["cycling", "hiking", "paddling", "transit"]
+    },
+
+    "day_limits": {
+      "description": "FR19 / C3 — per-mode min/max distance for a day. Keys are travel modes; key order is meaningless.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "min_m": { "$ref": "#/$defs/metres" },
+          "max_m": { "$ref": "#/$defs/metres" }
+        }
+      }
+    },
+
+    "weight_profile": {
+      "description": "ARCH §6.3's WeightProfile in its Author-facing form (FR2–FR5). `surface` is per class and bipolar (FR4, SPIKE-03) — a single relative dial can only tolerate gravel, never seek it.",
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "climbing": { "$ref": "#/$defs/author_weight", "description": "FR2 \"peaks\"." },
+        "traffic": { "$ref": "#/$defs/author_weight", "description": "FR3 \"cars\"." },
+        "surface": {
+          "description": "FR4 — one independent 0.0 (avoid) – 2.5 (indifferent) – 5.0 (seek) axis per class. Absent class = indifferent.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/author_weight" },
+          "propertyNames": { "enum": ["paved", "gravel", "singletrack"] }
+        },
+        "poi": {
+          "description": "FR5 — density plus the Author-set type. There is no separate art/history theme.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "density": { "$ref": "#/$defs/author_weight" },
+            "types": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "terrain_technicality": {
+          "$ref": "#/$defs/author_weight",
+          "description": "FR14's land half. Unvalidated (ARCH §6.3: SPIKE-04 never measured sac_scale/mtb:scale density) — carried, not trusted."
+        },
+        "detour_budget": {
+          "type": "number",
+          "minimum": 1.0,
+          "description": "Max multiple of shortest-path distance."
+        }
+      }
+    },
+
+    "attribute": {
+      "description": "A REALISED route attribute (FR6 as reworded after SPIKE-03). Bands bound these, never the weights that produced them.",
+      "enum": ["distance_m", "climb_m", "descent_m", "traffic", "unpaved_frac", "scenic_frac", "poi_density"]
+    },
+
+    "band": {
+      "description": "FR6 / A5 — an inclusive acceptance range on one realised attribute. `source` records where the defaults came from: A5 requires them to be probed from the region's attainable envelope, not read from constants (SPIKE-03: fixed defaults were feasible 22.2% of the time, envelope-derived 100%), and a payload that cannot tell the two apart cannot show an Author why their band was unreachable.",
+      "type": "object",
+      "required": ["attribute"],
+      "additionalProperties": false,
+      "properties": {
+        "attribute": { "$ref": "#/$defs/attribute" },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "source": { "enum": ["author", "envelope", "default"] }
+      },
+      "anyOf": [{ "required": ["min"] }, { "required": ["max"] }]
+    },
+
+    "violation": {
+      "description": "A6 / FR9 — one band the returned route does not satisfy. Present because A6's diagnosis is asynchronous (SPIKE-02: 27–218 ms to solve, 1.3–15.0 s to diagnose): the best-effort route and its violations are what the payload carries; the named conflict and its relaxations arrive later and are not stored here.",
+      "type": "object",
+      "required": ["attribute", "realised", "shortfall"],
+      "additionalProperties": false,
+      "properties": {
+        "attribute": { "$ref": "#/$defs/attribute" },
+        "realised": { "type": "number" },
+        "shortfall": {
+          "type": "number",
+          "description": "Signed, in the attribute's own units: negative under the min, positive over the max."
+        }
+      }
+    },
+
+    "target_distance": {
+      "description": "FR8 / A8 — banded by default, never a soft target (SPIKE-03 measured +14.8% unannounced drift when distance went unbanded). Loop and out-and-back only; a point-to-point segment omits it.",
+      "type": "object",
+      "required": ["value_m"],
+      "additionalProperties": false,
+      "properties": {
+        "value_m": { "$ref": "#/$defs/metres" },
+        "min_m": { "$ref": "#/$defs/metres" },
+        "max_m": { "$ref": "#/$defs/metres" },
+        "advisory": {
+          "type": "boolean",
+          "description": "A9a — set when three or more via-nodes fix the loop's length and the target can only be reported, not honoured (SPIKE-01: distance error rose to +30.7%/+81.9%). MVP writes false; the field exists so the A9a case is a value, not a schema change."
+        }
+      }
+    },
+
+    "route_metrics": {
+      "description": "What the route actually IS, as opposed to what was asked for (ARCH scoring/metrics.py). Every band judges against these.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "distance_m": { "$ref": "#/$defs/metres" },
+        "climb_m": { "$ref": "#/$defs/metres" },
+        "descent_m": { "$ref": "#/$defs/metres" },
+        "traffic": { "$ref": "#/$defs/unit_scalar" },
+        "unpaved_frac": { "$ref": "#/$defs/unit_scalar" },
+        "scenic_frac": { "$ref": "#/$defs/unit_scalar" },
+        "max_grade": { "type": "number" },
+        "overlap_frac": { "$ref": "#/$defs/unit_scalar" },
+        "overlap_near_frac": {
+          "$ref": "#/$defs/unit_scalar",
+          "description": "SPIKE-01's lollipop split: road ridden twice inside an Author-designated point's locality (a café's dead-end lane) is not the failure that road ridden twice out in the corridor is. One number cannot tell them apart."
+        },
+        "overlap_far_frac": { "$ref": "#/$defs/unit_scalar" },
+        "edge_count": { "type": "integer", "minimum": 0 },
+        "moving_time_s": {
+          "type": "number",
+          "description": "FR16 / B7. Absent when no pace model applies. SPIKE-05: the system default is 31.4% wrong for cycling and 9.6% wrong for hiking, so `pace_source` below is not decoration."
+        },
+        "elapsed_time_s": { "type": "number" },
+        "pace_source": { "enum": ["system_default", "author_custom", "activity_derived"] }
+      }
+    },
+
+    "elevation": {
+      "description": "FR89 — enrichment output. Gain is positive-only, per ARCH §6.1's enrich_elevation contract. A void reads 0.0 and is never an error (FR88 / ARCH §6.5), so a flat profile can mean flat ground or missing raster; `void_samples` is what tells them apart.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ascent_m": { "$ref": "#/$defs/metres" },
+        "descent_m": { "$ref": "#/$defs/metres" },
+        "min_m": { "$ref": "#/$defs/metres" },
+        "max_m": { "$ref": "#/$defs/metres" },
+        "samples": {
+          "description": "Optional per-vertex elevation, index-aligned with the segment geometry's coordinates. Omitted by default — it doubles a large segment's payload, and D2's profile view can re-derive it.",
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "void_samples": { "type": "integer", "minimum": 0 },
+        "source": { "type": "string", "description": "FR85 — e.g. \"GEDTM30\"." }
+      }
+    },
+
+    "media_ref": {
+      "description": "FR37 / E1 and FR40 / E4. A relative path into the trip's media root, never an absolute device path and never a binary blob — binaries live beside the payload (L3's archive, the offline package), so a trip's JSON stays a trip's JSON.",
+      "type": "object",
+      "required": ["id", "kind", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["image", "audio", "video", "document", "link"] },
+        "path": { "type": "string", "minLength": 1 },
+        "caption": { "type": "string" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "duration_s": { "type": "number", "minimum": 0 }
+      }
+    },
+
+    "narration": {
+      "description": "FR40/FR41 / E4 — the AUTHORING half only. Playback is field execution (H2/FR49), explicitly out of desktop MVP; what MVP writes is the attachment and the per-node trigger distance, so the field runtime has something to read when it exists.",
+      "type": "object",
+      "required": ["trigger_distance_m"],
+      "additionalProperties": false,
+      "properties": {
+        "media_id": { "$ref": "#/$defs/id" },
+        "trigger_distance_m": { "$ref": "#/$defs/metres" },
+        "text": { "$ref": "#/$defs/markdown" }
+      }
+    },
+
+    "node_kind": {
+      "description": "FR21 / C5, FR12 / B3, FR37 / E1. `regroup` is a flag on a waypoint in the PRD's wording; it is a kind here because a regroup point is what a Character looks for, and a boolean on a waypoint hides it from every list that groups by kind.",
+      "enum": ["waypoint", "regroup", "rest_stop", "poi", "transition", "start", "finish", "via", "portage_start", "portage_end", "event"]
+    },
+
+    "node": {
+      "description": "A curated node: the unit Epic E hangs on. Position is both a coordinate and a distance along its parent segment — cue sheets (F1/SPIKE-21) order by the second, maps draw the first, and deriving one from the other on every read is how they drift.",
+      "type": "object",
+      "required": ["id", "kind", "coord"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "$ref": "#/$defs/node_kind" },
+        "coord": { "$ref": "#/$defs/coord" },
+        "distance_along_m": { "$ref": "#/$defs/metres" },
+        "title": { "type": "string" },
+        "note": { "$ref": "#/$defs/markdown" },
+        "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" } },
+        "amenities": {
+          "description": "C5 — water, toilets, food, shelter.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "poi_type": { "type": "string", "description": "FR5 — the Author-set type this node counts as." },
+        "arc_stage": {
+          "enum": ["exposition", "rising", "crux", "climax", "resolution"],
+          "description": "FR38 / E2."
+        },
+        "narration": { "$ref": "#/$defs/narration" },
+        "instructions": {
+          "$ref": "#/$defs/markdown",
+          "description": "FR12 / B3 — a transition node's parking / gear-stash / put-in instructions."
+        },
+        "scheduled": {
+          "$ref": "#/$defs/scheduled_window",
+          "description": "FR28 / C12 — a time-bound event pinned to this node."
+        }
+      }
+    },
+
+    "scheduled_window": {
+      "description": "FR28 / C12 — a fixed time window the day's pace has to meet. Stored in UTC with the IANA zone alongside, because a ferry leaves on local time and an offset alone loses that across a DST boundary.",
+      "type": "object",
+      "required": ["opens_at"],
+      "additionalProperties": false,
+      "properties": {
+        "opens_at": { "$ref": "#/$defs/timestamp" },
+        "closes_at": { "$ref": "#/$defs/timestamp" },
+        "timezone": { "type": "string", "description": "IANA zone, e.g. \"America/Denver\"." },
+        "detail": { "$ref": "#/$defs/markdown" }
+      }
+    },
+
+    "hazard": {
+      "description": "FR27 / C11 — attachable to a segment, a node, or a point along a route. Severity is an enum and not a number: \"mandatory re-route\" is a different kind of thing from \"caution\", and an ordinal invites arithmetic on it.",
+      "type": "object",
+      "required": ["id", "severity"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "severity": { "enum": ["caution", "high", "mandatory_reroute"] },
+        "title": { "type": "string" },
+        "safety_note": { "$ref": "#/$defs/markdown" },
+        "required_gear": { "type": "array", "items": { "type": "string" } },
+        "coord": { "$ref": "#/$defs/coord" },
+        "distance_along_m": { "$ref": "#/$defs/metres" },
+        "node_id": { "$ref": "#/$defs/id", "description": "Set when the hazard is anchored to a node rather than a point." }
+      }
+    },
+
+    "portage": {
+      "description": "FR15 / B6 — Author-drawn, always (SPIKE-04 §6 found no open portage data; the app must never claim a route it does not have). Its distance is computed from the drawn line and kept OUT of the parent segment's water distance.",
+      "type": "object",
+      "required": ["id", "geometry"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "geometry": { "$ref": "#/$defs/line_string" },
+        "exit_bank": { "enum": ["river_left", "river_right"] },
+        "distance_m": { "$ref": "#/$defs/metres" },
+        "surface": { "type": "string" },
+        "elevation_change_m": { "$ref": "#/$defs/metres" },
+        "mandatory": { "type": "boolean", "description": "Dams, falls — flags a prominent warning." },
+        "note": { "$ref": "#/$defs/markdown" }
+      }
+    },
+
+    "alternate": {
+      "description": "FR20 / C4 — a tagged secondary path on a segment, visible to Characters on map and cue sheet.",
+      "type": "object",
+      "required": ["id", "kind", "geometry"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["bypass", "extension"] },
+        "label": { "type": "string" },
+        "geometry": { "$ref": "#/$defs/line_string" },
+        "metrics": { "$ref": "#/$defs/route_metrics" },
+        "elevation": { "$ref": "#/$defs/elevation" },
+        "rejoins_at_m": {
+          "$ref": "#/$defs/metres",
+          "description": "Distance along the parent segment where the alternate rejoins it."
+        },
+        "diverges_at_m": { "$ref": "#/$defs/metres" }
+      }
+    },
+
+    "solve_provenance": {
+      "description": "How this geometry came to exist. Kept per segment rather than per trip because a multimodal day mixes solved and Author-drawn legs, and a trip-level stamp would claim engine authority for a line someone drew with a mouse.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "engine_version": { "type": "string" },
+        "graph_region": { "type": "string" },
+        "solve_ms": { "type": "number" },
+        "solver_calls": { "type": "integer", "minimum": 0 },
+        "solved_at": { "$ref": "#/$defs/timestamp" },
+        "closed": { "type": "boolean", "description": "Loop shapes: did the circuit return to its start node?" },
+        "hit_via": { "type": "boolean", "description": "FR8a — was every via-node actually on the path? Never inferred from the geometry." },
+        "stale": {
+          "type": "boolean",
+          "description": "The authored inputs (via-nodes, weights, target distance) have changed since this geometry was solved, so `geometry`, `metrics` and `elevation` describe a route the Author is no longer asking for. Added by SPIKE-20: the payload holds authored inputs and derived outputs in one object, an Author edit invalidates the second half instantly, and without this flag a client either re-solves on every keystroke or silently shows numbers for the previous route. The client sets it; only a solve clears it."
+        }
+      }
+    },
+
+    "segment": {
+      "description": "FR10 / B1 — one routed (or Author-drawn) leg with a start, an end, and a primary mode.",
+      "type": "object",
+      "required": ["id", "mode", "shape"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string" },
+        "mode": { "$ref": "#/$defs/travel_mode" },
+        "shape": {
+          "enum": ["loop", "out_and_back", "point_to_point"],
+          "description": "FR7 / A7 — selectable independently of weights. point_to_point requires `end`; loop and out_and_back do not."
+        },
+        "start": { "$ref": "#/$defs/coord" },
+        "end": { "$ref": "#/$defs/coord" },
+        "via": {
+          "description": "FR8a / A9 — mandatory pass-through points, in order. One or two are MVP; three or more are A9a and set target_distance.advisory.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/coord" }
+        },
+        "target_distance": { "$ref": "#/$defs/target_distance" },
+        "bands": { "type": "array", "items": { "$ref": "#/$defs/band" } },
+        "violations": { "type": "array", "items": { "$ref": "#/$defs/violation" } },
+        "weights": {
+          "$ref": "#/$defs/weight_profile",
+          "description": "FR36 / C15 / M2 — a segment-scoped override. Absent means \"resolve to the trip default\", which is the scalar case M2 requires the seam to exist for."
+        },
+        "geometry": { "$ref": "#/$defs/line_string" },
+        "metrics": { "$ref": "#/$defs/route_metrics" },
+        "elevation": { "$ref": "#/$defs/elevation" },
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
+        "alternates": { "type": "array", "items": { "$ref": "#/$defs/alternate" } },
+        "hazards": { "type": "array", "items": { "$ref": "#/$defs/hazard" } },
+        "portages": { "type": "array", "items": { "$ref": "#/$defs/portage" } },
+        "solve": { "$ref": "#/$defs/solve_provenance" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "shape": { "const": "point_to_point" } }, "required": ["shape"] },
+          "then": { "required": ["end"] }
+        }
+      ]
+    },
+
+    "transition": {
+      "description": "FR12 / B3 — the mode change between two segments of a day. It is a first-class member of the day rather than a node on either segment, because it belongs to neither: `compose_day(segments, transitions)` (ARCH §6.1) takes them as separate lists for exactly this reason.",
+      "type": "object",
+      "required": ["id", "from_segment_id", "to_segment_id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "from_segment_id": { "$ref": "#/$defs/id" },
+        "to_segment_id": { "$ref": "#/$defs/id" },
+        "from_mode": { "$ref": "#/$defs/travel_mode" },
+        "to_mode": { "$ref": "#/$defs/travel_mode" },
+        "node": { "$ref": "#/$defs/node" },
+        "gap_m": {
+          "$ref": "#/$defs/metres",
+          "description": "B2's adjacency check: the straight-line distance between the previous segment's end and the next one's start. Stored, not recomputed on render, so the warning threshold is applied once against the number the composer actually measured."
+        },
+        "gap_warning": { "type": "boolean" }
+      }
+    },
+
+    "cue": {
+      "description": "PLACEHOLDER FOR SPIKE-21. F1/FR46's derived cue. This schema fixes where a derived cue is written and what identity it carries; SPIKE-21 decides how one is derived, what the density ceiling is, and how the kinds interleave. Adding a field to this object is a schema patch; discovering there was nowhere to put the output would have been a rewrite.",
+      "type": "object",
+      "required": ["id", "sequence", "distance_along_m", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "distance_along_m": { "$ref": "#/$defs/metres" },
+        "kind": { "enum": ["turn", "surface", "node", "hazard", "event", "portage", "transition", "alternate", "start", "finish"] },
+        "instruction": { "type": "string" },
+        "modifier": { "type": "string", "description": "e.g. left / right / slight_left — SPIKE-21's vocabulary, not this schema's." },
+        "bearing_deg": { "type": "number", "minimum": 0.0, "maximum": 360.0 },
+        "ref_id": { "$ref": "#/$defs/id", "description": "The node/hazard/portage/alternate this cue was derived from, where it came from one." },
+        "segment_id": { "$ref": "#/$defs/id" }
+      }
+    },
+
+    "cue_sheet": {
+      "description": "F1 / FR46 — per-day, derived, and regenerable. `derived_from` records which geometry it was built against so a stale sheet is detectable rather than merely wrong.",
+      "type": "object",
+      "required": ["generated_at", "cues"],
+      "additionalProperties": false,
+      "properties": {
+        "generated_at": { "$ref": "#/$defs/timestamp" },
+        "generator": { "type": "string" },
+        "derived_from": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "segment_ids": { "type": "array", "items": { "$ref": "#/$defs/id" } },
+            "geometry_digest": { "type": "string", "description": "Hash of the geometry the sheet was derived from." }
+          }
+        },
+        "cues": { "type": "array", "items": { "$ref": "#/$defs/cue" } }
+      }
+    },
+
+    "roll_up": {
+      "description": "FR31 / D1 — totals by mode plus an overall. Present at day and trip level so the dashboard reads them rather than recomputing on every edit.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total": { "$ref": "#/$defs/route_metrics" },
+        "by_mode": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/route_metrics" }
+        },
+        "limit_breaches": {
+          "description": "C3 — which per-mode day limit a day exceeded, and by how much. A warning the Author has to see is data, not a UI-time comparison that can be forgotten at one call site.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["mode", "bound", "limit_m", "realised_m"],
+            "additionalProperties": false,
+            "properties": {
+              "mode": { "$ref": "#/$defs/travel_mode" },
+              "bound": { "enum": ["min", "max"] },
+              "limit_m": { "$ref": "#/$defs/metres" },
+              "realised_m": { "$ref": "#/$defs/metres" },
+              "day_id": { "$ref": "#/$defs/id" }
+            }
+          }
+        }
+      }
+    },
+
+    "day": {
+      "description": "FR18 / C2. A rest day is a day with no segments — not a different type — so every list, roll-up and itinerary iterates one collection.",
+      "type": "object",
+      "required": ["id", "index", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "index": { "type": "integer", "minimum": 1, "description": "1-based position in the trip. Distinct from `date`, which may be absent (FR17 allows a day count with no dates)." },
+        "kind": { "enum": ["route", "rest"] },
+        "roles": {
+          "description": "C2 — Start and End are marks on a day, not day kinds: a start day is usually also a route day.",
+          "type": "array",
+          "items": { "enum": ["start", "end"] },
+          "uniqueItems": true
+        },
+        "date": { "$ref": "#/$defs/date" },
+        "title": { "type": "string" },
+        "note": { "$ref": "#/$defs/markdown" },
+        "location": { "$ref": "#/$defs/coord", "description": "C2 — a rest day holds a location without an active route." },
+        "segments": { "type": "array", "items": { "$ref": "#/$defs/segment" } },
+        "transitions": { "type": "array", "items": { "$ref": "#/$defs/transition" } },
+        "nodes": {
+          "description": "Day-scoped nodes — a rest day's POIs and scheduled events, which belong to no segment.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/node" }
+        },
+        "hazards": { "type": "array", "items": { "$ref": "#/$defs/hazard" } },
+        "limits": { "$ref": "#/$defs/day_limits", "description": "C3 — overrides the trip default for this day." },
+        "weights": { "$ref": "#/$defs/weight_profile", "description": "FR36 / C15 — day-scoped override." },
+        "metrics": { "$ref": "#/$defs/roll_up" },
+        "cue_sheet": { "$ref": "#/$defs/cue_sheet" }
+      }
+    },
+
+    "provenance": {
+      "description": "Who wrote this payload and against what. M12's version check compares client and sidecar at runtime; this records what actually produced the bytes, which is the only way a payload found on disk a year later can be read with the right expectations.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "produced_by": { "type": "string", "description": "e.g. \"plotlines-core 0.0.1\"." },
+        "app_version": { "type": "string" },
+        "sidecar_version": { "type": "string" },
+        "attribution": {
+          "description": "FR86 / FR95 / K10 — the licence obligations this payload's data carries, recorded at write time. The About surface reads these rather than hardcoding a list that can silently fall out of date with the data actually used. A missing attribution is a build failure, not a polish item.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source", "licence", "credit"],
+            "additionalProperties": false,
+            "properties": {
+              "source": { "type": "string" },
+              "licence": { "type": "string" },
+              "credit": { "type": "string" },
+              "url": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

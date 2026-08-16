@@ -35,7 +35,7 @@ The planning docs live in `/docs` and are the source of truth:
   names several `[P1]` stories. §1.4 reconciles both and governs where they disagree.
 - `docs/Plotlines_Research_Spikes.md` — feasibility unknowns
 - `docs/schemas/trip_payload.schema.json` — **the trip payload contract, and source of
-  truth for its shape** (SPIKE-20, ARCH D27). One document serving `plotlines-core`'s
+  truth for its shape** (SPIKE-20, ARCH D28). One document serving `plotlines-core`'s
   return type, drift's `trip.payload`, the hosted JSONB column, and the Flutter domain
   layer. Where an implementation disagrees with it, it wins.
 - `docs/Plotlines - Spike Candidates.md` — **provenance, not source of truth.** A
@@ -58,7 +58,7 @@ plotlines/
 │                     # single source of truth both client and sidecar stamp themselves with
 ├── docs/             # PRD, architecture, MVP scope, research spikes
 │   └── schemas/      #   trip_payload.schema.json — the one contract core, drift and
-│                     #   the Dart domain layer all read (SPIKE-20, ARCH D27)
+│                     #   the Dart domain layer all read (SPIKE-20, ARCH D28)
 └── .github/workflows/  # CI — the P1 boundary lint (core must not import fastapi) and
                       # the trip-payload schema check
 ```
