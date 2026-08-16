@@ -1,0 +1,497 @@
+{
+  "schema": {
+    "service": "https://3dhp.nationalmap.gov/arcgis/rest/services/usgs_3dhp_all/FeatureServer",
+    "layers": {
+      "50": {
+        "name": "Flowline",
+        "geometryType": "esriGeometryPolyline",
+        "hasZ": true,
+        "maxRecordCount": 2500,
+        "fields": [
+          {
+            "name": "OBJECTID",
+            "type": "OID"
+          },
+          {
+            "name": "id3dhp",
+            "type": "String"
+          },
+          {
+            "name": "featuredate",
+            "type": "Date"
+          },
+          {
+            "name": "mainstemid",
+            "type": "String"
+          },
+          {
+            "name": "gnisid",
+            "type": "Integer"
+          },
+          {
+            "name": "gnisidlabel",
+            "type": "String"
+          },
+          {
+            "name": "featuretype",
+            "type": "SmallInteger"
+          },
+          {
+            "name": "featuretypelabel",
+            "type": "String"
+          },
+          {
+            "name": "lengthkm",
+            "type": "Double"
+          },
+          {
+            "name": "waterbodyid3dhp",
+            "type": "String"
+          },
+          {
+            "name": "flowdirection",
+            "type": "SmallInteger"
+          },
+          {
+            "name": "flowdirectionlabel",
+            "type": "String"
+          },
+          {
+            "name": "onsurface",
+            "type": "SmallInteger"
+          },
+          {
+            "name": "onsurfacelabel",
+            "type": "String"
+          },
+          {
+            "name": "catchmentid3dhp",
+            "type": "String"
+          },
+          {
+            "name": "flowpathid3dhp",
+            "type": "String"
+          },
+          {
+            "name": "streamlevel",
+            "type": "Integer"
+          },
+          {
+            "name": "startflag",
+            "type": "SmallInteger"
+          },
+          {
+            "name": "terminalflag",
+            "type": "SmallInteger"
+          },
+          {
+            "name": "streamorder",
+            "type": "Integer"
+          },
+          {
+            "name": "streamcalculator",
+            "type": "Integer"
+          },
+          {
+            "name": "hydrosequence",
+            "type": "Double"
+          },
+          {
+            "name": "dnhydrosequence",
+            "type": "Double"
+          },
+          {
+            "name": "uphydrosequence",
+            "type": "Double"
+          },
+          {
+            "name": "dnlevelpath",
+            "type": "Double"
+          },
+          {
+            "name": "uplevelpath",
+            "type": "Double"
+          },
+          {
+            "name": "pathlength",
+            "type": "Double"
+          },
+          {
+            "name": "arbolatesum",
+            "type": "Double"
+          },
+          {
+            "name": "divergence",
+            "type": "SmallInteger"
+          },
+          {
+            "name": "divergencelabel",
+            "type": "String"
+          },
+          {
+            "name": "rtrndivergence",
+            "type": "SmallInteger"
+          },
+          {
+            "name": "levelpath",
+            "type": "Integer"
+          },
+          {
+            "name": "terminalpath",
+            "type": "Double"
+          },
+          {
+            "name": "workunitid",
+            "type": "String"
+          },
+          {
+            "name": "Shape__Length",
+            "type": "Double"
+          }
+        ]
+      },
+      "40": {
+        "name": "HydroLocation - Reach Code, External Connection",
+        "geometryType": "esriGeometryPoint",
+        "hasZ": true,
+        "maxRecordCount": 2500,
+        "fields": [
+          {
+            "name": "OBJECTID",
+            "type": "OID"
+          },
+          {
+            "name": "id3dhp",
+            "type": "String"
+          },
+          {
+            "name": "featuredate",
+            "type": "Date"
+          },
+          {
+            "name": "mainstemid",
+            "type": "String"
+          },
+          {
+            "name": "universalreferenceid",
+            "type": "String"
+          },
+          {
+            "name": "gnisid",
+            "type": "Integer"
+          },
+          {
+            "name": "gnisidlabel",
+            "type": "String"
+          },
+          {
+            "name": "featuretype",
+            "type": "SmallInteger"
+          },
+          {
+            "name": "featuretypelabel",
+            "type": "String"
+          },
+          {
+            "name": "workunitid",
+            "type": "String"
+          }
+        ]
+      }
+    },
+    "service_layers": [
+      {
+        "id": 20,
+        "name": "HydroLocation - Sink, Spring, Waterbody Outlet",
+        "geometryType": "esriGeometryPoint"
+      },
+      {
+        "id": 30,
+        "name": "HydroLocation - Headwater, Terminus, Divergence, Confluence, Catchment Outlet",
+        "geometryType": "esriGeometryPoint"
+      },
+      {
+        "id": 40,
+        "name": "HydroLocation - Reach Code, External Connection",
+        "geometryType": "esriGeometryPoint"
+      },
+      {
+        "id": 50,
+        "name": "Flowline",
+        "geometryType": "esriGeometryPolyline"
+      },
+      {
+        "id": 60,
+        "name": "Waterbody",
+        "geometryType": "esriGeometryPolygon"
+      },
+      {
+        "id": 80,
+        "name": "Catchment",
+        "geometryType": "esriGeometryPolygon"
+      }
+    ]
+  },
+  "attribute_regression": {
+    "fromnode/tonode": {
+      "verdict": "RENAMED",
+      "carried_by": "hydrosequence+dnhydrosequence",
+      "purpose": "declared topology (connectivity stated, not inferred)"
+    },
+    "flowdir": {
+      "verdict": "RENAMED",
+      "carried_by": "flowdirection",
+      "purpose": "direction of flow"
+    },
+    "streamorde": {
+      "verdict": "RENAMED",
+      "carried_by": "streamorder",
+      "purpose": "Strahler stream order"
+    },
+    "reachcode": {
+      "verdict": "MOVED",
+      "carried_by": "layer 40.universalreferenceid",
+      "purpose": "the identifier space USGS gauges are indexed in"
+    }
+  },
+  "regions": {
+    "wnc": {
+      "area_km2": 13706.9,
+      "orders": {
+        "3": {
+          "flowlines": 34269,
+          "km": 7959.9,
+          "km_per_1000km2": 580.66,
+          "flowdirection_set_pct": 100.0,
+          "dnhydrosequence_set_pct": 100.0,
+          "mainstemid_set_pct": 100.0,
+          "named_pct": 75.0,
+          "distinct_mainstems": 3588,
+          "mainstem_namespaces": {
+            "usgs": 25600,
+            "ref": 8669
+          },
+          "featuretypes": {
+            "Channel Line": 26895,
+            "Waterbody Connector": 7091,
+            "Surface Connector": 278,
+            "Hydro Unenforced Connector": 4,
+            "Canal": 1
+          },
+          "workunitid": {
+            "NHD": 34269
+          },
+          "featuredate_range": [
+            "2023-09-14",
+            "2023-09-14"
+          ],
+          "vertices": null
+        },
+        "4": {
+          "flowlines": 17786,
+          "km": 4056.1,
+          "km_per_1000km2": 295.91,
+          "flowdirection_set_pct": 100.0,
+          "dnhydrosequence_set_pct": 100.0,
+          "mainstemid_set_pct": 100.0,
+          "named_pct": 92.5,
+          "distinct_mainstems": 933,
+          "mainstem_namespaces": {
+            "usgs": 9865,
+            "ref": 7921
+          },
+          "featuretypes": {
+            "Channel Line": 11847,
+            "Waterbody Connector": 5823,
+            "Surface Connector": 113,
+            "Hydro Unenforced Connector": 2,
+            "Canal": 1
+          },
+          "workunitid": {
+            "NHD": 17786
+          },
+          "featuredate_range": [
+            "2023-09-14",
+            "2023-09-14"
+          ],
+          "vertices": 479750
+        }
+      },
+      "total_flowlines_any_order": 133536,
+      "reachcode_points": {
+        "count": 165434,
+        "with_universalreferenceid": 165434,
+        "distinct_reachcodes": 83054,
+        "featuretypes": {
+          "Reachcode Start": 82721,
+          "Reachcode End": 82713
+        }
+      },
+      "z_audit": {
+        "features_sampled": 500,
+        "vertices_sampled": 12517,
+        "z_nonzero": 0,
+        "z_min": 0,
+        "z_max": 0
+      }
+    },
+    "swwi": {
+      "area_km2": 7229.2,
+      "orders": {
+        "3": {
+          "flowlines": 2948,
+          "km": 2415.4,
+          "km_per_1000km2": 334.06,
+          "flowdirection_set_pct": 100.0,
+          "dnhydrosequence_set_pct": 99.8,
+          "mainstemid_set_pct": 100.0,
+          "named_pct": 70.1,
+          "distinct_mainstems": 405,
+          "mainstem_namespaces": {
+            "ref": 1370,
+            "usgs": 1578
+          },
+          "featuretypes": {
+            "Channel Line": 2133,
+            "Waterbody Connector": 792,
+            "Surface Connector": 19,
+            "Canal": 4
+          },
+          "workunitid": {
+            "NHD": 2948
+          },
+          "featuredate_range": [
+            "2023-09-14",
+            "2023-09-14"
+          ],
+          "vertices": null
+        },
+        "4": {
+          "flowlines": 1594,
+          "km": 1351.6,
+          "km_per_1000km2": 186.88,
+          "flowdirection_set_pct": 100.0,
+          "dnhydrosequence_set_pct": 99.8,
+          "mainstemid_set_pct": 100.0,
+          "named_pct": 82.8,
+          "distinct_mainstems": 171,
+          "mainstem_namespaces": {
+            "ref": 1122,
+            "usgs": 472
+          },
+          "featuretypes": {
+            "Channel Line": 950,
+            "Waterbody Connector": 637,
+            "Surface Connector": 6,
+            "Canal": 1
+          },
+          "workunitid": {
+            "NHD": 1594
+          },
+          "featuredate_range": [
+            "2023-09-14",
+            "2023-09-14"
+          ],
+          "vertices": 65664
+        }
+      },
+      "total_flowlines_any_order": 11596,
+      "reachcode_points": {
+        "count": 13758,
+        "with_universalreferenceid": 13758,
+        "distinct_reachcodes": 7013,
+        "featuretypes": {
+          "Reachcode Start": 6885,
+          "Reachcode End": 6873
+        }
+      },
+      "z_audit": {
+        "features_sampled": 500,
+        "vertices_sampled": 20622,
+        "z_nonzero": 0,
+        "z_min": 0,
+        "z_max": 0
+      }
+    },
+    "socal": {
+      "area_km2": 21000.8,
+      "orders": {
+        "3": {
+          "flowlines": 23350,
+          "km": 7006.7,
+          "km_per_1000km2": 333.61,
+          "flowdirection_set_pct": 100.0,
+          "dnhydrosequence_set_pct": 98.2,
+          "mainstemid_set_pct": 100.0,
+          "named_pct": 21.4,
+          "distinct_mainstems": 2815,
+          "mainstem_namespaces": {
+            "usgs": 19490,
+            "ref": 3860
+          },
+          "featuretypes": {
+            "Channel Line": 18097,
+            "Hydro Unenforced Connector": 2299,
+            "Waterbody Connector": 1784,
+            "Canal": 649,
+            "Surface Connector": 521
+          },
+          "workunitid": {
+            "NHD": 23350
+          },
+          "featuredate_range": [
+            "2023-09-14",
+            "2023-09-14"
+          ],
+          "vertices": null
+        },
+        "4": {
+          "flowlines": 11383,
+          "km": 3683.1,
+          "km_per_1000km2": 175.37,
+          "flowdirection_set_pct": 100.0,
+          "dnhydrosequence_set_pct": 99.0,
+          "mainstemid_set_pct": 100.0,
+          "named_pct": 37.5,
+          "distinct_mainstems": 829,
+          "mainstem_namespaces": {
+            "usgs": 7816,
+            "ref": 3567
+          },
+          "featuretypes": {
+            "Channel Line": 8811,
+            "Waterbody Connector": 1246,
+            "Hydro Unenforced Connector": 673,
+            "Canal": 419,
+            "Surface Connector": 234
+          },
+          "workunitid": {
+            "NHD": 11383
+          },
+          "featuredate_range": [
+            "2023-09-14",
+            "2023-09-14"
+          ],
+          "vertices": 180767
+        }
+      },
+      "total_flowlines_any_order": 112471,
+      "reachcode_points": {
+        "count": 168684,
+        "with_universalreferenceid": 168684,
+        "distinct_reachcodes": 84585,
+        "featuretypes": {
+          "Reachcode End": 84508,
+          "Reachcode Start": 84176
+        }
+      },
+      "z_audit": {
+        "features_sampled": 500,
+        "vertices_sampled": 7799,
+        "z_nonzero": 0,
+        "z_min": 0,
+        "z_max": 0
+      }
+    }
+  }
+}

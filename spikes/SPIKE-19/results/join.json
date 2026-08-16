@@ -1,0 +1,65 @@
+{
+  "regions": {
+    "wnc": {
+      "sites_total": 43,
+      "nldi_resolved": 43,
+      "nldi_with_mainstem": 40,
+      "nldi_with_reachcode": 43,
+      "mainstem_matches_order4": 40,
+      "mainstem_matches_order3": 40,
+      "reachcode_matches_layer40": 39,
+      "site_mainstem_namespaces": {
+        "ref": 40,
+        "none": 3
+      },
+      "network_mainstem_namespaces": {
+        "usgs": 841,
+        "ref": 92
+      },
+      "network_distinct_mainstems_order4": 933,
+      "reachcode_points_distinct": 83054
+    },
+    "swwi": {
+      "sites_total": 9,
+      "nldi_resolved": 9,
+      "nldi_with_mainstem": 7,
+      "nldi_with_reachcode": 9,
+      "mainstem_matches_order4": 7,
+      "mainstem_matches_order3": 7,
+      "reachcode_matches_layer40": 7,
+      "site_mainstem_namespaces": {
+        "ref": 7,
+        "none": 2
+      },
+      "network_mainstem_namespaces": {
+        "ref": 49,
+        "usgs": 122
+      },
+      "network_distinct_mainstems_order4": 171,
+      "reachcode_points_distinct": 7013
+    },
+    "socal": {
+      "sites_total": 60,
+      "nldi_resolved": 56,
+      "nldi_with_mainstem": 42,
+      "nldi_with_reachcode": 56,
+      "mainstem_matches_order4": 37,
+      "mainstem_matches_order3": 38,
+      "reachcode_matches_layer40": 41,
+      "site_mainstem_namespaces": {
+        "ref": 42,
+        "none": 14
+      },
+      "network_mainstem_namespaces": {
+        "usgs": 773,
+        "ref": 56
+      },
+      "network_distinct_mainstems_order4": 829,
+      "reachcode_points_distinct": 84585
+    }
+  },
+  "namespace_note": {
+    "distinct_numeric_ids_wnc_order4": 933,
+    "ids_appearing_under_both_prefixes": 0
+  }
+}

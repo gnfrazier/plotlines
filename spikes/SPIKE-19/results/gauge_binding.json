@@ -1,0 +1,181 @@
+{
+  "region": "wnc",
+  "segment": {
+    "km": 148.2,
+    "flowlines": 821,
+    "from": {
+      "name": "Champion Park Access",
+      "lat": 35.1455381,
+      "lon": -82.8265099,
+      "snap_m": 15.2
+    },
+    "to": {
+      "name": "Blannahassett Island River Access",
+      "lat": 35.7965164,
+      "lon": -82.6854888,
+      "snap_m": 41.1
+    },
+    "named_waters": [
+      "French Broad River"
+    ],
+    "distinct_mainstems": 1
+  },
+  "gauges_bound": 5,
+  "payloads": [
+    {
+      "station_id": "03439000",
+      "station_name": "FRENCH BROAD RIVER AT ROSMAN, NC",
+      "bound_by": "mainstem_uri",
+      "mainstem": "https://geoconnex.us/ref/mainstems/316088",
+      "reachcode": "06010105000315",
+      "discharge": {
+        "value": "130",
+        "unit": "ft^3/s",
+        "time": "2026-08-16T11:15:00+00:00",
+        "approval_status": "Provisional",
+        "statistic_id": "00011"
+      },
+      "stage": {
+        "value": "2.17",
+        "unit": "ft",
+        "time": "2026-08-16T11:15:00+00:00",
+        "approval_status": "Provisional",
+        "statistic_id": "00011"
+      },
+      "retrieved_at": "2026-08-16T12:15:27+00:00",
+      "age_minutes": 60.5,
+      "author_band": {
+        "parameter_code": "00060",
+        "unit": "ft^3/s",
+        "min": 300,
+        "max": 3000,
+        "set_by": "author (illustrative \u2014 not a Plotlines recommendation)"
+      },
+      "band_state": "below_author_band"
+    },
+    {
+      "station_id": "03443000",
+      "station_name": "FRENCH BROAD RIVER AT BLANTYRE, NC",
+      "bound_by": "mainstem_uri",
+      "mainstem": "https://geoconnex.us/ref/mainstems/316088",
+      "reachcode": "06010105000252",
+      "discharge": {
+        "value": "512",
+        "unit": "ft^3/s",
+        "time": "2026-08-16T11:30:00+00:00",
+        "approval_status": "Provisional",
+        "statistic_id": "00011"
+      },
+      "stage": {
+        "value": "6.05",
+        "unit": "ft",
+        "time": "2026-08-16T11:30:00+00:00",
+        "approval_status": "Provisional",
+        "statistic_id": "00011"
+      },
+      "retrieved_at": "2026-08-16T12:15:27+00:00",
+      "age_minutes": 45.5,
+      "author_band": {
+        "parameter_code": "00060",
+        "unit": "ft^3/s",
+        "min": 300,
+        "max": 3000,
+        "set_by": "author (illustrative \u2014 not a Plotlines recommendation)"
+      },
+      "band_state": "within_author_band"
+    },
+    {
+      "station_id": "03447687",
+      "station_name": "FRENCH BROAD RIVER NEAR FLETCHER, NC",
+      "bound_by": "mainstem_uri",
+      "mainstem": "https://geoconnex.us/ref/mainstems/316088",
+      "reachcode": "06010105000182",
+      "discharge": {
+        "value": "840",
+        "unit": "ft^3/s",
+        "time": "2026-08-16T11:30:00+00:00",
+        "approval_status": "Provisional",
+        "statistic_id": "00011"
+      },
+      "stage": {
+        "value": "4.46",
+        "unit": "ft",
+        "time": "2026-08-16T11:30:00+00:00",
+        "approval_status": "Provisional",
+        "statistic_id": "00011"
+      },
+      "retrieved_at": "2026-08-16T12:15:27+00:00",
+      "age_minutes": 45.5,
+      "author_band": {
+        "parameter_code": "00060",
+        "unit": "ft^3/s",
+        "min": 300,
+        "max": 3000,
+        "set_by": "author (illustrative \u2014 not a Plotlines recommendation)"
+      },
+      "band_state": "within_author_band"
+    },
+    {
+      "station_id": "03451500",
+      "station_name": "FRENCH BROAD RIVER AT ASHEVILLE, NC",
+      "bound_by": "mainstem_uri",
+      "mainstem": "https://geoconnex.us/ref/mainstems/316088",
+      "reachcode": "06010105000135",
+      "discharge": {
+        "value": "1240",
+        "unit": "ft^3/s",
+        "time": "2026-08-16T11:30:00+00:00",
+        "approval_status": "Provisional",
+        "statistic_id": "00011"
+      },
+      "stage": {
+        "value": "1.46",
+        "unit": "ft",
+        "time": "2026-08-16T11:30:00+00:00",
+        "approval_status": "Provisional",
+        "statistic_id": "00011"
+      },
+      "retrieved_at": "2026-08-16T12:15:27+00:00",
+      "age_minutes": 45.5,
+      "author_band": {
+        "parameter_code": "00060",
+        "unit": "ft^3/s",
+        "min": 300,
+        "max": 3000,
+        "set_by": "author (illustrative \u2014 not a Plotlines recommendation)"
+      },
+      "band_state": "within_author_band"
+    },
+    {
+      "station_id": "03453500",
+      "station_name": "FRENCH BROAD RIVER AT MARSHALL, NC",
+      "bound_by": "mainstem_uri",
+      "mainstem": "https://geoconnex.us/ref/mainstems/316088",
+      "reachcode": "06010105000084",
+      "discharge": {
+        "value": "1350",
+        "unit": "ft^3/s",
+        "time": "2026-08-16T12:00:00+00:00",
+        "approval_status": "Provisional",
+        "statistic_id": "00011"
+      },
+      "stage": {
+        "value": "1.69",
+        "unit": "ft",
+        "time": "2026-08-16T12:00:00+00:00",
+        "approval_status": "Provisional",
+        "statistic_id": "00011"
+      },
+      "retrieved_at": "2026-08-16T12:15:27+00:00",
+      "age_minutes": 15.5,
+      "author_band": {
+        "parameter_code": "00060",
+        "unit": "ft^3/s",
+        "min": 300,
+        "max": 3000,
+        "set_by": "author (illustrative \u2014 not a Plotlines recommendation)"
+      },
+      "band_state": "within_author_band"
+    }
+  ]
+}
