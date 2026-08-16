@@ -198,3 +198,9 @@ spikes/SPIKE-20/results/fixtures/scaled_week.json
 spikes/SPIKE-20/results/fixtures/probe_shuffled.json
 spikes/SPIKE-20/results/dart/*.dart_reserialized.json
 spikes/SPIKE-20/results/dart/*.dart_edited.json
+
+# SPIKE-21 cue-derivation outputs. Same split as SPIKE-20: the evidence is committed
+# (RESULTS.md, results.json, the nine rendered cue sheets, the schema-validated
+# payloads), the Dart harness's byte-identical copies and local databases are not.
+spikes/SPIKE-21/results/dart/*.dart_reserialized.json
+spikes/SPIKE-21/results/dart/*.dart_edited.json

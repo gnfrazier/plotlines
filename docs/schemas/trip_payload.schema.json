@@ -484,7 +484,11 @@
         "modifier": { "type": "string", "description": "e.g. left / right / slight_left — SPIKE-21's vocabulary, not this schema's." },
         "bearing_deg": { "type": "number", "minimum": 0.0, "maximum": 360.0 },
         "ref_id": { "$ref": "#/$defs/id", "description": "The node/hazard/portage/alternate this cue was derived from, where it came from one." },
-        "segment_id": { "$ref": "#/$defs/id" }
+        "segment_id": { "$ref": "#/$defs/id" },
+        "retrace": {
+          "type": "boolean",
+          "description": "This cue stands on road the route has already used — the return leg of a via-node spur (SPIKE-01's lollipop). Added by SPIKE-21: the instruction on a retraced leg is correct and its context is missing, which is how a rider turns off a road they were meant to stay on. Absent means the cue is on fresh road."
+        }
       }
     },
 

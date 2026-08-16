@@ -1,0 +1,941 @@
+{
+  "spike": "SPIKE-21",
+  "question": "Turn/surface/node cue derivation from a solved polyline, at a density a rider can read.",
+  "legibility_ceiling": {
+    "mean_cues_per_km": 4.0,
+    "peak_cues_per_km": 8.0
+  },
+  "settings": {
+    "smoothing_m": 25.0,
+    "straight_deg": 30.0,
+    "slight_deg": 45.0,
+    "sharp_deg": 120.0,
+    "uturn_deg": 160.0,
+    "junction_min_degree": 3,
+    "always_cue_reversal": true,
+    "suppress_same_way": true,
+    "jog_window_m": 40.0,
+    "surface_min_run_m": 150.0,
+    "node_corridor_m": 150.0,
+    "merge_window_m": 25.0,
+    "legible_cues_per_km": 4.0
+  },
+  "environment": {
+    "started_utc": "2026-08-16T18:26:24+00:00",
+    "python": "3.12.12",
+    "platform": "Linux x86_64",
+    "regions": {
+      "boulder": {
+        "name": "Boulder, CO",
+        "character": "mountain-adjacent city \u2014 foothills against a street grid",
+        "nodes": 9471,
+        "edges": 24320,
+        "network_km": 1440.2,
+        "surface_tagged_pct": 81.7,
+        "graded_pct": 80.6,
+        "load_seconds": 0.84
+      },
+      "davis": {
+        "name": "Davis, CA",
+        "character": "flat cycling town \u2014 dense bike network, no relief",
+        "nodes": 5373,
+        "edges": 13750,
+        "network_km": 939.3,
+        "surface_tagged_pct": 34.4,
+        "graded_pct": 79.0,
+        "load_seconds": 0.48
+      },
+      "viroqua": {
+        "name": "Viroqua, WI (Driftless)",
+        "character": "rural coulee country \u2014 steep, gravel, near-empty roads",
+        "nodes": 2094,
+        "edges": 5062,
+        "network_km": 993.0,
+        "surface_tagged_pct": 24.5,
+        "graded_pct": 93.1,
+        "load_seconds": 0.21
+      }
+    }
+  },
+  "regions": [
+    {
+      "region": "boulder",
+      "name": "Boulder, CO",
+      "surface_tagged_pct": 81.7,
+      "scenarios": [
+        {
+          "name": "cross-town point-to-point",
+          "shape": "point_to_point",
+          "solve_ms": 9.6,
+          "derive_ms": 4.0,
+          "baselines": {
+            "per_vertex": 218,
+            "per_vertex_per_km": 56.6,
+            "per_junction": 59,
+            "per_junction_per_km": 15.3,
+            "bend_over_threshold_no_junction_test": 17,
+            "bend_over_threshold_per_km": 4.4,
+            "unsmoothed_bend_over_threshold": 26,
+            "unsmoothed_bend_per_km": 6.8
+          },
+          "stats": {
+            "route_m": 3850.0,
+            "polyline_vertices": 218,
+            "edges": 60,
+            "turns": {
+              "junctions": 59,
+              "bend_below_threshold": 41,
+              "no_alternative": 0,
+              "same_way_continuation": 4,
+              "before_coalescing": 13,
+              "coalesced_away": 2,
+              "emitted": 11,
+              "reversals": 0
+            },
+            "surfaces": {
+              "known_runs": 1,
+              "raw_transitions": 0,
+              "suppressed_short": 0,
+              "emitted": 0
+            },
+            "nodes": {
+              "considered": 6,
+              "off_route": 1,
+              "emitted": 5
+            },
+            "merge": {
+              "before": 22,
+              "merged_away": 0,
+              "after": 22
+            },
+            "retrace": {
+              "retraced_span_m": 0,
+              "cues_marked": 0
+            },
+            "cues": 22,
+            "cues_per_km": 5.71,
+            "derived_cues": 11,
+            "derived_cues_per_km": 2.86,
+            "authored_cues": 11,
+            "vertices_per_km": 56.62,
+            "within_legibility_ceiling": true,
+            "by_kind": {
+              "alternate": 1,
+              "finish": 1,
+              "hazard": 2,
+              "node": 4,
+              "portage": 1,
+              "start": 1,
+              "transition": 1,
+              "turn": 11
+            }
+          },
+          "peak_cues_per_km": 8,
+          "median_cues_per_km": 5.0,
+          "legible": true
+        },
+        {
+          "name": "20 km loop",
+          "shape": "loop",
+          "solve_ms": 239.7,
+          "derive_ms": 9.57,
+          "baselines": {
+            "per_vertex": 1127,
+            "per_vertex_per_km": 54.8,
+            "per_junction": 266,
+            "per_junction_per_km": 12.9,
+            "bend_over_threshold_no_junction_test": 111,
+            "bend_over_threshold_per_km": 5.4,
+            "unsmoothed_bend_over_threshold": 141,
+            "unsmoothed_bend_per_km": 6.9
+          },
+          "stats": {
+            "route_m": 20551.2,
+            "polyline_vertices": 1127,
+            "edges": 267,
+            "turns": {
+              "junctions": 266,
+              "bend_below_threshold": 155,
+              "no_alternative": 0,
+              "same_way_continuation": 45,
+              "before_coalescing": 66,
+              "coalesced_away": 9,
+              "emitted": 57,
+              "reversals": 1
+            },
+            "surfaces": {
+              "known_runs": 3,
+              "raw_transitions": 2,
+              "suppressed_short": 0,
+              "emitted": 2
+            },
+            "nodes": {
+              "considered": 6,
+              "off_route": 1,
+              "emitted": 5
+            },
+            "merge": {
+              "before": 70,
+              "merged_away": 1,
+              "after": 69
+            },
+            "retrace": {
+              "retraced_span_m": 213.1,
+              "cues_marked": 4
+            },
+            "cues": 69,
+            "cues_per_km": 3.36,
+            "derived_cues": 58,
+            "derived_cues_per_km": 2.82,
+            "authored_cues": 11,
+            "vertices_per_km": 54.84,
+            "within_legibility_ceiling": true,
+            "by_kind": {
+              "alternate": 1,
+              "finish": 1,
+              "hazard": 2,
+              "node": 4,
+              "portage": 1,
+              "start": 1,
+              "surface": 1,
+              "transition": 1,
+              "turn": 57
+            }
+          },
+          "peak_cues_per_km": 7,
+          "median_cues_per_km": 3,
+          "legible": true
+        },
+        {
+          "name": "20 km loop through two via-nodes",
+          "shape": "loop",
+          "solve_ms": 42.3,
+          "derive_ms": 10.04,
+          "baselines": {
+            "per_vertex": 1016,
+            "per_vertex_per_km": 54.7,
+            "per_junction": 177,
+            "per_junction_per_km": 9.5,
+            "bend_over_threshold_no_junction_test": 69,
+            "bend_over_threshold_per_km": 3.7,
+            "unsmoothed_bend_over_threshold": 99,
+            "unsmoothed_bend_per_km": 5.3
+          },
+          "stats": {
+            "route_m": 18580.6,
+            "polyline_vertices": 1016,
+            "edges": 178,
+            "turns": {
+              "junctions": 177,
+              "bend_below_threshold": 108,
+              "no_alternative": 3,
+              "same_way_continuation": 23,
+              "before_coalescing": 43,
+              "coalesced_away": 7,
+              "emitted": 36,
+              "reversals": 6
+            },
+            "surfaces": {
+              "known_runs": 3,
+              "raw_transitions": 2,
+              "suppressed_short": 0,
+              "emitted": 2
+            },
+            "nodes": {
+              "considered": 6,
+              "off_route": 1,
+              "emitted": 5
+            },
+            "merge": {
+              "before": 49,
+              "merged_away": 1,
+              "after": 48
+            },
+            "retrace": {
+              "retraced_span_m": 520.8,
+              "cues_marked": 4
+            },
+            "cues": 48,
+            "cues_per_km": 2.58,
+            "derived_cues": 37,
+            "derived_cues_per_km": 1.99,
+            "authored_cues": 11,
+            "vertices_per_km": 54.68,
+            "within_legibility_ceiling": true,
+            "by_kind": {
+              "alternate": 1,
+              "finish": 1,
+              "hazard": 2,
+              "node": 4,
+              "portage": 1,
+              "start": 1,
+              "surface": 1,
+              "transition": 1,
+              "turn": 36
+            }
+          },
+          "peak_cues_per_km": 6,
+          "median_cues_per_km": 3,
+          "legible": true
+        }
+      ],
+      "sweep": [
+        {
+          "smoothing_m": 10.0,
+          "straight_deg": 20.0,
+          "turns": 39,
+          "cues": 50,
+          "cues_per_km": 2.69
+        },
+        {
+          "smoothing_m": 10.0,
+          "straight_deg": 30.0,
+          "turns": 38,
+          "cues": 49,
+          "cues_per_km": 2.64
+        },
+        {
+          "smoothing_m": 10.0,
+          "straight_deg": 45.0,
+          "turns": 36,
+          "cues": 47,
+          "cues_per_km": 2.53
+        },
+        {
+          "smoothing_m": 25.0,
+          "straight_deg": 20.0,
+          "turns": 38,
+          "cues": 49,
+          "cues_per_km": 2.64
+        },
+        {
+          "smoothing_m": 25.0,
+          "straight_deg": 30.0,
+          "turns": 36,
+          "cues": 48,
+          "cues_per_km": 2.58
+        },
+        {
+          "smoothing_m": 25.0,
+          "straight_deg": 45.0,
+          "turns": 32,
+          "cues": 44,
+          "cues_per_km": 2.37
+        },
+        {
+          "smoothing_m": 50.0,
+          "straight_deg": 20.0,
+          "turns": 33,
+          "cues": 45,
+          "cues_per_km": 2.42
+        },
+        {
+          "smoothing_m": 50.0,
+          "straight_deg": 30.0,
+          "turns": 33,
+          "cues": 45,
+          "cues_per_km": 2.42
+        },
+        {
+          "smoothing_m": 50.0,
+          "straight_deg": 45.0,
+          "turns": 30,
+          "cues": 42,
+          "cues_per_km": 2.26
+        }
+      ],
+      "schema_errors": [],
+      "payload_bytes": 104190
+    },
+    {
+      "region": "davis",
+      "name": "Davis, CA",
+      "surface_tagged_pct": 34.4,
+      "scenarios": [
+        {
+          "name": "cross-town point-to-point",
+          "shape": "point_to_point",
+          "solve_ms": 8.8,
+          "derive_ms": 2.08,
+          "baselines": {
+            "per_vertex": 160,
+            "per_vertex_per_km": 36.9,
+            "per_junction": 45,
+            "per_junction_per_km": 10.4,
+            "bend_over_threshold_no_junction_test": 15,
+            "bend_over_threshold_per_km": 3.5,
+            "unsmoothed_bend_over_threshold": 13,
+            "unsmoothed_bend_per_km": 3.0
+          },
+          "stats": {
+            "route_m": 4333.1,
+            "polyline_vertices": 160,
+            "edges": 46,
+            "turns": {
+              "junctions": 45,
+              "bend_below_threshold": 29,
+              "no_alternative": 0,
+              "same_way_continuation": 7,
+              "before_coalescing": 8,
+              "coalesced_away": 1,
+              "emitted": 7,
+              "reversals": 0
+            },
+            "surfaces": {
+              "known_runs": 1,
+              "raw_transitions": 0,
+              "suppressed_short": 0,
+              "emitted": 0
+            },
+            "nodes": {
+              "considered": 6,
+              "off_route": 1,
+              "emitted": 5
+            },
+            "merge": {
+              "before": 18,
+              "merged_away": 1,
+              "after": 17
+            },
+            "retrace": {
+              "retraced_span_m": 0,
+              "cues_marked": 0
+            },
+            "cues": 17,
+            "cues_per_km": 3.92,
+            "derived_cues": 7,
+            "derived_cues_per_km": 1.62,
+            "authored_cues": 10,
+            "vertices_per_km": 36.93,
+            "within_legibility_ceiling": true,
+            "by_kind": {
+              "alternate": 1,
+              "finish": 1,
+              "hazard": 2,
+              "node": 3,
+              "portage": 1,
+              "start": 1,
+              "transition": 1,
+              "turn": 7
+            }
+          },
+          "peak_cues_per_km": 6,
+          "median_cues_per_km": 3,
+          "legible": true
+        },
+        {
+          "name": "20 km loop",
+          "shape": "loop",
+          "solve_ms": 100.8,
+          "derive_ms": 7.78,
+          "baselines": {
+            "per_vertex": 844,
+            "per_vertex_per_km": 48.4,
+            "per_junction": 224,
+            "per_junction_per_km": 12.8,
+            "bend_over_threshold_no_junction_test": 98,
+            "bend_over_threshold_per_km": 5.6,
+            "unsmoothed_bend_over_threshold": 104,
+            "unsmoothed_bend_per_km": 6.0
+          },
+          "stats": {
+            "route_m": 17453.8,
+            "polyline_vertices": 844,
+            "edges": 225,
+            "turns": {
+              "junctions": 224,
+              "bend_below_threshold": 125,
+              "no_alternative": 3,
+              "same_way_continuation": 41,
+              "before_coalescing": 54,
+              "coalesced_away": 5,
+              "emitted": 49,
+              "reversals": 2
+            },
+            "surfaces": {
+              "known_runs": 1,
+              "raw_transitions": 0,
+              "suppressed_short": 0,
+              "emitted": 0
+            },
+            "nodes": {
+              "considered": 6,
+              "off_route": 1,
+              "emitted": 5
+            },
+            "merge": {
+              "before": 60,
+              "merged_away": 0,
+              "after": 60
+            },
+            "retrace": {
+              "retraced_span_m": 46.1,
+              "cues_marked": 0
+            },
+            "cues": 60,
+            "cues_per_km": 3.44,
+            "derived_cues": 49,
+            "derived_cues_per_km": 2.81,
+            "authored_cues": 11,
+            "vertices_per_km": 48.36,
+            "within_legibility_ceiling": true,
+            "by_kind": {
+              "alternate": 1,
+              "finish": 1,
+              "hazard": 2,
+              "node": 4,
+              "portage": 1,
+              "start": 1,
+              "transition": 1,
+              "turn": 49
+            }
+          },
+          "peak_cues_per_km": 6,
+          "median_cues_per_km": 3.0,
+          "legible": true
+        },
+        {
+          "name": "20 km loop through two via-nodes",
+          "shape": "loop",
+          "solve_ms": 212.5,
+          "derive_ms": 8.66,
+          "baselines": {
+            "per_vertex": 900,
+            "per_vertex_per_km": 40.1,
+            "per_junction": 306,
+            "per_junction_per_km": 13.6,
+            "bend_over_threshold_no_junction_test": 102,
+            "bend_over_threshold_per_km": 4.5,
+            "unsmoothed_bend_over_threshold": 113,
+            "unsmoothed_bend_per_km": 5.0
+          },
+          "stats": {
+            "route_m": 22428.6,
+            "polyline_vertices": 900,
+            "edges": 307,
+            "turns": {
+              "junctions": 306,
+              "bend_below_threshold": 203,
+              "no_alternative": 3,
+              "same_way_continuation": 42,
+              "before_coalescing": 57,
+              "coalesced_away": 5,
+              "emitted": 52,
+              "reversals": 3
+            },
+            "surfaces": {
+              "known_runs": 1,
+              "raw_transitions": 0,
+              "suppressed_short": 0,
+              "emitted": 0
+            },
+            "nodes": {
+              "considered": 6,
+              "off_route": 1,
+              "emitted": 5
+            },
+            "merge": {
+              "before": 63,
+              "merged_away": 0,
+              "after": 63
+            },
+            "retrace": {
+              "retraced_span_m": 1494.0,
+              "cues_marked": 4
+            },
+            "cues": 63,
+            "cues_per_km": 2.81,
+            "derived_cues": 52,
+            "derived_cues_per_km": 2.32,
+            "authored_cues": 11,
+            "vertices_per_km": 40.13,
+            "within_legibility_ceiling": true,
+            "by_kind": {
+              "alternate": 1,
+              "finish": 1,
+              "hazard": 2,
+              "node": 4,
+              "portage": 1,
+              "start": 1,
+              "transition": 1,
+              "turn": 52
+            }
+          },
+          "peak_cues_per_km": 6,
+          "median_cues_per_km": 2,
+          "legible": true
+        }
+      ],
+      "sweep": [
+        {
+          "smoothing_m": 10.0,
+          "straight_deg": 20.0,
+          "turns": 56,
+          "cues": 67,
+          "cues_per_km": 2.99
+        },
+        {
+          "smoothing_m": 10.0,
+          "straight_deg": 30.0,
+          "turns": 53,
+          "cues": 64,
+          "cues_per_km": 2.85
+        },
+        {
+          "smoothing_m": 10.0,
+          "straight_deg": 45.0,
+          "turns": 50,
+          "cues": 61,
+          "cues_per_km": 2.72
+        },
+        {
+          "smoothing_m": 25.0,
+          "straight_deg": 20.0,
+          "turns": 53,
+          "cues": 64,
+          "cues_per_km": 2.85
+        },
+        {
+          "smoothing_m": 25.0,
+          "straight_deg": 30.0,
+          "turns": 52,
+          "cues": 63,
+          "cues_per_km": 2.81
+        },
+        {
+          "smoothing_m": 25.0,
+          "straight_deg": 45.0,
+          "turns": 47,
+          "cues": 58,
+          "cues_per_km": 2.59
+        },
+        {
+          "smoothing_m": 50.0,
+          "straight_deg": 20.0,
+          "turns": 48,
+          "cues": 59,
+          "cues_per_km": 2.63
+        },
+        {
+          "smoothing_m": 50.0,
+          "straight_deg": 30.0,
+          "turns": 43,
+          "cues": 54,
+          "cues_per_km": 2.41
+        },
+        {
+          "smoothing_m": 50.0,
+          "straight_deg": 45.0,
+          "turns": 40,
+          "cues": 51,
+          "cues_per_km": 2.27
+        }
+      ],
+      "schema_errors": [],
+      "payload_bytes": 92524
+    },
+    {
+      "region": "viroqua",
+      "name": "Viroqua, WI (Driftless)",
+      "surface_tagged_pct": 24.5,
+      "scenarios": [
+        {
+          "name": "cross-town point-to-point",
+          "shape": "point_to_point",
+          "solve_ms": 1.7,
+          "derive_ms": 1.08,
+          "baselines": {
+            "per_vertex": 74,
+            "per_vertex_per_km": 12.8,
+            "per_junction": 24,
+            "per_junction_per_km": 4.2,
+            "bend_over_threshold_no_junction_test": 8,
+            "bend_over_threshold_per_km": 1.4,
+            "unsmoothed_bend_over_threshold": 9,
+            "unsmoothed_bend_per_km": 1.6
+          },
+          "stats": {
+            "route_m": 5777.4,
+            "polyline_vertices": 74,
+            "edges": 25,
+            "turns": {
+              "junctions": 24,
+              "bend_below_threshold": 16,
+              "no_alternative": 0,
+              "same_way_continuation": 3,
+              "before_coalescing": 5,
+              "coalesced_away": 0,
+              "emitted": 5,
+              "reversals": 0
+            },
+            "surfaces": {
+              "known_runs": 2,
+              "raw_transitions": 1,
+              "suppressed_short": 1,
+              "emitted": 0
+            },
+            "nodes": {
+              "considered": 6,
+              "off_route": 1,
+              "emitted": 5
+            },
+            "merge": {
+              "before": 16,
+              "merged_away": 0,
+              "after": 16
+            },
+            "retrace": {
+              "retraced_span_m": 0,
+              "cues_marked": 0
+            },
+            "cues": 16,
+            "cues_per_km": 2.77,
+            "derived_cues": 5,
+            "derived_cues_per_km": 0.87,
+            "authored_cues": 11,
+            "vertices_per_km": 12.81,
+            "within_legibility_ceiling": true,
+            "by_kind": {
+              "alternate": 1,
+              "finish": 1,
+              "hazard": 2,
+              "node": 4,
+              "portage": 1,
+              "start": 1,
+              "transition": 1,
+              "turn": 5
+            }
+          },
+          "peak_cues_per_km": 6,
+          "median_cues_per_km": 2.5,
+          "legible": true
+        },
+        {
+          "name": "20 km loop",
+          "shape": "loop",
+          "solve_ms": 19.2,
+          "derive_ms": 4.13,
+          "baselines": {
+            "per_vertex": 436,
+            "per_vertex_per_km": 23.7,
+            "per_junction": 101,
+            "per_junction_per_km": 5.5,
+            "bend_over_threshold_no_junction_test": 37,
+            "bend_over_threshold_per_km": 2.0,
+            "unsmoothed_bend_over_threshold": 69,
+            "unsmoothed_bend_per_km": 3.8
+          },
+          "stats": {
+            "route_m": 18393.1,
+            "polyline_vertices": 436,
+            "edges": 102,
+            "turns": {
+              "junctions": 101,
+              "bend_below_threshold": 64,
+              "no_alternative": 0,
+              "same_way_continuation": 14,
+              "before_coalescing": 23,
+              "coalesced_away": 2,
+              "emitted": 21,
+              "reversals": 2
+            },
+            "surfaces": {
+              "known_runs": 5,
+              "raw_transitions": 4,
+              "suppressed_short": 2,
+              "emitted": 2
+            },
+            "nodes": {
+              "considered": 6,
+              "off_route": 1,
+              "emitted": 5
+            },
+            "merge": {
+              "before": 34,
+              "merged_away": 1,
+              "after": 33
+            },
+            "retrace": {
+              "retraced_span_m": 1208.9,
+              "cues_marked": 3
+            },
+            "cues": 33,
+            "cues_per_km": 1.79,
+            "derived_cues": 22,
+            "derived_cues_per_km": 1.2,
+            "authored_cues": 11,
+            "vertices_per_km": 23.7,
+            "within_legibility_ceiling": true,
+            "by_kind": {
+              "alternate": 1,
+              "finish": 1,
+              "hazard": 2,
+              "node": 4,
+              "portage": 1,
+              "start": 1,
+              "surface": 1,
+              "transition": 1,
+              "turn": 21
+            }
+          },
+          "peak_cues_per_km": 5,
+          "median_cues_per_km": 1,
+          "legible": true
+        },
+        {
+          "name": "20 km loop through two via-nodes",
+          "shape": "loop",
+          "solve_ms": 5.9,
+          "derive_ms": 4.03,
+          "baselines": {
+            "per_vertex": 460,
+            "per_vertex_per_km": 22.0,
+            "per_junction": 112,
+            "per_junction_per_km": 5.3,
+            "bend_over_threshold_no_junction_test": 48,
+            "bend_over_threshold_per_km": 2.3,
+            "unsmoothed_bend_over_threshold": 40,
+            "unsmoothed_bend_per_km": 1.9
+          },
+          "stats": {
+            "route_m": 20941.6,
+            "polyline_vertices": 460,
+            "edges": 113,
+            "turns": {
+              "junctions": 112,
+              "bend_below_threshold": 64,
+              "no_alternative": 0,
+              "same_way_continuation": 20,
+              "before_coalescing": 28,
+              "coalesced_away": 0,
+              "emitted": 28,
+              "reversals": 4
+            },
+            "surfaces": {
+              "known_runs": 3,
+              "raw_transitions": 2,
+              "suppressed_short": 2,
+              "emitted": 0
+            },
+            "nodes": {
+              "considered": 6,
+              "off_route": 1,
+              "emitted": 5
+            },
+            "merge": {
+              "before": 39,
+              "merged_away": 0,
+              "after": 39
+            },
+            "retrace": {
+              "retraced_span_m": 2724.3,
+              "cues_marked": 9
+            },
+            "cues": 39,
+            "cues_per_km": 1.86,
+            "derived_cues": 28,
+            "derived_cues_per_km": 1.34,
+            "authored_cues": 11,
+            "vertices_per_km": 21.97,
+            "within_legibility_ceiling": true,
+            "by_kind": {
+              "alternate": 1,
+              "finish": 1,
+              "hazard": 2,
+              "node": 4,
+              "portage": 1,
+              "start": 1,
+              "transition": 1,
+              "turn": 28
+            }
+          },
+          "peak_cues_per_km": 5,
+          "median_cues_per_km": 2,
+          "legible": true
+        }
+      ],
+      "sweep": [
+        {
+          "smoothing_m": 10.0,
+          "straight_deg": 20.0,
+          "turns": 28,
+          "cues": 39,
+          "cues_per_km": 1.86
+        },
+        {
+          "smoothing_m": 10.0,
+          "straight_deg": 30.0,
+          "turns": 28,
+          "cues": 39,
+          "cues_per_km": 1.86
+        },
+        {
+          "smoothing_m": 10.0,
+          "straight_deg": 45.0,
+          "turns": 28,
+          "cues": 39,
+          "cues_per_km": 1.86
+        },
+        {
+          "smoothing_m": 25.0,
+          "straight_deg": 20.0,
+          "turns": 28,
+          "cues": 39,
+          "cues_per_km": 1.86
+        },
+        {
+          "smoothing_m": 25.0,
+          "straight_deg": 30.0,
+          "turns": 28,
+          "cues": 39,
+          "cues_per_km": 1.86
+        },
+        {
+          "smoothing_m": 25.0,
+          "straight_deg": 45.0,
+          "turns": 28,
+          "cues": 39,
+          "cues_per_km": 1.86
+        },
+        {
+          "smoothing_m": 50.0,
+          "straight_deg": 20.0,
+          "turns": 27,
+          "cues": 38,
+          "cues_per_km": 1.81
+        },
+        {
+          "smoothing_m": 50.0,
+          "straight_deg": 30.0,
+          "turns": 27,
+          "cues": 38,
+          "cues_per_km": 1.81
+        },
+        {
+          "smoothing_m": 50.0,
+          "straight_deg": 45.0,
+          "turns": 27,
+          "cues": 38,
+          "cues_per_km": 1.81
+        }
+      ],
+      "schema_errors": [],
+      "payload_bytes": 54292
+    }
+  ],
+  "failures": [],
+  "dart": {
+    "ran": true,
+    "ok": true,
+    "byte_identical": true,
+    "drift_bytes_identical": true,
+    "cue_sheets": 3,
+    "cues_before": 139,
+    "cues_after": 139,
+    "retrace_flags_before": 8,
+    "retrace_flags_after": 8,
+    "cues_identical": true
+  },
+  "dart_region": "boulder",
+  "passed": true
+}

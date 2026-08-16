@@ -481,7 +481,7 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 
 **F1 — Generate daily cue sheets** *[MVP]* — *FR46*
 **As an** Author, **I want** per-day cue sheets **so that** Characters have reliable directions on screen or paper.
-*AC:* Per-day cues with turns, distances, surface shifts, node highlights, portages, hazards, and scheduled events; syncs to Character offline; print-optimized layout.
+*AC:* Per-day cues with turns, distances, surface shifts, node highlights, portages, hazards, and scheduled events; syncs to Character offline; print-optimized layout. **Cues are derived, ordered by distance along the route, and bounded in density** — SPIKE-21 measured 0.87–2.86 derived cues per km against a 4.0 ceiling, with hazards, portages and transitions never thinned by any crowding rule. **Two limits are stated rather than implied** (SPIKE-21, ARCH A19): *surface shifts are best-effort and bounded by OSM tagging* — six across 132 km of test routes, none at all in one region — and never inferred from road class; and *a turn cue names a way only where OSM names one* (46% of edges in the densest test region), otherwise describing its type ("the bike path", "the service road"). **A cue on road the route has already ridden is marked as a retrace**, so an out-and-back spur does not read as fresh road.
 
 **F2 — Generate group and individual itineraries** *[P1]* — *FR48*
 **As an** Author, **I want** a master itinerary and tailored individual ones **so that** partial-attendance Characters get accurate personal plans.

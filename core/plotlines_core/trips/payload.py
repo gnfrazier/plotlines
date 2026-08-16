@@ -40,7 +40,10 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = "1.0.0"
+#: Bumped to 1.1.0 by SPIKE-21, which added `cue.retrace` — additive and
+#: backward compatible, exactly the "schema patch" SPIKE-20 predicted a new
+#: cue field would cost.
+SCHEMA_VERSION = "1.1.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -513,6 +516,9 @@ class Cue:
     bearing_deg: float | None = None
     ref_id: str | None = None
     segment_id: str | None = None
+    #: SPIKE-21 — this cue stands on road the route has already ridden (the return leg
+    #: of a via-node spur). Absent means fresh road.
+    retrace: bool | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -522,6 +528,7 @@ class Cue:
             "modifier": self.modifier,
             "bearing_deg": None if self.bearing_deg is None else round(f(self.bearing_deg), 1),
             "ref_id": self.ref_id, "segment_id": self.segment_id,
+            "retrace": self.retrace,
         }
 
 

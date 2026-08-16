@@ -821,6 +821,7 @@ class Cue {
     this.bearingDeg,
     this.refId,
     this.segmentId,
+    this.retrace,
   });
 
   final String id;
@@ -832,6 +833,9 @@ class Cue {
   final double? bearingDeg;
   final String? refId;
   final String? segmentId;
+
+  /// SPIKE-21 — the cue stands on road already ridden (a via-node spur's return leg).
+  final bool? retrace;
 
   factory Cue.fromJson(Map<String, dynamic> json) {
     final f = _Fields(json, 'cue');
@@ -845,6 +849,7 @@ class Cue {
       bearingDeg: f.takeNum('bearing_deg'),
       refId: f.takeString('ref_id'),
       segmentId: f.takeString('segment_id'),
+      retrace: f.takeBool('retrace'),
     );
     f.done();
     return c;
@@ -860,6 +865,7 @@ class Cue {
         'bearing_deg': bearingDeg,
         'ref_id': refId,
         'segment_id': segmentId,
+        'retrace': retrace,
       });
 }
 
