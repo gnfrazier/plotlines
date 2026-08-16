@@ -6,15 +6,19 @@ The spike asks whether a Flutter **desktop** client can draw a real routed polyl
 node markers over a vector basemap served from a local tile archive, offline, fast
 enough — and which tile source we are licensed to use.
 
+Run on **Linux** 2026-08-15 and on **Windows** the same day, closing the "two desktop
+platforms" clause the first pass could not reach from WSL.
+
 ## Layout
 
 ```
-probes/make_route.py   solve real routes on the shared fixtures → harness/assets/*.geojson
-probes/bench.py        run the rendering matrix → results/results.json
-harness/               Flutter Linux desktop app that renders and measures
-tools/pmtiles          go-pmtiles CLI v1.31.2 (downloaded, not committed)
-tiles/                 extracted PMTiles archives (not committed — see below)
-results/               RESULTS.md, results.json, region_sizes.json, shots/
+probes/make_route.py      solve real routes on the shared fixtures → harness/assets/*.geojson
+probes/bench.py           run the rendering matrix → results/results{,_windows}.json
+probes/simplify_labels.py build a reduced label theme → harness/assets/style_labels.json
+harness/                  Flutter desktop app (linux/ and windows/) that renders and measures
+tools/pmtiles             go-pmtiles CLI v1.31.2 (downloaded, not committed)
+tiles/                    extracted PMTiles archives (not committed — see below)
+results/                  RESULTS.md, results.json, results_windows.json, region_sizes.json, shots/
 ```
 
 `harness/pubspec.lock` is force-committed past Flutter's default ignore. The exact
@@ -41,9 +45,16 @@ cd tools
 
 # 4. Build and measure. Profile mode is required: vector_map_tiles disables its
 #    isolate concurrency in debug builds.
-cd ../harness && flutter build linux --profile
+cd ../harness && flutter build linux --profile      # or: flutter build windows --profile
 cd .. && python3 probes/bench.py
 ```
+
+`bench.py` detects the platform, picks the right binary and tile-cache path, and writes
+`results.json` on Linux / `results_windows.json` on Windows. **The two runs used
+byte-identical inputs** — the same three route payloads and the same 171 exploded tiles,
+copied across rather than regenerated, verified by hash — and the same locked dependency
+set. They did **not** use the same Flutter: 3.44.5 on Linux, 3.44.7 on Windows, same Dart
+SDK. Two patch releases apart, recorded in RESULTS.md §3 rather than glossed.
 
 ## Running one configuration by hand
 
@@ -87,3 +98,12 @@ unshare -rn ./build/linux/x64/profile/bundle/spike14_harness
 
 `unshare -rn` puts the process in a network namespace with nothing but a down
 loopback — no route, no DNS. A map that still renders there is genuinely offline.
+
+**On Windows this check is weaker, and the difference is not cosmetic.** Taking the
+network from a single process there means a Windows Firewall rule, which requires
+Administrator. `bench.py` falls back to auditing the process's sockets while it runs
+(`Get-NetTCPConnection`/`Get-NetUDPEndpoint` by PID) and records what it saw in
+`results_windows.json`. That observes the app made no outside connection; it does not
+make one impossible, and a connection shorter than the poll interval could hide from it.
+**The Linux namespace result stays the load-bearing evidence for P2's offline claim** —
+the Windows audit corroborates it on a second platform rather than replacing it.

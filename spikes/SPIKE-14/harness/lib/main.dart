@@ -292,6 +292,9 @@ class _HarnessMapState extends State<HarnessMap> {
     // corresponds to visible stutter, which a mean frame time hides completely.
     final janky = _total.where((t) => t > 16700).length;
     final result = {
+      // Stamped into every row because results.json is now written on two platforms
+      // and a frame time with no platform attached is unattributable.
+      'platform': Platform.operatingSystem,
       'payload': widget.payload,
       'basemap': widget.basemap,
       'theme': widget.themeName,
@@ -323,6 +326,15 @@ class _HarnessMapState extends State<HarnessMap> {
     stdout.flush().then((_) => exit(0));
   }
 
+  /// Resident set size, in KiB.
+  ///
+  /// `/proc/self/status` is tried first so the numbers stay directly comparable with
+  /// the Linux figures already in RESULTS.md, which came from exactly that field.
+  /// Windows has no procfs, and the original version simply returned 0 there — a
+  /// silent zero in a results table, which is the worst way to be wrong.
+  /// `ProcessInfo.currentRss` is the portable fallback; on Windows it is the process
+  /// working set, which is the closest available analogue to VmRSS and not identical
+  /// to it.
   int _rssKb() {
     try {
       for (final l in File('/proc/self/status').readAsLinesSync()) {
@@ -330,6 +342,9 @@ class _HarnessMapState extends State<HarnessMap> {
           return int.parse(l.replaceAll(RegExp(r'[^0-9]'), ''));
         }
       }
+    } catch (_) {}
+    try {
+      return ProcessInfo.currentRss ~/ 1024;
     } catch (_) {}
     return 0;
   }

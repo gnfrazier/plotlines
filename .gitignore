@@ -181,3 +181,6 @@ spikes/SPIKE-14/tiles/
 spikes/SPIKE-14/tools/
 spikes/SPIKE-14/harness/assets/tiles/
 spikes/SPIKE-14/harness/assets/route_*.geojson
+# Same rule, one derivation further out: style_labels.json is style_light.json with one
+# property rewritten by probes/simplify_labels.py. The script is the definition.
+spikes/SPIKE-14/harness/assets/style_labels.json

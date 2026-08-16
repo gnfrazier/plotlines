@@ -1,13 +1,20 @@
 # SPIKE-14 — Vector mapping: `maplibre_gl` + PMTiles
 
-**Run:** 2026-08-15 · **Verdict:** **negative on the named hypothesis, positive on the goal.**
-`maplibre_gl` cannot be used on Flutter desktop at all. A different stack —
-`flutter_map` + `vector_map_tiles` — renders a real routed polyline with node markers
-over a correct vector basemap, offline, on Flutter Linux desktop, and is fast enough.
-The basemap source and its licence are settled. Two things did **not** clear: the
-second desktop platform was not tested, and reading PMTiles *inside the Flutter client*
-is currently blocked by a dependency conflict — which the already-decided FR92 service
-contract happens to route around.
+**Run:** 2026-08-15 (Linux), extended the same day to **Windows** · **Verdict:** **negative
+on the named hypothesis, positive on the goal.** `maplibre_gl` cannot be used on Flutter
+desktop at all. A different stack — `flutter_map` + `vector_map_tiles` — renders a real
+routed polyline with node markers over a correct vector basemap, offline, on Flutter
+desktop, and is fast enough. The basemap source and its licence are settled.
+
+**Both of the residuals the first pass left open have since closed.** The **second
+desktop platform** now has measurements: the same stack builds and renders on Windows
+with no source change, and on real GPU hardware is 2–3× faster per frame than the
+software-rasterized Linux figures below (§3.1) — but its *tail* is no better, which
+locates the remaining cost precisely. **Labels**, which rendered nowhere on either
+renderer version, turned out not to need a renderer change at all: two mechanical
+rewrites in the style file recover street, place and water names (§2.2). One thing
+still does not clear — reading PMTiles *inside the Flutter client* is blocked by a
+dependency conflict, which the already-decided FR92 service contract routes around.
 
 ---
 
@@ -93,19 +100,50 @@ rendering the same tiles with the `light` and `dark` themes produced images diff
 0.04% of sampled pixels, with an identical dominant palette. Colour is not evidence that
 a theme was applied; a rule that fails to evaluate falls back rather than erroring.
 
-### 2.2 Labels do not render at all
+### 2.2 Labels do not render at all — **fixed, in the style rather than the renderer**
 
-On *both* renderer versions. The Protomaps v4 themes drive every label through
-`format` / `case` / `coalesce` / `is-supported-script` expressions for multi-script
-name fallback, and `vector_tile_renderer` logs `WARN: Unsupported expression syntax`
-for each and draws nothing. Every screenshot in this directory is label-free — no
-street names, no place names.
+On *both* renderer versions, no basemap text rendered: no street names, no place names.
+The Protomaps v4 themes drive every label through `format` / `case` / `coalesce` /
+`is-supported-script` expressions for multi-script name fallback, and
+`vector_tile_renderer` logs `WARN: Unsupported expression syntax` for each and draws
+nothing.
 
-For an Author placing story Nodes on a map, unlabelled roads are a real usability
-problem, not a polish item. Options, none yet chosen: use a Protomaps **v3** theme
-(older expression syntax, may fare better), author a reduced Plotlines theme with
-simple label expressions, contribute expression support upstream, or draw labels as
-Flutter widgets from the `places` layer we already receive in the tiles.
+The first pass listed four possible fixes and chose none. Testing the cheapest one —
+"author a reduced Plotlines theme" — turned out to settle it, and to narrow the
+diagnosis considerably. **The renderer is not missing label support. It is missing two
+specific expression constructs, and a style can avoid both.** Every symbol layer is
+otherwise ordinary: correct source layer, filter, line placement, halos, zoom ramps.
+
+| Rewrite | Where | Effect |
+|---|---|---|
+| `text-field` → `["get", "name"]` | 10 symbol layers | replaces ~40 lines of multi-script name fallback per layer |
+| `["in", ["get", K], ["literal", […]]]` → `["in", K, …]` | 1 filter (`pois`) | the renderer implements the legacy `in` form, not the expression form |
+
+`probes/simplify_labels.py` performs both, and the result renders:
+
+![labels rendering on Windows](shots/windows-labels-z15.png)
+
+Street names, path names and waterway names ("Boulder Crk", "Skunk Crk"), placed along
+the line with halos. **This is the option to take** — it is a style transform we run
+once over a theme we already mirror, not a dependency, a fork, or an upstream
+contribution. It also costs nothing measurable: median frame time with labels was
+3.47 ms against 3.81 ms without, and theme parse *fell* from 13.4 ms to 2.7 ms with the
+giant expressions gone. Those are single runs, so the frame-time tails are not
+comparable and no claim is made on them; the point is only that labels are not
+expensive.
+
+**Two limits, both real:**
+
+- **`["get", "name"]` is English/local-name only.** The construct being replaced exists
+  to render a local-script name with a Latin transliteration. Plotlines' MVP is
+  US-region and English (PRD §4.1), so this costs nothing now and is a genuine debt for
+  any later locale work — recorded here rather than discovered then.
+- **The `pois` layer still does not draw**, even with its filter downgraded, because it
+  *also* filters on `[">=", ["zoom"], ["get", "min_zoom"]]` — a per-feature zoom
+  threshold the renderer does not implement. Park, peak and beach names are the loss.
+  Fixing it means replacing a per-feature threshold with a static `minzoom`, which is a
+  cartographic decision (at what zoom do all POIs appear?) rather than an equivalent
+  rewrite, so the probe deliberately stops short of making it.
 
 ### 2.3 PMTiles cannot currently be read inside the Flutter client
 
@@ -138,6 +176,22 @@ now ruled out on evidence rather than preference.
 ---
 
 ## 3. Performance
+
+Measured twice, on two desktop platforms. §3 is the Linux pass; **§3.1 is Windows on real
+GPU hardware, using byte-identical inputs** — the same three route payloads and the same
+171 tiles, copied across rather than regenerated, verified by hash. The Dart dependency
+set is identical too: `flutter create` re-resolved four transitive packages when it
+generated the Windows runner, and the committed `pubspec.lock` was restored before
+building.
+
+**One variable besides the platform, disclosed rather than buried:** the Linux pass ran
+Flutter **3.44.5** and the Windows pass **3.44.7** — two patch releases and a different
+engine revision, same Dart SDK (3.12.2). Nothing was going to make a patch release
+account for a 2–3× median difference against a software rasterizer, so the comparison
+stands; it is a reason not to read the small deltas (say, warm p50 5.3 vs 11.4 ms) as
+purely a GPU effect.
+
+### 3.0 Linux
 
 Measured on **software rasterization — `llvmpipe`, no GPU** (WSLg exposes no hardware
 device; `GL_RENDERER: llvmpipe (LLVM 20.1.2, 256 bits)`). **Every number below is a
@@ -186,6 +240,68 @@ a further ~11 ms, once.
 configuration between 34 and 107 fps because a leftover process from the `maplibre`
 probe was still holding a CPU. `probes/bench.py` now waits for the load average to fall
 before each cell. On a software rasterizer, a single run is not evidence.
+
+### 3.1 Windows — the second desktop platform, on real hardware
+
+**It builds and renders with no source change.** `flutter create --platforms=windows .`
+generated the runner; the only code edit the platform needed was a non-Linux fallback in
+the harness's own RSS probe, which read `/proc/self/status` and had been returning a
+silent zero anywhere else. `pubspec.lock` was restored after `flutter create` re-resolved
+four transitive packages, so both platforms measured the identical dependency set.
+
+![Windows render](shots/windows-multi-z14.png)
+
+Windows 11, **Intel Iris Xe — hardware D3D, not a software rasterizer**, though an
+*integrated* GPU, so this is the modest end of real hardware rather than the good end.
+5 repeats per cell, same scripted orbit-and-zoom at z14, 1280×720, profile build.
+
+| Configuration | p50 | p95 | p99 | fps p50 | over budget | Working set |
+|---|---|---|---|---|---|---|
+| Route only, day | 3.6 ms | 5.3 ms | 6.0 ms | 275 | **0%** | 307 MB |
+| Route only, multi | 5.3 ms | 7.2 ms | 8.5 ms | 190 | **0%** | 432 MB |
+| Route only, stress (41k) | 4.7 ms | 6.7 ms | 7.8 ms | 213 | **0%** | 408 MB |
+| Vector basemap, day, cold | 3.9 ms | 34.1 ms | 69.9 ms | 257 | 13% | 926 MB |
+| Vector basemap, multi, cold | 5.5 ms | 39.9 ms | 64.8 ms | 181 | 16% | 1,038 MB |
+| Vector basemap, stress, cold | 5.5 ms | 39.5 ms | 67.2 ms | 181 | 15% | 1,037 MB |
+| **Vector basemap, multi, warm** | 5.3 ms | **7.6 ms** | 11.7 ms | 190 | **1%** | 1,209 MB |
+| Vector basemap, multi, no network | 6.4 ms | 42.9 ms | 89.8 ms | 156 | 17% | 1,050 MB |
+
+**The GPU makes drawing free and does nothing for the tail — which is the useful
+result.** Median frame time falls 2–3× against Linux (5.5 → 3.6 ms route-only day;
+13.1 → 5.5 ms basemap multi cold), and jank on the worst cell drops from 47% to 15%. But
+cold p95 is *no better* (39.9 ms vs 33.2 ms) and cold **p99 is worse** (64.8 ms vs
+45.5 ms). Two platforms, two rasterizers, same shape: **the cost that survives hardware
+acceleration is tile decode, not drawing.** Anything spent optimizing the render path is
+spent in the wrong place; the lever is decode and prefetch.
+
+**Warm is comfortable rather than borderline.** p95 7.6 ms against Linux's 15.5 ms — the
+60 Hz budget with 9 ms to spare, and 1% of frames over. The revisited-viewport case, which
+is most of what an Author does while placing Nodes, is not a performance concern on
+hardware.
+
+**Route geometry is free here too**, and more emphatically: the 41k-vertex payload
+measured *faster* than the 6.9k one (4.7 vs 5.3 ms p50 — the difference is noise, which is
+the point). Zero frames over budget at every size on both platforms.
+
+**Memory is the one number that got worse, and by a lot.** ~1.0–1.2 GB working set with
+the basemap, against ~680 MB RSS on Linux; even route-only is 307–432 MB against ~280 MB.
+Some of that gap is measurement — Windows working set is not Linux `VmRSS`, and it counts
+pages the OS has not needed to reclaim — so the two columns should not be subtracted.
+What is not measurement is the order of magnitude: **a desktop map client on Windows
+should be budgeted at ~1 GB, not ~700 MB.** This is the figure that most deserves
+re-measurement on a release build before it is treated as a shipping number.
+
+**Cold open stays trivial**: 4 ms route-only, 15 ms with the basemap, 32 ms for the 41k
+payload — all faster than Linux, all far below anything a user perceives.
+
+**Offline: verified more weakly here, and the difference is stated rather than smoothed.**
+Taking the network from one process on Windows needs a firewall rule and Administrator,
+which this session did not have. `bench.py` instead audited the process's TCP and UDP
+endpoints by PID while it ran, and **observed no remote endpoint at all** — recorded in
+`results_windows.json` as `remote_endpoints_observed: []`. That is corroboration on a
+second platform, not proof: it observes that no connection was made rather than making one
+impossible, and a connection shorter than the poll interval could hide from it. **The
+Linux `unshare -rn` result remains the load-bearing evidence for P2's offline claim.**
 
 ---
 
@@ -289,18 +405,28 @@ Against these numbers the open sub-questions resolve as follows:
 
 ## 7. What did not clear
 
-- **The second desktop platform.** Only Linux was tested. Flutter's Windows toolchain
-  is not reachable from WSL, so `flutter build windows` could not run. The stack is
-  pure Dart with no platform channels, and `flutter_map`/`vector_map_tiles` both carry
-  Windows platform tags — but §1 is precisely a case of platform tags being wrong, so
-  this is **untested, not "probably fine"**. The harness is environment-driven and will
-  run as-is on a Windows Flutter install; that is the cheapest way to close this.
-- **Labels** (§2.2). No basemap text renders at all. Needs a decision.
-- **GPU performance.** Everything here is software-rasterized. The numbers are a floor,
-  and the memory figure especially deserves re-measurement on real hardware.
-- **Pre-release dependency.** The working stack depends on a beta. Shipping on it, or
-  waiting for `vector_map_tiles` 9 stable, is a call this spike surfaces rather than
-  makes.
+Four items were open after the Linux pass. **Two have since closed, one narrowed to a
+cartographic choice, and one is unchanged.**
+
+- ~~**The second desktop platform.**~~ **Closed (§3.1).** Windows builds and renders with
+  no source change and is measured across the same matrix. Worth keeping the reason this
+  was held open rather than assumed: the spike's own headline finding is *platform tags
+  lying about desktop support*, so "pure Dart, therefore fine" was exactly the inference
+  §1 had just disproved. It happened to be right this time. It was still worth checking.
+- ~~**GPU performance.**~~ **Closed (§3.1).** Real hardware is 2–3× faster per frame and
+  **no faster in the tail**, which relocates the remaining cost to tile decode on both
+  platforms. Memory went the other way: ~1 GB, not ~700 MB.
+- ~~**Labels.**~~ **Fixed (§2.2)** — in the style, not the renderer, with two mechanical
+  rewrites. What remains is not the original problem but a residue of it: the `pois`
+  layer needs a per-feature zoom threshold replaced by a static one, which is a
+  cartographic decision rather than a rewrite. Park, peak and beach names are what is
+  missing until it is made.
+- **Pre-release dependency — unchanged.** The working stack still depends on a beta.
+  Shipping on it, or waiting for `vector_map_tiles` 9 stable, is a call this spike
+  surfaces rather than makes. Windows changes nothing here; it is the same package.
+
+Also still open, and untouched by any of this: **macOS**, which no one has run and which
+this spike never claimed. Two platforms was the bar, and two platforms is what there is.
 
 ---
 
@@ -318,5 +444,13 @@ Against these numbers the open sub-questions resolve as follows:
    CC BY (§4).
 5. **Budget ~3.5 MB per 1,000 km² at z0–15** for offline packages, and treat z14 as the
    size-relief lever (§6).
-6. **Close the two open items before the map is built on**: run the harness on Windows,
-   and pick a labels approach.
+6. **Ship a Plotlines-authored basemap theme, generated from the mirrored Protomaps theme
+   by the transform in `probes/simplify_labels.py`** (§2.2). It is the labels fix, it is
+   two rewrites long, and it belongs in the tile pipeline next to the mirror — not in the
+   client, and not in a fork of the renderer. Decide the `pois` zoom threshold when the
+   map screens get designed.
+7. **Budget the desktop client at ~1 GB of memory on Windows**, not the ~700 MB the Linux
+   pass suggested (§3.1), and re-measure on a release build before treating either as
+   final.
+8. **Optimize tile decode, not rendering, if the cold-view tail ever needs work.** It is
+   the one cost that survived hardware acceleration on both platforms.
