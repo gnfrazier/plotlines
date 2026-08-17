@@ -17,9 +17,11 @@ sentinel and confirming all three built binaries still reported their build-time
 they read the bundled copy, not the source tree. `--version` works without `--cache-dir`
 so the client can run the A8 check *before* spawning anything.
 
-**Client half: not built.** The Flutter client doesn't exist yet, so nothing yet compares
-the two versions or refuses a mismatch. On Windows the client also owes the §7.3 process
-control that SPIKE-00 found cannot be improvised — see `TODO.md`.
+**Client half: built, POSIX-only.** `SidecarManager` (`client/lib/data/sidecar_manager.dart`)
+runs the client's own `--version` check against the spawned binary and refuses a mismatch
+before anything else is committed, and implements graceful POSIX stop (SIGTERM → SIGKILL).
+On Windows it still owes the §7.3 process control that SPIKE-00 found cannot be improvised
+(`taskkill /f` is the interim stand-in) — see `TODO.md`.
 
 ## Building the sidecar
 

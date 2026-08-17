@@ -18,10 +18,18 @@ When characters embark on the journey, they can sync the plan to their mobile ap
 
 ## Current focus: desktop MVP
 
-This repo is currently building the **desktop MVP**: a local Plotlines client that generates
+This repo is building the **desktop MVP**: a local Plotlines client that generates
 theme-weighted, multimodal-capable routes via a sidecar, curates them, and exports them — no
 hosted service, no accounts, no sync, no Web, no mobile field execution. See
 `docs/Plotlines_MVP_Scope_and_Setup.md` §1 for the exact in/out-of-scope line.
+
+**Status:** the Flutter Author Desktop client is built and running against a real sidecar —
+trip library, new-route/theme/via-node picking, the route planner (weights, bands, live A6
+conflict diagnosis), node & narrative curation, cue sheet + GPX/GeoJSON export, settings, and
+attribution are all implemented and exercisable end to end. What's real vs. still a stated gap
+(loop generation, basemap tiles, turn-by-turn cues, geocoding, TCX/FIT) is catalogued in
+`docs/Plotlines_MVP_Scope_and_Setup.md` §8 — nothing there is a hidden surprise, and nothing in
+the client fakes data to paper over a gap.
 
 ## Docs
 
@@ -49,11 +57,13 @@ The planning docs live in `/docs` and are the source of truth:
 plotlines/
 ├── core/            # plotlines-core — pure Python routing library (P1: no fastapi import)
 ├── service/         # plotlines-service — FastAPI wrapper (sidecar now, hosted later)
-├── client/          # Flutter app (desktop first)
+├── client/          # Flutter app (desktop first) — domain/data/state/presentation built
+│   ├── lib/         #   Author Desktop: trip library, new route, planner, cue sheet/export,
+│   │                #   settings, about — see client/lib/domain/README.md for the payload layer
 │   ├── design/      #   imported Claude Design reference — wireframes, brand guide,
 │   │                #   UI gallery, CSS tokens, specimen cards
 │   └── packages/    #   plotlines_ui — the design system as a Flutter package
-│                    #   (a path dependency, not reference; never yet compiled)
+│                    #   (a path dependency; compiles clean, fonts vendored offline)
 ├── packaging/        # frozen-binary build, installers, signing; version.lock is the
 │                     # single source of truth both client and sidecar stamp themselves with
 ├── docs/             # PRD, architecture, MVP scope, research spikes
@@ -69,17 +79,65 @@ Toolchain, verified for WSL/Ubuntu:
 
 - **Python 3.11+** with working `venv`/`pip` (on Debian/Ubuntu: `python3.12-venv` and
   `python3-pip` if missing) — plus `libgdal-dev`, `libgeos-dev`, `libproj-dev`, and
-  `build-essential` for the geospatial stack (`core/pyproject.toml` lists the intended deps,
-  commented out until real core work begins).
+  `build-essential` for the geospatial stack `core/pyproject.toml` declares
+  (osmnx, shapely, rasterio, numpy, networkx).
 - **[uv](https://github.com/astral-sh/uv)** for Python dependency management.
 - **Flutter SDK** with Linux desktop enabled (`flutter config --enable-linux-desktop`);
   run `flutter doctor` to confirm. Needs a working display — WSLg provides this on WSL2.
 - **Git.**
 
-No build/run instructions yet. `client` is scaffolding only (no UI implementation), and
-`service` is the sidecar shell from SPIKE-00. `core` is no longer empty: the spikes landed
-real graph loading, scoring, routing and trip composition under `core/plotlines_core/`
-(SPIKE-00 through SPIKE-03, and SPIKE-20's `trips/`) — spike-driven code in the product's
-own package, not a parallel prototype. The remaining first-week items are in
-`docs/Plotlines_MVP_Scope_and_Setup.md` §6.
+`core` and `service` are real: graph loading, scoring, routing, trip composition, and the
+FastAPI sidecar wrapper (`/health`, `/segments/generate`, `/segments/envelope`,
+`/segments/diagnose`) all work end to end against the committed Boulder, CO fixture graph
+(`spikes/SPIKE-00/cache`). `client` is a real Flutter app, not scaffolding — see
+**Running the desktop app** below. Remaining known gaps (loop-shape generation, basemap
+tiles, live turn-by-turn cues, region download, geocoding) are tracked in
+`docs/Plotlines_MVP_Scope_and_Setup.md` §8, not silently missing.
+
+## Running the desktop app
+
+The client always spawns its **own** sidecar process (ARCH §7.3, M12) — there's no "point it
+at an already-running dev server" mode — so the sidecar binary has to be built at least once
+before `flutter run` will get past the loading screen.
+
+**1. Set up the Python side and build the sidecar** (from the repo root):
+
+```bash
+uv venv .venv
+source .venv/bin/activate                 # .venv/Scripts/activate on Windows
+uv pip install -e ./core -e ./service
+uv pip install pyinstaller                # not a declared dependency yet — see packaging/README.md
+
+./packaging/build_sidecar.sh pyinstaller-onedir
+```
+
+This produces `packaging/dist/pyinstaller-onedir/plotlines-sidecar/plotlines-sidecar`, which
+`SidecarManager` (`client/lib/data/sidecar_manager.dart`) finds automatically via a
+repo-relative dev fallback — no environment variable or flag needed. It also falls back to
+the committed `spikes/SPIKE-00/cache` graph/DEM for the same reason: there's no region-download
+pipeline yet (MVP doc §8), so every trip today routes against Boulder, CO regardless of what
+the first-run location prompt is given.
+
+Rebuild the binary any time `core/` or `service/` change — it's a frozen snapshot, not a live
+reload.
+
+**2. Fetch Flutter dependencies** (client app + the local `plotlines_ui` package):
+
+```bash
+cd client
+flutter pub get
+(cd packages/plotlines_ui && flutter pub get)
+```
+
+**3. Run it:**
+
+```bash
+flutter run -d linux
+```
+
+First launch takes a few seconds while the sidecar loads the graph (M13's honest "starting"
+screen, escalating its message if it runs long) before handing off to the trip library.
+
+`flutter test` and `flutter analyze` both run clean from `client/` and are worth checking
+before a PR.
 
