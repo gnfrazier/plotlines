@@ -19,11 +19,50 @@ class SidecarStatus {
   final int? port;
 }
 
-/// The client's own build version, stamped from `packaging/version.lock` at
-/// build time in the real pipeline (MVP doc §2.2). No build script wires that
-/// stamp yet (open question — see MVP doc), so this constant is hand-kept in
-/// sync with `packaging/version.lock` for now.
-const String kClientVersion = '0.0.1';
+/// The client's own build version, read from `packaging/version.lock` (ARCH
+/// §12.1, MVP doc §2.2) rather than hand-kept — a hand-kept constant is
+/// exactly the "two artifacts quietly diverge" failure A8 exists to close,
+/// and it already had (the constant sat at `0.0.1` while `version.lock` was
+/// free to move). Flutter has no simple pre-build shell hook the way the
+/// sidecar's freeze script does, so this reads the file at runtime instead
+/// of stamping a generated constant at build time — the same repo-relative
+/// dev-fallback resolution [SidecarManager] already uses for the binary and
+/// cache dir, which means it can never itself drift from the file it reads.
+/// Cached after the first successful read since the file cannot change
+/// under a running process.
+String? _cachedClientVersion;
+
+String resolveClientVersion() {
+  final cached = _cachedClientVersion;
+  if (cached != null) return cached;
+
+  final exeDir = File(Platform.resolvedExecutable).parent;
+  final bundled = File('${exeDir.path}/version.lock');
+  File? found = bundled.existsSync() ? bundled : null;
+
+  if (found == null) {
+    var dir = Directory.current;
+    for (var i = 0; i < 6; i++) {
+      final candidate = File('${dir.path}/packaging/version.lock');
+      if (candidate.existsSync()) {
+        found = candidate;
+        break;
+      }
+      if (dir.parent.path == dir.path) break;
+      dir = dir.parent;
+    }
+  }
+  if (found == null) {
+    throw StateError('version.lock not found (dev or bundled)');
+  }
+
+  final version = found
+      .readAsLinesSync()
+      .map((l) => l.trim())
+      .firstWhere((l) => l.isNotEmpty && !l.startsWith('#'));
+  _cachedClientVersion = version;
+  return version;
+}
 
 class SidecarManager extends ChangeNotifier {
   SidecarManager({this.cacheDirOverride, this.binaryOverride});
@@ -112,10 +151,11 @@ class SidecarManager extends ChangeNotifier {
     final binPath = _resolveBinaryPath();
 
     final sidecarVersion = await readBinaryVersion();
-    if (sidecarVersion != kClientVersion) {
+    final clientVersion = resolveClientVersion();
+    if (sidecarVersion != clientVersion) {
       // A8: never run the client against a mismatched sidecar.
       _set(SidecarState.failed,
-          detail: 'version mismatch: client $kClientVersion, '
+          detail: 'version mismatch: client $clientVersion, '
               'sidecar $sidecarVersion');
       return;
     }

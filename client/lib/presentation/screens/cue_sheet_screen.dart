@@ -1,18 +1,22 @@
 // Wireframe screen "04 Cue Sheet + Export".
 //
-// Two honest gaps, both open questions in the MVP doc rather than silently
-// faked here:
-//  - F1/FR46's turn-by-turn cues are `core/plotlines_core/trips/cues.py`'s
-//    job (SPIKE-21, ARCH D31) but nothing exposes them over the sidecar API
-//    yet, so there is no derived turn list to show. What's shown instead is
-//    every curated node/hazard/portage ordered by `distance_along_m` — a
-//    real, useful stop list, just not SPIKE-21's derived turns.
-//  - `core/plotlines_core/export/` has no writers and no
-//    `/trips/{id}/export` endpoint exists. GeoJSON and GPX are written
-//    entirely client-side here (see data/export/) because both are cheap
-//    enough not to need core at all; TCX and FIT stay disabled pending
-//    SPIKE-16 (which also decides whether FIT runs in the core or on-device
-//    via the Garmin FIT SDK).
+// F1's real turn-by-turn cues (SPIKE-21's `derive_cue_sheet`) are live as of
+// this session via `POST /segments/cues` — each day's segments are re-solved
+// server-side (same pattern as `/segments/envelope`/`/segments/diagnose`:
+// nothing about geometry is trusted from the client) and the real cue sheet
+// is fetched and stitched together with cumulative distance across
+// segments. If that call fails (sidecar unreachable, a segment with no
+// start point yet), the day falls back to the authored-stops proxy list —
+// an honest degrade (MVP doc §4's "external provider unreachable" family),
+// not a silent gap anymore.
+//
+// `core/plotlines_core/export/` still has no writers and no
+// `/trips/{id}/export` endpoint exists. GeoJSON, GPX, and (new this
+// session) TCX are all written entirely client-side (see data/export/) —
+// none of the three needed core. FIT stays disabled: it is explicitly
+// gated on SPIKE-16 (unresolved — also decides whether FIT runs in the
+// core or on-device via the Garmin FIT SDK), the one export format this
+// session did not fabricate an answer for.
 library;
 
 import 'dart:io';
@@ -24,8 +28,10 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../data/export/geojson_writer.dart';
 import '../../data/export/gpx_writer.dart';
+import '../../data/export/tcx_writer.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
+import '../../state/providers.dart';
 import '../widgets/error_states.dart';
 
 class CueSheetScreen extends ConsumerWidget {
@@ -73,76 +79,155 @@ class _CueEntry {
   final String? tag;
 }
 
-class _DayCueSection extends StatelessWidget {
+const _turnGlyph = {
+  'left': 'L', 'right': 'R', 'slight_left': 'BL', 'slight_right': 'BR',
+  'sharp_left': 'SL', 'sharp_right': 'SR', 'uturn': 'U',
+};
+
+List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
+  final entries = <_CueEntry>[];
+  var offset = 0.0;
+  for (var i = 0; i < day.segments.length; i++) {
+    final sheet = sheets[i];
+    for (final cue in sheet.cues) {
+      final glyph = switch (cue.kind) {
+        'turn' => _turnGlyph[cue.modifier] ?? '•',
+        'start' => 'S',
+        'finish' => 'F',
+        'hazard' => '⚠',
+        'portage' => '▲',
+        'surface' => '~',
+        _ => '●',
+      };
+      entries.add(_CueEntry(
+        distanceAlongM: offset + cue.distanceAlongM,
+        label: cue.instruction ?? cue.kind,
+        glyph: glyph,
+        tag: cue.retrace == true ? 'RETRACE' : null,
+      ));
+    }
+    offset += day.segments[i].metrics?.distanceM ?? 0;
+  }
+  return entries;
+}
+
+/// The pre-F1 proxy: authored stops only, no derived turns. Used when the
+/// real cue derivation call fails.
+List<_CueEntry> _entriesFromAuthoredContent(Day day) {
+  final entries = <_CueEntry>[];
+  for (final segment in day.segments) {
+    if (segment.start != null) {
+      entries.add(_CueEntry(distanceAlongM: 0, label: 'Start', glyph: 'S'));
+    }
+    for (final node in segment.nodes) {
+      entries.add(_CueEntry(
+        distanceAlongM: node.distanceAlongM ?? 0,
+        label: node.title ?? node.kind.wireValue,
+        glyph: node.kind == NodeKind.regroup ? '◆' : '●',
+        tag: node.poiType?.toUpperCase(),
+      ));
+    }
+    for (final hazard in segment.hazards) {
+      entries.add(_CueEntry(
+        distanceAlongM: hazard.distanceAlongM ?? 0,
+        label: hazard.title ?? 'Hazard',
+        glyph: '⚠',
+        tag: hazard.severity.toUpperCase(),
+      ));
+    }
+    for (final portage in segment.portages) {
+      entries.add(_CueEntry(
+        distanceAlongM: portage.distanceM ?? 0,
+        label: 'Portage',
+        glyph: '▲',
+        tag: portage.mandatory == true ? 'MANDATORY' : null,
+      ));
+    }
+    if (segment.metrics?.distanceM != null) {
+      entries.add(_CueEntry(distanceAlongM: segment.metrics!.distanceM!, label: 'Finish', glyph: 'F'));
+    }
+  }
+  entries.sort((a, b) => a.distanceAlongM.compareTo(b.distanceAlongM));
+  return entries;
+}
+
+class _DayCueSection extends ConsumerStatefulWidget {
   const _DayCueSection({required this.day});
   final Day day;
 
   @override
+  ConsumerState<_DayCueSection> createState() => _DayCueSectionState();
+}
+
+class _DayCueSectionState extends ConsumerState<_DayCueSection> {
+  late Future<List<_CueEntry>> _future = _load();
+
+  Future<List<_CueEntry>> _load() async {
+    if (widget.day.segments.every((s) => s.start == null)) {
+      return _entriesFromAuthoredContent(widget.day);
+    }
+    final client = ref.read(routingClientProvider);
+    final sheets = await Future.wait(widget.day.segments.map(client.cuesFor));
+    return _entriesFromCueSheets(widget.day, sheets);
+  }
+
+  @override
+  void didUpdateWidget(covariant _DayCueSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.day != widget.day) {
+      setState(() => _future = _load());
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
-    if (day.segments.isEmpty && day.nodes.isEmpty) return const SizedBox.shrink();
-
-    final entries = <_CueEntry>[];
-    for (final segment in day.segments) {
-      if (segment.start != null) {
-        entries.add(_CueEntry(distanceAlongM: 0, label: 'Start', glyph: 'S'));
-      }
-      for (final node in segment.nodes) {
-        entries.add(_CueEntry(
-          distanceAlongM: node.distanceAlongM ?? 0,
-          label: node.title ?? node.kind.wireValue,
-          glyph: node.kind == NodeKind.regroup ? '◆' : '●',
-          tag: node.poiType?.toUpperCase(),
-        ));
-      }
-      for (final hazard in segment.hazards) {
-        entries.add(_CueEntry(
-          distanceAlongM: hazard.distanceAlongM ?? 0,
-          label: hazard.title ?? 'Hazard',
-          glyph: '⚠',
-          tag: hazard.severity.toUpperCase(),
-        ));
-      }
-      for (final portage in segment.portages) {
-        entries.add(_CueEntry(
-          distanceAlongM: portage.distanceM ?? 0,
-          label: 'Portage',
-          glyph: '▲',
-          tag: portage.mandatory == true ? 'MANDATORY' : null,
-        ));
-      }
-      if (segment.metrics?.distanceM != null) {
-        entries.add(_CueEntry(
-          distanceAlongM: segment.metrics!.distanceM!,
-          label: 'Finish',
-          glyph: 'F',
-        ));
-      }
-    }
-    entries.sort((a, b) => a.distanceAlongM.compareTo(b.distanceAlongM));
+    if (widget.day.segments.isEmpty && widget.day.nodes.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: PlotSpacing.s5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('DAY ${day.index}${day.title != null ? ' — ${day.title}' : ''}',
+          Text('DAY ${widget.day.index}${widget.day.title != null ? ' — ${widget.day.title}' : ''}',
               style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: PlotSpacing.s2),
-          PlotCard(
-            padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s4),
-            child: Column(
-              children: [
-                for (var i = 0; i < entries.length; i++)
-                  CueSheetRow(
-                    mile: '${(entries[i].distanceAlongM / 1000).toStringAsFixed(1)} km',
-                    turn: entries[i].glyph,
-                    instruction: entries[i].label,
-                    tag: entries[i].tag,
-                    divider: i < entries.length - 1,
+          FutureBuilder<List<_CueEntry>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Padding(
+                  padding: EdgeInsets.all(PlotSpacing.s4),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final entries = snapshot.data ?? _entriesFromAuthoredContent(widget.day);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (snapshot.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
+                      child: ProviderUnreachableBanner(provider: 'Turn-by-turn cue derivation'),
+                    ),
+                  PlotCard(
+                    padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s4),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < entries.length; i++)
+                          CueSheetRow(
+                            mile: '${(entries[i].distanceAlongM / 1000).toStringAsFixed(1)} km',
+                            turn: entries[i].glyph,
+                            instruction: entries[i].label,
+                            tag: entries[i].tag,
+                            divider: i < entries.length - 1,
+                          ),
+                      ],
+                    ),
                   ),
-              ],
-            ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -167,23 +252,28 @@ class _ExportPanel extends ConsumerWidget {
           PlotButton(
             label: 'GeoJSON (.geojson)',
             expand: true,
-            onPressed: () => _export(context, 'geojson', tripToGeoJson(trip), 'geojson'),
+            onPressed: () => _export(context, tripToGeoJson(trip), 'geojson'),
           ),
           const SizedBox(height: PlotSpacing.s2),
           PlotButton(
             label: 'GPX (.gpx)',
             expand: true,
             variant: PlotButtonVariant.secondary,
-            onPressed: () => _export(context, 'gpx', tripToGpx(trip), 'gpx'),
+            onPressed: () => _export(context, tripToGpx(trip), 'gpx'),
           ),
           const SizedBox(height: PlotSpacing.s2),
-          PlotButton(label: 'TCX — not available yet', expand: true, variant: PlotButtonVariant.ghost, onPressed: null),
-          const SizedBox(height: PlotSpacing.s1),
+          PlotButton(
+            label: 'TCX (.tcx)',
+            expand: true,
+            variant: PlotButtonVariant.secondary,
+            onPressed: () => _export(context, tripToTcx(trip), 'tcx'),
+          ),
+          const SizedBox(height: PlotSpacing.s2),
           PlotButton(label: 'FIT — not available yet', expand: true, variant: PlotButtonVariant.ghost, onPressed: null),
           const SizedBox(height: PlotSpacing.s3),
           Text(
-            'TCX/FIT wait on SPIKE-16 (also decides whether FIT runs in the '
-            'core or on-device via the Garmin FIT SDK).',
+            'FIT waits on SPIKE-16 (unresolved — also decides whether FIT runs '
+            'in the core or on-device via the Garmin FIT SDK).',
             style: PlotTypography.small(c.textMuted),
           ),
         ],
@@ -191,7 +281,7 @@ class _ExportPanel extends ConsumerWidget {
     );
   }
 
-  Future<void> _export(BuildContext context, String kind, String content, String extension) async {
+  Future<void> _export(BuildContext context, String content, String extension) async {
     final safeName = trip.title.replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '').trim();
     final location = await getSaveLocation(
       suggestedName: '${safeName.isEmpty ? 'plotline' : safeName}.$extension',

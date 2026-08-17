@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="icon" type="image/png" href="assets/plotlines-favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#F4EFE4; --panel:#EBE3D4; --paper:#FBF9F3;
+    --ink:#221F1A; --ink-2:#544D42; --ink-3:#8C8476; --line:#D9D0BE;
+    --blaze:#DB5A28; --spruce:#2C4A3B; --slate:#3D6577; --gold:#B5852B; --ember:#9A3412;
+    --serif:'Instrument Serif',Georgia,serif;
+    --sans:'Archivo',system-ui,sans-serif;
+    --mono:'JetBrains Mono','SFMono-Regular',monospace;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  a{color:var(--spruce);text-decoration:none;}
+  a:hover{color:var(--ember);}
+  ::selection{background:var(--blaze);color:#fff;}
+  @keyframes dashmove{to{background-position:200px 0;}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:var(--canvas);">
+
+  <!-- STICKY NAV -->
+  <nav style="position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px 40px;background:rgba(244,239,228,0.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);">
+    <a href="#top" style="display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;">
+      <img src="assets/plotlines-logo.png" alt="Plotlines badge" style="width:34px;height:34px;object-fit:contain;">
+      <span style="font-family:var(--serif);font-size:26px;line-height:1;letter-spacing:0.3px;">Plotlines</span>
+    </a>
+    <div style="display:flex;flex-wrap:wrap;gap:4px 20px;font-family:var(--mono);font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-2);">
+      <a href="#story" style="color:var(--ink-2);">Story</a>
+      <a href="#voice" style="color:var(--ink-2);">Voice</a>
+      <a href="#logo" style="color:var(--ink-2);">Logo</a>
+      <a href="#color" style="color:var(--ink-2);">Color</a>
+      <a href="#type" style="color:var(--ink-2);">Type</a>
+      <a href="#icon" style="color:var(--ink-2);">Icons</a>
+      <a href="#ui" style="color:var(--ink-2);">UI</a>
+      <a href="#map" style="color:var(--ink-2);">Map</a>
+      <a href="#access" style="color:var(--ink-2);">A11y</a>
+      <a href="#dos" style="color:var(--ink-2);">Do/Don't</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header id="top" style="position:relative;overflow:hidden;padding:120px 40px 96px;background:radial-gradient(circle at 82% 18%, rgba(219,90,40,0.10), transparent 42%), radial-gradient(circle at 84% 20%, transparent 60px, rgba(34,31,26,0.05) 61px, transparent 62px), radial-gradient(circle at 84% 20%, transparent 120px, rgba(34,31,26,0.045) 121px, transparent 122px), radial-gradient(circle at 84% 20%, transparent 190px, rgba(34,31,26,0.04) 191px, transparent 192px), radial-gradient(circle at 84% 20%, transparent 270px, rgba(34,31,26,0.03) 271px, transparent 272px), var(--canvas);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="font-family:var(--mono);font-size:12px;letter-spacing:0.22em;text-transform:uppercase;color:var(--blaze);margin-bottom:28px;">Brand Style Guide · v1.0 · 2026</div>
+      <h1 style="font-family:var(--serif);font-weight:400;font-size:clamp(56px,9vw,128px);line-height:0.92;letter-spacing:-0.5px;margin:0 0 8px;max-width:14ch;">Your journey,<br><em style="color:var(--blaze);">your story.</em></h1>
+      <div style="display:flex;align-items:center;gap:14px;margin:34px 0 40px;max-width:560px;">
+        <span style="width:9px;height:9px;border-radius:50%;background:var(--spruce);flex:none;"></span>
+        <div style="flex:1;height:2px;background:repeating-linear-gradient(90deg,var(--ink) 0 10px,transparent 10px 20px);opacity:0.5;"></div>
+        <span style="width:9px;height:9px;background:var(--blaze);transform:rotate(45deg);flex:none;"></span>
+        <div style="flex:1;height:2px;background:repeating-linear-gradient(90deg,var(--ink) 0 10px,transparent 10px 20px);opacity:0.5;"></div>
+        <span style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid var(--slate);flex:none;"></span>
+      </div>
+      <p style="font-family:var(--sans);font-size:clamp(18px,2vw,22px);line-height:1.55;max-width:60ch;color:var(--ink-2);margin:0;">Plotlines turns the messy logistics of a multi-modal adventure into a well-plotted narrative. This guide defines how the brand looks, sounds, and behaves — a shared reference for everyone building, writing for, and designing the platform.</p>
+    </div>
+  </header>
+
+  <!-- 01 STORY -->
+  <section id="story" style="padding:96px 40px;border-top:1px solid var(--line);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:48px;">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--blaze);letter-spacing:0.1em;">01</span>
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;margin:0;">The Story</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;">
+        <div>
+          <p style="font-family:var(--serif);font-style:italic;font-size:clamp(22px,2.6vw,30px);line-height:1.4;margin:0 0 28px;color:var(--ink);">"Planning a journey is much like planning to write a story. You have your characters, your setting, and a plot — a route to follow."</p>
+          <p style="font-size:16px;line-height:1.7;color:var(--ink-2);margin:0 0 18px;">Plotlines enables multi-modal adventure trips — cycling, hiking, paddling, cross-country skiing, climbing, packrafting — and stitches together the routes, cue sheets, transit legs, and points of interest that get a group from here to there. Getting there is part of the fun; the last mile to the trailhead is often the most memorable moment of the day.</p>
+          <p style="font-size:16px;line-height:1.7;color:var(--ink-2);margin:0;">We are replacing the spreadsheet. The platform is, above all, functional — every detail documented, every metric accountable. The story metaphor is the warmth on top: a reason to make planning feel like authoring an adventure instead of maintaining a ledger.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:26px 28px;">
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--blaze);margin-bottom:10px;">Positioning</div>
+            <p style="font-family:var(--serif);font-size:24px;line-height:1.35;margin:0;">The planning tool for people who take getting there seriously — and want it to feel like a story worth telling.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div style="background:var(--spruce);color:var(--paper);border-radius:4px;padding:22px;">
+              <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.8;margin-bottom:8px;">The Author</div>
+              <div style="font-family:var(--serif);font-size:22px;line-height:1.2;margin-bottom:8px;">The planner</div>
+              <p style="font-size:13.5px;line-height:1.6;margin:0;opacity:0.9;">Builds the outline: routes, days, rest stops, weights, and notes. Expertise first, whimsy optional.</p>
+            </div>
+            <div style="background:var(--slate);color:var(--paper);border-radius:4px;padding:22px;">
+              <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.8;margin-bottom:8px;">The Character</div>
+              <div style="font-family:var(--serif);font-size:22px;line-height:1.2;margin-bottom:8px;">The adventurer</div>
+              <p style="font-size:13.5px;line-height:1.6;margin:0;opacity:0.9;">Lives the plan in the field, and chronicles it — the group's diarist, recording weather, discoveries, and the day's events.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Brand principles -->
+      <div style="margin-top:64px;display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;">
+        <div style="background:var(--canvas);padding:32px 28px;">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--blaze);margin-bottom:14px;">01</div>
+          <h3 style="font-family:var(--sans);font-weight:700;font-size:19px;margin:0 0 10px;">Function is the promise</h3>
+          <p style="font-size:14.5px;line-height:1.65;color:var(--ink-2);margin:0;">Details are documented, metrics are honest, exports never lie. The story never gets in the way of a correct cue sheet.</p>
+        </div>
+        <div style="background:var(--canvas);padding:32px 28px;">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--blaze);margin-bottom:14px;">02</div>
+          <h3 style="font-family:var(--sans);font-weight:700;font-size:19px;margin:0 0 10px;">Whimsy is a garnish</h3>
+          <p style="font-size:14.5px;line-height:1.65;color:var(--ink-2);margin:0;">The narrative metaphor invites people in. It's opt-in flavor — never a costume a planner is forced to wear.</p>
+        </div>
+        <div style="background:var(--canvas);padding:32px 28px;">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--blaze);margin-bottom:14px;">03</div>
+          <h3 style="font-family:var(--sans);font-weight:700;font-size:19px;margin:0 0 10px;">Made for the field</h3>
+          <p style="font-size:14.5px;line-height:1.65;color:var(--ink-2);margin:0;">Sunlight, gloves, one hand, no signal. The brand has to hold up where the adventure actually happens.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 VOICE & TONE -->
+  <section id="voice" style="padding:96px 40px;border-top:1px solid var(--line);background:var(--panel);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:16px;">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--blaze);letter-spacing:0.1em;">02</span>
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;margin:0;">Voice &amp; Tone</h2>
+      </div>
+      <p style="font-size:16px;line-height:1.7;color:var(--ink-2);max-width:66ch;margin:0 0 48px;">The vocabulary — Author, Character, Plot Point, Trip Arc — is present, not dominant. Reach for it in marketing, onboarding, and the diarist experience. Drop it in dense functional UI, where clarity wins.</p>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start;">
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;">
+            <div style="padding:26px 28px;border-right:1px solid var(--line);">
+              <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:16px;">We say</div>
+              <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;">
+                <li style="font-size:15px;line-height:1.5;color:var(--ink);">"Ready to plot your next one?"</li>
+                <li style="font-size:15px;line-height:1.5;color:var(--ink);">"Day 2 has 1,240 ft of climbing across 3 segments."</li>
+                <li style="font-size:15px;line-height:1.5;color:var(--ink);">"Regroup at the clock tower — water and toilets on site."</li>
+                <li style="font-size:15px;line-height:1.5;color:var(--ink);">"Add a plot point to mark the crux of the day."</li>
+              </ul>
+            </div>
+            <div style="padding:26px 28px;">
+              <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:16px;">We don't say</div>
+              <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;">
+                <li style="font-size:15px;line-height:1.5;color:var(--ink-3);text-decoration:line-through;">"Begin your epic saga, brave hero!"</li>
+                <li style="font-size:15px;line-height:1.5;color:var(--ink-3);text-decoration:line-through;">"Roughly a decent amount of uphill, probably."</li>
+                <li style="font-size:15px;line-height:1.5;color:var(--ink-3);text-decoration:line-through;">"Meet up somewhere in the middle-ish."</li>
+                <li style="font-size:15px;line-height:1.5;color:var(--ink-3);text-decoration:line-through;">"Insert dramatic narrative beat #4."</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="background:var(--ink);color:var(--paper);border-radius:4px;padding:24px 26px;">
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:12px;">Tone dial</div>
+            <p style="font-size:14px;line-height:1.6;margin:0 0 16px;opacity:0.85;">Shift by context, not by mood.</p>
+            <div style="display:flex;flex-direction:column;gap:14px;font-family:var(--mono);font-size:12px;">
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Marketing</span><span style="opacity:0.6;">most whimsy</span></div><div style="height:6px;border-radius:3px;background:linear-gradient(90deg,var(--blaze) 88%,rgba(255,255,255,0.15) 88%);"></div></div>
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Diarist / journal</span><span style="opacity:0.6;">warm</span></div><div style="height:6px;border-radius:3px;background:linear-gradient(90deg,var(--blaze) 64%,rgba(255,255,255,0.15) 64%);"></div></div>
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Planning UI</span><span style="opacity:0.6;">plain</span></div><div style="height:6px;border-radius:3px;background:linear-gradient(90deg,var(--blaze) 34%,rgba(255,255,255,0.15) 34%);"></div></div>
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Cue sheet / data</span><span style="opacity:0.6;">zero</span></div><div style="height:6px;border-radius:3px;background:linear-gradient(90deg,var(--blaze) 8%,rgba(255,255,255,0.15) 8%);"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:26px 28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:12px;">The Author voice</div>
+          <p style="font-size:15px;line-height:1.65;color:var(--ink-2);margin:0;">Confident, precise, generous with expertise. An Author is a trusted guide who happens to have a sense of humor. Never forced into fantasy language — a spreadsheet-lover should feel just as at home as a storyteller.</p>
+        </div>
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:26px 28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--slate);margin-bottom:12px;">The Character voice</div>
+          <p style="font-size:15px;line-height:1.65;color:var(--ink-2);margin:0;">Curious and observant — the expedition's chronicler. We prompt them to record: today's weather, a discovery, the mood of the group. Journaling is invited and easy, never a chore or a mandatory quest.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 LOGO -->
+  <section id="logo" style="padding:96px 40px;border-top:1px solid var(--line);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:16px;">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--blaze);letter-spacing:0.1em;">03</span>
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;margin:0;">Logo</h2>
+      </div>
+      <p style="font-size:16px;line-height:1.7;color:var(--ink-2);max-width:66ch;margin:0 0 40px;">The primary mark is an illustrated circular badge — a rope border, the <strong>Plotlines</strong> wordmark arched across the top, a bikepacker and trail dog against mountains and a lake, and a compass rose anchoring the base. It carries the brand's spirit: self-supported, multi-modal, a little bit of story. Where the illustration is too small to read, pair or substitute the Instrument Serif wordmark as a text lockup.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:stretch;">
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:44px 24px;position:relative;">
+          <div style="position:absolute;top:14px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);">Primary badge</div>
+          <img src="assets/plotlines-logo.png" alt="Plotlines badge logo" style="width:min(320px,82%);height:auto;">
+        </div>
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:44px 24px;position:relative;">
+          <div style="position:absolute;top:14px;left:16px;font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-3);">Text lockup · companion</div>
+          <div style="font-family:var(--serif);font-size:clamp(44px,6.5vw,80px);line-height:1;color:var(--ink);">Plotlines</div>
+          <div style="display:flex;align-items:center;gap:10px;width:min(340px,80%);">
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--blaze);flex:none;"></span>
+            <div style="flex:1;height:2px;background:repeating-linear-gradient(90deg,var(--ink) 0 8px,transparent 8px 16px);opacity:0.55;"></div>
+            <span style="width:7px;height:7px;background:var(--spruce);transform:rotate(45deg);flex:none;"></span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;display:grid;grid-template-columns:auto 1fr;gap:32px;align-items:center;">
+        <div style="display:flex;align-items:center;gap:16px;">
+          <div style="width:96px;height:96px;border-radius:16px;background:var(--canvas);border:1px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-favicon.png" alt="Plotlines compass monogram" style="width:86%;height:86%;object-fit:contain;"></div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <div style="width:40px;height:40px;border-radius:8px;background:var(--canvas);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-favicon.png" alt="" style="width:86%;height:86%;object-fit:contain;"></div>
+            <div style="width:24px;height:24px;border-radius:5px;background:var(--canvas);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-favicon.png" alt="" style="width:86%;height:86%;object-fit:contain;"></div>
+            <div style="width:16px;height:16px;border-radius:4px;background:var(--canvas);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-favicon.png" alt="" style="width:86%;height:86%;object-fit:contain;"></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--slate);margin-bottom:10px;">Secondary mark · app icon &amp; favicon</div>
+          <p style="font-size:15px;line-height:1.65;color:var(--ink-2);margin:0 0 8px;max-width:60ch;">A simplified compass-rose monogram — peaks, a river, and cardinal points drawn in the brand palette (spruce ring, blaze summit, riverslate water) on a transparent field. For the app icon, favicon, and anywhere the full badge is too detailed to read.</p>
+          <p style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin:0;">Placeholder — pending cleanup and vector redraw before production. Thin strokes will need thickening to hold at 16px.</p>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:26px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:16px;">Clear space</div>
+          <div style="position:relative;background:var(--canvas);border:1px solid var(--line);border-radius:3px;height:120px;display:flex;align-items:center;justify-content:center;">
+            <div style="position:absolute;inset:18px;border:1px dashed var(--ink-3);border-radius:2px;"></div>
+            <img src="assets/plotlines-logo.png" alt="" style="width:78px;height:78px;object-fit:contain;">
+          </div>
+          <p style="font-size:13.5px;line-height:1.6;color:var(--ink-2);margin:14px 0 0;">Keep clear space equal to 25% of the badge diameter on all sides. Nothing intrudes.</p>
+        </div>
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:26px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:16px;">Minimum size</div>
+          <div style="background:var(--canvas);border:1px solid var(--line);border-radius:3px;height:120px;display:flex;align-items:center;justify-content:center;gap:20px;">
+            <img src="assets/plotlines-logo.png" alt="" style="width:72px;height:72px;object-fit:contain;">
+            <img src="assets/plotlines-logo.png" alt="" style="width:36px;height:36px;object-fit:contain;">
+          </div>
+          <p style="font-size:13.5px;line-height:1.6;color:var(--ink-2);margin:14px 0 0;">Badge never below 36px on screen / 14mm in print. Below that, switch to the wordmark lockup.</p>
+        </div>
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:26px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--slate);margin-bottom:16px;">On backgrounds</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;height:120px;">
+            <div style="background:var(--canvas);border:1px solid var(--line);border-radius:3px;display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-logo.png" alt="" style="width:48px;height:48px;object-fit:contain;"></div>
+            <div style="background:var(--panel);border:1px solid var(--line);border-radius:3px;display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-logo.png" alt="" style="width:48px;height:48px;object-fit:contain;"></div>
+            <div style="background:var(--spruce);border-radius:3px;display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-logo.png" alt="" style="width:48px;height:48px;object-fit:contain;"></div>
+            <div style="background:var(--blaze);border-radius:3px;display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-logo.png" alt="" style="width:48px;height:48px;object-fit:contain;"></div>
+          </div>
+          <p style="font-size:13.5px;line-height:1.6;color:var(--ink-2);margin:14px 0 0;">Sits on light or brand-color fields. Avoid navy or black — the badge's own border disappears against them.</p>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+        <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:18px;">Misuse — never do this</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+          <div style="text-align:center;"><div style="background:var(--canvas);border:1px solid var(--line);border-radius:3px;height:78px;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="assets/plotlines-logo.png" alt="" style="width:58px;height:58px;object-fit:contain;transform:scaleX(1.5);"></div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:8px;">Don't distort</div></div>
+          <div style="text-align:center;"><div style="background:var(--canvas);border:1px solid var(--line);border-radius:3px;height:78px;display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-logo.png" alt="" style="width:56px;height:56px;object-fit:contain;filter:hue-rotate(130deg) saturate(1.6);"></div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:8px;">Don't recolor</div></div>
+          <div style="text-align:center;"><div style="background:var(--canvas);border:1px solid var(--line);border-radius:3px;height:78px;display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-logo.png" alt="" style="width:56px;height:56px;object-fit:contain;transform:rotate(18deg);"></div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:8px;">Don't rotate</div></div>
+          <div style="text-align:center;"><div style="background:var(--canvas);border:1px solid var(--line);border-radius:3px;height:78px;display:flex;align-items:center;justify-content:center;"><img src="assets/plotlines-logo.png" alt="" style="width:56px;height:56px;object-fit:contain;filter:drop-shadow(3px 3px 3px rgba(0,0,0,0.5));"></div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:8px;">Don't add effects</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 COLOR -->
+  <section id="color" style="padding:96px 40px;border-top:1px solid var(--line);background:var(--panel);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:16px;">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--blaze);letter-spacing:0.1em;">04</span>
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;margin:0;">Color</h2>
+      </div>
+      <p style="font-size:16px;line-height:1.7;color:var(--ink-2);max-width:66ch;margin:0 0 44px;">A warm, paper-based system: cream canvas and ink for reading, Signal Blaze for action and emphasis, Spruce and Riverslate to key the outdoor and water modes. Keep no more than one or two accents active in any single view.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-bottom:18px;">
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--line);">
+          <div style="background:#DB5A28;height:150px;"></div>
+          <div style="background:var(--paper);padding:18px 20px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;"><strong style="font-size:17px;">Signal Blaze</strong><span style="font-family:var(--mono);font-size:12px;color:var(--ink-2);">#DB5A28</span></div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:6px;">oklch(0.65 0.16 45) · Primary action, emphasis, alerts</div>
+          </div>
+        </div>
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--line);">
+          <div style="background:#221F1A;height:150px;"></div>
+          <div style="background:var(--paper);padding:18px 20px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;"><strong style="font-size:17px;">Field Ink</strong><span style="font-family:var(--mono);font-size:12px;color:var(--ink-2);">#221F1A</span></div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:6px;">oklch(0.24 0.008 60) · Text, wordmark, high-contrast UI</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:18px;">
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--line);">
+          <div style="background:#2C4A3B;height:110px;"></div>
+          <div style="background:var(--paper);padding:16px 16px;">
+            <strong style="font-size:15px;">Spruce</strong>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:4px;">#2C4A3B</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:4px;">Land / trail modes</div>
+          </div>
+        </div>
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--line);">
+          <div style="background:#3D6577;height:110px;"></div>
+          <div style="background:var(--paper);padding:16px 16px;">
+            <strong style="font-size:15px;">Riverslate</strong>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:4px;">#3D6577</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:4px;">Water / paddle modes</div>
+          </div>
+        </div>
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--line);">
+          <div style="background:#B5852B;height:110px;"></div>
+          <div style="background:var(--paper);padding:16px 16px;">
+            <strong style="font-size:15px;">Trail Gold</strong>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:4px;">#B5852B</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:4px;">Caution / highlights</div>
+          </div>
+        </div>
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--line);">
+          <div style="background:#9A3412;height:110px;"></div>
+          <div style="background:var(--paper);padding:16px 16px;">
+            <strong style="font-size:15px;">Ember</strong>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:4px;">#9A3412</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:4px;">Hazard / high severity</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;">
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--line);">
+          <div style="background:#F4EFE4;height:88px;border-bottom:1px solid var(--line);"></div>
+          <div style="background:var(--paper);padding:14px 16px;"><strong style="font-size:14px;">Canvas</strong><div style="font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:4px;">#F4EFE4</div></div>
+        </div>
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--line);">
+          <div style="background:#EBE3D4;height:88px;border-bottom:1px solid var(--line);"></div>
+          <div style="background:var(--paper);padding:14px 16px;"><strong style="font-size:14px;">Panel</strong><div style="font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:4px;">#EBE3D4</div></div>
+        </div>
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--line);">
+          <div style="background:#FBF9F3;height:88px;border-bottom:1px solid var(--line);"></div>
+          <div style="background:var(--paper);padding:14px 16px;"><strong style="font-size:14px;">Paper</strong><div style="font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:4px;">#FBF9F3</div></div>
+        </div>
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--line);">
+          <div style="background:#544D42;height:88px;"></div>
+          <div style="background:var(--paper);padding:14px 16px;"><strong style="font-size:14px;">Ink 60</strong><div style="font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:4px;">#544D42</div></div>
+        </div>
+      </div>
+
+      <div style="margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:24px 26px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:14px;">Usage ratio</div>
+          <div style="display:flex;height:34px;border-radius:3px;overflow:hidden;margin-bottom:12px;">
+            <div style="flex:70;background:#F4EFE4;"></div>
+            <div style="flex:18;background:#221F1A;"></div>
+            <div style="flex:8;background:#DB5A28;"></div>
+            <div style="flex:4;background:#2C4A3B;"></div>
+          </div>
+          <p style="font-size:13.5px;line-height:1.6;color:var(--ink-2);margin:0;font-family:var(--mono);">~70% canvas · ~18% ink · ~8% blaze · ~4% mode accents</p>
+        </div>
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:24px 26px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:14px;">Contrast audit · WCAG 2.1</div>
+          <div style="display:flex;flex-direction:column;gap:7px;font-family:var(--mono);font-size:12px;color:var(--ink-2);">
+            <div style="display:flex;justify-content:space-between;"><span>Ink on Canvas</span><span style="color:var(--spruce);">14.3:1 · AAA</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Ink&nbsp;60 on Canvas</span><span style="color:var(--spruce);">7.3:1 · AAA</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Spruce on Canvas</span><span style="color:var(--spruce);">8.5:1 · AAA</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Riverslate on Canvas</span><span style="color:var(--spruce);">5.5:1 · AA</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Ember on Canvas</span><span style="color:var(--spruce);">6.4:1 · AA</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Paper on Spruce (btn)</span><span style="color:var(--spruce);">9.3:1 · AAA</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Paper on Ember (btn)</span><span style="color:var(--spruce);">6.9:1 · AA</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Blaze on Canvas (text)</span><span style="color:var(--ember);">3.3:1 · Large only</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Paper on Blaze (btn)</span><span style="color:var(--ember);">3.6:1 · Large only</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Ink&nbsp;40 on Canvas</span><span style="color:var(--ember);">3.2:1 · Large only</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Gold on Canvas (text)</span><span style="color:var(--ember);font-weight:700;">2.9:1 · Fail</span></div>
+          </div>
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.6;color:var(--ink-2);">
+            <div style="margin-bottom:8px;"><strong style="color:var(--ink);">Two watch-outs.</strong></div>
+            <div style="margin-bottom:8px;"><strong>Blaze buttons</strong> clear only 3.6:1 with paper text — label them at 18px+ bold (≥ large text), or use Ink text on Blaze for small/dense controls.</div>
+            <div><strong>Gold text fails</strong> on every cream (2.6–3.1:1). Use Gold only as a fill behind Ink text, or as a non-text marker — never as body or label copy.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 TYPOGRAPHY -->
+  <section id="type" style="padding:96px 40px;border-top:1px solid var(--line);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:16px;">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--blaze);letter-spacing:0.1em;">05</span>
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;margin:0;">Typography</h2>
+      </div>
+      <p style="font-size:16px;line-height:1.7;color:var(--ink-2);max-width:66ch;margin:0 0 44px;">Three families, each mapped to a job. This split lets the brand be expressive and rigorous at once — the serif tells the story, the sans runs the platform, the mono carries the data.</p>
+
+      <div style="display:flex;flex-direction:column;gap:18px;">
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:34px 36px;display:grid;grid-template-columns:200px 1fr;gap:32px;align-items:center;">
+          <div>
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:8px;">Expressive</div>
+            <div style="font-family:var(--serif);font-size:30px;line-height:1;">Instrument Serif</div>
+            <p style="font-size:13px;line-height:1.6;color:var(--ink-2);margin:12px 0 0;">Hero lines, pull quotes, the diarist voice, editorial moments. Roman &amp; italic.</p>
+          </div>
+          <div style="border-left:1px solid var(--line);padding-left:32px;">
+            <div style="font-family:var(--serif);font-size:clamp(40px,6vw,72px);line-height:1;">Getting there is<br><em>part of the fun.</em></div>
+          </div>
+        </div>
+
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:34px 36px;display:grid;grid-template-columns:200px 1fr;gap:32px;align-items:center;">
+          <div>
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:8px;">Functional</div>
+            <div style="font-family:var(--sans);font-weight:700;font-size:26px;line-height:1;">Archivo</div>
+            <p style="font-size:13px;line-height:1.6;color:var(--ink-2);margin:12px 0 0;">UI, headings, body copy, buttons, labels. Weights 400–800.</p>
+          </div>
+          <div style="border-left:1px solid var(--line);padding-left:32px;">
+            <div style="font-family:var(--sans);font-weight:800;font-size:32px;line-height:1.1;">Day 2 · Ridgeline &amp; Reservoir</div>
+            <div style="font-family:var(--sans);font-weight:500;font-size:17px;color:var(--ink-2);margin-top:8px;">A gravel climb into a flatwater paddle, ending at the hot springs.</div>
+            <div style="display:flex;gap:10px;margin-top:14px;font-family:var(--sans);font-size:13px;">
+              <span style="font-weight:400;">Regular 400</span><span style="color:var(--line);">/</span>
+              <span style="font-weight:500;">Medium 500</span><span style="color:var(--line);">/</span>
+              <span style="font-weight:600;">SemiBold 600</span><span style="color:var(--line);">/</span>
+              <span style="font-weight:700;">Bold 700</span><span style="color:var(--line);">/</span>
+              <span style="font-weight:800;">Extra 800</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:34px 36px;display:grid;grid-template-columns:200px 1fr;gap:32px;align-items:center;">
+          <div>
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--slate);margin-bottom:8px;">Data</div>
+            <div style="font-family:var(--mono);font-size:22px;line-height:1;">JetBrains Mono</div>
+            <p style="font-size:13px;line-height:1.6;color:var(--ink-2);margin:12px 0 0;">Coordinates, cue sheets, metrics, tags, and technical labels.</p>
+          </div>
+          <div style="border-left:1px solid var(--line);padding-left:32px;font-family:var(--mono);font-size:15px;line-height:1.9;color:var(--ink);">
+            <div>47.6062° N, 122.3321° W</div>
+            <div>MI 12.4 · TURN L · CR-204 · GRAVEL</div>
+            <div style="color:var(--ink-2);">↑ 1,240 ft &nbsp; ↓ 980 ft &nbsp; ⏱ 4:15 moving</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:30px 32px;">
+        <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:22px;">Type scale · Archivo unless noted</div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="display:flex;align-items:baseline;gap:24px;border-bottom:1px solid var(--line);padding-bottom:14px;"><span style="font-family:var(--mono);font-size:12px;color:var(--ink-3);width:120px;flex:none;">Display / serif</span><span style="font-family:var(--serif);font-size:56px;line-height:1;">64 / 0.92</span></div>
+          <div style="display:flex;align-items:baseline;gap:24px;border-bottom:1px solid var(--line);padding-bottom:14px;"><span style="font-family:var(--mono);font-size:12px;color:var(--ink-3);width:120px;flex:none;">H1</span><span style="font-weight:800;font-size:40px;line-height:1;">40 / 700–800</span></div>
+          <div style="display:flex;align-items:baseline;gap:24px;border-bottom:1px solid var(--line);padding-bottom:14px;"><span style="font-family:var(--mono);font-size:12px;color:var(--ink-3);width:120px;flex:none;">H2</span><span style="font-weight:700;font-size:28px;line-height:1;">28 / 700</span></div>
+          <div style="display:flex;align-items:baseline;gap:24px;border-bottom:1px solid var(--line);padding-bottom:14px;"><span style="font-family:var(--mono);font-size:12px;color:var(--ink-3);width:120px;flex:none;">Body</span><span style="font-weight:400;font-size:16px;line-height:1;">16 / 1.7 · 400</span></div>
+          <div style="display:flex;align-items:baseline;gap:24px;border-bottom:1px solid var(--line);padding-bottom:14px;"><span style="font-family:var(--mono);font-size:12px;color:var(--ink-3);width:120px;flex:none;">Small</span><span style="font-weight:500;font-size:13px;line-height:1;">13 / 1.6 · 500</span></div>
+          <div style="display:flex;align-items:baseline;gap:24px;"><span style="font-family:var(--mono);font-size:12px;color:var(--ink-3);width:120px;flex:none;">Data / mono</span><span style="font-family:var(--mono);font-size:12px;line-height:1;letter-spacing:0.04em;">12 / 0.12em · UPPER</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 ICONOGRAPHY -->
+  <section id="icon" style="padding:96px 40px;border-top:1px solid var(--line);background:var(--panel);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:16px;">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--blaze);letter-spacing:0.1em;">06</span>
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;margin:0;">Iconography</h2>
+      </div>
+      <p style="font-size:16px;line-height:1.7;color:var(--ink-2);max-width:66ch;margin:0 0 20px;">Two families, drawn in the tradition of national-park and topographic cartography (NPS Harpers Ferry, USGS 7.5-minute, German Freizeitkarte). <strong>Mode icons</strong> (how you travel) are recognizable line pictographs on a 24px grid, 2px stroke, rounded caps &mdash; each a distinct silhouette. <strong>Node markers</strong> (what a place is) follow the topo rule that <em>shape plus an internal mark carries the meaning</em>, with color only reinforcing &mdash; so every marker still parses in one ink or in glare.</p>
+      <p style="font-family:var(--mono);font-size:12px;color:var(--ink-3);margin:0 0 40px;">Circles = points on the route &middot; squares = stops &amp; transitions &middot; triangle = warning. Internal mark disambiguates within a family.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:20px;">Travel modes · line pictographs, 24px grid</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px 12px;">
+            <div style="text-align:center;"><div style="height:52px;display:flex;align-items:center;justify-content:center;color:var(--ink);"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17l4.5-8h5.5"/><path d="M10 9l4.5 8"/><path d="M9 9h3"/></svg></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink-2);">cycle</div></div>
+            <div style="text-align:center;"><div style="height:52px;display:flex;align-items:center;justify-content:center;color:var(--ink);"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.5" r="2"/><path d="M13 7l-2.5 5 2.5 2 1.5 5.5"/><path d="M10.5 12l-3.5 6.5"/><path d="M11 8.5l4 1.5 3.5-2"/></svg></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink-2);">hike</div></div>
+            <div style="text-align:center;"><div style="height:52px;display:flex;align-items:center;justify-content:center;color:var(--ink);"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14c3.5 3.2 14.5 3.2 18 0"/><path d="M15.5 4l-6.5 12"/><path d="M12.5 4.5l4-.5-.5 4"/></svg></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink-2);">paddle</div></div>
+            <div style="text-align:center;"><div style="height:52px;display:flex;align-items:center;justify-content:center;color:var(--ink);"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20l7-12 4.5 8"/><path d="M17 20V5"/><path d="M17 5.5l4.5 1.8-4.5 1.8"/></svg></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink-2);">climb</div></div>
+            <div style="text-align:center;"><div style="height:52px;display:flex;align-items:center;justify-content:center;color:var(--ink);"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5l6 14"/><path d="M10 4l6 14"/><path d="M4 6.5c1-1.4 2.6-1.4 3.5 0"/><path d="M8 5.5c1-1.4 2.6-1.4 3.5 0"/><path d="M4.5 18.5c2 1.2 12 1.2 15 0"/></svg></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink-2);">ski</div></div>
+            <div style="text-align:center;"><div style="height:52px;display:flex;align-items:center;justify-content:center;color:var(--ink);"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16l-1.5 3.5H5.5z"/><path d="M7 12V9.5h6l3 2.5"/><path d="M2 18.5c2 1.4 4 1.4 6 0s4-1.4 6 0 4 1.4 6 0"/></svg></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink-2);">packraft</div></div>
+            <div style="text-align:center;"><div style="height:52px;display:flex;align-items:center;justify-content:center;color:var(--ink);"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15v-2.5l2-4.5h11l3 4.5V15"/><path d="M3 15h16"/><circle cx="7" cy="16.5" r="1.6"/><circle cx="16" cy="16.5" r="1.6"/></svg></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink-2);">auto</div></div>
+            <div style="text-align:center;"><div style="height:52px;display:flex;align-items:center;justify-content:center;color:var(--ink);"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="14" rx="2"/><path d="M6 12h12"/><path d="M8.5 18l-1.5 2.5"/><path d="M15.5 18l1.5 2.5"/><path d="M9.5 15.5h.01"/><path d="M14.5 15.5h.01"/></svg></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink-2);">transit</div></div>
+          </div>
+        </div>
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:20px;">Node markers · shape + internal mark = meaning</div>
+          <div style="display:flex;flex-direction:column;gap:15px;">
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="26" height="26" viewBox="0 0 24 24" style="flex:none;"><circle cx="12" cy="12" r="8.5" fill="var(--paper)" stroke="var(--spruce)" stroke-width="2.5"/><circle cx="12" cy="12" r="2.6" fill="var(--spruce)"/></svg><div><div style="font-size:14px;font-weight:600;">Waypoint</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);">ring + dot · spruce</div></div></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="26" height="26" viewBox="0 0 24 24" style="flex:none;"><circle cx="12" cy="12" r="8.5" fill="var(--paper)" stroke="var(--blaze)" stroke-width="2.5"/><circle cx="12" cy="12" r="4" fill="none" stroke="var(--blaze)" stroke-width="2.5"/></svg><div><div style="font-size:14px;font-weight:600;">Regroup point</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);">double ring (rally) · blaze</div></div></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="26" height="26" viewBox="0 0 24 24" style="flex:none;" fill="none" stroke="var(--slate)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11l7-5 7 5v9"/><path d="M3.5 12L12 5.5 20.5 12"/><path d="M5 20h14"/></svg><div><div style="font-size:14px;font-weight:600;">Rest stop</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);">shelter · riverslate</div></div></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="26" height="26" viewBox="0 0 24 24" style="flex:none;"><path d="M12 4l8.5 15H3.5z" fill="var(--paper)" stroke="var(--ember)" stroke-width="2.3" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="var(--ember)" stroke-width="2.3" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2" fill="var(--ember)"/></svg><div><div style="font-size:14px;font-weight:600;">Hazard / crux</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);">warning triangle · ember</div></div></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="26" height="26" viewBox="0 0 24 24" style="flex:none;"><rect x="4" y="4" width="16" height="16" rx="2.5" fill="var(--paper)" stroke="var(--gold)" stroke-width="2.3"/><path d="M8 12h7" stroke="var(--gold)" stroke-width="2.3" stroke-linecap="round"/><path d="M12.5 9l3 3-3 3" fill="none" stroke="var(--gold)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div style="font-size:14px;font-weight:600;">Portage / transition</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);">square + arrow · trail gold</div></div></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="26" height="26" viewBox="0 0 24 24" style="flex:none;"><circle cx="12" cy="12" r="8" fill="var(--ink)"/><path d="M12 8.2l1.1 2.3 2.5.3-1.9 1.7.5 2.5-2.2-1.2-2.2 1.2.5-2.5-1.9-1.7 2.5-.3z" fill="var(--paper)"/></svg><div><div style="font-size:14px;font-weight:600;">Plot point</div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);">filled disc + star · ink · narrative</div></div></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:24px 28px;display:flex;gap:40px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;"><div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:10px;">Do</div><ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.7;color:var(--ink-2);"><li>Keep a consistent 2px stroke and rounded caps</li><li>Give each marker a distinct silhouette or internal mark, so shape carries meaning without color</li><li>Pair every map marker with a text label on cue sheets</li></ul></div>
+        <div style="flex:1;min-width:220px;"><div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:10px;">Don't</div><ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.7;color:var(--ink-2);"><li>Reuse one primitive across a mode icon and a node marker</li><li>Invent new marker shapes without adding them here first</li><li>Rely on color as the only difference between two node types</li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 UI PRINCIPLES -->
+  <section id="ui" style="padding:96px 40px;border-top:1px solid var(--line);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:16px;">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--blaze);letter-spacing:0.1em;">07</span>
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;margin:0;">UI Principles</h2>
+      </div>
+      <p style="font-size:16px;line-height:1.7;color:var(--ink-2);max-width:66ch;margin:0 0 44px;">Components sit on paper, hold generous whitespace, and put data in mono so numbers always look accountable. Corners are subtle (4px), shadows are soft, borders do most of the structural work.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <!-- Buttons -->
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:18px;">Buttons</div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+            <span style="background:var(--blaze);color:#fff;font-family:var(--sans);font-weight:700;font-size:19px;line-height:1;padding:13px 24px;border-radius:4px;">Plot a trip</span>
+            <span style="background:var(--ink);color:var(--paper);font-family:var(--sans);font-weight:600;font-size:14px;padding:12px 22px;border-radius:4px;">Download offline</span>
+            <span style="background:transparent;color:var(--ink);border:1.5px solid var(--ink);font-family:var(--sans);font-weight:600;font-size:14px;padding:11px 20px;border-radius:4px;">Secondary</span>
+            <span style="background:transparent;color:var(--ink);font-family:var(--sans);font-weight:600;font-size:14px;padding:11px 8px;">Text link <span style="color:var(--blaze);">→</span></span>
+          </div>
+          <p style="font-size:13px;line-height:1.6;color:var(--ink-2);margin:16px 0 0;">Primary = Blaze, one per view, label set at 18px+ bold so paper text clears contrast. For small or dense Blaze controls, use Ink text instead. Hit targets never below 44px in the field app.</p>
+        </div>
+        <!-- Trip card -->
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:18px;">Trip card + status badge</div>
+          <div style="border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+            <div style="height:74px;background:repeating-linear-gradient(135deg,var(--panel) 0 9px,var(--canvas) 9px 18px);position:relative;">
+              <span style="position:absolute;top:10px;right:10px;font-family:var(--mono);font-size:10px;letter-spacing:0.06em;background:var(--spruce);color:#fff;padding:4px 8px;border-radius:3px;">OFFLINE READY</span>
+              <span style="position:absolute;bottom:8px;left:10px;font-family:var(--mono);font-size:10px;color:var(--ink-3);">route thumbnail</span>
+            </div>
+            <div style="padding:14px 16px;">
+              <div style="font-family:var(--sans);font-weight:700;font-size:17px;">Cascade Loop · 4 days</div>
+              <div style="display:flex;gap:8px;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--ink-2);"><span>178 MI</span><span>·</span><span>↑ 9,400 FT</span><span>·</span><span style="color:var(--spruce);">GRAVEL+PADDLE</span></div>
+            </div>
+          </div>
+        </div>
+        <!-- Weight controls -->
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:18px;">Preference weights · 0.0–5.0</div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span style="font-weight:600;">Climbing · "peaks"</span><span style="font-family:var(--mono);color:var(--spruce);">4.5</span></div>
+              <div style="display:flex;gap:6px;">
+                <span style="flex:1;height:8px;border-radius:2px;background:var(--spruce);"></span><span style="flex:1;height:8px;border-radius:2px;background:var(--spruce);"></span><span style="flex:1;height:8px;border-radius:2px;background:var(--spruce);"></span><span style="flex:1;height:8px;border-radius:2px;background:var(--spruce);"></span><span style="flex:1;height:8px;border-radius:2px;background:linear-gradient(90deg,var(--spruce) 50%,var(--line) 50%);"></span>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span style="font-weight:600;">Traffic · "cars"</span><span style="font-family:var(--mono);color:var(--blaze);">2.5</span></div>
+              <div style="display:flex;gap:6px;">
+                <span style="flex:1;height:8px;border-radius:2px;background:var(--blaze);"></span><span style="flex:1;height:8px;border-radius:2px;background:var(--blaze);"></span><span style="flex:1;height:8px;border-radius:2px;background:linear-gradient(90deg,var(--blaze) 50%,var(--line) 50%);"></span><span style="flex:1;height:8px;border-radius:2px;background:var(--line);"></span><span style="flex:1;height:8px;border-radius:2px;background:var(--line);"></span>
+              </div>
+            </div>
+          </div>
+          <p style="font-size:13px;line-height:1.6;color:var(--ink-2);margin:16px 0 0;">Named, decimal weights with a plain-language label. The metaphor helps here — but the number is always visible.</p>
+        </div>
+        <!-- Cue sheet -->
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--slate);margin-bottom:18px;">Cue sheet row</div>
+          <div style="font-family:var(--mono);font-size:13px;">
+            <div style="display:grid;grid-template-columns:56px 40px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);"><span style="color:var(--ink-3);">MI 0.0</span><span style="color:var(--blaze);font-weight:700;">R</span><span>Start · Riverside lot</span><span style="color:var(--ink-3);">PAVED</span></div>
+            <div style="display:grid;grid-template-columns:56px 40px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);"><span style="color:var(--ink-3);">MI 4.2</span><span style="color:var(--blaze);font-weight:700;">L</span><span>CR-204 · gravel begins</span><span style="color:var(--spruce);">GRAVEL</span></div>
+            <div style="display:grid;grid-template-columns:56px 40px 1fr auto;gap:10px;padding:10px 0;"><span style="color:var(--ink-3);">MI 12.4</span><span style="color:var(--slate);font-weight:700;">◆</span><span>Regroup · clock tower</span><span style="color:var(--slate);">REST</span></div>
+          </div>
+          <p style="font-size:13px;line-height:1.6;color:var(--ink-2);margin:16px 0 0;">All-mono, high-contrast, print-friendly. Reads on paper and in glare.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 MAP & DATA -->
+  <section id="map" style="padding:96px 40px;border-top:1px solid var(--line);background:var(--panel);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:16px;">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--blaze);letter-spacing:0.1em;">08</span>
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;margin:0;">Map &amp; Data-Viz</h2>
+      </div>
+      <p style="font-size:16px;line-height:1.7;color:var(--ink-2);max-width:66ch;margin:0 0 44px;">Routes read like a topo sheet: <strong>color names the mode</strong>, <strong>the dash pattern names the surface or difficulty</strong> (after the German Freizeitkarte hiking tiers), and a <strong>casing under the line</strong> marks the selected leg (the USGS road-casing convention). Three independent layers, so a multi-modal day is legible without a key. Charts stay quiet &mdash; thin rules, mono labels, one accent per series.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:18px;">Route line language</div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px;">Layer 1 &mdash; mode = color</div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="120" height="10" viewBox="0 0 120 10" style="flex:none;"><line x1="2" y1="5" x2="118" y2="5" stroke="var(--spruce)" stroke-width="4" stroke-linecap="round"/></svg><span style="font-size:13px;">Land / ride &mdash; spruce</span></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="120" height="10" viewBox="0 0 120 10" style="flex:none;"><line x1="2" y1="5" x2="118" y2="5" stroke="var(--slate)" stroke-width="4" stroke-linecap="round"/></svg><span style="font-size:13px;">Water / paddle &mdash; riverslate</span></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="120" height="10" viewBox="0 0 120 10" style="flex:none;"><line x1="2" y1="5" x2="118" y2="5" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/></svg><span style="font-size:13px;">Road / transit &mdash; ink</span></div>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px;">Layer 2 &mdash; surface = dash</div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="120" height="10" viewBox="0 0 120 10" style="flex:none;"><line x1="2" y1="5" x2="118" y2="5" stroke="var(--spruce)" stroke-width="4"/></svg><span style="font-size:13px;">Paved / easy &mdash; solid</span></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="120" height="10" viewBox="0 0 120 10" style="flex:none;"><line x1="2" y1="5" x2="118" y2="5" stroke="var(--spruce)" stroke-width="4" stroke-dasharray="13 7"/></svg><span style="font-size:13px;">Gravel / moderate &mdash; long dash</span></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="120" height="10" viewBox="0 0 120 10" style="flex:none;"><line x1="2" y1="5" x2="118" y2="5" stroke="var(--spruce)" stroke-width="4" stroke-dasharray="4 5"/></svg><span style="font-size:13px;">Trail / hard &mdash; short dash</span></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="120" height="10" viewBox="0 0 120 10" style="flex:none;"><line x1="2" y1="5" x2="118" y2="5" stroke="var(--spruce)" stroke-width="4" stroke-linecap="round" stroke-dasharray="0.1 8"/></svg><span style="font-size:13px;">Off-trail / alpine &mdash; dotted</span></div>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px;">Layer 3 &mdash; state = casing</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="120" height="12" viewBox="0 0 120 12" style="flex:none;"><line x1="2" y1="6" x2="118" y2="6" stroke="var(--blaze)" stroke-width="10" stroke-linecap="round"/><line x1="2" y1="6" x2="118" y2="6" stroke="var(--spruce)" stroke-width="4" stroke-linecap="round"/></svg><span style="font-size:13px;">Selected leg &mdash; blaze casing</span></div>
+            <div style="display:flex;align-items:center;gap:14px;"><svg width="120" height="10" viewBox="0 0 120 10" style="flex:none;opacity:0.4;"><line x1="2" y1="5" x2="118" y2="5" stroke="var(--spruce)" stroke-width="4" stroke-linecap="round"/></svg><span style="font-size:13px;">Completed / muted &mdash; reduced opacity</span></div>
+          </div>
+        </div>
+
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:20px;">Elevation profile</div>
+          <div style="height:120px;position:relative;background:linear-gradient(0deg,var(--canvas),var(--paper));border-bottom:1px solid var(--ink-2);border-left:1px solid var(--ink-2);">
+            <div style="position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(90deg,rgba(44,74,59,0.18),rgba(44,74,59,0.05));clip-path:polygon(0 90%,12% 70%,26% 78%,40% 42%,55% 55%,70% 20%,84% 40%,100% 30%,100% 100%,0 100%);"></div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:100%;border-top:2px solid var(--spruce);clip-path:polygon(0 90%,12% 70%,26% 78%,40% 42%,55% 55%,70% 20%,84% 40%,100% 30%,100% 31%,84% 41%,70% 21%,55% 56%,40% 43%,26% 79%,12% 71%,0 91%);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:8px;"><span>MI 0</span><span>alt/bypass = dashed overlay</span><span>MI 24</span></div>
+        </div>
+
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--slate);margin-bottom:20px;">Weather · box &amp; whisker</div>
+          <div style="display:flex;align-items:flex-end;gap:18px;height:130px;padding:0 6px;">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;">
+              <div style="width:2px;height:26px;background:var(--ink-2);"></div>
+              <div style="width:36px;height:44px;background:rgba(61,101,119,0.25);border:1.5px solid var(--slate);"></div>
+              <div style="width:36px;height:2px;background:var(--slate);margin:-23px 0 23px;"></div>
+              <div style="width:2px;height:22px;background:var(--ink-2);"></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">
+              <div style="width:2px;height:18px;background:var(--ink-2);"></div>
+              <div style="width:36px;height:52px;background:rgba(219,90,40,0.22);border:1.5px solid var(--blaze);"></div>
+              <div style="width:2px;height:20px;background:var(--ink-2);"></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">
+              <div style="width:2px;height:30px;background:var(--ink-2);"></div>
+              <div style="width:36px;height:38px;background:rgba(181,133,43,0.22);border:1.5px solid var(--gold);"></div>
+              <div style="width:2px;height:16px;background:var(--ink-2);"></div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-around;font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:10px;"><span>MAY</span><span>JUN</span><span>JUL</span></div>
+        </div>
+
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:20px;">Chart principles</div>
+          <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.8;color:var(--ink-2);">
+            <li>Mono for all axis labels, values, and units</li>
+            <li>One accent color per data series; ink for baselines</li>
+            <li>Historical data is muted; live/active data gets the accent</li>
+            <li>Never obscure historical baselines with live overlays</li>
+            <li>Grids are hairlines in <span style="font-family:var(--mono);">--line</span>, never heavy</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 ACCESSIBILITY -->
+  <section id="access" style="padding:96px 40px;border-top:1px solid var(--line);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:16px;">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--blaze);letter-spacing:0.1em;">09</span>
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;margin:0;">Accessibility &amp; the Field</h2>
+      </div>
+      <p style="font-size:16px;line-height:1.7;color:var(--ink-2);max-width:66ch;margin:0 0 44px;">The product is used in sunlight, with gloves, one-handed, often off-grid. Accessibility here means the map still works at mile 40.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div style="background:var(--ink);color:var(--paper);border-radius:6px;padding:28px;">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:18px;">Outdoor high-contrast mode</div>
+          <div style="background:#000;border:2px solid #fff;border-radius:4px;padding:18px;margin-bottom:16px;">
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;align-items:center;gap:12px;"><div style="width:80px;height:5px;background:#fff;flex:none;"></div><span style="font-family:var(--mono);font-size:12px;color:#fff;">ACTIVE ROUTE</span></div>
+              <div style="display:flex;align-items:center;gap:12px;"><div style="width:80px;height:0;border-top:4px dashed #ffcf33;flex:none;"></div><span style="font-family:var(--mono);font-size:12px;color:#ffcf33;">ALT ROUTE</span></div>
+              <div style="display:flex;align-items:center;gap:12px;"><span style="width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:16px solid #ff4d3d;flex:none;"></span><span style="font-family:var(--mono);font-size:12px;color:#ff4d3d;">HAZARD</span></div>
+            </div>
+          </div>
+          <p style="font-size:14px;line-height:1.65;margin:0;opacity:0.85;">Max-contrast vector lines, bold topography, glare-resistant background. Toggleable, and never the default look — it's a tool, not the brand.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:24px;">
+          <div style="background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:26px;">
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:16px;">Thumb-zone controls</div>
+            <div style="display:flex;gap:16px;align-items:stretch;">
+              <div style="width:82px;flex:none;border:1.5px solid var(--line);border-radius:14px;height:130px;position:relative;background:var(--canvas);">
+                <div style="position:absolute;left:8px;right:8px;bottom:8px;height:44px;background:rgba(219,90,40,0.12);border:1px dashed var(--blaze);border-radius:8px;"></div>
+                <div style="position:absolute;left:0;right:0;top:8px;text-align:center;font-family:var(--mono);font-size:8px;color:var(--ink-3);">map</div>
+                <div style="position:absolute;left:0;right:0;bottom:26px;text-align:center;font-family:var(--mono);font-size:8px;color:var(--blaze);">reach</div>
+              </div>
+              <p style="font-size:14px;line-height:1.65;color:var(--ink-2);margin:0;">Primary controls — recenter, cue sheet, layers, emergency — live in the bottom 40% of the mobile viewport for one-handed reach.</p>
+            </div>
+          </div>
+          <div style="background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:26px;">
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--slate);margin-bottom:16px;">Non-negotiables</div>
+            <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.8;color:var(--ink-2);">
+              <li>4.5:1 text contrast minimum; 3:1 for large display</li>
+              <li>Meaning never carried by color alone — pair with shape or label</li>
+              <li>44px minimum touch targets in the field app</li>
+              <li>Miles/kilometers and °F/°C honored everywhere at once</li>
+              <li>Light, dark, and system themes all fully supported</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 DO / DON'T -->
+  <section id="dos" style="padding:96px 40px;border-top:1px solid var(--line);background:var(--panel);">
+    <div style="max-width:1120px;margin:0 auto;">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:44px;">
+        <span style="font-family:var(--mono);font-size:13px;color:var(--blaze);letter-spacing:0.1em;">10</span>
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;margin:0;">Do &amp; Don't</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div style="background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--spruce);border-radius:4px;padding:30px 32px;">
+          <div style="font-family:var(--mono);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--spruce);margin-bottom:20px;">Do</div>
+          <ul style="margin:0;padding-left:18px;font-size:15px;line-height:1.85;color:var(--ink);">
+            <li>Lead with function; earn the whimsy</li>
+            <li>Keep data in mono so numbers feel accountable</li>
+            <li>Use the story vocabulary in marketing and journaling</li>
+            <li>Let Authors work plainly if they prefer a spreadsheet feel</li>
+            <li>Invite Characters to chronicle — weather, discoveries, the day</li>
+            <li>Design for glare, gloves, and no signal</li>
+          </ul>
+        </div>
+        <div style="background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--blaze);border-radius:4px;padding:30px 32px;">
+          <div style="font-family:var(--mono);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blaze);margin-bottom:20px;">Don't</div>
+          <ul style="margin:0;padding-left:18px;font-size:15px;line-height:1.85;color:var(--ink);">
+            <li>Force fantasy language into functional UI</li>
+            <li>Let the metaphor obscure a metric or a cue</li>
+            <li>Stack more than two accent colors in one view</li>
+            <li>Use color as the only signal for a node or route</li>
+            <li>Ship default screens in high-contrast mode</li>
+            <li>Round or fudge distances, elevation, or ETAs</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="margin-top:64px;padding-top:40px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px;">
+        <div>
+          <div style="font-family:var(--serif);font-size:40px;line-height:1;">Plotlines</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:10px;">Brand Style Guide · v1.0 · Living document</div>
+        </div>
+        <p style="font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink-2);margin:0;max-width:22ch;text-align:right;">Your journey, your story.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#DB5A28&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Palette&quot;,&quot;options&quot;:[&quot;#DB5A28&quot;,&quot;#C2410C&quot;,&quot;#B45309&quot;,&quot;#0F766E&quot;]},&quot;secondary&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1E3A5F&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Palette&quot;,&quot;options&quot;:[&quot;#2C4A3B&quot;,&quot;#1E3A5F&quot;,&quot;#3F3A2E&quot;,&quot;#4A2C3B&quot;]},&quot;paperTone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Canvas Cream&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Palette&quot;,&quot;options&quot;:[&quot;Canvas Cream&quot;,&quot;Bone&quot;,&quot;Oat&quot;]}}">
+class Component extends DCLogic {
+  componentDidMount(){
+    const r = document.documentElement.style;
+    const p = this.props || {};
+    if(p.accent) r.setProperty('--blaze', p.accent);
+    if(p.secondary) r.setProperty('--spruce', p.secondary);
+    const tones = {
+      'Canvas Cream':['#F4EFE4','#EBE3D4'],
+      'Bone':['#F1EEE8','#E4DFD4'],
+      'Oat':['#F0E7D6','#E5DAC4']
+    };
+    if(p.paperTone && tones[p.paperTone]){
+      r.setProperty('--canvas', tones[p.paperTone][0]);
+      r.setProperty('--panel', tones[p.paperTone][1]);
+    }
+  }
+  renderVals(){ return {}; }
+}
+</script>
+</body>
+</html>

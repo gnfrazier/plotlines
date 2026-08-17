@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</helmet>
+<div style="--canvas:#F4EFE4;--panel:#EBE3D4;--paper:#FBF9F3;--ink:#221F1A;--ink2:#544D42;--ink3:#8C8476;--line:#D9D0BE;--blaze:#DB5A28;--spruce:#2C4A3B;--slate:#3D6577;--gold:#B5852B;--ember:#9A3412;--serif:'Instrument Serif',Georgia,serif;--sans:'Archivo',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;font-family:var(--sans);background:#cabfa9;padding:56px 48px 72px;min-height:100vh;">
+
+  <div style="max-width:1780px;margin:0 auto 44px;">
+    <div style="font-family:var(--mono);font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--blaze);margin-bottom:10px;">Plotlines · UI Kit</div>
+    <div style="font-family:var(--serif);font-size:56px;line-height:0.95;color:var(--ink);">Character field app</div>
+    <p style="font-size:15px;line-height:1.6;color:var(--ink2);max-width:70ch;margin:14px 0 0;">The adventurer's on-trip experience: offline-first, one-handed, glove-friendly, readable in glare. Six screens composed from the Plotlines component library, covering stowed/mounted HUD posture, GPS-triggered narration, peer field notes, and route amendments. The map runs in outdoor high-contrast mode.</p>
+  </div>
+
+  <div style="display:flex;gap:40px;flex-wrap:wrap;justify-content:center;align-items:flex-start;">
+
+    <!-- ============ SCREEN 1 · TRIP LIBRARY ============ -->
+    <div data-screen-label="01 Trip Library" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div style="width:384px;height:812px;background:#111;border-radius:52px;padding:11px;box-shadow:0 30px 60px rgba(34,31,26,0.28);">
+        <div style="width:100%;height:100%;background:var(--canvas);border-radius:42px;overflow:hidden;position:relative;display:flex;flex-direction:column;">
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:104px;height:28px;background:#111;border-radius:16px;z-index:5;"></div>
+          <div style="height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 26px 0 30px;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink);flex:none;">
+            <span>9:41</span>
+            <span style="display:flex;gap:7px;align-items:center;"><span style="width:17px;height:11px;border:1.5px solid var(--ink);border-radius:3px;display:inline-block;position:relative;"><span style="position:absolute;inset:1.5px;background:var(--ink);border-radius:1px;"></span></span></span>
+          </div>
+          <!-- Header -->
+          <div style="padding:8px 22px 0;flex:none;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+              <div style="font-family:var(--serif);font-size:34px;line-height:1;color:var(--ink);">Your trips</div>
+              <div style="width:38px;height:38px;border-radius:50%;background:var(--spruce);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;">AD</div>
+            </div>
+            <div style="display:flex;gap:20px;margin-top:18px;font-family:var(--mono);font-size:11px;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--line);">
+              <span style="padding-bottom:10px;border-bottom:2px solid var(--blaze);color:var(--ink);font-weight:700;">Active</span>
+              <span style="padding-bottom:10px;color:var(--ink3);">Offline</span>
+              <span style="padding-bottom:10px;color:var(--ink3);">Completed</span>
+            </div>
+          </div>
+          <!-- Trip cards -->
+          <div style="flex:1;overflow:hidden;padding:16px 22px;display:flex;flex-direction:column;gap:14px;">
+            <div style="background:var(--paper);border:1px solid var(--line);border-radius:8px;overflow:hidden;">
+              <div style="height:78px;background:repeating-linear-gradient(135deg,var(--panel) 0 9px,var(--canvas) 9px 18px);position:relative;">
+                <span style="position:absolute;top:9px;right:9px;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.06em;background:var(--spruce);color:#fff;padding:4px 7px;border-radius:3px;">OFFLINE READY</span>
+              </div>
+              <div style="padding:13px 14px;">
+                <div style="font-weight:700;font-size:16px;color:var(--ink);">Cascade Loop</div>
+                <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:2px;">by A. Diaz · Aug 12–15</div>
+                <div style="display:flex;gap:6px;margin-top:9px;font-family:var(--mono);font-size:10px;color:var(--ink2);flex-wrap:wrap;align-items:center;"><span>178 MI</span><span style="color:var(--ink3);">·</span><span>↑ 9,400 FT</span><span style="color:var(--ink3);">·</span><span style="color:var(--spruce);">GRAVEL+PADDLE</span></div>
+              </div>
+            </div>
+            <div style="background:var(--paper);border:1px solid var(--line);border-radius:8px;overflow:hidden;">
+              <div style="height:78px;background:repeating-linear-gradient(135deg,var(--panel) 0 9px,var(--canvas) 9px 18px);position:relative;">
+                <span style="position:absolute;top:9px;right:9px;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.06em;background:var(--slate);color:#fff;padding:4px 7px;border-radius:3px;">CLOUD SYNCED</span>
+              </div>
+              <div style="padding:13px 14px;">
+                <div style="font-weight:700;font-size:16px;color:var(--ink);">Deschutes Paddle + Camp</div>
+                <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:2px;">by M. Okafor · Sep 2–4</div>
+                <div style="display:flex;gap:6px;margin-top:9px;font-family:var(--mono);font-size:10px;color:var(--ink2);flex-wrap:wrap;align-items:center;"><span>44 MI</span><span style="color:var(--ink3);">·</span><span>3 DAYS</span><span style="color:var(--ink3);">·</span><span style="color:var(--slate);">PADDLE</span></div>
+              </div>
+            </div>
+            <div style="background:var(--paper);border:1px solid var(--line);border-radius:8px;overflow:hidden;opacity:0.85;">
+              <div style="height:78px;background:repeating-linear-gradient(135deg,var(--panel) 0 9px,var(--canvas) 9px 18px);position:relative;">
+                <span style="position:absolute;top:9px;right:9px;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.06em;color:var(--ink2);border:1px solid var(--ink2);padding:3px 7px;border-radius:3px;">THIS DEVICE</span>
+              </div>
+              <div style="padding:13px 14px;">
+                <div style="font-weight:700;font-size:16px;color:var(--ink);">Enchantments Thru-Hike</div>
+                <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:2px;">draft · not synced</div>
+              </div>
+            </div>
+          </div>
+          <!-- Bottom nav -->
+          <div style="height:74px;background:var(--paper);border-top:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-around;padding-top:12px;flex:none;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--blaze);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16"/></svg><span style="font-family:var(--mono);font-size:8px;letter-spacing:0.04em;">TRIPS</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink3);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L4 6v14l5-2 6 2 5-2V4l-5 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg><span style="font-family:var(--mono);font-size:8px;letter-spacing:0.04em;">MAP</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink3);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span style="font-family:var(--mono);font-size:8px;letter-spacing:0.04em;">CUES</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink3);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6"/></svg><span style="font-family:var(--mono);font-size:8px;letter-spacing:0.04em;">YOU</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink2);">01 · Trip Library</div>
+    </div>
+
+    <!-- ============ SCREEN 2 · CUE SHEET HUD ============ -->
+    <div data-screen-label="02 Cue Sheet HUD" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div style="width:384px;height:812px;background:#111;border-radius:52px;padding:11px;box-shadow:0 30px 60px rgba(34,31,26,0.28);">
+        <div style="width:100%;height:100%;background:var(--canvas);border-radius:42px;overflow:hidden;position:relative;display:flex;flex-direction:column;">
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:104px;height:28px;background:#111;border-radius:16px;z-index:5;"></div>
+          <div style="height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 26px 0 30px;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink);flex:none;">
+            <span>9:41</span>
+            <span style="width:17px;height:11px;border:1.5px solid var(--ink);border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;background:var(--ink);border-radius:1px;"></span></span>
+          </div>
+          <!-- HUD header readouts -->
+          <div style="background:var(--ink);color:var(--canvas);padding:12px 22px 16px;flex:none;">
+            <!-- posture toggle (FR50a) -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <div style="display:flex;background:rgba(244,239,228,0.1);border-radius:999px;padding:3px;font-family:var(--mono);font-size:10px;letter-spacing:0.06em;font-weight:700;">
+                <span style="padding:5px 13px;border-radius:999px;color:var(--ink3);">STOWED</span>
+                <span style="padding:5px 13px;border-radius:999px;background:var(--blaze);color:#fff;">MOUNTED</span>
+              </div>
+              <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.05em;color:var(--ink3);display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:#7BD6A9;box-shadow:0 0 0 3px rgba(123,214,169,0.25);"></span>AUTO-SCROLL LIVE</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <div><div style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;color:var(--ink3);">REMAINING</div><div style="font-family:var(--mono);font-size:20px;font-weight:700;">24.3 MI</div></div>
+              <div><div style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;color:var(--ink3);">CLIMB LEFT</div><div style="font-family:var(--mono);font-size:20px;font-weight:700;">↑ 3,900</div></div>
+              <div><div style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;color:var(--ink3);">ETA</div><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--blaze);">2:45 PM</div></div>
+            </div>
+            <div style="margin-top:14px;">
+              <div style="height:6px;background:rgba(244,239,228,0.2);border-radius:3px;overflow:hidden;"><div style="width:37%;height:100%;background:var(--blaze);"></div></div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:6px;">MILE 14.2 / 38.5 · Day 2</div>
+            </div>
+          </div>
+          <!-- Active cue -->
+          <div style="padding:22px;flex:none;">
+            <div style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:20px;box-shadow:0 2px 8px rgba(34,31,26,0.08);">
+              <div style="display:flex;align-items:center;gap:16px;">
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--blaze)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;"><path d="M15 20V10a4 4 0 0 0-4-4H6"/><path d="M9 3L5 6l4 3"/></svg>
+                <div><div style="font-family:var(--mono);font-size:44px;font-weight:700;line-height:0.9;color:var(--ink);">0.3</div><div style="font-family:var(--mono);font-size:12px;color:var(--ink3);">MILES</div></div>
+              </div>
+              <div style="font-size:19px;font-weight:700;color:var(--ink);margin-top:16px;line-height:1.25;">Left onto CR-204</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+                <span style="font-size:13px;color:var(--ink2);">Gravel begins · regroup in 2.1 mi</span>
+                <span style="font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:0.06em;background:var(--spruce);color:#fff;padding:4px 8px;border-radius:3px;">GRAVEL</span>
+              </div>
+            </div>
+          </div>
+          <!-- Upcoming cues -->
+          <div style="flex:1;overflow:hidden;padding:0 22px;font-family:var(--mono);font-size:13px;color:var(--ink);">
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px;">Upcoming</div>
+            <div style="display:grid;grid-template-columns:52px 24px 1fr auto;gap:8px;padding:13px 0;border-bottom:1px solid var(--line);align-items:center;"><span style="color:var(--ink3);">MI 16.3</span><span style="color:var(--slate);font-weight:700;">◆</span><span>Regroup · clock tower</span><span style="color:var(--slate);font-size:11px;">REST</span></div>
+            <div style="display:grid;grid-template-columns:52px 24px 1fr auto;gap:8px;padding:13px 0;border-bottom:1px solid var(--line);align-items:center;"><span style="color:var(--ink3);">MI 18.1</span><span style="color:var(--ember);font-weight:700;">▲</span><span>Washout · high water</span><span style="color:var(--ember);font-size:11px;">HAZARD</span></div>
+            <div style="display:grid;grid-template-columns:52px 24px 1fr auto;gap:8px;padding:13px 0;align-items:center;"><span style="color:var(--ink3);">MI 21.0</span><span style="color:var(--blaze);font-weight:700;">R</span><span>Bridge St · pavement</span><span style="color:var(--ink3);font-size:11px;">PAVED</span></div>
+          </div>
+          <!-- Cue↔Map toggle (shared execution control · CUES active) -->
+          <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;background:var(--ink);border-radius:999px;padding:5px;box-shadow:0 8px 24px rgba(34,31,26,0.32);">
+            <div style="display:flex;align-items:center;gap:8px;background:var(--blaze);color:#fff;border-radius:999px;padding:12px 20px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+              <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.06em;font-weight:700;">CUES</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;color:rgba(244,239,228,0.72);border-radius:999px;padding:12px 20px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L4 6v14l5-2 6 2 5-2V4l-5 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>
+              <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.06em;font-weight:600;">MAP</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink2);">02 · Cue Sheet HUD</div>
+    </div>
+
+    <!-- ============ SCREEN 3 · MAP (OUTDOOR HIGH-CONTRAST) ============ -->
+    <div data-screen-label="03 Map · High-Contrast" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div style="width:384px;height:812px;background:#111;border-radius:52px;padding:11px;box-shadow:0 30px 60px rgba(34,31,26,0.28);">
+        <div style="width:100%;height:100%;background:#000;border-radius:42px;overflow:hidden;position:relative;display:flex;flex-direction:column;">
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:104px;height:28px;background:#111;border-radius:16px;z-index:5;"></div>
+          <div style="height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 26px 0 30px;font-family:var(--mono);font-size:13px;font-weight:700;color:#fff;flex:none;z-index:4;">
+            <span>9:41</span>
+            <span style="width:17px;height:11px;border:1.5px solid #fff;border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;background:#fff;border-radius:1px;"></span></span>
+          </div>
+          <!-- Hazard banner -->
+          <div style="position:absolute;top:56px;left:16px;right:16px;background:#FF4D3D;color:#000;border-radius:8px;padding:11px 14px;display:flex;align-items:center;gap:11px;z-index:6;box-shadow:0 6px 20px rgba(0,0,0,0.5);">
+            <svg width="26" height="26" viewBox="0 0 24 24" style="flex:none;"><path d="M12 4l8.5 15H3.5z" fill="none" stroke="#000" stroke-width="2.3" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="#000" stroke-width="2.3" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2" fill="#000"/></svg>
+            <div><div style="font-weight:800;font-size:14px;">High hazard · 0.4 mi</div><div style="font-family:var(--mono);font-size:10px;">Washout at CR-9 · high water crossing</div></div>
+          </div>
+          <!-- Map canvas (HC) -->
+          <div style="flex:1;position:relative;background:radial-gradient(circle at 30% 40%, #141414, #000);overflow:hidden;">
+            <svg width="100%" height="100%" viewBox="0 0 362 560" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;">
+              <g stroke="#2a2a2a" stroke-width="1">
+                <path d="M0 120 H362 M0 240 H362 M0 360 H362 M0 480 H362 M90 0 V560 M180 0 V560 M270 0 V560"/>
+              </g>
+              <path d="M40 500 Q100 420 90 340 T170 220 Q210 170 250 150" fill="none" stroke="#FF6A34" stroke-width="11" stroke-linecap="round" opacity="0.35"/>
+              <path d="M40 500 Q100 420 90 340 T170 220 Q210 170 250 150" fill="none" stroke="#7BD6A9" stroke-width="4.5" stroke-linecap="round"/>
+              <path d="M250 150 Q300 130 330 90" fill="none" stroke="#7FC2DB" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="13 8"/>
+              <g><circle cx="40" cy="500" r="9" fill="#000" stroke="#7BD6A9" stroke-width="3"/><circle cx="40" cy="500" r="2.8" fill="#7BD6A9"/></g>
+              <g><circle cx="90" cy="340" r="9" fill="#000" stroke="#FF6A34" stroke-width="3"/><circle cx="90" cy="340" r="4" fill="none" stroke="#FF6A34" stroke-width="3"/></g>
+              <g transform="translate(158 232)"><path d="M0 8L8 -7L16 8Z" fill="#000" stroke="#FF4D3D" stroke-width="2.3" stroke-linejoin="round"/><path d="M8 -1v4" stroke="#FF4D3D" stroke-width="2.3" stroke-linecap="round"/><circle cx="8" cy="5.5" r="1.1" fill="#FF4D3D"/></g>
+              <g><circle cx="330" cy="90" r="9" fill="#FFCF33"/></g>
+              <!-- transition node · bike → paddle put-in (FR12) -->
+              <g transform="translate(250 150)">
+                <rect x="-11" y="-11" width="22" height="22" rx="4" fill="#000" stroke="#F4EFE4" stroke-width="2.8" transform="rotate(45)"/>
+                <path d="M-5 -2.5h7.5" stroke="#F4EFE4" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M1 -6l4.5 3.5L1 1" fill="none" stroke="#F4EFE4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M5 3.5h-7.5" stroke="#F4EFE4" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M-1 0l-4.5 3.5L-1 7" fill="none" stroke="#F4EFE4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
+            </svg>
+            <!-- transition node label -->
+            <div style="position:absolute;left:33%;top:20%;background:rgba(0,0,0,0.78);border:1px solid #F4EFE4;border-radius:6px;padding:6px 9px;max-width:132px;">
+              <div style="font-family:var(--mono);font-size:9px;letter-spacing:0.08em;color:#fff;font-weight:700;">TRANSITION · PUT-IN</div>
+              <div style="font-family:var(--mono);font-size:9px;color:#b8b8b8;margin-top:2px;line-height:1.35;">Stash bikes river left → launch</div>
+            </div>
+            <!-- current position -->
+            <div style="position:absolute;left:20%;top:59%;width:20px;height:20px;background:#FF6A34;border:3px solid #000;border-radius:50%;box-shadow:0 0 0 4px rgba(255,106,52,0.35);"></div>
+            <!-- HC mode chip -->
+            <div style="position:absolute;top:118px;right:14px;background:rgba(0,0,0,0.7);border:1px solid #fff;color:#fff;font-family:var(--mono);font-size:9px;letter-spacing:0.08em;padding:5px 9px;border-radius:4px;">OUTDOOR HC · ON</div>
+            <!-- legend -->
+            <div style="position:absolute;bottom:96px;left:14px;background:rgba(0,0,0,0.72);border:1px solid #333;border-radius:8px;padding:11px 13px;display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:9px;"><svg width="34" height="8"><line x1="2" y1="4" x2="32" y2="4" stroke="#7BD6A9" stroke-width="4" stroke-linecap="round"/></svg><span style="font-family:var(--mono);font-size:10px;color:#fff;">Ride · gravel</span></div>
+              <div style="display:flex;align-items:center;gap:9px;"><svg width="34" height="8"><line x1="2" y1="4" x2="32" y2="4" stroke="#7FC2DB" stroke-width="4" stroke-linecap="round" stroke-dasharray="8 6"/></svg><span style="font-family:var(--mono);font-size:10px;color:#fff;">Paddle</span></div>
+            </div>
+            <!-- peer field note surfacing (FR56a) -->
+            <div style="position:absolute;bottom:14px;left:14px;right:14px;background:rgba(18,18,18,0.94);border:1px dashed #7FC2DB;border-radius:10px;padding:12px 14px;z-index:6;box-shadow:0 6px 20px rgba(0,0,0,0.5);">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.08em;color:#7FC2DB;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7FC2DB" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg>FIELD NOTE · 0.2 MI AHEAD</span>
+                <span style="font-family:var(--mono);font-size:9px;color:#8a8a8a;">Sam R. · 12 min ago</span>
+              </div>
+              <div style="color:#fff;font-size:13px;margin-top:6px;line-height:1.35;">Farmers market on the green today — water &amp; coffee at booth 12.</div>
+            </div>
+          </div>
+          <!-- Thumb-zone controls · recenter + shared Cue↔Map toggle (MAP active) -->
+          <div style="height:82px;background:#000;border-top:1px solid #333;display:flex;align-items:center;justify-content:center;gap:14px;padding:0 14px;flex:none;">
+            <div style="width:52px;height:52px;border-radius:50%;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;flex:none;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+            <div style="display:flex;align-items:center;background:#161616;border:1px solid #3a3a3a;border-radius:999px;padding:5px;">
+              <div style="display:flex;align-items:center;gap:8px;color:#fff;border-radius:999px;padding:12px 18px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+                <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.06em;font-weight:600;">CUES</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;background:var(--blaze);color:#fff;border-radius:999px;padding:12px 18px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L4 6v14l5-2 6 2 5-2V4l-5 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>
+                <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.06em;font-weight:700;">MAP</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink2);">03 · Map · Outdoor high-contrast</div>
+    </div>
+
+    <!-- ============ SCREEN 4 · TRIP DETAIL ============ -->
+    <div data-screen-label="04 Trip Detail" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div style="width:384px;height:812px;background:#111;border-radius:52px;padding:11px;box-shadow:0 30px 60px rgba(34,31,26,0.28);">
+        <div style="width:100%;height:100%;background:var(--canvas);border-radius:42px;overflow:hidden;position:relative;display:flex;flex-direction:column;">
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:104px;height:28px;background:#111;border-radius:16px;z-index:5;"></div>
+          <!-- hero -->
+          <div style="height:186px;background:repeating-linear-gradient(135deg,var(--panel) 0 11px,var(--canvas) 11px 22px);position:relative;flex:none;">
+            <div style="position:absolute;top:52px;left:20px;width:34px;height:34px;border-radius:50%;background:rgba(251,249,243,0.9);display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></div>
+            <span style="position:absolute;top:56px;right:18px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:0.06em;background:var(--spruce);color:#fff;padding:5px 9px;border-radius:3px;">OFFLINE READY</span>
+            <span style="position:absolute;bottom:12px;left:18px;font-family:var(--mono);font-size:10px;color:var(--ink3);">route overview</span>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:18px 22px;">
+            <div style="font-family:var(--serif);font-size:32px;line-height:1;color:var(--ink);">Cascade Loop</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:6px;">by A. Diaz · 4 days · gravel + paddle</div>
+            <!-- stats -->
+            <div style="display:flex;gap:10px;margin-top:16px;">
+              <div style="flex:1;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:11px;"><div style="font-family:var(--mono);font-size:9px;color:var(--ink3);letter-spacing:0.08em;">DISTANCE</div><div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:3px;">178 MI</div></div>
+              <div style="flex:1;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:11px;"><div style="font-family:var(--mono);font-size:9px;color:var(--ink3);letter-spacing:0.08em;">CLIMB</div><div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:3px;">↑ 9.4k</div></div>
+              <div style="flex:1;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:11px;"><div style="font-family:var(--mono);font-size:9px;color:var(--ink3);letter-spacing:0.08em;">DAYS</div><div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:3px;">4</div></div>
+            </div>
+            <!-- elevation -->
+            <div style="margin-top:16px;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:14px;">
+              <div style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;">Day 2 profile</div>
+              <div style="height:66px;position:relative;border-bottom:1px solid var(--ink2);border-left:1px solid var(--ink2);">
+                <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(44,74,59,0.18),rgba(44,74,59,0.05));clip-path:polygon(0 90%,14% 66%,28% 74%,44% 40%,60% 54%,76% 22%,100% 34%,100% 100%,0 100%);"></div>
+                <div style="position:absolute;inset:0;border-top:2px solid var(--spruce);clip-path:polygon(0 90%,14% 66%,28% 74%,44% 40%,60% 54%,76% 22%,100% 34%,100% 35%,76% 23%,60% 55%,44% 41%,28% 75%,14% 67%,0 91%);"></div>
+              </div>
+            </div>
+            <!-- day timeline -->
+            <div style="margin-top:16px;">
+              <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--spruce)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17l4.5-8h5.5"/><path d="M10 9l4.5 8"/><path d="M9 9h3"/></svg>
+                <div style="flex:1;"><div style="font-size:14px;font-weight:600;color:var(--ink);">Ride · Riverside to portage</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);">42 MI · gravel</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);">
+                <svg width="26" height="26" viewBox="0 0 24 24" style="flex:none;"><rect x="4" y="4" width="16" height="16" rx="2.5" fill="var(--paper)" stroke="var(--gold)" stroke-width="2.3"/><path d="M8 12h7" stroke="var(--gold)" stroke-width="2.3" stroke-linecap="round"/><path d="M12.5 9l3 3-3 3" fill="none" stroke="var(--gold)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <div style="flex:1;"><div style="font-size:14px;font-weight:600;color:var(--ink);">Portage · stash bikes</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);">0.6 MI carry · river left</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:9px 0;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--slate)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;"><path d="M3 14c3.5 3.2 14.5 3.2 18 0"/><path d="M15.5 4l-6.5 12"/><path d="M12.5 4.5l4-.5-.5 4"/></svg>
+                <div style="flex:1;"><div style="font-size:14px;font-weight:600;color:var(--ink);">Paddle · to camp</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);">11 MI · flatwater</div></div>
+              </div>
+            </div>
+          </div>
+          <!-- primary action -->
+          <div style="padding:14px 22px 26px;flex:none;background:var(--canvas);border-top:1px solid var(--line);">
+            <div style="background:var(--blaze);color:#fff;font-weight:700;font-size:16px;height:52px;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:10px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+              Download for offline · 142 MB
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink2);">04 · Trip Detail</div>
+    </div>
+
+    <!-- ============ SCREEN 5 · TRAIL NARRATION (STOWED) ============ -->
+    <div data-screen-label="05 Narration Stowed" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div style="width:384px;height:812px;background:#111;border-radius:52px;padding:11px;box-shadow:0 30px 60px rgba(34,31,26,0.28);">
+        <div style="width:100%;height:100%;background:#08090A;border-radius:42px;overflow:hidden;position:relative;display:flex;flex-direction:column;color:#EDEBE6;">
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:104px;height:28px;background:#000;border-radius:16px;z-index:5;"></div>
+          <div style="height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 26px 0 30px;font-family:var(--mono);font-size:13px;font-weight:700;color:#5A5A56;flex:none;">
+            <span>2:18</span>
+            <span style="width:17px;height:11px;border:1.5px solid #5A5A56;border-radius:3px;position:relative;"><span style="position:absolute;left:1.5px;top:1.5px;bottom:1.5px;width:60%;background:#5A5A56;border-radius:1px;"></span></span>
+          </div>
+          <!-- dimmed lock-screen clock -->
+          <div style="padding:40px 30px 0;flex:none;text-align:center;">
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.14em;color:#4A4A47;">SUN · AUG 13</div>
+            <div style="font-family:var(--serif);font-size:78px;line-height:1;color:#33332F;margin-top:4px;">2:18</div>
+          </div>
+          <!-- narration now-playing card -->
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 22px;">
+            <div style="background:#111311;border:1px solid #24261F;border-radius:16px;padding:22px 20px 24px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.1em;color:#DB5A28;display:flex;align-items:center;gap:7px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DB5A28" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg>GPS-TRIGGERED NARRATION</span>
+                <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.06em;color:#5A5A56;">EXPOSITION</span>
+              </div>
+              <div style="font-family:var(--serif);font-size:32px;line-height:1.05;color:#F1EFEA;margin-top:16px;">Devil's Backbone Overlook</div>
+              <div style="font-size:13px;color:#9A968C;margin-top:6px;line-height:1.4;">The ridge you're climbing was a wagon route in the 1870s. Ahead, the valley opens where the river once forked…</div>
+              <!-- waveform -->
+              <div style="display:flex;align-items:center;gap:3px;height:38px;margin-top:20px;">
+                <span style="flex:1;background:#DB5A28;border-radius:2px;height:30%;"></span><span style="flex:1;background:#DB5A28;border-radius:2px;height:64%;"></span><span style="flex:1;background:#DB5A28;border-radius:2px;height:90%;"></span><span style="flex:1;background:#DB5A28;border-radius:2px;height:52%;"></span><span style="flex:1;background:#DB5A28;border-radius:2px;height:78%;"></span><span style="flex:1;background:#DB5A28;border-radius:2px;height:44%;"></span><span style="flex:1;background:#3A3C35;border-radius:2px;height:70%;"></span><span style="flex:1;background:#3A3C35;border-radius:2px;height:36%;"></span><span style="flex:1;background:#3A3C35;border-radius:2px;height:58%;"></span><span style="flex:1;background:#3A3C35;border-radius:2px;height:82%;"></span><span style="flex:1;background:#3A3C35;border-radius:2px;height:40%;"></span><span style="flex:1;background:#3A3C35;border-radius:2px;height:66%;"></span><span style="flex:1;background:#3A3C35;border-radius:2px;height:30%;"></span><span style="flex:1;background:#3A3C35;border-radius:2px;height:54%;"></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:#5A5A56;margin-top:8px;"><span>0:41</span><span>1:52</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink2);">05 · Narration · triggered at 500 ft · stowed, hands-free, offline</div>
+    </div>
+
+    <!-- ============ SCREEN 6 · ROUTE AMENDMENT ============ -->
+    <div data-screen-label="06 Route Amendment" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div style="width:384px;height:812px;background:#111;border-radius:52px;padding:11px;box-shadow:0 30px 60px rgba(34,31,26,0.28);">
+        <div style="width:100%;height:100%;background:var(--canvas);border-radius:42px;overflow:hidden;position:relative;display:flex;flex-direction:column;">
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:104px;height:28px;background:#111;border-radius:16px;z-index:5;"></div>
+          <div style="height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 26px 0 30px;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink);flex:none;">
+            <span>9:41</span>
+            <span style="width:17px;height:11px;border:1.5px solid var(--ink);border-radius:3px;position:relative;"><span style="position:absolute;inset:1.5px;background:var(--ink);border-radius:1px;"></span></span>
+          </div>
+          <!-- header -->
+          <div style="padding:6px 22px 14px;flex:none;">
+            <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--blaze);">Route amendment</div>
+            <div style="font-family:var(--serif);font-size:30px;line-height:1.05;color:var(--ink);margin-top:4px;">Sam proposed a reroute</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:5px;">at Mile 18.1 · 4 min ago · 2 of 5 accepted</div>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:0 22px;">
+            <!-- hazard-flagged safety note -->
+            <div style="background:#FDECE7;border:1px solid var(--ember);border-left:4px solid var(--ember);border-radius:8px;padding:12px 14px;display:flex;gap:11px;align-items:flex-start;">
+              <svg width="22" height="22" viewBox="0 0 24 24" style="flex:none;margin-top:1px;"><path d="M12 4l8.5 15H3.5z" fill="none" stroke="var(--ember)" stroke-width="2.3" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="var(--ember)" stroke-width="2.3" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2" fill="var(--ember)"/></svg>
+              <div><div style="font-weight:800;font-size:13px;color:var(--ember);">Flagged: high hazard</div><div style="font-size:13px;color:var(--ink);margin-top:3px;line-height:1.35;">Bridge out — strainer river right, not crossable.</div></div>
+            </div>
+            <!-- map diff -->
+            <div style="margin-top:14px;height:118px;border-radius:8px;overflow:hidden;position:relative;background:var(--panel);">
+              <svg width="100%" height="100%" viewBox="0 0 340 118" preserveAspectRatio="xMidYMid slice">
+                <rect width="340" height="118" fill="#E7DFCF"/>
+                <g stroke="#D4C9B3" stroke-width="1"><path d="M0 40H340 M0 80H340 M85 0V118 M170 0V118 M255 0V118"/></g>
+                <path d="M30 96 Q90 70 150 78 T300 30" fill="none" stroke="#B24A2A" stroke-width="4" stroke-dasharray="9 7" stroke-linecap="round" opacity="0.55"/>
+                <path d="M30 96 Q80 60 150 60 Q220 60 300 30" fill="none" stroke="#2C4A3B" stroke-width="4.5" stroke-linecap="round"/>
+                <circle cx="150" cy="78" r="6" fill="#FBF9F3" stroke="var(--ember)" stroke-width="2.6"/>
+                <circle cx="30" cy="96" r="5" fill="#2C4A3B"/><circle cx="300" cy="30" r="5" fill="#2C4A3B"/>
+              </svg>
+              <div style="position:absolute;bottom:8px;left:10px;display:flex;gap:14px;font-family:var(--mono);font-size:9px;color:var(--ink2);">
+                <span style="display:flex;align-items:center;gap:5px;"><svg width="20" height="6"><line x1="1" y1="3" x2="19" y2="3" stroke="#B24A2A" stroke-width="3" stroke-dasharray="5 4" stroke-linecap="round"/></svg>Current</span>
+                <span style="display:flex;align-items:center;gap:5px;"><svg width="20" height="6"><line x1="1" y1="3" x2="19" y2="3" stroke="#2C4A3B" stroke-width="3.5" stroke-linecap="round"/></svg>Proposed</span>
+              </div>
+            </div>
+            <!-- delta table -->
+            <div style="margin-top:14px;background:var(--paper);border:1px solid var(--line);border-radius:8px;overflow:hidden;font-family:var(--mono);">
+              <div style="display:grid;grid-template-columns:1fr 68px 68px 56px;padding:9px 14px;font-size:9px;letter-spacing:0.06em;color:var(--ink3);border-bottom:1px solid var(--line);"><span></span><span style="text-align:right;">CURRENT</span><span style="text-align:right;">PROPOSED</span><span style="text-align:right;">Δ</span></div>
+              <div style="display:grid;grid-template-columns:1fr 68px 68px 56px;padding:11px 14px;font-size:12px;color:var(--ink);border-bottom:1px solid var(--line);align-items:center;"><span style="color:var(--ink2);">Distance</span><span style="text-align:right;">6.2 mi</span><span style="text-align:right;font-weight:700;">7.0 mi</span><span style="text-align:right;color:var(--ember);">+0.8</span></div>
+              <div style="display:grid;grid-template-columns:1fr 68px 68px 56px;padding:11px 14px;font-size:12px;color:var(--ink);border-bottom:1px solid var(--line);align-items:center;"><span style="color:var(--ink2);">Climb</span><span style="text-align:right;">↑ 620</span><span style="text-align:right;font-weight:700;">↑ 740</span><span style="text-align:right;color:var(--ember);">+120</span></div>
+              <div style="display:grid;grid-template-columns:1fr 68px 68px 56px;padding:11px 14px;font-size:12px;color:var(--ink);align-items:center;"><span style="color:var(--ink2);">Hazard</span><span style="text-align:right;color:var(--ember);font-weight:700;">1</span><span style="text-align:right;font-weight:700;color:var(--spruce);">0</span><span style="text-align:right;color:var(--spruce);font-size:10px;">avoided</span></div>
+            </div>
+          </div>
+          <!-- actions -->
+          <div style="padding:14px 22px 26px;flex:none;background:var(--canvas);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:9px;">
+            <div style="background:var(--blaze);color:#fff;font-weight:700;font-size:16px;height:52px;border-radius:6px;display:flex;align-items:center;justify-content:center;">Accept reroute</div>
+            <div style="display:flex;gap:9px;">
+              <div style="flex:1;border:1px solid var(--ink2);color:var(--ink);font-weight:600;font-size:14px;height:48px;border-radius:6px;display:flex;align-items:center;justify-content:center;">Select alternate</div>
+              <div style="flex:1;border:1px solid var(--line);color:var(--ink2);font-weight:600;font-size:14px;height:48px;border-radius:6px;display:flex;align-items:center;justify-content:center;">Decline</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink2);">06 · Route amendment · accept / decline</div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

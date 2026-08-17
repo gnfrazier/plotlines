@@ -72,13 +72,19 @@ Imported from the Claude Design project **"Plotlines - Design"**
 upstream package apart from this section.
 
 - The path in the snippet above (`path: flutter/plotlines_ui`) is the **upstream**
-  layout. In this repo the package lives at `client/packages/plotlines_ui`, so
-  `client/pubspec.yaml` should declare `path: packages/plotlines_ui`.
-- The upstream warning is real and **has not been discharged**: nothing here has
-  been through `flutter analyze` or `flutter run`. Verify before building on it.
-  Two things to check first — `Color.withValues(alpha:)` needs a recent Flutter,
-  and `ColorScheme` requires the full required-argument set on the SDK in use.
-- `flutter_lints: ^4.0.0` here vs. `^6.0.0` in `client/pubspec.yaml` — reconcile
-  when wiring the path dependency.
+  layout. In this repo the package lives at `client/packages/plotlines_ui`, and
+  `client/pubspec.yaml` declares `path: packages/plotlines_ui`.
+- **The upstream "never compiled" warning above is discharged in this repo.**
+  `flutter analyze` and `flutter test` both pass clean against this copy —
+  `Color.withValues(alpha:)` and `ColorScheme`'s required-argument set were
+  the two things worth checking, and both are fine on the SDK this repo pins.
+  `flutter_lints` is `^6.0.0` here now, matching `client/pubspec.yaml` (was
+  `^4.0.0` on import — reconciled).
+- **Fonts are vendored, not fetched.** Unlike the upstream snippet above (which
+  still calls `google_fonts`), this copy's `PlotTypography` reads local
+  `fontFamily` names against `.ttf`s under `assets/fonts/`, declared in this
+  package's own `pubspec.yaml` — desktop MVP is offline-first (ARCH P2), so a
+  first run must never depend on reaching Google's CDN. `google_fonts` is not
+  a dependency of this copy.
 - Design reference for these components (brand guide, UI gallery, token CSS) is
   in `client/design/`.

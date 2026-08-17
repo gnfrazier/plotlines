@@ -3,15 +3,18 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../domain/domain.dart';
+import '../domain/json_utils.dart' show dayLimitsToJson;
 
 /// The linchpin of the Data layer (ARCH §9.1): holds the sidecar's base URL and
-/// nothing above it knows the transport. Talks to whatever `service/app.py`
-/// actually exposes today — `/health`, `/segments/generate`,
-/// `/segments/envelope`, `/segments/diagnose` (+poll). The rest of ARCH §7.2's
-/// surface (`/days/compose`, `/trips/split`, `/trips/{id}/export`, `/geocode`,
-/// `/tiles`, `/elevation`, `/weather`) is not implemented server-side yet —
-/// see the MVP doc's open questions. Callers should expect [UnimplementedError]
-/// from those methods rather than a silent no-op.
+/// nothing above it knows the transport. `/health`, `/segments/generate`
+/// (all three shapes), `/segments/envelope`, `/segments/diagnose` (+poll),
+/// `/segments/cues`, `/days/compose`, `/trips/split`, and `/geocode` are all
+/// real and wired here. Still not implemented server-side: `/trips/{id}/export`
+/// (GPX/GeoJSON/TCX are client-side writers instead, see `data/export/`),
+/// `/tiles` (no basemap-tile endpoint — the client reads exploded tiles off
+/// disk directly, see `presentation/map/vector_tile_provider.dart`), and
+/// `/elevation`/`/weather` as standalone probes (elevation rides along
+/// inside `/segments/generate`; weather is Leg 3, MVP doc §1.4.2).
 class RoutingClient {
   RoutingClient(this.baseUrl);
 
@@ -25,43 +28,55 @@ class RoutingClient {
     return jsonDecode(resp.body) as Map<String, dynamic>;
   }
 
-  /// A7/B1 — solve start (+ via + end) under a named theme or raw weights.
-  /// Adapts the sidecar's flat `routing.solve.Segment.to_dict()` response
-  /// (mode/theme/distance_m/coordinates/elevation/node_count/solve_ms/
-  /// geometry_wkt — the SPIKE-00 solver's shape) onto the domain [Segment]
-  /// (the `trip_payload.schema.json` shape); the two are deliberately
-  /// different documents (see `weight_profile.dart`'s doc comment) and this
-  /// is the one place that bridges them.
+  Map<String, dynamic> _latLon(Coord c) => {'lat': c[1], 'lon': c[0]};
+
+  /// A7/A8/A9/B1 — solve under a named theme or raw weights, for any of the
+  /// three shapes. `end` is required for `point_to_point` and optional
+  /// elsewhere (an out-and-back turnaround, or absent — a loop always closes
+  /// on `start`); `targetM` is required for `loop` and is `out_and_back`'s
+  /// envelope target when no `end` is given (FR8/A8).
+  ///
+  /// Adapts the sidecar's flat response (mode/theme/distance_m/coordinates/
+  /// elevation/solve_ms, plus `shape`/`closed`/`hit_via`/`target_m` for the
+  /// two loop-family shapes) onto the domain [Segment] (the
+  /// `trip_payload.schema.json` shape); the two are deliberately different
+  /// documents (see `weight_profile.dart`'s doc comment) and this is the one
+  /// place that bridges them.
   Future<Segment> generateSegment({
     required Coord start,
-    required Coord end,
+    Coord? end,
     List<Coord> via = const [],
     String mode = 'cycling',
+    String shape = 'point_to_point',
     String theme = 'balanced',
     Map<String, double>? weights,
+    double? targetM,
   }) async {
     final resp = await http.post(
       _uri('/segments/generate'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'start': {'lat': start[1], 'lon': start[0]},
-        'end': {'lat': end[1], 'lon': end[0]},
-        'via': via.map((c) => {'lat': c[1], 'lon': c[0]}).toList(),
+        'start': _latLon(start),
+        if (end != null) 'end': _latLon(end),
+        'via': via.map(_latLon).toList(),
         'mode': mode,
+        'shape': shape,
         'theme': theme,
         if (weights != null) 'weights': weights,
+        if (targetM != null) 'target_m': targetM,
       }),
     );
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
-    return _segmentFromSolveResponse(raw, mode: mode, start: start, end: end, via: via);
+    return _segmentFromSolveResponse(raw, mode: mode, shape: shape, start: start, end: end, via: via);
   }
 
   static Segment _segmentFromSolveResponse(
     Map<String, dynamic> raw, {
     required String mode,
+    required String shape,
     required Coord start,
-    required Coord end,
+    required Coord? end,
     required List<Coord> via,
   }) {
     final coords = (raw['coordinates'] as List)
@@ -71,13 +86,13 @@ class RoutingClient {
     return Segment(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       mode: mode,
-      // The solve.py engine only ever produces a routed point-to-point/via
-      // path today; loop closure and out-and-back live in routing/loops.py
-      // and are not what /segments/generate calls (open question).
-      shape: 'point_to_point',
+      shape: (raw['shape'] as String?) ?? shape,
       start: start,
-      end: end,
+      end: end ?? (coords.isNotEmpty ? coords.last : null),
       via: via,
+      targetDistance: raw['target_m'] == null
+          ? null
+          : TargetDistance(valueM: (raw['target_m'] as num).toDouble()),
       geometry: LineString(coordinates: coords, source: 'solved'),
       metrics: RouteMetrics(distanceM: (raw['distance_m'] as num).toDouble()),
       elevation: Elevation(
@@ -89,6 +104,8 @@ class RoutingClient {
       solve: SolveProvenance(
         solveMs: (raw['solve_ms'] as num?)?.toDouble(),
         solvedAt: DateTime.now().toUtc().toIso8601String(),
+        closed: raw['closed'] as bool?,
+        hitVia: raw['hit_via'] as bool?,
       ),
     );
   }
@@ -104,9 +121,9 @@ class RoutingClient {
       _uri('/segments/envelope'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'start': {'lat': start[1], 'lon': start[0]},
+        'start': _latLon(start),
         'target_m': targetM,
-        'via': via.map((c) => {'lat': c[1], 'lon': c[0]}).toList(),
+        'via': via.map(_latLon).toList(),
       }),
     );
     _checkOk(resp);
@@ -127,9 +144,9 @@ class RoutingClient {
       _uri('/segments/diagnose'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'start': {'lat': start[1], 'lon': start[0]},
+        'start': _latLon(start),
         'target_m': targetM,
-        'via': via.map((c) => {'lat': c[1], 'lon': c[0]}).toList(),
+        'via': via.map(_latLon).toList(),
         'bands': bands
             .map((b) => {
                   'metric': b.attribute,
@@ -153,11 +170,123 @@ class RoutingClient {
     return Diagnosis.fromJson(raw['diagnosis'] as Map<String, dynamic>);
   }
 
+  /// F1 — real turn-by-turn cues (SPIKE-21's `derive_cue_sheet`), re-solved
+  /// server-side against the graph rather than trusted from client geometry
+  /// (same pattern as `/segments/envelope` and `/segments/diagnose`).
+  /// [segment] supplies the routing inputs (start/end/via/mode/shape/
+  /// weights/target distance); its `nodes`/`hazards`/`portages`/`alternates`
+  /// are the curated content the sheet is derived around.
+  Future<CueSheet> cuesFor(Segment segment) async {
+    final resp = await http.post(
+      _uri('/segments/cues'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'start': _latLon(segment.start!),
+        if (segment.end != null) 'end': _latLon(segment.end!),
+        'via': segment.via.map(_latLon).toList(),
+        'shape': segment.shape,
+        if (segment.weights?.name != null) 'theme': segment.weights!.name,
+        if (segment.targetDistance != null) 'target_m': segment.targetDistance!.valueM,
+        'segment_id': segment.id,
+        'nodes': segment.nodes.map((n) => {
+              'id': n.id, 'kind': n.kind.wireValue, 'coord': n.coord,
+              'distance_along_m': n.distanceAlongM, 'title': n.title,
+              'instructions': n.instructions,
+            }).toList(),
+        'hazards': segment.hazards.map((h) => {
+              'id': h.id, 'severity': h.severity, 'coord': h.coord,
+              'distance_along_m': h.distanceAlongM, 'title': h.title,
+              'safety_note': h.safetyNote,
+            }).toList(),
+        'portages': segment.portages.map((p) => {
+              'id': p.id,
+              'geometry': {'coordinates': p.geometry.coordinates},
+              'exit_bank': p.exitBank, 'mandatory': p.mandatory ?? false,
+              'distance_m': p.distanceM,
+            }).toList(),
+        'alternates': segment.alternates.map((a) => {
+              'id': a.id, 'kind': a.kind,
+              'geometry': {'coordinates': a.geometry.coordinates},
+              'label': a.label, 'diverges_at_m': a.divergesAtM,
+            }).toList(),
+      }),
+    );
+    _checkOk(resp);
+    final raw = jsonDecode(resp.body) as Map<String, dynamic>;
+    return CueSheet.fromJson(raw['cue_sheet'] as Map<String, dynamic>);
+  }
+
+  /// B2/D1/C3 — the only supported way to build a day's derived half
+  /// (transition gap warnings, roll-up): `trips/compose.py`'s `compose_day`.
+  Future<Day> composeDay({
+    required List<Segment> segments,
+    List<Transition> transitions = const [],
+    int index = 1,
+    String kind = 'route',
+  }) async {
+    final resp = await http.post(
+      _uri('/days/compose'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'segments': segments.map((s) => s.toJson()).toList(),
+        'transitions': transitions.map((t) => t.toJson()).toList(),
+        'index': index,
+        'kind': kind,
+      }),
+    );
+    _checkOk(resp);
+    return Day.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
+  }
+
+  /// C3 — assemble days into a trip and apply per-mode day limits
+  /// (`split_trip`; see that function's docstring for why "split" is the
+  /// ARCH-inherited name for an assemble operation).
+  Future<Trip> assembleTrip({
+    required List<Day> days,
+    required String title,
+    Map<String, DayLimit>? limits,
+    WeightProfile? defaultWeights,
+  }) async {
+    final resp = await http.post(
+      _uri('/trips/split'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'days': days.map((d) => d.toJson()).toList(),
+        'title': title,
+        if (limits != null) 'limits': dayLimitsToJson(limits),
+        if (defaultWeights != null) 'default_weights': defaultWeights.toJson(),
+      }),
+    );
+    _checkOk(resp);
+    return Trip.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
+  }
+
+  /// A10 / New Route's location search — Nominatim via OSMnx (ARCH §7.2).
+  Future<List<GeocodeResult>> geocode(String query) async {
+    final resp = await http.get(_uri('/geocode').replace(queryParameters: {'q': query}));
+    _checkOk(resp);
+    final raw = jsonDecode(resp.body) as Map<String, dynamic>;
+    return (raw['results'] as List)
+        .map((r) => GeocodeResult.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
   void _checkOk(http.Response resp) {
     if (resp.statusCode >= 400) {
       throw RoutingException(resp.statusCode, resp.body);
     }
   }
+}
+
+class GeocodeResult {
+  const GeocodeResult({required this.label, required this.coord});
+  final String label;
+  final Coord coord;
+
+  factory GeocodeResult.fromJson(Map<String, dynamic> j) => GeocodeResult(
+        label: j['label'] as String,
+        coord: (j['coord'] as List).map((e) => (e as num).toDouble()).toList(),
+      );
 }
 
 class RoutingException implements Exception {

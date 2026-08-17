@@ -215,6 +215,109 @@ def _anchor_ring(graph: nx.MultiDiGraph, lat: float, lon: float, radius_m: float
     return nodes
 
 
+def generate_out_and_back(
+    graph: nx.MultiDiGraph,
+    start: tuple[float, float],
+    profile: WeightProfile,
+    *,
+    via: list[tuple[float, float]] | None = None,
+    end: tuple[float, float] | None = None,
+    target_m: float | None = None,
+    tolerance: float = 0.15,
+    max_iterations: int = 6,
+    base_bearing: float = 0.0,
+) -> Loop:
+    """A7's out-and-back: out to a point, and back along the same corridor.
+
+    **Not a literal node-for-node reversal of the outbound path.** The graph
+    is directed — a one-way street has no reverse edge to walk back along —
+    so naively reversing the outbound node list KeyErrors on the first
+    one-way it crossed (found running this against the Boulder fixture: a
+    turnaround chosen past a one-way segment made the return leg
+    unwalkable). The return leg is instead its own plain shortest-path solve
+    from the turnaround back through the via-nodes to `start`, with no reuse
+    penalty — `generate_loop`'s reuse penalty exists to push a *loop's*
+    return leg off the outbound road, and applying it here would fight the
+    shape out-and-back is asking for. On ordinary bidirectional streets a
+    plain reverse solve reproduces the outbound road anyway; it legitimately
+    diverges only where a one-way forces it to, which is the honest answer,
+    not a bug to route around.
+
+    Either `end` (a fixed turnaround the Author picked) or `target_m` (search
+    for one) must be given. `end` is honoured exactly, the same way a via-node
+    is; `target_m` is honoured as an envelope, the same way FR8 treats it for
+    a loop, because a single search point has only one degree of freedom to
+    hit an exact round-trip distance with.
+    """
+    if end is None and target_m is None:
+        raise ValueError("out-and-back needs an end point or a target distance")
+
+    t0 = time.perf_counter()
+    slat, slon = start
+    start_node = nearest_node(graph, slat, slon)
+    via_nodes = [nearest_node(graph, vlat, vlon) for vlat, vlon in (via or [])]
+
+    def _leg(a: int, b: int, mids: list[int]) -> _Circuit:
+        return solve_circuit(graph, [a, *mids, b], profile, close=False)
+
+    calls = 0
+    if end is not None:
+        elat, elon = end
+        turnaround = nearest_node(graph, elat, elon)
+        out = _leg(start_node, turnaround, via_nodes)
+        calls += out.calls
+        iterations = 1
+    else:
+        assert target_m is not None
+        one_way = target_m / 2.0 / _DETOUR_GUESS
+        best: _Circuit | None = None
+        best_error = math.inf
+        iterations = 0
+        for _ in range(max_iterations):
+            iterations += 1
+            turnaround = elevation_biased_node(
+                graph, *offset(slat, slon, base_bearing, one_way),
+                one_way * _ANCHOR_SEARCH_FRAC, profile.peaks,
+            )
+            attempt = _leg(start_node, turnaround, via_nodes)
+            calls += attempt.calls
+            walk = edge_walk(graph, attempt.path, profile)
+            one_way_m = measure(graph, walk).distance_m
+            error = abs(2 * one_way_m - target_m) / target_m if target_m else 0.0
+            if error < best_error:
+                best, best_error = attempt, error
+            if error <= tolerance:
+                break
+            scale = (target_m / 2.0) / one_way_m if one_way_m else 1.0
+            one_way *= min(max(scale, 0.4), 2.5)
+        assert best is not None
+        out = best
+        turnaround = out.path[-1]
+
+    ret = _leg(turnaround, start_node, list(reversed(via_nodes)))
+    calls += ret.calls
+    full_path = out.path + ret.path[1:]
+
+    walk = edge_walk(graph, full_path, profile)
+    metrics = measure(graph, walk)
+    total_cost = sum(edge_cost(d, profile) for _, _, d in walk)
+
+    return Loop(
+        path=full_path,
+        walk=walk,
+        metrics=metrics,
+        anchors=[start_node, *via_nodes, turnaround],
+        via_nodes=via_nodes,
+        solve_ms=(time.perf_counter() - t0) * 1000.0,
+        solver_calls=calls,
+        iterations=iterations,
+        target_m=target_m,
+        closed=full_path[0] == full_path[-1],
+        hit_via=all(n in set(out.path) for n in via_nodes),
+        mean_cost_per_m=total_cost / metrics.distance_m if metrics.distance_m else 0.0,
+    )
+
+
 def generate_loop(
     graph: nx.MultiDiGraph,
     start: tuple[float, float],

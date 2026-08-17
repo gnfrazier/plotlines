@@ -26,7 +26,7 @@ class AboutScreen extends ConsumerWidget {
         children: [
           Text('Plotlines', style: PlotTypography.display(c.textPrimary).copyWith(fontSize: 40)),
           const SizedBox(height: PlotSpacing.s2),
-          Text('App version $kClientVersion', style: PlotTypography.data(c.textSecondary)),
+          Text('App version ${resolveClientVersion()}', style: PlotTypography.data(c.textSecondary)),
           const SizedBox(height: PlotSpacing.s1),
           FutureBuilder<Map<String, dynamic>>(
             future: client.health(),

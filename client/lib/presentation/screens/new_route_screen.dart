@@ -3,14 +3,10 @@
 // wireframe as predating A7 (shape selector beyond "loop") and A9 (via-node
 // UI); both are built here rather than carried over missing.
 //
-// Known gap (see docs/Plotlines_MVP_Scope_and_Setup.md open questions):
-// `/segments/generate` (service/app.py) only ever calls
-// `routing.solve.generate_segment`, which solves a point-to-point/via path.
-// Loop closure and out-and-back live in `routing/loops.py` but are not wired
-// to the endpoint yet. Loop/out-and-back are still selectable and stored on
-// the segment (FR7/A7's AC: shape is selectable independently of weights) —
-// the same "schema ships, solver catches up" precedent MVP §1.3 sets for
-// paddling — but Generate is disabled with an honest inline note until then.
+// All three shapes are live: `/segments/generate` routes to
+// `routing/loops.py`'s `generate_loop`/`generate_out_and_back` for the two
+// loop-family shapes and `routing/solve.py`'s `generate_segment` for
+// point-to-point (MVP doc §8, resolved this session).
 library;
 
 import 'package:flutter/material.dart';
@@ -21,6 +17,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../data/routing_client.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
+import '../../state/providers.dart';
 import '../map/tap_to_pick_map.dart';
 import '../widgets/error_states.dart';
 
@@ -37,14 +34,37 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   List<double>? _start;
   List<double>? _end;
   final List<List<double>> _via = [];
+  final _targetKmController = TextEditingController();
+  final _searchController = TextEditingController();
   bool _generating = false;
+  bool _searching = false;
   String? _error;
+  List<GeocodeResult> _searchResults = const [];
 
   static const _modes = ['cycling', 'hiking', 'paddling', 'transit'];
   static const _shapes = ['loop', 'out_and_back', 'point_to_point'];
   static const _themes = ['balanced', 'quiet_scenic', 'fastest', 'gravel'];
 
-  bool get _shapeIsSolvable => _shape == 'point_to_point';
+  @override
+  void dispose() {
+    _targetKmController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  double? get _targetM {
+    final km = double.tryParse(_targetKmController.text);
+    return km == null ? null : km * 1000;
+  }
+
+  bool get _canGenerate {
+    if (_start == null) return false;
+    return switch (_shape) {
+      'loop' => _targetM != null,
+      'out_and_back' => _end != null || _targetM != null,
+      _ => _end != null,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +80,39 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _SectionLabel('LOCATION SEARCH'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            hintText: 'Search a place to set start…',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (_) => _search(),
+                        ),
+                      ),
+                      IconButton(
+                        icon: _searching
+                            ? const SizedBox(
+                                width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.search),
+                        onPressed: _searching ? null : _search,
+                      ),
+                    ],
+                  ),
+                  for (final r in _searchResults)
+                    PlotListTile(
+                      title: r.label,
+                      onTap: () => setState(() {
+                        _start = r.coord;
+                        _searchResults = const [];
+                        _searchController.text = r.label;
+                      }),
+                    ),
+                  const SizedBox(height: PlotSpacing.s4),
                   _SectionLabel('MODE'),
                   Wrap(
                     spacing: PlotSpacing.s2,
@@ -90,19 +143,38 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                         ChoiceChip(
                           label: Text(s.replaceAll('_', ' ')),
                           selected: _shape == s,
-                          onSelected: (_) => setState(() => _shape = s),
+                          onSelected: (_) => setState(() {
+                            _shape = s;
+                            if (s == 'loop') _end = null;
+                          }),
                         ),
                     ],
                   ),
-                  if (!_shapeIsSolvable)
+                  if (_shape == 'loop' || _shape == 'out_and_back') ...[
+                    const SizedBox(height: PlotSpacing.s3),
+                    TextField(
+                      controller: _targetKmController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        labelText: _shape == 'loop'
+                            ? 'Target distance (km) — required'
+                            : 'Target distance (km) — or tap a turnaround',
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
                     Padding(
                       padding: const EdgeInsets.only(top: PlotSpacing.s2),
                       child: Text(
-                        'Loop and out-and-back closure isn\'t wired into the sidecar '
-                        'yet — point-to-point routes today.',
+                        _shape == 'loop'
+                            ? 'Honoured as an envelope (FR8) — the closest achievable loop, not exact.'
+                            : 'The return leg re-solves back to start; it retraces the outbound '
+                                'road except where a one-way forces a different way back.',
                         style: PlotTypography.small(c.textMuted),
                       ),
                     ),
+                  ],
                   const SizedBox(height: PlotSpacing.s5),
                   _SectionLabel('THEME'),
                   Wrap(
@@ -118,17 +190,18 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                   ),
                   const SizedBox(height: PlotSpacing.s5),
                   _SectionLabel('START / END / VIA'),
-                  Text(
-                    'Tap the map to place points. First tap sets start, second sets '
-                    'end; further taps add via-nodes (A9 — 1–2 supported).',
-                    style: PlotTypography.small(c.textSecondary),
-                  ),
+                  Text(_tapHint(), style: PlotTypography.small(c.textSecondary)),
                   const SizedBox(height: PlotSpacing.s2),
-                  _PointList(start: _start, end: _end, via: _via, onClear: () => setState(() {
-                    _start = null;
-                    _end = null;
-                    _via.clear();
-                  })),
+                  _PointList(
+                    start: _start,
+                    end: _shape == 'loop' ? null : _end,
+                    via: _via,
+                    onClear: () => setState(() {
+                      _start = null;
+                      _end = null;
+                      _via.clear();
+                    }),
+                  ),
                   if (_error != null) ...[
                     const SizedBox(height: PlotSpacing.s3),
                     NoDataBanner(onChooseAnotherArea: () => Navigator.pop(context)),
@@ -137,9 +210,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                   PlotButton(
                     label: _generating ? 'Generating…' : 'Generate route',
                     expand: true,
-                    onPressed: (_start == null || _end == null || _generating || !_shapeIsSolvable)
-                        ? null
-                        : _generate,
+                    onPressed: (!_canGenerate || _generating) ? null : _generate,
                   ),
                 ],
               ),
@@ -148,21 +219,52 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
           VerticalDivider(width: 1, color: c.border),
           Expanded(
             child: TapToPickMap(
-              points: [?_start, ..._via, ?_end],
-              onTap: (point) => setState(() {
-                if (_start == null) {
-                  _start = point;
-                } else if (_end == null) {
-                  _end = point;
-                } else if (_via.length < 2) {
-                  _via.add(point);
-                }
-              }),
+              points: [?_start, ..._via, if (_shape != 'loop') ?_end],
+              onTap: (point) => setState(() => _handleTap(point)),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _tapHint() => switch (_shape) {
+        'loop' => 'Tap the map to place start, then up to two via-nodes (A9).',
+        'out_and_back' => 'Tap to place start, then optionally a turnaround '
+            '(or leave it to the target distance above), then up to two via-nodes.',
+        _ => 'Tap the map to place points. First tap sets start, second sets '
+            'end; further taps add via-nodes (A9 — 1–2 supported).',
+      };
+
+  void _handleTap(List<double> point) {
+    if (_start == null) {
+      _start = point;
+      return;
+    }
+    if (_shape == 'loop') {
+      if (_via.length < 2) _via.add(point);
+      return;
+    }
+    if (_end == null) {
+      _end = point;
+      return;
+    }
+    if (_via.length < 2) _via.add(point);
+  }
+
+  Future<void> _search() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+    setState(() => _searching = true);
+    try {
+      final client = ref.read(routingClientProvider);
+      final results = await client.geocode(query);
+      setState(() => _searchResults = results);
+    } on RoutingException catch (e) {
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
   }
 
   Future<void> _generate() async {
@@ -175,10 +277,12 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
       await ref.read(currentTripProvider.notifier).generateSegment(
             dayId: targetDay,
             start: _start!,
-            end: _end!,
+            end: _shape == 'loop' ? null : _end,
             via: _via,
             mode: _mode,
+            shape: _shape,
             theme: _theme,
+            targetM: _targetM,
           );
       ref.read(plannerTargetDayIdProvider.notifier).state = null;
       if (mounted) context.go('/planner');
@@ -223,7 +327,7 @@ class _PointList extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Start: ${start == null ? '—' : fmt(start!)}', style: PlotTypography.data(c.textPrimary)),
-          Text('End: ${end == null ? '—' : fmt(end!)}', style: PlotTypography.data(c.textPrimary)),
+          Text('End/turnaround: ${end == null ? '—' : fmt(end!)}', style: PlotTypography.data(c.textPrimary)),
           for (var i = 0; i < via.length; i++)
             Text('Via ${i + 1}: ${fmt(via[i])}', style: PlotTypography.data(c.textPrimary)),
           if (start != null)

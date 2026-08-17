@@ -23,11 +23,12 @@ theme-weighted, multimodal-capable routes via a sidecar, curates them, and expor
 hosted service, no accounts, no sync, no Web, no mobile field execution. See
 `docs/Plotlines_MVP_Scope_and_Setup.md` §1 for the exact in/out-of-scope line.
 
-**Status:** the Flutter Author Desktop client is built and running against a real sidecar —
-trip library, new-route/theme/via-node picking, the route planner (weights, bands, live A6
-conflict diagnosis), node & narrative curation, cue sheet + GPX/GeoJSON export, settings, and
-attribution are all implemented and exercisable end to end. What's real vs. still a stated gap
-(loop generation, basemap tiles, turn-by-turn cues, geocoding, TCX/FIT) is catalogued in
+**Status:** the Flutter Author Desktop client is built and running against a real sidecar and a
+real basemap — trip library, new-route/theme/via-node picking, the route planner (weights,
+bands, live A6 conflict diagnosis, a real Protomaps vector basemap for the Boulder fixture
+region), node & narrative curation, cue sheet + GPX/GeoJSON export, settings, and attribution
+are all implemented and exercisable end to end. What's real vs. still a stated gap (loop
+generation, turn-by-turn cues, geocoding, TCX/FIT) is catalogued in
 `docs/Plotlines_MVP_Scope_and_Setup.md` §8 — nothing there is a hidden surprise, and nothing in
 the client fakes data to paper over a gap.
 
@@ -90,8 +91,8 @@ Toolchain, verified for WSL/Ubuntu:
 FastAPI sidecar wrapper (`/health`, `/segments/generate`, `/segments/envelope`,
 `/segments/diagnose`) all work end to end against the committed Boulder, CO fixture graph
 (`spikes/SPIKE-00/cache`). `client` is a real Flutter app, not scaffolding — see
-**Running the desktop app** below. Remaining known gaps (loop-shape generation, basemap
-tiles, live turn-by-turn cues, region download, geocoding) are tracked in
+**Running the desktop app** below. Remaining known gaps (loop-shape generation, live
+turn-by-turn cues, region download, geocoding) are tracked in
 `docs/Plotlines_MVP_Scope_and_Setup.md` §8, not silently missing.
 
 ## Running the desktop app

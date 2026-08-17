@@ -50,6 +50,7 @@ dependencies:
   go_router: ^17.5.0
   sqlite3_flutter_libs: ^0.6.0+eol
   file_selector: ^1.1.0
+  vector_tile_renderer: 6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +64,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.34.5
   build_runner: ^2.15.1
+  xml: ^7.0.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -75,10 +77,18 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # The Plotlines-authored basemap theme (ARCH D24 — the label-construct fix
+  # over the stock Protomaps themes), extracted from SPIKE-14's harness.
+  # The tiles themselves (assets/tiles/{z}/{x}/{y}.mvt, ~9.2 MB, exploded
+  # from spikes/SPIKE-14/tiles/boulder.pmtiles) are NOT declared here:
+  # Flutter's asset system has no recursive-directory form, and 496 files
+  # across 16 zoom levels makes listing them individually impractical. They
+  # are read directly off disk by `presentation/map/vector_tile_provider.dart`,
+  # which resolves them the same repo-relative dev-fallback way
+  # `SidecarManager` resolves the sidecar binary and cache dir — see that
+  # file for the bundled-build TODO this shares.
+  assets:
+    - assets/map_style/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

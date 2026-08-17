@@ -74,11 +74,13 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   Future<void> generateSegment({
     String? dayId,
     required Coord start,
-    required Coord end,
+    Coord? end,
     List<Coord> via = const [],
     String mode = 'cycling',
+    String shape = 'point_to_point',
     String theme = 'balanced',
     Map<String, double>? weights,
+    double? targetM,
   }) async {
     final client = _ref.read(routingClientProvider);
     final segment = await client.generateSegment(
@@ -86,8 +88,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       end: end,
       via: via,
       mode: mode,
+      shape: shape,
       theme: theme,
       weights: weights,
+      targetM: targetM,
     );
     final day = _dayOrNew(dayId);
     _replaceDay(day.copyWith(segments: [...day.segments, segment]));
@@ -196,11 +200,29 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     // Author-facing 0.0-5.0 -> solver-internal 0.0-1.0 (bipolar -1..1 for
     // peaks), per scoring/profile.py's documented conversion (risk A18,
     // MVP doc §1.4.5 — "it lands with the first weight slider": this is
-    // that slider). `surface` has no mapping yet: the Author sets it per
-    // class (paved/gravel/singletrack) but the solver has one scalar
-    // `surface` dial, and reducing three sliders to one axis is a real
-    // design decision, not a units conversion — left as an open question
-    // rather than guessed at here.
+    // that slider).
+    //
+    // `surface` is a real, lossy reduction, not a units conversion: the
+    // Author sets three independent 0-5 dials (paved/gravel/singletrack,
+    // each avoid<->seek), but the solver has one scalar `surface` dial that
+    // can only ever *penalise* low-quality surface (edge_cost's
+    // `profile.surface * (1.0 - quality)` term is never negative) — it has
+    // no way to actively seek gravel, only to stop avoiding it. Given that
+    // ceiling, the honest mapping is the Author's net preference for
+    // pavement over rough surface, clamped to what the solver can act on:
+    // 0 when indifferent or unpaved-seeking (correctly relaxes the
+    // aversion to zero, the best available response), scaling toward 1 as
+    // paved preference exceeds gravel/singletrack. Absent classes read as
+    // indifferent (2.5), matching the schema's own rule for `surface`.
+    double? surfaceDial;
+    final surface = weights?.surface;
+    if (surface != null && surface.isNotEmpty) {
+      final paved = surface['paved'] ?? 2.5;
+      final gravel = surface['gravel'] ?? 2.5;
+      final singletrack = surface['singletrack'] ?? 2.5;
+      final unpaved = (gravel + singletrack) / 2.0;
+      surfaceDial = ((paved - unpaved) / 5.0).clamp(0.0, 1.0);
+    }
     final resolved = await client.generateSegment(
       start: old.start!,
       end: old.end!,
@@ -211,6 +233,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           : {
               if (weights.climbing != null) 'peaks': (weights.climbing! - 2.5) / 2.5,
               if (weights.traffic != null) 'quiet': weights.traffic! / 5.0,
+              if (surfaceDial != null) 'surface': surfaceDial,
             },
     );
     final merged = resolved.copyWith(
