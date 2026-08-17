@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Three families, each mapped to a job:
 /// - Instrument Serif — expressive display (hero lines, the diarist voice)
 /// - Archivo — functional UI + body
 /// - JetBrains Mono — data, coordinates, cue sheets
+///
+/// Vendored as .ttf under assets/fonts/ and declared in this package's
+/// pubspec (not fetched via google_fonts) — desktop MVP is offline-first
+/// (ARCH P2), so a first run must never depend on reaching Google's CDN.
 class PlotTypography {
   PlotTypography._();
 
-  static TextStyle get _serif => GoogleFonts.instrumentSerif();
-  static TextStyle get _sans => GoogleFonts.archivo();
-  static TextStyle get _mono => GoogleFonts.jetBrainsMono();
+  static const TextStyle _serif = TextStyle(fontFamily: 'Instrument Serif');
+  static const TextStyle _sans = TextStyle(fontFamily: 'Archivo');
+  static const TextStyle _mono = TextStyle(fontFamily: 'JetBrains Mono');
 
   /// Expressive serif display. Use sparingly for editorial moments.
   static TextStyle display(Color c) => _serif.copyWith(

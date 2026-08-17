@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import threading
 import time
+import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -18,7 +19,10 @@ from pydantic import BaseModel, Field
 
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph.loader import LoadedGraph, load_graphml
+from plotlines_core.routing.diagnose import diagnose
 from plotlines_core.routing.solve import NoRouteFound, generate_segment
+from plotlines_core.routing.search import probe_envelope
+from plotlines_core.scoring.bands import Band, BandSet
 from plotlines_core.scoring.profile import THEMES, WeightProfile
 
 from .version import VERSION
@@ -70,10 +74,43 @@ class SegmentRequest(BaseModel):
     weights: dict[str, float] | None = None
 
 
+class EnvelopeRequest(BaseModel):
+    """A5 — the range this graph can actually deliver at this distance, so band
+    sliders open on an attainable range rather than an abstract 0-5 (SPIKE-03).
+    Loop shape only: `probe_envelope` walks the archetype set through
+    `generate_loop`, which is the shape SPIKE-01/02/03 built band-awareness for.
+    """
+
+    start: Coordinate
+    via: list[Coordinate] = Field(default_factory=list)
+    target_m: float = Field(gt=0)
+
+
+class BandInput(BaseModel):
+    metric: str
+    minimum: float | None = None
+    maximum: float | None = None
+
+
+class DiagnoseRequest(BaseModel):
+    start: Coordinate
+    via: list[Coordinate] = Field(default_factory=list)
+    target_m: float = Field(gt=0)
+    bands: list[BandInput]
+
+
+class DiagnoseJob:
+    def __init__(self) -> None:
+        self.done = False
+        self.result: dict | None = None
+        self.error: str | None = None
+
+
 def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
     app = FastAPI(title="plotlines-service", version=VERSION)
     state = Readiness()
     app.state.readiness = state
+    diagnose_jobs: dict[str, DiagnoseJob] = {}
 
     threading.Thread(target=state.load, args=(cache_dir,), daemon=True).start()
 
@@ -121,6 +158,64 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
         except NoRouteFound as exc:
             raise HTTPException(422, str(exc)) from exc
         return segment.to_dict()
+
+    @app.post("/segments/envelope")
+    def segments_envelope(req: EnvelopeRequest) -> dict:
+        if not state.ready:
+            raise HTTPException(503, f"sidecar not ready: {state.detail}")
+        envelope = probe_envelope(
+            state.graph.graph,
+            start=(req.start.lat, req.start.lon),
+            target_m=req.target_m,
+            via=[(c.lat, c.lon) for c in req.via],
+        )
+        return {k: [lo, hi] for k, (lo, hi) in envelope.items()}
+
+    @app.post("/segments/diagnose")
+    def segments_diagnose(req: DiagnoseRequest) -> dict:
+        if not state.ready:
+            raise HTTPException(503, f"sidecar not ready: {state.detail}")
+        try:
+            bands = BandSet.of(*(
+                Band(b.metric, b.minimum, b.maximum) for b in req.bands
+            ))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+        job_id = str(uuid.uuid4())
+        job = DiagnoseJob()
+        diagnose_jobs[job_id] = job
+
+        def run() -> None:
+            try:
+                result = diagnose(
+                    state.graph.graph,
+                    start=(req.start.lat, req.start.lon),
+                    target_m=req.target_m,
+                    bands=bands,
+                    via=[(c.lat, c.lon) for c in req.via],
+                )
+                job.result = result.to_dict()
+            except Exception as exc:  # noqa: BLE001 — surface honestly (A6)
+                job.error = str(exc)
+            finally:
+                job.done = True
+
+        # SPIKE-02: 1.3-15.0s to diagnose vs 27-218ms to solve — this cannot sit
+        # inside a request the Author is waiting on (ARCH §7.2).
+        threading.Thread(target=run, daemon=True).start()
+        return {"id": job_id}
+
+    @app.get("/segments/diagnose/{job_id}")
+    def segments_diagnose_poll(job_id: str) -> dict:
+        job = diagnose_jobs.get(job_id)
+        if job is None:
+            raise HTTPException(404, "unknown diagnosis job")
+        if not job.done:
+            return {"status": "pending"}
+        if job.error:
+            raise HTTPException(500, job.error)
+        return {"status": "done", "diagnosis": job.result}
 
     if mode == "hosted":
         # Auth / sync / share / group-relay live here (§7.1). Not built — and

@@ -2,7 +2,7 @@
 ///
 /// Material 3, themed to the brand, adaptive across Android, iOS, web, and
 /// desktop. Import this one file to get the theme, tokens, and all components.
-library plotlines_ui;
+library;
 
 // Theme + tokens
 export 'src/theme/colors.dart';

@@ -1,122 +1,69 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:plotlines_ui/plotlines_ui.dart';
+
+import 'presentation/screens/about_screen.dart';
+import 'presentation/screens/cue_sheet_screen.dart';
+import 'presentation/screens/new_route_screen.dart';
+import 'presentation/screens/route_planner_screen.dart';
+import 'presentation/screens/settings_screen.dart';
+import 'presentation/screens/trip_library_screen.dart';
+import 'presentation/widgets/sidecar_gate.dart';
+import 'state/providers.dart';
+import 'state/settings_provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: PlotlinesApp()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+final _router = GoRouter(
+  initialLocation: '/',
+  routes: [
+    GoRoute(path: '/', builder: (context, state) => const TripLibraryScreen()),
+    GoRoute(path: '/new', builder: (context, state) => const NewRouteScreen()),
+    GoRoute(path: '/planner', builder: (context, state) => const RoutePlannerScreen()),
+    GoRoute(path: '/cues', builder: (context, state) => const CueSheetScreen()),
+    GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
+    GoRoute(path: '/about', builder: (context, state) => const AboutScreen()),
+  ],
+);
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+/// Starts the sidecar once, at app launch, so [SidecarGate] has something to
+/// watch by the time the first frame needs it (ARCH §7.3, M12).
+class PlotlinesApp extends ConsumerStatefulWidget {
+  const PlotlinesApp({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  ConsumerState<PlotlinesApp> createState() => _PlotlinesAppState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+class _PlotlinesAppState extends ConsumerState<PlotlinesApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Fire-and-forget: SidecarGate renders the starting/failed states off
+    // sidecarManagerProvider's own notifications, not this future.
+    Future.microtask(() => ref.read(sidecarManagerProvider).start());
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+    final settings = ref.watch(settingsProvider);
+    final theme = switch (settings.contrast) {
+      ContrastMode.highContrast => PlotTheme.highContrast(),
+      _ => PlotTheme.light(),
+    };
+    return MaterialApp.router(
+      title: 'Plotlines',
+      debugShowCheckedModeBanner: false,
+      theme: theme,
+      darkTheme: settings.contrast == ContrastMode.highContrast
+          ? PlotTheme.highContrast()
+          : PlotTheme.dark(),
+      themeMode: settings.themeMode,
+      routerConfig: _router,
+      builder: (context, child) => SidecarGate(child: child ?? const SizedBox.shrink()),
     );
   }
 }

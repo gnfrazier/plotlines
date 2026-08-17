@@ -1,0 +1,172 @@
+// G2a (PRD FR74a) — save a trip locally, reopen it, list what exists. The
+// "plain thing", deliberately lighter than G2's [P1] portfolio surface: no
+// sync badges, no roster, no thumbnails beyond the brand hatch pattern.
+//
+// Also owns A10's first-run prompt (PRD FR96): an Author with nothing
+// downloaded is asked for a starting location before they can generate
+// anything, so it belongs on the screen they land on before any generation
+// screen, not buried inside New Route.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:plotlines_ui/plotlines_ui.dart';
+
+import '../../data/app_database.dart';
+import '../../state/current_trip_provider.dart';
+import '../../state/providers.dart';
+import '../../state/settings_provider.dart';
+import '../../state/trip_library_provider.dart';
+import '../widgets/first_run_dialog.dart';
+
+class TripLibraryScreen extends ConsumerWidget {
+  const TripLibraryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = PlotColors.of(context);
+    final tripsAsync = ref.watch(tripLibraryProvider);
+    final startingLocation = ref.watch(startingLocationSetProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Plotlines', style: PlotTypography.h2(c.textPrimary).copyWith(fontSize: 22)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'About',
+            onPressed: () => context.push('/about'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
+          ),
+          const SizedBox(width: PlotSpacing.s2),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final ready = await _ensureStartingLocation(context, ref);
+          if (!ready || !context.mounted) return;
+          ref.read(currentTripProvider.notifier).reset();
+          context.push('/new');
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('New trip'),
+      ),
+      body: startingLocation.when(
+        loading: () => const SizedBox.shrink(),
+        error: (_, _) => const SizedBox.shrink(),
+        data: (location) => tripsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) => Center(
+            child: Text('Couldn\'t open the local trip library: $err',
+                style: PlotTypography.body(c.danger)),
+          ),
+          data: (trips) => trips.isEmpty
+              ? _EmptyLibrary(hasLocation: location != null)
+              : _TripGrid(trips: trips),
+        ),
+      ),
+    );
+  }
+
+  /// Returns true once a starting location is set (A10) — prompting first if
+  /// this is a brand-new install.
+  Future<bool> _ensureStartingLocation(BuildContext context, WidgetRef ref) async {
+    final existing = await ref.read(appDatabaseProvider).getSetting('starting_location');
+    if (existing != null) return true;
+    if (!context.mounted) return false;
+    final chosen = await showFirstRunLocationDialog(context);
+    if (chosen == null) return false;
+    await ref.read(appDatabaseProvider).setSetting('starting_location', chosen);
+    ref.invalidate(startingLocationSetProvider);
+    return true;
+  }
+}
+
+class _EmptyLibrary extends StatelessWidget {
+  const _EmptyLibrary({required this.hasLocation});
+  final bool hasLocation;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(PlotSpacing.s6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.map_outlined, size: 48, color: c.textMuted),
+            const SizedBox(height: PlotSpacing.s4),
+            Text('No trips yet', style: PlotTypography.title(c.textPrimary)),
+            const SizedBox(height: PlotSpacing.s2),
+            Text(
+              'Start a new trip and generate your first themed route.',
+              textAlign: TextAlign.center,
+              style: PlotTypography.body(c.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TripGrid extends ConsumerWidget {
+  const _TripGrid({required this.trips});
+  final List<TripListEntry> trips;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(PlotSpacing.s5),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 320,
+        mainAxisSpacing: PlotSpacing.s4,
+        crossAxisSpacing: PlotSpacing.s4,
+        childAspectRatio: 1.35,
+      ),
+      itemCount: trips.length,
+      itemBuilder: (context, i) {
+        final trip = trips[i];
+        return GestureDetector(
+          onLongPress: () => _confirmDelete(context, ref, trip),
+          child: TripCard(
+            title: trip.title,
+            stats: ['Updated ${_relativeDay(trip.updatedAt)}'],
+            modeTag: trip.modes.isEmpty ? null : trip.modes.join('+').toUpperCase(),
+            offlineReady: true,
+            onTap: () async {
+              await ref.read(tripPersistenceProvider).open(trip.id);
+              if (context.mounted) context.push('/planner');
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, TripListEntry trip) async {
+    final confirmed = await PlotDialog.confirm(
+      context,
+      title: 'Delete "${trip.title}"?',
+      message: 'This removes it from local storage. This can\'t be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    );
+    if (confirmed == true) {
+      await ref.read(tripPersistenceProvider).delete(trip.id);
+    }
+  }
+
+  String _relativeDay(DateTime dt) {
+    final days = DateTime.now().difference(dt).inDays;
+    if (days <= 0) return 'today';
+    if (days == 1) return 'yesterday';
+    return '$days days ago';
+  }
+}

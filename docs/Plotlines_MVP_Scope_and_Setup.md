@@ -44,7 +44,7 @@ Each of these is deferred *on purpose*, not forgotten. Naming them keeps them fr
 - **Portability suite (S3–S6 / L1–L4):** GeoJSON auto-backup, archive export/restore — P1, not MVP. (PRD Epic L.)
 - **Plugins:** the Leg-7 interface is designed-for, not built. (ARCH §13.)
 
-### 1.3 The paddling scope decision — resolved 2026-08-14, one call left
+### 1.3 The paddling scope decision — fully resolved 2026-08-16
 
 **SPIKE-04 ran and closed.** The original question ("is paddling grounded in real data?") came back **network yes, gauge yes, access partial, class no** — and the PRD already absorbed the negative half: FR13 retired, stories B4/B5 removed, FR14 narrowed to an advisory gauge band (B8), FR15/B6 portages made Author-drawn (ARCH D19). Paddling stays a first-class mode. The core was safe throughout, exactly as predicted, because paddling data enters via a provider seam (ARCH §6.4, §13.2).
 
@@ -52,11 +52,11 @@ Each of these is deferred *on purpose*, not forgotten. Naming them keeps them fr
 
 **Updated 2026-08-16 (SPIKE-19):** the named source has changed and the shape has not. USGS **retired the NHD on 1 October 2023** and no longer maintains NHDPlus HR, so the provider targets **3DHP** (ARCH **D27**). Everything SPIKE-04's answer rested on survives the succession — a real 148.2 km downstream route and five identifier-bound live gauges came out of the successor — with two corrections to the build: topology arrives as a **downstream pointer** (`dnhydrosequence`, inverted) rather than from/to nodes, and the edge carries **two** gauge-join keys rather than a single `reachcode`, which is no longer a flowline attribute at all. Neither changes the size of the build or this section's call.
 
-**Proposed call (needs sign-off): multimodal schema + cycling/hiking graphs in desktop MVP; the paddling graph provider lands in Leg 3 alongside B8.** B1–B3's acceptance criteria are met by this — B1 requires that the mode be *selectable from the supported list* and the segment *saved with endpoints and mode*, not that every mode has a live graph. Paddling therefore appears as a first-class mode in the schema, the day composer, and the transition model from day one; what waits is its router. This keeps B8 (gauge band, already tagged Leg 3) and the 3DHP provider in the same tranche, where they share a data source.
+**Decided (signed off 2026-08-16): multimodal schema + cycling/hiking graphs in desktop MVP; the paddling graph provider lands in Leg 3 alongside B8.** B1–B3's acceptance criteria are met by this — B1 requires that the mode be *selectable from the supported list* and the segment *saved with endpoints and mode*, not that every mode has a live graph. Paddling therefore appears as a first-class mode in the schema, the day composer, and the transition model from day one — the mode selector and multimodal day-composition schema ship in desktop MVP; **its router does not.** What waits for Leg 3 is `WaterwayDataProvider` itself: the 3DHP topology, gauge-join keys, and local-extract build. This keeps B8 (gauge band, already tagged Leg 3) and the 3DHP provider in the same tranche, where they share a data source.
 
-The alternative — building the 3DHP provider inside desktop MVP — is defensible but roughly doubles the multimodal work for a mode whose advisory layer is already deferred.
+The rejected alternative — building the 3DHP provider inside desktop MVP — would have roughly doubled the multimodal work for a mode whose advisory layer is already deferred.
 
-### 1.4 The derived desktop-MVP story list *(added 2026-08-15 — needs sign-off)*
+### 1.4 The derived desktop-MVP story list *(added 2026-08-15, signed off 2026-08-16)*
 
 §1.1 and §1.2 draw the scope line by *capability*. The PRD draws it by *story priority*. Neither is a build list on its own, and read together they contradict each other in both directions:
 
@@ -80,11 +80,11 @@ Every story below is `[MVP]` in the PRD *and* survives §1.2's cuts. §1.4.2 the
 | **K — Platform** | K5, K8 | display & measurement preferences, reset planning controls |
 | **M — Developer seams** | M1, M2, M3 | themes as data, `weights.at(position)`, one elevation interface |
 
-### 1.4.2 The eight §1.1 promises the PRD tags P1 — proposed calls
+### 1.4.2 The eight §1.1 promises the PRD tags P1 — decided 2026-08-16
 
-| Story | §1.1 promised | Proposed call | Why |
+| Story | §1.1 promised | Decision | Why |
 |---|---|---|---|
-| **B7** travel speeds | "live metrics dashboard" | **Promote, partially** | D1 is `[MVP]` and its AC reads "with FR16, moving time / elapsed time / ETA". D1 cannot ship without B7's model. Promote the *system default* and *custom Author pace* options; **drop "aggregated participant pace"** (needs accounts, out per §1.2). See §1.4.4 — SPIKE-05 also adds a requirement here that the PRD does not yet carry. |
+| **B7** travel speeds | "live metrics dashboard" | **Promote, partially** | D1 is `[MVP]` and its AC reads "with FR16, moving time / elapsed time / ETA". D1 cannot ship without B7's model. Promote the *system default* and *custom Author pace* options (including the FR16a activity-upload path, §1.4.4 item 1); **drop "aggregated participant pace"** (needs accounts, out per §1.2). |
 | **E2** narrative arc | "narrative arc" | **Promote** | Epic E is the PRD's stated thesis, and an arc-stage tag is an enum on nodes/segments plus map/timeline rendering. Cheap, and it is the thing the product is *for*. |
 | **E4** narration trigger | "trigger-distance metadata (authored, not played)" | **Promote the authoring half only** | §1.1 already scoped this precisely. Attach audio to a POI and set its per-node trigger distance; **playback is field execution and stays out**. |
 | **E5** GeoJSON export | "GeoJSON export" | **Promote** | F3 already builds the export pipeline; GeoJSON (RFC 7946) is the cheapest of the four writers, and L1's later auto-backup depends on it. |
@@ -93,11 +93,11 @@ Every story below is `[MVP]` in the PRD *and* survives §1.2's cuts. §1.4.2 the
 | **E3** POI-themed trips | "POI-themed trips" | **Demote — drop from §1.1** | Unlike E2, this is solver work — POIs become the route's organizing spine, not a tag. Materially different cost from the rest of Epic E. |
 | **F2** itineraries | "itineraries" | **Demote — drop from §1.1** | Master + *tailored individual* itineraries require a roster and partial-attendance data, which require accounts. Structurally blocked by §1.2. |
 
-Net: **+4 promoted (B7 partial, E2, E4 partial, E5), −4 demoted (C7, D3, E3, F2)** — 31 stories total.
+Net: **+4 promoted (B7 partial, E2, E4 partial, E5), −4 demoted (C7, D3, E3, F2)** — 31 stories total. §1.4.3 adds a fifth obligation (A10) on top of this, for **32 stories total**.
 
-### 1.4.3 Four obligations, now written up as stories
+### 1.4.3 Five obligations, now written up as stories
 
-Each is required by §1.1 or the architecture. As of 2026-08-16, all four have a PRD story and acceptance criteria — **resolved**, not just proposed.
+Each is required by §1.1 or the architecture. As of 2026-08-16, all five have a PRD story and acceptance criteria — **resolved**, not just proposed.
 
 | Obligation | Source | Story |
 |---|---|---|
@@ -105,17 +105,18 @@ Each is required by §1.1 or the architecture. As of 2026-08-16, all four have a
 | **Sidecar lifecycle + version check** | ARCH §7.3, §12.1; `packaging/TODO.md` | **M12 `[MVP]`** — spawn, health-poll to readiness, restart-once, graceful stop, orphan sweep, **including the Windows Job Object + `AttachConsole`/`CTRL_BREAK_EVENT` sequence** `packaging/TODO.md` flags as the one thing that would ship broken if forgotten, plus the client↔sidecar version comparison that refuses a mismatch. |
 | **About / attribution surface** | ARCH §11.2, §12.4 | **K10 `[MVP]`** (PRD FR86, FR95) — CC BY credit for elevation, ODbL credit for the basemap, app + sidecar version, reachable from every surface that shows licensed data. §11.2's **missing attribution is a build failure**, not a polish item, carries through as K10's AC. Still absent from the Author Desktop wireframe itself (§2.4) — a design gap, not a requirements one, now that the story exists. |
 | **Error & empty-state taxonomy** | §4, §6 item 8 | **M13 `[MVP]`** — the eight states in §4 route through one shared handling surface, stubbed before the first screen rather than retrofitted. |
+| **First-run default map region** | ARCH §17 D32/Q10 | **A10 `[MVP]`** (PRD FR96) — an Author with nothing downloaded is prompted for a starting location (city + state, zip, or country + city), downloading a 100 km radius around it; declining defaults to a rectangular bbox over Buncombe County, NC. Originally drafted against the wrong persona (Character/H7, which §1.2 cuts from desktop MVP) and re-homed to Epic A on 2026-08-16. |
 
-### 1.4.4 What the spikes decided that the PRD has not yet absorbed
+### 1.4.4 What the spikes decided that the PRD had not yet absorbed — all six now closed
 
-These are not scope calls — they are findings with build consequences that no requirement currently carries.
+This section originally listed six spike findings with build consequences that no requirement carried yet. As of 2026-08-16, the PRD and architecture have absorbed all six — kept here as a resolved record, not a live punch list, since the reasoning (why each mattered) is still useful.
 
-1. **Activity upload is load-bearing for cycling ETAs, and no FR describes it.** SPIKE-05 measured cycling's *system default* pace at **31.4% error**, falling to **7.5%** with personal activity data; hiking's default is already fine at 9.6%. FR16 offers only system default / custom Author pace / aggregated participant pace — **there is no activity-upload path in the PRD at all**, and "aggregated participant pace" needs accounts. As written, desktop MVP ships a ~31%-wrong cycling ETA. Either FR16 gains an upload option or D1 states the error honestly.
-2. **A6's diagnosis cannot be synchronous, and has no endpoint.** SPIKE-02 measured **1.3–15.0 s** against a satisfiable solve's 27–218 ms, and concluded the route must return immediately with its violations while the named conflict and relaxations stream after. ARCH §7.2 has one synchronous `POST /segments/generate`.
-3. **A5's band sliders need an envelope probe, which has no endpoint either.** SPIKE-03: fixed absolute defaults are feasible **22% of the time**, envelope-derived defaults **100%**. The probe costs 10 solves and caches per region + distance. Nothing in §7.2 or ARCH §6.1 exposes it.
-4. **FR4's surface weight must be bipolar and the docs still say unipolar.** SPIKE-03 found a 0.0–5.0 per-class weight can only *tolerate* gravel, never *seek* it, so no unpaved-minimum band is satisfiable anywhere. A3's AC still reads "relative 0.0–5.0 weights per surface class" and ARCH §6.3 still types `surface_pref` as `dict[str, float]`. One of the three needs amending.
-5. **Traffic stress inferred from highway class overstates rural traffic.** SPIKE-03 gave rural Viroqua a 35% traffic *floor* on empty county roads. Recorded as a finding; no decision taken. It degrades A2 `[MVP]` directly.
-6. **Distance should be banded by default.** §1.1's routing row already says "banded, not a soft target"; PRD FR8 and A8 still describe a soft target seeding an envelope. Left unbanded, the compromise silently spent up to **+14.8%** extra mileage.
+1. ~~Activity upload is load-bearing for cycling ETAs, and no FR describes it.~~ **Resolved: FR16a** (`PRD:132`) adds the FIT/GPX upload path feeding FR16's custom/aggregated pace options, derived-metrics-only, FR78-consentable. SPIKE-05 measured cycling's *system default* pace at 31.4% error, falling to 7.5% with personal data; FR16 and B7's AC both carry this now.
+2. ~~A6's diagnosis cannot be synchronous, and has no endpoint.~~ **Resolved: `POST /segments/diagnose` + `GET /segments/diagnose/{id}`** are in ARCH §7.2's endpoint table (ARCH D25) — the route returns immediately with its violations, the named conflict and relaxations follow async, exactly as SPIKE-02's 1.3–15.0 s vs. 27–218 ms measurement required.
+3. ~~A5's band sliders need an envelope probe, which has no endpoint either.~~ **Resolved: `POST /segments/envelope`** is in ARCH §7.2 (ARCH D26) — a dedicated, cacheable probe distinct from `/segments/generate`, per SPIKE-03's 22%-vs-100%-feasible measurement.
+4. ~~FR4's surface weight must be bipolar and the docs still say unipolar.~~ **Resolved:** FR4 (`PRD:112`) and A3's AC are now explicitly bipolar (0.0 avoid ↔ 2.5 indifferent ↔ 5.0 seek), set independently per class — matching what SPIKE-03 found necessary.
+5. ~~Traffic stress inferred from highway class overstates rural traffic.~~ **Resolved 2026-08-16 (ARCH D33):** rural/low-signal roads are now the model's zero-stress baseline rather than inheriting a highway-class floor; only real `maxspeed`/`lanes` signals raise stress above it. Threaded through PRD FR3, A2's AC, and ARCH risk A17.
+6. ~~Distance should be banded by default.~~ **Resolved:** FR8 and A8 (`PRD:116`, `PRD:328`) both read "banded by default" now, per SPIKE-03's +14.8% unbanded-drift measurement.
 
 ### 1.4.5 Four decisions this list cannot make for itself
 
@@ -282,3 +283,25 @@ So the deferral is a choice, not a gap:
 - **The two flagged Design decisions** — trigger overlap/priority (ARCH Q3) and medical-field surfacing (Q7) — belong to the field-execution and profile-sharing tiers, neither of which is in desktop MVP.
 - **Accessibility** is addressed in the product/design docs, not here.
 - **The hosted/Web/mobile setup** (Render, domain, Postgres, signing for silent update, mobile build pipelines) lands with those milestones, front-loaded into Leg 4 and the mobile work by design.
+
+---
+
+## 8. Open questions from the Author Desktop build *(added 2026-08-16)*
+
+The `client/lib/` build against §2.4's wireframe surfaced real seams between what §1.4's 32 stories require and what `core`/`service` currently implement. None of these blocked forward progress — the client is built to spec against each gap, with the gap stated in-UI or in a code comment rather than faked — but each is a real decision this doc hasn't made yet, listed so it isn't rediscovered as a surprise later.
+
+| Gap | What exists today | What's missing |
+|---|---|---|
+| **Loop / out-and-back generation** | `/segments/generate` (`routing/solve.py`) solves point-to-point (+ via) only | `routing/loops.py`'s loop closure isn't wired to any endpoint. A7's shape selector is real and stores the choice; Generate is disabled for the other two shapes with an honest inline note. |
+| **A5/A6's band engine only speaks loop** | `/segments/envelope` and `/segments/diagnose` (added this session, wrapping `routing/search.py` + `routing/diagnose.py`) work end-to-end — verified against the Boulder fixture | Both call `generate_loop` internally, so they have no opinion about the point-to-point segments Generate actually produces. The two need a shared shape before "set a band, hit Generate, get a diagnosis" is one flow instead of two. |
+| **`/days/compose`, `/trips/split`** | `trips/compose.py`'s `compose_day`/`split_trip` are complete, pure functions | Not exposed over HTTP. The client computes its own best-effort distance/climb/descent roll-up for the D1 dashboard instead — real numbers, but not compose_day's transition-gap warnings or C3 limit-breach detection. |
+| **F1 turn-by-turn cues** | `trips/cues.py`'s `derive_cue_sheet` (SPIKE-21) is complete and fast (1.1-9.2 ms/route) | It needs the solver's graph + node walk, which `generate_segment` doesn't return and nothing re-derives from a stored payload. The cue sheet screen shows authored stops (nodes/hazards/portages by `distance_along_m`) instead of derived turns. |
+| **F3/E5 export writers** | GPX and GeoJSON are real, complete, and client-side (`client/lib/data/export/`) — `core/plotlines_core/export/` is an empty package | TCX has no writer anywhere. FIT is explicitly gated on **SPIKE-16** (unresolved — also decides core vs. on-device Garmin SDK). Both are disabled in the export panel rather than silently omitted. |
+| **A10's region-download pipeline** | The first-run prompt (city+state / zip / country+city, Buncombe County default) is built and gates first launch correctly | Downloading a 100 km extract for an arbitrary chosen location isn't implemented — no geocoder, no OSM fetch, no DEM fetch. The sidecar always serves the bundled Boulder, CO fixture (`spikes/SPIKE-00/cache`) regardless of what's chosen; the prompt says so. |
+| **Basemap tiles** | `flutter_map` renders real pan/zoom/tap/markers/polylines | No tile layer. SPIKE-14 picked the source (Protomaps Basemap) and tool (`pmtiles extract`), but nobody has run that extract, and `service/app.py` doesn't register `/tiles/{z}/{x}/{y}`. Hotlinking a public tile server was ruled out deliberately (FR92-94, own-service-only) rather than used as a silent fallback — the map shows a plain graticule and an explicit "no basemap tiles bundled yet" label instead. |
+| **Surface weight → solver mapping** | The Author sets three independent surface weights (paved/gravel/singletrack, FR4); the solver takes one scalar `surface` dial | No documented conversion exists (related to risk A18/§1.4.5's `WeightProfile` triple-meaning finding). `regenerateSegment` currently sends only `peaks`/`quiet`; surface is not yet threaded through re-solves. |
+| **`version.lock` → client stamp** | `packaging/version.lock` is the single source of truth (§2.2); the sidecar's `--version` reports it correctly | No build script stamps the Flutter client from it yet — `kClientVersion` in `sidecar_manager.dart` is a hand-kept constant. M12's mismatch refusal works today only because both are manually kept at `0.0.1`. |
+| **Windows sidecar lifecycle** | POSIX graceful stop (SIGTERM → SIGKILL) is implemented and was exercisable in this Linux sandbox | The Windows `AttachConsole` + muted Ctrl handler + `CTRL_BREAK_EVENT` sequence (§3, ARCH §7.3) needs Win32 FFI calls not written yet; `taskkill /f` is the interim stand-in. Same untestable-here situation as SPIKE-14's macOS residual. |
+| **Geocoding** | — | `GET /geocode` isn't registered. A10's location field is free text, saved verbatim; nothing validates or resolves it to coordinates. |
+
+None of these are scope disagreements with §1 — G2a, M12, M13, K5, K8, K10, A1-A4/A7/A9/A10, B1-B3, C1-C2/C11, D1, E1/E2/E4, F1/F3, E5 are all built and exercisable end-to-end where the table above doesn't say otherwise. They're implementation seams between `core`'s several research-spike engines (SPIKE-00's simple solver, SPIKE-02/03's band-aware loop search) that a later session should unify, plus the genuinely new infrastructure (tile pipeline, region download, geocoding) that was always going to be its own tranche of work.
