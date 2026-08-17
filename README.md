@@ -23,14 +23,18 @@ theme-weighted, multimodal-capable routes via a sidecar, curates them, and expor
 hosted service, no accounts, no sync, no Web, no mobile field execution. See
 `docs/Plotlines_MVP_Scope_and_Setup.md` §1 for the exact in/out-of-scope line.
 
-**Status:** the Flutter Author Desktop client is built and running against a real sidecar and a
-real basemap — trip library, new-route/theme/via-node picking, the route planner (weights,
-bands, live A6 conflict diagnosis, a real Protomaps vector basemap for the Boulder fixture
-region), node & narrative curation, cue sheet + GPX/GeoJSON export, settings, and attribution
-are all implemented and exercisable end to end. What's real vs. still a stated gap (loop
-generation, turn-by-turn cues, geocoding, TCX/FIT) is catalogued in
-`docs/Plotlines_MVP_Scope_and_Setup.md` §8 — nothing there is a hidden surprise, and nothing in
-the client fakes data to paper over a gap.
+**Status:** the Flutter Author Desktop client is built and running end to end against a real
+sidecar and a real basemap — trip library, new-route (all three shapes: loop, out-and-back,
+point-to-point, plus location search), the route planner (weights, bands, live A6 conflict
+diagnosis, a real Protomaps vector basemap for the Boulder fixture region), node & narrative
+curation, real F1 turn-by-turn cue sheets, GPX/GeoJSON/TCX export, settings, and attribution
+are all implemented and exercisable end to end — verified against the rebuilt frozen sidecar
+binary, not just a source run. What's left is catalogued in
+`docs/Plotlines_MVP_Scope_and_Setup.md` §8 — an arbitrary-region download pipeline (today every
+trip routes against the bundled Boulder, CO fixture regardless of what A10's first-run prompt
+is given), Windows sidecar lifecycle (no Windows box to verify FFI code against), and FIT export
+(gated on an unrun spike) — nothing there is a hidden surprise, and nothing in the client fakes
+data to paper over a gap.
 
 ## Docs
 
@@ -87,12 +91,13 @@ Toolchain, verified for WSL/Ubuntu:
   run `flutter doctor` to confirm. Needs a working display — WSLg provides this on WSL2.
 - **Git.**
 
-`core` and `service` are real: graph loading, scoring, routing, trip composition, and the
-FastAPI sidecar wrapper (`/health`, `/segments/generate`, `/segments/envelope`,
-`/segments/diagnose`) all work end to end against the committed Boulder, CO fixture graph
-(`spikes/SPIKE-00/cache`). `client` is a real Flutter app, not scaffolding — see
-**Running the desktop app** below. Remaining known gaps (loop-shape generation, live
-turn-by-turn cues, region download, geocoding) are tracked in
+`core` and `service` are real: graph loading, scoring, routing (all three shapes), trip
+composition, cue derivation, and geocoding are all wired into the FastAPI sidecar wrapper
+(`/health`, `/segments/generate`, `/segments/envelope`, `/segments/diagnose`,
+`/segments/cues`, `/days/compose`, `/trips/split`, `/geocode`) and work end to end against the
+committed Boulder, CO fixture graph (`spikes/SPIKE-00/cache`). `client` is a real Flutter app,
+not scaffolding — see **Running the desktop app** below. Remaining known gaps (an arbitrary-
+region download pipeline, Windows sidecar lifecycle, FIT export) are tracked in
 `docs/Plotlines_MVP_Scope_and_Setup.md` §8, not silently missing.
 
 ## Running the desktop app
@@ -138,6 +143,12 @@ flutter run -d linux
 
 First launch takes a few seconds while the sidecar loads the graph (M13's honest "starting"
 screen, escalating its message if it runs long) before handing off to the trip library.
+
+The basemap only covers the Boulder, CO fixture region — `client/assets/tiles/` (496 vector
+tiles, committed) was exploded once from SPIKE-14's `spikes/SPIKE-14/tiles/boulder.pmtiles`
+via the vendored `spikes/SPIKE-14/tools/pmtiles` CLI; panning elsewhere shows an honest "no
+basemap tiles here" label rather than a blank map. No regeneration step needed to run the app —
+the exploded tiles are already in the repo.
 
 `flutter test` and `flutter analyze` both run clean from `client/` and are worth checking
 before a PR.
