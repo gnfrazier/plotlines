@@ -20,9 +20,9 @@
 // historical record — unlike an activity file, which is what SPIKE-16 covers).
 library;
 
-import 'dart:math' as math;
-
 import '../../domain/domain.dart';
+import 'export_options.dart';
+import 'geo_utils.dart';
 
 //: Fallback pace by mode when no `moving_time_s` is available, m/s.
 const Map<String, double> _fallbackSpeedMps = {
@@ -32,7 +32,7 @@ const Map<String, double> _fallbackSpeedMps = {
   'transit': 8.33, // ~30 km/h
 };
 
-String tripToTcx(Trip trip) {
+String tripToTcx(Trip trip, {ExportOptions options = const ExportOptions()}) {
   final buffer = StringBuffer();
   buffer.writeln('<?xml version="1.0" encoding="UTF-8"?>');
   buffer.writeln('<TrainingCenterDatabase '
@@ -44,7 +44,14 @@ String tripToTcx(Trip trip) {
 
   for (final day in trip.days) {
     if (day.segments.isEmpty) continue;
-    _writeCourse(buffer, trip, day);
+    _writeCourse(buffer, trip, day, options);
+    if (options.includeAlternates) {
+      for (final segment in day.segments) {
+        for (final alt in segment.alternates) {
+          _writeAlternateCourse(buffer, trip, day, alt);
+        }
+      }
+    }
   }
 
   buffer.writeln('  </Courses>');
@@ -52,7 +59,46 @@ String tripToTcx(Trip trip) {
   return buffer.toString();
 }
 
-void _writeCourse(StringBuffer buffer, Trip trip, Day day) {
+void _writeAlternateCourse(StringBuffer buffer, Trip trip, Day day, Alternate alt) {
+  final coords = alt.geometry.coordinates;
+  if (coords.isEmpty) return;
+  final name = _esc('${day.title ?? '${trip.title} — Day ${day.index}'} — Alternate: ${alt.label ?? alt.kind}');
+  buffer.writeln('    <Course>');
+  buffer.writeln('      <Name>$name</Name>');
+  var distance = 0.0;
+  for (var i = 1; i < coords.length; i++) {
+    distance += haversineM(coords[i - 1], coords[i]);
+  }
+  buffer.writeln('      <Lap>');
+  buffer.writeln('        <TotalTimeSeconds>${(distance / (_fallbackSpeedMps['cycling'] ?? 3.0)).round()}</TotalTimeSeconds>');
+  buffer.writeln('        <DistanceMeters>${distance.toStringAsFixed(1)}</DistanceMeters>');
+  buffer.writeln('        <BeginPosition>${_position(coords.first)}</BeginPosition>');
+  buffer.writeln('        <EndPosition>${_position(coords.last)}</EndPosition>');
+  buffer.writeln('        <Intensity>Active</Intensity>');
+  buffer.writeln('      </Lap>');
+  buffer.writeln('      <Track>');
+  var clock = DateTime.now().toUtc();
+  var cumulativeM = 0.0;
+  final speed = _fallbackSpeedMps['cycling'] ?? 3.0;
+  for (var i = 0; i < coords.length; i++) {
+    final c = coords[i];
+    if (i > 0) {
+      final step = haversineM(coords[i - 1], c);
+      cumulativeM += step;
+      clock = clock.add(Duration(milliseconds: (step / speed * 1000).round()));
+    }
+    buffer.writeln('        <Trackpoint>');
+    buffer.writeln('          <Time>${clock.toIso8601String().split('.').first}Z</Time>');
+    buffer.writeln('          <Position>${_position(c)}</Position>');
+    if (c.length > 2) buffer.writeln('          <AltitudeMeters>${c[2]}</AltitudeMeters>');
+    buffer.writeln('          <DistanceMeters>${cumulativeM.toStringAsFixed(1)}</DistanceMeters>');
+    buffer.writeln('        </Trackpoint>');
+  }
+  buffer.writeln('      </Track>');
+  buffer.writeln('    </Course>');
+}
+
+void _writeCourse(StringBuffer buffer, Trip trip, Day day, ExportOptions options) {
   final name = _esc(day.title ?? '${trip.title} — Day ${day.index}');
   buffer.writeln('    <Course>');
   buffer.writeln('      <Name>$name</Name>');
@@ -79,16 +125,18 @@ void _writeCourse(StringBuffer buffer, Trip trip, Day day) {
 
   buffer.writeln('      <Track>');
   var clock = DateTime.now().toUtc();
+  final segmentStartClock = <String, DateTime>{};
   for (final segment in day.segments) {
     final coords = segment.geometry?.coordinates ?? const [];
     if (coords.isEmpty) continue;
+    segmentStartClock[segment.id] = clock;
     final speed = _speedMps(segment);
     var cumulativeM = 0.0;
     for (var i = 0; i < coords.length; i++) {
       final c = coords[i];
       if (i > 0) {
-        cumulativeM += _haversineM(coords[i - 1], c);
-        clock = clock.add(Duration(milliseconds: (_haversineM(coords[i - 1], c) / speed * 1000).round()));
+        cumulativeM += haversineM(coords[i - 1], c);
+        clock = clock.add(Duration(milliseconds: (haversineM(coords[i - 1], c) / speed * 1000).round()));
       }
       buffer.writeln('        <Trackpoint>');
       buffer.writeln('          <Time>${clock.toIso8601String().split('.').first}Z</Time>');
@@ -97,8 +145,21 @@ void _writeCourse(StringBuffer buffer, Trip trip, Day day) {
       buffer.writeln('          <DistanceMeters>${cumulativeM.toStringAsFixed(1)}</DistanceMeters>');
       buffer.writeln('        </Trackpoint>');
     }
-    for (final node in segment.nodes) {
-      buffer.writeln(_coursePoint(node, clock));
+    if (options.includeWaypoints) {
+      for (final node in segment.nodes) {
+        buffer.writeln(_coursePoint(node, clock));
+      }
+    }
+    if (options.includeCueSheet) {
+      final sheet = options.cueSheetsBySegmentId[segment.id];
+      if (sheet != null) {
+        final segStart = segmentStartClock[segment.id]!;
+        for (final cue in sheet.cues) {
+          final at = pointAtDistance(coords, cue.distanceAlongM);
+          final cueTime = segStart.add(Duration(milliseconds: (cue.distanceAlongM / speed * 1000).round()));
+          buffer.writeln(_cueCoursePoint(cue, at, cueTime));
+        }
+      }
     }
   }
   buffer.writeln('      </Track>');
@@ -122,6 +183,24 @@ String _coursePoint(Node node, DateTime approxTime) {
   buf.writeln('          <Position>${_position(node.coord)}</Position>');
   buf.writeln('          <PointType>$type</PointType>');
   if (node.note != null) buf.writeln('          <Notes>${_esc(node.note!)}</Notes>');
+  buf.write('        </CoursePoint>');
+  return buf.toString();
+}
+
+String _cueCoursePoint(Cue cue, Coord at, DateTime approxTime) {
+  final name = _esc(cue.instruction ?? cue.kind);
+  final type = switch (cue.kind) {
+    'hazard' => 'Danger',
+    'start' => 'Generic',
+    'finish' => 'Generic',
+    _ => 'Generic',
+  };
+  final buf = StringBuffer();
+  buf.writeln('        <CoursePoint>');
+  buf.writeln('          <Name>$name</Name>');
+  buf.writeln('          <Time>${approxTime.toIso8601String().split('.').first}Z</Time>');
+  buf.writeln('          <Position>${_position(at)}</Position>');
+  buf.writeln('          <PointType>$type</PointType>');
   buf.write('        </CoursePoint>');
   return buf.toString();
 }
@@ -156,15 +235,3 @@ String _esc(String s) => s
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&apos;');
-
-const _earthRm = 6371000.0;
-
-double _haversineM(Coord a, Coord b) {
-  final lat1 = a[1] * math.pi / 180.0;
-  final lat2 = b[1] * math.pi / 180.0;
-  final dLat = (b[1] - a[1]) * math.pi / 180.0;
-  final dLon = (b[0] - a[0]) * math.pi / 180.0;
-  final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
-      math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2) * math.sin(dLon / 2);
-  return 2 * _earthRm * math.asin(math.min(1.0, math.sqrt(h)));
-}

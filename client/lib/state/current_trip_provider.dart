@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/domain.dart';
 import 'providers.dart';
+import 'trip_authoring_meta_provider.dart';
 import 'trip_library_provider.dart';
 
 const _uuid = Uuid();
@@ -35,6 +36,19 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
 
   void setDefaultWeights(WeightProfile weights) =>
       state = state.copyWith(defaultWeights: weights, updatedAt: _nowIso());
+
+  void setDuration(TripDuration duration) =>
+      state = state.copyWith(duration: duration, updatedAt: _nowIso());
+
+  /// New Route's "Blank canvas" start method (wireframe screen 00) — an
+  /// empty route day the Author builds manually via Logistics/Route/Content
+  /// rather than a sidecar-generated segment. Returns the new day's id so
+  /// the caller can select it.
+  String addBlankDay() {
+    final day = Day(id: _uuid.v4(), index: state.days.length + 1);
+    _replaceDay(day);
+    return day.id;
+  }
 
   Day _dayOrNew(String? dayId) {
     if (dayId != null) {
@@ -183,6 +197,41 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     markSegmentStale(dayId, segmentId);
   }
 
+  /// Route tab's shape/target-distance rail (wireframe screen 01) — edits
+  /// the authored inputs a re-solve should honor. Marks stale like weights
+  /// and bands (ARCH D30): the geometry on screen no longer matches what's
+  /// asked for until [regenerateSegment] re-solves it.
+  void updateSegmentShape(String dayId, String segmentId, String shape) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId) s.copyWith(shape: shape) else s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+    markSegmentStale(dayId, segmentId);
+  }
+
+  void updateSegmentTargetDistance(String dayId, String segmentId, double? valueM) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId)
+          s.copyWith(targetDistance: valueM == null ? null : TargetDistance(valueM: valueM))
+        else
+          s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+    markSegmentStale(dayId, segmentId);
+  }
+
+  /// C3 — Logistics tab's per-day distance limits, overriding the trip
+  /// default (`Trip.dayLimits`). Feeds `/days/compose`'s existing breach
+  /// detection; doesn't itself re-solve anything.
+  void updateDayLimits(String dayId, Map<String, DayLimit> limits) {
+    final day = _dayOrNew(dayId);
+    _replaceDay(day.copyWith(limits: limits));
+  }
+
   /// Re-solves a segment against its current start/end/via/mode/weights and
   /// replaces it in place — same id, same curated content (nodes, hazards),
   /// new geometry/metrics. `generateSegment`'s sidecar call always returns a
@@ -192,7 +241,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   Future<void> regenerateSegment(String dayId, String segmentId) async {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final old = day.segments.firstWhere((s) => s.id == segmentId);
-    if (old.start == null || old.end == null) {
+    final needsEnd = old.shape != 'loop';
+    if (old.start == null || (needsEnd && old.end == null)) {
       throw StateError('segment $segmentId has no start/end to re-solve from');
     }
     final client = _ref.read(routingClientProvider);
@@ -225,9 +275,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     }
     final resolved = await client.generateSegment(
       start: old.start!,
-      end: old.end!,
+      end: old.shape == 'loop' ? null : old.end!,
       via: old.via,
       mode: old.mode,
+      shape: old.shape,
+      theme: weights?.name ?? 'balanced',
+      targetM: old.targetDistance?.valueM,
       weights: weights == null
           ? null
           : {
@@ -319,6 +372,10 @@ class TripPersistence {
     if (row == null) return;
     final trip = Trip.fromJson(_decode(row.payload));
     _ref.read(currentTripProvider.notifier).open(trip);
+    // Party size / primary modes are session-only (trip_authoring_meta_provider.dart's
+    // doc comment) — a reopened trip starts without whatever was set for the
+    // trip open before it, rather than inheriting a stale value.
+    _ref.read(tripAuthoringMetaProvider.notifier).reset();
   }
 
   Future<void> delete(String id) async {

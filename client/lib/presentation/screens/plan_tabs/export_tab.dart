@@ -1,0 +1,546 @@
+// Wireframe screen "04 Cue Sheet + Export" — the Trip Shell's Export tab:
+// cue-sheet preview (left, F1) + export panel (right, F3/E5), replacing the
+// standalone `cue_sheet_screen.dart` (deleted; its cue-derivation logic
+// moved here unchanged). New this pass: real content toggles and per-day
+// splitting — `export_options.dart`'s `ExportOptions` reached the writers,
+// including wiring `/segments/cues` into them for the cue-sheet toggle,
+// which the old screen only ever showed on-screen, never exported.
+library;
+
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:plotlines_ui/plotlines_ui.dart';
+
+import '../../../data/export/export_options.dart';
+import '../../../data/export/geojson_writer.dart';
+import '../../../data/export/gpx_writer.dart';
+import '../../../data/export/tcx_writer.dart';
+import '../../../domain/domain.dart';
+import '../../../state/providers.dart';
+import '../../widgets/error_states.dart';
+
+class ExportTab extends ConsumerWidget {
+  const ExportTab({super.key, required this.trip});
+  final Trip trip;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = PlotColors.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(PlotSpacing.s5),
+            children: [
+              for (final day in trip.days) _DayCueSection(day: day),
+              if (trip.days.every((d) => d.segments.isEmpty))
+                Padding(
+                  padding: const EdgeInsets.all(PlotSpacing.s5),
+                  child: Text(
+                    'No routed days yet.',
+                    style: PlotTypography.body(c.textMuted),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Container(
+          width: 400,
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: c.border)),
+          ),
+          child: _ExportPanel(trip: trip),
+        ),
+      ],
+    );
+  }
+}
+
+class _CueEntry {
+  _CueEntry({
+    required this.distanceAlongM,
+    required this.label,
+    required this.glyph,
+    this.tag,
+  });
+  final double distanceAlongM;
+  final String label;
+  final String glyph;
+  final String? tag;
+}
+
+const _turnGlyph = {
+  'left': 'L',
+  'right': 'R',
+  'slight_left': 'BL',
+  'slight_right': 'BR',
+  'sharp_left': 'SL',
+  'sharp_right': 'SR',
+  'uturn': 'U',
+};
+
+List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
+  final entries = <_CueEntry>[];
+  var offset = 0.0;
+  for (var i = 0; i < day.segments.length; i++) {
+    final sheet = sheets[i];
+    for (final cue in sheet.cues) {
+      final glyph = switch (cue.kind) {
+        'turn' => _turnGlyph[cue.modifier] ?? '•',
+        'start' => 'S',
+        'finish' => 'F',
+        'hazard' => '⚠',
+        'portage' => '▲',
+        'surface' => '~',
+        _ => '●',
+      };
+      entries.add(
+        _CueEntry(
+          distanceAlongM: offset + cue.distanceAlongM,
+          label: cue.instruction ?? cue.kind,
+          glyph: glyph,
+          tag: cue.retrace == true ? 'RETRACE' : null,
+        ),
+      );
+    }
+    offset += day.segments[i].metrics?.distanceM ?? 0;
+  }
+  return entries;
+}
+
+/// The pre-F1 proxy: authored stops only, no derived turns. Used when the
+/// real cue derivation call fails.
+List<_CueEntry> _entriesFromAuthoredContent(Day day) {
+  final entries = <_CueEntry>[];
+  for (final segment in day.segments) {
+    if (segment.start != null) {
+      entries.add(_CueEntry(distanceAlongM: 0, label: 'Start', glyph: 'S'));
+    }
+    for (final node in segment.nodes) {
+      entries.add(
+        _CueEntry(
+          distanceAlongM: node.distanceAlongM ?? 0,
+          label: node.title ?? node.kind.wireValue,
+          glyph: node.kind == NodeKind.regroup ? '◆' : '●',
+          tag: node.poiType?.toUpperCase(),
+        ),
+      );
+    }
+    for (final hazard in segment.hazards) {
+      entries.add(
+        _CueEntry(
+          distanceAlongM: hazard.distanceAlongM ?? 0,
+          label: hazard.title ?? 'Hazard',
+          glyph: '⚠',
+          tag: hazard.severity.toUpperCase(),
+        ),
+      );
+    }
+    for (final portage in segment.portages) {
+      entries.add(
+        _CueEntry(
+          distanceAlongM: portage.distanceM ?? 0,
+          label: 'Portage',
+          glyph: '▲',
+          tag: portage.mandatory == true ? 'MANDATORY' : null,
+        ),
+      );
+    }
+    if (segment.metrics?.distanceM != null) {
+      entries.add(
+        _CueEntry(
+          distanceAlongM: segment.metrics!.distanceM!,
+          label: 'Finish',
+          glyph: 'F',
+        ),
+      );
+    }
+  }
+  entries.sort((a, b) => a.distanceAlongM.compareTo(b.distanceAlongM));
+  return entries;
+}
+
+class _DayCueSection extends ConsumerStatefulWidget {
+  const _DayCueSection({required this.day});
+  final Day day;
+
+  @override
+  ConsumerState<_DayCueSection> createState() => _DayCueSectionState();
+}
+
+class _DayCueSectionState extends ConsumerState<_DayCueSection> {
+  late Future<List<_CueEntry>> _future = _load();
+
+  Future<List<_CueEntry>> _load() async {
+    if (widget.day.segments.every((s) => s.start == null)) {
+      return _entriesFromAuthoredContent(widget.day);
+    }
+    final client = ref.read(routingClientProvider);
+    final sheets = await Future.wait(widget.day.segments.map(client.cuesFor));
+    return _entriesFromCueSheets(widget.day, sheets);
+  }
+
+  @override
+  void didUpdateWidget(covariant _DayCueSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.day != widget.day) {
+      setState(() => _future = _load());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    if (widget.day.segments.isEmpty && widget.day.nodes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: PlotSpacing.s5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'DAY ${widget.day.index}${widget.day.title != null ? ' — ${widget.day.title}' : ''}',
+            style: PlotTypography.data(
+              c.textMuted,
+            ).copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: PlotSpacing.s2),
+          FutureBuilder<List<_CueEntry>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Padding(
+                  padding: EdgeInsets.all(PlotSpacing.s4),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final entries =
+                  snapshot.data ?? _entriesFromAuthoredContent(widget.day);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (snapshot.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
+                      child: ProviderUnreachableBanner(
+                        provider: 'Turn-by-turn cue derivation',
+                      ),
+                    ),
+                  PlotCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: PlotSpacing.s4,
+                    ),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < entries.length; i++)
+                          CueSheetRow(
+                            mile:
+                                '${(entries[i].distanceAlongM / 1000).toStringAsFixed(1)} km',
+                            turn: entries[i].glyph,
+                            instruction: entries[i].label,
+                            tag: entries[i].tag,
+                            divider: i < entries.length - 1,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _ExportFormat { gpx, tcx, geojson, fit }
+
+class _ExportPanel extends ConsumerStatefulWidget {
+  const _ExportPanel({required this.trip});
+  final Trip trip;
+
+  @override
+  ConsumerState<_ExportPanel> createState() => _ExportPanelState();
+}
+
+class _ExportPanelState extends ConsumerState<_ExportPanel> {
+  _ExportFormat _format = _ExportFormat.gpx;
+  bool _includeWaypoints = true;
+  bool _includeCueSheet = false;
+  bool _includeAlternates = false;
+  bool _perDay = false;
+  bool _exporting = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final dayCount = widget.trip.days
+        .where((d) => d.segments.isNotEmpty)
+        .length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            PlotSpacing.s5,
+            PlotSpacing.s5,
+            PlotSpacing.s5,
+            PlotSpacing.s3,
+          ),
+          child: Text(
+            'EXPORT',
+            style: PlotTypography.data(
+              c.textMuted,
+            ).copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('FORMAT', style: PlotTypography.data(c.textMuted)),
+                const SizedBox(height: PlotSpacing.s2),
+                Wrap(
+                  spacing: PlotSpacing.s2,
+                  children: [
+                    for (final f in _ExportFormat.values)
+                      ChoiceChip(
+                        label: Text(f.name.toUpperCase()),
+                        selected: _format == f,
+                        onSelected: f == _ExportFormat.fit
+                            ? null
+                            : (_) => setState(() => _format = f),
+                      ),
+                  ],
+                ),
+                if (_format == _ExportFormat.fit) ...[
+                  const SizedBox(height: PlotSpacing.s2),
+                  Text(
+                    'FIT waits on SPIKE-16 (unresolved — also decides whether FIT runs '
+                    'in the core or on-device via the Garmin FIT SDK).',
+                    style: PlotTypography.small(c.textMuted),
+                  ),
+                ],
+                const SizedBox(height: PlotSpacing.s4),
+                Text(
+                  'CONTENTS',
+                  style: PlotTypography.data(
+                    c.textMuted,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: PlotSpacing.s2),
+                _ToggleRow(
+                  label: 'Track + elevation',
+                  value: true,
+                  onChanged: null,
+                ),
+                _ToggleRow(
+                  label: 'Waypoints & rest stops',
+                  value: _includeWaypoints,
+                  onChanged: (v) => setState(() => _includeWaypoints = v),
+                ),
+                _ToggleRow(
+                  label: 'Cue sheet (turn points)',
+                  value: _includeCueSheet,
+                  onChanged: (v) => setState(() => _includeCueSheet = v),
+                ),
+                _ToggleRow(
+                  label: 'Alternates & variants',
+                  value: _includeAlternates,
+                  onChanged: (v) => setState(() => _includeAlternates = v),
+                ),
+                const SizedBox(height: PlotSpacing.s4),
+                Text(
+                  'FILE SPLITTING',
+                  style: PlotTypography.data(
+                    c.textMuted,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: PlotSpacing.s2),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Text('SINGLE FILE'),
+                        selected: !_perDay,
+                        onSelected: (_) => setState(() => _perDay = false),
+                      ),
+                    ),
+                    const SizedBox(width: PlotSpacing.s2),
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Text('PER DAY'),
+                        selected: _perDay,
+                        onSelected: (_) => setState(() => _perDay = true),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: PlotSpacing.s2,
+                    bottom: PlotSpacing.s4,
+                  ),
+                  child: Text(
+                    _perDay
+                        ? '$dayCount files · one per routed day'
+                        : '1 file · every day, one course/track each',
+                    style: PlotTypography.small(c.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: c.border)),
+          ),
+          padding: const EdgeInsets.all(PlotSpacing.s5),
+          child: PlotButton(
+            label: _exporting
+                ? 'Exporting…'
+                : 'Export ${_perDay ? '$dayCount ${_format.name.toUpperCase()} files' : '${_format.name.toUpperCase()} file'}',
+            expand: true,
+            onPressed:
+                (_exporting || _format == _ExportFormat.fit || dayCount == 0)
+                ? null
+                : _export,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _export() async {
+    setState(() => _exporting = true);
+    try {
+      Map<String, CueSheet> cueSheets = const {};
+      if (_includeCueSheet) {
+        cueSheets = await _fetchCueSheets(widget.trip);
+      }
+      final options = ExportOptions(
+        includeWaypoints: _includeWaypoints,
+        includeAlternates: _includeAlternates,
+        includeCueSheet: _includeCueSheet,
+        cueSheetsBySegmentId: cueSheets,
+      );
+      if (_perDay) {
+        await _exportPerDay(options);
+      } else {
+        await _exportSingle(options);
+      }
+    } catch (e) {
+      if (mounted) await showExportFailedDialog(context, reason: '$e');
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<Map<String, CueSheet>> _fetchCueSheets(Trip trip) async {
+    final client = ref.read(routingClientProvider);
+    final result = <String, CueSheet>{};
+    for (final day in trip.days) {
+      for (final segment in day.segments) {
+        if (segment.start == null) continue;
+        try {
+          result[segment.id] = await client.cuesFor(segment);
+        } catch (_) {
+          // Honest degrade (MVP doc §4): a segment whose cues fail to derive
+          // just exports without cue points rather than failing the whole export.
+        }
+      }
+    }
+    return result;
+  }
+
+  String _write(Trip trip, ExportOptions options) => switch (_format) {
+    _ExportFormat.gpx => tripToGpx(trip, options: options),
+    _ExportFormat.tcx => tripToTcx(trip, options: options),
+    _ExportFormat.geojson => tripToGeoJson(trip, options: options),
+    _ExportFormat.fit => throw StateError('FIT is disabled'),
+  };
+
+  String get _extension => switch (_format) {
+    _ExportFormat.gpx => 'gpx',
+    _ExportFormat.tcx => 'tcx',
+    _ExportFormat.geojson => 'geojson',
+    _ExportFormat.fit => 'fit',
+  };
+
+  String _safeName(String s) =>
+      s.replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '').trim();
+
+  Future<void> _exportSingle(ExportOptions options) async {
+    final content = _write(widget.trip, options);
+    final safeName = _safeName(widget.trip.title);
+    final location = await getSaveLocation(
+      suggestedName: '${safeName.isEmpty ? 'plotline' : safeName}.$_extension',
+    );
+    if (location == null) return; // Author cancelled — not a failure.
+    await File(location.path).writeAsString(content);
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Exported ${location.path}')));
+    }
+  }
+
+  Future<void> _exportPerDay(ExportOptions options) async {
+    final dirPath = await getDirectoryPath();
+    if (dirPath == null) return; // Author cancelled — not a failure.
+    final safeName = _safeName(widget.trip.title);
+    var count = 0;
+    for (final day in widget.trip.days) {
+      if (day.segments.isEmpty) continue;
+      final dayTrip = widget.trip.copyWith(days: [day]);
+      final content = _write(dayTrip, options);
+      final base = safeName.isEmpty ? 'plotline' : safeName;
+      final file = File('$dirPath/${base}_day${day.index}.$_extension');
+      await file.writeAsString(content);
+      count++;
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exported $count files to $dirPath')),
+      );
+    }
+  }
+}
+
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+  final String label;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: PlotTypography.body(PlotColors.of(context).textPrimary),
+            ),
+          ),
+          Switch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}

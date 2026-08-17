@@ -3,12 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
-import 'presentation/screens/about_screen.dart';
-import 'presentation/screens/cue_sheet_screen.dart';
 import 'presentation/screens/new_route_screen.dart';
-import 'presentation/screens/route_planner_screen.dart';
 import 'presentation/screens/settings_screen.dart';
 import 'presentation/screens/trip_library_screen.dart';
+import 'presentation/screens/trip_shell_screen.dart';
 import 'presentation/widgets/sidecar_gate.dart';
 import 'state/providers.dart';
 import 'state/settings_provider.dart';
@@ -22,10 +20,11 @@ final _router = GoRouter(
   routes: [
     GoRoute(path: '/', builder: (context, state) => const TripLibraryScreen()),
     GoRoute(path: '/new', builder: (context, state) => const NewRouteScreen()),
-    GoRoute(path: '/planner', builder: (context, state) => const RoutePlannerScreen()),
-    GoRoute(path: '/cues', builder: (context, state) => const CueSheetScreen()),
+    // Wireframe screens 01/02/03/04 — one persistent tabbed shell per trip,
+    // not four separate routes (see trip_shell_screen.dart).
+    GoRoute(path: '/plan', builder: (context, state) => const TripShellScreen()),
+    // Wireframe screen 06 — Preferences & About merged into one screen.
     GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
-    GoRoute(path: '/about', builder: (context, state) => const AboutScreen()),
   ],
 );
 

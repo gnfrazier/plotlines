@@ -109,8 +109,33 @@ Everything else the first import's gap table flagged — via-node UI, band contr
 loop-only shape selector, the weight-bounding relaxation chip copy, missing rest
 days/attribution — either no longer reproduces in the file or wasn't re-checked in this
 pass and should be treated as resolved-pending-visual-confirmation rather than reasserted
-as a live gap. `client/lib/presentation/`'s build (MVP doc §8) was completed against the
-*previous* wireframe pass and the additions §8 lists as "extended past the wireframe" —
-via-node UI, bands, shape selector, rest/regroup, attribution — may now be closer to what
-this revised wireframe actually shows than to an extension beyond it. Reconciling the two
-is follow-up work, not done as part of this file swap.
+as a live gap.
+
+## Reconciling the build against this wireframe *(2026-08-17, same-day follow-up)*
+
+`client/lib/presentation/`'s build (MVP doc §8) was originally completed against the
+*previous* wireframe pass, using separate GoRouter-pushed screens (weights/bands in a
+modal sheet, node editing in another modal, export as its own route) rather than what
+this file actually shows: one **persistent tabbed shell per trip** (`Route / Logistics /
+Content / Export`), with a weights rail and a live-metrics rail that stay mounted across
+tab switches, a day timeline strip, and A6's conflict flow as a real centered modal
+rather than an inline card. The build now matches that shell — `presentation/screens/
+trip_shell_screen.dart` and `presentation/screens/plan_tabs/`.
+
+**One tab has no wireframe content to reconcile against.** Every screen's tab bar in this
+file names `Logistics`, but no `data-screen-label` mockup exists for it anywhere in the
+file (checked directly: `New Route`/`Route Planner`/`Constraint Conflict`/`Node &
+Narrative`/`Cue Sheet + Export`/`Open Trip`/`Preferences & About`/`System States` all have
+one; `Logistics` doesn't). That tab's content — day/rest-day management plus C1-C3
+day-limit editing — is this repo's own design, informed by MVP §1.4 Epic C rather than
+the wireframe, since Route's rail took over the day/segment list this content used to
+share space with.
+
+**Also landed with this pass, beyond pure layout:** the Export tab's `CONTENTS` toggles
+(waypoints, cue sheet, alternates) and `FILE SPLITTING` (single file / per day) are real,
+not decorative — `data/export/export_options.dart` reached all three writers, including
+wiring `/segments/cues` into them so the cue-sheet toggle actually embeds turn points
+rather than only ever showing them on screen. New Route's `START FROM` (blank canvas /
+generate from theme / import GPX) is also real: blank canvas skips generation for an
+empty day the Author builds manually; import GPX is honestly disabled (no parser exists),
+same pattern as FIT export's caption.

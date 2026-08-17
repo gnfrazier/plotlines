@@ -14,11 +14,13 @@ library;
 import 'dart:convert';
 
 import '../../domain/domain.dart';
+import 'export_options.dart';
+import 'geo_utils.dart';
 
 /// Feature per segment geometry, feature per node, feature per hazard.
 /// `properties` carries just enough to be useful in a general GIS viewer —
 /// this is not a re-implementation of the schema, only its geometry half.
-String tripToGeoJson(Trip trip) {
+String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()}) {
   final features = <Map<String, dynamic>>[];
 
   for (final day in trip.days) {
@@ -41,40 +43,77 @@ String tripToGeoJson(Trip trip) {
           },
         });
       }
-      for (final node in segment.nodes) {
+      if (options.includeWaypoints) {
+        for (final node in segment.nodes) {
+          features.add(_pointFeature(
+            coord: node.coord,
+            properties: {
+              'kind': 'node',
+              'node_kind': node.kind.wireValue,
+              if (node.title != null) 'title': node.title,
+              if (node.poiType != null) 'poi_type': node.poiType,
+              if (node.arcStage != null) 'arc_stage': node.arcStage,
+            },
+          ));
+        }
+        for (final hazard in segment.hazards) {
+          if (hazard.coord == null) continue;
+          features.add(_pointFeature(
+            coord: hazard.coord!,
+            properties: {
+              'kind': 'hazard',
+              'severity': hazard.severity,
+              if (hazard.title != null) 'title': hazard.title,
+            },
+          ));
+        }
+      }
+      if (options.includeAlternates) {
+        for (final alt in segment.alternates) {
+          features.add({
+            'type': 'Feature',
+            'geometry': {'type': 'LineString', 'coordinates': alt.geometry.coordinates},
+            'properties': {
+              'kind': 'alternate',
+              'alternate_kind': alt.kind,
+              'day_index': day.index,
+              'segment_id': segment.id,
+              if (alt.label != null) 'title': alt.label,
+            },
+          });
+        }
+      }
+      if (options.includeCueSheet) {
+        final sheet = options.cueSheetsBySegmentId[segment.id];
+        final coords = segment.geometry?.coordinates ?? const [];
+        if (sheet != null && coords.isNotEmpty) {
+          for (final cue in sheet.cues) {
+            features.add(_pointFeature(
+              coord: pointAtDistance(coords, cue.distanceAlongM),
+              properties: {
+                'kind': 'cue',
+                'cue_kind': cue.kind,
+                if (cue.modifier != null) 'modifier': cue.modifier,
+                if (cue.instruction != null) 'title': cue.instruction,
+                'distance_along_m': cue.distanceAlongM,
+              },
+            ));
+          }
+        }
+      }
+    }
+    if (options.includeWaypoints) {
+      for (final node in day.nodes) {
         features.add(_pointFeature(
           coord: node.coord,
           properties: {
             'kind': 'node',
             'node_kind': node.kind.wireValue,
+            'day_index': day.index,
             if (node.title != null) 'title': node.title,
-            if (node.poiType != null) 'poi_type': node.poiType,
-            if (node.arcStage != null) 'arc_stage': node.arcStage,
           },
         ));
       }
-      for (final hazard in segment.hazards) {
-        if (hazard.coord == null) continue;
-        features.add(_pointFeature(
-          coord: hazard.coord!,
-          properties: {
-            'kind': 'hazard',
-            'severity': hazard.severity,
-            if (hazard.title != null) 'title': hazard.title,
-          },
-        ));
-      }
-    }
-    for (final node in day.nodes) {
-      features.add(_pointFeature(
-        coord: node.coord,
-        properties: {
-          'kind': 'node',
-          'node_kind': node.kind.wireValue,
-          'day_index': day.index,
-          if (node.title != null) 'title': node.title,
-        },
-      ));
     }
   }
 

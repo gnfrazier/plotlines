@@ -2,6 +2,12 @@
 // POI type/amenities, E2's narrative arc stage, and E4's authoring-only
 // narration trigger distance (playback is field execution, out of scope —
 // MVP doc §1.4.2).
+//
+// The field UI is [NodeEditorForm], shared by two containers: [showNodeEditorSheet]'s
+// modal (Route tab's "tap map to add a node while routing" flow) and the Content
+// tab's persistent drawer (`presentation/screens/plan_tabs/content_tab.dart`), which
+// is the wireframe's actual container for this screen — a modal sheet was this
+// repo's placeholder before the 2026-08-17 wireframe reconciliation.
 library;
 
 import 'package:flutter/material.dart';
@@ -17,7 +23,9 @@ const _arcStages = ['exposition', 'rising', 'crux', 'climax', 'resolution'];
 const _amenityChoices = ['water', 'toilets', 'food', 'shelter'];
 
 /// Opens the editor for a brand-new node at [coord] on [segmentId], or an
-/// existing [existing] node to revise.
+/// existing [existing] node to revise, as a modal sheet. Still used by the
+/// Route tab's "Add node" affordance, which places a node while looking at
+/// the map rather than switching to Content.
 Future<void> showNodeEditorSheet(
   BuildContext context, {
   required String dayId,
@@ -32,36 +40,54 @@ Future<void> showNodeEditorSheet(
       initialChildSize: 0.75,
       maxChildSize: 0.95,
       expand: false,
-      builder: (context, scrollController) => _NodeEditor(
-        dayId: dayId,
-        segmentId: segmentId,
-        coord: coord,
-        existing: existing,
-        scrollController: scrollController,
+      builder: (context, scrollController) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: NodeEditorForm(
+          dayId: dayId,
+          segmentId: segmentId,
+          coord: coord,
+          existing: existing,
+          scrollController: scrollController,
+          onSaved: (_) => Navigator.pop(context),
+        ),
       ),
     ),
   );
 }
 
-class _NodeEditor extends ConsumerStatefulWidget {
-  const _NodeEditor({
+/// The kind/title/note/POI/amenities/arc-stage/narration-trigger form itself,
+/// container-agnostic: a modal sheet ([showNodeEditorSheet]) and the Content
+/// tab's inline drawer both wrap this.
+class NodeEditorForm extends ConsumerStatefulWidget {
+  const NodeEditorForm({
+    super.key,
     required this.dayId,
     required this.segmentId,
     required this.coord,
     required this.existing,
-    required this.scrollController,
+    required this.onSaved,
+    this.scrollController,
+    this.trailing,
   });
   final String dayId;
   final String segmentId;
   final Coord coord;
   final Node? existing;
-  final ScrollController scrollController;
+
+  /// Called with the saved node after the domain state is updated — the
+  /// container decides what to do next (pop a sheet, show a snackbar, …).
+  final ValueChanged<Node> onSaved;
+  final ScrollController? scrollController;
+
+  /// Extra actions next to "Save node" (the Content tab drawer's close
+  /// button lives here; the modal sheet has none).
+  final Widget? trailing;
 
   @override
-  ConsumerState<_NodeEditor> createState() => _NodeEditorState();
+  ConsumerState<NodeEditorForm> createState() => _NodeEditorFormState();
 }
 
-class _NodeEditorState extends ConsumerState<_NodeEditor> {
+class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
   late final _title = TextEditingController(text: widget.existing?.title ?? '');
   late final _note = TextEditingController(text: widget.existing?.note ?? '');
   late final _poiType = TextEditingController(text: widget.existing?.poiType ?? '');
@@ -70,6 +96,22 @@ class _NodeEditorState extends ConsumerState<_NodeEditor> {
   late NodeKind _kind = widget.existing?.kind ?? NodeKind.waypoint;
   late String? _arcStage = widget.existing?.arcStage;
   late final Set<String> _amenities = {...(widget.existing?.amenities ?? const [])};
+
+  @override
+  void didUpdateWidget(covariant NodeEditorForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.existing?.id != widget.existing?.id) {
+      _title.text = widget.existing?.title ?? '';
+      _note.text = widget.existing?.note ?? '';
+      _poiType.text = widget.existing?.poiType ?? '';
+      _triggerDistance.text = widget.existing?.narration?.triggerDistanceM.toString() ?? '';
+      _kind = widget.existing?.kind ?? NodeKind.waypoint;
+      _arcStage = widget.existing?.arcStage;
+      _amenities
+        ..clear()
+        ..addAll(widget.existing?.amenities ?? const []);
+    }
+  }
 
   @override
   void dispose() {
@@ -83,95 +125,99 @@ class _NodeEditorState extends ConsumerState<_NodeEditor> {
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: ListView(
-        controller: widget.scrollController,
-        padding: const EdgeInsets.all(PlotSpacing.s5),
-        children: [
-          Text(widget.existing == null ? 'New node' : 'Edit node',
-              style: PlotTypography.h2(c.textPrimary).copyWith(fontSize: 20)),
-          const SizedBox(height: PlotSpacing.s2),
-          Text(
-            '${widget.coord[1].toStringAsFixed(5)}, ${widget.coord[0].toStringAsFixed(5)}',
-            style: PlotTypography.data(c.textMuted),
-          ),
-          const SizedBox(height: PlotSpacing.s4),
-          Text('KIND', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: PlotSpacing.s2),
-          Wrap(
-            spacing: PlotSpacing.s2,
-            children: [
-              for (final kind in NodeKind.values)
-                ChoiceChip(
-                  label: Text(kind.wireValue.replaceAll('_', ' ')),
-                  selected: _kind == kind,
-                  onSelected: (_) => setState(() => _kind = kind),
-                ),
-            ],
-          ),
-          const SizedBox(height: PlotSpacing.s4),
-          TextField(
-            controller: _title,
-            decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: PlotSpacing.s3),
-          TextField(
-            controller: _note,
-            maxLines: 3,
-            decoration: const InputDecoration(labelText: 'Note (Markdown)', border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: PlotSpacing.s3),
-          TextField(
-            controller: _poiType,
-            decoration: const InputDecoration(labelText: 'POI type (FR5)', border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: PlotSpacing.s4),
-          Text('AMENITIES (C5)', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: PlotSpacing.s2),
-          Wrap(
-            spacing: PlotSpacing.s2,
-            children: [
-              for (final a in _amenityChoices)
-                FilterChip(
-                  label: Text(a),
-                  selected: _amenities.contains(a),
-                  onSelected: (sel) => setState(() => sel ? _amenities.add(a) : _amenities.remove(a)),
-                ),
-            ],
-          ),
-          const SizedBox(height: PlotSpacing.s4),
-          Text('NARRATIVE ARC (E2 / FR38)', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: PlotSpacing.s2),
-          Wrap(
-            spacing: PlotSpacing.s2,
-            children: [
-              ChoiceChip(label: const Text('none'), selected: _arcStage == null, onSelected: (_) => setState(() => _arcStage = null)),
-              for (final stage in _arcStages)
-                ChoiceChip(
-                  label: Text(stage),
-                  selected: _arcStage == stage,
-                  onSelected: (_) => setState(() => _arcStage = stage),
-                ),
-            ],
-          ),
-          const SizedBox(height: PlotSpacing.s4),
-          Text('NARRATION TRIGGER (E4 — authoring only)',
-              style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: PlotSpacing.s2),
-          Text('Playback is field execution and stays out of desktop MVP; this '
-              'just records the distance a future field build should trigger at.',
-              style: PlotTypography.small(c.textSecondary)),
-          const SizedBox(height: PlotSpacing.s2),
-          TextField(
-            controller: _triggerDistance,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Trigger distance (m)', border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: PlotSpacing.s5),
-          PlotButton(label: 'Save node', expand: true, onPressed: _save),
-        ],
-      ),
+    return ListView(
+      controller: widget.scrollController,
+      padding: const EdgeInsets.all(PlotSpacing.s5),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(widget.existing == null ? 'New node' : 'Edit node',
+                  style: PlotTypography.h2(c.textPrimary).copyWith(fontSize: 20)),
+            ),
+            if (widget.trailing != null) widget.trailing!,
+          ],
+        ),
+        const SizedBox(height: PlotSpacing.s2),
+        Text(
+          '${widget.coord[1].toStringAsFixed(5)}, ${widget.coord[0].toStringAsFixed(5)}',
+          style: PlotTypography.data(c.textMuted),
+        ),
+        const SizedBox(height: PlotSpacing.s4),
+        Text('KIND', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: PlotSpacing.s2),
+        Wrap(
+          spacing: PlotSpacing.s2,
+          children: [
+            for (final kind in NodeKind.values)
+              ChoiceChip(
+                label: Text(kind.wireValue.replaceAll('_', ' ')),
+                selected: _kind == kind,
+                onSelected: (_) => setState(() => _kind = kind),
+              ),
+          ],
+        ),
+        const SizedBox(height: PlotSpacing.s4),
+        TextField(
+          controller: _title,
+          decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: PlotSpacing.s3),
+        TextField(
+          controller: _note,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Note (Markdown)', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: PlotSpacing.s3),
+        TextField(
+          controller: _poiType,
+          decoration: const InputDecoration(labelText: 'POI type (FR5)', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: PlotSpacing.s4),
+        Text('AMENITIES (C5)', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: PlotSpacing.s2),
+        Wrap(
+          spacing: PlotSpacing.s2,
+          children: [
+            for (final a in _amenityChoices)
+              FilterChip(
+                label: Text(a),
+                selected: _amenities.contains(a),
+                onSelected: (sel) => setState(() => sel ? _amenities.add(a) : _amenities.remove(a)),
+              ),
+          ],
+        ),
+        const SizedBox(height: PlotSpacing.s4),
+        Text('NARRATIVE ARC (E2 / FR38)', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: PlotSpacing.s2),
+        Wrap(
+          spacing: PlotSpacing.s2,
+          children: [
+            ChoiceChip(label: const Text('none'), selected: _arcStage == null, onSelected: (_) => setState(() => _arcStage = null)),
+            for (final stage in _arcStages)
+              ChoiceChip(
+                label: Text(stage),
+                selected: _arcStage == stage,
+                onSelected: (_) => setState(() => _arcStage = stage),
+              ),
+          ],
+        ),
+        const SizedBox(height: PlotSpacing.s4),
+        Text('NARRATION TRIGGER (E4 — authoring only)',
+            style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: PlotSpacing.s2),
+        Text('Playback is field execution and stays out of desktop MVP; this '
+            'just records the distance a future field build should trigger at.',
+            style: PlotTypography.small(c.textSecondary)),
+        const SizedBox(height: PlotSpacing.s2),
+        TextField(
+          controller: _triggerDistance,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(labelText: 'Trigger distance (m)', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: PlotSpacing.s5),
+        PlotButton(label: 'Save node', expand: true, onPressed: _save),
+      ],
     );
   }
 
@@ -194,6 +240,6 @@ class _NodeEditorState extends ConsumerState<_NodeEditor> {
     } else {
       notifier.replaceNodeInSegment(widget.dayId, widget.segmentId, node);
     }
-    Navigator.pop(context);
+    widget.onSaved(node);
   }
 }

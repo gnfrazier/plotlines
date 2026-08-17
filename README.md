@@ -24,17 +24,25 @@ hosted service, no accounts, no sync, no Web, no mobile field execution. See
 `docs/Plotlines_MVP_Scope_and_Setup.md` §1 for the exact in/out-of-scope line.
 
 **Status:** the Flutter Author Desktop client is built and running end to end against a real
-sidecar and a real basemap — trip library, new-route (all three shapes: loop, out-and-back,
-point-to-point, plus location search), the route planner (weights, bands, live A6 conflict
-diagnosis, a real Protomaps vector basemap for the Boulder fixture region), node & narrative
-curation, real F1 turn-by-turn cue sheets, GPX/GeoJSON/TCX export, settings, and attribution
-are all implemented and exercisable end to end — verified against the rebuilt frozen sidecar
-binary, not just a source run. What's left is catalogued in
-`docs/Plotlines_MVP_Scope_and_Setup.md` §8 — an arbitrary-region download pipeline (today every
-trip routes against the bundled Boulder, CO fixture regardless of what A10's first-run prompt
-is given), Windows sidecar lifecycle (no Windows box to verify FFI code against), and FIT export
-(gated on an unrun spike) — nothing there is a hidden surprise, and nothing in the client fakes
-data to paper over a gap.
+sidecar and a real basemap, and its UI matches `client/design`'s wireframe — not just the
+same features, the same information architecture. Every trip opens into one persistent
+**Trip Shell** with `Route / Logistics / Content / Export` tabs (an always-visible weights
+rail, a day timeline strip, and A6 conflict diagnosis as a real modal dialog, not the
+separate pushed screens this used to be), plus trip library search/grid-list, new-route (all
+three shapes: loop, out-and-back, point-to-point, location search, and a blank-canvas /
+generate-from-theme / import-GPX start method), node & narrative curation, real F1
+turn-by-turn cue sheets, and GPX/GeoJSON/TCX export with real per-day splitting and content
+toggles (waypoints, cue sheet, alternates). The basemap renders real street, place, and water
+labels now too — a one-session gap where the shipped style JSON was never actually run
+through the label-fix transform SPIKE-14 had already worked out (`packaging/build_basemap_theme.py`
+is that fix, made a real committed pipeline step instead of a one-off probe). All of this is
+verified against the rebuilt frozen sidecar binary, not just a source run, and against a real
+launch of the built app. What's left is catalogued in `docs/Plotlines_MVP_Scope_and_Setup.md`
+§8 — an arbitrary-region download pipeline (today every trip routes against the bundled
+Boulder, CO fixture regardless of what A10's first-run prompt is given), Windows sidecar
+lifecycle (no Windows box to verify FFI code against), and FIT export (gated on an unrun
+spike) — nothing there is a hidden surprise, and nothing in the client fakes data to paper
+over a gap.
 
 ## Docs
 
@@ -147,8 +155,12 @@ screen, escalating its message if it runs long) before handing off to the trip l
 The basemap only covers the Boulder, CO fixture region — `client/assets/tiles/` (496 vector
 tiles, committed) was exploded once from SPIKE-14's `spikes/SPIKE-14/tiles/boulder.pmtiles`
 via the vendored `spikes/SPIKE-14/tools/pmtiles` CLI; panning elsewhere shows an honest "no
-basemap tiles here" label rather than a blank map. No regeneration step needed to run the app —
-the exploded tiles are already in the repo.
+basemap tiles here" label rather than a blank map. `client/assets/map_style/style_{light,dark}.json`
+(also committed) are generated from the mirrored Protomaps theme by
+`packaging/build_basemap_theme.py` — real street, place, and water labels, not just polygons
+and lines; rerun that script if `spikes/SPIKE-14/harness/assets/style_*.json` ever changes
+upstream. No regeneration step needed to run the app — both the tiles and the generated
+style are already in the repo.
 
 `flutter test` and `flutter analyze` both run clean from `client/` and are worth checking
 before a PR.

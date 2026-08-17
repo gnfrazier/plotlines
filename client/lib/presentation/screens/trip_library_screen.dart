@@ -1,6 +1,10 @@
-// G2a (PRD FR74a) — save a trip locally, reopen it, list what exists. The
-// "plain thing", deliberately lighter than G2's [P1] portfolio surface: no
-// sync badges, no roster, no thumbnails beyond the brand hatch pattern.
+// Wireframe screen "05 Open Trip" (G2a, PRD FR74a) — save a trip locally,
+// reopen it, list what exists. The "plain thing", deliberately lighter than
+// G2's [P1] portfolio surface: no sync badges, no roster, no thumbnails
+// beyond the brand hatch pattern. Adds the wireframe's search field and
+// grid/list toggle over the previous grid-only pass; "About" moved into
+// the merged Preferences & About screen (settings_screen.dart) per the
+// wireframe's screen 06, so this app bar only routes to Settings now.
 //
 // Also owns A10's first-run prompt (PRD FR96): an Author with nothing
 // downloaded is asked for a starting location before they can generate
@@ -17,14 +21,30 @@ import '../../data/app_database.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
+import '../../state/trip_authoring_meta_provider.dart';
 import '../../state/trip_library_provider.dart';
 import '../widgets/first_run_dialog.dart';
 
-class TripLibraryScreen extends ConsumerWidget {
+class TripLibraryScreen extends ConsumerStatefulWidget {
   const TripLibraryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TripLibraryScreen> createState() => _TripLibraryScreenState();
+}
+
+class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
+  final _searchController = TextEditingController();
+  String _query = '';
+  bool _grid = true;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final tripsAsync = ref.watch(tripLibraryProvider);
     final startingLocation = ref.watch(startingLocationSetProvider);
@@ -34,13 +54,8 @@ class TripLibraryScreen extends ConsumerWidget {
         title: Text('Plotlines', style: PlotTypography.h2(c.textPrimary).copyWith(fontSize: 22)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline),
-            tooltip: 'About',
-            onPressed: () => context.push('/about'),
-          ),
-          IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
+            tooltip: 'Preferences & about',
             onPressed: () => context.push('/settings'),
           ),
           const SizedBox(width: PlotSpacing.s2),
@@ -51,6 +66,7 @@ class TripLibraryScreen extends ConsumerWidget {
           final ready = await _ensureStartingLocation(context, ref);
           if (!ready || !context.mounted) return;
           ref.read(currentTripProvider.notifier).reset();
+          ref.read(tripAuthoringMetaProvider.notifier).reset();
           context.push('/new');
         },
         icon: const Icon(Icons.add),
@@ -67,7 +83,47 @@ class TripLibraryScreen extends ConsumerWidget {
           ),
           data: (trips) => trips.isEmpty
               ? _EmptyLibrary(hasLocation: location != null)
-              : _TripGrid(trips: trips),
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          PlotSpacing.s5, PlotSpacing.s4, PlotSpacing.s5, PlotSpacing.s2),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              decoration: const InputDecoration(
+                                hintText: 'Search trips',
+                                prefixIcon: Icon(Icons.search, size: 18),
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                            ),
+                          ),
+                          const SizedBox(width: PlotSpacing.s3),
+                          SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment(value: true, icon: Icon(Icons.grid_view, size: 16), label: Text('GRID')),
+                              ButtonSegment(value: false, icon: Icon(Icons.view_list, size: 16), label: Text('LIST')),
+                            ],
+                            selected: {_grid},
+                            onSelectionChanged: (s) => setState(() => _grid = s.first),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: _TripCollection(
+                        trips: _query.isEmpty
+                            ? trips
+                            : trips.where((t) => t.title.toLowerCase().contains(_query)).toList(),
+                        grid: _grid,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
@@ -116,37 +172,59 @@ class _EmptyLibrary extends StatelessWidget {
   }
 }
 
-class _TripGrid extends ConsumerWidget {
-  const _TripGrid({required this.trips});
+class _TripCollection extends ConsumerWidget {
+  const _TripCollection({required this.trips, required this.grid});
   final List<TripListEntry> trips;
+  final bool grid;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return GridView.builder(
+    if (trips.isEmpty) {
+      return Center(
+        child: Text('No trips match that search.',
+            style: PlotTypography.body(PlotColors.of(context).textMuted)),
+      );
+    }
+    if (grid) {
+      return GridView.builder(
+        padding: const EdgeInsets.all(PlotSpacing.s5),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 320,
+          mainAxisSpacing: PlotSpacing.s4,
+          crossAxisSpacing: PlotSpacing.s4,
+          childAspectRatio: 1.35,
+        ),
+        itemCount: trips.length,
+        itemBuilder: (context, i) => _TripCard(trip: trips[i]),
+      );
+    }
+    return ListView.separated(
       padding: const EdgeInsets.all(PlotSpacing.s5),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 320,
-        mainAxisSpacing: PlotSpacing.s4,
-        crossAxisSpacing: PlotSpacing.s4,
-        childAspectRatio: 1.35,
-      ),
       itemCount: trips.length,
-      itemBuilder: (context, i) {
-        final trip = trips[i];
-        return GestureDetector(
-          onLongPress: () => _confirmDelete(context, ref, trip),
-          child: TripCard(
-            title: trip.title,
-            stats: ['Updated ${_relativeDay(trip.updatedAt)}'],
-            modeTag: trip.modes.isEmpty ? null : trip.modes.join('+').toUpperCase(),
-            offlineReady: true,
-            onTap: () async {
-              await ref.read(tripPersistenceProvider).open(trip.id);
-              if (context.mounted) context.push('/planner');
-            },
-          ),
-        );
-      },
+      separatorBuilder: (_, _) => const SizedBox(height: PlotSpacing.s3),
+      itemBuilder: (context, i) => SizedBox(height: 96, child: _TripCard(trip: trips[i])),
+    );
+  }
+}
+
+class _TripCard extends ConsumerWidget {
+  const _TripCard({required this.trip});
+  final TripListEntry trip;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onLongPress: () => _confirmDelete(context, ref, trip),
+      child: TripCard(
+        title: trip.title,
+        stats: ['Updated ${_relativeDay(trip.updatedAt)}'],
+        modeTag: trip.modes.isEmpty ? null : trip.modes.join('+').toUpperCase(),
+        offlineReady: true,
+        onTap: () async {
+          await ref.read(tripPersistenceProvider).open(trip.id);
+          if (context.mounted) context.push('/plan');
+        },
+      ),
     );
   }
 
