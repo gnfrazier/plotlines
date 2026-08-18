@@ -56,14 +56,13 @@ class LogisticsTab extends ConsumerWidget {
               ),
               const SizedBox(width: PlotSpacing.s2),
               // C2 — a rest day is a day with no segments, created directly
-              // here since it never needs the New Route flow.
+              // here since it never needs the New Route flow. `addBlankDay`,
+              // not `setDayKind` — the latter only ever looks up an
+              // *existing* day and throws given a fresh id.
               IconButton(
                 tooltip: 'Add rest day',
                 icon: Icon(Icons.hotel_outlined, color: PlotColors.of(context).textSecondary),
-                onPressed: () => ref.read(currentTripProvider.notifier).setDayKind(
-                      DateTime.now().microsecondsSinceEpoch.toString(),
-                      'rest',
-                    ),
+                onPressed: () => ref.read(currentTripProvider.notifier).addBlankDay(kind: 'rest'),
               ),
             ],
           ),

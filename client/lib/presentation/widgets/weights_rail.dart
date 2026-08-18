@@ -44,7 +44,14 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
   void didUpdateWidget(covariant WeightsRail oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.segment?.id != widget.segment?.id) {
-      setState(() => _error = null);
+      // Only the *display* resets here — an in-flight request for the old
+      // segment still runs to completion (its `finally` clears these same
+      // flags when it resolves), it just no longer owns this rail's UI.
+      setState(() {
+        _error = null;
+        _regenerating = false;
+        _diagnosing = false;
+      });
     }
   }
 

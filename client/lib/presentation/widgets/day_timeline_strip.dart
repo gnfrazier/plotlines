@@ -211,6 +211,7 @@ class _TransitionGlyph extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final warn = transition?.gapWarning ?? false;
+    final label = _label(warn);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s2),
       child: Column(
@@ -218,12 +219,23 @@ class _TransitionGlyph extends StatelessWidget {
         children: [
           Icon(Icons.compare_arrows, size: 20, color: warn ? c.warning : c.textMuted),
           Text(
-            warn ? 'GAP' : 'PORTAGE',
+            label,
             style: PlotTypography.small(warn ? c.warning : c.textMuted).copyWith(fontSize: 8),
           ),
         ],
       ),
     );
+  }
+
+  /// "Portage" is only the right word for a mode change into or out of
+  /// paddling — any other mode change (e.g. ride to hike) is a generic
+  /// transition, not a boat carry.
+  String _label(bool warn) {
+    if (warn) return 'GAP';
+    final from = transition?.fromMode;
+    final to = transition?.toMode;
+    if (from == 'paddling' || to == 'paddling') return 'PORTAGE';
+    return 'TRANSITION';
   }
 }
 

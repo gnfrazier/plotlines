@@ -97,6 +97,14 @@ void main() {
     expect(find.text('Add segment'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    // Regression: "Add rest day" used to call setDayKind with a freshly
+    // generated id, which only looks up *existing* days and throws when
+    // nothing matches — this must add a day, not crash.
+    await tester.tap(find.byTooltip('Add rest day'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Day 2'), findsOneWidget);
+
     await _switchTab(tester, 'CONTENT');
     expect(find.text('Overlook'), findsOneWidget); // the fixture node, as a selectable chip
     expect(tester.takeException(), isNull);

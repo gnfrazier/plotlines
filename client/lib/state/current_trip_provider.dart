@@ -41,11 +41,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       state = state.copyWith(duration: duration, updatedAt: _nowIso());
 
   /// New Route's "Blank canvas" start method (wireframe screen 00) — an
-  /// empty route day the Author builds manually via Logistics/Route/Content
-  /// rather than a sidecar-generated segment. Returns the new day's id so
-  /// the caller can select it.
-  String addBlankDay() {
-    final day = Day(id: _uuid.v4(), index: state.days.length + 1);
+  /// empty day the Author builds manually via Logistics/Route/Content
+  /// rather than a sidecar-generated segment. Also Logistics's "Add rest
+  /// day" (`kind: 'rest'`): that used to call [setDayKind] with a
+  /// just-generated id, which only ever looks up *existing* days
+  /// (`_dayOrNew` below throws via `firstWhere` when nothing matches) —
+  /// this is the one place that actually creates a day. Returns the new
+  /// day's id so the caller can select it.
+  String addBlankDay({String kind = 'route'}) {
+    final day = Day(id: _uuid.v4(), index: state.days.length + 1, kind: kind);
     _replaceDay(day);
     return day.id;
   }
@@ -273,21 +277,30 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       final unpaved = (gravel + singletrack) / 2.0;
       surfaceDial = ((paved - unpaved) / 5.0).clamp(0.0, 1.0);
     }
+    final weightsPayload = weights == null
+        ? null
+        : {
+            if (weights.climbing != null) 'peaks': (weights.climbing! - 2.5) / 2.5,
+            if (weights.traffic != null) 'quiet': weights.traffic! / 5.0,
+            if (surfaceDial != null) 'surface': surfaceDial,
+          };
     final resolved = await client.generateSegment(
       start: old.start!,
       end: old.shape == 'loop' ? null : old.end!,
       via: old.via,
       mode: old.mode,
       shape: old.shape,
-      theme: weights?.name ?? 'balanced',
+      // `theme` only matters to the server when `weights` is empty —
+      // service/app.py's `_resolve_profile` falls back to `THEMES[theme]`
+      // in exactly that case, and `WeightsRail`'s default profile name
+      // ('custom') isn't a registered theme, so sending it there 422s.
+      // When `weightsPayload` is non-empty the server just stores `theme`
+      // as the resolved profile's label, so any name is safe.
+      theme: (weightsPayload != null && weightsPayload.isNotEmpty)
+          ? (weights?.name ?? 'balanced')
+          : 'balanced',
       targetM: old.targetDistance?.valueM,
-      weights: weights == null
-          ? null
-          : {
-              if (weights.climbing != null) 'peaks': (weights.climbing! - 2.5) / 2.5,
-              if (weights.traffic != null) 'quiet': weights.traffic! / 5.0,
-              if (surfaceDial != null) 'surface': surfaceDial,
-            },
+      weights: weightsPayload,
     );
     final merged = resolved.copyWith(
       nodes: old.nodes,

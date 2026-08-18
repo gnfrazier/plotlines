@@ -33,13 +33,7 @@ String tripToGpx(Trip trip, {ExportOptions options = const ExportOptions()}) {
     for (final segment in day.segments) {
       final coords = segment.geometry?.coordinates ?? const [];
       if (coords.isEmpty) continue;
-      buffer.writeln('    <trkseg>');
-      for (final c in coords) {
-        final ele = c.length > 2 ? ' <ele>${c[2]}</ele>' : '';
-        buffer.writeln('      <trkpt lat="${c[1]}" lon="${c[0]}">$ele</trkpt>'
-            .replaceAll('> <ele', '><ele'));
-      }
-      buffer.writeln('    </trkseg>');
+      _writeTrkseg(buffer, coords);
       if (options.includeWaypoints) {
         for (final node in segment.nodes) {
           buffer.writeln(_waypoint(node));
@@ -66,13 +60,7 @@ String tripToGpx(Trip trip, {ExportOptions options = const ExportOptions()}) {
           if (alt.geometry.coordinates.isEmpty) continue;
           buffer.writeln('  <trk>');
           buffer.writeln('    <name>${_esc('Alternate: ${alt.label ?? alt.kind}')}</name>');
-          buffer.writeln('    <trkseg>');
-          for (final c in alt.geometry.coordinates) {
-            final ele = c.length > 2 ? ' <ele>${c[2]}</ele>' : '';
-            buffer.writeln('      <trkpt lat="${c[1]}" lon="${c[0]}">$ele</trkpt>'
-                .replaceAll('> <ele', '><ele'));
-          }
-          buffer.writeln('    </trkseg>');
+          _writeTrkseg(buffer, alt.geometry.coordinates);
           buffer.writeln('  </trk>');
         }
       }
@@ -81,6 +69,15 @@ String tripToGpx(Trip trip, {ExportOptions options = const ExportOptions()}) {
 
   buffer.writeln('</gpx>');
   return buffer.toString();
+}
+
+void _writeTrkseg(StringBuffer buffer, List<Coord> coords) {
+  buffer.writeln('    <trkseg>');
+  for (final c in coords) {
+    final ele = c.length > 2 ? ' <ele>${c[2]}</ele>' : '';
+    buffer.writeln('      <trkpt lat="${c[1]}" lon="${c[0]}">$ele</trkpt>'.replaceAll('> <ele', '><ele'));
+  }
+  buffer.writeln('    </trkseg>');
 }
 
 String _waypoint(Node node) {

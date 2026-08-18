@@ -417,6 +417,12 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   }
 
   Future<void> _generate() async {
+    // The TRIP NAME field only renames on Enter (`onSubmitted`) — flush it
+    // here too so clicking Generate directly doesn't silently discard it.
+    final title = _tripNameController.text.trim();
+    if (title.isNotEmpty) {
+      ref.read(currentTripProvider.notifier).renameTrip(title);
+    }
     setState(() {
       _generating = true;
       _error = null;

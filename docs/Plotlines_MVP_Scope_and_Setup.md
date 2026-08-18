@@ -18,7 +18,7 @@ The line here is the one already drawn in the earlier conversation ("can I get t
 |---|---|---|
 | **Routing core** | `plotlines-core` as a pure library: graph build, scoring, elevation, solve, export | ARCH §6 |
 | **Themes/weights** | Climbing, traffic, surface, POI-density weights; min/max bands on *realized* attributes, defaults derived from the region's attainable envelope; shape; target distance (banded, not a soft target); via-node loops at 1–2 nodes (A9; 3+ is A9a, P1) | PRD FR2–FR9, FR8a; SPIKE-01/03 |
-| **Multimodal (schema + cycling/hiking real)** | Mode-per-segment, transitions, day composition; paddling *pending SPIKE-04* | PRD FR10–FR16; SPIKE-04 |
+| **Multimodal (schema + cycling/hiking real)** | Mode-per-segment, transitions, day composition; paddling is schema/day-composition-real too, but its graph provider (`WaterwayDataProvider`) is scoped to Leg 3, not desktop MVP — **SPIKE-04 closed 2026-08-16, this is a scope decision, not an open spike** (§1.3) | PRD FR10–FR16; SPIKE-04 |
 | **Logistics** | Day splitting, alternates, waypoints/regroup/rest, lodging, historical weather, live metrics dashboard | PRD Epic C, D |
 | **Curation** | Node notes/media, narrative arc, POI-themed trips, trigger-distance metadata (authored, not played) | PRD Epic E |
 | **Outputs** | GPX/TCX/FIT/GeoJSON export with selectable contents; cue sheets; itineraries | PRD Epic F |
@@ -267,7 +267,7 @@ The concrete "open the empty repo and do this" order:
 4. **Wire `version.lock`** and the client↔sidecar version check, even against a stub sidecar (§2.2). The seam matters more than the content this early.
 5. ~~**Import the Author Desktop wireframe** from Claude Design into `client/design/` (§2.4) so `presentation/` has a reference to build against.~~ **Done** — the wireframe on 2026-08-13, the rest of the design system (brand guide, UI gallery, tokens, cards, and the `plotlines_ui` Flutter package) on 2026-08-15. See §2.4 for the three caveats that came with it.
 6. **Prototype the frozen sidecar** on your desktop platform; resolve Q4 (freezer) and Q5 (bundle vs. download) from what you learn (§3).
-7. **Run SPIKE-04 (paddling data)** in parallel — it's the one open scope decision (§1.3) and it doesn't block the cycling path.
+7. ~~**Run SPIKE-04 (paddling data)** in parallel — it's the one open scope decision (§1.3) and it doesn't block the cycling path.~~ **Done** — closed 2026-08-16 (network yes, gauge yes, access partial, class no); the paddling graph provider itself is scoped to Leg 3, not desktop MVP. See §1.3, and SPIKE-19 (2026-08-16) for the provider's source succeeding from NHD to 3DHP.
 8. **Stub the error taxonomy** (§4) as a single error-handling surface, so states are handled uniformly from the first screen rather than retrofitted.
 
 Items 2–4 are the ones that are painful to retrofit and cheap to establish now (the P1 CI gate, the first golden test, the version-lock seam). Everything else — including the design import (5) and the sidecar prototype (6) — builds on them.

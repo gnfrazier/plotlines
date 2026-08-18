@@ -41,7 +41,7 @@ class _ContentTabState extends ConsumerState<ContentTab> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final selected = ref.watch(selectedSegmentProvider);
-    final target = _findTarget(widget.trip, selected);
+    final target = resolveSelectedSegment(widget.trip, selected);
 
     if (target == null) {
       return Center(
@@ -143,14 +143,4 @@ class _ContentTabState extends ConsumerState<ContentTab> {
     );
   }
 
-  (Day, Segment)? _findTarget(Trip trip, (String, String)? selected) {
-    if (selected == null) return null;
-    for (final d in trip.days) {
-      if (d.id != selected.$1) continue;
-      for (final s in d.segments) {
-        if (s.id == selected.$2) return (d, s);
-      }
-    }
-    return null;
-  }
 }

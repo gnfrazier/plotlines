@@ -77,23 +77,7 @@ void _writeAlternateCourse(StringBuffer buffer, Trip trip, Day day, Alternate al
   buffer.writeln('        <Intensity>Active</Intensity>');
   buffer.writeln('      </Lap>');
   buffer.writeln('      <Track>');
-  var clock = DateTime.now().toUtc();
-  var cumulativeM = 0.0;
-  final speed = _fallbackSpeedMps['cycling'] ?? 3.0;
-  for (var i = 0; i < coords.length; i++) {
-    final c = coords[i];
-    if (i > 0) {
-      final step = haversineM(coords[i - 1], c);
-      cumulativeM += step;
-      clock = clock.add(Duration(milliseconds: (step / speed * 1000).round()));
-    }
-    buffer.writeln('        <Trackpoint>');
-    buffer.writeln('          <Time>${clock.toIso8601String().split('.').first}Z</Time>');
-    buffer.writeln('          <Position>${_position(c)}</Position>');
-    if (c.length > 2) buffer.writeln('          <AltitudeMeters>${c[2]}</AltitudeMeters>');
-    buffer.writeln('          <DistanceMeters>${cumulativeM.toStringAsFixed(1)}</DistanceMeters>');
-    buffer.writeln('        </Trackpoint>');
-  }
+  _writeTrackpoints(buffer, coords, _fallbackSpeedMps['cycling'] ?? 3.0, DateTime.now().toUtc());
   buffer.writeln('      </Track>');
   buffer.writeln('    </Course>');
 }
@@ -125,26 +109,12 @@ void _writeCourse(StringBuffer buffer, Trip trip, Day day, ExportOptions options
 
   buffer.writeln('      <Track>');
   var clock = DateTime.now().toUtc();
-  final segmentStartClock = <String, DateTime>{};
   for (final segment in day.segments) {
     final coords = segment.geometry?.coordinates ?? const [];
     if (coords.isEmpty) continue;
-    segmentStartClock[segment.id] = clock;
+    final segStart = clock;
     final speed = _speedMps(segment);
-    var cumulativeM = 0.0;
-    for (var i = 0; i < coords.length; i++) {
-      final c = coords[i];
-      if (i > 0) {
-        cumulativeM += haversineM(coords[i - 1], c);
-        clock = clock.add(Duration(milliseconds: (haversineM(coords[i - 1], c) / speed * 1000).round()));
-      }
-      buffer.writeln('        <Trackpoint>');
-      buffer.writeln('          <Time>${clock.toIso8601String().split('.').first}Z</Time>');
-      buffer.writeln('          <Position>${_position(c)}</Position>');
-      if (c.length > 2) buffer.writeln('          <AltitudeMeters>${c[2]}</AltitudeMeters>');
-      buffer.writeln('          <DistanceMeters>${cumulativeM.toStringAsFixed(1)}</DistanceMeters>');
-      buffer.writeln('        </Trackpoint>');
-    }
+    clock = _writeTrackpoints(buffer, coords, speed, segStart);
     if (options.includeWaypoints) {
       for (final node in segment.nodes) {
         buffer.writeln(_coursePoint(node, clock));
@@ -153,7 +123,6 @@ void _writeCourse(StringBuffer buffer, Trip trip, Day day, ExportOptions options
     if (options.includeCueSheet) {
       final sheet = options.cueSheetsBySegmentId[segment.id];
       if (sheet != null) {
-        final segStart = segmentStartClock[segment.id]!;
         for (final cue in sheet.cues) {
           final at = pointAtDistance(coords, cue.distanceAlongM);
           final cueTime = segStart.add(Duration(milliseconds: (cue.distanceAlongM / speed * 1000).round()));
@@ -164,6 +133,32 @@ void _writeCourse(StringBuffer buffer, Trip trip, Day day, ExportOptions options
   }
   buffer.writeln('      </Track>');
   buffer.writeln('    </Course>');
+}
+
+/// Writes one `<Trackpoint>` per coordinate, advancing a synthetic clock at
+/// [speedMps] (see the file doc comment on why the time is synthetic).
+/// Shared by the main course and the alternate course — both need the same
+/// per-vertex distance/time bookkeeping. Returns the clock value after the
+/// last point, so a caller stitching multiple legs together can carry it
+/// forward.
+DateTime _writeTrackpoints(StringBuffer buffer, List<Coord> coords, double speedMps, DateTime startClock) {
+  var clock = startClock;
+  var cumulativeM = 0.0;
+  for (var i = 0; i < coords.length; i++) {
+    final c = coords[i];
+    if (i > 0) {
+      final step = haversineM(coords[i - 1], c);
+      cumulativeM += step;
+      clock = clock.add(Duration(milliseconds: (step / speedMps * 1000).round()));
+    }
+    buffer.writeln('        <Trackpoint>');
+    buffer.writeln('          <Time>${clock.toIso8601String().split('.').first}Z</Time>');
+    buffer.writeln('          <Position>${_position(c)}</Position>');
+    if (c.length > 2) buffer.writeln('          <AltitudeMeters>${c[2]}</AltitudeMeters>');
+    buffer.writeln('          <DistanceMeters>${cumulativeM.toStringAsFixed(1)}</DistanceMeters>');
+    buffer.writeln('        </Trackpoint>');
+  }
+  return clock;
 }
 
 String _coursePoint(Node node, DateTime approxTime) {

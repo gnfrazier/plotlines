@@ -13,6 +13,7 @@ import '../../../domain/domain.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/day_timeline_strip.dart';
+import '../../widgets/metrics_rail.dart';
 import '../../widgets/node_editor_sheet.dart';
 import '../../widgets/weights_rail.dart';
 
@@ -33,7 +34,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final selected = ref.watch(selectedSegmentProvider);
-    final selectedSegment = _findSelected(widget.trip, selected);
+    final selectedSegment = resolveSelectedSegment(widget.trip, selected)?.$2;
     final railDayId = selected?.$1 ?? widget.activeDayId ?? '';
 
     return Row(
@@ -90,18 +91,8 @@ class _RouteTabState extends ConsumerState<RouteTab> {
             ],
           ),
         ),
+        MetricsRail(trip: widget.trip, selectedSegment: selectedSegment),
       ],
     );
-  }
-
-  Segment? _findSelected(Trip trip, (String, String)? selected) {
-    if (selected == null) return null;
-    for (final d in trip.days) {
-      if (d.id != selected.$1) continue;
-      for (final s in d.segments) {
-        if (s.id == selected.$2) return s;
-      }
-    }
-    return null;
   }
 }
