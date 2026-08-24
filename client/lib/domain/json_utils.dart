@@ -91,6 +91,16 @@ class JsonFields {
             .toList();
   }
 
+  /// `polygon.coordinates`: a list of rings, each a list of [Coord].
+  List<Ring> takeRings(String key) {
+    final value = take(key);
+    if (value == null) return const [];
+    return [
+      for (final ring in value as List)
+        [for (final c in ring as List) (c as List).map((v) => (v as num).toDouble()).toList()],
+    ];
+  }
+
   /// `additionalProperties: { "$ref": "#/$defs/author_weight" }`-shaped maps
   /// (`weight_profile.surface`).
   Map<String, double> takeWeights(String key) {
@@ -142,6 +152,53 @@ Coord checkCoord(Coord coord, String what) {
     finite(coord[i], '$what[$i]');
   }
   return coord;
+}
+
+/// A closed linear ring: >= 4 positions, first == last (RFC 7946).
+typedef Ring = List<Coord>;
+
+/// Twice the signed area (shoelace formula) of [ring]; sign gives winding —
+/// positive is counter-clockwise. Mirrors `content/anchor.py`'s `_signed_area`
+/// so both producers agree on which rings get reversed (ARCH §11.6, D37).
+double _signedArea(Ring ring) {
+  var total = 0.0;
+  for (var i = 0; i < ring.length - 1; i++) {
+    final x1 = ring[i][0], y1 = ring[i][1];
+    final x2 = ring[i + 1][0], y2 = ring[i + 1][1];
+    total += x1 * y2 - x2 * y1;
+  }
+  return total;
+}
+
+/// Validates one ring of a `polygon` (FR108 / O3): every position a valid
+/// [checkCoord], at least 4 positions, closed (first == last). Normalises
+/// winding to canonical form — exterior rings counter-clockwise, holes
+/// clockwise — by reversing rather than rejecting, so an Author's drawing
+/// order never changes the stored/serialized form (ARCH §11.6, D37: "fixed
+/// ring order and winding so the content digest stays stable").
+Ring checkRing(Ring ring, String what, {required bool exterior}) {
+  if (ring.length < 4) {
+    throw FormatException('$what has ${ring.length} positions; a ring needs at least 4');
+  }
+  final checked = [for (var i = 0; i < ring.length; i++) checkCoord(ring[i], '$what[$i]')];
+  if (checked.first[0] != checked.last[0] || checked.first[1] != checked.last[1]) {
+    throw FormatException('$what is not closed: first position must equal last');
+  }
+  final area = _signedArea(checked);
+  final wrongWinding = exterior ? area < 0 : area > 0;
+  return wrongWinding ? checked.reversed.toList() : checked;
+}
+
+/// Validates a `polygon.coordinates` array: one or more rings, the first
+/// exterior and any further ones holes, each checked and winding-normalised
+/// by [checkRing].
+List<Ring> checkPolygonRings(List<Ring> rings, String what) {
+  if (rings.isEmpty) {
+    throw FormatException('$what needs at least one ring');
+  }
+  return [
+    for (var i = 0; i < rings.length; i++) checkRing(rings[i], '$what[$i]', exterior: i == 0),
+  ];
 }
 
 /// `day_limits`: keys are travel modes, key order is meaningless.

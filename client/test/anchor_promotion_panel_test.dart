@@ -151,4 +151,109 @@ void main() {
 
     expect(find.textContaining('offset:'), findsNothing);
   });
+
+  // FR108 / O3 — Flow 3's "Role geometry: point, offset, or area."
+  group('area geometry (FR108 / O3)', () {
+    testWidgets('the boundary field is hidden until "this place is an area" is checked', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Boundary vertices'), findsNothing);
+
+      // RoleKind.values contributes the first 3 checkboxes (narrative,
+      // provision, station); "this place is an area" is the 4th, same
+      // widget-order convention the role checkboxes above already rely on.
+      final areaCheckbox = find.byType(Checkbox).at(3);
+      await tester.ensureVisible(areaCheckbox);
+      await tester.tap(areaCheckbox);
+      // pumpAndSettle, not pump: the boundary field's live preview map kicks
+      // off asset-loading futures that must resolve before the test ends.
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Boundary vertices'), findsOneWidget);
+    });
+
+    testWidgets('promoting an anchor with a boundary shows its area on the card', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Main Street');
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.015');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.275');
+      await tester.tap(find.byType(Checkbox).at(0)); // narrative role
+      await tester.pump();
+
+      // RoleKind.values contributes the first 3 checkboxes (narrative,
+      // provision, station); "this place is an area" is the 4th, same
+      // widget-order convention the role checkboxes above already rely on.
+      final areaCheckbox = find.byType(Checkbox).at(3);
+      await tester.ensureVisible(areaCheckbox);
+      await tester.tap(areaCheckbox);
+      await tester.pump();
+      final boundaryField = find.widgetWithText(TextField, 'Boundary vertices — one "lat, lon" per line (3+)');
+      await tester.ensureVisible(boundaryField);
+      await tester.enterText(
+        boundaryField,
+        '40.01, -105.28\n40.01, -105.27\n40.02, -105.27\n40.02, -105.28',
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('Main Street'), findsOneWidget);
+      // 4 authored vertices, ring auto-closed to 5 points including the
+      // repeat — the card reports the Author-facing count, not the closed
+      // ring's raw length.
+      expect(find.textContaining('Area · 4-point boundary'), findsOneWidget);
+    });
+
+    testWidgets('checking "area" without giving 3 vertices shows an error and does not promote', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      await tester.tap(find.byType(Checkbox).at(0));
+      await tester.pump();
+
+      // RoleKind.values contributes the first 3 checkboxes (narrative,
+      // provision, station); "this place is an area" is the 4th, same
+      // widget-order convention the role checkboxes above already rely on.
+      final areaCheckbox = find.byType(Checkbox).at(3);
+      await tester.ensureVisible(areaCheckbox);
+      await tester.tap(areaCheckbox);
+      await tester.pump();
+      final boundaryField = find.widgetWithText(TextField, 'Boundary vertices — one "lat, lon" per line (3+)');
+      await tester.ensureVisible(boundaryField);
+      await tester.enterText(boundaryField, '40.01, -105.28\n40.02, -105.27');
+      await tester.pump();
+
+      await tester.tap(find.text('Promote'));
+      await tester.pump();
+
+      expect(find.text('An area needs at least 3 boundary vertices.'), findsOneWidget);
+      expect(find.byType(AlertDialog), findsOneWidget);
+    });
+
+    testWidgets('leaving "area" unchecked promotes a plain point anchor with no area card section', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      await tester.tap(find.byType(Checkbox).at(0));
+      await tester.pump();
+
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Area ·'), findsNothing);
+    });
+  });
 }

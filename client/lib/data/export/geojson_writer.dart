@@ -39,18 +39,47 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
           'role_kinds': [for (final role in anchor.roles) role.kind.wireValue],
         },
       ));
-      for (final role in anchor.roles) {
-        if (role.coord == null) continue;
-        features.add(_pointFeature(
-          coord: role.coord!,
+      // FR108 / O3 — the anchor's own area, when it has one, exports as a
+      // second feature alongside its point (never in place of it): the point
+      // stays the representative pin every consumer already reads, and the
+      // polygon is the added shape a GIS viewer or the field runtime can use
+      // as the district's actual boundary.
+      if (anchor.area != null) {
+        features.add(_polygonFeature(
+          area: anchor.area!,
           properties: {
-            'kind': 'role_offset',
+            'kind': 'anchor_area',
             'anchor_id': anchor.id,
-            'role_id': role.id,
-            'role_kind': role.kind.wireValue,
-            if (role.title != null) 'title': role.title,
+            if (anchor.title != null) 'title': anchor.title,
+            'role_kinds': [for (final role in anchor.roles) role.kind.wireValue],
           },
         ));
+      }
+      for (final role in anchor.roles) {
+        if (role.coord != null) {
+          features.add(_pointFeature(
+            coord: role.coord!,
+            properties: {
+              'kind': 'role_offset',
+              'anchor_id': anchor.id,
+              'role_id': role.id,
+              'role_kind': role.kind.wireValue,
+              if (role.title != null) 'title': role.title,
+            },
+          ));
+        }
+        if (role.area != null) {
+          features.add(_polygonFeature(
+            area: role.area!,
+            properties: {
+              'kind': 'role_area',
+              'anchor_id': anchor.id,
+              'role_id': role.id,
+              'role_kind': role.kind.wireValue,
+              if (role.title != null) 'title': role.title,
+            },
+          ));
+        }
       }
     }
   }
@@ -164,5 +193,12 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
 Map<String, dynamic> _pointFeature({required Coord coord, required Map<String, dynamic> properties}) => {
       'type': 'Feature',
       'geometry': {'type': 'Point', 'coordinates': coord},
+      'properties': properties,
+    };
+
+/// FR108 / O3 — RFC 7946 Polygon feature for an anchor's or a role's [area].
+Map<String, dynamic> _polygonFeature({required Area area, required Map<String, dynamic> properties}) => {
+      'type': 'Feature',
+      'geometry': {'type': 'Polygon', 'coordinates': area.rings},
       'properties': properties,
     };

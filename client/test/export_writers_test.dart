@@ -103,6 +103,93 @@ void main() {
     expect(features.where((f) => f['properties']['kind'] == 'role_offset'), isEmpty);
   });
 
+  test('GeoJSON: an anchor area exports as a Polygon feature alongside its point (FR108 / O3)', () {
+    const ring = [
+      [-105.28, 40.01],
+      [-105.27, 40.01],
+      [-105.27, 40.02],
+      [-105.28, 40.02],
+      [-105.28, 40.01],
+    ];
+    final tripWithArea = Trip(
+      id: 'trip-4',
+      title: 'Main Street',
+      createdAt: '2026-08-17T00:00:00Z',
+      updatedAt: '2026-08-17T00:00:00Z',
+      anchors: [
+        Anchor(
+          id: 'a1',
+          coord: [-105.275, 40.015],
+          title: 'Historic District',
+          area: Area(rings: [ring]),
+          roles: [Role(id: 'r1', kind: RoleKind.narrative)],
+        ),
+      ],
+    );
+    final decoded = jsonDecode(tripToGeoJson(tripWithArea)) as Map<String, dynamic>;
+    final features = (decoded['features'] as List).cast<Map<String, dynamic>>();
+
+    // The point feature (the representative pin) still exports — the area
+    // is additive, never a replacement (O2's AC extended to O3).
+    final anchorPoints = features.where((f) => f['properties']['kind'] == 'anchor');
+    expect(anchorPoints, hasLength(1));
+    expect(anchorPoints.single['geometry']['type'], 'Point');
+
+    final areaFeatures = features.where((f) => f['properties']['kind'] == 'anchor_area');
+    expect(areaFeatures, hasLength(1));
+    final areaFeature = areaFeatures.single;
+    expect(areaFeature['geometry']['type'], 'Polygon');
+    expect(areaFeature['geometry']['coordinates'], [ring]);
+    expect(areaFeature['properties']['anchor_id'], 'a1');
+    expect(areaFeature['properties']['title'], 'Historic District');
+  });
+
+  test('GeoJSON: a role area offset exports as its own Polygon feature (FR108 / O3)', () {
+    const anchorRing = [
+      [0.0, 0.0],
+      [1.0, 0.0],
+      [1.0, 1.0],
+      [0.0, 1.0],
+      [0.0, 0.0],
+    ];
+    const roleRing = [
+      [2.0, 2.0],
+      [3.0, 2.0],
+      [3.0, 3.0],
+      [2.0, 3.0],
+      [2.0, 2.0],
+    ];
+    final tripWithRoleArea = Trip(
+      id: 'trip-5',
+      title: 'Park With A Picnic Area',
+      createdAt: '2026-08-17T00:00:00Z',
+      updatedAt: '2026-08-17T00:00:00Z',
+      anchors: [
+        Anchor(
+          id: 'a1',
+          coord: [0.5, 0.5],
+          area: Area(rings: [anchorRing]),
+          roles: [
+            Role(id: 'r1', kind: RoleKind.provision, area: Area(rings: [roleRing])),
+            Role(id: 'r2', kind: RoleKind.narrative),
+          ],
+        ),
+      ],
+    );
+    final decoded = jsonDecode(tripToGeoJson(tripWithRoleArea)) as Map<String, dynamic>;
+    final features = (decoded['features'] as List).cast<Map<String, dynamic>>();
+
+    final anchorAreas = features.where((f) => f['properties']['kind'] == 'anchor_area');
+    final roleAreas = features.where((f) => f['properties']['kind'] == 'role_area');
+    expect(anchorAreas, hasLength(1));
+    // Only the provision role carries its own area; the narrative role,
+    // which has none, adds no feature — mirrors role_offset's "no offset,
+    // no feature" rule (O2's AC).
+    expect(roleAreas, hasLength(1));
+    expect(roleAreas.single['geometry']['coordinates'], [roleRing]);
+    expect(roleAreas.single['properties']['role_id'], 'r1');
+  });
+
   test('GPX: well-formed XML with a track and a waypoint', () {
     final gpx = tripToGpx(trip);
     final doc = xml.XmlDocument.parse(gpx); // throws on malformed XML

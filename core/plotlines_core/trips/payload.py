@@ -49,7 +49,11 @@ from plotlines_core.content.anchor import Anchor
 #: the same sense: an absent `anchors` list still parses. Bumped to 1.3.0 by
 #: FR107 (Story O2), which added `role.coord` — additive again: a role with
 #: no `coord` still parses, and behaves exactly as a single point (O2's AC).
-SCHEMA_VERSION = "1.3.0"
+#: Bumped to 1.4.0 by FR108/FR126 (Story O3), which added `anchor.area` and
+#: `role.area` — additive once more: an absent `area` still parses, and an
+#: anchor/role with none behaves exactly as a point (O3 extends O2's AC to
+#: polygons).
+SCHEMA_VERSION = "1.4.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7

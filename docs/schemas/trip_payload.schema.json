@@ -81,6 +81,25 @@
       "items": { "type": "number" }
     },
 
+    "polygon": {
+      "description": "FR108, FR126 / O3 — RFC 7946 Polygon. First-class area geometry for an anchor or a role: a historic district, an arboretum, a main-street block. `coordinates` is one or more linear rings (first ring exterior, any further rings holes), each ring closed (first position repeats as last) with at least four positions. Ring winding is canonical (exterior counter-clockwise, holes clockwise) so the payload's content digest stays stable across producers (ARCH §11.6). `source` mirrors `line_string`'s: `authored` when the Author drew it, `imported` when it was adopted from a source feature's own area geometry at promotion — never `solved`, since no engine produces an anchor's area.",
+      "type": "object",
+      "required": ["type", "coordinates", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "Polygon" },
+        "coordinates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 4,
+            "items": { "$ref": "#/$defs/coord" }
+          }
+        },
+        "source": { "enum": ["authored", "imported"] }
+      }
+    },
     "line_string": {
       "description": "RFC 7946 LineString. `source` records whether the engine solved it or the Author drew it — FR15's portages and any paddling geometry are Author-drawn (SPIKE-04: no open portage data; the paddling router is Leg 3), and a consumer that cannot tell the two apart will present a hand-drawn line with a solved line's authority.",
       "type": "object",
@@ -366,7 +385,7 @@
     },
 
     "role": {
-      "description": "FR106, FR107, FR110 / O1, O2 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). Area geometry (FR108/O3), station activity (FR109/O4) and arc stage (FR38/O6) are later stories' additions to this object and are not present yet.",
+      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). Station activity (FR109/O4) and arc stage (FR38/O6) are later stories' additions to this object and are not present yet.",
       "type": "object",
       "required": ["id", "kind"],
       "additionalProperties": false,
@@ -374,6 +393,7 @@
         "id": { "$ref": "#/$defs/id" },
         "kind": { "$ref": "#/$defs/role_kind" },
         "coord": { "$ref": "#/$defs/coord", "description": "FR107 / O2 — the role's own offset from its anchor. A trigger, marker, or export feature for this role uses this coord when present, and the anchor's coord otherwise." },
+        "area": { "$ref": "#/$defs/polygon", "description": "FR108 / O3 — the role's own area offset from its anchor's area, mutually exclusive with `coord` in practice (a role has a point offset or an area offset, not both). Absent falls back to the anchor's own `area`, then to `coord`/the anchor's `coord`." },
         "reveal": { "$ref": "#/$defs/reveal_policy" },
         "title": { "type": "string" },
         "note": { "$ref": "#/$defs/markdown" },
@@ -395,13 +415,17 @@
     },
 
     "anchor": {
-      "description": "FR106, FR110 / O1 — a promoted place: one object per place, carrying a role set (ARCH D-A). Point geometry only; polygon/area geometry is O3's addition (FR108).",
+      "description": "FR106, FR110, FR108 / O1, O3 — a promoted place: one object per place, carrying a role set (ARCH D-A). `coord` is always present — a representative point every consumer that has not adopted `area` can still render, sort, or measure from. `area` (FR108/O3) is the anchor's own polygon when the place is a district, block, or reserve rather than a pin; when present it is what N4a's cluster review will use as the cluster boundary instead of point-plus-radius, and its entry is a trigger event distinct from point proximity (FR126, ARCH §6.2).",
       "type": "object",
       "required": ["id", "coord", "roles"],
       "additionalProperties": false,
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "coord": { "$ref": "#/$defs/coord" },
+        "area": {
+          "$ref": "#/$defs/polygon",
+          "description": "FR108 / O3 — the anchor's own area geometry, drawn by the Author or adopted from a source feature's own polygon at promotion. Absent means this anchor is a point, exactly as before O3."
+        },
         "title": { "type": "string" },
         "roles": {
           "type": "array",

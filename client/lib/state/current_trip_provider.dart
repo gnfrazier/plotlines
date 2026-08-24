@@ -191,6 +191,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     required Coord coord,
     required List<Role> roles,
     String? title,
+    Area? area,
     AnchorProvenance? provenance,
   }) {
     final anchor = domain_promote.promoteAnchor(
@@ -199,6 +200,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       coord: coord,
       roles: roles,
       title: title,
+      area: area,
       provenance: provenance,
     );
     state = state.copyWith(anchors: [...state.anchors, anchor], updatedAt: _nowIso());

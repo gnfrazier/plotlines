@@ -20,8 +20,38 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
+import '../map/tap_to_pick_map.dart';
 
 const _uuid = Uuid();
+
+/// FR108 / O3 — parses the promotion dialog's boundary text field: one
+/// "lat, lon" pair per line, at least 3 distinct vertices. Closes the ring by
+/// repeating the first vertex if the Author didn't already, since asking an
+/// Author to type a closed ring by hand is the kind of bookkeeping [Area]'s
+/// own [checkRing] already does for every other producer.
+List<Coord> _parseAreaVertices(String text) {
+  final lines = text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+  if (lines.length < 3) {
+    throw const FormatException('An area needs at least 3 boundary vertices.');
+  }
+  final vertices = <Coord>[];
+  for (final line in lines) {
+    final parts = line.split(',').map((p) => p.trim()).toList();
+    if (parts.length != 2) {
+      throw FormatException('"$line" isn\'t a "lat, lon" pair.');
+    }
+    final lat = double.tryParse(parts[0]);
+    final lon = double.tryParse(parts[1]);
+    if (lat == null || lon == null) {
+      throw FormatException('"$line" isn\'t a "lat, lon" pair.');
+    }
+    vertices.add([lon, lat]);
+  }
+  if (vertices.first[0] != vertices.last[0] || vertices.first[1] != vertices.last[1]) {
+    vertices.add(vertices.first);
+  }
+  return vertices;
+}
 
 class AnchorPromotionPanel extends ConsumerWidget {
   const AnchorPromotionPanel({super.key, required this.trip});
@@ -117,6 +147,28 @@ class _AnchorCard extends ConsumerWidget {
             '${anchor.coord[1].toStringAsFixed(5)}, ${anchor.coord[0].toStringAsFixed(5)}',
             style: PlotTypography.data(c.textMuted),
           ),
+          // FR108 / O3 — an area anchor renders its boundary on the map
+          // (the AC's own wording), not just a vertex count: a historic
+          // district is a shape, and a shape reads as a shape.
+          if (anchor.area != null) ...[
+            const SizedBox(height: PlotSpacing.s2),
+            Text(
+              'Area · ${anchor.area!.rings.first.length - 1}-point boundary',
+              style: PlotTypography.data(c.textMuted),
+            ),
+            const SizedBox(height: PlotSpacing.s1),
+            ClipRRect(
+              borderRadius: PlotRadii.controlShape,
+              child: SizedBox(
+                height: 100,
+                child: TapToPickMap(
+                  outline: [for (final v in anchor.area!.rings.first) [v[0], v[1]]],
+                  center: [anchor.coord[0], anchor.coord[1]],
+                  initialZoom: 14,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: PlotSpacing.s2),
           Wrap(
             spacing: PlotSpacing.s1,
@@ -194,6 +246,11 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
   final Map<RoleKind, TextEditingController> _offsetLon = {
     for (final kind in RoleKind.values) kind: TextEditingController(),
   };
+  // FR108 / O3 — Flow 3's "Role geometry: point, offset, or area": whether
+  // this anchor is a district/block/reserve rather than a pin. Off by
+  // default, since most promoted places remain points (O2's AC extended).
+  bool _hasArea = false;
+  final _areaVertices = TextEditingController();
   String? _error;
 
   @override
@@ -201,6 +258,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
     _title.dispose();
     _lat.dispose();
     _lon.dispose();
+    _areaVertices.dispose();
     for (final controller in _offsetLat.values) {
       controller.dispose();
     }
@@ -251,6 +309,42 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                   style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: PlotSpacing.s2),
               for (final kind in RoleKind.values) _roleRow(c, kind),
+              const SizedBox(height: PlotSpacing.s2),
+              // FR108 / O3 — Flow 3's "Role geometry: point, offset, or
+              // area." Placed after the role checkboxes (not before) so
+              // `find.byType(Checkbox)` indices for the role set stay put —
+              // this is the anchor's own area, not a role's.
+              Row(
+                children: [
+                  Checkbox(
+                    value: _hasArea,
+                    onChanged: (checked) => setState(() => _hasArea = checked ?? false),
+                  ),
+                  const Expanded(
+                    child: Text('This place is an area, not just a point (FR108)'),
+                  ),
+                ],
+              ),
+              if (_hasArea) ...[
+                TextField(
+                  controller: _areaVertices,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Boundary vertices — one "lat, lon" per line (3+)',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setState(() {}), // refreshes the preview map below
+                ),
+                const SizedBox(height: PlotSpacing.s2),
+                ClipRRect(
+                  borderRadius: PlotRadii.controlShape,
+                  child: SizedBox(
+                    height: 140,
+                    child: TapToPickMap(outline: _previewOutline(), center: _previewCenter(), initialZoom: 14),
+                  ),
+                ),
+              ],
               if (_error != null) ...[
                 const SizedBox(height: PlotSpacing.s2),
                 Text(_error!, style: PlotTypography.small(c.danger)),
@@ -346,6 +440,23 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
     );
   }
 
+  /// A best-effort outline for the live preview map: `null` while the
+  /// boundary text is empty or doesn't parse yet, never an error the Author
+  /// has to dismiss just for typing the second of three vertices.
+  List<LatLonPoint>? _previewOutline() {
+    try {
+      return _parseAreaVertices(_areaVertices.text);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  LatLonPoint? _previewCenter() {
+    final lat = double.tryParse(_lat.text);
+    final lon = double.tryParse(_lon.text);
+    return lat == null || lon == null ? null : [lon, lat];
+  }
+
   void _submit() {
     final lat = double.tryParse(_lat.text);
     final lon = double.tryParse(_lon.text);
@@ -356,6 +467,18 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
     if (_selectedRoles.isEmpty) {
       setState(() => _error = 'Assign at least one role (FR106).');
       return;
+    }
+    // FR108 / O3 — the anchor's own area, drawn by the Author as a list of
+    // boundary vertices. Rejected rather than silently ignored on a parse
+    // failure, the same treatment every other field in this dialog gets.
+    Area? area;
+    if (_hasArea) {
+      try {
+        area = Area(rings: [_parseAreaVertices(_areaVertices.text)]);
+      } on FormatException catch (e) {
+        setState(() => _error = e.message);
+        return;
+      }
     }
     // FR107 / O2 — an offset is optional per role, but not half-optional:
     // one coordinate without the other is neither "no offset" nor a valid
@@ -388,6 +511,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
           coord: [lon, lat],
           roles: roles,
           title: _title.text.trim().isEmpty ? null : _title.text.trim(),
+          area: area,
           provenance: const AnchorProvenance(kind: AnchorSourceKind.handPlaced),
         );
     Navigator.pop(context);

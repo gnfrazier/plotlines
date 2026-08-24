@@ -59,12 +59,16 @@ Anchor? anchorForSource(List<Anchor> anchors, String sourceId) =>
 /// when [provenance] names a [AnchorProvenance.sourceId] already promoted in
 /// [existingAnchors] — the caller should route the Author to editing that
 /// anchor's role set instead.
+/// [area] (FR108 / O3) is the anchor's own polygon, drawn by the Author or
+/// adopted from a source feature's own area geometry — optional, since most
+/// promoted places remain points (O2's "costs nothing" extended to O3).
 Anchor promoteAnchor({
   required List<Anchor> existingAnchors,
   required String id,
   required Coord coord,
   required List<Role> roles,
   String? title,
+  Area? area,
   AnchorProvenance? provenance,
 }) {
   final sourceId = provenance?.sourceId;
@@ -74,5 +78,5 @@ Anchor promoteAnchor({
       throw DuplicatePromotionException(existingAnchorId: duplicate.id, sourceId: sourceId);
     }
   }
-  return Anchor(id: id, coord: coord, title: title, roles: roles, provenance: provenance);
+  return Anchor(id: id, coord: coord, title: title, area: area, roles: roles, provenance: provenance);
 }

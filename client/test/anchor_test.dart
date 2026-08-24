@@ -137,4 +137,119 @@ void main() {
       expect(decoded.anchors.single.roles.single.kind, RoleKind.narrative);
     });
   });
+
+  // FR108, FR126 / O3 — polygon area geometry.
+  group('Anchor.area (FR108 / O3)', () {
+    // Closed square ring, wound counter-clockwise (canonical exterior winding).
+    const squareCcw = [
+      [-105.28, 40.01],
+      [-105.27, 40.01],
+      [-105.27, 40.02],
+      [-105.28, 40.02],
+      [-105.28, 40.01],
+    ];
+
+    test('an anchor with no area omits it and contains nothing', () {
+      final anchor = Anchor(id: 'a1', coord: [0.0, 0.0], roles: [Role(id: 'r1', kind: RoleKind.narrative)]);
+      expect(anchor.toJson().containsKey('area'), isFalse);
+      expect(anchor.containsPoint([0.0, 0.0]), isFalse);
+    });
+
+    test('anchor area round-trips through JSON', () {
+      final anchor = Anchor(
+        id: 'a1',
+        coord: [-105.275, 40.015],
+        area: Area(rings: [squareCcw]),
+        roles: [Role(id: 'r1', kind: RoleKind.narrative)],
+      );
+      final decoded = Anchor.fromJson(anchor.toJson());
+      expect(decoded.area, isNotNull);
+      expect(decoded.area!.rings.single, squareCcw);
+      expect(decoded.area!.source, AreaSource.authored);
+    });
+
+    test('a ring must be closed', () {
+      final open = squareCcw.sublist(0, 4); // drops the closing repeat
+      expect(() => Area(rings: [open]).toJson(), throwsFormatException);
+    });
+
+    test('a ring needs at least 4 positions', () {
+      expect(
+        () => Area(rings: [
+          [
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 0.0],
+          ]
+        ]).toJson(),
+        throwsFormatException,
+      );
+    });
+
+    test('a clockwise exterior ring is normalised to canonical CCW, not rejected', () {
+      final clockwise = squareCcw.reversed.toList();
+      final out = Area(rings: [clockwise]).toJson();
+      expect(out['coordinates'], [squareCcw]);
+    });
+
+    test('containsPoint is true inside and false outside the boundary', () {
+      final area = Area(rings: [squareCcw]);
+      expect(area.containsPoint([-105.275, 40.015]), isTrue);
+      expect(area.containsPoint([-105.29, 40.015]), isFalse);
+    });
+
+    test('containsPoint excludes a hole', () {
+      const outer = [
+        [-105.30, 40.00],
+        [-105.20, 40.00],
+        [-105.20, 40.10],
+        [-105.30, 40.10],
+        [-105.30, 40.00],
+      ];
+      const hole = [
+        [-105.27, 40.03],
+        [-105.23, 40.03],
+        [-105.23, 40.07],
+        [-105.27, 40.07],
+        [-105.27, 40.03],
+      ];
+      final donut = Area(rings: [outer, hole]);
+      expect(donut.containsPoint([-105.29, 40.01]), isTrue);
+      expect(donut.containsPoint([-105.25, 40.05]), isFalse);
+    });
+
+    test('an area serves as a cluster boundary instead of point-plus-radius', () {
+      // The anchor's own coord sits near one corner; a point near the
+      // opposite corner — well past any sane point-radius — is still "in."
+      final anchor = Anchor(
+        id: 'a1',
+        coord: [-105.2799, 40.0101],
+        area: Area(rings: [squareCcw]),
+        roles: [Role(id: 'r1', kind: RoleKind.narrative)],
+      );
+      expect(anchor.containsPoint([-105.271, 40.019]), isTrue);
+    });
+
+    test('roleArea falls back from the role to the anchor to null', () {
+      final anchorArea = Area(rings: [squareCcw]);
+      final roleArea = Area(rings: [
+        [
+          [1.0, 1.0],
+          [2.0, 1.0],
+          [2.0, 2.0],
+          [1.0, 2.0],
+          [1.0, 1.0],
+        ]
+      ]);
+      final withOwnArea = Role(id: 'r1', kind: RoleKind.provision, area: roleArea);
+      final withoutOwnArea = Role(id: 'r2', kind: RoleKind.narrative);
+      final anchor = Anchor(id: 'a1', coord: [0.0, 0.0], area: anchorArea, roles: [withOwnArea, withoutOwnArea]);
+
+      expect(anchor.roleArea(withOwnArea), roleArea);
+      expect(anchor.roleArea(withoutOwnArea), anchorArea);
+
+      final pointOnlyAnchor = Anchor(id: 'a2', coord: [0.0, 0.0], roles: [Role(id: 'r3', kind: RoleKind.narrative)]);
+      expect(pointOnlyAnchor.roleArea(pointOnlyAnchor.roles.single), isNull);
+    });
+  });
 }

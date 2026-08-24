@@ -2,8 +2,13 @@
 
 import pytest
 
-from plotlines_core.content.anchor import Anchor, AnchorProvenance, MediaRef, Role
+from plotlines_core.content.anchor import Anchor, AnchorProvenance, MediaRef, Polygon, Role
 from plotlines_core.trips.payload import Trip
+
+# A closed square ring, wound counter-clockwise (canonical exterior winding).
+_SQUARE_CCW = [
+    [-105.28, 40.01], [-105.27, 40.01], [-105.27, 40.02], [-105.28, 40.02], [-105.28, 40.01],
+]
 
 
 def test_anchor_round_trips_with_one_role():
@@ -147,6 +152,96 @@ def test_anchor_with_no_role_offsets_behaves_as_a_single_point():
         roles=[Role(kind="narrative"), Role(kind="provision")],
     )
     assert all(anchor.role_geometry(r) == [0.0, 0.0] for r in anchor.roles)
+
+
+# --- FR108, FR126 / O3 — polygon area geometry ---------------------------
+
+
+def test_anchor_area_round_trips_as_a_polygon_feature():
+    anchor = Anchor(
+        coord=[-105.275, 40.015],
+        area=Polygon(coordinates=[_SQUARE_CCW]),
+        roles=[Role(kind="narrative")],
+    )
+    out = anchor.to_dict()
+    assert out["area"] == {"type": "Polygon", "coordinates": [_SQUARE_CCW], "source": "authored"}
+
+
+def test_anchor_with_no_area_omits_it_and_behaves_as_a_point():
+    # O2's AC extended to polygons: an anchor with no area costs nothing.
+    anchor = Anchor(coord=[0.0, 0.0], roles=[Role(kind="narrative")])
+    assert anchor.to_dict()["area"] is None
+    assert anchor.contains_point([0.0, 0.0]) is False
+
+
+def test_polygon_ring_must_be_closed():
+    open_ring = [[-105.28, 40.01], [-105.27, 40.01], [-105.27, 40.02], [-105.28, 40.02]]
+    with pytest.raises(ValueError, match="not closed"):
+        Polygon(coordinates=[open_ring]).to_dict()
+
+
+def test_polygon_ring_needs_at_least_four_positions():
+    with pytest.raises(ValueError, match="at least 4"):
+        Polygon(coordinates=[[[0.0, 0.0], [1.0, 0.0], [0.0, 0.0]]]).to_dict()
+
+
+def test_polygon_winding_is_normalised_not_rejected():
+    # D37 — an Author's drawing order must not affect the stored/serialized
+    # form; a clockwise exterior ring is silently reversed to canonical CCW.
+    clockwise = list(reversed(_SQUARE_CCW))
+    out = Polygon(coordinates=[clockwise]).to_dict()
+    assert out["coordinates"] == [_SQUARE_CCW]
+
+
+def test_polygon_rejects_invalid_source():
+    with pytest.raises(ValueError, match="polygon source"):
+        Polygon(coordinates=[_SQUARE_CCW], source="solved")
+
+
+def test_polygon_contains_point_true_inside_false_outside_and_on_edge_deterministic():
+    square = Polygon(coordinates=[_SQUARE_CCW])
+    assert square.contains_point([-105.275, 40.015]) is True
+    assert square.contains_point([-105.29, 40.015]) is False
+
+
+def test_polygon_contains_point_respects_a_hole():
+    outer = [[-105.30, 40.00], [-105.20, 40.00], [-105.20, 40.10], [-105.30, 40.10], [-105.30, 40.00]]
+    hole = [[-105.27, 40.03], [-105.23, 40.03], [-105.23, 40.07], [-105.27, 40.07], [-105.27, 40.03]]
+    donut = Polygon(coordinates=[outer, hole])
+    assert donut.contains_point([-105.29, 40.01]) is True  # inside outer, outside hole
+    assert donut.contains_point([-105.25, 40.05]) is False  # inside the hole
+
+
+def test_anchor_area_serves_as_a_cluster_boundary_not_point_plus_radius():
+    # FR108's AC in miniature: an Author placed the anchor's coord near one
+    # edge of the district, and a point well inside the boundary but far
+    # from that coord (further than any sane point-radius) is still "in."
+    anchor = Anchor(
+        coord=[-105.2799, 40.0101],
+        area=Polygon(coordinates=[_SQUARE_CCW]),
+        roles=[Role(kind="narrative")],
+    )
+    far_corner_but_inside = [-105.271, 40.019]
+    assert anchor.contains_point(far_corner_but_inside) is True
+
+
+def test_role_area_falls_back_to_anchor_area_then_none():
+    anchor_area = Polygon(coordinates=[_SQUARE_CCW])
+    anchor = Anchor(coord=[0.0, 0.0], area=anchor_area, roles=[
+        Role(kind="narrative", id="r1"),
+        Role(kind="provision", id="r2", area=Polygon(coordinates=[[
+            [1.0, 1.0], [2.0, 1.0], [2.0, 2.0], [1.0, 2.0], [1.0, 1.0],
+        ]])),
+    ])
+    narrative, provision = anchor.roles
+    assert anchor.role_area(narrative) is anchor_area
+    assert anchor.role_area(provision) is provision.area
+    assert anchor.role_area(provision) is not anchor_area
+
+
+def test_role_area_is_none_when_neither_role_nor_anchor_has_one():
+    anchor = Anchor(coord=[0.0, 0.0], roles=[Role(kind="narrative", id="r1")])
+    assert anchor.role_area(anchor.roles[0]) is None
 
 
 def test_trip_carries_anchors_and_prunes_when_empty():
