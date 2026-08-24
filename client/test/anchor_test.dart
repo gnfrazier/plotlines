@@ -79,6 +79,68 @@ void main() {
     });
   });
 
+  // FR114 / O5 — the reveal default a role kind falls back to when the
+  // Author leaves `reveal` unset.
+  group('RoleKind.defaultReveal (FR114 / O5)', () {
+    test('provision defaults to always-visible', () {
+      expect(RoleKind.provision.defaultReveal, RevealPolicy.alwaysVisible);
+    });
+
+    test('narrative and station have no engine default — the Author\'s choice', () {
+      expect(RoleKind.narrative.defaultReveal, isNull);
+      expect(RoleKind.station.defaultReveal, isNull);
+    });
+  });
+
+  // FR115 / O5 — hazards and technical cruxes are always visible and cannot
+  // be set otherwise by any Author, on any trip, under any role; enforced in
+  // the model, not by authoring discipline.
+  group('Role.hazard (FR115 / O5)', () {
+    test('defaults to false and is always written to JSON, never pruned at false', () {
+      final role = Role(id: 'r1', kind: RoleKind.narrative);
+      expect(role.hazard, isFalse);
+      expect(role.toJson()['hazard'], isFalse);
+    });
+
+    test('a hazard role paired with on_arrival is rejected at construction — unrepresentable, not just unenforced', () {
+      expect(
+        () => Role(id: 'r1', kind: RoleKind.narrative, hazard: true, reveal: RevealPolicy.onArrival),
+        throwsArgumentError,
+      );
+    });
+
+    test('a hazard role with no reveal set, or explicitly always_visible, is accepted', () {
+      expect(() => Role(id: 'r1', kind: RoleKind.station, hazard: true), returnsNormally);
+      expect(
+        () => Role(id: 'r1', kind: RoleKind.station, hazard: true, reveal: RevealPolicy.alwaysVisible),
+        returnsNormally,
+      );
+    });
+
+    test('hazard can be set on any role kind — orthogonal to narrative/provision/station', () {
+      for (final kind in RoleKind.values) {
+        expect(Role(id: 'r1', kind: kind, hazard: true).hazard, isTrue);
+      }
+    });
+
+    test('hazard round-trips through JSON', () {
+      final role = Role(id: 'r1', kind: RoleKind.narrative, hazard: true);
+      final decoded = Role.fromJson(role.toJson());
+      expect(decoded.hazard, isTrue);
+    });
+
+    test('hazard absent on read defaults to false', () {
+      final decoded = Role.fromJson({'id': 'r1', 'kind': 'narrative'});
+      expect(decoded.hazard, isFalse);
+    });
+
+    test('copyWith preserves hazard by default and can flip it', () {
+      final role = Role(id: 'r1', kind: RoleKind.narrative, hazard: true);
+      expect(role.copyWith(title: 'x').hazard, isTrue);
+      expect(role.copyWith(hazard: false).hazard, isFalse);
+    });
+  });
+
   group('Role.coord (FR107 / O2)', () {
     test('an anchor with no role offsets: every role resolves to the anchor coord', () {
       final anchor = Anchor(

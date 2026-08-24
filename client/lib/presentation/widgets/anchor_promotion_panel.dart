@@ -5,6 +5,14 @@
 // require a segment to be selected — unlike the Content tab's existing
 // per-segment node editor it sits beside.
 //
+// FR114, FR115, FR116 (Story O5) — reveal policy: the role-set checkboxes
+// default their reveal per `RoleKind.defaultReveal` when checked, a hazard
+// `Switch` per role locks reveal to always-visible (FR115's hard constraint,
+// unrepresentable otherwise — see `Role`'s constructor), and the panel's own
+// "Preview as Character" toggle renders every anchor card through
+// `RevealResolver.resolve(..., hasArrived: false)` — the AC's "preview the
+// trip as a Character would see it before departure."
+//
 // Candidate- and cluster-proposal-sourced promotion (the other two AC
 // sources) reuse the same domain call (`CurrentTripNotifier.promoteAnchor`,
 // `domain/promote.dart`'s `provenanceFromCandidate`) once N3's candidate map
@@ -18,9 +26,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../data/reveal_resolver.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../map/tap_to_pick_map.dart';
+
+const _resolver = RevealResolver();
 
 const _uuid = Uuid();
 
@@ -53,12 +64,24 @@ List<Coord> _parseAreaVertices(String text) {
   return vertices;
 }
 
-class AnchorPromotionPanel extends ConsumerWidget {
+class AnchorPromotionPanel extends ConsumerStatefulWidget {
   const AnchorPromotionPanel({super.key, required this.trip});
   final Trip trip;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AnchorPromotionPanel> createState() => _AnchorPromotionPanelState();
+}
+
+class _AnchorPromotionPanelState extends ConsumerState<AnchorPromotionPanel> {
+  // O5's AC — "the Author can preview the trip as a Character would see it
+  // before departure." `hasArrived: false` is exactly that pre-departure
+  // view: on_arrival roles read withheld, hazards/provisions/always-visible
+  // roles read through, same as what a Character's offline package holds
+  // the moment it downloads.
+  bool _previewAsCharacter = false;
+
+  @override
+  Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     return Container(
       padding: const EdgeInsets.all(PlotSpacing.s4),
@@ -71,15 +94,21 @@ class AnchorPromotionPanel extends ConsumerWidget {
               Expanded(
                 child: Text('Anchors', style: PlotTypography.h2(c.textPrimary).copyWith(fontSize: 18)),
               ),
+              Text('Preview as Character', style: PlotTypography.data(c.textMuted)),
+              Switch(
+                value: _previewAsCharacter,
+                onChanged: (value) => setState(() => _previewAsCharacter = value),
+              ),
+              const SizedBox(width: PlotSpacing.s2),
               PlotButton(
                 label: 'Promote a place',
                 variant: PlotButtonVariant.secondary,
                 icon: Icons.add_location_alt_outlined,
-                onPressed: () => _openPromotionDialog(context, ref),
+                onPressed: () => _openPromotionDialog(context),
               ),
             ],
           ),
-          if (trip.anchors.isEmpty)
+          if (widget.trip.anchors.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: PlotSpacing.s2),
               child: Text(
@@ -93,7 +122,10 @@ class AnchorPromotionPanel extends ConsumerWidget {
               child: Wrap(
                 spacing: PlotSpacing.s2,
                 runSpacing: PlotSpacing.s2,
-                children: [for (final anchor in trip.anchors) _AnchorCard(anchor: anchor)],
+                children: [
+                  for (final anchor in widget.trip.anchors)
+                    _AnchorCard(anchor: anchor, previewAsCharacter: _previewAsCharacter),
+                ],
               ),
             ),
         ],
@@ -101,7 +133,7 @@ class AnchorPromotionPanel extends ConsumerWidget {
     );
   }
 
-  Future<void> _openPromotionDialog(BuildContext context, WidgetRef ref) {
+  Future<void> _openPromotionDialog(BuildContext context) {
     return showDialog<void>(
       context: context,
       builder: (_) => const _PromoteAnchorDialog(),
@@ -110,8 +142,9 @@ class AnchorPromotionPanel extends ConsumerWidget {
 }
 
 class _AnchorCard extends ConsumerWidget {
-  const _AnchorCard({required this.anchor});
+  const _AnchorCard({required this.anchor, required this.previewAsCharacter});
   final Anchor anchor;
+  final bool previewAsCharacter;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -136,11 +169,12 @@ class _AnchorCard extends ConsumerWidget {
                   style: PlotTypography.body(c.textPrimary).copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 16),
-                tooltip: 'Remove anchor',
-                onPressed: () => ref.read(currentTripProvider.notifier).removeAnchor(anchor.id),
-              ),
+              if (!previewAsCharacter)
+                IconButton(
+                  icon: const Icon(Icons.close, size: 16),
+                  tooltip: 'Remove anchor',
+                  onPressed: () => ref.read(currentTripProvider.notifier).removeAnchor(anchor.id),
+                ),
             ],
           ),
           Text(
@@ -173,19 +207,28 @@ class _AnchorCard extends ConsumerWidget {
           Wrap(
             spacing: PlotSpacing.s1,
             runSpacing: PlotSpacing.s1,
-            children: [for (final role in anchor.roles) _RoleChip(role: role)],
+            children: [
+              for (final role in anchor.roles)
+                previewAsCharacter
+                    ? _PreviewRoleChip(revealed: _resolver.resolve(role, hasArrived: false, anchorCoord: anchor.coord))
+                    : _RoleChip(role: role),
+            ],
           ),
           // FR107 / O2 — a role offset renders as its own line so it reads
           // as a distinct place on the ground, not a property of the pin;
-          // an anchor with no offsets (O2's AC) adds nothing here.
-          for (final role in anchor.roles.where((r) => r.coord != null))
-            Padding(
-              padding: const EdgeInsets.only(top: PlotSpacing.s1),
-              child: Text(
-                '${role.kind.wireValue} offset: ${role.coord![1].toStringAsFixed(5)}, ${role.coord![0].toStringAsFixed(5)}',
-                style: PlotTypography.data(c.textMuted),
+          // an anchor with no offsets (O2's AC) adds nothing here. Withheld
+          // in preview mode along with everything else content-shaped —
+          // where the offset itself would spoil an unrevealed plot point's
+          // whereabouts is exactly the kind of leak P11 exists to close.
+          if (!previewAsCharacter)
+            for (final role in anchor.roles.where((r) => r.coord != null))
+              Padding(
+                padding: const EdgeInsets.only(top: PlotSpacing.s1),
+                child: Text(
+                  '${role.kind.wireValue} offset: ${role.coord![1].toStringAsFixed(5)}, ${role.coord![0].toStringAsFixed(5)}',
+                  style: PlotTypography.data(c.textMuted),
+                ),
               ),
-            ),
         ],
       ),
     );
@@ -199,10 +242,17 @@ class _RoleChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
-    final reveal = switch (role.reveal) {
-      RevealPolicy.alwaysVisible => 'always visible',
-      RevealPolicy.onArrival => 'on arrival',
-      null => 'reveal undecided',
+    final effective = _resolver.effectivePolicy(role);
+    // FR114 / O5 — an undecided role's *effective* policy (provision's
+    // default, or nothing for narrative/station) is what the tooltip states,
+    // not the raw `role.reveal`, so "undecided" never reads as a fourth
+    // state the Author has to mentally resolve themselves.
+    final reveal = switch ((role.reveal, effective)) {
+      (null, RevealPolicy.alwaysVisible) => 'always visible (default)',
+      (null, null) => 'reveal: the Author\'s choice — not yet set',
+      (_, RevealPolicy.alwaysVisible) => 'always visible',
+      (_, RevealPolicy.onArrival) => 'on arrival',
+      (_, null) => 'reveal: the Author\'s choice — not yet set',
     };
     // FR107 / O2 — surfaced in the tooltip rather than the chip label so an
     // anchor with no offsets (the common case, O2's AC) costs no extra chip
@@ -211,10 +261,52 @@ class _RoleChip extends StatelessWidget {
         ? reveal
         : '$reveal · offset ${role.coord![1].toStringAsFixed(5)}, ${role.coord![0].toStringAsFixed(5)}';
     return Tooltip(
-      message: geometry,
+      message: role.hazard ? '$geometry · hazard/technical crux — cannot be hidden (FR115)' : geometry,
+      // A nested `Wrap`, not a `Row`: the outer anchor card constrains width
+      // tightly (FR108's boundary preview map above it), and a hazard role's
+      // chip-plus-badge pair must reflow rather than overflow when it
+      // doesn't fit the remaining line.
+      child: Wrap(
+        spacing: PlotSpacing.s1,
+        runSpacing: PlotSpacing.s1,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Chip(
+            label: Text(role.kind.wireValue),
+            labelStyle: PlotTypography.small(c.textPrimary),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          // FR115 / O5 — a hazard/technical-crux role always carries this
+          // badge: the one visual cue that this role's reveal cannot be
+          // hidden by any setting, on any trip, under any role.
+          if (role.hazard) const PlotBadge('Hazard', tone: PlotBadgeTone.ember, solid: true),
+        ],
+      ),
+    );
+  }
+}
+
+/// O5's "preview as a Character would see it" — renders exactly what
+/// [RevealResolver] released for this role and nothing else: a withheld
+/// role shows only that something is here (PRD P1's AC), never its title,
+/// note, or which reveal policy is set — that would defeat the preview.
+class _PreviewRoleChip extends StatelessWidget {
+  const _PreviewRoleChip({required this.revealed});
+  final RevealedRole revealed;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final label = revealed.visible ? revealed.kind.wireValue : '${revealed.kind.wireValue} · hidden';
+    return Tooltip(
+      message: revealed.visible
+          ? (revealed.title ?? revealed.note ?? 'Visible to a Character before departure.')
+          : 'Revealed on arrival — not shown yet.',
       child: Chip(
-        label: Text(role.kind.wireValue),
-        labelStyle: PlotTypography.small(c.textPrimary),
+        avatar: revealed.visible ? null : Icon(Icons.lock_outline, size: 14, color: c.textMuted),
+        label: Text(label),
+        labelStyle: PlotTypography.small(revealed.visible ? c.textPrimary : c.textMuted),
         visualDensity: VisualDensity.compact,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
@@ -237,6 +329,10 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
   final _lat = TextEditingController();
   final _lon = TextEditingController();
   final Map<RoleKind, RevealPolicy?> _selectedRoles = {};
+  // FR115 / O5 — per-role-kind hazard/technical-crux flag. Off by default;
+  // when on, the role's reveal is forced to always-visible (see
+  // `_roleRow`'s hazard `Switch` handler) and cannot be set otherwise.
+  final Map<RoleKind, bool> _hazard = {};
   // FR107 / O2 — one optional offset lat/lon pair per role kind, blank by
   // default: leaving both blank is the "no offset" case, which O2's AC
   // requires to cost nothing (the anchor's own coord is used).
@@ -377,16 +473,37 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                 value: selected,
                 onChanged: (checked) => setState(() {
                   if (checked ?? false) {
-                    _selectedRoles[kind] = null;
+                    // FR114 / O5 — a freshly-checked role starts at its kind's
+                    // engine default: always-visible for provision, `null`
+                    // ("the Author's choice," left open) for narrative/station.
+                    _selectedRoles[kind] = kind.defaultReveal;
                   } else {
                     _selectedRoles.remove(kind);
+                    _hazard.remove(kind);
                   }
                 }),
               ),
               Expanded(child: Text(kind.wireValue)),
+              // FR115 / O5 — hazard/technical-crux flag, orthogonal to
+              // reveal: on, it forces the reveal row below to always-visible
+              // and locks it, so the hard constraint ("cannot be set
+              // otherwise by any Author") is enforced in the widget, not
+              // just in the domain layer beneath it. Kept on the header row
+              // rather than a row of its own so selecting a role doesn't
+              // shift every row beneath it.
+              if (selected) ...[
+                Text('Hazard', style: PlotTypography.small(c.textMuted)),
+                Switch(
+                  value: _hazard[kind] ?? false,
+                  onChanged: (value) => setState(() {
+                    _hazard[kind] = value;
+                    _selectedRoles[kind] = value ? RevealPolicy.alwaysVisible : kind.defaultReveal;
+                  }),
+                ),
+              ],
             ],
           ),
-          if (selected)
+          if (selected && !(_hazard[kind] ?? false))
             Padding(
               padding: const EdgeInsets.only(left: PlotSpacing.s6, bottom: PlotSpacing.s2),
               child: DropdownButton<RevealPolicy?>(
@@ -399,6 +516,14 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                   DropdownMenuItem(value: RevealPolicy.onArrival, child: Text('On arrival')),
                 ],
                 onChanged: (policy) => setState(() => _selectedRoles[kind] = policy),
+              ),
+            )
+          else if (selected)
+            Padding(
+              padding: const EdgeInsets.only(left: PlotSpacing.s6, bottom: PlotSpacing.s2),
+              child: Text(
+                'Reveal: always visible — hazards cannot be hidden (FR115)',
+                style: PlotTypography.small(c.textMuted),
               ),
             ),
           // FR107 / O2 — optional per-role geometry offset. Left blank, the
@@ -502,7 +627,13 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
     }
     final roles = [
       for (final entry in _selectedRoles.entries)
-        Role(id: _uuid.v4(), kind: entry.key, coord: offsets[entry.key], reveal: entry.value),
+        Role(
+          id: _uuid.v4(),
+          kind: entry.key,
+          coord: offsets[entry.key],
+          reveal: entry.value,
+          hazard: _hazard[entry.key] ?? false,
+        ),
     ];
     // Hand-placed provenance carries no `sourceId`, so `promoteAnchor`'s
     // duplicate-source check (FR106) never applies on this path — that

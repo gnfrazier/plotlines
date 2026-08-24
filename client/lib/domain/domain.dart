@@ -14,6 +14,7 @@ export 'hazard.dart';
 export 'json_utils.dart'
     show Coord, DayLimit, JsonFields, Ring, checkCoord, checkPolygonRings, checkRing, finite, pruneJson;
 export 'node.dart';
+export 'reveal_state.dart';
 export 'route_metrics.dart';
 export 'segment.dart';
 export 'transition.dart';

@@ -184,7 +184,8 @@ class Role:
     `reveal` and content (`title`/`note`/`media`) may be left unset at promotion and
     decided later (O1's AC) — nothing here defaults `reveal` on the Author's behalf;
     that judgment (provision defaults always-visible, hazard/crux is never gated) is
-    O5's (FR114, FR115), not O1's.
+    O5's (FR114, FR115), applied by the client's `RevealResolver` at read time, not
+    stamped into this object.
 
     `coord` (FR107 / O2) is the role's own optional point offset from its anchor.
     `None` is the common case an anchor with no offsets must cost nothing for (O2's
@@ -194,6 +195,15 @@ class Role:
     `area` (FR108 / O3) is the same fallback shape as `coord`, one level up: a
     role's own polygon offset from its anchor's area — `Anchor.role_area(role)`
     is the one place that fallback lives, mirroring `role_geometry`.
+
+    `hazard` (FR115 / O5) marks this role a hazard or technical-crux warning,
+    orthogonal to `kind` — a station, a narrative beat, or a provision can all be
+    the thing an Author needs to flag as safety-critical. FR115 is a hard
+    constraint ("cannot be set otherwise by any Author"), so `hazard=True` paired
+    with `reveal="on_arrival"` is rejected here rather than merely discouraged;
+    the resolver-side half of the exemption (forcing the *effective* policy to
+    always-visible even when `reveal` is left unset) is the client's, since only
+    the client has a resolver yet.
     """
 
     kind: str
@@ -204,12 +214,18 @@ class Role:
     title: str | None = None
     note: str | None = None
     media: list[MediaRef] = field(default_factory=list)
+    hazard: bool = False
 
     def __post_init__(self) -> None:
         if self.kind not in ROLE_KINDS:
             raise ValueError(f"role kind {self.kind!r} not in {ROLE_KINDS}")
         if self.reveal is not None and self.reveal not in REVEAL_POLICIES:
             raise ValueError(f"reveal policy {self.reveal!r} not in {REVEAL_POLICIES}")
+        if self.hazard and self.reveal == "on_arrival":
+            raise ValueError(
+                f"role {self.id}: FR115 forbids a hazard/technical-crux role from "
+                "being set on_arrival — hazards are always visible, enforced in the model"
+            )
 
     def to_dict(self) -> dict:
         return {
@@ -221,6 +237,10 @@ class Role:
             "title": self.title,
             "note": self.note,
             "media": [m.to_dict() for m in self.media] or None,
+            # FR115 / O5 — always written (never pruned at False), the same
+            # treatment `Polygon.source` gets: a flag this consequential should
+            # never be ambiguous between "false" and "absent."
+            "hazard": self.hazard,
         }
 
 

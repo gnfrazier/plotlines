@@ -385,7 +385,7 @@
     },
 
     "role": {
-      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). Station activity (FR109/O4) and arc stage (FR38/O6) are later stories' additions to this object and are not present yet.",
+      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). `hazard` (FR115/O5) flags this role a hazard or technical-crux warning, orthogonal to `kind`; see the `not` clause below for the hard constraint it carries. Station activity (FR109/O4) and arc stage (FR38/O6) are later stories' additions to this object and are not present yet.",
       "type": "object",
       "required": ["id", "kind"],
       "additionalProperties": false,
@@ -397,7 +397,13 @@
         "reveal": { "$ref": "#/$defs/reveal_policy" },
         "title": { "type": "string" },
         "note": { "$ref": "#/$defs/markdown" },
-        "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" } }
+        "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" } },
+        "hazard": { "type": "boolean", "description": "FR115 / O5 — hard constraint: `true` marks this role a hazard or technical-crux warning, whose effective reveal is always-visible regardless of `reveal` and cannot be set otherwise by any Author. Defaults to `false` when absent." }
+      },
+      "not": {
+        "description": "FR115 / O5 — enforced at the wire boundary too, not just by the Dart/Python constructors: a hazard role can never be stored as on_arrival.",
+        "properties": { "hazard": { "const": true }, "reveal": { "const": "on_arrival" } },
+        "required": ["hazard", "reveal"]
       }
     },
 

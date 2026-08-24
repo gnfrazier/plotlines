@@ -2,7 +2,7 @@
 
 import pytest
 
-from plotlines_core.content.anchor import Anchor, AnchorProvenance, MediaRef, Polygon, Role
+from plotlines_core.content.anchor import ROLE_KINDS, Anchor, AnchorProvenance, MediaRef, Polygon, Role
 from plotlines_core.trips.payload import Trip
 
 # A closed square ring, wound counter-clockwise (canonical exterior winding).
@@ -242,6 +242,33 @@ def test_role_area_falls_back_to_anchor_area_then_none():
 def test_role_area_is_none_when_neither_role_nor_anchor_has_one():
     anchor = Anchor(coord=[0.0, 0.0], roles=[Role(kind="narrative", id="r1")])
     assert anchor.role_area(anchor.roles[0]) is None
+
+
+# --- FR115 / O5 — hazard/technical-crux hard constraint ------------------
+
+
+def test_role_hazard_defaults_to_false_and_is_always_written():
+    role = Role(kind="narrative")
+    out = role.to_dict()
+    assert role.hazard is False
+    assert out["hazard"] is False  # never pruned at False (mirrors polygon.source)
+
+
+def test_role_hazard_paired_with_on_arrival_is_rejected():
+    # FR115 is a hard constraint — "cannot be set otherwise by any Author" —
+    # so the invalid combination is unrepresentable, not merely discouraged.
+    with pytest.raises(ValueError, match="FR115"):
+        Role(kind="narrative", hazard=True, reveal="on_arrival")
+
+
+def test_role_hazard_with_no_reveal_or_always_visible_is_accepted():
+    assert Role(kind="station", hazard=True).hazard is True
+    assert Role(kind="station", hazard=True, reveal="always_visible").hazard is True
+
+
+def test_role_hazard_is_orthogonal_to_kind():
+    for kind in ROLE_KINDS:
+        assert Role(kind=kind, hazard=True).to_dict()["hazard"] is True
 
 
 def test_trip_carries_anchors_and_prunes_when_empty():

@@ -256,4 +256,102 @@ void main() {
       expect(find.textContaining('Area ·'), findsNothing);
     });
   });
+
+  // FR114, FR115 / O5 — reveal defaults and the hazard hard constraint.
+  group('reveal policy (FR114, FR115 / O5)', () {
+    testWidgets('checking the provision role defaults its reveal to always visible, not "decide later"', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      // RoleKind.values order is narrative, provision, station — index 1 is provision.
+      await tester.tap(find.byType(Checkbox).at(1));
+      await tester.pump();
+
+      expect(find.text('Always visible'), findsOneWidget);
+    });
+
+    testWidgets('checking the narrative role leaves its reveal at "decide later" — no engine default', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(Checkbox).at(0)); // narrative
+      await tester.pump();
+
+      expect(find.text('Reveal: decide later'), findsOneWidget);
+    });
+
+    testWidgets('turning on the hazard switch replaces the reveal dropdown with a locked always-visible notice', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(Checkbox).at(0)); // narrative
+      await tester.pump();
+      expect(find.byType(DropdownButton<RevealPolicy?>), findsOneWidget);
+
+      await tester.tap(find.byType(Switch).last); // the panel's own preview switch is also in the tree
+      await tester.pump();
+
+      expect(find.byType(DropdownButton<RevealPolicy?>), findsNothing);
+      expect(find.textContaining('always visible — hazards cannot be hidden'), findsOneWidget);
+    });
+
+    testWidgets('promoting a hazard role shows the Hazard badge on the anchor card', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      await tester.tap(find.byType(Checkbox).at(0)); // narrative
+      await tester.pump();
+      await tester.tap(find.byType(Switch).last); // hazard on — the panel's own preview switch is also in the tree
+      await tester.pump();
+
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('HAZARD'), findsOneWidget);
+    });
+  });
+
+  // O5's AC — "the Author can preview the trip as a Character would see it
+  // before departure."
+  group('preview as Character (O5 AC)', () {
+    testWidgets('an on_arrival narrative role is hidden in preview mode, an always-visible provision role is not', (tester) async {
+      await _pump(tester);
+
+      // Promote an anchor with a withheld narrative role and an always-visible provision role.
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      await tester.tap(find.byType(Checkbox).at(0)); // narrative
+      await tester.pump();
+      await tester.tap(find.text('Reveal: decide later'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('On arrival').last);
+      await tester.pump();
+      await tester.tap(find.byType(Checkbox).at(1)); // provision — defaults always visible
+      await tester.pump();
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      // Author-editing view shows both role chips plainly.
+      expect(find.text('narrative'), findsOneWidget);
+      expect(find.text('provision'), findsOneWidget);
+
+      // Flip on the Character preview.
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+
+      expect(find.text('narrative · hidden'), findsOneWidget);
+      expect(find.text('provision'), findsOneWidget);
+      // The remove-anchor affordance is an Author-only action, not part of what a Character sees.
+      expect(find.byIcon(Icons.close), findsNothing);
+    });
+  });
 }

@@ -1,6 +1,9 @@
 /// `$defs/role_kind`, `$defs/reveal_policy`, `$defs/role`, `$defs/anchor_provenance`,
 /// `$defs/anchor` — the anchor/role object model (ARCH §7.8, `[NEW v2.0]`). PRD
-/// FR106, FR110, Story O1.
+/// FR106, FR110, Story O1. Reveal defaulting and the hazard exemption (FR114,
+/// FR115, Story O5) live on [RoleKind.defaultReveal] and [Role.hazard] below;
+/// [RevealResolver] (`data/reveal_resolver.dart`) is where both are actually
+/// applied to a role — this file only makes the invalid states unrepresentable.
 ///
 /// An Author **promotes** a candidate ([Candidate], `candidate.dart`), a cluster
 /// proposal, or a hand-placed location into an [Anchor] — one object per place,
@@ -49,6 +52,16 @@ enum RoleKind {
         RoleKind.provision => 'provision',
         RoleKind.station => 'station',
       };
+
+  /// FR114 / O5 — the engine default applied when a [Role] of this kind
+  /// leaves [Role.reveal] unset. `null` means there is no engine default:
+  /// narrative and station roles default to *the Author's choice*, which
+  /// reads as withheld until the Author actually makes one (never leaked).
+  /// Provision is the one kind with a real default — "knowing where the
+  /// water is reduces anxiety" — so an undecided provision role still
+  /// resolves as always-visible rather than silently withheld.
+  RevealPolicy? get defaultReveal =>
+      this == RoleKind.provision ? RevealPolicy.alwaysVisible : null;
 }
 
 /// FR114 / O5. Lives on the role, never the anchor (ARCH §7.8) — that is what lets
@@ -166,6 +179,16 @@ bool _ringContainsPoint(Ring ring, Coord point) {
 /// [area] (FR108 / O3) is the same fallback shape as [coord], one level up: a
 /// role's own polygon offset from its anchor's area — [Anchor.roleArea] is the
 /// one place that fallback lives, mirroring [Anchor.roleGeometry].
+///
+/// [hazard] (FR115 / O5) marks this role a hazard or technical-crux warning —
+/// orthogonal to [kind], since a station, a narrative beat, or even a
+/// provision can be the thing an Author needs to flag as safety-critical.
+/// The constructor rejects `hazard: true` paired with
+/// `reveal: RevealPolicy.onArrival` outright: FR115 is a hard constraint —
+/// "cannot be set otherwise by any Author" — so the invalid combination is
+/// unrepresentable rather than merely discouraged. [RevealResolver] applies
+/// the other half (forcing the *effective* policy to always-visible even
+/// when [reveal] is left `null`).
 class Role {
   Role({
     required this.kind,
@@ -176,7 +199,14 @@ class Role {
     this.title,
     this.note,
     this.media = const [],
-  });
+    this.hazard = false,
+  }) {
+    if (hazard && reveal == RevealPolicy.onArrival) {
+      throw ArgumentError(
+          'role $id: FR115 forbids a hazard/technical-crux role from being set on_arrival — '
+          'hazards are always visible, enforced in the model');
+    }
+  }
 
   final String id;
   final RoleKind kind;
@@ -186,6 +216,7 @@ class Role {
   final String? title;
   final String? note;
   final List<MediaRef> media;
+  final bool hazard;
 
   Role copyWith({
     RoleKind? kind,
@@ -198,6 +229,7 @@ class Role {
     String? title,
     String? note,
     List<MediaRef>? media,
+    bool? hazard,
   }) =>
       Role(
         id: id,
@@ -208,6 +240,7 @@ class Role {
         title: title ?? this.title,
         note: note ?? this.note,
         media: media ?? this.media,
+        hazard: hazard ?? this.hazard,
       );
 
   factory Role.fromJson(Map<String, dynamic> json) {
@@ -226,6 +259,7 @@ class Role {
       title: f.takeString('title'),
       note: f.takeString('note'),
       media: f.takeList('media', MediaRef.fromJson),
+      hazard: f.takeBool('hazard') ?? false,
     );
     f.done();
     return r;
@@ -240,6 +274,10 @@ class Role {
         'title': title,
         'note': note,
         'media': media.isEmpty ? null : media.map((m) => m.toJson()).toList(),
+        // FR115 / O5 — always written (never pruned at `false`), the same
+        // treatment `Area.source` gets: a flag this consequential should
+        // never be ambiguous between "false" and "absent."
+        'hazard': hazard,
       });
 }
 
