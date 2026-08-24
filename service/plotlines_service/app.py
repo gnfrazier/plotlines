@@ -47,33 +47,148 @@ GRAPH_FILE = "boulder_bike.graphml"
 DEM_FILE = "boulder_dem.tif"
 
 
-class Readiness:
-    """Readiness, not liveness (§7.3). Up-but-loading is not ready."""
+# Heuristic wall-clock estimates for the progress/eta a still-loading
+# capability reports (ARCH §8.3's "terrain data loading — routing available
+# in about 3 minutes"). Neither is measured telemetry (SPIKE-D is where that
+# would come from) — they only keep the estimate from being a bare guess with
+# no relation to elapsed time. Graph load is typically sub-second off local
+# disk; elevation enrichment is the "minutes-long" operation FR91 names.
+GRAPH_ESTIMATED_S = 5.0
+ELEVATION_ESTIMATED_S = 180.0
 
-    def __init__(self) -> None:
-        self.state = "loading"
-        self.detail = "starting"
-        self.graph: LoadedGraph | None = None
-        self.sampler: ElevationSampler | None = None
-        self.started_at = time.perf_counter()
-        self.ready_at: float | None = None
+
+class CapabilityState:
+    """One capability's readiness lifecycle: pending -> loading -> ready|failed.
+
+    Backs the `/health` capability entries (§8.3) that have real startup work
+    behind them (graph, elevation) — `tiles` and `layers` have none in this
+    codebase and are reported ready inline in `health()` instead.
+    """
+
+    def __init__(self, estimated_s: float) -> None:
+        self.status = "pending"
+        self.detail = ""
+        self.started_at: float | None = None
+        self.estimated_s = estimated_s
 
     @property
     def ready(self) -> bool:
-        return self.state == "ready"
+        return self.status == "ready"
+
+    @property
+    def settled(self) -> bool:
+        """Done trying, either way — used to unblock a dependent capability
+        without waiting forever on one that failed (FR121: never blocking
+        the app)."""
+        return self.status in ("ready", "failed")
+
+    def start(self, detail: str) -> None:
+        self.status = "loading"
+        self.detail = detail
+        self.started_at = time.perf_counter()
+
+    def succeed(self, detail: str) -> None:
+        self.status = "ready"
+        self.detail = detail
+
+    def fail(self, detail: str) -> None:
+        self.status = "failed"
+        self.detail = detail
+
+    def progress(self) -> float:
+        if self.status == "ready":
+            return 1.0
+        if self.status != "loading" or self.started_at is None or self.estimated_s <= 0:
+            return 0.0
+        elapsed = time.perf_counter() - self.started_at
+        # Capped short of 1.0 — the estimate is a heuristic, never a promise
+        # that "loading" is about to flip to "ready".
+        return min(0.95, elapsed / self.estimated_s)
+
+    def eta_s(self) -> float | None:
+        if self.status != "loading" or self.started_at is None:
+            return None
+        elapsed = time.perf_counter() - self.started_at
+        return max(self.estimated_s - elapsed, 1.0)
+
+    def to_dict(self) -> dict:
+        if self.status == "ready":
+            return {"ready": True}
+        if self.status == "failed":
+            return {"ready": False, "reason": f"failed:{self.detail}"}
+        if self.status == "loading":
+            d: dict = {"ready": False, "reason": self.detail, "progress": round(self.progress(), 2)}
+            eta = self.eta_s()
+            if eta is not None:
+                d["eta_s"] = round(eta, 1)
+            return d
+        return {"ready": False, "reason": "pending"}
+
+
+class Readiness:
+    """Per-capability readiness (ARCH §8.3, breaking change B1; PRD FR121).
+
+    Startup order is load-bearing: the graph loads first (it is what
+    layer/POI extraction and candidate scoring need *not at all* — those
+    endpoints never consult this class — but it is also the cheaper of the
+    two loads and routing cannot come up without it), and elevation
+    enrichment runs after, off the request-handling path (FR91). Layer/POI
+    and tile capabilities have no startup dependency in this codebase and
+    are reported ready unconditionally in `health()` — they were never
+    gated on this class to begin with (B1's whole point).
+    """
+
+    def __init__(self) -> None:
+        self.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
+        self.elevation_state = CapabilityState(ELEVATION_ESTIMATED_S)
+        self.graph: LoadedGraph | None = None
+        self.sampler: ElevationSampler | None = None
+        self.started_at = time.perf_counter()
+
+    @property
+    def routing_ready(self) -> bool:
+        """Routing needs the graph, and needs elevation enrichment to have
+        settled — succeeded or failed — before it reports ready (§8.3's
+        `"routing": {"reason": "elevation_enriching"}`). A failed elevation
+        load still unblocks routing rather than wedging it forever; it just
+        means elevation-dependent metrics stay unavailable."""
+        return self.graph_state.ready and self.elevation_state.settled
+
+    def routing_capability(self) -> dict:
+        if not self.graph_state.ready:
+            if self.graph_state.status == "failed":
+                return {"ready": False, "reason": f"graph_failed:{self.graph_state.detail}"}
+            d = {"ready": False, "reason": "graph_loading",
+                 "progress": round(self.graph_state.progress(), 2)}
+            eta = self.graph_state.eta_s()
+            if eta is not None:
+                d["eta_s"] = round(eta, 1)
+            return d
+        if self.elevation_state.status == "loading":
+            d = {"ready": False, "reason": "elevation_enriching",
+                 "progress": round(self.elevation_state.progress(), 2)}
+            eta = self.elevation_state.eta_s()
+            if eta is not None:
+                d["eta_s"] = round(eta, 1)
+            return d
+        return {"ready": True}
 
     def load(self, cache_dir: Path) -> None:
+        self.graph_state.start("loading graph")
         try:
-            self.detail = "loading graph"
             self.graph = load_graphml(cache_dir / GRAPH_FILE)
-            self.detail = "opening elevation"
-            self.sampler = ElevationSampler(cache_dir / DEM_FILE)
-            self.ready_at = time.perf_counter()
-            self.state = "ready"
-            self.detail = "ready"
+            self.graph_state.succeed("graph loaded")
         except Exception as exc:  # noqa: BLE001 — surface honestly, never hang
-            self.state = "failed"
-            self.detail = f"{type(exc).__name__}: {exc}"
+            self.graph_state.fail(f"{type(exc).__name__}: {exc}")
+
+        # Runs regardless of the graph outcome — elevation is an independent
+        # capability (§8.3: one capability failing never blocks another).
+        self.elevation_state.start("opening elevation")
+        try:
+            self.sampler = ElevationSampler(cache_dir / DEM_FILE)
+            self.elevation_state.succeed("elevation ready")
+        except Exception as exc:  # noqa: BLE001 — surface honestly, never hang
+            self.elevation_state.fail(f"{type(exc).__name__}: {exc}")
 
 
 class Coordinate(BaseModel):
@@ -248,26 +363,42 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
 
     @app.get("/health")
     def health() -> dict:
-        elapsed = (state.ready_at or time.perf_counter()) - state.started_at
+        """Per-capability readiness (ARCH §8.3, breaking change B1; PRD
+        FR121). No single `ready` flag: `tiles` and `layers` report ready
+        unconditionally (neither has a startup dependency in this codebase —
+        the Curation Workspace must be usable while elevation enriches
+        behind it), `routing` and `elevation` report their real load state,
+        each with a progress estimate while loading. `per_layer` is `LAYERS`
+        (the built-in OSM taxonomy) reported ready; a future plugin loader
+        (ARCH §14) is where a layer could report `loading`/`failed` here —
+        that mechanism does not exist yet, so every entry is `ready` today.
+
+        Version-mismatch refusal (A8, M12) is unchanged and lives entirely
+        client-side in `SidecarManager.start()`, before the sidecar is even
+        spawned — `/health` was never part of that check and still isn't.
+        """
         return {
-            "status": state.state,
-            "ready": state.ready,
-            "detail": state.detail,
-            "version": VERSION,
+            "app_version": VERSION,
+            "sidecar_version": VERSION,
             "mode": mode,
-            "startup_seconds": round(elapsed, 3),
-            "graph": (
-                {"nodes": state.graph.node_count, "edges": state.graph.edge_count}
-                if state.graph else None
-            ),
+            "capabilities": {
+                "tiles": {"ready": True},
+                "layers": {
+                    "ready": True,
+                    "per_layer": {layer: "ready" for layer in sorted(LAYERS)},
+                },
+                "routing": state.routing_capability(),
+                "elevation": state.elevation_state.to_dict(),
+            },
         }
 
     @app.get("/layers")
     def layers(mode: str = "cycling", day_type: str = "route") -> dict:
         """FR97 — the layer catalog plus this (mode, day type) pair's default
-        live set. Deliberately independent of `state.ready`: layer/POI
-        capability comes up ahead of elevation (ARCH B1/D34), and the
-        Curation Workspace must be usable while enrichment still runs."""
+        live set. Deliberately independent of the graph/elevation loading
+        state tracked in `Readiness`: layer/POI capability comes up ahead of
+        elevation (ARCH B1/D34/§8.3), and the Curation Workspace must be
+        usable while enrichment still runs."""
         return {
             "layers": sorted(LAYERS),
             "default_live": sorted(resolve_default_layers(mode, day_type)),
@@ -373,8 +504,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
 
     @app.post("/segments/generate")
     def segments_generate(req: SegmentRequest) -> dict:
-        if not state.ready:
-            raise HTTPException(503, f"sidecar not ready: {state.detail}")
+        if not state.routing_ready:
+            reason = state.routing_capability().get("reason", "not ready")
+            raise HTTPException(503, f"routing not ready: {reason}")
         profile = _resolve_profile(req.theme, req.weights)
         graph = state.graph.graph
         via = [(c.lat, c.lon) for c in req.via]
@@ -444,8 +576,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
 
     @app.post("/segments/cues")
     def segments_cues(req: CuesRequest) -> dict:
-        if not state.ready:
-            raise HTTPException(503, f"sidecar not ready: {state.detail}")
+        if not state.routing_ready:
+            reason = state.routing_capability().get("reason", "not ready")
+            raise HTTPException(503, f"routing not ready: {reason}")
         try:
             _, walk = _solve_walk(req)
         except NoRouteFound as exc:
@@ -463,8 +596,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
 
     @app.post("/segments/envelope")
     def segments_envelope(req: EnvelopeRequest) -> dict:
-        if not state.ready:
-            raise HTTPException(503, f"sidecar not ready: {state.detail}")
+        if not state.routing_ready:
+            reason = state.routing_capability().get("reason", "not ready")
+            raise HTTPException(503, f"routing not ready: {reason}")
         envelope = probe_envelope(
             state.graph.graph,
             start=(req.start.lat, req.start.lon),
@@ -475,8 +609,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
 
     @app.post("/segments/diagnose")
     def segments_diagnose(req: DiagnoseRequest) -> dict:
-        if not state.ready:
-            raise HTTPException(503, f"sidecar not ready: {state.detail}")
+        if not state.routing_ready:
+            reason = state.routing_capability().get("reason", "not ready")
+            raise HTTPException(503, f"routing not ready: {reason}")
         try:
             bands = BandSet.of(*(
                 Band(b.metric, b.minimum, b.maximum) for b in req.bands

@@ -33,6 +33,11 @@
       "type": "array",
       "items": { "$ref": "#/$defs/day" }
     },
+    "anchors": {
+      "description": "FR106, FR110 / O1 — the promoted set, trip-scoped rather than day- or segment-scoped: an anchor can exist unattached to any day (N4a's 'anchors view', ordinary working state, not an error). Attachment to a passage (FR8a's via_anchors) is a routing-layer reference by id, never a copy.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/anchor" }
+    },
     "metrics": {
       "$ref": "#/$defs/roll_up",
       "description": "FR31 / D1 — trip totals. Derived from the days; stored so a list surface (G2a) can show them without re-deriving."
@@ -347,6 +352,63 @@
         "coord": { "$ref": "#/$defs/coord" },
         "distance_along_m": { "$ref": "#/$defs/metres" },
         "node_id": { "$ref": "#/$defs/id", "description": "Set when the hazard is anchored to a node rather than a point." }
+      }
+    },
+
+    "role_kind": {
+      "description": "FR106 / O1. A role SET, not a type field: an anchor may carry more than one of these at once (the national monument's statue and its restroom are one anchor, two roles).",
+      "enum": ["narrative", "provision", "station"]
+    },
+
+    "reveal_policy": {
+      "description": "FR114 / O5. Lives on the role, never the anchor (ARCH §7.8) — that is what lets the restroom stay always-visible while the statue waits for arrival on the same anchor.",
+      "enum": ["always_visible", "on_arrival"]
+    },
+
+    "role": {
+      "description": "FR106, FR107, FR110 / O1, O2 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). Area geometry (FR108/O3), station activity (FR109/O4) and arc stage (FR38/O6) are later stories' additions to this object and are not present yet.",
+      "type": "object",
+      "required": ["id", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "$ref": "#/$defs/role_kind" },
+        "coord": { "$ref": "#/$defs/coord", "description": "FR107 / O2 — the role's own offset from its anchor. A trigger, marker, or export feature for this role uses this coord when present, and the anchor's coord otherwise." },
+        "reveal": { "$ref": "#/$defs/reveal_policy" },
+        "title": { "type": "string" },
+        "note": { "$ref": "#/$defs/markdown" },
+        "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" } }
+      }
+    },
+
+    "anchor_provenance": {
+      "description": "§4.2 / P10 — copied at promotion, never a live reference back into the candidate cache (an anchor must survive a cache wipe). `source_id` is carried only so promotion can recognise 'this candidate is already an anchor' in the current session; it is never dereferenced afterward.",
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["candidate", "cluster", "hand_placed"] },
+        "source_id": { "type": "string" },
+        "layer": { "type": "string" },
+        "tags": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+
+    "anchor": {
+      "description": "FR106, FR110 / O1 — a promoted place: one object per place, carrying a role set (ARCH D-A). Point geometry only; polygon/area geometry is O3's addition (FR108).",
+      "type": "object",
+      "required": ["id", "coord", "roles"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "coord": { "$ref": "#/$defs/coord" },
+        "title": { "type": "string" },
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/role" }
+        },
+        "provenance": { "$ref": "#/$defs/anchor_provenance" }
       }
     },
 

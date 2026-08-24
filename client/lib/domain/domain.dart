@@ -4,6 +4,7 @@
 /// file's own doc comment for which `$defs` entry it implements.
 library;
 
+export 'anchor.dart';
 export 'band.dart';
 export 'cue.dart';
 export 'day.dart';

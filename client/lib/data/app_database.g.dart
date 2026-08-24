@@ -622,16 +622,294 @@ class SettingsKvCompanion extends UpdateCompanion<SettingsKvData> {
   }
 }
 
+class $RejectedProposalsTable extends RejectedProposals
+    with TableInfo<$RejectedProposalsTable, RejectedProposal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RejectedProposalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
+  @override
+  late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
+    'trip_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _proposalIdMeta = const VerificationMeta(
+    'proposalId',
+  );
+  @override
+  late final GeneratedColumn<String> proposalId = GeneratedColumn<String>(
+    'proposal_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rejectedAtMeta = const VerificationMeta(
+    'rejectedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> rejectedAt = GeneratedColumn<DateTime>(
+    'rejected_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [tripId, proposalId, rejectedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'rejected_proposals';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RejectedProposal> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('trip_id')) {
+      context.handle(
+        _tripIdMeta,
+        tripId.isAcceptableOrUnknown(data['trip_id']!, _tripIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tripIdMeta);
+    }
+    if (data.containsKey('proposal_id')) {
+      context.handle(
+        _proposalIdMeta,
+        proposalId.isAcceptableOrUnknown(data['proposal_id']!, _proposalIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_proposalIdMeta);
+    }
+    if (data.containsKey('rejected_at')) {
+      context.handle(
+        _rejectedAtMeta,
+        rejectedAt.isAcceptableOrUnknown(data['rejected_at']!, _rejectedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rejectedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {tripId, proposalId};
+  @override
+  RejectedProposal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RejectedProposal(
+      tripId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}trip_id'],
+      )!,
+      proposalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}proposal_id'],
+      )!,
+      rejectedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}rejected_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RejectedProposalsTable createAlias(String alias) {
+    return $RejectedProposalsTable(attachedDatabase, alias);
+  }
+}
+
+class RejectedProposal extends DataClass
+    implements Insertable<RejectedProposal> {
+  final String tripId;
+  final String proposalId;
+  final DateTime rejectedAt;
+  const RejectedProposal({
+    required this.tripId,
+    required this.proposalId,
+    required this.rejectedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['trip_id'] = Variable<String>(tripId);
+    map['proposal_id'] = Variable<String>(proposalId);
+    map['rejected_at'] = Variable<DateTime>(rejectedAt);
+    return map;
+  }
+
+  RejectedProposalsCompanion toCompanion(bool nullToAbsent) {
+    return RejectedProposalsCompanion(
+      tripId: Value(tripId),
+      proposalId: Value(proposalId),
+      rejectedAt: Value(rejectedAt),
+    );
+  }
+
+  factory RejectedProposal.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RejectedProposal(
+      tripId: serializer.fromJson<String>(json['tripId']),
+      proposalId: serializer.fromJson<String>(json['proposalId']),
+      rejectedAt: serializer.fromJson<DateTime>(json['rejectedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'tripId': serializer.toJson<String>(tripId),
+      'proposalId': serializer.toJson<String>(proposalId),
+      'rejectedAt': serializer.toJson<DateTime>(rejectedAt),
+    };
+  }
+
+  RejectedProposal copyWith({
+    String? tripId,
+    String? proposalId,
+    DateTime? rejectedAt,
+  }) => RejectedProposal(
+    tripId: tripId ?? this.tripId,
+    proposalId: proposalId ?? this.proposalId,
+    rejectedAt: rejectedAt ?? this.rejectedAt,
+  );
+  RejectedProposal copyWithCompanion(RejectedProposalsCompanion data) {
+    return RejectedProposal(
+      tripId: data.tripId.present ? data.tripId.value : this.tripId,
+      proposalId: data.proposalId.present
+          ? data.proposalId.value
+          : this.proposalId,
+      rejectedAt: data.rejectedAt.present
+          ? data.rejectedAt.value
+          : this.rejectedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RejectedProposal(')
+          ..write('tripId: $tripId, ')
+          ..write('proposalId: $proposalId, ')
+          ..write('rejectedAt: $rejectedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(tripId, proposalId, rejectedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RejectedProposal &&
+          other.tripId == this.tripId &&
+          other.proposalId == this.proposalId &&
+          other.rejectedAt == this.rejectedAt);
+}
+
+class RejectedProposalsCompanion extends UpdateCompanion<RejectedProposal> {
+  final Value<String> tripId;
+  final Value<String> proposalId;
+  final Value<DateTime> rejectedAt;
+  final Value<int> rowid;
+  const RejectedProposalsCompanion({
+    this.tripId = const Value.absent(),
+    this.proposalId = const Value.absent(),
+    this.rejectedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RejectedProposalsCompanion.insert({
+    required String tripId,
+    required String proposalId,
+    required DateTime rejectedAt,
+    this.rowid = const Value.absent(),
+  }) : tripId = Value(tripId),
+       proposalId = Value(proposalId),
+       rejectedAt = Value(rejectedAt);
+  static Insertable<RejectedProposal> custom({
+    Expression<String>? tripId,
+    Expression<String>? proposalId,
+    Expression<DateTime>? rejectedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (tripId != null) 'trip_id': tripId,
+      if (proposalId != null) 'proposal_id': proposalId,
+      if (rejectedAt != null) 'rejected_at': rejectedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RejectedProposalsCompanion copyWith({
+    Value<String>? tripId,
+    Value<String>? proposalId,
+    Value<DateTime>? rejectedAt,
+    Value<int>? rowid,
+  }) {
+    return RejectedProposalsCompanion(
+      tripId: tripId ?? this.tripId,
+      proposalId: proposalId ?? this.proposalId,
+      rejectedAt: rejectedAt ?? this.rejectedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (tripId.present) {
+      map['trip_id'] = Variable<String>(tripId.value);
+    }
+    if (proposalId.present) {
+      map['proposal_id'] = Variable<String>(proposalId.value);
+    }
+    if (rejectedAt.present) {
+      map['rejected_at'] = Variable<DateTime>(rejectedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RejectedProposalsCompanion(')
+          ..write('tripId: $tripId, ')
+          ..write('proposalId: $proposalId, ')
+          ..write('rejectedAt: $rejectedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $TripsTable trips = $TripsTable(this);
   late final $SettingsKvTable settingsKv = $SettingsKvTable(this);
+  late final $RejectedProposalsTable rejectedProposals =
+      $RejectedProposalsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [trips, settingsKv];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    trips,
+    settingsKv,
+    rejectedProposals,
+  ];
 }
 
 typedef $$TripsTableCreateCompanionBuilder =
@@ -985,6 +1263,185 @@ typedef $$SettingsKvTableProcessedTableManager =
       SettingsKvData,
       PrefetchHooks Function()
     >;
+typedef $$RejectedProposalsTableCreateCompanionBuilder =
+    RejectedProposalsCompanion Function({
+      required String tripId,
+      required String proposalId,
+      required DateTime rejectedAt,
+      Value<int> rowid,
+    });
+typedef $$RejectedProposalsTableUpdateCompanionBuilder =
+    RejectedProposalsCompanion Function({
+      Value<String> tripId,
+      Value<String> proposalId,
+      Value<DateTime> rejectedAt,
+      Value<int> rowid,
+    });
+
+class $$RejectedProposalsTableFilterComposer
+    extends Composer<_$AppDatabase, $RejectedProposalsTable> {
+  $$RejectedProposalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get tripId => $composableBuilder(
+    column: $table.tripId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get proposalId => $composableBuilder(
+    column: $table.proposalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get rejectedAt => $composableBuilder(
+    column: $table.rejectedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RejectedProposalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $RejectedProposalsTable> {
+  $$RejectedProposalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get tripId => $composableBuilder(
+    column: $table.tripId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get proposalId => $composableBuilder(
+    column: $table.proposalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get rejectedAt => $composableBuilder(
+    column: $table.rejectedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RejectedProposalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RejectedProposalsTable> {
+  $$RejectedProposalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get tripId =>
+      $composableBuilder(column: $table.tripId, builder: (column) => column);
+
+  GeneratedColumn<String> get proposalId => $composableBuilder(
+    column: $table.proposalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get rejectedAt => $composableBuilder(
+    column: $table.rejectedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$RejectedProposalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RejectedProposalsTable,
+          RejectedProposal,
+          $$RejectedProposalsTableFilterComposer,
+          $$RejectedProposalsTableOrderingComposer,
+          $$RejectedProposalsTableAnnotationComposer,
+          $$RejectedProposalsTableCreateCompanionBuilder,
+          $$RejectedProposalsTableUpdateCompanionBuilder,
+          (
+            RejectedProposal,
+            BaseReferences<
+              _$AppDatabase,
+              $RejectedProposalsTable,
+              RejectedProposal
+            >,
+          ),
+          RejectedProposal,
+          PrefetchHooks Function()
+        > {
+  $$RejectedProposalsTableTableManager(
+    _$AppDatabase db,
+    $RejectedProposalsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RejectedProposalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RejectedProposalsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RejectedProposalsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> tripId = const Value.absent(),
+                Value<String> proposalId = const Value.absent(),
+                Value<DateTime> rejectedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RejectedProposalsCompanion(
+                tripId: tripId,
+                proposalId: proposalId,
+                rejectedAt: rejectedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String tripId,
+                required String proposalId,
+                required DateTime rejectedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => RejectedProposalsCompanion.insert(
+                tripId: tripId,
+                proposalId: proposalId,
+                rejectedAt: rejectedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RejectedProposalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RejectedProposalsTable,
+      RejectedProposal,
+      $$RejectedProposalsTableFilterComposer,
+      $$RejectedProposalsTableOrderingComposer,
+      $$RejectedProposalsTableAnnotationComposer,
+      $$RejectedProposalsTableCreateCompanionBuilder,
+      $$RejectedProposalsTableUpdateCompanionBuilder,
+      (
+        RejectedProposal,
+        BaseReferences<
+          _$AppDatabase,
+          $RejectedProposalsTable,
+          RejectedProposal
+        >,
+      ),
+      RejectedProposal,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -993,4 +1450,6 @@ class $AppDatabaseManager {
       $$TripsTableTableManager(_db, _db.trips);
   $$SettingsKvTableTableManager get settingsKv =>
       $$SettingsKvTableTableManager(_db, _db.settingsKv);
+  $$RejectedProposalsTableTableManager get rejectedProposals =>
+      $$RejectedProposalsTableTableManager(_db, _db.rejectedProposals);
 }

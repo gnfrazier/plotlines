@@ -50,7 +50,8 @@ def test_layers_answers_while_not_ready(client: TestClient) -> None:
     # ARCH B1's regression test, at endpoint scope: routing is gated on
     # readiness, layers must not be.
     health = client.get("/health").json()
-    assert health["ready"] is False
+    assert health["capabilities"]["routing"]["ready"] is False
+    assert health["capabilities"]["layers"]["ready"] is True
     resp = client.get("/layers")
     assert resp.status_code == 200
 

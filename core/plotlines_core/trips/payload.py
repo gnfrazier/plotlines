@@ -40,10 +40,16 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from plotlines_core.content.anchor import Anchor
+
 #: Bumped to 1.1.0 by SPIKE-21, which added `cue.retrace` — additive and
 #: backward compatible, exactly the "schema patch" SPIKE-20 predicted a new
-#: cue field would cost.
-SCHEMA_VERSION = "1.1.0"
+#: cue field would cost. Bumped to 1.2.0 by FR106/FR110 (Story O1), which
+#: added `anchor`/`role` and the trip-level `anchors` array — additive in
+#: the same sense: an absent `anchors` list still parses. Bumped to 1.3.0 by
+#: FR107 (Story O2), which added `role.coord` — additive again: a role with
+#: no `coord` still parses, and behaves exactly as a single point (O2's AC).
+SCHEMA_VERSION = "1.3.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -729,6 +735,7 @@ class Trip:
     default_weights: WeightProfile | None = None
     day_limits: dict[str, dict[str, float]] = field(default_factory=dict)
     days: list[Day] = field(default_factory=list)
+    anchors: list[Anchor] = field(default_factory=list)
     metrics: RollUp | None = None
     provenance: Provenance | None = None
     schema_version: str = SCHEMA_VERSION
@@ -748,6 +755,7 @@ class Trip:
             "duration": self.duration,
             "defaults": defaults,
             "days": [d.to_dict() for d in self.days],
+            "anchors": [a.to_dict() for a in self.anchors] or None,
             "metrics": self.metrics.to_dict() if self.metrics else None,
             "provenance": self.provenance.to_dict() if self.provenance else None,
         })

@@ -23,6 +23,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../../domain/domain.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../map/tap_to_pick_map.dart';
+import '../../widgets/anchor_promotion_panel.dart';
 import '../../widgets/node_editor_sheet.dart';
 
 class ContentTab extends ConsumerStatefulWidget {
@@ -39,6 +40,17 @@ class _ContentTabState extends ConsumerState<ContentTab> {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // FR106, FR110 / O1 — trip-scoped, so it does not require a segment
+        // selection the way the node editor below it does.
+        AnchorPromotionPanel(trip: widget.trip),
+        Expanded(child: _buildNodeEditor(context)),
+      ],
+    );
+  }
+
+  Widget _buildNodeEditor(BuildContext context) {
     final c = PlotColors.of(context);
     final selected = ref.watch(selectedSegmentProvider);
     final target = resolveSelectedSegment(widget.trip, selected);

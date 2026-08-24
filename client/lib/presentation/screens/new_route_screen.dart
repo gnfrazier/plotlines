@@ -35,6 +35,7 @@ import 'package:intl/intl.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../data/routing_client.dart';
+import '../../data/sidecar_manager.dart' show CapabilityStatus;
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
@@ -108,6 +109,14 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
       _ => _end != null,
     };
   }
+
+  /// ARCH §8.3 / PRD FR121 (M12a) — routing depends on elevation enrichment
+  /// having settled, not just the graph. Null only in the instant before the
+  /// sidecar has answered its first `/health` (SidecarGate already keeps
+  /// this screen from being reachable before then, so in practice this is
+  /// only null in tests that construct the screen without a gate).
+  CapabilityStatus? get _routingCapability =>
+      ref.watch(sidecarManagerProvider).capabilities?.routing;
 
   @override
   Widget build(BuildContext context) {
@@ -387,11 +396,17 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                       const SizedBox(height: PlotSpacing.s3),
                       NoDataBanner(onChooseAnotherArea: () => Navigator.pop(context)),
                     ],
+                    if (_routingCapability case final routing? when !routing.ready) ...[
+                      const SizedBox(height: PlotSpacing.s3),
+                      CapabilityWarmingNotice(capabilityLabel: 'Routing', status: routing),
+                    ],
                     const SizedBox(height: PlotSpacing.s5),
                     PlotButton(
                       label: _generating ? 'Generating…' : 'Generate route',
                       expand: true,
-                      onPressed: (!_canGenerate || _generating) ? null : _generate,
+                      onPressed: (!_canGenerate || _generating || _routingCapability?.ready != true)
+                          ? null
+                          : _generate,
                     ),
                   ] else if (_startMethod == _StartMethod.blank)
                     PlotButton(

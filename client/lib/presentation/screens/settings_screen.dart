@@ -163,7 +163,7 @@ class _AboutPane extends ConsumerWidget {
         FutureBuilder<Map<String, dynamic>>(
           future: client.health(),
           builder: (context, snapshot) {
-            final version = snapshot.data?['version'] as String?;
+            final version = snapshot.data?['sidecar_version'] as String?;
             return Text(
               version == null ? 'Sidecar version: checking…' : 'Sidecar version $version',
               style: PlotTypography.data(c.textSecondary),

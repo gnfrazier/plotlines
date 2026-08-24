@@ -23,6 +23,38 @@ import 'geo_utils.dart';
 String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()}) {
   final features = <Map<String, dynamic>>[];
 
+  // FR106/FR107 (O1, O2) — one feature per anchor, plus one further feature
+  // per role that carries its own offset (FR107 / O2's "offsets appear on
+  // the map and export as distinct features"). An anchor with no role
+  // offsets exports exactly one point — its own — never an extra feature,
+  // which is O2's "behaves exactly as a single point" AC read onto export.
+  if (options.includeWaypoints) {
+    for (final anchor in trip.anchors) {
+      features.add(_pointFeature(
+        coord: anchor.coord,
+        properties: {
+          'kind': 'anchor',
+          'anchor_id': anchor.id,
+          if (anchor.title != null) 'title': anchor.title,
+          'role_kinds': [for (final role in anchor.roles) role.kind.wireValue],
+        },
+      ));
+      for (final role in anchor.roles) {
+        if (role.coord == null) continue;
+        features.add(_pointFeature(
+          coord: role.coord!,
+          properties: {
+            'kind': 'role_offset',
+            'anchor_id': anchor.id,
+            'role_id': role.id,
+            'role_kind': role.kind.wireValue,
+            if (role.title != null) 'title': role.title,
+          },
+        ));
+      }
+    }
+  }
+
   for (final day in trip.days) {
     for (final segment in day.segments) {
       if (segment.geometry != null) {

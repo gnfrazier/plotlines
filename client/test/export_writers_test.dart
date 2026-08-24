@@ -3,6 +3,8 @@
 // own, so these are the whole implementation, not a stand-in for a service
 // call — worth a real check rather than trusting a build-clean run.
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart' as xml;
 
@@ -47,6 +49,58 @@ void main() {
     expect(geojson, contains('"type": "FeatureCollection"'));
     expect(geojson, contains('"LineString"'));
     expect(geojson, contains('"Overlook"'));
+  });
+
+  test('GeoJSON: an anchor with a role offset exports as two distinct point features (FR107 / O2)', () {
+    // The overlook spur, verbatim: parking-lot anchor, narrative role 400 m
+    // up a spur. A provision role with no offset must not add a feature.
+    final tripWithAnchors = Trip(
+      id: 'trip-2',
+      title: 'Overlook Hike',
+      createdAt: '2026-08-17T00:00:00Z',
+      updatedAt: '2026-08-17T00:00:00Z',
+      anchors: [
+        Anchor(
+          id: 'a1',
+          coord: [-105.270, 40.020],
+          title: 'Trailhead',
+          roles: [
+            Role(id: 'r1', kind: RoleKind.narrative, coord: [-105.266, 40.024]),
+            Role(id: 'r2', kind: RoleKind.provision),
+          ],
+        ),
+      ],
+    );
+    final decoded = jsonDecode(tripToGeoJson(tripWithAnchors)) as Map<String, dynamic>;
+    final features = (decoded['features'] as List).cast<Map<String, dynamic>>();
+
+    final anchorFeatures = features.where((f) => f['properties']['kind'] == 'anchor');
+    final offsetFeatures = features.where((f) => f['properties']['kind'] == 'role_offset');
+
+    expect(anchorFeatures, hasLength(1));
+    expect(anchorFeatures.single['geometry']['coordinates'], [-105.270, 40.020]);
+
+    // Exactly one offset feature — the narrative role's — never one for the
+    // provision role, which carries no offset of its own.
+    expect(offsetFeatures, hasLength(1));
+    expect(offsetFeatures.single['geometry']['coordinates'], [-105.266, 40.024]);
+    expect(offsetFeatures.single['properties']['role_id'], 'r1');
+  });
+
+  test('GeoJSON: an anchor with no role offsets exports as exactly one point (O2\'s AC)', () {
+    final tripWithAnchor = Trip(
+      id: 'trip-3',
+      title: 'Simple Stop',
+      createdAt: '2026-08-17T00:00:00Z',
+      updatedAt: '2026-08-17T00:00:00Z',
+      anchors: [
+        Anchor(id: 'a1', coord: [0.0, 0.0], roles: [Role(id: 'r1', kind: RoleKind.provision)]),
+      ],
+    );
+    final decoded = jsonDecode(tripToGeoJson(tripWithAnchor)) as Map<String, dynamic>;
+    final features = (decoded['features'] as List).cast<Map<String, dynamic>>();
+    expect(features.where((f) => f['properties']['kind'] == 'anchor'), hasLength(1));
+    expect(features.where((f) => f['properties']['kind'] == 'role_offset'), isEmpty);
   });
 
   test('GPX: well-formed XML with a track and a waypoint', () {

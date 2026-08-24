@@ -41,13 +41,37 @@ class SettingsKv extends Table {
   Set<Column> get primaryKey => {key};
 }
 
-@DriftDatabase(tables: [Trips, SettingsKv])
+/// FR110 / O1 — "rejected proposals are remembered for the trip so the same
+/// cluster is not re-proposed on every run." Local-only and outside canon
+/// (ARCH P10: candidates and proposals are never `trip.payload`, only the
+/// fact that one was rejected is worth keeping) — [proposalId] is a
+/// candidate or cluster-proposal id, opaque to this table.
+class RejectedProposals extends Table {
+  TextColumn get tripId => text()();
+  TextColumn get proposalId => text()();
+  DateTimeColumn get rejectedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {tripId, proposalId};
+}
+
+@DriftDatabase(tables: [Trips, SettingsKv, RejectedProposals])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
   AppDatabase.forTesting(super.connection);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(rejectedProposals);
+          }
+        },
+      );
 
   static QueryExecutor _openConnection() {
     return driftDatabase(name: 'plotlines');
@@ -104,6 +128,29 @@ class AppDatabase extends _$AppDatabase {
     return into(settingsKv).insertOnConflictUpdate(
       SettingsKvCompanion.insert(key: key, value: value),
     );
+  }
+
+  // --- FR110 / O1: rejected proposals ------------------------------------
+
+  Future<void> rejectProposal({required String tripId, required String proposalId}) {
+    return into(rejectedProposals).insertOnConflictUpdate(RejectedProposalsCompanion.insert(
+      tripId: tripId,
+      proposalId: proposalId,
+      rejectedAt: DateTime.now(),
+    ));
+  }
+
+  /// Undoes a rejection — N4a's "undoable within the session" applies to the
+  /// review surface this table backs, even though that surface is [P1].
+  Future<void> unrejectProposal({required String tripId, required String proposalId}) {
+    return (delete(rejectedProposals)
+          ..where((r) => r.tripId.equals(tripId) & r.proposalId.equals(proposalId)))
+        .go();
+  }
+
+  Future<Set<String>> rejectedProposalIds(String tripId) async {
+    final rows = await (select(rejectedProposals)..where((r) => r.tripId.equals(tripId))).get();
+    return rows.map((r) => r.proposalId).toSet();
   }
 }
 

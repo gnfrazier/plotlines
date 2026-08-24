@@ -19,6 +19,72 @@ class SidecarStatus {
   final int? port;
 }
 
+/// One capability's readiness, mirroring `/health`'s per-capability entry
+/// (ARCH §8.3, PRD FR121). `progress`/`etaS` are only ever present while
+/// [ready] is false and the capability is actively loading — a settled
+/// capability (ready, or failed) carries neither.
+class CapabilityStatus {
+  const CapabilityStatus({required this.ready, this.reason, this.progress, this.etaS});
+
+  final bool ready;
+  final String? reason;
+  final double? progress;
+  final double? etaS;
+
+  /// Failed *and* stopped trying — distinct from `!ready`, which is also
+  /// true while still loading. A disabled control reads this to decide
+  /// between an honest wait and an honest failure (FR121: never silent).
+  bool get failed => !ready && (reason?.startsWith('failed:') ?? false);
+
+  factory CapabilityStatus.fromJson(Map<String, dynamic> json) => CapabilityStatus(
+        ready: json['ready'] as bool? ?? false,
+        reason: json['reason'] as String?,
+        progress: (json['progress'] as num?)?.toDouble(),
+        etaS: (json['eta_s'] as num?)?.toDouble(),
+      );
+
+  /// A human-readable, honest line for a disabled control — never a bare
+  /// spinner (ARCH §8.3's "terrain data loading — routing available in
+  /// about 3 minutes").
+  String describe(String capabilityLabel) {
+    if (ready) return '$capabilityLabel ready';
+    final r = reason ?? 'not ready';
+    if (etaS == null) return '$capabilityLabel unavailable — $r';
+    final mins = (etaS! / 60).ceil();
+    final wait = mins <= 1 ? 'about a minute' : 'about $mins minutes';
+    return '$capabilityLabel loading — available in $wait';
+  }
+}
+
+/// Snapshot of `/health`'s `capabilities` object. `tiles` and `layers` are
+/// ready as soon as the sidecar answers at all in this codebase (B1);
+/// `routing` and `elevation` settle independently and later.
+class Capabilities {
+  const Capabilities({
+    required this.tiles,
+    required this.layers,
+    required this.routing,
+    required this.elevation,
+  });
+
+  final CapabilityStatus tiles;
+  final CapabilityStatus layers;
+  final CapabilityStatus routing;
+  final CapabilityStatus elevation;
+
+  /// Both routing and elevation have stopped changing (ready, or failed) —
+  /// the point past which polling for progress no longer serves the UI.
+  bool get settled =>
+      (routing.ready || routing.failed) && (elevation.ready || elevation.failed);
+
+  factory Capabilities.fromJson(Map<String, dynamic> json) => Capabilities(
+        tiles: CapabilityStatus.fromJson(json['tiles'] as Map<String, dynamic>),
+        layers: CapabilityStatus.fromJson(json['layers'] as Map<String, dynamic>),
+        routing: CapabilityStatus.fromJson(json['routing'] as Map<String, dynamic>),
+        elevation: CapabilityStatus.fromJson(json['elevation'] as Map<String, dynamic>),
+      );
+}
+
 /// The client's own build version, read from `packaging/version.lock` (ARCH
 /// §12.1, MVP doc §2.2) rather than hand-kept — a hand-kept constant is
 /// exactly the "two artifacts quietly diverge" failure A8 exists to close,
@@ -76,6 +142,8 @@ class SidecarManager extends ChangeNotifier {
   SidecarStatus _status = const SidecarStatus(SidecarState.starting);
   bool _restarted = false;
   bool _stoppingDeliberately = false;
+  Capabilities? _capabilities;
+  Timer? _capabilityPollTimer;
 
   SidecarStatus get status => _status;
   int? get port => _port;
@@ -85,6 +153,15 @@ class SidecarManager extends ChangeNotifier {
   /// `--version` check (K10's About surface / M12's `/health` comparison).
   /// Null until a check has actually passed.
   String? get confirmedVersion => _confirmedVersion;
+
+  /// Last-polled per-capability readiness (ARCH §8.3, PRD FR121). Null until
+  /// the first successful `/health` response — which is also when [status]
+  /// first reaches [SidecarState.ready], so a screen gated by `SidecarGate`
+  /// can assume this is non-null. Kept live by a background poll (separate
+  /// from the startup poll in [_pollUntilReady]) until [Capabilities.settled],
+  /// so a screen like New Route can show routing/elevation loading in real
+  /// time without the app being blocked on it (B1's whole point).
+  Capabilities? get capabilities => _capabilities;
 
   void _set(SidecarState state, {String detail = ''}) {
     _status = SidecarStatus(state, detail: detail, port: _port);
@@ -175,6 +252,11 @@ class SidecarManager extends ChangeNotifier {
     await _pollUntilReady();
   }
 
+  /// Waits only for the sidecar process to come up and answer `/health` —
+  /// not for full readiness. Tiles and layer/POI capabilities are ready the
+  /// instant the process responds (ARCH B1/§8.3, PRD FR121), so that is what
+  /// unblocks [SidecarGate] now; routing and elevation settle later and are
+  /// tracked by [_watchCapabilities] without holding up the app.
   Future<void> _pollUntilReady() async {
     final deadline = DateTime.now().add(const Duration(seconds: 60));
     var attempt = 0;
@@ -184,8 +266,7 @@ class SidecarManager extends ChangeNotifier {
       final waitDetail = attempt < 6
           ? 'starting up'
           : attempt < 15
-              ? 'still loading the route graph — this can take a while on '
-                  'first launch'
+              ? 'still starting — this can take a while on first launch'
               : 'taking longer than expected — still working, not stuck';
       _set(SidecarState.starting, detail: waitDetail);
       try {
@@ -194,8 +275,11 @@ class SidecarManager extends ChangeNotifier {
             .timeout(const Duration(seconds: 2));
         if (resp.statusCode == 200) {
           final body = jsonDecode(resp.body) as Map<String, dynamic>;
-          if (body['ready'] == true) {
+          final caps = Capabilities.fromJson(body['capabilities'] as Map<String, dynamic>);
+          _capabilities = caps;
+          if (caps.tiles.ready && caps.layers.ready) {
             _set(SidecarState.ready, detail: 'ready');
+            _watchCapabilities();
             return;
           }
         }
@@ -207,7 +291,32 @@ class SidecarManager extends ChangeNotifier {
     _set(SidecarState.failed, detail: 'health-check timeout');
   }
 
+  /// Keeps polling `/health` after the app has unblocked, purely to track
+  /// routing/elevation settling (ARCH §8.3) — `SidecarGate` has already let
+  /// the Author in by this point, so a poll failure here degrades a single
+  /// screen's progress display, never the whole app. Stops once both
+  /// capabilities have settled, since nothing left would ever change.
+  void _watchCapabilities() {
+    _capabilityPollTimer?.cancel();
+    _capabilityPollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      try {
+        final resp = await http
+            .get(Uri.parse('$baseUrl/health'))
+            .timeout(const Duration(seconds: 2));
+        if (resp.statusCode != 200) return;
+        final body = jsonDecode(resp.body) as Map<String, dynamic>;
+        _capabilities = Capabilities.fromJson(body['capabilities'] as Map<String, dynamic>);
+        notifyListeners();
+        if (_capabilities!.settled) timer.cancel();
+      } catch (_) {
+        // Sidecar may have died mid-poll — `_onExit` handles that
+        // transition; this loop just stops making noise until it's stopped.
+      }
+    });
+  }
+
   void _onExit(int code) {
+    _capabilityPollTimer?.cancel();
     if (_stoppingDeliberately) {
       _set(SidecarState.stopped, detail: 'stopped');
       return;
@@ -232,6 +341,7 @@ class SidecarManager extends ChangeNotifier {
   /// this Linux dev machine regardless). `taskkill` is the interim fallback.
   Future<void> stop() async {
     _stoppingDeliberately = true;
+    _capabilityPollTimer?.cancel();
     final proc = _process;
     if (proc == null) return;
     if (Platform.isWindows) {

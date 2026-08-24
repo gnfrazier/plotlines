@@ -4,6 +4,7 @@
 //   "No route possible"            -> ConflictBanner
 //   "No data for area"             -> NoDataBanner
 //   "External provider unreachable"-> ProviderUnreachableBanner
+//   "Capability warming"           -> CapabilityWarmingNotice
 //   "Export failed"                -> showExportFailedDialog
 //
 // The rule tying all four together (§4): a failure in an optional
@@ -13,6 +14,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
+
+import '../../data/sidecar_manager.dart' show CapabilityStatus;
 
 /// FR9 / A6 — named conflict + nearest relaxations, each stating its
 /// trade-off, applyable in one action. Never a raw "no route found".
@@ -182,6 +185,36 @@ class ProviderUnreachableBanner extends StatelessWidget {
           Flexible(child: Text(detail, style: PlotTypography.small(c.textSecondary))),
         ],
       ),
+    );
+  }
+}
+
+/// "Capability warming" (M13, FR121) — the reason a control is disabled
+/// while its capability (usually routing, waiting on elevation) is still
+/// loading. Never a bare spinner or a silent no-op on click: names what's
+/// loading and, once the sidecar has an estimate, how long. A [status] that
+/// has settled failed (no `eta_s`, a `failed:` reason) reads as an honest
+/// failure rather than a wait.
+class CapabilityWarmingNotice extends StatelessWidget {
+  const CapabilityWarmingNotice({super.key, required this.capabilityLabel, required this.status});
+
+  final String capabilityLabel;
+  final CapabilityStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final failed = status.failed;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(failed ? Icons.error_outline : Icons.hourglass_top,
+            size: 15, color: failed ? c.danger : c.textMuted),
+        const SizedBox(width: PlotSpacing.s2),
+        Flexible(
+          child: Text(status.describe(capabilityLabel), style: PlotTypography.small(c.textSecondary)),
+        ),
+      ],
     );
   }
 }

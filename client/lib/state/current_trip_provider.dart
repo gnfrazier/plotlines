@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/domain.dart';
+import '../domain/promote.dart' as domain_promote show promoteAnchor;
 import 'providers.dart';
 import 'trip_authoring_meta_provider.dart';
 import 'trip_bbox_provider.dart';
@@ -165,18 +166,52 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     _replaceDay(day.copyWith(segments: segments));
   }
 
-  /// FR99 — an Author promoting a candidate directly off the curation map.
-  /// Deliberately a day-scoped node (`Day.nodes`, the same field a rest
-  /// day's POIs use) rather than a new anchor type: the trip payload has no
-  /// Anchor/role model yet (that migration is ARCH B3, tracked separately),
-  /// and `Node.poiType` already exists to carry "the Author-set type this
-  /// node counts as" for exactly this case. Promotion is the only write
-  /// path from a candidate into the trip — nothing else in curation ever
-  /// touches `state` (ARCH P10).
+  /// FR99 — an Author promoting a candidate directly off the curation map's
+  /// `layers_tab.dart`. Deliberately still a day-scoped node (`Day.nodes`,
+  /// the same field a rest day's POIs use), not [promoteAnchor]: the
+  /// Anchor/role model now exists (FR106/FR110, Story O1), but wiring
+  /// `layers_tab.dart`'s candidate map onto it is that story's UI half and
+  /// out of this call site's scope (ARCH B3's node→anchor migration is
+  /// tracked separately from O1's new-model addition). `Node.poiType`
+  /// carries "the Author-set type this node counts as" for exactly this
+  /// case in the meantime.
   void promoteCandidate(String dayId, Node node) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     _replaceDay(day.copyWith(nodes: [...day.nodes, node]));
   }
+
+  /// FR106, FR110 / O1 — the promotion interaction: a candidate, a cluster
+  /// proposal, or a hand-placed [coord] becomes one [Anchor] carrying
+  /// [roles], trip-scoped (`Trip.anchors`) rather than day- or
+  /// segment-scoped. Throws [DuplicatePromotionException] rather than
+  /// creating a second anchor when [provenance] names a source already
+  /// promoted (FR106's "one anchor per place") — the caller should route the
+  /// Author to editing that anchor instead of catching this.
+  Anchor promoteAnchor({
+    required Coord coord,
+    required List<Role> roles,
+    String? title,
+    AnchorProvenance? provenance,
+  }) {
+    final anchor = domain_promote.promoteAnchor(
+      existingAnchors: state.anchors,
+      id: _uuid.v4(),
+      coord: coord,
+      roles: roles,
+      title: title,
+      provenance: provenance,
+    );
+    state = state.copyWith(anchors: [...state.anchors, anchor], updatedAt: _nowIso());
+    return anchor;
+  }
+
+  /// FR139's carve-out applies here without a prompt: an anchor that holds
+  /// no authored content and is not yet attached to anything is ordinary
+  /// working-state tidying, not the destructive case that rule guards.
+  void removeAnchor(String anchorId) => state = state.copyWith(
+        anchors: state.anchors.where((a) => a.id != anchorId).toList(),
+        updatedAt: _nowIso(),
+      );
 
   /// N1's bbox shrink prompt (`trip_bbox_shrink_prompt.dart`'s
   /// `onRemoveAnchors`) — an Author explicitly choosing to drop the anchors

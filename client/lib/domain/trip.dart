@@ -2,12 +2,18 @@
 /// top-level trip payload object itself.
 library;
 
+import 'anchor.dart';
 import 'day.dart';
 import 'json_utils.dart';
 import 'route_metrics.dart';
 import 'weight_profile.dart';
 
-const String tripSchemaVersion = '1.1.0';
+// Bumped to 1.2.0 by FR106/FR110 (Story O1), which added `anchor`/`role`
+// and the trip-level `anchors` array — additive: an absent `anchors` list
+// still parses. Bumped to 1.3.0 by FR107 (Story O2), which added
+// `role.coord` — additive again: a role with no `coord` still parses, and
+// behaves exactly as a single point (O2's AC).
+const String tripSchemaVersion = '1.3.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {
@@ -118,6 +124,7 @@ class Trip {
     this.defaultWeights,
     this.dayLimits = const {},
     this.days = const [],
+    this.anchors = const [],
     this.metrics,
     this.provenance,
   });
@@ -134,6 +141,11 @@ class Trip {
   /// day's or segment's own `weights` overrides.
   final Map<String, DayLimit> dayLimits;
   final List<Day> days;
+
+  /// FR106, FR110 / O1 — the promoted set, trip-scoped rather than day- or
+  /// segment-scoped: an anchor can exist unattached to any day (N4a's
+  /// "anchors view" — ordinary working state, not an error).
+  final List<Anchor> anchors;
 
   /// FR31 / D1 — trip totals, derived from the days and stored so G2a's
   /// list surface can show them without re-deriving.
@@ -159,6 +171,7 @@ class Trip {
       d.done();
     }
     final days = f.takeList('days', Day.fromJson);
+    final anchors = f.takeList('anchors', Anchor.fromJson);
     final metrics = f.takeObject('metrics', RollUp.fromJson);
     final provenance = f.takeObject('provenance', Provenance.fromJson);
     f.done();
@@ -172,6 +185,7 @@ class Trip {
       defaultWeights: defaultWeights,
       dayLimits: dayLimits,
       days: days,
+      anchors: anchors,
       metrics: metrics,
       provenance: provenance,
     );
@@ -197,6 +211,7 @@ class Trip {
     // empty rather than letting `pruneJson` drop it like every other list here —
     // see the class doc comment for the payload.py disagreement this guards against.
     out['days'] = days.map((d) => d.toJson()).toList();
+    if (anchors.isNotEmpty) out['anchors'] = anchors.map((a) => a.toJson()).toList();
     return out;
   }
 
@@ -214,6 +229,7 @@ class Trip {
     WeightProfile? defaultWeights,
     Map<String, DayLimit>? dayLimits,
     List<Day>? days,
+    List<Anchor>? anchors,
     RollUp? metrics,
     Provenance? provenance,
   }) =>
@@ -227,6 +243,7 @@ class Trip {
         defaultWeights: defaultWeights ?? this.defaultWeights,
         dayLimits: dayLimits ?? this.dayLimits,
         days: days ?? this.days,
+        anchors: anchors ?? this.anchors,
         metrics: metrics ?? this.metrics,
         provenance: provenance ?? this.provenance,
       );
