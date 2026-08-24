@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../domain/domain.dart';
 import 'providers.dart';
 import 'trip_authoring_meta_provider.dart';
+import 'trip_bbox_provider.dart';
 import 'trip_library_provider.dart';
 
 const _uuid = Uuid();
@@ -162,6 +163,42 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         if (s.id == segmentId) s.copyWith(nodes: [...s.nodes, node]) else s,
     ];
     _replaceDay(day.copyWith(segments: segments));
+  }
+
+  /// FR99 — an Author promoting a candidate directly off the curation map.
+  /// Deliberately a day-scoped node (`Day.nodes`, the same field a rest
+  /// day's POIs use) rather than a new anchor type: the trip payload has no
+  /// Anchor/role model yet (that migration is ARCH B3, tracked separately),
+  /// and `Node.poiType` already exists to carry "the Author-set type this
+  /// node counts as" for exactly this case. Promotion is the only write
+  /// path from a candidate into the trip — nothing else in curation ever
+  /// touches `state` (ARCH P10).
+  void promoteCandidate(String dayId, Node node) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    _replaceDay(day.copyWith(nodes: [...day.nodes, node]));
+  }
+
+  /// N1's bbox shrink prompt (`trip_bbox_shrink_prompt.dart`'s
+  /// `onRemoveAnchors`) — an Author explicitly choosing to drop the anchors
+  /// a shrink would leave outside the trip's extent. An authored, visible
+  /// act, never a side effect of resizing (that file's own doc comment);
+  /// this is what actually carries it out, across every day's and
+  /// segment's nodes.
+  void removeNodesById(Set<String> ids) {
+    if (ids.isEmpty) return;
+    state = state.copyWith(
+      updatedAt: _nowIso(),
+      days: [
+        for (final day in state.days)
+          day.copyWith(
+            nodes: [for (final n in day.nodes) if (!ids.contains(n.id)) n],
+            segments: [
+              for (final s in day.segments)
+                s.copyWith(nodes: [for (final n in s.nodes) if (!ids.contains(n.id)) n]),
+            ],
+          ),
+      ],
+    );
   }
 
   void replaceNodeInSegment(String dayId, String segmentId, Node node) {
@@ -387,8 +424,12 @@ class TripPersistence {
     _ref.read(currentTripProvider.notifier).open(trip);
     // Party size / primary modes are session-only (trip_authoring_meta_provider.dart's
     // doc comment) — a reopened trip starts without whatever was set for the
-    // trip open before it, rather than inheriting a stale value.
+    // trip open before it, rather than inheriting a stale value. The trip
+    // bbox is the same accepted limitation (trip_bbox_provider.dart) — a
+    // reopened trip needs the "Trip area" action (trip_shell_screen.dart) to
+    // redraw it before anything bbox-scoped can run again.
     _ref.read(tripAuthoringMetaProvider.notifier).reset();
+    _ref.read(tripBboxProvider.notifier).reset();
   }
 
   Future<void> delete(String id) async {

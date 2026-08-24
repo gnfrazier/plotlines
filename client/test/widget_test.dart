@@ -36,7 +36,12 @@ void main() {
         child: const PlotlinesApp(),
       ),
     );
-    await tester.pump();
+    // A10's cold-start home-region preview embeds a real flutter_map, whose
+    // vector_map_tiles ticker (see trip_shell_screen_test.dart's note on the
+    // same ticker) needs several short pumps to settle rather than one.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     expect(find.byType(MaterialApp), findsOneWidget);
   });
 }

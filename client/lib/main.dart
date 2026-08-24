@@ -5,6 +5,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import 'presentation/screens/new_route_screen.dart';
 import 'presentation/screens/settings_screen.dart';
+import 'presentation/screens/trip_area_screen.dart';
 import 'presentation/screens/trip_library_screen.dart';
 import 'presentation/screens/trip_shell_screen.dart';
 import 'presentation/widgets/sidecar_gate.dart';
@@ -19,7 +20,27 @@ final _router = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (context, state) => const TripLibraryScreen()),
-    GoRoute(path: '/new', builder: (context, state) => const NewRouteScreen()),
+    // N1 (FR120) — step 2 of trip initiation: draw the trip bbox before
+    // New Route's setup form.
+    GoRoute(
+      path: '/new-trip-area',
+      builder: (context, state) => TripAreaScreen(
+        isCreation: true,
+        initialCenter: state.extra as List<double>?,
+      ),
+    ),
+    // N1 (FR120) — the reachable path for revising an existing trip's
+    // extent (trip_shell_screen.dart's app bar action), distinct from the
+    // route above: it frames on the current bbox, not a fresh location.
+    GoRoute(
+      path: '/trip-area',
+      builder: (context, state) => const TripAreaScreen(isCreation: false),
+    ),
+    GoRoute(
+      path: '/new',
+      builder: (context, state) =>
+          NewRouteScreen(initialCenter: state.extra as List<double>?),
+    ),
     // Wireframe screens 01/02/03/04 — one persistent tabbed shell per trip,
     // not four separate routes (see trip_shell_screen.dart).
     GoRoute(path: '/plan', builder: (context, state) => const TripShellScreen()),

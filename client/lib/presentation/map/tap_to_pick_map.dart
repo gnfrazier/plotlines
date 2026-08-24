@@ -26,7 +26,11 @@ typedef LatLonPoint = List<double>; // [lon, lat]
 /// both are pure/static for a given theme name, and re-parsing a few
 /// hundred KB of style rules on every map widget rebuild would be wasted
 /// work (SPIKE-14 timed theme parse separately for exactly this reason).
-class _MapAssets {
+///
+/// Public (not `_`-private) so `trip_area_map.dart` shares the same
+/// once-per-run cache and "no tiles here" fallback rather than duplicating
+/// this loading logic for N1's bbox-drawing map.
+class MapTileAssets {
   static final Map<String, Future<Theme?>> _themes = {};
   static Future<DirectoryVectorTileProvider?>? _provider;
 
@@ -71,6 +75,7 @@ class TapToPickMap extends StatelessWidget {
     this.polyline = const [],
     this.center,
     this.initialZoom = 13,
+    this.outline,
   });
 
   final List<LatLonPoint> points;
@@ -79,6 +84,11 @@ class TapToPickMap extends StatelessWidget {
   final LatLonPoint? center;
   final double initialZoom;
 
+  /// A static bbox outline to draw on the map (A10's shipped home region;
+  /// also reusable by N1's trip bbox once that lands). Border only, no fill
+  /// — this is a backdrop, not an editable shape.
+  final List<LatLonPoint>? outline;
+
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
@@ -86,7 +96,7 @@ class TapToPickMap extends StatelessWidget {
     final startCenter = center ?? (points.isNotEmpty ? points.first : const [-105.2705, 40.0150]);
 
     return FutureBuilder(
-      future: Future.wait([_MapAssets.theme(isDark ? 'dark' : 'light'), _MapAssets.provider()]),
+      future: Future.wait([MapTileAssets.theme(isDark ? 'dark' : 'light'), MapTileAssets.provider()]),
       builder: (context, snapshot) {
         final results = snapshot.data;
         final vectorTheme = results?[0] as Theme?;
@@ -111,7 +121,16 @@ class TapToPickMap extends StatelessWidget {
                     maximumZoom: 15,
                   )
                 else
-                  _Graticule(color: c.border),
+                  MapGraticule(color: c.border),
+                if (outline != null && outline!.length >= 3)
+                  PolygonLayer(polygons: [
+                    Polygon(
+                      points: [for (final p in outline!) ll.LatLng(p[1], p[0])],
+                      color: c.primary.withValues(alpha: 0.05),
+                      borderColor: c.primary,
+                      borderStrokeWidth: 2,
+                    ),
+                  ]),
                 if (polyline.length >= 2)
                   PolylineLayer(polylines: [
                     Polyline(
@@ -153,8 +172,8 @@ class TapToPickMap extends StatelessWidget {
 /// A plain lat/lon grid so panning/zooming reads as *a map* on the rare
 /// path with no tile coverage (outside Boulder, or the dev tile tree isn't
 /// on disk), while the load is still in flight, or as an honest fallback.
-class _Graticule extends StatelessWidget {
-  const _Graticule({required this.color});
+class MapGraticule extends StatelessWidget {
+  const MapGraticule({super.key, required this.color});
   final Color color;
 
   @override

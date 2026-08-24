@@ -12,6 +12,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../domain/domain.dart';
@@ -19,6 +20,7 @@ import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
 import 'plan_tabs/content_tab.dart';
 import 'plan_tabs/export_tab.dart';
+import 'plan_tabs/layers_tab.dart';
 import 'plan_tabs/logistics_tab.dart';
 import 'plan_tabs/route_tab.dart';
 
@@ -30,7 +32,7 @@ class TripShellScreen extends ConsumerStatefulWidget {
 }
 
 class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTickerProviderStateMixin {
-  late final _tabController = TabController(length: 4, vsync: this)..addListener(_handleTabChange);
+  late final _tabController = TabController(length: 5, vsync: this)..addListener(_handleTabChange);
   String? _activeDayId;
   int _activeTabIndex = 0;
 
@@ -69,6 +71,14 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
           child: Text(trip.title, style: PlotTypography.h2(c.textPrimary).copyWith(fontSize: 20)),
         ),
         actions: [
+          // N1 (FR120) — "revisable throughout authoring," and FR142(b)'s
+          // reachability rule: the bbox needs a named path back to it, not
+          // just the one at trip creation.
+          IconButton(
+            tooltip: 'Trip area',
+            onPressed: () => context.push('/trip-area'),
+            icon: const Icon(Icons.crop_free, size: 18),
+          ),
           TextButton.icon(
             onPressed: () async {
               await ref.read(tripPersistenceProvider).save();
@@ -87,6 +97,7 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
           tabs: const [
             Tab(text: 'ROUTE'),
             Tab(text: 'LOGISTICS'),
+            Tab(text: 'LAYERS'),
             Tab(text: 'CONTENT'),
             Tab(text: 'EXPORT'),
           ],
@@ -114,8 +125,12 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
               },
             ),
           ),
-          _LazyTab(active: _activeTabIndex == 2, builder: (_) => ContentTab(trip: trip)),
-          _LazyTab(active: _activeTabIndex == 3, builder: (_) => ExportTab(trip: trip)),
+          _LazyTab(
+            active: _activeTabIndex == 2,
+            builder: (_) => LayersTab(trip: trip, activeDayId: _activeDayId),
+          ),
+          _LazyTab(active: _activeTabIndex == 3, builder: (_) => ContentTab(trip: trip)),
+          _LazyTab(active: _activeTabIndex == 4, builder: (_) => ExportTab(trip: trip)),
         ],
       ),
     );

@@ -6,6 +6,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/app_database.dart';
+import '../data/curation_client.dart';
 import '../data/routing_client.dart';
 import '../data/sidecar_manager.dart';
 
@@ -27,6 +28,15 @@ final sidecarManagerProvider = ChangeNotifierProvider<SidecarManager>((ref) {
 final routingClientProvider = Provider<RoutingClient>((ref) {
   final manager = ref.watch(sidecarManagerProvider);
   return RoutingClient(manager.baseUrl);
+});
+
+/// FR97/FR98/FR99 (Story N3) — `CurationClient` is deliberately separate
+/// from [routingClientProvider] (ARCH §9.1): curation needs layers ready,
+/// routing needs elevation ready, and one client would hide that distinction
+/// at the call site.
+final curationClientProvider = Provider<CurationClient>((ref) {
+  final manager = ref.watch(sidecarManagerProvider);
+  return CurationClient(manager.baseUrl);
 });
 
 /// One drift connection for the app's lifetime (ARCH §9.2 — desktop storage).

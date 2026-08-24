@@ -6,10 +6,11 @@
 // the merged Preferences & About screen (settings_screen.dart) per the
 // wireframe's screen 06, so this app bar only routes to Settings now.
 //
-// Also owns A10's first-run prompt (PRD FR96): an Author with nothing
-// downloaded is asked for a starting location before they can generate
-// anything, so it belongs on the screen they land on before any generation
-// screen, not buried inside New Route.
+// Also owns A10's cold-start map (PRD FR96, Author Flows MVP §Flow 1): with
+// no trips yet, this screen shows the shipped Buncombe County home region
+// rather than a blank/iconic placeholder — a constant, never fetched — and
+// "New trip" prompts for a location every time (prefilled with the
+// last-used value), never gated behind a one-time first-run dialog.
 library;
 
 import 'package:flutter/material.dart';
@@ -18,12 +19,16 @@ import 'package:go_router/go_router.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../data/app_database.dart';
+import '../../domain/home_region.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
-import '../../state/settings_provider.dart';
 import '../../state/trip_authoring_meta_provider.dart';
+import '../../state/trip_bbox_provider.dart';
 import '../../state/trip_library_provider.dart';
-import '../widgets/first_run_dialog.dart';
+import '../map/tap_to_pick_map.dart';
+import '../widgets/trip_location_prompt.dart';
+
+const String _lastTripLocationKey = 'last_trip_location';
 
 class TripLibraryScreen extends ConsumerStatefulWidget {
   const TripLibraryScreen({super.key});
@@ -47,7 +52,6 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final tripsAsync = ref.watch(tripLibraryProvider);
-    final startingLocation = ref.watch(startingLocationSetProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -62,90 +66,90 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final ready = await _ensureStartingLocation(context, ref);
-          if (!ready || !context.mounted) return;
-          ref.read(currentTripProvider.notifier).reset();
-          ref.read(tripAuthoringMetaProvider.notifier).reset();
-          context.push('/new');
-        },
+        onPressed: () => _startNewTrip(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('New trip'),
       ),
-      body: startingLocation.when(
-        loading: () => const SizedBox.shrink(),
-        error: (_, _) => const SizedBox.shrink(),
-        data: (location) => tripsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, _) => Center(
-            child: Text('Couldn\'t open the local trip library: $err',
-                style: PlotTypography.body(c.danger)),
-          ),
-          data: (trips) => trips.isEmpty
-              ? _EmptyLibrary(hasLocation: location != null)
-              : Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          PlotSpacing.s5, PlotSpacing.s4, PlotSpacing.s5, PlotSpacing.s2),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              decoration: const InputDecoration(
-                                hintText: 'Search trips',
-                                prefixIcon: Icon(Icons.search, size: 18),
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
-                            ),
-                          ),
-                          const SizedBox(width: PlotSpacing.s3),
-                          SegmentedButton<bool>(
-                            segments: const [
-                              ButtonSegment(value: true, icon: Icon(Icons.grid_view, size: 16), label: Text('GRID')),
-                              ButtonSegment(value: false, icon: Icon(Icons.view_list, size: 16), label: Text('LIST')),
-                            ],
-                            selected: {_grid},
-                            onSelectionChanged: (s) => setState(() => _grid = s.first),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: _TripCollection(
-                        trips: _query.isEmpty
-                            ? trips
-                            : trips.where((t) => t.title.toLowerCase().contains(_query)).toList(),
-                        grid: _grid,
-                      ),
-                    ),
-                  ],
-                ),
+      body: tripsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(
+          child: Text('Couldn\'t open the local trip library: $err',
+              style: PlotTypography.body(c.danger)),
         ),
+        data: (trips) => trips.isEmpty
+            ? const _EmptyLibrary()
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        PlotSpacing.s5, PlotSpacing.s4, PlotSpacing.s5, PlotSpacing.s2),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: const InputDecoration(
+                              hintText: 'Search trips',
+                              prefixIcon: Icon(Icons.search, size: 18),
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                          ),
+                        ),
+                        const SizedBox(width: PlotSpacing.s3),
+                        SegmentedButton<bool>(
+                          segments: const [
+                            ButtonSegment(value: true, icon: Icon(Icons.grid_view, size: 16), label: Text('GRID')),
+                            ButtonSegment(value: false, icon: Icon(Icons.view_list, size: 16), label: Text('LIST')),
+                          ],
+                          selected: {_grid},
+                          onSelectionChanged: (s) => setState(() => _grid = s.first),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: _TripCollection(
+                      trips: _query.isEmpty
+                          ? trips
+                          : trips.where((t) => t.title.toLowerCase().contains(_query)).toList(),
+                      grid: _grid,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
 
-  /// Returns true once a starting location is set (A10) — prompting first if
-  /// this is a brand-new install.
-  Future<bool> _ensureStartingLocation(BuildContext context, WidgetRef ref) async {
-    final existing = await ref.read(appDatabaseProvider).getSetting('starting_location');
-    if (existing != null) return true;
-    if (!context.mounted) return false;
-    final chosen = await showFirstRunLocationDialog(context);
-    if (chosen == null) return false;
-    await ref.read(appDatabaseProvider).setSetting('starting_location', chosen);
-    ref.invalidate(startingLocationSetProvider);
-    return true;
+  /// A10 — prompts for a location every time a trip starts, prefilled with
+  /// whatever was entered last time. Never gates trip creation on having
+  /// asked before, and never triggers a download: the chosen location only
+  /// centers the map the Author lands on next.
+  Future<void> _startNewTrip(BuildContext context, WidgetRef ref) async {
+    final db = ref.read(appDatabaseProvider);
+    final lastUsed = await db.getSetting(_lastTripLocationKey);
+    if (!context.mounted) return;
+    final choice = await showTripLocationPrompt(
+      context,
+      prefill: lastUsed ?? '',
+      geocode: ref.read(routingClientProvider).geocode,
+    );
+    if (choice == null) return; // Author cancelled trip creation entirely.
+    await db.setSetting(_lastTripLocationKey, choice.label);
+    if (!context.mounted) return;
+    ref.read(currentTripProvider.notifier).reset();
+    ref.read(tripAuthoringMetaProvider.notifier).reset();
+    // N1 (FR120) — the location only centers the map; the Author still has
+    // to draw the trip's own bbox before New Route's setup form.
+    ref.read(tripBboxProvider.notifier).reset();
+    context.push('/new-trip-area', extra: choice.center);
   }
 }
 
 class _EmptyLibrary extends StatelessWidget {
-  const _EmptyLibrary({required this.hasLocation});
-  final bool hasLocation;
+  const _EmptyLibrary();
 
   @override
   Widget build(BuildContext context) {
@@ -156,12 +160,24 @@ class _EmptyLibrary extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.map_outlined, size: 48, color: c.textMuted),
+            ClipRRect(
+              borderRadius: PlotRadii.controlShape,
+              child: SizedBox(
+                width: 420,
+                height: 260,
+                child: TapToPickMap(
+                  center: HomeRegion.center,
+                  initialZoom: HomeRegion.previewZoom,
+                  outline: HomeRegion.outline,
+                ),
+              ),
+            ),
             const SizedBox(height: PlotSpacing.s4),
             Text('No trips yet', style: PlotTypography.title(c.textPrimary)),
             const SizedBox(height: PlotSpacing.s2),
             Text(
-              'Start a new trip and generate your first themed route.',
+              '${HomeRegion.label} ships with the app so the map is never '
+              'blank — start a new trip to draw its own area.',
               textAlign: TextAlign.center,
               style: PlotTypography.body(c.textSecondary),
             ),

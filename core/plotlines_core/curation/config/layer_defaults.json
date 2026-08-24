@@ -1,0 +1,23 @@
+{
+  "_comment": "FR97 — layer defaults by (travel mode x day type). Data, not code: a sauna (leisure=sauna, taxonomy layer 'amenity') is excluded from a riding day because 'amenity' is not live on a 'route' day, and included on a rest day because 'amenity' joins the live set under 'rest'. Editing what's notable on a rest day is a config change here, never a code change. '_default' is used for a mode this file has no entry for.",
+  "_default": {
+    "route": ["sight", "historic", "natural"],
+    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
+  },
+  "cycling": {
+    "route": ["sight", "historic", "natural"],
+    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
+  },
+  "hiking": {
+    "route": ["sight", "historic", "natural"],
+    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
+  },
+  "paddling": {
+    "route": ["sight", "natural"],
+    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
+  },
+  "transit": {
+    "route": ["sight", "historic"],
+    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
+  }
+}

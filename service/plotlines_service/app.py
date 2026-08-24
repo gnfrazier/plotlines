@@ -18,6 +18,10 @@ import osmnx as ox
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from plotlines_core.curation.defaults import resolve_default_layers
+from plotlines_core.curation.notability import RawFeature, RULESET_VERSION, score_notability
+from plotlines_core.curation.providers import BBox, OsmLayerProvider
+from plotlines_core.curation.taxonomy import LAYERS
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph.loader import LoadedGraph, load_graphml, nearest_node
 from plotlines_core.routing.diagnose import diagnose
@@ -206,6 +210,27 @@ class DiagnoseRequest(BaseModel):
     bands: list[BandInput]
 
 
+class CandidateFeatureInput(BaseModel):
+    """A raw LayerProvider feature (ARCH §14.2) awaiting notability scoring.
+    Extraction itself (bbox -> raw features, e.g. via Overpass) is a
+    LayerProvider concern outside this endpoint's contract; this scores
+    whatever features the caller already holds."""
+
+    id: str
+    coord: list[float] = Field(min_length=2, max_length=2)
+    tags: dict[str, str] = Field(default_factory=dict)
+    area_m2: float | None = None
+
+
+class CandidatesScoreRequest(BaseModel):
+    """FR98 — score raw features against the live layer set. `live_layers`
+    is the Author's per-trip/per-day selection (FR97), not the full catalog:
+    a feature whose layer isn't live never becomes a candidate."""
+
+    live_layers: list[str]
+    features: list[CandidateFeatureInput] = Field(default_factory=list)
+
+
 class DiagnoseJob:
     def __init__(self) -> None:
         self.done = False
@@ -236,6 +261,78 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
                 if state.graph else None
             ),
         }
+
+    @app.get("/layers")
+    def layers(mode: str = "cycling", day_type: str = "route") -> dict:
+        """FR97 — the layer catalog plus this (mode, day type) pair's default
+        live set. Deliberately independent of `state.ready`: layer/POI
+        capability comes up ahead of elevation (ARCH B1/D34), and the
+        Curation Workspace must be usable while enrichment still runs."""
+        return {
+            "layers": sorted(LAYERS),
+            "default_live": sorted(resolve_default_layers(mode, day_type)),
+            "ruleset_version": RULESET_VERSION,
+        }
+
+    def _candidates_response(candidates: list) -> dict:
+        return {
+            "ruleset_version": RULESET_VERSION,
+            "candidates": [
+                {
+                    "id": c.id,
+                    "coord": list(c.coord),
+                    "layer": c.layer,
+                    "salience": c.salience,
+                    "role_affinity": c.role_affinity,
+                    "title": c.title,
+                    "tags": dict(c.tags),
+                }
+                for c in candidates
+            ],
+        }
+
+    @app.post("/candidates/score")
+    def candidates_score(req: CandidatesScoreRequest) -> dict:
+        """FR98/FR99 — notability-filter and salience-score raw features
+        against the caller's live layer selection. Unrecognized types and
+        types that fail their qualification gate are omitted, not scored
+        low (FR98(b))."""
+        try:
+            features = [
+                RawFeature(id=f.id, coord=(f.coord[0], f.coord[1]), tags=f.tags,
+                           area_m2=f.area_m2)
+                for f in req.features
+            ]
+        except IndexError as exc:
+            raise HTTPException(422, f"bad feature coord: {exc}") from exc
+        candidates = score_notability(features, live_layers=req.live_layers)
+        return _candidates_response(candidates)
+
+    # On `app.state`, not a closure-local, so a test can substitute a fake
+    # provider the same way `app.state.readiness` is substitutable — a live
+    # Overpass call has no place inside a unit test.
+    app.state.layer_provider = OsmLayerProvider()
+
+    @app.get("/candidates")
+    def candidates_extract(west: float, south: float, east: float, north: float,
+                           layers: str) -> dict:
+        """ARCH §8.2 endpoint surface, FR98/FR99 — extracts a bbox's raw
+        features via the built-in `OsmLayerProvider` (ARCH §14.2) and
+        notability-filters them in one call. `layers` is a comma-separated
+        live-layer set (FR97's Author selection); a live layer this catalog
+        doesn't recognize is simply never asked for.
+
+        Synchronous for MVP: ARCH §7.2 describes this as a job for a large
+        multi-day bbox, which this endpoint does not yet implement — a
+        future pass can make it async without changing what it returns.
+        """
+        live = {layer for layer in layers.split(",") if layer}
+        try:
+            features = app.state.layer_provider.fetch(BBox(west, south, east, north), live)
+        except Exception as exc:  # noqa: BLE001 — an honest "no data" beats a 500 (ARCH §7.2)
+            raise HTTPException(422, f"could not extract features for this area: {exc}") from exc
+        candidates = score_notability(features, live_layers=live)
+        return _candidates_response(candidates)
 
     def _resolve_profile(theme: str, weights: dict[str, float] | None) -> WeightProfile:
         if weights:

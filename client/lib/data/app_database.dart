@@ -30,8 +30,9 @@ class Trips extends Table {
 }
 
 /// App-level (not trip-level) preferences: units/theme/contrast (K5), the
-/// first-run starting-location flag (A10), and the sidecar's last-known
-/// paired version. One row per key; absent key = unset/default.
+/// last-used trip-creation location (A10 — prefill only, never a flag that
+/// gates trip creation), and the sidecar's last-known paired version. One
+/// row per key; absent key = unset/default.
 class SettingsKv extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();

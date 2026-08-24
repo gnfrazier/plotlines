@@ -75,11 +75,3 @@ class SettingsNotifier extends StateNotifier<DisplaySettings> {
 final settingsProvider =
     StateNotifierProvider<SettingsNotifier, DisplaySettings>(
         (ref) => SettingsNotifier(ref));
-
-/// A10 — set once, on first run. Absent means the Author has never been
-/// asked. `value` is a free-text description of what was chosen (city/zip/
-/// country, or the Buncombe County default) — the real region-download
-/// pipeline this should trigger does not exist yet (open question).
-final startingLocationSetProvider = FutureProvider<String?>((ref) {
-  return ref.read(appDatabaseProvider).getSetting('starting_location');
-});

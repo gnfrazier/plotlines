@@ -46,7 +46,13 @@ import '../widgets/error_states.dart';
 enum _StartMethod { blank, theme, import }
 
 class NewRouteScreen extends ConsumerStatefulWidget {
-  const NewRouteScreen({super.key});
+  const NewRouteScreen({super.key, this.initialCenter});
+
+  /// A10 — where the trip-creation location prompt resolved to, if the
+  /// Author entered one. Centers the map only; it is never treated as a
+  /// start point or any other kind of extent.
+  final List<double>? initialCenter;
+
   @override
   ConsumerState<NewRouteScreen> createState() => _NewRouteScreenState();
 }
@@ -116,6 +122,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                 TapToPickMap(
                   points: [?_start, ..._via, if (_shape != 'loop') ?_end],
                   onTap: (point) => setState(() => _handleTap(point)),
+                  center: widget.initialCenter,
                 ),
                 Positioned(
                   left: PlotSpacing.s4,

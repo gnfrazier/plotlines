@@ -18,6 +18,7 @@ export 'src/components/plot_dialog.dart';
 export 'src/components/plot_list_tile.dart';
 
 // Brand components
+export 'src/brand/candidate_marker.dart';
 export 'src/brand/node_marker.dart';
 export 'src/brand/cue_sheet_row.dart';
 export 'src/brand/elevation_profile.dart';
