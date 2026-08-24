@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#DB5A28;text-decoration:none}
+a:hover{color:#9A3412;text-decoration:underline}
+</style>
+</helmet>
+<div style="--app:#F4EFE4;--card:#FBF9F3;--sunk:#EBE3D4;--ink:#221F1A;--ink2:#544D42;--ink3:#8C8476;--line:#D9D0BE;--primary:#DB5A28;--success:#2C4A3B;--info:#3D6577;--warning:#B5852B;--danger:#9A3412;--serif:'Instrument Serif',Georgia,serif;--sans:'Archivo',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;font-family:var(--sans);background:#E6DFD0;color:var(--ink);padding:56px 64px 96px;min-height:100vh;">
+
+  <div style="max-width:1280px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--primary);">Plotlines · Author Flows (MVP) · Windows desktop</div>
+    <div style="font-family:var(--serif);font-size:56px;line-height:1;margin-top:10px;">Flow 5 — Multimodal day composition</div>
+    <p style="font-size:16px;line-height:1.65;color:var(--ink2);max-width:74ch;margin:18px 0 0;text-wrap:pretty;">A day is a sequence of passages, each with its own traversal mode — including driving, which is routed like anything else. Transitions between modes are authored objects with their own instructions. Day boundaries are set by distance and by the shape of the story, so a day can close on a resolution rather than a number, and hazards and cruxes are marked as they are found.</p>
+  </div>
+
+  <!-- 01 -->
+  <div style="margin-top:56px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">01</span>
+      <span style="font-size:19px;font-weight:700;">Duration and day types</span>
+      <span style="font-size:14px;color:var(--ink3);">Start, end, and rest days. Days can be inserted mid-trip, not only appended.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Edit</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span><div style="flex:1;"></div>
+      </div>
+      <div style="height:640px;display:flex;">
+        <div style="width:186px;border-right:1px solid var(--line);background:var(--app);padding:12px 0;">
+          <div style="padding:6px 16px 12px;font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Workspace</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Curate</div>
+          <div style="padding:10px 16px;background:var(--card);border-left:3px solid var(--primary);font-size:13.5px;font-weight:700;">Days</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Routing</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Narrative</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Outputs</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Roster</div>
+        </div>
+        <div style="flex:1;background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 26px 16px;border-bottom:1px solid var(--line);display:flex;align-items:flex-end;gap:22px;">
+            <div style="flex:1;">
+              <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Trip structure</div>
+              <div style="font-family:var(--serif);font-size:30px;line-height:1.05;margin-top:5px;">Six days, 22–27 September</div>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <div style="border:1px solid var(--line);border-radius:4px;padding:9px 13px;font-size:13px;display:flex;gap:9px;align-items:center;"><span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">FROM</span>22/09/2026</div>
+              <div style="border:1px solid var(--line);border-radius:4px;padding:9px 13px;font-size:13px;display:flex;gap:9px;align-items:center;"><span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">TO</span>27/09/2026</div>
+              <div style="border:1px solid var(--line);border-radius:4px;padding:9px 13px;font-size:13px;display:flex;gap:9px;align-items:center;"><span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">OR</span>6 days</div>
+            </div>
+          </div>
+          <div style="flex:1;padding:20px 26px;">
+            <div style="display:flex;gap:10px;">
+              <div style="flex:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+                <div style="padding:11px 13px;background:var(--sunk);border-bottom:1px solid var(--line);"><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);">DAY 1 · TUE</div><div style="font-size:13.5px;font-weight:700;margin-top:3px;">Start</div></div>
+                <div style="padding:12px 13px;font-family:var(--mono);font-size:10.5px;line-height:1.9;color:var(--ink2);">DRIVE + RIDE<br>52.4 MI<br>↑ 3,100 FT</div>
+              </div>
+              <div style="flex:1;border:1.5px solid var(--primary);border-radius:6px;overflow:hidden;">
+                <div style="padding:11px 13px;background:rgba(219,90,40,.08);border-bottom:1px solid var(--line);"><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);">DAY 2 · WED</div><div style="font-size:13.5px;font-weight:700;margin-top:3px;">Riding</div></div>
+                <div style="padding:12px 13px;font-family:var(--mono);font-size:10.5px;line-height:1.9;color:var(--ink2);">RIDE<br>94.0 MI<br>↑ 7,910 FT</div>
+              </div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+                <div style="padding:11px 13px;background:var(--sunk);border-bottom:1px solid var(--line);"><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);">DAY 3 · THU</div><div style="font-size:13.5px;font-weight:700;margin-top:3px;">Rest / zero</div></div>
+                <div style="padding:12px 13px;font-family:var(--mono);font-size:10.5px;line-height:1.9;color:var(--ink2);">NO ROUTE<br>1 AREA ANCHOR<br>2 EVENTS</div>
+              </div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+                <div style="padding:11px 13px;background:var(--sunk);border-bottom:1px solid var(--line);"><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);">DAY 4 · FRI</div><div style="font-size:13.5px;font-weight:700;margin-top:3px;">Paddling</div></div>
+                <div style="padding:12px 13px;font-family:var(--mono);font-size:10.5px;line-height:1.9;color:var(--ink2);">PADDLE + HIKE<br>18.2 MI<br>1 PORTAGE</div>
+              </div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+                <div style="padding:11px 13px;background:var(--sunk);border-bottom:1px solid var(--line);"><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);">DAY 5 · SAT</div><div style="font-size:13.5px;font-weight:700;margin-top:3px;">Riding</div></div>
+                <div style="padding:12px 13px;font-family:var(--mono);font-size:10.5px;line-height:1.9;color:var(--ink2);">RIDE<br>61.7 MI<br>↑ 4,400 FT</div>
+              </div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+                <div style="padding:11px 13px;background:var(--sunk);border-bottom:1px solid var(--line);"><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);">DAY 6 · SUN</div><div style="font-size:13.5px;font-weight:700;margin-top:3px;">End</div></div>
+                <div style="padding:12px 13px;font-family:var(--mono);font-size:10.5px;line-height:1.9;color:var(--ink2);">RIDE + DRIVE<br>34.0 MI<br>↑ 1,200 FT</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:18px;">
+              <span style="border:1.5px dashed var(--line);color:var(--ink2);font-weight:600;font-size:13.5px;min-height:42px;border-radius:4px;display:inline-flex;align-items:center;padding:0 16px;gap:8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#544D42" stroke-width="2" stroke-linecap="round"></path></svg>Insert a day after day 2</span>
+              <span style="font-size:12.5px;color:var(--ink3);line-height:1.5;">Later days renumber, and their passages, anchors, and events move with them.</span>
+            </div>
+            <div style="margin-top:26px;border-top:1px solid var(--line);padding-top:20px;display:flex;gap:26px;">
+              <div style="flex:1;">
+                <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Day 3 · rest day</div>
+                <div style="font-size:14px;line-height:1.7;color:var(--ink2);margin-top:9px;max-width:56ch;">A rest day carries a location, anchors, itinerary detail, and scheduled events without an active route. Main Street, Burnsville is an area anchor holding three provisions — the primary case areas exist for.</div>
+              </div>
+              <div style="width:300px;border:1px solid var(--line);border-radius:6px;padding:14px 16px;background:var(--app);">
+                <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);">DAY 3 HOLDS</div>
+                <div style="font-size:13px;line-height:1.9;color:var(--ink2);margin-top:8px;">Main Street, Burnsville · area anchor<br>Farmers market · 08:00–12:00<br>Bike shop appointment · 14:30</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>6 DAYS · 4 MODES · 260.3 MI</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 15:02</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">02</span>
+      <span style="font-size:19px;font-weight:700;">Passages within a day</span>
+      <span style="font-size:14px;color:var(--ink3);">Reordering warns when endpoints do not meet. Driving is a routed passage, not a note.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Day 4 · paddle and hike</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:660px;display:flex;">
+        <div style="width:600px;border-right:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:18px 24px 14px;border-bottom:1px solid var(--line);display:flex;align-items:flex-end;gap:14px;">
+            <div style="flex:1;"><div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Day 4 · Friday</div><div style="font-family:var(--serif);font-size:27px;line-height:1.1;margin-top:4px;">Passages in order</div></div>
+            <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;min-height:38px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Add passage</span>
+          </div>
+          <div style="flex:1;padding:14px 24px;display:flex;flex-direction:column;gap:0;">
+            <div style="display:flex;gap:12px;">
+              <div style="width:14px;display:flex;flex-direction:column;align-items:center;padding-top:16px;"><div style="width:11px;height:11px;border-radius:50%;background:var(--primary);"></div><div style="flex:1;width:2px;background:var(--line);"></div></div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:5px;padding:13px 15px;margin-bottom:10px;">
+                <div style="display:flex;align-items:center;gap:9px;">
+                  <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--warning);color:var(--ink);padding:3px 7px;border-radius:3px;">DRIVING</span>
+                  <span style="font-weight:700;font-size:15px;flex:1;">Cabin to the Poplar put-in</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8" stroke="#C9C1B2" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:7px;">11.4 MI · 32 MIN · ROUTED · CUE SHEET</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:9px;background:rgba(181,133,43,.1);border:1px solid rgba(181,133,43,.35);border-radius:4px;padding:9px 11px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;"><path d="M12 4l8.5 15H3.5z" fill="none" stroke="#B5852B" stroke-width="1.9" stroke-linejoin="round"></path><path d="M12 10v4" stroke="#B5852B" stroke-width="1.9" stroke-linecap="round"></path></svg>
+                  <span style="font-size:12.5px;color:var(--ink2);line-height:1.5;flex:1;">1.8 mi of <span style="font-family:var(--mono);font-size:11.5px;">smoothness=very_bad</span> and 0.6 mi <span style="font-family:var(--mono);font-size:11.5px;">4wd_only=yes</span> against your declared 2WD. Flagged, not rerouted.</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;">
+              <div style="width:14px;display:flex;flex-direction:column;align-items:center;"><div style="flex:none;width:2px;height:8px;background:var(--line);"></div><div style="width:13px;height:13px;background:var(--card);border:2.5px solid var(--info);transform:rotate(45deg);"></div><div style="flex:1;width:2px;background:var(--line);"></div></div>
+              <div style="flex:1;border:1px dashed var(--info);border-radius:5px;padding:11px 15px;margin-bottom:10px;background:rgba(61,101,119,.05);">
+                <div style="display:flex;align-items:center;gap:9px;"><span style="font-family:var(--mono);font-size:9.5px;font-weight:700;border:1px solid var(--info);color:var(--info);padding:2px 7px;border-radius:3px;">TRANSITION</span><span style="font-weight:700;font-size:14px;flex:1;">Put-in · unload, stash the shuttle keys</span></div>
+                <div style="font-size:12.5px;color:var(--ink2);line-height:1.55;margin-top:6px;">40 min. Instructions attached. Counts toward elapsed time.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;">
+              <div style="width:14px;display:flex;flex-direction:column;align-items:center;"><div style="flex:none;width:2px;height:8px;background:var(--line);"></div><div style="width:11px;height:11px;border-radius:50%;background:var(--info);"></div><div style="flex:1;width:2px;background:var(--line);"></div></div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:5px;padding:13px 15px;margin-bottom:10px;">
+                <div style="display:flex;align-items:center;gap:9px;"><span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--info);color:#fff;padding:3px 7px;border-radius:3px;">PADDLING</span><span style="font-weight:700;font-size:15px;flex:1;">Poplar to Huntdale</span><svg width="12" height="12" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8" stroke="#C9C1B2" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:7px;">14.2 MI WATER · 1 PORTAGE 0.3 MI · GAUGE 2.4 FT</div>
+                <div style="font-size:12.5px;color:var(--ink2);margin-top:8px;line-height:1.55;">Gauge band 1.8–4.2 ft · reading 41 min old · in band.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;">
+              <div style="width:14px;display:flex;flex-direction:column;align-items:center;"><div style="flex:none;width:2px;height:8px;background:var(--line);"></div><div style="width:11px;height:11px;border-radius:50%;background:var(--danger);"></div><div style="flex:1;width:2px;background:transparent;"></div></div>
+              <div style="flex:1;border:1.5px solid var(--danger);border-radius:5px;padding:13px 15px;background:rgba(154,52,18,.04);">
+                <div style="display:flex;align-items:center;gap:9px;"><span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--success);color:#fff;padding:3px 7px;border-radius:3px;">HIKING</span><span style="font-weight:700;font-size:15px;flex:1;">Big Bald out and back</span><svg width="12" height="12" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8" stroke="#C9C1B2" stroke-width="2" stroke-linecap="round"></path></svg></div>
+                <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:7px;">4.0 MI · ↑ 1,150 FT · sac_scale=T2</div>
+                <div style="display:flex;align-items:flex-start;gap:9px;margin-top:10px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#9A3412" stroke-width="1.9"></circle><path d="M12 7.5v6" stroke="#9A3412" stroke-width="1.9" stroke-linecap="round"></path><circle cx="12" cy="16.6" r="1.1" fill="#9A3412"></circle></svg>
+                  <div style="font-size:12.5px;line-height:1.55;"><strong style="color:var(--danger);">This passage starts 6.4 mi from where the last one ended.</strong> <span style="color:var(--ink2);">The paddle takes out at Huntdale; the hike starts at Wolf Laurel. Add a transition, reorder, or move the hike to day 5.</span></div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                  <span style="background:var(--ink);color:var(--app);font-weight:700;font-size:13px;min-height:38px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Add a shuttle transition</span>
+                  <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;min-height:38px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Move to day 5</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:44px 44px;">
+          <div style="position:absolute;left:6%;top:22%;width:26%;height:3px;background:var(--warning);transform:rotate(20deg);transform-origin:left;border-radius:2px;"></div>
+          <div style="position:absolute;left:30%;top:34%;width:44%;height:3px;background:var(--info);transform:rotate(14deg);transform-origin:left;border-radius:2px;"></div>
+          <div style="position:absolute;left:30%;top:34%;width:13px;height:13px;background:var(--card);border:2.5px solid var(--info);transform:rotate(45deg);"></div>
+          <div style="position:absolute;left:72%;top:46%;width:12px;height:12px;border-radius:50%;background:var(--info);border:2px solid #FBF9F3;"></div>
+          <div style="position:absolute;left:58%;top:70%;width:18%;height:3px;background:var(--success);transform:rotate(-24deg);transform-origin:left;border-radius:2px;"></div>
+          <div style="position:absolute;left:58%;top:70%;width:12px;height:12px;border-radius:50%;background:var(--success);border:2px solid #FBF9F3;"></div>
+          <div style="position:absolute;left:60%;top:52%;width:2px;height:78px;background:repeating-linear-gradient(180deg,#9A3412 0 6px,transparent 6px 11px);"></div>
+          <div style="position:absolute;left:63%;top:58%;font-family:var(--mono);font-size:10px;color:var(--danger);background:rgba(251,249,243,.92);padding:3px 6px;">GAP · 6.4 MI</div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span style="color:var(--danger);">● 1 ENDPOINT GAP</span><span style="color:var(--warning);">1 VEHICLE ADVISORY</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 15:14</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">03</span>
+      <span style="font-size:19px;font-weight:700;">A transition node</span>
+      <span style="font-size:14px;color:var(--ink3);">Where the group changes activity, stashes gear, or puts in — with instructions and a duration.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Transition node</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:600px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:720px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="padding:22px 26px 18px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Day 4 · between driving and paddling</div>
+            <div style="font-family:var(--serif);font-size:29px;line-height:1.05;margin-top:5px;">Poplar put-in</div>
+          </div>
+          <div style="display:flex;">
+            <div style="flex:1;padding:20px 26px;border-right:1px solid var(--line);">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:8px;">WHAT HAPPENS HERE</div>
+              <div style="display:flex;flex-wrap:wrap;gap:7px;">
+                <span style="font-size:12.5px;font-weight:700;border:1.5px solid var(--ink);border-radius:16px;padding:6px 13px;">Put-in</span>
+                <span style="font-size:12.5px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:16px;padding:6px 13px;">Take-out</span>
+                <span style="font-size:12.5px;font-weight:700;border:1.5px solid var(--ink);border-radius:16px;padding:6px 13px;">Gear swap</span>
+                <span style="font-size:12.5px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:16px;padding:6px 13px;">Stash</span>
+                <span style="font-size:12.5px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:16px;padding:6px 13px;">Shuttle</span>
+              </div>
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin:20px 0 8px;">INSTRUCTIONS</div>
+              <div style="border:1px solid var(--line);border-radius:4px;background:#fff;padding:12px 13px;font-size:13px;line-height:1.65;color:var(--ink2);min-height:118px;">Unload at the gravel pull-off, not the ramp — the ramp floods and the shuttle van will bog. Boats go in downstream of the bridge piling. Keys in the dry bag with the first-aid kit, and Dana takes the van to Huntdale before we push off.</div>
+              <div style="display:flex;gap:12px;margin-top:16px;">
+                <div style="flex:1;"><div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:6px;">DURATION</div><div style="border:1px solid var(--line);border-radius:4px;padding:10px 12px;font-size:13.5px;display:flex;justify-content:space-between;"><span>40</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">MIN</span></div></div>
+                <div style="flex:1;"><div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:6px;">COUNTS TOWARD</div><div style="border:1px solid var(--line);border-radius:4px;padding:10px 12px;font-size:13.5px;color:var(--ink2);">Elapsed time and ETA</div></div>
+              </div>
+            </div>
+            <div style="width:296px;padding:20px 24px;background:var(--app);">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">POSITION</div>
+              <div style="height:160px;border:1px solid var(--line);border-radius:4px;position:relative;background:#E3DBC7;overflow:hidden;">
+                <div style="position:absolute;left:0;top:56%;width:100%;height:8px;background:rgba(61,101,119,.45);transform:rotate(-6deg);"></div>
+                <div style="position:absolute;left:12%;top:20%;width:44%;height:2px;background:rgba(181,133,43,.9);transform:rotate(26deg);transform-origin:left;"></div>
+                <div style="position:absolute;left:44%;top:50%;width:13px;height:13px;background:var(--card);border:2.5px solid var(--info);transform:rotate(45deg);"></div>
+                <span style="position:absolute;left:8px;bottom:6px;font-family:var(--mono);font-size:9.5px;color:var(--ink2);">GRAVEL PULL-OFF, NOT THE RAMP</span>
+              </div>
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin:20px 0 9px;">GEAR MOVING HERE</div>
+              <div style="font-size:13px;line-height:1.9;color:var(--ink2);">4 boats, 9 PFDs<br>Dry bags — from van to boats<br>Bikes stay in the van</div>
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin:20px 0 9px;">VISIBILITY</div>
+              <div style="font-size:13px;color:var(--ink2);line-height:1.6;">Always visible. Logistics like this are never withheld.</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:18px 26px;border-top:1px solid var(--line);">
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Cancel</span>
+            <span style="font-weight:700;font-size:15px;background:var(--primary);color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Save transition</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>TRANSITION · 40 MIN</span><div style="flex:1;"></div><span style="color:var(--warning);">● DAY 4 TIMING WILL GO STALE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">04</span>
+      <span style="font-size:19px;font-weight:700;">Splitting a day — the number and the shape</span>
+      <span style="font-size:14px;color:var(--ink3);">A day may close at a resolution anchor rather than at a distance threshold.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Split day 2</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:640px;display:flex;">
+        <div style="flex:1;padding:26px 30px;background:var(--card);">
+          <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Day 2 · 94.0 mi</div>
+          <div style="font-family:var(--serif);font-size:30px;line-height:1.05;margin-top:5px;">Where does this day end?</div>
+          <p style="font-size:13.5px;line-height:1.65;color:var(--ink2);margin:10px 0 0;max-width:64ch;">Two readings of the same day. The distance threshold puts the break at 68 miles; the arc puts it at Linville Falls, where the day resolves.</p>
+
+          <div style="margin-top:26px;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:12px;">BY DISTANCE · CYCLING MAX 70 MI</div>
+            <div style="height:56px;position:relative;background:var(--sunk);border-radius:4px;overflow:hidden;">
+              <div style="position:absolute;left:0;top:0;width:73%;height:56px;background:rgba(44,74,59,.16);"></div>
+              <div style="position:absolute;left:73%;top:-4px;width:2px;height:64px;background:var(--primary);"></div>
+              <div style="position:absolute;left:73%;top:6px;margin-left:8px;font-family:var(--mono);font-size:10px;color:var(--primary);">BREAK · MI 68.4</div>
+              <div style="position:absolute;left:10px;bottom:7px;font-family:var(--mono);font-size:10px;color:var(--ink2);">DAY 2 · 68.4 MI</div>
+              <div style="position:absolute;right:10px;bottom:7px;font-family:var(--mono);font-size:10px;color:var(--ink2);">DAY 3 · 25.6 MI</div>
+            </div>
+            <div style="font-size:12.5px;color:var(--ink3);margin-top:9px;">Breaks at Bakersville town green — a provision cluster, and nothing else.</div>
+          </div>
+
+          <div style="margin-top:28px;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:12px;">BY ARC</div>
+            <div style="height:56px;position:relative;background:var(--sunk);border-radius:4px;overflow:hidden;">
+              <div style="position:absolute;left:0;top:0;width:55%;height:56px;background:rgba(219,90,40,.14);"></div>
+              <div style="position:absolute;left:55%;top:-4px;width:2px;height:64px;background:var(--primary);"></div>
+              <div style="position:absolute;left:55%;top:6px;margin-left:8px;font-family:var(--mono);font-size:10px;color:var(--primary);">BREAK · MI 51.8</div>
+              <div style="position:absolute;left:5%;bottom:7px;font-family:var(--mono);font-size:10px;color:var(--ink2);">EXPOSITION</div>
+              <div style="position:absolute;left:28%;bottom:7px;font-family:var(--mono);font-size:10px;color:var(--ink2);">RISING</div>
+              <div style="position:absolute;left:45%;bottom:7px;font-family:var(--mono);font-size:10px;color:var(--primary);font-weight:700;">RESOLUTION</div>
+              <div style="position:absolute;left:64%;bottom:7px;font-family:var(--mono);font-size:10px;color:var(--ink2);">EXPOSITION</div>
+              <div style="position:absolute;left:84%;bottom:7px;font-family:var(--mono);font-size:10px;color:var(--ink2);">CRUX</div>
+            </div>
+            <div style="font-size:12.5px;color:var(--ink3);margin-top:9px;">Breaks at Linville Falls — 51.8 mi, and the day has said what it came to say.</div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:30px;">
+            <span style="background:var(--primary);color:#fff;font-weight:700;font-size:14.5px;min-height:44px;padding:0 20px;border-radius:4px;display:inline-flex;align-items:center;">Split at Linville Falls</span>
+            <span style="border:1.5px solid var(--ink);color:var(--ink);font-weight:600;font-size:14px;min-height:44px;padding:0 18px;border-radius:4px;display:inline-flex;align-items:center;">Split at mile 68.4</span>
+            <span style="border:1px solid var(--line);color:var(--ink2);font-weight:600;font-size:14px;min-height:44px;padding:0 18px;border-radius:4px;display:inline-flex;align-items:center;">Leave it as one day</span>
+          </div>
+        </div>
+        <div style="width:400px;border-left:1px solid var(--line);background:var(--app);padding:26px 26px;">
+          <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">If you split at Linville Falls</div>
+          <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px 18px;margin-top:12px;">
+            <div style="font-weight:700;font-size:15px;">Day 2 becomes</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.9;margin-top:7px;">51.8 MI · ↑ 4,120 FT<br>4 ANCHORS · ARC CLOSES ON RESOLUTION<br>ENDS AT LINVILLE FALLS</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px 18px;margin-top:10px;">
+            <div style="font-weight:700;font-size:15px;">New day 3 becomes</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.9;margin-top:7px;">42.2 MI · ↑ 3,790 FT<br>3 ANCHORS · CRUX AT CARVER'S GAP<br>ARC STARTS FRESH</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px 18px;margin-top:10px;">
+            <div style="font-weight:700;font-size:15px;">Days 3–6 renumber to 4–7</div>
+            <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:6px;">Their passages, anchors, events, and group assignments move with them. The trip is now 7 days and the end date shifts to 28 September.</div>
+          </div>
+          <div style="margin-top:18px;display:flex;align-items:flex-start;gap:9px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#B5852B" stroke-width="1.9"></circle><path d="M12 7.5v5l3 2" fill="none" stroke="#B5852B" stroke-width="1.9" stroke-linecap="round"></path></svg>
+            <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;">Routes and cue sheets for both days will be marked stale. Nothing recomputes until you ask.</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>DAY SPLIT · METRIC AND ARC</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 15:28</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 05 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">05</span>
+      <span style="font-size:19px;font-weight:700;">Marking hazards and cruxes</span>
+      <span style="font-size:14px;color:var(--ink3);">Severity, safety notes, required gear. Reveal is not offered.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Hazard</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:620px;display:flex;">
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:44px 44px;">
+          <div style="position:absolute;left:6%;top:62%;width:88%;height:3px;background:var(--primary);transform:rotate(-9deg);transform-origin:left;border-radius:2px;"></div>
+          <div style="position:absolute;left:44%;top:47%;">
+            <svg width="30" height="30" viewBox="0 0 24 24"><path d="M12 4l8.5 15H3.5z" fill="#FBF9F3" stroke="#9A3412" stroke-width="2.2" stroke-linejoin="round"></path><path d="M12 10v4.5" stroke="#9A3412" stroke-width="2.2" stroke-linecap="round"></path><circle cx="12" cy="17" r="1.2" fill="#9A3412"></circle></svg>
+          </div>
+          <div style="position:absolute;left:44%;top:47%;margin-left:36px;margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--danger);background:rgba(251,249,243,.92);padding:3px 6px;">MI 38.4 · WASHOUT</div>
+          <div style="position:absolute;left:70%;top:52%;">
+            <svg width="24" height="24" viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="2" fill="#FBF9F3" stroke="#B5852B" stroke-width="2.2"></rect><path d="M8 12h8" stroke="#B5852B" stroke-width="2.2" stroke-linecap="round"></path></svg>
+          </div>
+          <div style="position:absolute;left:70%;top:52%;margin-left:30px;margin-top:2px;font-family:var(--mono);font-size:10px;color:var(--warning);background:rgba(251,249,243,.92);padding:3px 6px;">MI 47.1 · CRUX</div>
+        </div>
+        <div style="width:496px;border-left:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 24px 16px;border-bottom:1px solid var(--line);">
+            <div style="display:flex;align-items:center;gap:9px;">
+              <svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 4l8.5 15H3.5z" fill="none" stroke="#9A3412" stroke-width="2" stroke-linejoin="round"></path><path d="M12 10v4" stroke="#9A3412" stroke-width="2" stroke-linecap="round"></path></svg>
+              <span style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--danger);">Hazard · day 2 · mi 38.4</span>
+            </div>
+            <div style="font-family:var(--serif);font-size:27px;line-height:1.1;margin-top:8px;">Washout at CR-9</div>
+          </div>
+          <div style="padding:18px 24px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">SEVERITY</div>
+            <div style="display:flex;gap:7px;">
+              <span style="flex:1;text-align:center;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:4px;padding:9px 0;color:var(--ink2);">Note</span>
+              <span style="flex:1;text-align:center;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:4px;padding:9px 0;color:var(--ink2);">Caution</span>
+              <span style="flex:1;text-align:center;font-size:12.5px;font-weight:700;background:var(--danger);color:#fff;border-radius:4px;padding:9px 0;">High</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--ink3);margin-top:9px;line-height:1.55;">High severity also fires a distinct alert in the field.</div>
+          </div>
+          <div style="padding:18px 24px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:8px;">SAFETY NOTE</div>
+            <div style="border:1px solid var(--line);border-radius:4px;background:#fff;padding:11px 12px;font-size:13px;line-height:1.6;color:var(--ink2);">Culvert collapsed in the August storm. Dismount and carry left — the right shoulder drops about four feet with no warning. Do not ride the shoulder in the dark.</div>
+          </div>
+          <div style="padding:18px 24px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:8px;">REQUIRED GEAR CALLOUT</div>
+            <div style="display:flex;flex-wrap:wrap;gap:7px;">
+              <span style="font-family:var(--mono);font-size:10px;font-weight:700;background:var(--ink);color:var(--app);padding:4px 9px;border-radius:3px;">FRONT LIGHT</span>
+              <span style="font-family:var(--mono);font-size:10px;font-weight:700;border:1px solid var(--line);color:var(--ink2);padding:3px 9px;border-radius:3px;">+ ADD</span>
+            </div>
+          </div>
+          <div style="padding:18px 24px;flex:1;">
+            <div style="display:flex;align-items:center;gap:10px;background:rgba(154,52,18,.06);border:1px solid rgba(154,52,18,.3);border-radius:5px;padding:13px 14px;">
+              <svg width="17" height="17" viewBox="0 0 24 24" style="flex:none;"><rect x="5" y="11" width="14" height="9" rx="1.6" fill="none" stroke="#9A3412" stroke-width="2"></rect><path d="M8.5 11V8a3.5 3.5 0 017 0v3" fill="none" stroke="#9A3412" stroke-width="2"></path></svg>
+              <div style="font-size:12.5px;line-height:1.6;"><strong style="color:var(--danger);">Always visible.</strong> <span style="color:var(--ink2);">Pre-trip plan, web view, printed cue sheet, offline package. There is no reveal setting on this object.</span></div>
+            </div>
+          </div>
+          <div style="padding:14px 24px 18px;border-top:1px solid var(--line);display:flex;gap:10px;">
+            <span style="flex:none;border:1px solid var(--line);color:var(--ink2);font-weight:600;font-size:13.5px;min-height:44px;border-radius:4px;display:inline-flex;align-items:center;padding:0 16px;">Cancel</span>
+            <span style="flex:1;background:var(--primary);color:#fff;font-weight:700;font-size:14.5px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Save hazard</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>DAY 2 · 1 HAZARD · 1 CRUX</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 15:36</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#DB5A28;text-decoration:none}
+a:hover{color:#9A3412;text-decoration:underline}
+</style>
+</helmet>
+<div style="--app:#F4EFE4;--card:#FBF9F3;--sunk:#EBE3D4;--ink:#221F1A;--ink2:#544D42;--ink3:#8C8476;--line:#D9D0BE;--primary:#DB5A28;--success:#2C4A3B;--info:#3D6577;--warning:#B5852B;--danger:#9A3412;--serif:'Instrument Serif',Georgia,serif;--sans:'Archivo',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;font-family:var(--sans);background:#E6DFD0;color:var(--ink);padding:56px 64px 96px;min-height:100vh;">
+
+  <div style="max-width:1280px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--primary);">Plotlines · Author Flows (MVP) · Windows desktop</div>
+    <div style="font-family:var(--serif);font-size:56px;line-height:1;margin-top:10px;">Flow 10 — Foundational usability</div>
+    <p style="font-size:16px;line-height:1.65;color:var(--ink2);max-width:74ch;margin:18px 0 0;text-wrap:pretty;">Four things that cut across every other flow: authoring actions are reversible within the session and say so, every object type has a named path back to it, an empty view states a next action rather than an absence, and the desktop meets WCAG 2.2 AA as a floor. Two exclusions are deliberate and are stated where they apply — Author-note deletion is irreversible, and derived work is re-solved rather than undone.</p>
+  </div>
+
+  <!-- 01 -->
+  <div style="margin-top:56px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">01</span>
+      <span style="font-size:19px;font-weight:700;">Undo and redo</span>
+      <span style="font-size:14px;color:var(--ink3);">Session-scoped, and it says so rather than implying permanence.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span>
+        <span style="font-size:12.5px;color:var(--ink);padding:5px 10px;background:var(--sunk);border-radius:4px;">Edit</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span><div style="flex:1;"></div>
+      </div>
+      <div style="height:620px;display:flex;position:relative;">
+        <div style="width:186px;border-right:1px solid var(--line);background:var(--app);padding:12px 0;">
+          <div style="padding:6px 16px 12px;font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Workspace</div>
+          <div style="padding:10px 16px;background:var(--card);border-left:3px solid var(--primary);font-size:13.5px;font-weight:700;">Curate</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Days</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Routing</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Narrative</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Outputs</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Roster</div>
+        </div>
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:44px 44px;">
+          <div style="position:absolute;left:8%;top:58%;width:82%;height:3px;background:rgba(219,90,40,.8);transform:rotate(-7deg);transform-origin:left;border-radius:2px;"></div>
+          <div style="position:absolute;left:34%;top:50%;width:13px;height:13px;border-radius:50%;background:var(--ink);border:2px solid #FBF9F3;"></div>
+          <div style="position:absolute;left:62%;top:44%;width:13px;height:13px;border-radius:50%;background:var(--ink);border:2px solid #FBF9F3;"></div>
+        </div>
+        <!-- Edit menu open -->
+        <div style="position:absolute;left:56px;top:0;width:340px;background:var(--card);border:1px solid var(--line);border-radius:6px;box-shadow:0 10px 30px rgba(34,31,26,.22);overflow:hidden;padding:5px 0;">
+          <div style="display:flex;align-items:center;gap:12px;padding:9px 16px;"><span style="flex:1;font-size:13.5px;">Undo removing the station role</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">CTRL+Z</span></div>
+          <div style="display:flex;align-items:center;gap:12px;padding:9px 16px;"><span style="flex:1;font-size:13.5px;color:#B4AB9B;">Redo</span><span style="font-family:var(--mono);font-size:10.5px;color:#B4AB9B;">CTRL+Y</span></div>
+          <div style="height:1px;background:var(--line);margin:6px 0;"></div>
+          <div style="padding:8px 16px 4px;font-family:var(--mono);font-size:9.5px;letter-spacing:0.1em;color:var(--ink3);">THIS SESSION · 7 STEPS</div>
+          <div style="padding:6px 16px;font-size:12.5px;color:var(--ink2);line-height:1.6;">Offset the overlook role · Add a transition · Reorder day 4 · Move the gravel weight · Remove the Elk Park anchor · Change day 4's mode · Remove the station role</div>
+          <div style="height:1px;background:var(--line);margin:6px 0;"></div>
+          <div style="padding:8px 16px 10px;font-size:12px;color:var(--ink3);line-height:1.6;">History clears when you close the trip. It is not a version history.</div>
+        </div>
+      </div>
+      <div style="background:var(--app);border-top:1px solid var(--line);padding:20px 26px;display:flex;gap:18px;">
+        <div style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px 18px;">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:8px;">COVERED</div>
+          <div style="font-size:13px;line-height:1.9;color:var(--ink2);">Promoting and removing anchors · role edits · reveal changes · day restructuring · passage reordering · weight changes · bbox changes</div>
+        </div>
+        <div style="flex:1;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--danger);border-radius:6px;padding:16px 18px;">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--danger);margin-bottom:8px;">EXCLUDED · IRREVERSIBLE BY DESIGN</div>
+          <div style="font-size:13px;line-height:1.7;color:var(--ink2);">Deleting your private notes on a person. Said at the point of deletion, not discovered afterwards.</div>
+        </div>
+        <div style="flex:1;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--warning);border-radius:6px;padding:16px 18px;">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--warning);margin-bottom:8px;">EXCLUDED · RE-SOLVED INSTEAD</div>
+          <div style="font-size:13px;line-height:1.7;color:var(--ink2);">Routes, cue sheets, metrics, profiles. Re-solving from the same inputs gives the same result, so undo has nothing to restore.</div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>UNDO · 7 STEPS THIS SESSION</span><div style="flex:1;"></div><span style="color:var(--ink3);">CROSS-SESSION UNDO IS OUT OF SCOPE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">02</span>
+      <span style="font-size:19px;font-weight:700;">The one thing undo does not cover</span>
+      <span style="font-size:14px;color:var(--ink3);">Author-note deletion states its count, its span, and its finality before it proceeds.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Delete notes</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:540px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:600px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="padding:24px 28px 0;">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Dana Whitfield · your notes</div>
+            <div style="font-family:var(--serif);font-size:27px;line-height:1.1;margin-top:6px;">Delete every note on Dana?</div>
+            <p style="font-size:13.5px;line-height:1.65;color:var(--ink2);margin:10px 0 0;">Nine notes written across four trips between March 2024 and today. They are yours, they have never left this account, and Dana has never seen them.</p>
+          </div>
+          <div style="margin:18px 28px 0;border:1px solid var(--line);border-radius:5px;overflow:hidden;">
+            <div style="padding:11px 15px;background:var(--sunk);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);">WHAT GOES</div>
+            <div style="padding:12px 15px;font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.9;">9 NOTES · 4 TRIPS · MAR 2024 – TODAY<br>ON EVERY DEVICE, INCLUDING OFFLINE ONES</div>
+          </div>
+          <div style="margin:14px 28px 0;border:1px solid var(--line);border-radius:5px;overflow:hidden;">
+            <div style="padding:11px 15px;background:var(--app);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);">WHAT STAYS</div>
+            <div style="padding:12px 15px;font-size:13px;color:var(--ink2);line-height:1.75;">Dana stays on every roster. Group assignments, trip content, and shared profile fields are untouched.</div>
+          </div>
+          <div style="margin:14px 28px 0;display:flex;gap:10px;align-items:flex-start;background:rgba(154,52,18,.06);border:1px solid rgba(154,52,18,.3);border-radius:5px;padding:13px 15px;">
+            <svg width="17" height="17" viewBox="0 0 24 24" style="flex:none;margin-top:1px;"><path d="M12 4l8.5 15H3.5z" fill="none" stroke="#9A3412" stroke-width="1.9" stroke-linejoin="round"></path><path d="M12 10v4" stroke="#9A3412" stroke-width="1.9" stroke-linecap="round"></path><circle cx="12" cy="16.4" r="1" fill="#9A3412"></circle></svg>
+            <div style="font-size:12.5px;line-height:1.6;"><strong style="color:var(--danger);">Undo does not cover this.</strong> <span style="color:var(--ink2);">Deletion is a tombstone, not a hidden flag — a device that is offline right now will delete them when it next syncs rather than restoring them.</span></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:20px 28px 24px;">
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Keep them</span>
+            <span style="font-weight:600;font-size:14px;color:var(--ink);border:1px solid var(--line);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;border-radius:4px;">Only this trip's 3 notes</span>
+            <span style="font-weight:700;font-size:15px;background:var(--danger);color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 20px;border-radius:4px;">Delete all 9</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span style="color:var(--danger);">● IRREVERSIBLE · STATED HERE</span><div style="flex:1;"></div><span style="color:var(--ink3);">THREE SCOPES OFFERED</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">03</span>
+      <span style="font-size:19px;font-weight:700;">Everything you made has a way back to it</span>
+      <span style="font-size:14px;color:var(--ink3);">Verified against an enumeration. A new object type ships with its path named, or it does not ship.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Find anything</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:640px;display:flex;">
+        <div style="flex:1;background:var(--card);padding:24px 28px;">
+          <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Reachability</div>
+          <div style="font-family:var(--serif);font-size:29px;line-height:1.05;margin-top:5px;">Where each kind of thing lives</div>
+          <div style="margin-top:20px;border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+            <div style="display:flex;padding:10px 16px;background:var(--sunk);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);"><span style="flex:1;">OBJECT TYPE</span><span style="width:300px;">FOUND ON</span><span style="width:56px;text-align:right;">COUNT</span></div>
+            <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;"><span style="flex:1;">Anchor · attached</span><span style="width:300px;color:var(--ink2);">Anchors view, filter “attached” · and on its day</span><span style="width:56px;text-align:right;font-family:var(--mono);font-size:12px;">6</span></div>
+            <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;background:var(--app);"><span style="flex:1;">Anchor · unattached</span><span style="width:300px;color:var(--ink2);">Anchors view, filter “unattached”</span><span style="width:56px;text-align:right;font-family:var(--mono);font-size:12px;">5</span></div>
+            <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;"><span style="flex:1;">Passage</span><span style="width:300px;color:var(--ink2);">Its day, in the passage list</span><span style="width:56px;text-align:right;font-family:var(--mono);font-size:12px;">14</span></div>
+            <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;"><span style="flex:1;">Day</span><span style="width:300px;color:var(--ink2);">Days view</span><span style="width:56px;text-align:right;font-family:var(--mono);font-size:12px;">6</span></div>
+            <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;"><span style="flex:1;">Trip</span><span style="width:300px;color:var(--ink2);">Trip library</span><span style="width:56px;text-align:right;font-family:var(--mono);font-size:12px;">3</span></div>
+            <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;"><span style="flex:1;">Character note</span><span style="width:300px;color:var(--ink2);">Roster → the person's detail view</span><span style="width:56px;text-align:right;font-family:var(--mono);font-size:12px;">21</span></div>
+            <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;"><span style="flex:1;">Group assignment</span><span style="width:300px;color:var(--ink2);">Roster entry · per-day and per-passage overrides</span><span style="width:56px;text-align:right;font-family:var(--mono);font-size:12px;">11</span></div>
+            <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;"><span style="flex:1;">Stale item</span><span style="width:300px;color:var(--ink2);">Dashboard count → the stale list</span><span style="width:56px;text-align:right;font-family:var(--mono);font-size:12px;">6</span></div>
+            <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;"><span style="flex:1;">Rejected proposal</span><span style="width:300px;color:var(--ink2);">Proposals view, filter “rejected”</span><span style="width:56px;text-align:right;font-family:var(--mono);font-size:12px;">25</span></div>
+            <div style="display:flex;align-items:center;padding:12px 16px;font-size:13.5px;"><span style="flex:1;">Dismissed Set</span><span style="width:300px;color:var(--ink2);">Narrative → Sets, filter “dismissed”</span><span style="width:56px;text-align:right;font-family:var(--mono);font-size:12px;">4</span></div>
+          </div>
+          <div style="margin-top:18px;font-size:13px;color:var(--ink2);line-height:1.65;max-width:78ch;">A capability with no path back to what it made is not usable. This is the check that catches the next unattached-anchor hole before it ships, and it runs whenever a new object type is added.</div>
+        </div>
+        <div style="width:360px;border-left:1px solid var(--line);background:var(--app);padding:24px 26px;">
+          <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Find anything</div>
+          <div style="background:#fff;border:1.5px solid var(--primary);border-radius:4px;padding:0 13px;min-height:46px;display:flex;align-items:center;gap:10px;margin-top:12px;">
+            <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="#8C8476" stroke-width="1.8"></circle><path d="M16 16l4.5 4.5" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round"></path></svg>
+            <span style="font-size:14.5px;flex:1;">bakersville</span>
+            <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">CTRL+F</span>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;margin-top:12px;overflow:hidden;">
+            <div style="padding:12px 14px;border-bottom:1px solid var(--line);">
+              <div style="font-size:13.5px;font-weight:700;">Bakersville town green</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:3px;">ANCHOR · UNATTACHED · PROVISION</div>
+            </div>
+            <div style="padding:12px 14px;border-bottom:1px solid var(--line);">
+              <div style="font-size:13.5px;font-weight:700;">Bakersville resupply note</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:3px;">DAY 2 · PASSAGE CONTENT</div>
+            </div>
+            <div style="padding:12px 14px;">
+              <div style="font-size:13.5px;font-weight:700;">Bakersville, historic district</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:3px;">SET · DISMISSED</div>
+            </div>
+          </div>
+          <div style="font-size:12.5px;color:var(--ink3);line-height:1.65;margin-top:14px;">Search is one path among several, never the only one. Anything findable only by typing its name is not reachable.</div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>10 OBJECT TYPES · 10 NAMED PATHS</span><div style="flex:1;"></div><span style="color:var(--ink3);">CHECKED, NOT ASSERTED</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">04</span>
+      <span style="font-size:19px;font-weight:700;">Empty views say what to do next</span>
+      <span style="font-size:14px;color:var(--ink3);">Distinct in presentation from a result, and from a failure.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Empty states</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="background:var(--app);padding:26px 28px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:22px 24px;">
+          <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:0.12em;color:var(--ink3);">TRIP WITH NO DAYS</div>
+          <div style="font-size:18px;font-weight:700;line-height:1.3;margin-top:9px;">The trip has no days yet.</div>
+          <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:7px;">Set a duration and Plotlines will lay out the days for you to fill. Your eleven anchors are waiting in the anchors view.</div>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <span style="background:var(--primary);color:#fff;font-weight:700;font-size:13.5px;min-height:42px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Set the duration</span>
+            <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;min-height:42px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Add one day</span>
+          </div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:22px 24px;">
+          <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:0.12em;color:var(--ink3);">DAY WITH NO PASSAGES</div>
+          <div style="font-size:18px;font-weight:700;line-height:1.3;margin-top:9px;">Day 3 has nowhere to go yet.</div>
+          <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:7px;">Add a passage, or mark it a rest day — a rest day holds anchors, events, and detail without a route.</div>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <span style="background:var(--primary);color:#fff;font-weight:700;font-size:13.5px;min-height:42px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Add a passage</span>
+            <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;min-height:42px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Make it a rest day</span>
+          </div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:22px 24px;">
+          <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:0.12em;color:var(--ink3);">BBOX WITH NO PROMOTED ANCHORS</div>
+          <div style="font-size:18px;font-weight:700;line-height:1.3;margin-top:9px;">Nothing has been promoted into this trip yet.</div>
+          <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:7px;">2,501 candidates are on the map. Promote one you already know, or ask Plotlines to find the good spots.</div>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <span style="background:var(--primary);color:#fff;font-weight:700;font-size:13.5px;min-height:42px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Find the good spots</span>
+            <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;min-height:42px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Browse the map</span>
+          </div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:22px 24px;">
+          <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:0.12em;color:var(--ink3);">ROSTER WITH NO CHARACTERS</div>
+          <div style="font-size:18px;font-weight:700;line-height:1.3;margin-top:9px;">Nobody is on this trip yet.</div>
+          <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:7px;">Invite people, or clone last year's crew — cloning brings the roster and the group assignments, and everyone re-grants what they share.</div>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <span style="background:var(--primary);color:#fff;font-weight:700;font-size:13.5px;min-height:42px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Invite Characters</span>
+            <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;min-height:42px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Clone a roster</span>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 28px 26px;background:var(--app);">
+        <div style="border-top:1px solid var(--line);padding-top:18px;display:flex;gap:20px;">
+          <div style="flex:1;display:flex;gap:11px;align-items:flex-start;">
+            <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--info);color:#fff;padding:4px 8px;border-radius:3px;flex:none;">RESULT</span>
+            <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;"><strong>No clusters found in this extent</strong> is not an empty state. The analysis ran and answered.</div>
+          </div>
+          <div style="flex:1;display:flex;gap:11px;align-items:flex-start;">
+            <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--danger);color:#fff;padding:4px 8px;border-radius:3px;flex:none;">FAILURE</span>
+            <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;"><strong>Layer extraction failed</strong> is not an empty state either. It belongs on the shared error surface.</div>
+          </div>
+          <div style="flex:1;display:flex;gap:11px;align-items:flex-start;">
+            <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--ink);color:var(--app);padding:4px 8px;border-radius:3px;flex:none;">EMPTY</span>
+            <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;">These four. Nothing is wrong; there is simply a next thing to do, and it is named.</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>4 EMPTY STATES · EACH NAMES AN ACTION</span><div style="flex:1;"></div><span style="color:var(--ink3);">DISTINCT FROM RESULTS AND FAILURES</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 05 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">05</span>
+      <span style="font-size:19px;font-weight:700;">WCAG 2.2 AA as the floor</span>
+      <span style="font-size:14px;color:var(--ink3);">A design-review checklist at MVP; a formal audit gates any surface beyond this one.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Display and accessibility</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:620px;display:flex;">
+        <div style="width:520px;border-right:1px solid var(--line);background:var(--card);padding:24px 26px;">
+          <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Display</div>
+          <div style="font-family:var(--serif);font-size:27px;line-height:1.05;margin-top:5px;">Preferences</div>
+          <div style="margin-top:20px;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">THEME</div>
+            <div style="display:flex;gap:7px;">
+              <span style="flex:1;text-align:center;font-size:13px;font-weight:700;background:var(--ink);color:var(--app);border-radius:4px;padding:10px 0;">Light</span>
+              <span style="flex:1;text-align:center;font-size:13px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:4px;padding:10px 0;">Dusk</span>
+              <span style="flex:1;text-align:center;font-size:13px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:4px;padding:10px 0;">Outdoor high contrast</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--ink3);line-height:1.6;margin-top:9px;">The field surfaces exceed AA deliberately, for direct sun and gloved hands. AA is a floor, not a target.</div>
+          </div>
+          <div style="margin-top:22px;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">DATE AND UNITS</div>
+            <div style="display:flex;gap:10px;">
+              <div style="flex:1;border:1px solid var(--line);border-radius:4px;padding:10px 12px;font-size:13px;display:flex;justify-content:space-between;">DD/MM/YYYY<span style="color:var(--ink3);">▾</span></div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:4px;padding:10px 12px;font-size:13px;display:flex;justify-content:space-between;">Miles / feet<span style="color:var(--ink3);">▾</span></div>
+            </div>
+            <div style="font-size:12.5px;color:var(--ink3);line-height:1.6;margin-top:9px;">Display only. Exports, filenames, and stored fields stay ISO 8601 whatever you pick here.</div>
+          </div>
+          <div style="margin-top:22px;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">FOCUS AND TARGETS</div>
+            <div style="display:flex;gap:12px;align-items:center;">
+              <span style="font-weight:700;font-size:14px;background:var(--primary);color:#fff;min-height:44px;padding:0 18px;border-radius:4px;display:inline-flex;align-items:center;outline:3px solid #3D6577;outline-offset:2px;">Focused control</span>
+              <div style="border:1.5px dashed var(--info);border-radius:4px;min-width:64px;min-height:44px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--info);text-align:center;line-height:1.4;">44 PX<br>MINIMUM</div>
+            </div>
+            <div style="font-size:12.5px;color:var(--ink3);line-height:1.6;margin-top:11px;">Visible focus on every interactive element, 3:1 against its surroundings, never removed for aesthetics.</div>
+          </div>
+        </div>
+        <div style="flex:1;background:var(--app);padding:24px 26px;">
+          <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">MVP review checklist</div>
+          <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;margin-top:12px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 16px;border-bottom:1px solid var(--line);"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#2C4A3B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="flex:1;font-size:13.5px;">Contrast · text and non-text</span><span style="font-family:var(--mono);font-size:10px;color:var(--success);">PASS</span></div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 16px;border-bottom:1px solid var(--line);"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#2C4A3B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="flex:1;font-size:13.5px;">Target size · 24 px minimum, 44 in the field</span><span style="font-family:var(--mono);font-size:10px;color:var(--success);">PASS</span></div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 16px;border-bottom:1px solid var(--line);"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#2C4A3B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="flex:1;font-size:13.5px;">Never colour alone · marker shape carries meaning</span><span style="font-family:var(--mono);font-size:10px;color:var(--success);">PASS</span></div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 16px;border-bottom:1px solid var(--line);"><span style="width:15px;height:15px;border:2px solid var(--warning);border-radius:3px;flex:none;"></span><span style="flex:1;font-size:13.5px;">Keyboard navigation · every authoring surface</span><span style="font-family:var(--mono);font-size:10px;color:var(--warning);">NO OWNER</span></div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 16px;border-bottom:1px solid var(--line);"><span style="width:15px;height:15px;border:2px solid var(--warning);border-radius:3px;flex:none;"></span><span style="flex:1;font-size:13.5px;">Screen-reader semantics · map and list views</span><span style="font-family:var(--mono);font-size:10px;color:var(--warning);">NO OWNER</span></div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 16px;"><span style="width:15px;height:15px;border:2px solid var(--warning);border-radius:3px;flex:none;"></span><span style="flex:1;font-size:13.5px;">Focus management · dialogs, prompts, stale list</span><span style="font-family:var(--mono);font-size:10px;color:var(--warning);">NO OWNER</span></div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--line);border-left:3px solid var(--info);border-radius:6px;padding:16px 18px;margin-top:16px;">
+            <div style="font-size:13.5px;font-weight:700;">The formal audit is a gate, not a leg</div>
+            <div style="font-size:12.5px;color:var(--ink2);line-height:1.65;margin-top:6px;">It sits before Plotlines expands past the Author desktop, because every added surface multiplies the cost of fixing the same problem — and desktop authoring is where none of the last three items has an owner today.</div>
+          </div>
+          <div style="font-size:12.5px;color:var(--ink3);line-height:1.65;margin-top:16px;">Deliberately out of scope for MVP: keyboard shortcuts and a command palette, a first-run tour, responsive layout past the desktop size classes, and cross-session undo. Decisions, not omissions.</div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>3 OF 6 CHECKLIST ITEMS HAVE OWNERS</span><div style="flex:1;"></div><span style="color:var(--ink3);">AA IS THE FLOOR</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

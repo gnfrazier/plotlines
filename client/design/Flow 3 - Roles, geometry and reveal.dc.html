@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#DB5A28;text-decoration:none}
+a:hover{color:#9A3412;text-decoration:underline}
+</style>
+</helmet>
+<div style="--app:#F4EFE4;--card:#FBF9F3;--sunk:#EBE3D4;--ink:#221F1A;--ink2:#544D42;--ink3:#8C8476;--line:#D9D0BE;--primary:#DB5A28;--success:#2C4A3B;--info:#3D6577;--warning:#B5852B;--danger:#9A3412;--serif:'Instrument Serif',Georgia,serif;--sans:'Archivo',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;font-family:var(--sans);background:#E6DFD0;color:var(--ink);padding:56px 64px 96px;min-height:100vh;">
+
+  <div style="max-width:1280px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--primary);">Plotlines · Author Flows (MVP) · Windows desktop</div>
+    <div style="font-family:var(--serif);font-size:56px;line-height:1;margin-top:10px;">Flow 3 — Roles, geometry and reveal</div>
+    <p style="font-size:16px;line-height:1.65;color:var(--ink2);max-width:74ch;margin:18px 0 0;text-wrap:pretty;">An anchor is one place with one arrival and as many roles as it needs. Each role carries its own kind, its own geometry — a point, an offset from the anchor, or an area — and its own reveal policy, so the restrooms can be visible from download while the story waits for arrival. Hazards and technical cruxes sit outside all of it: the model refuses to hide one.</p>
+  </div>
+
+  <!-- 01 -->
+  <div style="margin-top:56px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">01</span>
+      <span style="font-size:19px;font-weight:700;">The anchor and its roles</span>
+      <span style="font-size:14px;color:var(--ink3);">Roles are a set, not a type. Add as many as the place actually plays.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Edit</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span>
+        <div style="flex:1;"></div>
+        <div style="display:flex;align-items:center;gap:8px;padding-right:6px;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><path d="M9 7H15a4 4 0 010 8H7" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round"></path><path d="M10 4L7 7l3 3" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24"><path d="M15 7H9a4 4 0 000 8h8" fill="none" stroke="#C9C1B2" stroke-width="1.8" stroke-linecap="round"></path><path d="M14 4l3 3-3 3" fill="none" stroke="#C9C1B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+      </div>
+      <div style="height:706px;display:flex;">
+        <div style="width:186px;border-right:1px solid var(--line);background:var(--app);padding:12px 0;">
+          <div style="padding:6px 16px 12px;font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Workspace</div>
+          <div style="padding:10px 16px;background:var(--card);border-left:3px solid var(--primary);font-size:13.5px;font-weight:700;">Curate</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Days</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Routing</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Narrative</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Outputs</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Roster</div>
+        </div>
+        <div style="width:560px;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--card);">
+          <div style="padding:20px 24px 16px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Anchor · day 2 · mile 34.1</div>
+            <div style="font-family:var(--serif);font-size:32px;line-height:1.05;margin-top:5px;">Linn Cove National Monument</div>
+            <div style="display:flex;gap:14px;margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+              <span>1 ANCHOR</span><span>1 ARRIVAL</span><span>1 PIN</span><span style="color:var(--ink3);">3 ROLES</span>
+            </div>
+          </div>
+          <div style="flex:1;padding:16px 24px;display:flex;flex-direction:column;gap:12px;">
+            <div style="border:1px solid var(--line);border-radius:5px;overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:11px;padding:13px 15px;background:var(--app);border-bottom:1px solid var(--line);">
+                <svg width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#221F1A"></circle><path d="M12 8.2l1.1 2.3 2.5.3-1.9 1.7.5 2.5-2.2-1.2-2.2 1.2.5-2.5-1.9-1.7 2.5-.3z" fill="#FBF9F3"></path></svg>
+                <span style="font-weight:700;font-size:15px;flex:1;">Narrative — the statue and its history</span>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--ink);color:var(--app);padding:3px 7px;border-radius:3px;">ON ARRIVAL</span>
+              </div>
+              <div style="padding:13px 15px;font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.9;">
+                ARC · CLIMAX<br>OFFSET · 400 M UP THE SPUR<br>MEDIA · 1 AUDIO (2:14), 2 IMAGES<br>TRIGGER · 120 M RADIUS
+              </div>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:5px;overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:11px;padding:13px 15px;background:rgba(61,101,119,.07);border-bottom:1px solid var(--line);">
+                <svg width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="#FBF9F3" stroke="#3D6577" stroke-width="2.4"></circle><path d="M8.5 12h7" stroke="#3D6577" stroke-width="2.2" stroke-linecap="round"></path></svg>
+                <span style="font-weight:700;font-size:15px;flex:1;">Provision — restrooms, water, café</span>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--info);color:#fff;padding:3px 7px;border-radius:3px;">ALWAYS VISIBLE</span>
+              </div>
+              <div style="padding:13px 15px;font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.9;">
+                AT THE ANCHOR · NO OFFSET<br>COUNTS IN WATER-CARRY DISTANCE<br>CAFÉ 09:00–17:00 · CLOSED MON
+              </div>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:5px;overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:11px;padding:13px 15px;background:var(--app);border-bottom:1px solid var(--line);">
+                <svg width="17" height="17" viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="2" fill="#FBF9F3" stroke="#B5852B" stroke-width="2.2"></rect><path d="M12 8.5v7M8.5 12h7" stroke="#B5852B" stroke-width="2" stroke-linecap="round"></path></svg>
+                <span style="font-weight:700;font-size:15px;flex:1;">Station — 45 min walk to the overlook</span>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--ink);color:var(--app);padding:3px 7px;border-radius:3px;">ON ARRIVAL</span>
+              </div>
+              <div style="padding:13px 15px;font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.9;">
+                ACTIVITY · SHORT HIKE · DURATION 45 MIN<br>GEAR · NONE · DIFFICULTY · EASY<br>COUNTS TOWARD ELAPSED TIME AND ETA
+              </div>
+            </div>
+            <div style="border:1.5px dashed var(--line);border-radius:5px;display:flex;align-items:center;justify-content:center;gap:9px;min-height:46px;color:var(--ink2);font-weight:600;font-size:14px;">
+              <svg width="15" height="15" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#544D42" stroke-width="2" stroke-linecap="round"></path></svg>
+              Add a role
+            </div>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink3);line-height:1.6;">Same place, opposite reveal policies, no duplication. The Character arrives once.</div>
+        </div>
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 46% 44%,transparent 0 22px,rgba(44,74,59,.09) 22px 23px),linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+          <div style="position:absolute;left:6%;top:56%;width:88%;height:3px;background:var(--primary);opacity:.85;transform:rotate(-6deg);border-radius:3px;"></div>
+          <div style="position:absolute;left:40%;top:53%;width:15px;height:15px;border-radius:50%;background:var(--ink);border:3px solid #FBF9F3;box-shadow:0 1px 5px rgba(0,0,0,.25);"></div>
+          <div style="position:absolute;left:41.5%;top:56%;width:96px;height:2px;background:var(--ink);opacity:.5;transform:rotate(-42deg);transform-origin:left;"></div>
+          <div style="position:absolute;left:56%;top:31%;width:13px;height:13px;border-radius:50%;background:var(--card);border:3px solid var(--ink);"></div>
+          <div style="position:absolute;left:56%;top:31%;margin-left:22px;margin-top:-2px;font-family:var(--mono);font-size:10px;color:var(--ink);">NARRATIVE · +400 M</div>
+          <div style="position:absolute;left:40%;top:53%;margin-left:24px;margin-top:14px;font-family:var(--mono);font-size:10px;color:var(--info);">PROVISION · AT ANCHOR</div>
+          <div style="position:absolute;right:16px;top:16px;background:rgba(251,249,243,.94);border:1px solid var(--line);border-radius:4px;padding:10px 13px;font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1.9;">
+            <div>TRIGGER MEASURED PER ROLE</div>
+            <div style="color:var(--ink3);">NOT FROM THE PARKING LOT</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>ANCHOR 4 OF 11</span><span style="color:var(--ink3);">3 ROLES · 1 OFFSET</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 13:02</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">02</span>
+      <span style="font-size:19px;font-weight:700;">Role geometry — point, offset, or area</span>
+      <span style="font-size:14px;color:var(--ink3);">Polygons are first class. Entry is its own kind of trigger.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Role geometry</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:770px;display:flex;">
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 60% 50%,transparent 0 24px,rgba(44,74,59,.08) 24px 25px),linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+          <div style="position:absolute;left:4%;top:62%;width:92%;height:3px;background:var(--primary);opacity:.8;transform:rotate(-4deg);border-radius:3px;"></div>
+          <!-- area polygon -->
+          <div style="position:absolute;left:16%;top:20%;width:34%;height:34%;border:2px solid var(--ink);background:rgba(34,31,26,.07);border-radius:3px;">
+            <span style="position:absolute;top:-12px;left:12px;background:#E3DBC7;font-family:var(--mono);font-size:10px;color:var(--ink);padding:0 5px;">MAIN STREET · AREA ROLE</span>
+            <div style="position:absolute;left:-5px;top:-5px;width:9px;height:9px;background:#fff;border:2px solid var(--ink);"></div>
+            <div style="position:absolute;right:-5px;top:-5px;width:9px;height:9px;background:#fff;border:2px solid var(--ink);"></div>
+            <div style="position:absolute;left:-5px;bottom:-5px;width:9px;height:9px;background:#fff;border:2px solid var(--ink);"></div>
+            <div style="position:absolute;right:-5px;bottom:-5px;width:9px;height:9px;background:#fff;border:2px solid var(--ink);"></div>
+            <div style="position:absolute;left:26%;top:44%;width:9px;height:9px;border-radius:50%;background:var(--info);"></div>
+            <div style="position:absolute;left:58%;top:30%;width:9px;height:9px;border-radius:50%;background:var(--info);"></div>
+            <div style="position:absolute;left:70%;top:64%;width:9px;height:9px;border-radius:50%;background:var(--info);"></div>
+          </div>
+          <!-- point + offset -->
+          <div style="position:absolute;left:64%;top:58%;width:15px;height:15px;border-radius:50%;background:var(--ink);border:3px solid #FBF9F3;"></div>
+          <div style="position:absolute;left:65.5%;top:60%;width:78px;height:2px;background:var(--ink);opacity:.5;transform:rotate(-52deg);transform-origin:left;"></div>
+          <div style="position:absolute;left:73%;top:38%;width:13px;height:13px;border-radius:50%;background:var(--card);border:3px solid var(--ink);"></div>
+          <div style="position:absolute;left:73%;top:38%;margin-left:22px;font-family:var(--mono);font-size:10px;color:var(--ink);">OVERLOOK · +400 M</div>
+          <div style="position:absolute;left:16px;top:16px;background:var(--card);border:1px solid var(--line);border-radius:5px;box-shadow:0 4px 14px rgba(34,31,26,.12);display:flex;flex-direction:column;overflow:hidden;">
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#544D42"></circle></svg></div>
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--line);background:var(--primary);"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M4 18l7-9 4 4 5-7" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"></path></svg></div>
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--line);"><svg width="16" height="16" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" fill="none" stroke="#544D42" stroke-width="1.9"></rect></svg></div>
+          </div>
+        </div>
+        <div style="width:392px;border-left:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 24px 16px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Editing · narrative role</div>
+            <div style="font-family:var(--serif);font-size:27px;line-height:1.1;margin-top:5px;">Geometry</div>
+          </div>
+          <div style="padding:18px 24px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:8px;">KIND</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:4px;padding:11px 13px;">
+                <span style="width:15px;height:15px;border-radius:50%;border:1.5px solid var(--line);"></span>
+                <span style="flex:1;font-size:13.5px;">At the anchor</span>
+                <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">DEFAULT</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:11px;border:1.5px solid var(--primary);background:rgba(219,90,40,.05);border-radius:4px;padding:11px 13px;">
+                <span style="width:15px;height:15px;border-radius:50%;border:4.5px solid var(--primary);background:#fff;"></span>
+                <span style="flex:1;font-size:13.5px;font-weight:700;">Offset from the anchor</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:4px;padding:11px 13px;">
+                <span style="width:15px;height:15px;border-radius:50%;border:1.5px solid var(--line);"></span>
+                <span style="flex:1;font-size:13.5px;">Area — draw a polygon</span>
+              </div>
+            </div>
+          </div>
+          <div style="padding:18px 24px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">OFFSET</div>
+            <div style="display:flex;gap:10px;">
+              <div style="flex:1;border:1px solid var(--line);border-radius:4px;padding:10px 12px;font-size:13.5px;display:flex;justify-content:space-between;"><span>400</span><span style="color:var(--ink3);font-family:var(--mono);font-size:11px;">M</span></div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:4px;padding:10px 12px;font-size:13.5px;display:flex;justify-content:space-between;"><span>Bearing 312°</span><span style="color:var(--ink3);">▾</span></div>
+            </div>
+            <div style="font-size:12.5px;color:var(--ink3);margin-top:9px;line-height:1.55;">Or drag the hollow marker on the map. The anchor does not move.</div>
+          </div>
+          <div style="padding:18px 24px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">TRIGGER</div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="flex:1;height:4px;background:var(--sunk);border-radius:2px;position:relative;"><div style="width:38%;height:4px;background:var(--primary);border-radius:2px;"></div><div style="position:absolute;left:38%;top:-6px;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--primary);"></div></div>
+              <span style="font-family:var(--mono);font-size:12px;">120 M</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--ink3);margin-top:10px;line-height:1.55;">Measured from the role's own position — the overlook, not the parking lot.</div>
+          </div>
+          <div style="padding:18px 24px;flex:1;">
+            <div style="background:var(--app);border:1px solid var(--line);border-radius:5px;padding:14px 15px;">
+              <div style="font-weight:700;font-size:13.5px;">Areas trigger on entry</div>
+              <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:5px;">Crossing the boundary fires once. A route that hugs the edge will not re-fire it.</div>
+            </div>
+          </div>
+          <div style="padding:14px 24px 18px;border-top:1px solid var(--line);display:flex;gap:10px;">
+            <span style="flex:none;border:1px solid var(--line);color:var(--ink2);font-weight:600;font-size:13.5px;min-height:44px;border-radius:4px;display:inline-flex;align-items:center;padding:0 16px;">Cancel</span>
+            <span style="flex:1;background:var(--primary);color:#fff;font-weight:700;font-size:14.5px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Save geometry</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>ROLE GEOMETRY · OFFSET MODE</span><div style="flex:1;"></div><span style="color:var(--warning);">● ROUTE WILL GO STALE ON SAVE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">03</span>
+      <span style="font-size:19px;font-weight:700;">Reveal, role by role</span>
+      <span style="font-size:14px;color:var(--ink3);">Provisions are always visible. Narrative and station are the Author's call.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Reveal policy</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:620px;display:flex;">
+        <div style="width:660px;border-right:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 26px 16px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Day 2 · reveal</div>
+            <div style="font-family:var(--serif);font-size:28px;line-height:1.1;margin-top:5px;">What the group can see before they get there</div>
+          </div>
+          <div style="padding:10px 26px;background:var(--sunk);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);display:flex;">
+            <span style="flex:1;">ROLE</span><span style="width:150px;">REVEAL</span><span style="width:90px;">TRIGGER</span>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;padding:14px 26px;border-bottom:1px solid var(--line);gap:10px;">
+              <div style="flex:1;"><div style="font-size:14px;font-weight:600;">Old Fort depot · narrative</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:2px;">EXPOSITION</div></div>
+              <div style="width:150px;"><span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--info);color:#fff;padding:3px 7px;border-radius:3px;">ALWAYS VISIBLE</span></div>
+              <div style="width:90px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">—</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:14px 26px;border-bottom:1px solid var(--line);gap:10px;">
+              <div style="flex:1;"><div style="font-size:14px;font-weight:600;">Old Fort depot · provision</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:2px;">WATER, TOILETS</div></div>
+              <div style="width:150px;"><span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--info);color:#fff;padding:3px 7px;border-radius:3px;">ALWAYS VISIBLE</span><div style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);margin-top:4px;">NOT CHANGEABLE</div></div>
+              <div style="width:90px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">—</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:14px 26px;border-bottom:1px solid var(--line);gap:10px;background:rgba(219,90,40,.04);">
+              <div style="flex:1;"><div style="font-size:14px;font-weight:600;">Linn Cove monument · narrative</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:2px;">CLIMAX · AUDIO 2:14</div></div>
+              <div style="width:150px;"><span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--ink);color:var(--app);padding:3px 7px;border-radius:3px;">ON ARRIVAL</span></div>
+              <div style="width:90px;font-family:var(--mono);font-size:10.5px;">120 M</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:14px 26px;border-bottom:1px solid var(--line);gap:10px;">
+              <div style="flex:1;"><div style="font-size:14px;font-weight:600;">Linn Cove monument · station</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:2px;">45 MIN WALK</div></div>
+              <div style="width:150px;"><span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--ink);color:var(--app);padding:3px 7px;border-radius:3px;">ON ARRIVAL</span></div>
+              <div style="width:90px;font-family:var(--mono);font-size:10.5px;">120 M</div>
+            </div>
+            <div style="display:flex;align-items:center;padding:14px 26px;border-bottom:1px solid var(--line);gap:10px;">
+              <div style="flex:1;"><div style="font-size:14px;font-weight:600;">Washout at CR-9 · hazard</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--danger);margin-top:2px;">HIGH SEVERITY</div></div>
+              <div style="width:150px;">
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--danger);color:#fff;padding:3px 7px;border-radius:3px;">ALWAYS VISIBLE</span>
+                <div style="display:flex;align-items:center;gap:4px;margin-top:4px;"><svg width="10" height="10" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="1.6" fill="none" stroke="#9A3412" stroke-width="2"></rect><path d="M8.5 11V8a3.5 3.5 0 017 0v3" fill="none" stroke="#9A3412" stroke-width="2"></path></svg><span style="font-family:var(--mono);font-size:9.5px;color:var(--danger);">LOCKED</span></div>
+              </div>
+              <div style="width:90px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">—</div>
+            </div>
+          </div>
+          <div style="padding:16px 26px;border-top:1px solid var(--line);"><div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;"><svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg><div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Whatever you set here travels with the trip. Print and the web view show every provision and every hazard and none of the withheld content, and a withheld item appears as a card that says something is coming without saying what.</div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span></div></div>
+        </div>
+        <div style="flex:1;background:var(--app);padding:22px 24px;">
+          <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Preview as a Character</div>
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <span style="flex:1;text-align:center;font-size:13px;font-weight:700;padding:9px 0;background:var(--ink);color:var(--app);border-radius:4px;">Before arrival</span>
+            <span style="flex:1;text-align:center;font-size:13px;font-weight:600;padding:9px 0;border:1px solid var(--line);border-radius:4px;color:var(--ink2);">After arrival</span>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;margin-top:14px;overflow:hidden;">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--line);">
+              <div style="font-family:var(--mono);font-size:10px;color:var(--ink3);">MI 34.1</div>
+              <div style="font-weight:700;font-size:15px;margin-top:3px;">Linn Cove National Monument</div>
+              <div style="font-size:13px;color:var(--ink2);line-height:1.6;margin-top:6px;">Restrooms and drinking water at the lot. Café until five, closed Mondays. Last water for 22 miles — fill here.</div>
+            </div>
+            <div style="padding:14px 16px;display:flex;gap:11px;align-items:flex-start;background:var(--sunk);">
+              <svg width="16" height="16" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><rect x="5" y="11" width="14" height="9" rx="1.6" fill="none" stroke="#8C8476" stroke-width="1.9"></rect><path d="M8.5 11V8a3.5 3.5 0 017 0v3" fill="none" stroke="#8C8476" stroke-width="1.9"></path></svg>
+              <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;">Something here on arrival. <span style="color:var(--ink3);">45 minutes, if you have them.</span></div>
+            </div>
+            <div style="padding:14px 16px;border-top:1px solid var(--line);display:flex;gap:11px;align-items:flex-start;">
+              <svg width="17" height="17" viewBox="0 0 24 24" style="flex:none;margin-top:1px;"><path d="M12 4l8.5 15H3.5z" fill="none" stroke="#9A3412" stroke-width="1.9" stroke-linejoin="round"></path><path d="M12 10v4" stroke="#9A3412" stroke-width="1.9" stroke-linecap="round"></path><circle cx="12" cy="16.4" r="1" fill="#9A3412"></circle></svg>
+              <div style="font-size:12.5px;line-height:1.6;"><strong style="color:var(--danger);">MI 38.4 — washout at CR-9.</strong> <span style="color:var(--ink2);">Dismount and carry left of the culvert. Do not ride the shoulder.</span></div>
+            </div>
+          </div>
+          <div style="font-size:12.5px;color:var(--ink3);line-height:1.6;margin-top:14px;"></div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>5 ROLES · 2 ON ARRIVAL</span><span style="color:var(--danger);">1 HAZARD · LOCKED VISIBLE</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 13:15</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">04</span>
+      <span style="font-size:19px;font-weight:700;">Trying to hide a hazard</span>
+      <span style="font-size:14px;color:var(--ink3);">Refused by the model, not by a missing button. Every path lands here.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Reveal policy</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:540px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:580px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="padding:24px 28px 0;display:flex;gap:14px;">
+            <svg width="26" height="26" viewBox="0 0 24 24" style="flex:none;margin-top:3px;"><rect x="4" y="10.5" width="16" height="10" rx="2" fill="none" stroke="#9A3412" stroke-width="1.9"></rect><path d="M8 10.5V7.5a4 4 0 018 0v3" fill="none" stroke="#9A3412" stroke-width="1.9"></path><circle cx="12" cy="15.4" r="1.4" fill="#9A3412"></circle></svg>
+            <div>
+              <div style="font-family:var(--serif);font-size:27px;line-height:1.15;">A hazard cannot be withheld.</div>
+              <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin:12px 0 0;"><svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg><div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Reveal does not apply to hazards or technical cruxes — not by role, not by day type, not by trip. It is a rule in the data model, so no setting anywhere can switch it off. If the surprise matters more to you than the warning, change the route rather than the hazard.</div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span></div>
+            </div>
+          </div>
+          <div style="margin:20px 28px 0;border:1px solid var(--line);border-radius:5px;overflow:hidden;">
+            <div style="padding:12px 15px;background:var(--app);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);">THE ITEM</div>
+            <div style="padding:13px 15px;">
+              <div style="font-weight:700;font-size:15px;">Washout at CR-9</div>
+              <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:4px;">HAZARD · HIGH SEVERITY · DAY 2 · MI 38.4</div>
+              <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:8px;">It stays in the pre-trip plan, on the web view, on the printed cue sheet, and in the offline package.</div>
+            </div>
+          </div>
+          <div style="margin:16px 28px 0;font-size:12.5px;color:var(--ink3);line-height:1.65;"></div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:22px 28px 24px;">
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Reroute around it</span>
+            <span style="font-weight:700;font-size:15px;background:var(--ink);color:var(--app);min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Understood</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span style="color:var(--danger);">● REVEAL CHANGE REFUSED · MODEL CONSTRAINT</span><div style="flex:1;"></div><span style="color:var(--ink3);">NO OVERRIDE EXISTS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 05 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">05</span>
+      <span style="font-size:19px;font-weight:700;">Removing a role that holds content</span>
+      <span style="font-size:14px;color:var(--ink3);">Scope stated before the deletion; reversible in the session afterwards.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:560px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:560px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="padding:24px 28px 0;">
+            <div style="font-family:var(--serif);font-size:27px;line-height:1.15;">Remove the station role?</div>
+            <p style="font-size:13.5px;line-height:1.65;color:var(--ink2);margin:9px 0 0;">You wrote something into this role, so Plotlines will not quietly remove it. The anchor itself and its other two roles are untouched either way.</p>
+          </div>
+          <div style="margin:18px 28px 0;border:1px solid var(--line);border-radius:5px;">
+            <div style="padding:12px 15px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);">WOULD BE REMOVED</div>
+            <div style="padding:13px 15px;font-size:13px;line-height:1.9;color:var(--ink2);">The 45-minute overlook walk · duration and difficulty<br>2 paragraphs of authored instructions<br>Its contribution to day 2's elapsed time — 45 min</div>
+          </div>
+          <div style="margin:14px 28px 0;"><div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;"><svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg><div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Removing this changes the shape of day 2, so its route and cue sheet will be marked stale. They stay readable — Plotlines waits for you to ask before it recomputes anything.</div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span></div></div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:22px 28px 24px;">
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Keep it</span>
+            <span style="font-weight:600;font-size:14px;color:var(--ink);border:1px solid var(--line);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;border-radius:4px;">Remove content, keep the role</span>
+            <span style="font-weight:700;font-size:15px;background:var(--danger);color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 20px;border-radius:4px;">Remove the role</span>
+          </div>
+        </div>
+        <!-- undo toast -->
+        <div style="position:absolute;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:var(--app);border-radius:5px;box-shadow:0 8px 26px rgba(34,31,26,.4);padding:13px 18px;display:flex;align-items:center;gap:18px;min-width:460px;">
+          <span style="font-size:13.5px;flex:1;">Station role removed from Linn Cove monument.</span>
+          <span style="font-family:var(--mono);font-size:11px;letter-spacing:0.08em;color:#E4A87F;">UNDO · CTRL+Z</span>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>2 ROLES ON THIS ANCHOR</span><span style="color:var(--warning);">● 2 STALE</span><div style="flex:1;"></div><span style="color:var(--ink3);">UNDO AVAILABLE THIS SESSION</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

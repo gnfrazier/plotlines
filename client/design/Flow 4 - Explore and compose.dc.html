@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#DB5A28;text-decoration:none}
+a:hover{color:#9A3412;text-decoration:underline}
+</style>
+</helmet>
+<div style="--app:#F4EFE4;--card:#FBF9F3;--sunk:#EBE3D4;--ink:#221F1A;--ink2:#544D42;--ink3:#8C8476;--line:#D9D0BE;--primary:#DB5A28;--success:#2C4A3B;--info:#3D6577;--warning:#B5852B;--danger:#9A3412;--serif:'Instrument Serif',Georgia,serif;--sans:'Archivo',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;font-family:var(--sans);background:#E6DFD0;color:var(--ink);padding:56px 64px 96px;min-height:100vh;">
+
+  <div style="max-width:1280px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--primary);">Plotlines · Author Flows (MVP) · Windows desktop</div>
+    <div style="font-family:var(--serif);font-size:56px;line-height:1;margin-top:10px;">Flow 4 — Explore and compose</div>
+    <p style="font-size:16px;line-height:1.65;color:var(--ink2);max-width:74ch;margin:18px 0 0;text-wrap:pretty;">Two ways to plan a day, switchable in both directions without losing work. In explore, distance and bands are constraints and the engine searches within them; when they conflict it names the conflict and offers relaxations. In compose, the promoted anchors are the spine and distance is a number the Author is told — an editing decision, never a solver failure. Both produce routes that are legal and physically passable in their mode.</p>
+  </div>
+
+  <!-- 01 -->
+  <div style="margin-top:56px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">01</span>
+      <span style="font-size:19px;font-weight:700;">Explore — distance in, route out</span>
+      <span style="font-size:14px;color:var(--ink3);">Bands bound the realized route. Interest biases toward salience, with no type of its own.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September · Day 2</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Edit</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span>
+        <div style="flex:1;"></div>
+        <div style="display:flex;align-items:center;gap:8px;padding-right:6px;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><path d="M9 7H15a4 4 0 010 8H7" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round"></path><path d="M10 4L7 7l3 3" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24"><path d="M15 7H9a4 4 0 000 8h8" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round"></path><path d="M14 4l3 3-3 3" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+      </div>
+      <div style="height:1000px;display:flex;">
+        <div style="width:344px;border-right:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:16px 22px 14px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px;">Day 2 · planning mode</div>
+            <div style="display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;">
+              <span style="flex:1;text-align:center;font-size:13.5px;font-weight:700;padding:10px 0;background:var(--ink);color:var(--app);">Explore</span>
+              <span style="flex:1;text-align:center;font-size:13.5px;font-weight:600;padding:10px 0;color:var(--ink2);">Compose</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin:9px 0 0;"><svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg><div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Tell Plotlines the shape of the day you want — how far, how hilly, how quiet — and it finds a route that fits. Then look at what turned up along it and keep what you like.</div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span></div>
+          </div>
+          <div style="flex:1;padding:16px 22px;display:flex;flex-direction:column;gap:17px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:13.5px;font-weight:600;">Shape</span></div>
+              <div style="display:flex;gap:6px;margin-top:8px;">
+                <span style="flex:1;text-align:center;font-size:12.5px;font-weight:700;border:1.5px solid var(--ink);border-radius:4px;padding:8px 0;">Loop</span>
+                <span style="flex:1;text-align:center;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:4px;padding:8px 0;color:var(--ink2);">Out &amp; back</span>
+                <span style="flex:1;text-align:center;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:4px;padding:8px 0;color:var(--ink2);">A → B</span>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:13.5px;font-weight:600;">Distance band</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink2);">55 – 70 MI</span></div>
+              <div style="height:5px;background:var(--sunk);border-radius:3px;margin-top:11px;position:relative;">
+                <div style="position:absolute;left:26%;width:32%;height:5px;background:var(--primary);border-radius:3px;"></div>
+                <div style="position:absolute;left:26%;top:-6px;width:17px;height:17px;border-radius:50%;background:#fff;border:2px solid var(--primary);margin-left:-8px;"></div>
+                <div style="position:absolute;left:58%;top:-6px;width:17px;height:17px;border-radius:50%;background:#fff;border:2px solid var(--primary);margin-left:-8px;"></div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin:11px 0 0;"><svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg><div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">This is a promise about the route you get back, not a wish. If your other settings make it impossible, Plotlines names the ones that are fighting instead of quietly handing you a 78-mile day.</div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:13.5px;font-weight:600;">Peaks — climbing</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink2);">3.4</span></div>
+              <div style="height:5px;background:var(--sunk);border-radius:3px;margin-top:11px;position:relative;"><div style="width:68%;height:5px;background:var(--success);border-radius:3px;"></div><div style="position:absolute;left:68%;top:-6px;width:17px;height:17px;border-radius:50%;background:#fff;border:2px solid var(--success);margin-left:-8px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:13.5px;font-weight:600;">Cars — traffic tolerance</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink2);">1.2</span></div>
+              <div style="height:5px;background:var(--sunk);border-radius:3px;margin-top:11px;position:relative;"><div style="width:24%;height:5px;background:var(--success);border-radius:3px;"></div><div style="position:absolute;left:24%;top:-6px;width:17px;height:17px;border-radius:50%;background:#fff;border:2px solid var(--success);margin-left:-8px;"></div></div>
+            </div>
+            <div>
+              <div style="font-size:13.5px;font-weight:600;">Surface</div>
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+                <div style="display:flex;align-items:center;gap:10px;"><span style="width:66px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">PAVED</span><div style="flex:1;height:4px;background:var(--sunk);border-radius:2px;"><div style="width:44%;height:4px;background:var(--ink2);border-radius:2px;"></div></div><span style="font-family:var(--mono);font-size:10.5px;">2.2</span></div>
+                <div style="display:flex;align-items:center;gap:10px;"><span style="width:66px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">GRAVEL</span><div style="flex:1;height:4px;background:var(--sunk);border-radius:2px;"><div style="width:88%;height:4px;background:var(--ink2);border-radius:2px;"></div></div><span style="font-family:var(--mono);font-size:10.5px;">4.4</span></div>
+                <div style="display:flex;align-items:center;gap:10px;"><span style="width:66px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">SINGLE</span><div style="flex:1;height:4px;background:var(--sunk);border-radius:2px;"><div style="width:16%;height:4px;background:var(--ink2);border-radius:2px;"></div></div><span style="font-family:var(--mono);font-size:10.5px;">0.8</span></div>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:13.5px;font-weight:600;">Interest</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink2);">3.0</span></div>
+              <div style="height:5px;background:var(--sunk);border-radius:3px;margin-top:11px;position:relative;"><div style="width:60%;height:5px;background:var(--success);border-radius:3px;"></div><div style="position:absolute;left:60%;top:-6px;width:17px;height:17px;border-radius:50%;background:#fff;border:2px solid var(--success);margin-left:-8px;"></div></div>
+              <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin:11px 0 0;"><svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg><div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">This dial only says how much you care about passing good places. Which places count as good comes from the layers you switched on, so there is nothing to choose twice.</div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span></div>
+            </div>
+          </div>
+          <div style="padding:14px 22px 18px;border-top:1px solid var(--line);">
+            <span style="background:var(--primary);color:#fff;font-weight:700;font-size:15px;min-height:46px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Generate a route</span>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;">
+          <div style="flex:1;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 52% 40%,transparent 0 26px,rgba(44,74,59,.08) 26px 27px),linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+            <div style="position:absolute;left:18%;top:18%;width:56%;height:58%;border:3px solid var(--primary);border-radius:48% 42% 50% 44%;"></div>
+            <div style="position:absolute;left:24%;top:28%;width:13px;height:13px;border-radius:50%;background:rgba(34,31,26,.8);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:55%;top:20%;width:11px;height:11px;border-radius:50%;background:rgba(34,31,26,.7);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:70%;top:56%;width:12px;height:12px;border-radius:50%;background:rgba(34,31,26,.75);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:33%;top:72%;width:10px;height:10px;border-radius:50%;background:rgba(61,101,119,.75);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:18%;top:46%;width:16px;height:16px;border-radius:50%;background:var(--card);border:3px solid var(--primary);"></div>
+            <div style="position:absolute;right:16px;top:16px;background:rgba(251,249,243,.94);border:1px solid var(--line);border-radius:4px;padding:11px 14px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);line-height:1.9;">
+              <div style="color:var(--ink3);">FOUND ON THIS ROUTE</div>
+              <div>4 CANDIDATES · 1 PROVISION CLUSTER</div>
+              <div style="color:var(--primary);">PROMOTE WHAT YOU LIKE →</div>
+            </div>
+          </div>
+          <div style="height:196px;border-top:1px solid var(--line);background:var(--card);padding:16px 22px;display:flex;gap:26px;">
+            <div style="flex:1;">
+              <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Realized route</div>
+              <div style="display:flex;gap:26px;margin-top:12px;">
+                <div><div style="font-family:var(--serif);font-size:32px;line-height:1;">63.4</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:3px;">MILES · IN BAND</div></div>
+                <div><div style="font-family:var(--serif);font-size:32px;line-height:1;">4,820</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:3px;">FT CLIMB</div></div>
+                <div><div style="font-family:var(--serif);font-size:32px;line-height:1;">5:12</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:3px;">MOVING · 6:40 ELAPSED</div></div>
+              </div>
+              <div style="display:flex;gap:7px;margin-top:14px;flex-wrap:wrap;">
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--success);color:#fff;padding:4px 8px;border-radius:3px;">DISTANCE IN BAND</span>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--success);color:#fff;padding:4px 8px;border-radius:3px;">CLIMB IN BAND</span>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;border:1px solid var(--info);color:var(--info);padding:3px 8px;border-radius:3px;">62% GRAVEL</span>
+              </div>
+            </div>
+            <div style="width:340px;">
+              <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Elevation</div>
+              <div style="height:88px;position:relative;border-bottom:1px solid var(--ink2);border-left:1px solid var(--ink2);margin-top:10px;">
+                <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(44,74,59,.22),rgba(44,74,59,.06));clip-path:polygon(0 88%,14% 62%,28% 74%,42% 34%,58% 52%,72% 18%,86% 44%,100% 32%,100% 100%,0 100%);"></div>
+                <div style="position:absolute;inset:0;border-top:2px solid var(--success);clip-path:polygon(0 88%,14% 62%,28% 74%,42% 34%,58% 52%,72% 18%,86% 44%,100% 32%,100% 33%,86% 45%,72% 19%,58% 53%,42% 35%,28% 75%,14% 63%,0 89%);"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:6px;"><span>MI 0</span><span>MI 63.4</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>EXPLORE · DAY 2 SOLVED IN 4.2 S</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 14:06</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">02</span>
+      <span style="font-size:19px;font-weight:700;">Explore — the constraints conflict</span>
+      <span style="font-size:14px;color:var(--ink3);">Named, with relaxations and their trade-offs. The solve returns first; the diagnosis follows.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September · Day 3</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:690px;display:flex;">
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 50% 42%,transparent 0 26px,rgba(44,74,59,.08) 26px 27px),linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+          <div style="position:absolute;left:20%;top:22%;width:52%;height:52%;border:3px dashed rgba(154,52,18,.65);border-radius:46% 44% 50% 42%;"></div>
+          <div style="position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);font-family:var(--mono);font-size:11px;color:var(--danger);background:rgba(251,249,243,.9);padding:6px 10px;border:1px solid rgba(154,52,18,.4);">NO ROUTE SATISFIES ALL FOUR BANDS</div>
+        </div>
+        <div style="width:496px;border-left:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 24px 16px;border-bottom:1px solid var(--line);">
+            <div style="display:flex;align-items:center;gap:9px;">
+              <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#9A3412" stroke-width="1.9"></circle><path d="M12 7.5v6" stroke="#9A3412" stroke-width="1.9" stroke-linecap="round"></path><circle cx="12" cy="16.6" r="1.1" fill="#9A3412"></circle></svg>
+              <span style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--danger);">Constraints conflict</span>
+            </div>
+            <div style="font-family:var(--serif);font-size:27px;line-height:1.15;margin-top:9px;">Gravel at 4.4 and climbing under 3,000 ft cannot both hold in this bbox.</div>
+            <p style="font-size:13.5px;line-height:1.6;color:var(--ink2);margin:10px 0 0;">Every unpaved network in the extent runs up the ridges. Holding the surface band forces the climb over your ceiling.</p>
+          </div>
+          <div style="padding:16px 24px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:10px;">CONFLICTING</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:10px;border:1px solid rgba(154,52,18,.35);background:rgba(154,52,18,.05);border-radius:4px;padding:10px 12px;"><span style="flex:1;font-size:13.5px;font-weight:600;">Gravel ≥ 4.0</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink2);">SET 4.4</span></div>
+              <div style="display:flex;align-items:center;gap:10px;border:1px solid rgba(154,52,18,.35);background:rgba(154,52,18,.05);border-radius:4px;padding:10px 12px;"><span style="flex:1;font-size:13.5px;font-weight:600;">Climb band max</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink2);">3,000 FT</span></div>
+            </div>
+          </div>
+          <div style="flex:1;padding:16px 24px;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:10px;">RELAXATIONS</div>
+            <div style="display:flex;flex-direction:column;gap:9px;">
+              <div style="border:1.5px solid var(--ink);border-radius:5px;padding:13px 14px;">
+                <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-weight:700;font-size:14.5px;flex:1;">Raise the climb ceiling to 4,300 ft</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--success);">KEEPS GRAVEL</span></div>
+                <div style="font-size:12.5px;color:var(--ink2);line-height:1.55;margin-top:5px;">62 mi, 4,280 ft, 71% gravel. One sustained 6% climb of 4.1 mi.</div>
+              </div>
+              <div style="border:1px solid var(--line);border-radius:5px;padding:13px 14px;">
+                <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-weight:700;font-size:14.5px;flex:1;">Drop gravel to 2.8</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">KEEPS THE CLIMB BAND</span></div>
+                <div style="font-size:12.5px;color:var(--ink2);line-height:1.55;margin-top:5px;">58 mi, 2,740 ft, 34% gravel. Valley roads with more traffic.</div>
+              </div>
+              <div style="border:1px solid var(--line);border-radius:5px;padding:13px 14px;">
+                <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-weight:700;font-size:14.5px;flex:1;">Shorten the day to 44 mi</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">KEEPS BOTH</span></div>
+                <div style="font-size:12.5px;color:var(--ink2);line-height:1.55;margin-top:5px;">44 mi, 2,910 ft, 66% gravel. Loses the Mitchell approach.</div>
+              </div>
+            </div>
+          </div>
+          <div style="padding:14px 24px 18px;border-top:1px solid var(--line);display:flex;gap:10px;">
+            <span style="flex:none;border:1px solid var(--line);color:var(--ink2);font-weight:600;font-size:13.5px;min-height:44px;border-radius:4px;display:inline-flex;align-items:center;padding:0 16px;">Edit the weights myself</span>
+            <span style="flex:1;background:var(--primary);color:#fff;font-weight:700;font-size:14.5px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Apply the first relaxation</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span style="color:var(--danger);">● SOLVE RETURNED NO FEASIBLE ROUTE</span><span style="color:var(--ink3);">DIAGNOSIS COMPLETED 1.8 S LATER</span><div style="flex:1;"></div><span style="color:var(--ink3);">WEIGHTS UNCHANGED</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">03</span>
+      <span style="font-size:19px;font-weight:700;">Compose — places in, distance out</span>
+      <span style="font-size:14px;color:var(--ink3);">94 miles against a 55–70 band. An editing decision, not an error and not a conflict dialog.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September · Day 2</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Edit</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span><div style="flex:1;"></div>
+      </div>
+      <div style="height:706px;display:flex;">
+        <div style="width:344px;border-right:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:16px 22px 14px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px;">Day 2 · planning mode</div>
+            <div style="display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;">
+              <span style="flex:1;text-align:center;font-size:13.5px;font-weight:600;padding:10px 0;color:var(--ink2);">Explore</span>
+              <span style="flex:1;text-align:center;font-size:13.5px;font-weight:700;padding:10px 0;background:var(--ink);color:var(--app);">Compose</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--ink3);margin-top:9px;line-height:1.55;">These places are the day. Weights only flavour the roads between them.</div>
+          </div>
+          <div style="flex:1;overflow:hidden;">
+            <div style="padding:12px 22px 8px;font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);">THE SPINE · 7 ANCHORS · DRAG TO REORDER</div>
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 22px;border-bottom:1px solid var(--line);">
+              <svg width="12" height="12" viewBox="0 0 24 24" style="flex:none;"><path d="M8 7h8M8 12h8M8 17h8" stroke="#C9C1B2" stroke-width="2" stroke-linecap="round"></path></svg>
+              <span style="flex:1;font-size:13.5px;font-weight:600;">Old Fort depot</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">MI 0.0</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 22px;border-bottom:1px solid var(--line);">
+              <svg width="12" height="12" viewBox="0 0 24 24" style="flex:none;"><path d="M8 7h8M8 12h8M8 17h8" stroke="#C9C1B2" stroke-width="2" stroke-linecap="round"></path></svg>
+              <span style="flex:1;font-size:13.5px;font-weight:600;">Andrews Geyser</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">MI 9.2</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 22px;border-bottom:1px solid var(--line);">
+              <svg width="12" height="12" viewBox="0 0 24 24" style="flex:none;"><path d="M8 7h8M8 12h8M8 17h8" stroke="#C9C1B2" stroke-width="2" stroke-linecap="round"></path></svg>
+              <span style="flex:1;font-size:13.5px;font-weight:600;">Linn Cove monument</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">MI 34.1</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 22px;border-bottom:1px solid var(--line);">
+              <svg width="12" height="12" viewBox="0 0 24 24" style="flex:none;"><path d="M8 7h8M8 12h8M8 17h8" stroke="#C9C1B2" stroke-width="2" stroke-linecap="round"></path></svg>
+              <span style="flex:1;font-size:13.5px;font-weight:600;">Linville Falls</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">MI 51.8</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 22px;border-bottom:1px solid var(--line);">
+              <svg width="12" height="12" viewBox="0 0 24 24" style="flex:none;"><path d="M8 7h8M8 12h8M8 17h8" stroke="#C9C1B2" stroke-width="2" stroke-linecap="round"></path></svg>
+              <span style="flex:1;font-size:13.5px;font-weight:600;">Bakersville town green</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">MI 68.4</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 22px;border-bottom:1px solid var(--line);background:rgba(181,133,43,.09);">
+              <svg width="12" height="12" viewBox="0 0 24 24" style="flex:none;"><path d="M8 7h8M8 12h8M8 17h8" stroke="#B5852B" stroke-width="2" stroke-linecap="round"></path></svg>
+              <span style="flex:1;font-size:13.5px;font-weight:600;">Roan Mountain gardens</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--warning);">MI 82.9</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 22px;border-bottom:1px solid var(--line);background:rgba(181,133,43,.09);">
+              <svg width="12" height="12" viewBox="0 0 24 24" style="flex:none;"><path d="M8 7h8M8 12h8M8 17h8" stroke="#B5852B" stroke-width="2" stroke-linecap="round"></path></svg>
+              <span style="flex:1;font-size:13.5px;font-weight:600;">Carver's Gap</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--warning);">MI 94.0</span>
+            </div>
+            <div style="padding:14px 22px;font-size:12.5px;color:var(--ink3);line-height:1.6;">The last two are what push the day past the band. Nothing has been dropped.</div>
+          </div>
+          <div style="padding:14px 22px 18px;border-top:1px solid var(--line);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:9px;">Weights — flavour only</div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="width:60px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">GRAVEL</span><div style="flex:1;height:4px;background:var(--sunk);border-radius:2px;"><div style="width:84%;height:4px;background:var(--ink2);border-radius:2px;"></div></div></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:9px;"><span style="width:60px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">CARS</span><div style="flex:1;height:4px;background:var(--sunk);border-radius:2px;"><div style="width:22%;height:4px;background:var(--ink2);border-radius:2px;"></div></div></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:9px;opacity:.45;"><span style="width:60px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">INTEREST</span><div style="flex:1;height:4px;background:var(--sunk);border-radius:2px;"></div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);">INACTIVE</span></div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;">
+          <div style="flex:1;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 46% 46%,transparent 0 26px,rgba(44,74,59,.08) 26px 27px),linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+            <div style="position:absolute;left:10%;top:74%;width:34%;height:3px;background:var(--primary);transform:rotate(-24deg);transform-origin:left;border-radius:2px;"></div>
+            <div style="position:absolute;left:38%;top:56%;width:26%;height:3px;background:var(--primary);transform:rotate(-16deg);transform-origin:left;border-radius:2px;"></div>
+            <div style="position:absolute;left:62%;top:44%;width:22%;height:3px;background:var(--primary);transform:rotate(22deg);transform-origin:left;border-radius:2px;"></div>
+            <div style="position:absolute;left:10%;top:74%;width:14px;height:14px;border-radius:50%;background:var(--card);border:3px solid var(--primary);"></div>
+            <div style="position:absolute;left:24%;top:66%;width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:38%;top:56%;width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:52%;top:48%;width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:62%;top:44%;width:12px;height:12px;border-radius:50%;background:var(--info);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:74%;top:52%;width:13px;height:13px;border-radius:50%;background:var(--warning);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:84%;top:60%;width:13px;height:13px;border-radius:50%;background:var(--warning);border:2px solid #FBF9F3;"></div>
+          </div>
+          <div style="border-top:1px solid var(--line);background:var(--app);padding:20px 24px;">
+            <div style="display:flex;align-items:flex-start;gap:16px;">
+              <div style="flex:1;">
+                <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Realized distance</div>
+                <div style="font-family:var(--serif);font-size:30px;line-height:1.15;margin-top:7px;max-width:52ch;">These seven plot points make a 94-mile day. Your band was 55–70.</div>
+                <div style="font-size:13.5px;color:var(--ink2);line-height:1.6;margin-top:9px;max-width:60ch;">7,910 ft of climb, 8:40 moving and 10:25 elapsed with the station durations. The places determine the length — that is what compose does.</div>
+              </div>
+              <div style="width:250px;">
+                <div style="height:8px;background:var(--sunk);border-radius:4px;position:relative;margin-top:22px;">
+                  <div style="position:absolute;left:20%;width:26%;height:8px;background:rgba(44,74,59,.35);border-radius:4px;"></div>
+                  <div style="position:absolute;left:0;width:78%;height:8px;border-top:2px solid var(--warning);top:-6px;"></div>
+                  <div style="position:absolute;left:78%;top:-9px;width:2px;height:22px;background:var(--warning);"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:9px;"><span>0</span><span style="color:var(--success);">BAND 55–70</span><span style="color:var(--warning);">94</span></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:9px;margin-top:18px;flex-wrap:wrap;">
+              <span style="background:var(--ink);color:var(--app);font-weight:700;font-size:13.5px;min-height:42px;padding:0 18px;border-radius:4px;display:inline-flex;align-items:center;">Move Carver's Gap to day 3</span>
+              <span style="border:1.5px solid var(--ink);color:var(--ink);font-weight:600;font-size:13.5px;min-height:42px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Split the day here</span>
+              <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13.5px;min-height:42px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Drop an anchor…</span>
+              <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13.5px;min-height:42px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Widen the band to 95</span>
+              <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13.5px;min-height:42px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Accept 94 miles</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>COMPOSE · ROUTE REACHES ALL 7</span><span style="color:var(--ink3);">DEVIATION REPORTED, NOT DIAGNOSED</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 14:22</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">04</span>
+      <span style="font-size:19px;font-weight:700;">Switching modes, either direction</span>
+      <span style="font-size:14px;color:var(--ink3);">Generate, keep the good parts, loosen again. Nothing promoted is lost.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Switch to compose</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:520px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:620px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="padding:24px 28px 0;">
+            <div style="font-family:var(--serif);font-size:28px;line-height:1.15;">Switch day 2 to compose?</div>
+            <p style="font-size:13.5px;line-height:1.65;color:var(--ink2);margin:9px 0 0;">The three places you promoted off the explore route become the spine. Distance stops being a constraint and starts being a result.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;margin:20px 28px 0;border:1px solid var(--line);border-radius:5px;overflow:hidden;">
+            <div style="padding:15px 17px;background:var(--app);">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--success);margin-bottom:9px;">KEPT</div>
+              <div style="font-size:13px;line-height:1.9;color:var(--ink2);">3 promoted anchors and their roles<br>All authored content and reveal settings<br>Your weights — now flavouring<br>The explore route, as a saved variant</div>
+            </div>
+            <div style="padding:15px 17px;background:var(--sunk);border-left:1px solid var(--line);">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">STOPS APPLYING</div>
+              <div style="font-size:13px;line-height:1.9;color:var(--ink2);">The 55–70 mile band, as a constraint<br>Interest weight — inactive in compose<br>Shape selection</div>
+            </div>
+          </div>
+          <div style="margin:14px 28px 0;font-size:12.5px;color:var(--ink3);line-height:1.6;">Switch back whenever you like. Both directions are designed, and the band is remembered.</div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:22px 28px 24px;">
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Stay in explore</span>
+            <span style="font-weight:700;font-size:15px;background:var(--primary);color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Switch to compose</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>MODE SWITCH · DAY 2</span><div style="flex:1;"></div><span style="color:var(--ink3);">NO WORK DISCARDED IN EITHER DIRECTION</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 05 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">05</span>
+      <span style="font-size:19px;font-weight:700;">Mode-legal routability</span>
+      <span style="font-size:14px;color:var(--ink3);">Access is a constraint. Dismounts are surfaced, never slipped in. A costly constraint gets named.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September · Day 2</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:720px;display:flex;">
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:44px 44px;">
+          <div style="position:absolute;left:8%;top:70%;width:40%;height:3px;background:var(--primary);transform:rotate(-18deg);transform-origin:left;border-radius:2px;"></div>
+          <div style="position:absolute;left:44%;top:56%;width:18%;height:3px;background:var(--warning);transform:rotate(-8deg);transform-origin:left;border-radius:2px;"></div>
+          <div style="position:absolute;left:62%;top:52%;width:30%;height:3px;background:var(--primary);transform:rotate(-14deg);transform-origin:left;border-radius:2px;"></div>
+          <div style="position:absolute;left:36%;top:40%;width:26%;height:2px;background:rgba(154,52,18,.55);transform:rotate(12deg);transform-origin:left;border-radius:2px;"></div>
+          <div style="position:absolute;left:44%;top:36%;font-family:var(--mono);font-size:10px;color:var(--danger);background:rgba(251,249,243,.9);padding:3px 6px;">bicycle=no · EXCLUDED</div>
+          <div style="position:absolute;left:52%;top:50%;font-family:var(--mono);font-size:10px;color:var(--warning);background:rgba(251,249,243,.9);padding:3px 6px;">DISMOUNT 0.4 MI</div>
+          <div style="position:absolute;left:70%;top:47%;width:11px;height:11px;background:var(--card);border:2.5px solid var(--info);transform:rotate(45deg);"></div>
+          <div style="position:absolute;left:72%;top:42%;font-family:var(--mono);font-size:10px;color:var(--info);background:rgba(251,249,243,.9);padding:3px 6px;">FORD · STEPPING STONES</div>
+        </div>
+        <div style="width:496px;border-left:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 24px 16px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Routability · cycling</div>
+            <div style="font-family:var(--serif);font-size:27px;line-height:1.1;margin-top:5px;">This route is ridable</div>
+            <p style="font-size:13.5px;line-height:1.6;color:var(--ink2);margin:9px 0 0;">Everything below was honoured as a hard constraint, not a preference. Two things need your attention before this goes out.</p>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex;gap:11px;padding:14px 24px;border-bottom:1px solid var(--line);">
+              <svg width="17" height="17" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><path d="M12 4l8.5 15H3.5z" fill="none" stroke="#B5852B" stroke-width="1.9" stroke-linejoin="round"></path><path d="M12 10v4" stroke="#B5852B" stroke-width="1.9" stroke-linecap="round"></path></svg>
+              <div style="flex:1;">
+                <div style="font-size:14px;font-weight:700;">0.4 mi of required dismount</div>
+                <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:3px;">MI 41.2 — footbridge over the Toe River is <span style="font-family:var(--mono);font-size:11.5px;">bicycle=dismount</span>. Included deliberately and marked on the cue sheet. Nine people walking bikes takes about eight minutes.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:11px;padding:14px 24px;border-bottom:1px solid var(--line);">
+              <svg width="17" height="17" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><path d="M4 14h16M8 10.5l4 3.5 4-3.5" fill="none" stroke="#3D6577" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <div style="flex:1;">
+                <div style="font-size:14px;font-weight:700;">One ford, stepping stones</div>
+                <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:3px;">MI 58.9 — passable in the mode, and surfaced because it is a decision at the bank, not a road feature.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:11px;padding:14px 24px;border-bottom:1px solid var(--line);background:var(--app);">
+              <svg width="17" height="17" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#544D42" stroke-width="1.8"></circle><path d="M12 7.5v5l3.5 2" fill="none" stroke="#544D42" stroke-width="1.8" stroke-linecap="round"></path></svg>
+              <div style="flex:1;">
+                <div style="font-size:14px;font-weight:700;">A constraint cost you 4.1 miles</div>
+                <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:3px;">US-19E is <span style="font-family:var(--mono);font-size:11.5px;">bicycle=use_sidepath</span> for 2.6 mi with no rideable sidepath in the data, so the route climbs Roaring Fork instead. Named because the detour is material, not because it is a problem.</div>
+              </div>
+            </div>
+            <div style="padding:16px 24px;">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:10px;">HONOURED AS CONSTRAINTS</div>
+              <div style="font-family:var(--mono);font-size:11.5px;line-height:2;color:var(--ink2);">bicycle=no · 3 ways excluded<br>bicycle=use_sidepath · 1 way excluded<br>barrier=gate access=private · 2 avoided<br>barrier=cycle_barrier · 4 passed<br>ford=stepping_stones · 1 crossed<br>oneway:bicycle=no · 2 contraflow segments used</div>
+            </div>
+          </div>
+          <div style="padding:14px 24px 18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink3);line-height:1.6;">Advisories warn. Constraints exclude. These are constraints — the vehicle and gauge advisories live with their passages.</div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span style="color:var(--success);">● PASSABLE IN MODE</span><span style="color:var(--warning);">1 DISMOUNT · 1 FORD</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 14:31</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

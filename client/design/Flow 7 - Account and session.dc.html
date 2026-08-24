@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Archivo:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#DB5A28;text-decoration:none}
+a:hover{color:#9A3412;text-decoration:underline}
+</style>
+</helmet>
+<div style="--app:#F4EFE4;--card:#FBF9F3;--sunk:#EBE3D4;--ink:#221F1A;--ink2:#544D42;--ink3:#8C8476;--line:#D9D0BE;--primary:#DB5A28;--success:#2C4A3B;--info:#3D6577;--warning:#B5852B;--danger:#9A3412;--serif:'Instrument Serif',Georgia,serif;--sans:'Archivo',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;font-family:var(--sans);background:#E6DFD0;color:var(--ink);padding:56px 64px 96px;min-height:100vh;">
+
+  <div style="max-width:1280px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--primary);">Plotlines · Author Flows (MVP) · Windows desktop</div>
+    <div style="font-family:var(--serif);font-size:56px;line-height:1;margin-top:10px;">Flow 7 — Account and session</div>
+    <p style="font-size:16px;line-height:1.65;color:var(--ink2);max-width:74ch;margin:18px 0 0;text-wrap:pretty;">Planning on the desktop works with no account and no network. Signing in is optional and adds one thing: sync. The only credential is a magic link, which is also the only recovery path, so the failure cases around it have to be honest. Sync checks the version on open and again on save, and never merges by itself.</p>
+  </div>
+
+  <!-- 01 -->
+  <div style="margin-top:56px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">01</span>
+      <span style="font-size:19px;font-weight:700;">Signing in is optional</span>
+      <span style="font-size:14px;color:var(--ink3);">Magic link only — no password, no code. It is also the only way back in.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Sign in</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:560px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:540px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="padding:26px 28px 0;">
+            <div style="font-family:var(--serif);font-size:29px;line-height:1.1;">Sign in to sync</div>
+            <p style="font-size:13.5px;line-height:1.65;color:var(--ink2);margin:10px 0 20px;">Your three local trips keep working either way. Signing in adds a synced copy so you can plan on another machine.</p>
+            <label style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:7px;">Email</label>
+            <div style="border:1.5px solid var(--primary);border-radius:4px;background:#fff;padding:0 13px;min-height:46px;display:flex;align-items:center;">
+              <span style="font-size:15px;">rhian@example.com</span>
+            </div>
+            <div style="display:flex;gap:9px;background:var(--app);border:1px solid var(--line);border-radius:4px;padding:12px 13px;margin-top:14px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" style="flex:none;margin-top:1px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#544D42" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#544D42" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#544D42"></circle></svg>
+              <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;">A link is the whole account. There is no password to reset, so keep access to this inbox — it is also how you get back in on a new machine.</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:22px 28px 24px;">
+            <span style="font-size:12.5px;color:var(--ink3);flex:1;line-height:1.5;">Keep planning without an account</span>
+            <span style="font-weight:700;font-size:15px;background:var(--primary);color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Send the link</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>SIGNED OUT · 3 LOCAL TRIPS</span><div style="flex:1;"></div><span style="color:var(--ink3);">LOCAL PLANNING NEEDS NO NETWORK</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">02</span>
+      <span style="font-size:19px;font-weight:700;">The link did not work</span>
+      <span style="font-size:14px;color:var(--ink3);">Expired, already used, or offline. Each says which, and none of them costs local work.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Sign in</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:600px;display:flex;background:var(--app);padding:30px;gap:20px;">
+        <div style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:22px 24px;">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);">WAITING</div>
+          <div style="display:flex;align-items:center;gap:11px;margin-top:14px;">
+            <svg width="22" height="22" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="#544D42" stroke-width="1.8"></rect><path d="M3.5 7l8.5 6 8.5-6" fill="none" stroke="#544D42" stroke-width="1.8"></path></svg>
+            <div style="font-size:17px;font-weight:700;">Check rhian@example.com</div>
+          </div>
+          <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:10px;">The link is good for 15 minutes and works once. This window can stay open, or you can close it and keep planning.</div>
+          <div style="height:4px;background:var(--sunk);border-radius:2px;margin-top:18px;"><div style="width:34%;height:4px;background:var(--info);border-radius:2px;"></div></div>
+          <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:9px;">EXPIRES IN 9:52</div>
+          
+        </div>
+        <div style="flex:1;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--danger);border-radius:6px;padding:22px 24px;">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--danger);">EXPIRED</div>
+          <div style="display:flex;align-items:center;gap:11px;margin-top:14px;">
+            <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#9A3412" stroke-width="1.8"></circle><path d="M12 7.5v5l3 2" fill="none" stroke="#9A3412" stroke-width="1.8" stroke-linecap="round"></path></svg>
+            <div style="font-size:17px;font-weight:700;">That link has expired</div>
+          </div>
+          <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:10px;">It was sent 41 minutes ago and links last 15. Nothing is wrong with your account — ask for another.</div>
+          <span style="background:var(--primary);color:#fff;font-weight:700;font-size:14px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;margin-top:18px;">Send a new link</span>
+          
+        </div>
+        <div style="flex:1;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--warning);border-radius:6px;padding:22px 24px;">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--warning);">NO NETWORK</div>
+          <div style="display:flex;align-items:center;gap:11px;margin-top:14px;">
+            <svg width="22" height="22" viewBox="0 0 24 24"><path d="M4 8.5c5-4 11-4 16 0" fill="none" stroke="#B5852B" stroke-width="1.8" stroke-linecap="round"></path><path d="M7.5 13c2.8-2.2 6.2-2.2 9 0" fill="none" stroke="#B5852B" stroke-width="1.8" stroke-linecap="round"></path><circle cx="12" cy="17.6" r="1.4" fill="#B5852B"></circle><path d="M4 20L20 4" stroke="#B5852B" stroke-width="1.8" stroke-linecap="round"></path></svg>
+            <div style="font-size:17px;font-weight:700;">Cannot reach Plotlines</div>
+          </div>
+          <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:10px;">Sign-in needs a connection. Everything else on this machine does not — layers, curation, routing, cue sheets, and export all keep working offline.</div>
+          <div style="display:flex;flex-direction:column;gap:9px;margin-top:18px;">
+            <span style="border:1.5px solid var(--ink);color:var(--ink);font-weight:600;font-size:13.5px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Keep planning offline</span>
+            <span style="border:1px solid var(--line);color:var(--ink2);font-weight:600;font-size:13.5px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Try again</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>THREE STATES OF ONE STEP</span><div style="flex:1;"></div><span style="color:var(--ink3);">NO LOCAL WORK AT RISK IN ANY OF THEM</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">03</span>
+      <span style="font-size:19px;font-weight:700;">Version conflict on save</span>
+      <span style="font-size:14px;color:var(--ink3);">Checked on open and again on save. Save-as or overwrite — never a silent merge.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:600px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:660px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="padding:24px 28px 0;">
+            <div style="font-family:var(--serif);font-size:28px;line-height:1.1;">This trip changed on another device</div>
+            <p style="font-size:13.5px;line-height:1.65;color:var(--ink2);margin:9px 0 0;">The synced copy moved on while you were editing here. Plotlines will not guess which version you meant.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin:20px 28px 0;border:1px solid var(--line);border-radius:5px;overflow:hidden;">
+            <div style="padding:16px 18px;background:var(--app);border-right:1px solid var(--line);">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">THIS DEVICE</div>
+              <div style="font-size:13.5px;font-weight:700;">Version 41</div>
+              <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.9;margin-top:7px;">EDITED 16:22 TODAY<br>11 ANCHORS · 6 DAYS<br>DAY 2 REROUTED, 3 STALE</div>
+            </div>
+            <div style="padding:16px 18px;background:var(--sunk);">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">SYNCED COPY</div>
+              <div style="font-size:13.5px;font-weight:700;">Version 43</div>
+              <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.9;margin-top:7px;">EDITED 15:58 · LAPTOP<br>12 ANCHORS · 7 DAYS<br>DAY 2 SPLIT AT LINVILLE FALLS</div>
+            </div>
+          </div>
+          <div style="margin:18px 28px 0;display:flex;flex-direction:column;gap:9px;">
+            <div style="border:1.5px solid var(--ink);border-radius:5px;padding:13px 15px;">
+              <div style="font-size:14.5px;font-weight:700;">Save as a separate trip</div>
+              <div style="font-size:12.5px;color:var(--ink2);line-height:1.55;margin-top:4px;">Keeps both. Yours becomes “Blue Ridge, late September (this device)”.</div>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:5px;padding:13px 15px;">
+              <div style="font-size:14.5px;font-weight:700;color:var(--danger);">Overwrite the synced copy</div>
+              <div style="font-size:12.5px;color:var(--ink2);line-height:1.55;margin-top:4px;">The day split and the twelfth anchor made on the laptop are lost.</div>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:5px;padding:13px 15px;">
+              <div style="font-size:14.5px;font-weight:700;">Discard my changes and take the synced copy</div>
+              <div style="font-size:12.5px;color:var(--ink2);line-height:1.55;margin-top:4px;">Your last two hours on this machine are lost.</div>
+            </div>
+          </div>
+          
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:20px 28px 24px;">
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Cancel the save</span>
+            <span style="font-weight:700;font-size:15px;background:var(--primary);color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Save as separate</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span style="color:var(--danger);">● CONDITIONAL WRITE REFUSED · v41 vs v43</span><div style="flex:1;"></div><span style="color:var(--ink3);">CHECKED ON OPEN AND ON SAVE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">04</span>
+      <span style="font-size:19px;font-weight:700;">The web guest session</span>
+      <span style="font-size:14px;color:var(--ink3);">Nothing stored server-side, limits stated plainly, and no path to claim the work into an account.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#544D42" stroke-width="1.8"></circle><path d="M3 12h18M12 3c3 3.5 3 14 0 18M12 3c-3 3.5-3 14 0 18" fill="none" stroke="#544D42" stroke-width="1.4"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">plotlines.app — Microsoft Edge</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:38px;background:var(--sunk);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px;gap:10px;">
+        <div style="display:flex;gap:14px;align-items:center;">
+          <svg width="14" height="14" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="#8C8476" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="#C9C1B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-3-6.2M20 4v5h-5" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <div style="flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;height:26px;display:flex;align-items:center;padding:0 12px;font-family:var(--mono);font-size:11px;color:var(--ink2);">plotlines.app/plan</div>
+      </div>
+      <div style="height:640px;display:flex;">
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:44px 44px;">
+          <div style="position:absolute;left:22%;top:24%;width:52%;height:52%;border:3px solid var(--primary);border-radius:46% 44% 50% 42%;"></div>
+          <div style="position:absolute;left:22%;top:48%;width:14px;height:14px;border-radius:50%;background:var(--card);border:3px solid var(--primary);"></div>
+          <div style="position:absolute;left:20px;bottom:18px;background:rgba(251,249,243,.94);border:1px solid var(--line);border-radius:4px;padding:10px 13px;font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1.9;">
+            <div>GUEST SESSION</div>
+            <div style="color:var(--ink3);">BROWSER STORAGE ONLY</div>
+          </div>
+        </div>
+        <div style="width:400px;border-left:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 24px 16px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Guest</div>
+            <div style="font-family:var(--serif);font-size:27px;line-height:1.1;margin-top:5px;">Plan without an account</div>
+          </div>
+          <div style="padding:18px 24px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:10px;">WHAT YOU GET</div>
+            <div style="font-size:13.5px;line-height:1.9;color:var(--ink2);">Pick a shape, distance, and weights<br>Generate a route<br>Export GPX, TCX, or FIT</div>
+          </div>
+          <div style="padding:18px 24px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:10px;">WHAT YOU DO NOT</div>
+            <div style="font-size:13.5px;line-height:1.9;color:var(--ink2);">Curation, anchors, roles, reveal<br>Multi-day trips, rosters, cue sheets<br>Anything kept for next time</div>
+            
+          </div>
+          <div style="padding:18px 24px;flex:1;">
+            <div style="background:var(--app);border:1px solid var(--line);border-radius:5px;padding:14px 15px;">
+              <div style="font-size:13.5px;font-weight:700;">Nothing is stored on our side</div>
+              <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:5px;">Not a row, not a log entry tied to you. This route lives in this browser until you clear it or close the tab, and there is no way to move it into an account later — export it if you want to keep it.</div>
+            </div>
+            
+          </div>
+          <div style="padding:14px 24px 18px;border-top:1px solid var(--line);display:flex;gap:10px;">
+            <span style="flex:1;border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13.5px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Export this route</span>
+            <span style="flex:1;background:var(--primary);color:#fff;font-weight:700;font-size:14px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Sign in</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>GUEST · NO SERVER-SIDE TRACE</span><div style="flex:1;"></div><span style="color:var(--ink3);">NO CLAIM OR MERGE PATH BY DESIGN</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

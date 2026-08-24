@@ -48,7 +48,7 @@ These values are the filter for every requirement. A feature that doesn't serve 
 
 - **Routing core** (OSMnx + FastAPI backend, Dart/Flutter client) on Desktop and Web, with a Dart-first offline engine for Mobile.
 - **Theme-driven route weighting**: climbing, traffic tolerance, surface distribution, POI density — each a weight, not a mode.
-- **Multi-day trip logistics**: waypoints, daily distance/elevation splitting, route alternatives per day, lodging and campground data, group-size-aware planning, historical weather, and river gauge readings for paddling segments.
+- **Multi-day trip logistics**: waypoints, daily distance/elevation splitting, route alternatives per day, lodging and campground data, group-size-aware planning, historical weather.
 - **Content/curation layer**: POI narration, POI-themed trips, narrative arc, trip-scoped route/POI feedback, GeoJSON export.
 - **Export pipeline**: GPX / TCX / FIT as the interop path to external platforms.
 - **Lightweight accounts, sync, and a web option** for the core loop.
@@ -76,7 +76,6 @@ Where Cycle Tour Planner over-engineered, Plotlines keeps the intent and drops t
 - **Route themes** collapse into **weights**: flattest↔most-climbing is one weight; traffic tolerance is one weight; art/history becomes an Author-set **POI type** on the density weight — not a bespoke theme each.
 - **Auth** collapses from a passkey cascade to magic-link.
 - **Sync** keeps the version-checked conditional write and drops everything heavier.
-- **Paddling difficulty** collapses from *routing constraint* to *advisory check*: the Author sets a gauge band, Plotlines shows the reading against it and warns. There is no class-rating weight and no ability-band route filter — SPIKE-04 established that no usable data source publishes per-reach difficulty, so those would have been configuration surface the engine could never honour. This is a simplification forced by evidence rather than chosen for elegance, and it is the one entry here that *lost* a capability rather than a mechanism.
 
 ---
 
@@ -87,7 +86,7 @@ Plotlines inherits the "leg" structure from the rebrand-plan. Legs are capabilit
 | Leg | Theme | Disposition (per rebrand-plan) |
 |---|---|---|
 | **1–2** | Routing core, FastAPI, Desktop client, GPX/TCX/FIT export, security & QA hardening | **Done / kept as-is.** The foundation and the intended interop path. |
-| **3** | Multi-day trip logistics — waypoints, daily splits, surface scoring, weighting, per-day alternatives, lodging/campground, group-size planning, historical weather, **river gauge readings (FR14a)** | **Keep, nearly all.** This is the differentiated territory. Gauge data joins weather here: both are external, time-varying, age-stamped reads against an authored plan, so they share a leg, a caching pattern, and a staleness rule. |
+| **3** | Multi-day trip logistics — waypoints, daily splits, surface scoring, weighting, per-day alternatives, lodging/campground, group-size planning, historical weather | **Keep, nearly all.** This is the differentiated territory. |
 | **4** | Accounts, sync & Web | **Rescoped lighter.** Magic-link auth, core web loop, version-checked sync, stateless guest, direct elevation calls. |
 | **5** | Mobile & offline | **Rescoped simple.** Point-to-point offline routing only; live navigation cut. |
 | **6** | Content layer — POI narration, themed trips, trip-scoped feedback, GeoJSON export | **Keep as-is — and elevated.** The strongest anchor for the rebrand thesis. |
@@ -108,13 +107,13 @@ FRs are numbered fresh in Plotlines' own sequence. The **Origin** column traces 
 |---|---|---|
 | **FR1** | The routing engine generates routes on an OSMnx graph via the FastAPI backend on Desktop and Web. | CTP core |
 | **FR2** | A **climbing weight** ("peaks", 0.0–5.0, decimal) controls elevation gain/density along a continuous scale (flat ↔ maximal climbing), honoring origin/destination. | CTP FR1/FR2, Plotlines 10a |
-| **FR3** | A **traffic-tolerance weight** ("cars", 0.0–5.0, decimal) balances quiet roads against direct urban egress via road-class/density thresholds. **Rural/low-signal roads are the zero-stress baseline** — highway-class tags alone never impose a stress floor; only real capacity/speed signals (`maxspeed`/`lanes`) raise stress above it. | CTP FR3, Plotlines 10b; baseline fixed per SPIKE-03/ARCH D33 |
-| **FR4** | A **surface weight** is set **independently per class** (paved / gravel / singletrack), each running **0.0 (avoid) ↔ 2.5 (indifferent) ↔ 5.0 (seek)** — not a single dial expressing relative preference across classes — so an Author can seek gravel or singletrack outright, not merely deprioritize paved. | CTP FR4, Plotlines 10d; made bipolar per SPIKE-03 (a unipolar relative weight cannot satisfy any unpaved-minimum band) |
+| **FR3** | A **traffic-tolerance weight** ("cars", 0.0–5.0, decimal) balances quiet roads against direct urban egress via road-class/density thresholds. | CTP FR3, Plotlines 10b |
+| **FR4** | A **surface weight** sets relative preference (0.0–5.0) across paved / gravel / singletrack. | CTP FR4, Plotlines 10d |
 | **FR5** | A **POI-density weight** (0.0–5.0) biases toward more/fewer POIs, with the POI *type* set by the Author (subsumes the former "art/history" theme). | CTP FR5, Plotlines 10c |
-| **FR6** | Authors set a **min and max** on any weighted route attribute — climbing, traffic exposure, surface mix, POI density, distance — and the engine searches weight space for a route whose *realized* values fall inside every band, finding good compromises across competing preferences. Bands bound the outcome ("400–600 m of climbing"), not the weight setting. | CTP, Plotlines Story 10; bound-the-attribute wording per SPIKE-03 |
+| **FR6** | Authors set a **min and max** on any weight so the engine finds good compromises across competing preferences. | CTP, Plotlines Story 10 |
 | **FR7** | Route **shape** (loop, out-and-back, point-to-point) is selectable independently of weights. | CTP FR35 |
-| **FR8** | Target **distance** is settable for loop and out-and-back shapes and is **banded by default** (FR6) — the search treats it as a constraint on the *realized* route, not a soft target free to trade away for other bands. | CTP FR47, Plotlines 10c; banded-by-default per SPIKE-03 (unbanded distance drifted up to +14.8%) |
-| **FR8a** | A **loop may be constrained to pass through one or more designated via-nodes** (rest stop, landmark, café, or any node) while returning to start, with weights and target distance still honored around the constraint. *Delivered in two stories: **A9** (one or two via-nodes, MVP) and **A9a** (three or more, P1) — beyond two, the via-nodes fix the loop's length and target distance becomes advisory rather than honored (SPIKE-01).* | New |
+| **FR8** | Target **distance** is settable for loop and out-and-back shapes, seeding the engine's distance envelope. | CTP FR47, Plotlines 10c |
+| **FR8a** | A **loop may be constrained to pass through one or more designated via-nodes** (rest stop, landmark, café, or any node) while returning to start, with weights and target distance still honored around the constraint. | New |
 | **FR9** | When constraints conflict, the engine names the conflicting constraints and offers relaxations with their trade-offs — never a silent compromise or raw error. | CTP FR43 |
 
 ### Multimodal Routing & Domain Parameters
@@ -124,12 +123,10 @@ FRs are numbered fresh in Plotlines' own sequence. The **Origin** column traces 
 | **FR10** | Authors create **route segments** with a start, end, and primary travel mode, and Plotlines supports multiple modes as first-class (cycling, hiking, paddling, and further modes) rather than cycling-only. | Plotlines Story 2 |
 | **FR11** | Authors **order and sequence** segments within a day to compose multimodal days, with a warning when adjacent segment endpoints fall more than a set distance apart. | Plotlines Story 3 |
 | **FR12** | Authors place **transition nodes** between modes, marking where Characters switch activities, stash/retrieve gear, or execute put-ins/take-outs, with attached instructions. | Plotlines Story 15 |
-| ~~**FR13**~~ | ~~Authors set **whitewater difficulty and water-type** weighting (flatwater ↔ whitewater, class rating) on paddling segments, so routing matches the group's ability and equipment.~~ **Removed — SPIKE-04.** No per-edge class rating exists in any usable data source, so a class weight has nothing to score against. See the decision log entry and §8. *(FR number retired, not reused.)* | Plotlines 10e/10f |
-| **FR14** | Authors set an **advisory gauge band** (minimum/maximum flow or stage) on a paddling segment, and a **terrain technicality/exposure** level on a technical land segment. Plotlines shows the current reading against the band and warns outside it; it never filters or excludes routes on this basis. | Plotlines Story 18 |
-| **FR14a** | Plotlines reads **river gauge data from USGS** (`api.waterdata.usgs.gov`) for gauged segments, age-stamps every reading, and states plainly when a segment has no gauge — surfaced to both Author and Character. Delivered in **Leg 3, alongside historical weather**, and following FR66's rule: a stale reading is labelled, never silently presented as current. | SPIKE-04 |
-| **FR15** | Authors **draw portages and water-trail connections** on paddle segments — exit bank, portage distance, surface, elevation change, mandatory-hazard flag — calculated separately from water distance and auto-included in cue sheets/itineraries. The portage line is Author-drawn (SPIKE-04 found no open portage-route data); mapped hazards may be surfaced to prompt one. | Plotlines Story 23 |
-| **FR16** | Authors configure **mode- and terrain-specific travel speeds** (e.g., pavement vs. singletrack, flatwater vs. moving water, ascent rate), choosing a system default, a custom Author pace, or the aggregated participant pace, feeding realistic moving time and ETAs. **The system default's accuracy is mode-dependent, not uniformly usable:** hiking's published default is within a point of a personal model (9.6% vs. 9.7% MAPE), but cycling's system default is off by **31.4%**, cut to **7.5%** by a personal pace — see FR16a. | Plotlines Story 29; SPIKE-05 |
-| **FR16a** | Authors and Characters may **upload activity files** (FIT/GPX) to derive a personal pace profile — moving speed by grade bin, stop ratio — feeding FR16's custom-Author and aggregated-participant pace options. Only derived metrics (speeds, distances, ascent, stop counts) are retained; **no raw position or timestamp reaches the output**, keeping upload FR78-consentable at the field level like any other profile data. | New; SPIKE-05 |
+| **FR13** | Authors set **whitewater difficulty and water-type** weighting (flatwater ↔ whitewater, class rating) on paddling segments, so routing matches the group's ability and equipment. | Plotlines 10e/10f |
+| **FR14** | Authors define **min/max technical parameters** for paddling/technical land segments (river gauge height, water class I–V, terrain technicality/exposure) so options match group ability. | Plotlines Story 18 |
+| **FR15** | Authors define **portages and water-trail connections** on paddle segments — exit bank, portage distance, surface, elevation change, mandatory-hazard flag — calculated separately from water distance and auto-included in cue sheets/itineraries. | Plotlines Story 23 |
+| **FR16** | Authors configure **mode- and terrain-specific travel speeds** (e.g., pavement vs. singletrack, flatwater vs. moving water, ascent rate), choosing a system default, a custom Author pace, or the aggregated participant pace, feeding realistic moving time and ETAs. | Plotlines Story 29 |
 
 ### Multi-Day Trip Logistics (Leg 3)
 
@@ -241,7 +238,6 @@ FRs are numbered fresh in Plotlines' own sequence. The **Origin** column traces 
 | FR | Requirement | Origin |
 |---|---|---|
 | **FR74** | Authors have a **Trip Library / portfolio workspace** — grid/list of authored trips with thumbnails, key metrics, variant count, group size, and sync badge; filter by mode/duration; search; and per-card Edit / Manage Roster / Export / Clone actions. | Plotlines Story 37 |
-| **FR74a** | Authors **save a trip to local storage, reopen a previously saved trip, and see a list of local trips** (title, modes, last-edited) — the minimal single-device floor FR74's full portfolio view is built on top of. No thumbnails, sync badges, or roster/metrics required; not a duplicate of FR74, its prerequisite. | New; MVP Scope §1.4.3 |
 | **FR75** | Characters have a **Trip Library / travel vault** — joined trips under Active/Upcoming, Offline Ready, and Completed/Archived, each card showing Author, attendance dates, modes, and offline badge, with one-tap download or export and links to recaps. | Plotlines Story C21 |
 | **FR76** | Trip cards show **sync-status badges**: Cloud Synced, This Device, and Offline Ready. | Plotlines Story S8 |
 
@@ -264,32 +260,6 @@ FRs are numbered fresh in Plotlines' own sequence. The **Origin** column traces 
 |---|---|---|
 | **FR84** | Plotlines exposes a **clean two-way interface**: community-contributed **data inputs** that enhance routing, and **outputs** to other platforms. Concrete contract shapes are deliberately left open. | Rebrand-plan Leg 7 |
 
-### Elevation Data (Provider & Handling)
-
-Resolved via prior art from the cycling-tour-planner POC (`backend/ctp_core/elevation.py`) — see **SPIKE-18**.
-
-| FR | Requirement | Origin |
-|---|---|---|
-| **FR85** | Plotlines' elevation source is **GEDTM30** (30 m global ensemble DTM fusing Copernicus DEM, ALOS World 3D, and ICESat-2/GEDI ground points), distributed by OpenTopography, used as the **single** elevation source with **no secondary/fallback elevation service** — GEDTM30 is already the best-available fused product, so a fallback adds complexity without improving coverage. | cycling-tour-planner POC (`backend/ctp_core/elevation.py`); SPIKE-18 |
-| **FR86** | Elevation attribution (CC BY) appears both on the app's About/info surface and **embedded in exported files where the format permits** (e.g. GPX `<metadata>`); a missing attribution is a build failure, not a polish item. | ARCH §11.2/§12.4, extended; SPIKE-18 |
-| **FR87** | OpenTopography's free non-academic API key is capped at **50 calls/24h**, and a paid Enterprise key is required once elevation is integrated into commercial software per OpenTopography's API Agreement. Plotlines' core app remaining free is what keeps Phase-1 elevation usage (FR62) within the free tier legally — this constrains both the architecture and any future monetization model. | cycling-tour-planner POC (`backend/ctp_service` config); SPIKE-18 |
-| **FR88** | Elevation reads **never raise and never block a route solve**. A value present at a coordinate is used; a `nodata` sentinel — **including a raw NaN nodata value, checked explicitly via `isnan`, not `== ds.nodata`** — falls back to `0.0` (flat-earth), as does a coordinate outside every open raster's bounds or a raster missing/unreadable on disk. Each fallback is logged **at most once per raster path**, never once per coordinate. No network fetch may occur inside route computation. | cycling-tour-planner POC (`backend/ctp_core/elevation.py`, `test_elevation.py` — a real NaN-vs-`==` defect found and fixed there); SPIKE-18 |
-| **FR89** | Elevation enrichment annotates every graph node with its elevation and every edge with `elev_gain = max(0.0, elev[v] - elev[u])` — **positive gain only** — matching ARCH §6.1's `enrich_elevation` contract. | cycling-tour-planner POC; SPIKE-18 |
-| **FR90** | The shipped default region's elevation raster is distributed as a **versioned tarball asset**, extracted into a local cache by a documented one-time setup step. Windows setup extracts via `tar -C <dir>`, **never** PowerShell `>` redirection, which corrupts the binary raster. | cycling-tour-planner POC (`README.md`); SPIKE-18 |
-| **FR91** | Elevation enrichment at sidecar startup is a **blocking, minutes-long** operation and must run off the request-handling event loop; per ARCH §7.3's existing readiness-not-liveness health semantics, a sidecar still enriching elevation must report itself **not ready**, never merely "up." | cycling-tour-planner POC (`backend/ctp_service/app.py`); ARCH §7.3, extended |
-
-### Mapping & Tile Service Contract
-
-FR92–FR94 are the POC-validated *contract*; **FR95 adds the source and licence, settled by SPIKE-14 (run 2026-08-15)** along with the rendering stack (ARCH D22) and the tooling and sizing questions (ARCH Q9/Q10).
-
-| FR | Requirement | Origin |
-|---|---|---|
-| **FR92** | The client talks **only** to Plotlines' own tile service (`GET /tiles/{z}/{x}/{y}`, ARCH §7.2) for basemap tiles; it never contacts a third-party tile host directly. (Today's dev-time backend proxies to a public OSM tile server as a **temporary implementation**; the client-talks-only-to-us **contract is permanent** regardless of the upstream source — now Protomaps, FR95.) | cycling-tour-planner POC (`backend/ctp_service/app.py`); SPIKE-14 |
-| **FR93** | The tile service **validates `z/x/y` against range** (`0 ≤ z ≤ 19`, `0 ≤ x,y < 2^z`) before doing any upstream work, rejecting out-of-range requests. | cycling-tour-planner POC (security review finding); SPIKE-14 |
-| **FR94** | Tiles are generated and cached **bbox-scoped and on demand**, not served from a standing global tile server; the same cache/pipeline is the origin for both live map requests and offline adventure-package bundles (FR64) — one pipeline, not two. The elevation cache (FR85–91) follows the identical bbox-scoped, on-demand pattern under a separate cache. | cycling-tour-planner POC; SPIKE-14 |
-| **FR95** | Basemap tiles come from the **Protomaps Basemap** (OpenStreetMap-derived), used under the **ODbL** as a Produced Work. The attribution **`© OpenStreetMap`**, linking to `https://www.openstreetmap.org/copyright`, appears on the About surface and anywhere a map is exported or printed. This is a **separate obligation from the elevation layer's CC BY (FR86), under a different licence — both are owed, and neither substitutes for the other.** Plotlines **mirrors** the tile source to its own storage rather than hotlinking the public build channel, which the source explicitly discourages; this is also what FR92 already requires. A missing attribution is a build failure, not a polish item. | SPIKE-14 (2026-08-15); ARCH D23 |
-| **FR96** | The app ships with a **default map region** — a rectangular bounding box over **Buncombe County, North Carolina** — so the map is never blank before any trip exists. On first start, the Author is prompted to set their own starting location instead, by **city + state, zip code, or country + city**; entering one downloads a **100 km radius** around it in place of the shipped default. This default/first-run region is distinct from a **per-trip bounding box**, which is always the Author-set buffer around that trip's route (FR64) — the two are never conflated. | Decided 2026-08-16; ARCH §17 D32 |
-
 
 ## 7. User Stories (INVEST)
 
@@ -303,23 +273,23 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 
 **A2 — Weight a route by traffic tolerance** *[MVP]* — *FR3*
 **As an** Author, **I want to** set a traffic-tolerance weight ("cars") 0.0–5.0 **so that** I trade quiet roads against direct urban egress.
-*AC:* 0.0–5.0 decimal; "cars" terminology; engine factors road-class/vehicle-density thresholds by the setting; at low tolerance the route measurably favors lower road classes where an alternative exists. **Rural/low-signal roads are the model's zero-stress baseline** — a road with no contrary signal (e.g. `maxspeed`/`lanes` indicating real capacity/speed) is not floored by its highway-class tag alone, so a quiet rural route at low tolerance is actually reachable (ARCH §16 D33; SPIKE-03).
+*AC:* 0.0–5.0 decimal; "cars" terminology; engine factors road-class/vehicle-density thresholds by the setting; at low tolerance the route measurably favors lower road classes where an alternative exists.
 
 **A3 — Weight a route by surface distribution** *[MVP]* — *FR4*
-**As an** Author, **I want to** independently weight paved, gravel, and singletrack from avoid to seek **so that** the route matches the group's equipment and desired character, including actively seeking unpaved surface when that's the point of the ride.
-*AC:* Each surface class carries its own 0.0 (avoid) – 2.5 (indifferent) – 5.0 (seek) weight, set independently rather than only relative to the others; the engine can be pointed at *seeking* gravel or singletrack, not merely deprioritizing paved; the route's surface breakdown is reported and shifts with the weights. *(SPIKE-03: the earlier single relative-preference dial could never satisfy an unpaved-minimum band, in any region tested.)*
+**As an** Author, **I want to** weight paved vs. gravel vs. singletrack 0.0–5.0 **so that** the route matches the group's equipment and desired character.
+*AC:* Relative 0.0–5.0 weights per surface class; engine favors the highest-weighted surfaces; the route's surface breakdown is reported and shifts with the weights.
 
 **A4 — Curate by POI density, type, and mileage** *[MVP]* — *FR5, FR8*
 **As an** Author, **I want to** set POI density (0.0–5.0) and type alongside a target mileage range **so that** the route threads through the places I want without exceeding sensible distance.
 *AC:* Density control plus Author-set POI type (e.g., waterfalls, overlooks); daily mileage min/max; engine maximizes high-value POIs of that type within the distance envelope; no separate "art/history" theme exists.
 
 **A5 — Compromise across competing weights** *[MVP]* — *FR6*
-**As an** Author, **I want to** set a min and max on each weighted attribute **so that** the engine finds good compromises when preferences pull against each other.
-*AC:* Each weighted attribute accepts a min/max band on its **realized** value; engine returns a route within all bands where one exists; where none exists, A6 governs. Band controls open on the range the region can actually deliver at the chosen distance, not on a fixed absolute scale — derived by **probing the attainable envelope** for the given start/shape/distance, not read from fixed constants (SPIKE-03: fixed defaults were feasible 22.2% of the time across the test grid; envelope-derived defaults, 100%). Band precision is floored in absolute units so a control cannot ask for a resolution the terrain cannot support.
+**As an** Author, **I want to** set a min and max on each weight **so that** the engine finds good compromises when preferences pull against each other.
+*AC:* Each weight accepts a min/max band; engine returns a route within all bands where one exists; where none exists, A6 governs.
 
 **A6 — Understand why constraints conflict** *[MVP]* — *FR9*
 **As an** Author, **I want** the planner to name conflicting constraints and offer relaxations with trade-offs **so that** I loosen the right one instead of hitting a dead end.
-*AC:* On infeasibility the system names the specific conflicting constraints; offers nearest relaxations each stating its trade-off, applyable in one action; manual adjustment always available; never a raw error, never a silent drop. **Diagnosis is asynchronous, not part of the route response:** the best-effort route and its band violations return with the initial solve; the named conflict and its verified relaxations follow as a separate result. This is a build constraint, not a UX preference — SPIKE-02 measured a satisfiable solve at 27–218 ms against 1.3–15.0 s to produce a diagnosis, so it cannot sit inside the request the Author is waiting on.
+*AC:* On infeasibility the system names the specific conflicting constraints; offers nearest relaxations each stating its trade-off, applyable in one action; manual adjustment always available; never a raw error, never a silent drop.
 
 **A7 — Choose route shape** *[MVP]* — *FR7*
 **As an** Author, **I want to** pick loop, out-and-back, or point-to-point independently of weights **so that** geometry matches the day's logistics.
@@ -327,21 +297,11 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 
 **A8 — Target a distance** *[MVP]* — *FR8*
 **As an** Author, **I want to** set a target distance for loop and out-and-back segments **so that** the day lands near the mileage I intend.
-*AC:* Target-distance control for loop/out-and-back only; **banded by default** (min/max around the set value, per FR6/A5) rather than a soft target the search is free to trade away — SPIKE-03 measured up to +14.8% unannounced drift when distance went unbanded; the Author can widen the band, but distance is never dropped from the search's constraint set. Point-to-point has no target-distance input.
+*AC:* Target-distance control for loop/out-and-back only; seeds the engine's distance envelope; point-to-point has no target-distance input.
 
-**A9 — Route a loop through one or two designated nodes** *[MVP]* — *FR8a*
+**A9 — Route a loop through a designated node** *[P1 — promotable to MVP]* — *FR8a*
 **As an** Author, **I want to** require a loop to pass through a chosen node (rest stop, landmark, café) while still returning to start **so that** the ride reaches a place that anchors the day without giving up the loop shape.
-*AC:* One or two via-nodes designable on a loop; the generated route passes through each and returns to start; weights and target distance are still honored around the via-node(s); the route is a genuine loop rather than an out-and-back, and any road ridden twice is reported; if a via-node makes the loop infeasible within the distance envelope, A6's conflict-explanation path governs and names the via-node — not the terrain — as the binding constraint.
-*Priority note (resolved 2026-08-14 by SPIKE-01): promoted from P1 to MVP. The condition the original note set was met literally — via-node, start, destination, loop, and out-and-back are one solver call with a different anchor list, and a 1-via loop is ~6× **faster** than an unconstrained one because the via replaces an anchor the engine would otherwise have to search for. Three or more via-nodes split out as A9a.*
-
-**A9a — Route a loop through three or more designated nodes** *[P1]* — *FR8a*
-**As an** Author, **I want to** require a loop to pass through three or more chosen nodes **so that** a day can be anchored to a whole sequence of places, not just one or two.
-*AC:* Three or more via-nodes designable on a loop; the route passes through each and returns to start; **the target distance is presented as advisory rather than honored**, because past two via-nodes the nodes themselves determine the loop's length; the achieved distance and its deviation are surfaced, and A6's relaxation path is offered in the same interaction so the Author can widen the distance band, drop a via-node, or accept the deviation.
-*Split from A9 on 2026-08-14 (SPIKE-01). Measured: at three via-nodes the distance error rose from under ±14% to +30.7% (Boulder) and +81.9% (Viroqua). The routing itself works — every via was hit and every loop closed — so this is a UI-and-expectations problem, not a solver one, which is why it is a separate story rather than a deferred capability.*
-
-**A10 — Set my starting map location** *[MVP]* — *FR96*
-**As an** Author, **I want to** be prompted to set my desired starting map location by city + state, zip code, or country + city **so that** my first view of the map is familiar rather than an arbitrary or blank region.
-*AC:* On first start, before any trip exists, the Author is prompted for a starting location; the default option is **Buncombe County, North Carolina**, downloaded as a rectangular bounding box; entering a location instead downloads a **100 km radius** centered on it. This is distinct from a trip's own download extent, which is always the Author-set corridor buffer around that trip's route (C14/FR35) — setting a starting location never substitutes for or conflicts with a per-trip download.
+*AC:* One or more via-nodes designable on a loop; the generated route passes through each and returns to start; weights and target distance are still honored around the via-node(s); if a via-node makes the loop infeasible within the distance envelope, A6's conflict-explanation path governs. *Priority note: scoped P1, but if via-node support is the natural way the router implements start/destination handling (i.e. a loop's start and a via-node are the same constraint mechanism), it should land in MVP rather than being artificially deferred.*
 
 ### Epic B — Author: Multimodal Composition
 
@@ -357,24 +317,21 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 **As an** Author, **I want to** define transition nodes between modes **so that** Characters know where to switch activities, stash gear, or put in / take out.
 *AC:* Transition node placeable between two segments; carries Author instructions (parking, gear stash, put-in/take-out); appears on Character timeline at the mode change.
 
-> **B4 and B5 were removed after SPIKE-04 (2026-08-14).** Both depended on knowing the
-> difficulty class of the water a route would cross, and no usable source publishes it:
-> one graded feature across the three regions tested, 58 across all of North America, and
-> the authoritative US inventory prohibits reuse. Their story numbers are retired rather
-> than reused. The surviving, buildable half — an Author-set gauge band checked against a
-> real reading — is **B8** below. See the decision log and §8.
+**B4 — Set whitewater and water-type weighting** *[MVP]* — *FR13*
+**As an** Author on a paddling segment, **I want to** weight flatwater ↔ whitewater and set a class rating **so that** routing keeps the group within its ability and equipment. *(Note: fixes the inverted "so that" in the source story — routing keeps Characters within ability, not beyond it.)*
+*AC:* Flatwater–whitewater weight and class-rating input on paddle segments; routing respects the setting; never routes toward water that exceeds the stated ability band.
+
+**B5 — Set water and technical difficulty parameters** *[MVP]* — *FR14*
+**As an** Author on paddling/technical land segments, **I want to** define min/max gauge height, water class (I–V), or terrain technicality/exposure **so that** options match the group's technical ability.
+*AC:* Class ratings and gauge thresholds definable per segment; terrain technicality/exposure scale for land; options outside the band are excluded or flagged.
 
 **B6 — Define portages and water-trail connections** *[P1]* — *FR15*
-**As an** Author, **I want to** draw portages with exit bank and trail characteristics **so that** Characters can execute water-to-land transitions safely.
-*AC:* Portage line **drawn by the Author** on a paddle segment with exit bank (river left/right); portage distance, surface, and elevation change computed from that line, separately from water distance; mandatory portages (dams/falls) flag a prominent warning; auto-included in cue sheets/itineraries; entry/exit nodes can be rest/way/regroup points with notes. Mapped hazards (dams, weirs, falls) may be surfaced on the segment to prompt the Author to draw one — **but the app never claims a portage route it does not have**, because no open dataset carries them (SPIKE-04 §6).
+**As an** Author, **I want to** define portages with exit bank and trail characteristics **so that** Characters can execute water-to-land transitions safely.
+*AC:* Portage placeable on a paddle segment with exit bank (river left/right); portage distance, surface, and elevation change computed separately from water distance; mandatory portages (dams/falls) flag a prominent warning; auto-included in cue sheets/itineraries; entry/exit nodes can be rest/way/regroup points with notes.
 
-**B7 — Model mode/terrain travel speeds** *[P1]* — *FR16, FR16a, FR31*
+**B7 — Model mode/terrain travel speeds** *[P1]* — *FR16, FR31*
 **As an** Author, **I want to** configure travel speeds by mode and terrain **so that** metrics show realistic moving time and ETAs.
-*AC:* Base speeds adjustable per mode and terrain (pavement/gravel/singletrack, flat/steep, flatwater/moving water); choose system default, custom Author pace (**including one derived by uploading an activity file, FR16a**), or aggregated participant pace; dashboard updates moving time, elapsed time (incl. stops), and ETA; itineraries show elapsed time beside distance and elevation. *(SPIKE-05: the system default alone is not equally trustworthy across modes — hiking's needs no personal data, cycling's is 31.4% wrong without it and 7.5% wrong with it.)*
-
-**B8 — Set a gauge band and see the river's level against it** *[Leg 3]* — *FR14, FR14a*
-**As an** Author on a paddling segment, **I want to** set a minimum and maximum flow or stage and see the current reading against it **so that** I know whether the trip I am planning is runnable — and so that Characters know on the morning of the trip.
-*AC:* Author sets a min/max band per paddling segment, choosing the unit (cubic feet per second **or** gauge height — SPIKE-04 §5 confirmed USGS publishes both, and paddlers quote flow more often than stage). Terrain technicality/exposure is settable on technical land segments as an Author-declared level. The segment shows the governing gauge's latest reading, **age-stamped**, and warns when the reading sits outside the band. A segment with no gauge says so plainly rather than showing a blank or a guess. **The band is advisory: it warns, it never excludes or reroutes.** Author and Character see the same reading and the same warning.
+*AC:* Base speeds adjustable per mode and terrain (pavement/gravel/singletrack, flat/steep, flatwater/moving water); choose system default, custom Author pace, or aggregated participant pace; dashboard updates moving time, elapsed time (incl. stops), and ETA; itineraries show elapsed time beside distance and elevation.
 
 ### Epic C — Author: Multi-Day Logistics
 
@@ -486,7 +443,7 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 
 **F1 — Generate daily cue sheets** *[MVP]* — *FR46*
 **As an** Author, **I want** per-day cue sheets **so that** Characters have reliable directions on screen or paper.
-*AC:* Per-day cues with turns, distances, surface shifts, node highlights, portages, hazards, and scheduled events; syncs to Character offline; print-optimized layout. **Cues are derived, ordered by distance along the route, and bounded in density** — SPIKE-21 measured 0.87–2.86 derived cues per km against a 4.0 ceiling, with hazards, portages and transitions never thinned by any crowding rule. **Two limits are stated rather than implied** (SPIKE-21, ARCH A19): *surface shifts are best-effort and bounded by OSM tagging* — six across 132 km of test routes, none at all in one region — and never inferred from road class; and *a turn cue names a way only where OSM names one* (46% of edges in the densest test region), otherwise describing its type ("the bike path", "the service road"). **A cue on road the route has already ridden is marked as a retrace**, so an out-and-back spur does not read as fresh road.
+*AC:* Per-day cues with turns, distances, surface shifts, node highlights, portages, hazards, and scheduled events; syncs to Character offline; print-optimized layout.
 
 **F2 — Generate group and individual itineraries** *[P1]* — *FR48*
 **As an** Author, **I want** a master itinerary and tailored individual ones **so that** partial-attendance Characters get accurate personal plans.
@@ -505,10 +462,6 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 **G2 — Manage my trip library** *[P1]* — *FR74, FR76*
 **As an** Author, **I want** a portfolio workspace **so that** I can find, organize, and launch trips.
 *AC:* Grid/list of authored trips with thumbnail, title, modes, distance/elevation, day count, variant count, group size, and sync badge; filter by mode/duration and search by title/location; per-card Edit Route / Manage Roster & Preferences / Export Backup / Clone.
-
-**G2a — Save, reopen, and list my local trips** *[MVP]* — *FR74a*
-**As an** Author on a single device with no account, **I want to** save a trip locally, reopen it later, and see a list of what I've saved **so that** I don't lose work between sessions and can find a trip again without G2's full portfolio machinery.
-*AC:* "Save" persists the current trip to local storage (drift) under its title; a list surface shows every locally saved trip with title, modes, and last-edited time, sorted most-recent-first; selecting a list entry reopens it into the planner with all edits intact; no thumbnails, sync badges, group-size, or roster data required — this is the floor, not a preview of G2. Works with no sign-in and no network, consistent with §1.2's no-accounts desktop MVP scope.
 
 ### Epic H — Character: Experience the Journey
 
@@ -666,10 +619,6 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 **As a** User, **I want** clear status badges on trip cards **so that** I know my data is backed up before going offline.
 *AC:* Cards show Cloud Synced, This Device, and Offline Ready distinctly.
 
-**K10 — See required data attribution and app/sidecar version** *[MVP]* — *FR86, FR95*
-**As a** User, **I want** an About/info surface listing every licensed data source's attribution and the app's (and, on desktop, sidecar's) version **so that** Plotlines meets its licence obligations honestly and I can tell what I'm running.
-*AC:* Reachable from every platform surface that displays licensed data, including the lightest ones (e.g. Web-guest) — a footer or menu link suffices, but the surface can never be omitted; shows the CC BY credit for elevation (FR86) and the ODbL `© OpenStreetMap` credit for the basemap (FR95) together, since they are separate obligations under different licences and neither substitutes for the other; shows the running app version and, on desktop, the sidecar version, matching what `/health` reports (M12); **a missing attribution is a build failure, not a polish item** — this surface existing and being correct is a release gate.
-
 ### Epic L — Portability & Durability
 
 **L1 — Auto-back-up trips locally as GeoJSON** *[P1]* — *FR68*
@@ -692,7 +641,7 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 
 **M1 — Model themes as data** *[MVP]* — *design goal*
 **As a** Developer, **I want** every theme to be a `WeightProfile` instance fed to one scoring function **so that** a new theme is a config entry, not new code.
-*AC:* Each theme is values in a shared `WeightProfile` (elevation, traffic class, surface penalty, POI bonus, detour budget, plus mode-specific weights such as terrain technicality); one scoring function consumes any profile; adding a theme requires only a new profile entry; mode-specific weights extend the same structure, not a parallel scorer. *(The whitewater-class and water-type weights that used to illustrate this were removed with FR13 — see ARCH D19. The requirement is the extension mechanism, which is unaffected; re-adding a mode weight if data appears is a profile field, which is the point.)*
+*AC:* Each theme is values in a shared `WeightProfile` (elevation, traffic class, surface penalty, POI bonus, detour budget, plus mode-specific weights like whitewater class/water type); one scoring function consumes any profile; adding a theme requires only a new profile entry; mode-specific weights extend the same structure, not a parallel scorer.
 
 **M2 — Resolve weights per edge via a position lookup** *[MVP]* — *FR36 seam*
 **As a** Developer, **I want** the solver to read an edge's weight via `weights.at(position)` from day one **so that** scoped/segment-varying weighting later is a one-function change.
@@ -700,7 +649,7 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 
 **M3 — Abstract elevation behind one interface** *[MVP]* — *FR62 seam*
 **As a** Developer, **I want** elevation requested for a bounding box through one interface **so that** adding a shared cache later is a config change, not a client rewrite.
-*AC:* One elevation interface from the first milestone; initial resolution is local-cache-then-direct-provider; a later phase inserts a shared cache ahead of the direct call, changing only order and base URL; the routing core's elevation reads are unchanged. The direct provider in Phase 1 is GEDTM30/OpenTopography (FR85).
+*AC:* One elevation interface from the first milestone; initial resolution is local-cache-then-direct-provider; a later phase inserts a shared cache ahead of the direct call, changing only order and base URL; the routing core's elevation reads are unchanged.
 
 **M4 — Serve web auth same-site** *[MVP]* — *architecture requirement*
 **As a** Developer, **I want** web and API on subdomains of one registered domain with a first-party `SameSite=Lax` session cookie **so that** sessions survive Safari and Firefox third-party-cookie blocking.
@@ -726,22 +675,6 @@ Stories are organized by epic and expressed in INVEST form — **I**ndependent, 
 **As a** Developer, **I want** the mobile app to minimize GPS/CPU/network wake-ups and keep working under OS power-saving **so that** navigation survives a full day in the field.
 *AC:* Minimized wake-ups during active navigation; no errors/crashes under OS power-saving; core navigation (cue sheet, position, next maneuver) remains available.
 
-**M10 — Ship a single, licensed elevation source with no fallback** *[MVP]* — *FR85, FR88*
-**As a** Developer, **I want** one fused elevation source with an explicit void/nodata/NaN policy **so that** elevation reads are simple, predictable, and never the reason a solve hangs or throws.
-*AC:* GEDTM30/OpenTopography is the only elevation source, no secondary fallback; nodata (including NaN, via explicit `isnan`) and out-of-bounds/missing-raster cases all resolve to `0.0`, logged at most once per raster path; no network call occurs inside a solve.
-
-**M11 — Serve tiles only through our own service** *[MVP]* — *FR92, FR93, FR94, FR95*
-**As a** Developer, **I want** the client to depend on one tile contract regardless of the upstream tile source **so that** swapping the basemap vendor or generation tooling never touches client code.
-*AC:* Client requests tiles only from `GET /tiles/{z}/{x}/{y}`; the service validates z/x/y range before any upstream work; tile generation is bbox-scoped and on-demand, shared with the offline-bundle pipeline (FR64); tiles are extracted from a Plotlines-hosted mirror of the Protomaps build rather than fetched from the public channel, and the ODbL `© OpenStreetMap` attribution ships alongside the elevation layer's CC BY (FR86) — both, under different licences.
-
-**M12 — Manage the sidecar's lifecycle and enforce a paired version** *[MVP]* — *architecture requirement (ARCH §7.3, §12.1)*
-**As a** Developer, **I want** the client to spawn, health-poll, restart, stop, and version-check the sidecar exactly as specified **so that** the two-artifact desktop app never hangs, orphans a process, or silently runs the client against mismatched routing code.
-*AC:* Spawn binds an ephemeral port and launches the sidecar with it; the client polls `GET /health` to **readiness**, not mere liveness, with a generous timeout and an honest escalating wait message — never a silent hang; a sidecar that dies mid-session is restarted **once**, and a second failure degrades honestly (cached trips still viewable, generation unavailable, stated inline, per M13); graceful stop is platform-specific — POSIX SIGTERM→SIGKILL; Windows `AttachConsole`+muted Ctrl handling+`CTRL_BREAK_EVENT`→`TerminateProcess`, with the sidecar held in a Job Object (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) so a crashed client cannot orphan it; app start performs an orphan sweep for anything the last session missed; client and sidecar versions are compared via `/health` at startup, and **the app refuses to run on a mismatch** rather than risk platform-divergent routes (A8). Verified by the sidecar-lifecycle test suite (ARCH §14.2): port-in-use, slow cold start, mid-session death + restart, and orphan sweep after an ungraceful exit.
-
-**M13 — Handle every desktop error/empty state through one shared surface** *[MVP]* — *design goal (MVP Scope §4); FR9*
-**As a** Developer, **I want** the desktop app's failure and empty states routed through one shared handling surface rather than ad-hoc dialogs invented at each call site **so that** every failure gets its defined, consistent treatment and a failure in an optional enrichment never destroys the primary work.
-*AC:* One shared surface, driven by a typed state enum, covers all eight desktop states — sidecar starting, sidecar won't start, sidecar died mid-session (M12), no route possible (FR9/A6), no data for the area, elevation void/missing tile, external provider unreachable, export failed — each rendered with its defined treatment (honest wait message, retry, single silent restart then honest degrade, named conflict + relaxation, clear no-data message, silent log-once with no user-facing error, honest degrade, actionable export error); the surface is stubbed before the first screen is built, not retrofitted once screens exist; a failure in an optional enrichment (elevation, weather, export) never blocks generation or discards the route (P5).
-
 
 ## 8. Open Items
 
@@ -750,11 +683,9 @@ Deliberately unresolved, carried forward or newly surfaced:
 - **In-field peer intel is intentionally in-scope, and route-anchored.** Route amendments (FR56 / I9) and field notes (FR56a / I9a–b) let any participant share time-sensitive intel with the trip roster peer-to-peer — resolved this way deliberately, because the Author may be riding the trip and unable to relay in real time. This is bounded to one trip's roster, anchored to points on the shared route, and advisory (recipients Accept/Decline/ignore; nothing changes a path without consent). It is **not** the social-platform territory the non-goal guards against — no friend graph, no cross-trip feed, no open messaging. The remaining design question is presentation, not permission: how notes and flagged amendments are surfaced/queued so a busy stretch doesn't overwhelm the Character.
 - **Cue HUD vs. "no real-time route guidance."** The auto-updating HUD with live ETA recalculation (FR50–FR51) is authored-content playback, not turn-by-turn routing — but the line is fine. Worth confirming during Design that the HUD never crosses into wrong-turn recalculation or "follow the line" guidance.
 - **Multimodal MVP breadth.** Cycling, hiking, and paddling are first-class in MVP. The exact set of *further* modes (skiing, climbing, packrafting, etc.) and their weight/parameter profiles is a scoping decision; the `WeightProfile` model (M1) is designed to absorb them without new scorers.
-- **Paddling difficulty — decided, and worth revisiting if the data changes.** SPIKE-04 ([results](../spikes/SPIKE-04/results/RESULTS.md)) found the paddling network and live gauge readings solid and public-domain (USGS), and **class ratings absent**: one graded feature across the three regions tested, 58 across all of North America, and the authoritative US inventory prohibits reuse. **Decided 2026-08-14: FR13 removed, stories B4 and B5 removed, FR14 narrowed to an advisory gauge band (B8, Leg 3), FR15/B6 portages made Author-drawn.** What remains open is not the decision but its trigger: **if a data agreement with American Whitewater becomes possible — or the OSM whitewater schema gains North American adoption — the class-band capability becomes buildable and should be reconsidered on its merits.** Nothing in the current design forecloses it: re-adding the class term is two fields on `WeightProfile` and a scoring clause (ARCH §6.3, D19) once a data source exists — not a redesign.
 - **Unified "share with Author" surface.** Profile field-sharing is now a request/response negotiation (FR78/FR78a — Author requests, Character grants/declines/volunteers), while transit/arrival sharing (FR30) is a simpler per-field opt-in. Design should decide whether these live in one "what I share with the Author" surface or two, and whether transit sharing should also adopt the request/response pattern.
 - **Leg 7 interface shape.** The concrete data-input contract and output-destination list are intentionally open (FR84).
-- **Default download regions — settled, including the first-run experience.** SPIKE-14 measured the sizing this depended on: **~3.5 MB per 1,000 km² at z0–15**, over a ~1 MB floor — **1.0 MB** for a CI/test bbox (small enough to commit as a fixture), **22 MB** for an 80 km square, **118 MB** for a 235 × 134 km multi-day corridor, and capping at z14 roughly halves each. The POC's cautionary ~80 km square is confirmed as the right order of magnitude and costs almost nothing, so **a default region is not a storage trade-off — pick the region that routes well.** **Decided 2026-08-16 (ARCH §17 D32): three distinct shapes, not one model.** The shipped default is a **rectangular bounding box of Buncombe County, North Carolina**. First start with nothing downloaded prompts the Author to set their own starting map location — by city + state, zip code, or country + city (A10) — and downloads a **100 km radius** around it, defaulting to Buncombe County, NC if they don't. A trip's download need was never a fixed-region question at all: it is exactly the **Author-set corridor buffer** around that trip's route (C14/FR35), with no separate selection step.
-- ~~**Traffic-stress model overstates rural traffic**~~ — **decided 2026-08-16 (ARCH §16 D33).** SPIKE-03 found the traffic-tolerance weight (FR3, A2) infers stress from OSM highway class alone, which gave rural Viroqua a **35% traffic-exposure floor** on empty county roads tagged `tertiary`/`secondary` — no weight setting could route below it, degrading A2 `[MVP]` directly. **Rural/low-signal roads are now the model's zero-stress baseline rather than inheriting a class-derived floor**: a road with no contrary signal starts at minimum stress, and the previously-unused `maxspeed`/`lanes` attributes are what raise it above baseline. Highway class stays informative for genuinely busy roads; it just no longer sets a floor on quiet ones.
+- **Default download regions.** The packaged first-region set is not yet pinned; Character first-start download is written generically until it is.
 - **Brand naming & positioning** beyond product/technical scope — not yet settled.
 - **Visual identity & color system** — owned by `Brand Guide.md`, deliberately not duplicated here.
 
@@ -764,9 +695,8 @@ Deliberately unresolved, carried forward or newly surfaced:
 
 Every user story in `Plotlines.md` is represented in this PRD. Consolidations of note:
 
-- Author 10a–10d → FR2–FR5, FR8 (weights); 29 → FR16, FR31 (speeds/ETA).
-- **Author 10e/10f/18 (water/technical) are no longer fully represented.** They mapped to FR13–FR14; FR13 was removed and FR14 narrowed after SPIKE-04, so the *class-rating* half of those source stories is deliberately unbuilt. Story 18's gauge half survives as FR14/FR14a (story B8) and its terrain-technicality half as FR14. This is the one place a source story was dropped on evidence rather than consolidated.
+- Author 10a–10d → FR2–FR5, FR8 (weights); 10e/10f/18 → FR13–FR14 (water/technical); 29 → FR16, FR31 (speeds/ETA).
 - Author 1, 9 → FR17–FR18; 20 → FR19; 19 → FR20; 4/5 → FR21; 13 → FR22; 11 → FR23; 12 → FR35; 15 → FR12; 23 → FR15; 32 → FR24; 33 → FR25; 34 → FR26; 27 → FR27, FR53; 28 → FR28; 17 → FR29–FR30; 16 → FR38; 21/22 → FR31–FR32; 7/8 → FR33; 14 → FR34; 24/25 → FR48; 26 → FR46; 31 → FR82; 35/36 → FR55–FR56; 37 → FR74.
 - Character C1–C13 map to their Author counterparts' Character-facing FRs; C17 → FR72; C18 → FR73; C19 → FR79; C20 → FR54; C21 → FR75; C22 → FR50; C23 → FR51; C24 → FR52; C11 → FR53; C14 → FR44–FR45; C5 → FR66; C6 → FR77.
 - System S1 → FR79; S2 → FR77; S3 → FR68; S4 → FR69; S5 → FR70; S6 → FR71; S8 → FR76; S9 → FR83. Developer D1 → M8.
-- Two source defects corrected: Story 10e's inverted "so that" (routing was to keep Characters *within* ability, not beyond it — moot now that FR13/B4 are removed), and Story 10c's mileage target folded into FR8/FR5.
+- Two source defects corrected: Story 10e's inverted "so that" (now routes *within* ability, FR13/B4), and Story 10c's mileage target folded into FR8/FR5.

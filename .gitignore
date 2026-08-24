@@ -5,6 +5,9 @@
 # (Tier 2, FastAPI sidecar/hosted), plus cross-cutting build/secret/OS noise.
 # ============================================================================
 
+# Windows odd files
+*Zone.Identifier
+
 # ----------------------------------------------------------------------------
 # Flutter / Dart client (Tier 3 — §9)
 # See https://www.dartlang.org/guides/libraries/private-files

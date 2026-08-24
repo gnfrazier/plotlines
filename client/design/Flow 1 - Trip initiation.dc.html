@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Archivo:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#DB5A28;text-decoration:none}
+a:hover{color:#9A3412;text-decoration:underline}
+</style>
+</helmet>
+<div style="--app:#F4EFE4;--card:#FBF9F3;--sunk:#EBE3D4;--ink:#221F1A;--ink2:#544D42;--ink3:#8C8476;--line:#D9D0BE;--primary:#DB5A28;--success:#2C4A3B;--info:#3D6577;--warning:#B5852B;--danger:#9A3412;--serif:'Instrument Serif',Georgia,serif;--sans:'Archivo',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;font-family:var(--sans);background:#E6DFD0;color:var(--ink);padding:56px 64px 96px;min-height:100vh;">
+
+  <div style="max-width:1280px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--primary);">Plotlines · Author Flows (MVP) · Windows desktop</div>
+    <div style="font-family:var(--serif);font-size:56px;line-height:1;margin-top:10px;">Flow 1 — Trip initiation</div>
+    <p style="font-size:16px;line-height:1.65;color:var(--ink2);max-width:74ch;margin:18px 0 0;text-wrap:pretty;">A trip begins by deciding where to look. Plotlines opens on the shipped Buncombe County home region so the map is never blank, then asks for one location — which only centers the map — before the Author draws the bounding box that bounds layers, clusters, tiles, and elevation for the whole trip. Curation unlocks as soon as layers finish; elevation enriches behind the Author, and routing stays visibly disabled with its reason until it lands.</p>
+  </div>
+
+  <!-- ═══ 01 ═══ -->
+  <div style="margin-top:56px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">01</span>
+      <span style="font-size:19px;font-weight:700;">Cold start — the home region</span>
+      <span style="font-size:14px;color:var(--ink3);">Fresh install, no network. No prompt, no download.</span>
+    </div>
+
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <!-- title bar -->
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <!-- menu bar -->
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;border-radius:4px;">Trip</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;border-radius:4px;">Edit</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;border-radius:4px;">View</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;border-radius:4px;">Help</span>
+        <div style="flex:1;"></div>
+        <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);padding-right:6px;">OFFLINE · LOCAL ONLY</span>
+      </div>
+      <!-- body -->
+      <div style="height:706px;display:flex;">
+        <!-- map -->
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 34% 46%,transparent 0 30px,rgba(44,74,59,.09) 30px 31px),linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+          <div style="position:absolute;left:8%;top:22%;width:78%;height:2px;background:#3D6577;opacity:.5;transform:rotate(9deg);border-radius:2px;"></div>
+          <div style="position:absolute;left:22%;top:58%;width:56%;height:2px;background:#3D6577;opacity:.35;transform:rotate(-13deg);border-radius:2px;"></div>
+          <div style="position:absolute;left:0;top:40%;width:100%;height:1.5px;background:#8C8476;opacity:.5;transform:rotate(-3deg);"></div>
+          <!-- home region rect -->
+          <div style="position:absolute;left:14%;top:16%;width:66%;height:64%;border:1.5px dashed rgba(219,90,40,.75);background:rgba(219,90,40,.05);">
+            <span style="position:absolute;top:-11px;left:12px;background:#E3DBC7;font-family:var(--mono);font-size:10.5px;letter-spacing:0.08em;color:var(--primary);padding:0 6px;">HOME REGION · SHIPPED</span>
+          </div>
+          <div style="position:absolute;left:50%;top:47%;transform:translate(-50%,-50%);text-align:center;">
+            <div style="font-family:var(--serif);font-size:26px;color:var(--ink2);">Buncombe County</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:0.06em;margin-top:4px;">NORTH CAROLINA · 35.43°N 82.55°W</div>
+          </div>
+          <div style="position:absolute;left:20px;bottom:18px;background:rgba(251,249,243,.92);border:1px solid var(--line);border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);line-height:1.7;">
+            <div>SHIPPED ASSET · NO DOWNLOAD</div>
+            <div style="color:var(--ink3);">A constant, not a default</div>
+          </div>
+          <div style="position:absolute;right:20px;bottom:18px;font-family:var(--mono);font-size:10px;color:var(--ink3);">© OpenStreetMap contributors (ODbL) · GEDTM30 (CC BY)</div>
+        </div>
+        <!-- library rail -->
+        <div style="width:376px;border-left:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:22px 24px 16px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Trip library</div>
+            <div style="font-family:var(--serif);font-size:28px;line-height:1.1;margin-top:6px;">Local trips</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 24px;gap:14px;">
+            <div style="width:44px;height:44px;border:1.5px dashed var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;">
+              <svg width="20" height="20" viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10H4z" fill="none" stroke="#8C8476" stroke-width="1.6" stroke-linejoin="round"></path></svg>
+            </div>
+            <div style="font-size:17px;font-weight:700;">No trips on this device yet.</div>
+            <div style="font-size:13.5px;line-height:1.6;color:var(--ink2);">Start a new trip, or clone one you have planned before. Planning works with no account and no network — sign-in only adds sync.</div>
+            <div style="display:flex;flex-direction:column;gap:10px;align-self:stretch;margin-top:4px;">
+              <span style="background:var(--primary);color:#fff;font-weight:700;font-size:15px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">New trip</span>
+              <span style="border:1.5px solid var(--ink);color:var(--ink);font-weight:600;font-size:14px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Clone an existing trip</span>
+              <span style="border:1px solid var(--line);color:var(--ink2);font-weight:600;font-size:14px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Open from file…</span>
+            </div>
+          </div>
+          <div style="padding:16px 24px 20px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink3);line-height:1.6;">Signed out. <span style="color:var(--primary);font-weight:600;">Sign in with a magic link</span> to sync across devices.</div>
+        </div>
+      </div>
+      <!-- status bar -->
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>HOME REGION LOADED</span>
+        <span style="color:var(--ink3);">NO TRIP OPEN</span>
+        <div style="flex:1;"></div>
+        <span style="color:var(--ink3);">v2.0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 02 ═══ -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">02</span>
+      <span style="font-size:19px;font-weight:700;">New trip — the location prompt</span>
+      <span style="font-size:14px;color:var(--ink3);">Prefilled with the last-used value, freely editable, centers the map only.</span>
+    </div>
+
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — New trip</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:740px;position:relative;background:#DED6C2;background-image:repeating-radial-gradient(circle at 34% 46%,transparent 0 30px,rgba(44,74,59,.06) 30px 31px),linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <!-- dialog -->
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:560px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="display:flex;border-bottom:1px solid var(--line);">
+            <div style="flex:1;padding:14px 0;text-align:center;font-size:14px;font-weight:700;border-bottom:2px solid var(--primary);">New trip</div>
+            <div style="flex:1;padding:14px 0;text-align:center;font-size:14px;font-weight:600;color:var(--ink3);">Clone a trip</div>
+          </div>
+          <div style="padding:26px 28px 8px;">
+            <div style="font-family:var(--serif);font-size:30px;line-height:1.1;">Where are we going?</div>
+            <p style="font-size:13.5px;line-height:1.6;color:var(--ink2);margin:10px 0 22px;">City and state, a zip code, or country and city. This centers the map — you will draw the trip's bounding box next.</p>
+
+            <label style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:7px;">Location</label>
+            <div style="display:flex;align-items:center;gap:10px;border:1.5px solid var(--primary);border-radius:4px;background:#fff;padding:0 12px;min-height:46px;">
+              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 21s7-6.3 7-11a7 7 0 10-14 0c0 4.7 7 11 7 11z" fill="none" stroke="#8C8476" stroke-width="1.7"></path><circle cx="12" cy="10" r="2.4" fill="#8C8476"></circle></svg>
+              <span style="font-size:15px;flex:1;">Asheville, NC</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:0.06em;">LAST USED</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin-top:10px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>
+              <div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">No need to be precise — this only decides where the map opens. You will draw the area the trip covers yourself on the next screen.</div>
+              <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span>
+            </div>
+
+            <label style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);display:block;margin:22px 0 7px;">How will you travel?</label>
+            <div style="display:flex;flex-wrap:wrap;gap:7px;">
+              <span style="font-size:13px;font-weight:700;border:1.5px solid var(--ink);border-radius:18px;padding:8px 15px;">Cycling</span>
+              <span style="font-size:13px;font-weight:700;border:1.5px solid var(--ink);border-radius:18px;padding:8px 15px;">Paddling</span>
+              <span style="font-size:13px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:18px;padding:8px 15px;">Hiking</span>
+              <span style="font-size:13px;font-weight:700;border:1.5px solid var(--ink);border-radius:18px;padding:8px 15px;">Driving</span>
+              <span style="font-size:13px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:18px;padding:8px 15px;">More…</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin-top:10px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>
+              <div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Your modes decide which map layers start switched on — a sauna belongs on a rest day, not on a riding day. Change them any time, and override them per day.</div>
+              <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span>
+            </div>
+
+            <label style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);display:block;margin:22px 0 7px;">Trip title</label>
+            <div style="border:1px solid var(--line);border-radius:4px;background:#fff;padding:0 12px;min-height:46px;display:flex;align-items:center;">
+              <span style="font-size:15px;color:var(--ink3);">Blue Ridge, late September</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:22px 28px 24px;">
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Cancel</span>
+            <span style="font-weight:700;font-size:15px;background:var(--primary);color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Continue to the map</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>NEW TRIP · STEP 1 OF 2</span><div style="flex:1;"></div><span style="color:var(--ink3);">NO EXTENT DECLARED</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 03 ═══ -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">03</span>
+      <span style="font-size:19px;font-weight:700;">Reuse a trip</span>
+      <span style="font-size:14px;color:var(--ink3);">Start from one you have already planned, and choose how much of it comes across. Grants never do.</span>
+    </div>
+
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Clone a trip</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:812px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:720px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="display:flex;border-bottom:1px solid var(--line);">
+            <div style="flex:1;padding:14px 0;text-align:center;font-size:14px;font-weight:600;color:var(--ink3);">New trip</div>
+            <div style="flex:1;padding:14px 0;text-align:center;font-size:14px;font-weight:700;border-bottom:2px solid var(--primary);">Clone a trip</div>
+          </div>
+          <div style="padding:24px 28px 0;">
+            <div style="font-family:var(--serif);font-size:28px;line-height:1.1;">Run a trip again</div>
+            <p style="font-size:13.5px;line-height:1.6;color:var(--ink2);margin:8px 0 18px;">Start from something you have already planned and edit it down. Pick the trip to reuse — it brings its own bounding box, so you can go straight to the map.</p>
+          </div>
+          <div style="padding:0 28px;display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:14px;border:1.5px solid var(--primary);background:rgba(219,90,40,.05);border-radius:5px;padding:13px 14px;">
+              <div style="width:52px;height:38px;border-radius:3px;background:repeating-linear-gradient(135deg,var(--sunk) 0 8px,#E3DBC7 8px 16px);flex:none;"></div>
+              <div style="flex:1;">
+                <div style="font-weight:700;font-size:15px;">French Broad, Memorial Day</div>
+                <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:3px;">4 DAYS · 62 MI PADDLE · 9 CHARACTERS · EDITED MAY 2025</div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#DB5A28" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:5px;padding:13px 14px;">
+              <div style="width:52px;height:38px;border-radius:3px;background:repeating-linear-gradient(135deg,var(--sunk) 0 8px,#E3DBC7 8px 16px);flex:none;"></div>
+              <div style="flex:1;">
+                <div style="font-weight:700;font-size:15px;">Pisgah gravel weekender</div>
+                <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:3px;">2 DAYS · 96 MI GRAVEL · 5 CHARACTERS · EDITED AUG 2025</div>
+              </div>
+            </div>
+          </div>
+          <div style="margin:20px 28px 0;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">WHAT TO REUSE</div>
+            <div style="display:flex;flex-wrap:wrap;gap:7px;">
+              <span style="font-size:13px;font-weight:700;border:1.5px solid var(--ink);border-radius:18px;padding:8px 15px;">All of it</span>
+              <span style="font-size:13px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:18px;padding:8px 15px;">Just the people</span>
+              <span style="font-size:13px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:18px;padding:8px 15px;">Just the route and its content</span>
+              <span style="font-size:13px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:18px;padding:8px 15px;">Choose piece by piece…</span>
+            </div>
+          </div>
+          <div style="margin:16px 28px 0;border:1px solid var(--line);border-radius:5px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);">
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.08em;background:var(--info);color:#fff;padding:3px 7px;border-radius:3px;">FIRST CLONE</span>
+              <span style="font-size:13.5px;font-weight:700;flex:1;">Here is what a clone brings with it</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">GOT IT — HIDE THIS</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;">
+              <div style="padding:16px 18px;background:var(--app);">
+                <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--success);margin-bottom:10px;">Comes with you</div>
+                <div style="font-size:13px;line-height:1.9;color:var(--ink2);">Everyone on last year's roster — all nine<br>The groups you sorted them into<br>The whole trip: days, passages, anchors, roles<br>Everything you wrote, and who sees it when<br>Your private notes — they follow the person</div>
+              </div>
+              <div style="padding:16px 18px;background:var(--sunk);border-left:1px solid var(--line);">
+                <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--danger);margin-bottom:10px;">Starts fresh</div>
+                <div style="font-size:13px;line-height:1.9;color:var(--ink2);">What each person shares from their profile<br>Whether the group can see their arrivals<br>Last trip's reveals, arrivals, and field notes<br>The new trip's own history, starting today</div>
+              </div>
+            </div>
+          </div>
+          <p style="font-size:12.5px;line-height:1.6;color:var(--ink3);margin:14px 28px 0;">This is a different trip, so everyone decides again what they share with you — last year's disclosure never rides along. You can send all nine requests in one go once the clone opens.</p>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:20px 28px 24px;">
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Cancel</span>
+            <span style="font-weight:700;font-size:15px;background:var(--primary);color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Clone into a new trip</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>CLONE · 1 TRIP SELECTED</span><div style="flex:1;"></div><span style="color:var(--ink3);">BBOX INHERITED FROM SOURCE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 03b ═══ -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">03b</span>
+      <span style="font-size:19px;font-weight:700;">The same dialog, second time onward</span>
+      <span style="font-size:14px;color:var(--ink3);">The teaching collapses to inline help. The behaviour it described does not change.</span>
+    </div>
+
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Clone a trip</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:560px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:720px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);">
+          <div style="display:flex;border-bottom:1px solid var(--line);">
+            <div style="flex:1;padding:14px 0;text-align:center;font-size:14px;font-weight:600;color:var(--ink3);">New trip</div>
+            <div style="flex:1;padding:14px 0;text-align:center;font-size:14px;font-weight:700;border-bottom:2px solid var(--primary);">Clone a trip</div>
+          </div>
+          <div style="padding:24px 28px 0;">
+            <div style="font-family:var(--serif);font-size:28px;line-height:1.1;">Run a trip again</div>
+            <p style="font-size:13.5px;line-height:1.6;color:var(--ink2);margin:8px 0 18px;">Start from something you have already planned and edit it down. Pick the trip to reuse — it brings its own bounding box, so you can go straight to the map.</p>
+          </div>
+          <div style="padding:0 28px;display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:14px;border:1.5px solid var(--primary);background:rgba(219,90,40,.05);border-radius:5px;padding:13px 14px;">
+              <div style="width:52px;height:38px;border-radius:3px;background:repeating-linear-gradient(135deg,var(--sunk) 0 8px,#E3DBC7 8px 16px);flex:none;"></div>
+              <div style="flex:1;">
+                <div style="font-weight:700;font-size:15px;">French Broad, Memorial Day</div>
+                <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:3px;">4 DAYS · 62 MI PADDLE · 9 CHARACTERS · EDITED MAY 2025</div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#DB5A28" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:5px;padding:13px 14px;">
+              <div style="width:52px;height:38px;border-radius:3px;background:repeating-linear-gradient(135deg,var(--sunk) 0 8px,#E3DBC7 8px 16px);flex:none;"></div>
+              <div style="flex:1;">
+                <div style="font-weight:700;font-size:15px;">Pisgah gravel weekender</div>
+                <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:3px;">2 DAYS · 96 MI GRAVEL · 5 CHARACTERS · EDITED AUG 2025</div>
+              </div>
+            </div>
+          </div>
+          <div style="position:relative;margin:18px 28px 0;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>
+              <span style="font-size:13px;font-weight:600;color:var(--info);border-bottom:1px dotted var(--info);">What comes across, and what starts fresh</span>
+            </div>
+            <div style="position:absolute;left:0;top:30px;width:520px;background:var(--ink);color:var(--app);border-radius:5px;box-shadow:0 10px 30px rgba(34,31,26,.4);padding:14px 16px;">
+              <div style="font-size:13px;line-height:1.75;">Comes with you: the roster and its groups, the whole authored trip, and your private notes.</div>
+              <div style="font-size:13px;line-height:1.75;margin-top:8px;color:#E4D9C6;">Starts fresh: what each person shares, arrival visibility, and last trip's reveals and field notes. Everyone decides again.</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:110px 28px 24px;">
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Cancel</span>
+            <span style="font-weight:700;font-size:15px;background:var(--primary);color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Clone into a new trip</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>CLONE · 1 TRIP SELECTED</span><div style="flex:1;"></div><span style="color:var(--ink3);">TEACHING PANEL DISMISSED</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 04 ═══ -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">04</span>
+      <span style="font-size:19px;font-weight:700;">Draw the bounding box</span>
+      <span style="font-size:14px;color:var(--ink3);">One extent bounds layers, clusters, tiles, and elevation. Revisable, never duplicated.</span>
+    </div>
+
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Edit</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span>
+        <div style="flex:1;"></div>
+        <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);padding-right:6px;">STEP 2 OF 2 · DECLARE THE EXTENT</span>
+      </div>
+      <div style="height:872px;display:flex;">
+        
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 62% 30%,transparent 0 26px,rgba(44,74,59,.09) 26px 27px),linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+          <div style="position:absolute;left:4%;top:30%;width:92%;height:2px;background:#3D6577;opacity:.5;transform:rotate(7deg);border-radius:2px;"></div>
+          <div style="position:absolute;left:10%;top:66%;width:70%;height:2px;background:#3D6577;opacity:.35;transform:rotate(-10deg);border-radius:2px;"></div>
+          <div style="position:absolute;left:0;top:52%;width:100%;height:1.5px;background:#8C8476;opacity:.45;transform:rotate(-2deg);"></div>
+          <!-- drawn bbox -->
+          <div style="position:absolute;left:19%;top:20%;width:56%;height:56%;border:2px solid var(--primary);background:rgba(219,90,40,.07);">
+            <div style="position:absolute;left:-5px;top:-5px;width:9px;height:9px;background:#fff;border:2px solid var(--primary);"></div>
+            <div style="position:absolute;right:-5px;top:-5px;width:9px;height:9px;background:#fff;border:2px solid var(--primary);"></div>
+            <div style="position:absolute;left:-5px;bottom:-5px;width:9px;height:9px;background:#fff;border:2px solid var(--primary);"></div>
+            <div style="position:absolute;right:-5px;bottom:-5px;width:9px;height:9px;background:#fff;border:2px solid var(--primary);"></div>
+            
+          </div>
+          <!-- draw toolbar -->
+          <div style="position:absolute;left:16px;top:16px;background:var(--card);border:1px solid var(--line);border-radius:5px;box-shadow:0 4px 14px rgba(34,31,26,.12);display:flex;flex-direction:column;overflow:hidden;">
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--primary);"><svg width="17" height="17" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="3 2.4"></rect></svg></div>
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--line);"><svg width="17" height="17" viewBox="0 0 24 24"><path d="M6 5v14M6 5l12 7-12 7" fill="none" stroke="#544D42" stroke-width="1.8" stroke-linejoin="round"></path></svg></div>
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--line);"><svg width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="#544D42" stroke-width="1.8"></circle><path d="M17 17l3.5 3.5" stroke="#544D42" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+          </div>
+          <div style="position:absolute;right:16px;top:16px;background:var(--card);border:1px solid var(--line);border-radius:5px;box-shadow:0 4px 14px rgba(34,31,26,.12);display:flex;flex-direction:column;overflow:hidden;">
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#544D42" stroke-width="2" stroke-linecap="round"></path></svg></div>
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--line);"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M5 12h14" stroke="#544D42" stroke-width="2" stroke-linecap="round"></path></svg></div>
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--line);"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="#544D42" stroke-width="1.8" stroke-linecap="round"></path><circle cx="12" cy="12" r="4" fill="none" stroke="#544D42" stroke-width="1.8"></circle></svg></div>
+            <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--line);"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 11V6.5a1.5 1.5 0 013 0V11m0-1.5a1.5 1.5 0 013 0V12m0-1a1.5 1.5 0 013 0v4.5a5 5 0 01-5 5h-1.6a4 4 0 01-3-1.4L6 14.5a1.6 1.6 0 012.4-2.1L9 13" fill="none" stroke="#544D42" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+          </div>
+          <div style="position:absolute;left:16px;bottom:18px;display:flex;align-items:flex-end;gap:8px;">
+            <div style="width:72px;height:7px;border:1px solid var(--ink2);border-top:none;"></div>
+            <span style="font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1;">10 MI</span>
+          </div>
+          <div style="position:absolute;right:20px;bottom:18px;font-family:var(--mono);font-size:10px;color:var(--ink3);">© OpenStreetMap contributors (ODbL)</div>
+        </div><div style="width:376px;border-left:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:22px 24px 16px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Trip extent</div>
+            <div style="font-family:var(--serif);font-size:27px;line-height:1.1;margin-top:6px;">Draw the bounding box</div>
+            <p style="font-size:13.5px;line-height:1.6;color:var(--ink2);margin:10px 0 0;">Zoom and pan until you can see the whole area, then drag a rectangle around everything the trip might touch — including the drive in and any bail-out you might want.</p>
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin-top:12px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>
+              <div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">This rectangle is the only area Plotlines looks at — for places, for maps, and for terrain. Generous beats tight; you are not committing to riding all of it.</div>
+              <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span>
+            </div>
+          </div>
+          <div style="padding:18px 24px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:2;">
+              <div style="display:flex;justify-content:space-between;"><span style="color:var(--ink3);">NORTH</span><span>35.9412°</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:var(--ink3);">SOUTH</span><span>35.2870°</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:var(--ink3);">WEST</span><span>−82.8104°</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:var(--ink3);">EAST</span><span>−81.9663°</span></div>
+              <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:8px;padding-top:8px;"><span style="color:var(--ink3);">AREA</span><span>45.2 × 38.8 MI</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:var(--ink3);">UNITS</span><span style="color:var(--ink3);">FROM WINDOWS · CHANGE</span></div>
+            </div>
+          </div>
+          <div style="padding:18px 24px;flex:1;">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:12px;">This extent will bound</div>
+            <div style="display:flex;flex-direction:column;gap:11px;font-size:13.5px;">
+              <div style="display:flex;justify-content:space-between;"><span>Layer &amp; POI extraction</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">~40 S</span></div>
+              <div style="display:flex;justify-content:space-between;"><span>Co-location analysis domain</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">ON DEMAND</span></div>
+              <div style="display:flex;justify-content:space-between;"><span>Basemap tiles</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">318 MB</span></div>
+              <div style="display:flex;justify-content:space-between;"><span>Elevation coverage</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">~3 MIN</span></div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;margin-top:18px;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>
+              <div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">You are not locked in. Drag it wider later and only the new strip gets fetched; pull it in and Plotlines shows you any places that would fall outside before anything changes.</div>
+              <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span>
+            </div>
+          </div>
+          <div style="padding:16px 24px 20px;border-top:1px solid var(--line);display:flex;gap:10px;">
+            <span style="flex:none;border:1px solid var(--line);color:var(--ink2);font-weight:600;font-size:14px;min-height:44px;border-radius:4px;display:inline-flex;align-items:center;padding:0 16px;">Redraw</span>
+            <span style="flex:1;background:var(--primary);color:#fff;font-weight:700;font-size:15px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Use this extent</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>DRAW MODE</span><span style="color:var(--ink3);">SHIFT-DRAG TO CONSTRAIN · ESC TO CANCEL</span><div style="flex:1;"></div><span style="color:var(--ink3);">ONE EXTENT · NO SECOND EXTENT FOR ANALYSIS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 05 ═══ -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">05</span>
+      <span style="font-size:19px;font-weight:700;">Curation unlocks; elevation enriches behind you</span>
+      <span style="font-size:14px;color:var(--ink3);">Readiness is per capability, and per layer inside the layers capability.</span>
+    </div>
+
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Edit</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span>
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span>
+        <div style="flex:1;"></div>
+        <div style="display:flex;align-items:center;gap:6px;padding-right:6px;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><path d="M9 7H15a4 4 0 010 8H7" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round"></path><path d="M10 4L7 7l3 3" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24"><path d="M15 7H9a4 4 0 000 8h8" fill="none" stroke="#C9C1B2" stroke-width="1.8" stroke-linecap="round"></path><path d="M14 4l3 3-3 3" fill="none" stroke="#C9C1B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+      </div>
+      <div style="height:706px;display:flex;">
+        <!-- nav rail -->
+        <div style="width:186px;border-right:1px solid var(--line);background:var(--app);display:flex;flex-direction:column;padding:12px 0;">
+          <div style="padding:6px 16px 12px;font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Workspace</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--card);border-left:3px solid var(--primary);font-size:13.5px;font-weight:700;">Curate</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Days</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:#B4AB9B;">Routing<svg width="13" height="13" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="1.6" fill="none" stroke="#B4AB9B" stroke-width="1.8"></rect><path d="M8.5 11V8a3.5 3.5 0 017 0v3" fill="none" stroke="#B4AB9B" stroke-width="1.8"></path></svg></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Narrative</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:#B4AB9B;">Outputs<svg width="13" height="13" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="1.6" fill="none" stroke="#B4AB9B" stroke-width="1.8"></rect><path d="M8.5 11V8a3.5 3.5 0 017 0v3" fill="none" stroke="#B4AB9B" stroke-width="1.8"></path></svg></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Roster</div>
+          <div style="flex:1;"></div>
+          <div style="margin:0 12px;background:var(--sunk);border:1px solid var(--line);border-radius:5px;padding:11px 12px;">
+            <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:0.1em;color:var(--ink3);">DASHBOARD</div>
+            <div style="font-family:var(--mono);font-size:12px;margin-top:6px;line-height:1.8;color:var(--ink2);">0 ANCHORS<br>0 DAYS<br>— MI</div>
+          </div>
+        </div>
+        <!-- map -->
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 58% 34%,transparent 0 26px,rgba(44,74,59,.09) 26px 27px),linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+          <div style="position:absolute;left:2%;top:34%;width:96%;height:2px;background:#3D6577;opacity:.5;transform:rotate(6deg);border-radius:2px;"></div>
+          <div style="position:absolute;left:0;top:58%;width:100%;height:1.5px;background:#8C8476;opacity:.45;transform:rotate(-3deg);"></div>
+          <div style="position:absolute;left:6%;top:8%;width:88%;height:82%;border:1.5px solid rgba(219,90,40,.5);background:rgba(219,90,40,.03);"></div>
+          <!-- candidate dots -->
+          <div style="position:absolute;left:22%;top:26%;width:13px;height:13px;border-radius:50%;background:rgba(44,74,59,.75);"></div>
+          <div style="position:absolute;left:31%;top:44%;width:9px;height:9px;border-radius:50%;background:rgba(44,74,59,.5);"></div>
+          <div style="position:absolute;left:47%;top:22%;width:16px;height:16px;border-radius:50%;background:rgba(44,74,59,.85);"></div>
+          <div style="position:absolute;left:56%;top:52%;width:8px;height:8px;border-radius:50%;background:rgba(44,74,59,.42);"></div>
+          <div style="position:absolute;left:63%;top:34%;width:12px;height:12px;border-radius:50%;background:rgba(44,74,59,.7);"></div>
+          <div style="position:absolute;left:39%;top:66%;width:10px;height:10px;border-radius:50%;background:rgba(44,74,59,.55);"></div>
+          <div style="position:absolute;left:71%;top:62%;width:14px;height:14px;border-radius:50%;background:rgba(44,74,59,.8);"></div>
+          <div style="position:absolute;left:78%;top:28%;width:8px;height:8px;border-radius:50%;background:rgba(44,74,59,.45);"></div>
+          <!-- readiness toast -->
+          <div style="position:absolute;left:50%;bottom:22px;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);border-left:3px solid var(--warning);border-radius:5px;box-shadow:0 6px 20px rgba(34,31,26,.16);padding:13px 18px;display:flex;align-items:center;gap:14px;min-width:520px;">
+            <svg width="19" height="19" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#B5852B" stroke-width="1.9"></circle><path d="M12 7.5v5l3 2" fill="none" stroke="#B5852B" stroke-width="1.9" stroke-linecap="round"></path></svg>
+            <div style="flex:1;">
+              <div style="font-size:13.5px;font-weight:700;">Terrain data loading — routing available in about 3 minutes.</div>
+              <div style="font-size:12.5px;color:var(--ink2);margin-top:2px;">Curation is ready now: layers, candidates, analysis, and promotion all work.</div>
+            </div>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">DISMISS</span>
+          </div>
+        </div>
+        <!-- layers panel -->
+        <div style="width:330px;border-left:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 22px 14px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Stage 0</div>
+            <div style="font-family:var(--serif);font-size:25px;line-height:1.1;margin-top:5px;">Choose your layers</div>
+            <div style="font-size:12.5px;color:var(--ink3);margin-top:6px;display:flex;gap:8px;">Switched on for cycling · riding day<span style="color:var(--info);border-bottom:1px dotted var(--info);">Change modes</span></div>
+          </div>
+          <div style="flex:1;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 22px;border-bottom:1px solid var(--line);">
+              <div style="width:16px;height:16px;border-radius:3px;background:var(--primary);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="10" height="10" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"></path></svg></div>
+              <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;">Historic</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">412 CANDIDATES</div></div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.06em;background:var(--success);color:#fff;padding:3px 6px;border-radius:3px;">READY</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 22px;border-bottom:1px solid var(--line);">
+              <div style="width:16px;height:16px;border-radius:3px;background:var(--primary);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="10" height="10" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"></path></svg></div>
+              <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;">Natural</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">1,186 CANDIDATES</div></div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.06em;background:var(--success);color:#fff;padding:3px 6px;border-radius:3px;">READY</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 22px;border-bottom:1px solid var(--line);">
+              <div style="width:16px;height:16px;border-radius:3px;background:var(--primary);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="10" height="10" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"></path></svg></div>
+              <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;">Amenity — provisions</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">903 CANDIDATES</div></div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.06em;background:var(--success);color:#fff;padding:3px 6px;border-radius:3px;">READY</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 22px;border-bottom:1px solid var(--line);">
+              <div style="width:16px;height:16px;border-radius:3px;border:1.5px solid var(--line);flex:none;"></div>
+              <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;">Leisure</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">OFF FOR RIDING DAYS</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 22px;border-bottom:1px solid var(--line);background:var(--app);">
+              <div style="width:16px;height:16px;border-radius:3px;background:var(--primary);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="10" height="10" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"></path></svg></div>
+              <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;">NC Historical Markers</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">PLUGIN · CC BY 4.0</div></div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.06em;border:1px solid var(--warning);color:var(--warning);padding:2px 6px;border-radius:3px;">LOADING</span>
+            </div>
+          </div>
+          <div style="padding:16px 22px;border-top:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px;">Capabilities</div>
+            <div style="display:flex;flex-direction:column;gap:9px;">
+              <div style="display:flex;align-items:center;gap:9px;font-size:12.5px;"><span style="width:7px;height:7px;border-radius:50%;background:var(--success);"></span><span style="flex:1;">Layers &amp; POI</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--success);">READY</span></div>
+              <div style="display:flex;align-items:center;gap:9px;font-size:12.5px;"><span style="width:7px;height:7px;border-radius:50%;background:var(--success);"></span><span style="flex:1;">Basemap tiles</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--success);">READY</span></div>
+              <div>
+                <div style="display:flex;align-items:center;gap:9px;font-size:12.5px;"><span style="width:7px;height:7px;border-radius:50%;background:var(--warning);"></span><span style="flex:1;">Elevation</span><span style="font-family:var(--mono);font-size:10.5px;color:var(--warning);">62% · ~2:50</span></div>
+                <div style="height:3px;background:var(--sunk);border-radius:2px;margin:7px 0 0 16px;"><div style="width:62%;height:3px;background:var(--warning);border-radius:2px;"></div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink3);"><span style="width:7px;height:7px;border-radius:50%;background:#C9C1B2;"></span><span style="flex:1;">Routing</span><span style="font-family:var(--mono);font-size:10.5px;">WAITING ON ELEVATION</span></div>
+            </div>
+          </div>
+          <div style="padding:14px 22px 18px;border-top:1px solid var(--line);">
+            <span style="background:var(--line);color:#8C8476;font-weight:700;font-size:14px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Route this day</span>
+            <div style="font-size:12px;color:var(--ink3);margin-top:8px;line-height:1.55;">Disabled until terrain data finishes — about 3 minutes left.</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span style="color:var(--success);">● LAYERS READY</span>
+        <span style="color:var(--warning);">● ELEVATION 62%</span>
+        <span style="color:var(--ink3);">○ ROUTING NOT READY</span>
+        <div style="flex:1;"></div>
+        <span style="color:var(--ink3);">SAVED LOCALLY · 12:04</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 06 ═══ -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">06</span>
+      <span style="font-size:19px;font-weight:700;">Error — the location cannot be resolved</span>
+      <span style="font-size:14px;color:var(--ink3);">Says what failed and offers a way through. The home region still works.</span>
+    </div>
+
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — New trip</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;background:#C42B1C;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#fff" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:600px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:560px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="padding:26px 28px 0;">
+            <div style="font-family:var(--serif);font-size:28px;line-height:1.1;">Where are we going?</div>
+            <label style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);display:block;margin:20px 0 7px;">Location</label>
+            <div style="display:flex;align-items:center;gap:10px;border:1.5px solid var(--danger);border-radius:4px;background:#fff;padding:0 12px;min-height:46px;">
+              <span style="font-size:15px;flex:1;">Viroqua, WS</span>
+              <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#9A3412" stroke-width="1.8"></circle><path d="M12 7.5v6" stroke="#9A3412" stroke-width="1.8" stroke-linecap="round"></path><circle cx="12" cy="16.6" r="1.1" fill="#9A3412"></circle></svg>
+            </div>
+            <div style="display:flex;gap:9px;background:rgba(154,52,18,.07);border:1px solid rgba(154,52,18,.3);border-radius:4px;padding:12px 13px;margin-top:10px;">
+              <svg width="17" height="17" viewBox="0 0 24 24" style="flex:none;margin-top:1px;"><path d="M12 4l8.5 15H3.5z" fill="none" stroke="#9A3412" stroke-width="1.9" stroke-linejoin="round"></path><path d="M12 10v4" stroke="#9A3412" stroke-width="1.9" stroke-linecap="round"></path><circle cx="12" cy="16.4" r="1" fill="#9A3412"></circle></svg>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:var(--danger);">No match for “Viroqua, WS”.</div>
+                <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:3px;">The geocoder is reachable and returned nothing. Check the state abbreviation, or place the map yourself — the location only centers the view.</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;">
+              <span style="font-size:13px;font-weight:600;border:1px solid var(--line);border-radius:20px;padding:7px 14px;">Viroqua, WI</span>
+              <span style="font-size:13px;font-weight:600;border:1px solid var(--line);border-radius:20px;padding:7px 14px;">Viroqua, Wisconsin, USA</span>
+              <span style="font-size:13px;font-weight:600;border:1px solid var(--line);border-radius:20px;padding:7px 14px;">Enter coordinates</span>
+              <span style="font-size:13px;font-weight:600;border:1px solid var(--line);border-radius:20px;padding:7px 14px;">Skip — pan the map myself</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:24px 28px;">
+            <span style="font-size:12.5px;color:var(--ink2);flex:1;line-height:1.5;">Nothing has been created yet, so there is nothing to lose here — cancel and you are back on the home region, ready to start again.</span>
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Cancel</span>
+            <span style="font-weight:700;font-size:15px;background:var(--line);color:#8C8476;min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Continue</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span style="color:var(--danger);">● GEOCODE RETURNED NO MATCH</span><div style="flex:1;"></div><span style="color:var(--ink3);">HOME REGION STILL AVAILABLE</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

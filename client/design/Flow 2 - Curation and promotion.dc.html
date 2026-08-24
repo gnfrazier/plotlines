@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Archivo:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#DB5A28;text-decoration:none}
+a:hover{color:#9A3412;text-decoration:underline}
+</style>
+</helmet>
+<div style="--app:#F4EFE4;--card:#FBF9F3;--sunk:#EBE3D4;--ink:#221F1A;--ink2:#544D42;--ink3:#8C8476;--line:#D9D0BE;--primary:#DB5A28;--success:#2C4A3B;--info:#3D6577;--warning:#B5852B;--danger:#9A3412;--serif:'Instrument Serif',Georgia,serif;--sans:'Archivo',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;font-family:var(--sans);background:#E6DFD0;color:var(--ink);padding:56px 64px 96px;min-height:100vh;">
+
+  <div style="max-width:1280px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--primary);">Plotlines · Author Flows (MVP) · Windows desktop</div>
+    <div style="font-family:var(--serif);font-size:56px;line-height:1;margin-top:10px;">Flow 2 — Curation and promotion</div>
+    <p style="font-size:16px;line-height:1.65;color:var(--ink2);max-width:74ch;margin:18px 0 0;text-wrap:pretty;">Candidates are drawn from the live layers with their salience visible, and the Author can promote straight from the map — every stage after that is assistance, never a wizard. Co-location analysis runs only when asked, returns ranked proposals with the features that produced them, and remembers what was rejected. Promotion is the editorial moment: a place becomes an anchor with a role set, and the workspace keeps a third view for anchors that are not attached to a passage yet.</p>
+  </div>
+
+  <!-- 01 -->
+  <div style="margin-top:56px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">01</span>
+      <span style="font-size:19px;font-weight:700;">Candidates on the map</span>
+      <span style="font-size:14px;color:var(--ink3);">Salience carried by size and weight. Promote directly, or ask for the analysis.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Edit</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span>
+        <div style="flex:1;"></div>
+        <div style="display:flex;align-items:center;gap:8px;padding-right:6px;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><path d="M9 7H15a4 4 0 010 8H7" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round"></path><path d="M10 4L7 7l3 3" fill="none" stroke="#8C8476" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24"><path d="M15 7H9a4 4 0 000 8h8" fill="none" stroke="#C9C1B2" stroke-width="1.8" stroke-linecap="round"></path><path d="M14 4l3 3-3 3" fill="none" stroke="#C9C1B2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+      </div>
+      <div style="height:706px;display:flex;">
+        <div style="width:186px;border-right:1px solid var(--line);background:var(--app);display:flex;flex-direction:column;padding:12px 0;">
+          <div style="padding:6px 16px 12px;font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Workspace</div>
+          <div style="padding:10px 16px;background:var(--card);border-left:3px solid var(--primary);font-size:13.5px;font-weight:700;">Curate</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Days</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Routing</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Narrative</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Outputs</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Roster</div>
+          <div style="flex:1;"></div>
+          <div style="margin:0 12px;background:var(--sunk);border:1px solid var(--line);border-radius:5px;padding:11px 12px;">
+            <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:0.1em;color:var(--ink3);">DASHBOARD</div>
+            <div style="font-family:var(--mono);font-size:12px;margin-top:6px;line-height:1.8;color:var(--ink2);">2,501 CANDIDATES<br>0 ANCHORS<br>4 DAYS</div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;">
+          <!-- view tabs -->
+          <div style="height:44px;border-bottom:1px solid var(--line);display:flex;align-items:stretch;background:var(--card);">
+            <div style="display:flex;align-items:center;padding:0 18px;font-size:13.5px;font-weight:700;border-bottom:2px solid var(--primary);">Candidates <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">2,501</span></div>
+            <div style="display:flex;align-items:center;padding:0 18px;font-size:13.5px;color:var(--ink2);">Proposals <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">—</span></div>
+            <div style="display:flex;align-items:center;padding:0 18px;font-size:13.5px;color:var(--ink2);">Anchors <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">0</span></div>
+            <div style="flex:1;"></div>
+            <div style="display:flex;align-items:center;padding-right:14px;gap:10px;">
+              <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">SALIENCE ≥ 0.4</span>
+              <span style="background:var(--ink);color:var(--app);font-weight:700;font-size:13px;min-height:34px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Find the good spots</span>
+            </div>
+          </div>
+          <div style="flex:1;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 40% 42%,transparent 0 26px,rgba(44,74,59,.08) 26px 27px),linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+            <div style="position:absolute;left:2%;top:36%;width:96%;height:2px;background:#3D6577;opacity:.5;transform:rotate(5deg);border-radius:2px;"></div>
+            <div style="position:absolute;left:0;top:62%;width:100%;height:1.5px;background:#8C8476;opacity:.45;transform:rotate(-3deg);"></div>
+            <div style="position:absolute;left:16%;top:22%;width:22px;height:22px;border-radius:50%;background:rgba(34,31,26,.85);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:15%;top:20%;font-family:var(--mono);font-size:10px;color:var(--ink);margin-left:28px;margin-top:4px;">Linville Falls · 0.94</div>
+            <div style="position:absolute;left:38%;top:30%;width:18px;height:18px;border-radius:50%;background:rgba(34,31,26,.7);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:52%;top:20%;width:13px;height:13px;border-radius:50%;background:rgba(44,74,59,.62);"></div>
+            <div style="position:absolute;left:60%;top:44%;width:20px;height:20px;border-radius:50%;background:rgba(34,31,26,.78);border:2px solid #FBF9F3;"></div>
+            <div style="position:absolute;left:59%;top:42%;font-family:var(--mono);font-size:10px;color:var(--ink);margin-left:26px;margin-top:4px;">Mount Mitchell · 0.88</div>
+            <div style="position:absolute;left:28%;top:56%;width:9px;height:9px;border-radius:50%;background:rgba(44,74,59,.35);"></div>
+            <div style="position:absolute;left:33%;top:64%;width:8px;height:8px;border-radius:50%;background:rgba(44,74,59,.3);"></div>
+            <div style="position:absolute;left:44%;top:58%;width:11px;height:11px;border-radius:50%;background:rgba(44,74,59,.48);"></div>
+            <div style="position:absolute;left:71%;top:62%;width:15px;height:15px;border-radius:50%;background:rgba(44,74,59,.6);"></div>
+            <div style="position:absolute;left:79%;top:32%;width:9px;height:9px;border-radius:50%;background:rgba(44,74,59,.34);"></div>
+            <div style="position:absolute;left:24%;top:44%;width:10px;height:10px;border-radius:50%;background:rgba(44,74,59,.4);"></div>
+            <div style="position:absolute;left:66%;top:24%;width:9px;height:9px;border-radius:50%;background:rgba(44,74,59,.32);"></div>
+            <div style="position:absolute;left:48%;top:72%;width:12px;height:12px;border-radius:50%;background:rgba(44,74,59,.5);"></div>
+            <!-- direct promote popover -->
+            <div style="position:absolute;right:26px;top:26px;width:296px;background:var(--card);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 26px rgba(34,31,26,.18);overflow:hidden;">
+              <div style="padding:14px 16px 12px;border-bottom:1px solid var(--line);">
+                <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);">CANDIDATE · HISTORIC LAYER</div>
+                <div style="font-weight:700;font-size:16px;margin-top:4px;">Carson House</div>
+                <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:5px;">historic=manor · SALIENCE 0.71</div>
+              </div>
+              <div style="padding:12px 16px;font-size:12.5px;line-height:1.6;color:var(--ink2);border-bottom:1px solid var(--line);">Open Tue–Sat, 10:00–16:00. Closed Mondays.</div>
+              <div style="padding:12px 16px 14px;display:flex;flex-direction:column;gap:8px;">
+                <span style="background:var(--primary);color:#fff;font-weight:700;font-size:14px;min-height:40px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Promote to anchor</span>
+                
+              </div>
+            </div>
+            <div style="position:absolute;left:16px;bottom:16px;background:rgba(251,249,243,.94);border:1px solid var(--line);border-radius:4px;padding:9px 12px;font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1.9;">
+              <div style="letter-spacing:0.12em;color:var(--ink3);margin-bottom:5px;">SALIENCE</div>
+              <div style="display:flex;align-items:center;gap:8px;"><span style="width:16px;height:16px;border-radius:50%;background:rgba(34,31,26,.8);"></span>HIGH</div>
+              <div style="display:flex;align-items:center;gap:8px;"><span style="width:11px;height:11px;border-radius:50%;background:rgba(44,74,59,.5);margin:0 2px;"></span>MODERATE</div>
+              <div style="display:flex;align-items:center;gap:8px;"><span style="width:7px;height:7px;border-radius:50%;background:rgba(44,74,59,.32);margin:0 4px;"></span>LOW</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span style="color:var(--success);">● ALL CAPABILITIES READY</span><span style="color:var(--ink3);">5 LAYERS LIVE</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 12:11</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">02</span>
+      <span style="font-size:19px;font-weight:700;">Reviewing proposals</span>
+      <span style="font-size:14px;color:var(--ink3);">The list is primary; the map is synchronized to it. Promote, reject, defer — one gesture each.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Edit</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span>
+        <div style="flex:1;"></div>
+        <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);padding-right:6px;">CO-LOCATION ANALYSIS · RUN 12:14</span>
+      </div>
+      <div style="height:748px;display:flex;">
+        <!-- proposal list -->
+        <div style="width:492px;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--card);">
+          <div style="height:44px;border-bottom:1px solid var(--line);display:flex;align-items:stretch;">
+            <div style="display:flex;align-items:center;padding:0 16px;font-size:13.5px;color:var(--ink2);">Candidates</div>
+            <div style="display:flex;align-items:center;padding:0 16px;font-size:13.5px;font-weight:700;border-bottom:2px solid var(--primary);">Proposals <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">43</span></div>
+            <div style="display:flex;align-items:center;padding:0 16px;font-size:13.5px;color:var(--ink2);">Anchors <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">0</span></div>
+          </div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:7px;align-items:center;">
+            <span style="font-family:var(--mono);font-size:10px;letter-spacing:0.08em;color:var(--ink3);">FILTER</span>
+            <span style="font-size:12px;font-weight:600;border:1px solid var(--ink);border-radius:16px;padding:5px 11px;">All roles</span>
+            <span style="font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:16px;padding:5px 11px;">Narrative 26</span>
+            <span style="font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:16px;padding:5px 11px;">Provision 17</span>
+            <span style="font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:16px;padding:5px 11px;">Layer ▾</span>
+            <span style="font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:16px;padding:5px 11px;">Within 3 mi of route</span>
+          </div>
+          <div style="flex:1;overflow:hidden;">
+            <!-- selected card -->
+            <div style="border-left:3px solid var(--primary);background:rgba(219,90,40,.05);padding:15px 16px;border-bottom:1px solid var(--line);">
+              <div style="display:flex;align-items:baseline;gap:9px;">
+                <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">01</span>
+                <span style="font-weight:700;font-size:17px;flex:1;">Linville Falls</span>
+                <span style="font-family:var(--mono);font-size:11px;color:var(--ink2);">TIGHT · 180 M</span>
+              </div>
+              <div style="display:flex;gap:7px;margin-top:9px;">
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.06em;background:var(--ink);color:var(--app);padding:3px 7px;border-radius:3px;">NARRATIVE</span>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.06em;background:var(--info);color:#fff;padding:3px 7px;border-radius:3px;">PROVISION</span>
+                <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);align-self:center;">from affinity union</span>
+              </div>
+              <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px;">
+                <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:8px;">CONTRIBUTING FEATURES</div>
+                <div style="display:flex;flex-direction:column;gap:7px;font-size:12.5px;">
+                  <div style="display:flex;align-items:center;gap:8px;"><span style="flex:1;">waterway=waterfall · <span style="color:var(--ink3);">Linville Falls</span></span><span style="font-family:var(--mono);font-size:10.5px;">0.94</span><span style="width:52px;height:4px;background:var(--sunk);border-radius:2px;"><span style="display:block;width:94%;height:4px;background:var(--success);border-radius:2px;"></span></span></div>
+                  <div style="display:flex;align-items:center;gap:8px;"><span style="flex:1;">tourism=viewpoint</span><span style="font-family:var(--mono);font-size:10.5px;">0.81</span><span style="width:52px;height:4px;background:var(--sunk);border-radius:2px;"><span style="display:block;width:81%;height:4px;background:var(--success);border-radius:2px;"></span></span></div>
+                  <div style="display:flex;align-items:center;gap:8px;"><span style="flex:1;">amenity=toilets</span><span style="font-family:var(--mono);font-size:10.5px;">0.22</span><span style="width:52px;height:4px;background:var(--sunk);border-radius:2px;"><span style="display:block;width:22%;height:4px;background:var(--info);border-radius:2px;"></span></span></div>
+                  <div style="display:flex;align-items:center;gap:8px;"><span style="flex:1;">amenity=parking</span><span style="font-family:var(--mono);font-size:10.5px;">0.14</span><span style="width:52px;height:4px;background:var(--sunk);border-radius:2px;"><span style="display:block;width:14%;height:4px;background:var(--info);border-radius:2px;"></span></span></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:14px;">
+                <span style="background:var(--primary);color:#fff;font-weight:700;font-size:14px;min-height:40px;padding:0 18px;border-radius:4px;display:inline-flex;align-items:center;">Promote</span>
+                <span style="border:1px solid var(--line);color:var(--ink2);font-weight:600;font-size:13.5px;min-height:40px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Defer</span>
+                <span style="border:1px solid var(--line);color:var(--ink2);font-weight:600;font-size:13.5px;min-height:40px;padding:0 16px;border-radius:4px;display:inline-flex;align-items:center;">Reject</span>
+              </div>
+            </div>
+            <div style="padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">02</span>
+              <div style="flex:1;"><div style="font-weight:700;font-size:15px;">Mount Mitchell summit</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:3px;">NARRATIVE + STATION · 3 FEATURES · 240 M</div></div>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">0.88</span>
+            </div>
+            <div style="padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">03</span>
+              <div style="flex:1;"><div style="font-weight:700;font-size:15px;">Old Fort depot &amp; spring</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:3px;">NARRATIVE + PROVISION · 5 FEATURES · 90 M</div></div>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">0.76</span>
+            </div>
+            <div style="padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">04</span>
+              <div style="flex:1;"><div style="font-weight:700;font-size:15px;">Bakersville town green</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:3px;">PROVISION · TOILETS + WATER + CAFÉ · 60 M</div></div>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">0.62</span>
+            </div>
+            <div style="padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;opacity:.55;">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">05</span>
+              <div style="flex:1;"><div style="font-weight:700;font-size:15px;">Boundary stone near CR-1214</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:3px;">NARRATIVE · 2 FEATURES · 40 M</div></div>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">0.18</span>
+            </div>
+            <div style="padding:14px 16px;background:var(--app);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;">
+              <svg width="17" height="17" viewBox="0 0 24 24" style="flex:none;"><path d="M4 7h16M7 7v11h10V7" fill="none" stroke="#544D42" stroke-width="1.7" stroke-linejoin="round"></path></svg>
+              <div style="flex:1;font-size:13px;line-height:1.5;"><strong>19 proposals below salience 0.30</strong><div style="color:var(--ink2);">Single trees, unnamed small parks, boundary markers.</div></div>
+              <span style="border:1.5px solid var(--ink);color:var(--ink);font-weight:700;font-size:13px;min-height:38px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Reject all 19</span>
+            </div>
+          </div>
+          <div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+            <span>43 RANKED · CAP 50</span><span style="color:var(--ink3);">0 PROMOTED · 0 DEFERRED · 0 REJECTED</span>
+          </div>
+        </div>
+        <!-- map -->
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 44% 38%,transparent 0 24px,rgba(44,74,59,.08) 24px 25px),linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;">
+          <div style="position:absolute;left:2%;top:40%;width:96%;height:2px;background:#3D6577;opacity:.5;transform:rotate(6deg);border-radius:2px;"></div>
+          <div style="position:absolute;left:22%;top:24%;width:74px;height:74px;border:2px solid var(--primary);border-radius:50%;background:rgba(219,90,40,.10);">
+            <span style="position:absolute;left:50%;top:-11px;transform:translateX(-50%);background:#E3DBC7;font-family:var(--mono);font-size:10px;color:var(--primary);padding:0 5px;white-space:nowrap;">01 LINVILLE FALLS</span>
+          </div>
+          <div style="position:absolute;left:26%;top:29%;width:15px;height:15px;border-radius:50%;background:rgba(34,31,26,.85);"></div>
+          <div style="position:absolute;left:31%;top:33%;width:11px;height:11px;border-radius:50%;background:rgba(34,31,26,.6);"></div>
+          <div style="position:absolute;left:28%;top:38%;width:8px;height:8px;border-radius:50%;background:rgba(61,101,119,.7);"></div>
+          <div style="position:absolute;left:56%;top:46%;width:52px;height:52px;border:1.5px solid rgba(34,31,26,.4);border-radius:50%;background:rgba(34,31,26,.05);"></div>
+          <div style="position:absolute;left:59%;top:50%;width:13px;height:13px;border-radius:50%;background:rgba(34,31,26,.65);"></div>
+          <div style="position:absolute;left:70%;top:26%;width:44px;height:44px;border:1.5px solid rgba(61,101,119,.5);border-radius:50%;background:rgba(61,101,119,.06);"></div>
+          <div style="position:absolute;left:38%;top:66%;width:40px;height:40px;border:1.5px solid rgba(34,31,26,.28);border-radius:50%;"></div>
+          <div style="position:absolute;left:78%;top:62%;width:36px;height:36px;border:1.5px solid rgba(61,101,119,.4);border-radius:50%;"></div>
+          <div style="position:absolute;right:16px;top:16px;background:rgba(251,249,243,.94);border:1px solid var(--line);border-radius:4px;padding:9px 12px;font-family:var(--mono);font-size:10px;color:var(--ink2);line-height:1.9;">
+            <div>SELECTION SYNCED BOTH WAYS</div>
+            <div style="color:var(--ink3);">CLUSTER EXTENT, NOT A PIN</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>ANALYSIS COMPLETE · 43 PROPOSALS</span><span style="color:var(--ink3);">RUN OVER TRIP BBOX · NOT VIEWPORT</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 12:14</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">03</span>
+      <span style="font-size:19px;font-weight:700;">Promotion — the editorial moment</span>
+      <span style="font-size:14px;color:var(--ink3);">One anchor, one arrival, N roles. Suggested roles are always editable.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Promote to anchor</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:820px;position:relative;background:#DED6C2;background-image:linear-gradient(0deg,rgba(140,132,118,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.07) 1px,transparent 1px);background-size:44px 44px;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.34);"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:860px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 60px rgba(34,31,26,.34);overflow:hidden;">
+          <div style="padding:22px 26px 18px;border-bottom:1px solid var(--line);display:flex;align-items:flex-end;gap:16px;">
+            <div style="flex:1;">
+              <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Promote · from cluster 01</div>
+              <div style="font-family:var(--serif);font-size:32px;line-height:1.05;margin-top:5px;">Linville Falls</div>
+            </div>
+            <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);text-align:right;line-height:1.8;">
+              <div>ONE ANCHOR · ONE ARRIVAL</div>
+              
+            </div>
+          </div>
+          <div style="display:flex;">
+            <div style="flex:1;padding:20px 26px;border-right:1px solid var(--line);">
+              <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:12px;">Role set</div>
+              <!-- narrative role -->
+              <div style="border:1.5px solid var(--ink);border-radius:5px;overflow:hidden;margin-bottom:12px;">
+                <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--app);border-bottom:1px solid var(--line);">
+                  <div style="width:16px;height:16px;border-radius:3px;background:var(--ink);display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#FBF9F3" stroke-width="3.4" stroke-linecap="round"></path></svg></div>
+                  <span style="font-weight:700;font-size:15px;flex:1;">Narrative — the plot point</span>
+                  <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">SUGGESTED</span>
+                </div>
+                <div style="padding:14px;display:flex;flex-direction:column;gap:12px;">
+                  <div>
+                    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:6px;">REVEAL</div>
+                    <div style="display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;">
+                      <span style="flex:1;text-align:center;font-size:13px;font-weight:600;padding:9px 0;color:var(--ink2);">Always visible</span>
+                      <span style="flex:1;text-align:center;font-size:13px;font-weight:700;padding:9px 0;background:var(--ink);color:var(--app);">Revealed on arrival</span>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:12px;">
+                    <div style="flex:1;"><div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:6px;">ARC ROLE</div><div style="border:1px solid var(--line);border-radius:4px;padding:9px 11px;font-size:13px;display:flex;justify-content:space-between;">Climax<span style="color:var(--ink3);">▾</span></div></div>
+                    <div style="flex:1;"><div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:6px;">GEOMETRY OFFSET</div><div style="border:1px solid var(--line);border-radius:4px;padding:9px 11px;font-size:13px;display:flex;justify-content:space-between;">400 m up the spur<span style="color:var(--ink3);">Edit</span></div></div>
+                  </div>
+                  <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:6px;">INTENDED EXPERIENCE</div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                      <span style="font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:16px;padding:5px 11px;color:var(--ink2);">Look at it</span>
+                      <span style="font-size:12px;font-weight:700;border:1.5px solid var(--ink);border-radius:16px;padding:5px 11px;">Stop and read</span>
+                      <span style="font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:16px;padding:5px 11px;color:var(--ink2);">Walk 15 min</span>
+                      <span style="font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:16px;padding:5px 11px;color:var(--ink2);">An afternoon</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- provision role -->
+              <div style="border:1.5px solid var(--info);border-radius:5px;overflow:hidden;margin-bottom:12px;">
+                <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(61,101,119,.07);border-bottom:1px solid var(--line);">
+                  <div style="width:16px;height:16px;border-radius:3px;background:var(--info);display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"></path></svg></div>
+                  <span style="font-weight:700;font-size:15px;flex:1;">Provision</span>
+                  <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">SUGGESTED</span>
+                </div>
+                <div style="padding:14px;display:flex;flex-direction:column;gap:11px;">
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    <span style="font-family:var(--mono);font-size:10px;font-weight:700;background:var(--info);color:#fff;padding:4px 8px;border-radius:3px;">TOILETS</span>
+                    <span style="font-family:var(--mono);font-size:10px;font-weight:700;background:var(--info);color:#fff;padding:4px 8px;border-radius:3px;">DRINKING WATER</span>
+                    <span style="font-family:var(--mono);font-size:10px;font-weight:700;border:1px solid var(--info);color:var(--info);padding:3px 8px;border-radius:3px;">+ ADD</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;background:var(--app);border:1px solid var(--line);border-radius:4px;padding:10px 12px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="#8C8476" stroke-width="1.7"></rect><path d="M4 9h16M9 4v3" stroke="#8C8476" stroke-width="1.7"></path></svg>
+                    <span style="font-size:12.5px;flex:1;color:var(--ink2);">Water off between Nov and Mar · seasonal</span>
+                    <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">FROM SOURCE</span>
+                  </div>
+                  <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin:0;"><svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg><div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Provisions always show. Everyone sees the water and the toilets from the moment they download the trip, and the distance between them is counted for you — so there is no reveal setting to make here.</div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span></div>
+                </div>
+              </div>
+              <!-- station role -->
+              <div style="border:1px solid var(--line);border-radius:5px;display:flex;align-items:center;gap:10px;padding:12px 14px;">
+                <div style="width:16px;height:16px;border-radius:3px;border:1.5px solid var(--line);"></div>
+                <span style="font-weight:600;font-size:15px;flex:1;color:var(--ink2);">Station — an activity with duration</span>
+                <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">ADD IF THE STOP MATTERS</span>
+              </div>
+            </div>
+            <div style="width:314px;padding:20px 24px;background:var(--app);">
+              <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px;">Geometry</div>
+              <div style="display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-bottom:12px;">
+                <span style="flex:1;text-align:center;font-size:13px;font-weight:700;padding:9px 0;background:var(--ink);color:var(--app);">Point</span>
+                <span style="flex:1;text-align:center;font-size:13px;font-weight:600;padding:9px 0;color:var(--ink2);">Area</span>
+              </div>
+              <div style="height:158px;border:1px solid var(--line);border-radius:4px;position:relative;background:#E3DBC7;background-image:repeating-radial-gradient(circle at 50% 55%,transparent 0 18px,rgba(44,74,59,.10) 18px 19px);overflow:hidden;">
+                <div style="position:absolute;left:44%;top:58%;width:12px;height:12px;border-radius:50%;background:var(--ink);border:2px solid #FBF9F3;"></div>
+                <div style="position:absolute;left:63%;top:31%;width:11px;height:11px;border-radius:50%;background:var(--card);border:2.5px solid var(--ink);"></div>
+                <div style="position:absolute;left:48%;top:36%;width:76px;height:2px;background:var(--ink);opacity:.45;transform:rotate(28deg);transform-origin:left;"></div>
+                <span style="position:absolute;right:8px;bottom:6px;font-family:var(--mono);font-size:9.5px;color:var(--ink2);">ANCHOR → ROLE OFFSET 400 M</span>
+              </div>
+              <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);margin:20px 0 8px;">Affinity trace</div>
+              <div style="font-size:12.5px;line-height:1.7;color:var(--ink2);">waterfall → narrative<br>viewpoint → narrative<br>toilets → provision<br>drinking_water → provision<br>parking → provision</div>
+              
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:18px 26px;border-top:1px solid var(--line);">
+            <span style="display:flex;align-items:flex-start;gap:8px;flex:1;font-size:12.5px;color:var(--ink2);line-height:1.55;"><svg width="14" height="14" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.8"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.8" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>Not right for this trip? Reject it and the analysis will not offer it again — you can still find it under rejected proposals.</span>
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Cancel</span>
+            <span style="font-weight:700;font-size:15px;background:var(--primary);color:#fff;min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Promote to anchor</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>PROMOTION · 2 ROLES · 1 OFFSET</span><div style="flex:1;"></div><span style="color:var(--ink3);">ESC TO CANCEL</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">04</span>
+      <span style="font-size:19px;font-weight:700;">The anchors view</span>
+      <span style="font-size:14px;color:var(--ink3);">Filterable by attachment. Unattached is working state, not a problem queue.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Edit</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span><div style="flex:1;"></div>
+      </div>
+      <div style="height:706px;display:flex;">
+        <div style="width:186px;border-right:1px solid var(--line);background:var(--app);padding:12px 0;">
+          <div style="padding:6px 16px 12px;font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Workspace</div>
+          <div style="padding:10px 16px;background:var(--card);border-left:3px solid var(--primary);font-size:13.5px;font-weight:700;">Curate</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Days</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Routing</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Narrative</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Outputs</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Roster</div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;">
+          <div style="height:44px;border-bottom:1px solid var(--line);display:flex;align-items:stretch;background:var(--card);">
+            <div style="display:flex;align-items:center;padding:0 18px;font-size:13.5px;color:var(--ink2);">Candidates <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">2,501</span></div>
+            <div style="display:flex;align-items:center;padding:0 18px;font-size:13.5px;color:var(--ink2);">Proposals <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">18</span></div>
+            <div style="display:flex;align-items:center;padding:0 18px;font-size:13.5px;font-weight:700;border-bottom:2px solid var(--primary);">Anchors <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">11</span></div>
+            <div style="flex:1;"></div>
+            <div style="display:flex;align-items:center;gap:7px;padding-right:14px;">
+              <span style="font-size:12px;font-weight:700;border:1.5px solid var(--ink);border-radius:16px;padding:5px 12px;">All 11</span>
+              <span style="font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:16px;padding:5px 12px;">Attached 6</span>
+              <span style="font-size:12px;font-weight:600;border:1px solid var(--line);color:var(--ink2);border-radius:16px;padding:5px 12px;">Unattached 5</span>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;">
+            <div style="width:520px;border-right:1px solid var(--line);overflow:hidden;">
+              <div style="padding:10px 18px;background:var(--sunk);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);display:flex;">
+                <span style="flex:1;">ANCHOR</span><span style="width:120px;">ROLES</span><span style="width:96px;">ATTACHED TO</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line);gap:10px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" style="flex:none;"><circle cx="12" cy="12" r="8" fill="#221F1A"></circle><path d="M12 8.2l1.1 2.3 2.5.3-1.9 1.7.5 2.5-2.2-1.2-2.2 1.2.5-2.5-1.9-1.7 2.5-.3z" fill="#FBF9F3"></path></svg>
+                <span style="flex:1;font-size:14px;font-weight:600;">Linville Falls</span>
+                <span style="width:120px;font-family:var(--mono);font-size:10px;color:var(--ink2);">NARR + PROV</span>
+                <span style="width:96px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">DAY 2</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line);gap:10px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" style="flex:none;"><circle cx="12" cy="12" r="8" fill="#221F1A"></circle><path d="M12 8.2l1.1 2.3 2.5.3-1.9 1.7.5 2.5-2.2-1.2-2.2 1.2.5-2.5-1.9-1.7 2.5-.3z" fill="#FBF9F3"></path></svg>
+                <span style="flex:1;font-size:14px;font-weight:600;">Mount Mitchell summit</span>
+                <span style="width:120px;font-family:var(--mono);font-size:10px;color:var(--ink2);">NARR + STN</span>
+                <span style="width:96px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">DAY 3</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line);gap:10px;background:var(--app);">
+                <svg width="18" height="18" viewBox="0 0 24 24" style="flex:none;"><circle cx="12" cy="12" r="8.5" fill="#FBF9F3" stroke="#3D6577" stroke-width="2.4"></circle><path d="M8.5 12h7" stroke="#3D6577" stroke-width="2.2" stroke-linecap="round"></path></svg>
+                <span style="flex:1;font-size:14px;font-weight:600;">Bakersville town green</span>
+                <span style="width:120px;font-family:var(--mono);font-size:10px;color:var(--ink2);">PROVISION</span>
+                <span style="width:96px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">UNATTACHED</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line);gap:10px;background:var(--app);">
+                <svg width="18" height="18" viewBox="0 0 24 24" style="flex:none;"><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="#221F1A" stroke-width="2" stroke-dasharray="3 2"></rect></svg>
+                <span style="flex:1;font-size:14px;font-weight:600;">Main Street, Burnsville <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">AREA</span></span>
+                <span style="width:120px;font-family:var(--mono);font-size:10px;color:var(--ink2);">PROV + NARR</span>
+                <span style="width:96px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);">UNATTACHED</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line);gap:10px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" style="flex:none;"><circle cx="12" cy="12" r="8" fill="#221F1A"></circle><path d="M12 8.2l1.1 2.3 2.5.3-1.9 1.7.5 2.5-2.2-1.2-2.2 1.2.5-2.5-1.9-1.7 2.5-.3z" fill="#FBF9F3"></path></svg>
+                <span style="flex:1;font-size:14px;font-weight:600;">Old Fort depot</span>
+                <span style="width:120px;font-family:var(--mono);font-size:10px;color:var(--ink2);">NARR + PROV</span>
+                <span style="width:96px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">DAY 1</span>
+              </div>
+              <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin:16px 18px;"><svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg><div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Promoting a place does not put it into a day yet. These five are waiting for one — select an anchor and choose <strong>Attach to a day</strong>, or leave them here until you know where they belong. They block nothing and they are not errors.</div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span></div>
+            </div>
+            <div style="flex:1;background:var(--card);padding:22px 24px;">
+              <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Selected</div>
+              <div style="font-family:var(--serif);font-size:27px;line-height:1.1;margin-top:5px;">Main Street, Burnsville</div>
+              <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:8px;">AREA ANCHOR · 0.42 KM² · PROMOTED 12:19</div>
+              <div style="height:170px;border:1px solid var(--line);border-radius:5px;margin-top:16px;position:relative;background:#E3DBC7;background-image:linear-gradient(0deg,rgba(140,132,118,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.12) 1px,transparent 1px);background-size:22px 22px;overflow:hidden;">
+                <div style="position:absolute;left:18%;top:26%;width:64%;height:48%;border:2px solid var(--ink);background:rgba(34,31,26,.06);"></div>
+                <div style="position:absolute;left:30%;top:42%;width:9px;height:9px;border-radius:50%;background:var(--info);"></div>
+                <div style="position:absolute;left:52%;top:52%;width:9px;height:9px;border-radius:50%;background:var(--info);"></div>
+                <div style="position:absolute;left:66%;top:38%;width:9px;height:9px;border-radius:50%;background:var(--info);"></div>
+              </div>
+              
+              <div style="display:flex;flex-direction:column;gap:9px;margin-top:18px;">
+                <span style="background:var(--primary);color:#fff;font-weight:700;font-size:14px;min-height:42px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Attach to a day…</span>
+                <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13.5px;min-height:42px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Edit roles</span>
+                <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13.5px;min-height:42px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Duplicate</span>
+                <span style="border:1px solid var(--line);color:var(--danger);font-weight:600;font-size:13.5px;min-height:42px;border-radius:4px;display:flex;align-items:center;justify-content:center;">Remove anchor</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>11 ANCHORS · 6 ATTACHED · 5 UNATTACHED</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 12:22</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 05 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">05</span>
+      <span style="font-size:19px;font-weight:700;">Re-running after a new layer loads</span>
+      <span style="font-size:14px;color:var(--ink3);">Every rejection preserved; what is new is marked. Unknown plugin types participate by affinity.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:620px;display:flex;">
+        <div style="width:560px;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--card);">
+          <div style="padding:20px 24px 16px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Proposals · second run</div>
+            <div style="font-family:var(--serif);font-size:28px;line-height:1.1;margin-top:5px;">51 proposals · 8 new</div>
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin:10px 0 0;"><svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg><div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Nothing you decided is lost when you run this again. The 25 you rejected stay rejected, and anything already promoted is not re-proposed — so run it again whenever you add a layer, since a new layer changes what the analysis can find.</div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span></div>
+          </div>
+          <div style="flex:1;">
+            <div style="padding:14px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;">
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--primary);color:#fff;padding:3px 7px;border-radius:3px;">NEW</span>
+              <div style="flex:1;"><div style="font-weight:700;font-size:15px;">Bald Hill earthworks</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:3px;">battlefield + viewpoint · NARRATIVE · NC BATTLE SITES</div></div>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">0.79</span>
+            </div>
+            <div style="padding:14px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;">
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--primary);color:#fff;padding:3px 7px;border-radius:3px;">NEW</span>
+              <div style="flex:1;"><div style="font-weight:700;font-size:15px;">Pleasant Grove manor house</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:3px;">manor_house + covered_bridge · NARRATIVE · NC BATTLE SITES</div></div>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);">0.68</span>
+            </div>
+            <div style="padding:14px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;">
+              <div style="flex:1;"><div style="font-weight:700;font-size:15px;">Linville Falls</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:3px;">ALREADY PROMOTED · NOT RE-PROPOSED</div></div>
+              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#2C4A3B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </div>
+            <div style="padding:14px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;opacity:.5;">
+              <div style="flex:1;"><div style="font-weight:700;font-size:15px;">Boundary stone near CR-1214</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:3px;">REJECTED IN RUN 1 · STAYS REJECTED</div></div>
+              <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);">RESTORE</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin:18px 24px;"><svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg><div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Any layer can join the analysis, including one you add yourself — it only has to declare what each of its types is for. That is why the battlefield sites clustered without anyone updating Plotlines.</div><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span></div>
+          </div>
+        </div>
+        <div style="flex:1;background:var(--app);padding:24px 26px;">
+          <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Layer just loaded</div>
+          <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px 20px;margin-top:12px;">
+            <div style="display:flex;align-items:center;gap:11px;">
+              <div style="width:16px;height:16px;border-radius:3px;background:var(--primary);display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"></path></svg></div>
+              <div style="flex:1;"><div style="font-weight:700;font-size:15px;">NC Battle Sites &amp; Historic Houses</div><div style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:3px;">PLUGIN LAYER · 1,204 FEATURES</div></div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--success);color:#fff;padding:3px 7px;border-radius:3px;">READY</span>
+            </div>
+            <div style="border-top:1px solid var(--line);margin-top:16px;padding-top:14px;">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:9px;">DECLARED TAXONOMY</div>
+              <div style="font-family:var(--mono);font-size:12px;line-height:1.9;color:var(--ink2);">battlefield → narrative · w 0.80<br>manor_house → narrative · w 0.65<br>covered_bridge → narrative · w 0.55</div>
+            </div>
+            <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px;">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);margin-bottom:7px;">LICENCE</div>
+              <div style="font-size:13px;color:var(--ink2);line-height:1.6;">CC BY 4.0 · NC Dept. of Natural &amp; Cultural Resources. Attribution reaches the About surface, exports, and printed cue sheets.</div>
+            </div>
+          </div>
+          <div style="margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px 20px;">
+            <div style="font-weight:700;font-size:14px;">Run the analysis again?</div>
+            
+            <span style="background:var(--ink);color:var(--app);font-weight:700;font-size:14px;min-height:42px;border-radius:4px;display:flex;align-items:center;justify-content:center;margin-top:14px;">Find the good spots again</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>6 LAYERS LIVE · 1 PLUGIN</span><span style="color:var(--ink3);">25 REJECTIONS REMEMBERED</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 12:31</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 06 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">06</span>
+      <span style="font-size:19px;font-weight:700;">No clusters found</span>
+      <span style="font-size:14px;color:var(--ink3);">A result, not a failure. It says what to try next and does not use the error surface.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Nebraska Sandhills</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:520px;display:flex;">
+        <div style="width:492px;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--card);">
+          <div style="height:44px;border-bottom:1px solid var(--line);display:flex;align-items:stretch;">
+            <div style="display:flex;align-items:center;padding:0 16px;font-size:13.5px;color:var(--ink2);">Candidates <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">184</span></div>
+            <div style="display:flex;align-items:center;padding:0 16px;font-size:13.5px;font-weight:700;border-bottom:2px solid var(--primary);">Proposals <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">0</span></div>
+            <div style="display:flex;align-items:center;padding:0 16px;font-size:13.5px;color:var(--ink2);">Anchors <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:7px;">2</span></div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 30px;gap:14px;">
+            <div style="width:42px;height:42px;border:1.5px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;">
+              <svg width="20" height="20" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="#8C8476" stroke-width="1.7"></circle><path d="M16 16l4.5 4.5" stroke="#8C8476" stroke-width="1.7" stroke-linecap="round"></path></svg>
+            </div>
+            <div style="font-size:19px;font-weight:700;line-height:1.3;">No co-located groups in this extent.</div>
+            <div style="font-size:13.5px;line-height:1.7;color:var(--ink2);">184 candidates qualified, but none sit close enough to another to form a cluster. This is what the land looks like here — not a fault.</div>
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.1em;color:var(--ink3);margin-top:4px;">TRY</div>
+            <div style="display:flex;flex-direction:column;gap:9px;">
+              <span style="border:1.5px solid var(--ink);color:var(--ink);font-weight:600;font-size:13.5px;min-height:42px;border-radius:4px;display:flex;align-items:center;padding:0 16px;">Turn on more layers — 3 of 9 are live</span>
+              <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13.5px;min-height:42px;border-radius:4px;display:flex;align-items:center;padding:0 16px;">Widen the trip bounding box</span>
+              <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13.5px;min-height:42px;border-radius:4px;display:flex;align-items:center;padding:0 16px;">Promote from the map instead</span>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;position:relative;background:#E3DBC7;background-image:linear-gradient(0deg,rgba(140,132,118,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(140,132,118,.10) 1px,transparent 1px);background-size:44px 44px;">
+          <div style="position:absolute;left:0;top:48%;width:100%;height:1.5px;background:#8C8476;opacity:.4;"></div>
+          <div style="position:absolute;left:18%;top:24%;width:9px;height:9px;border-radius:50%;background:rgba(44,74,59,.4);"></div>
+          <div style="position:absolute;left:54%;top:34%;width:10px;height:10px;border-radius:50%;background:rgba(44,74,59,.45);"></div>
+          <div style="position:absolute;left:34%;top:64%;width:8px;height:8px;border-radius:50%;background:rgba(44,74,59,.35);"></div>
+          <div style="position:absolute;left:76%;top:58%;width:9px;height:9px;border-radius:50%;background:rgba(44,74,59,.4);"></div>
+          <div style="position:absolute;left:66%;top:76%;width:8px;height:8px;border-radius:50%;background:rgba(44,74,59,.3);"></div>
+          <div style="position:absolute;left:50%;bottom:20px;transform:translateX(-50%);font-family:var(--mono);font-size:10px;color:var(--ink3);">CANDIDATES REMAIN VISIBLE AND PROMOTABLE</div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>ANALYSIS COMPLETE · 0 PROPOSALS</span><span style="color:var(--ink3);">NOT AN ERROR STATE</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 09:47</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

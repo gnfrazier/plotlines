@@ -67,26 +67,3 @@ guide; copy those in from the guide's `assets/` when a mark is needed.
   Flutter project.
 - Fonts use `google_fonts` (network fetch on first run); bundle `.ttf`s for
   fully offline field use.
-
----
-
-## Plotlines repo notes (added on import, 2026-08-15)
-
-This is the upstream `readme.md` from the Claude Design project
-(`29bd1f69-ef64-4208-8da4-7f38f5b7066f`), renamed on import so it does not
-collide with `client/design/README.md` (which documents the import itself).
-Content is unmodified above this line.
-
-**Paths differ in this repo:**
-
-| Upstream path | Here |
-|---|---|
-| `flutter/plotlines_ui/` | `client/packages/plotlines_ui/` — real code, not reference |
-| `styles.css`, `tokens/`, `cards/`, `assets/` | `client/design/` (same names) |
-| `Plotlines Brand Guide.dc.html`, `Plotlines UI Gallery.dc.html` | `client/design/` |
-
-**The last caveat is a hard MVP requirement, not a nice-to-have.** Desktop MVP is
-offline-first (ARCH P2), so the `google_fonts` network fetch must be replaced by
-bundled `.ttf`s in `client/pubspec.yaml` before the client ships. The same applies
-to the `@import` of Google Fonts in `tokens/fonts.css` and the `<link>` in the
-`.dc.html` wireframes — those are reference documents and may stay as they are.
