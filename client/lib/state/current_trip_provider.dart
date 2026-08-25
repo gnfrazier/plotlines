@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/domain.dart';
 import '../domain/promote.dart' as domain_promote show promoteAnchor;
+import 'planner_ui_state.dart' show PlanningMode, composeAwareTargetM;
 import 'providers.dart';
 import 'trip_authoring_meta_provider.dart';
 import 'trip_bbox_provider.dart';
@@ -13,6 +14,8 @@ import 'trip_library_provider.dart';
 const _uuid = Uuid();
 
 String _nowIso() => DateTime.now().toUtc().toIso8601String();
+
+bool _sameCoord(Coord a, Coord b) => a[0] == b[0] && a[1] == b[1];
 
 /// The trip currently open in the planner (ARCH §9.1's State layer over the
 /// Domain `Trip`). One notifier per open trip; screens 00-04 all read/write
@@ -301,6 +304,78 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     markSegmentStale(dayId, segmentId);
   }
 
+  /// FR117/A0 — compose mode's spine editor (`WeightsRail`'s `_SpineEditor`):
+  /// replaces a segment's via-anchor order wholesale, since reordering the
+  /// spine is exactly as common an edit as adding or removing a place from
+  /// it. Explore's own via-node UI (`new_route_screen.dart`) can use this
+  /// too; there is only ever one `via` field to edit (ARCH §7.7 — "not a
+  /// second solver").
+  void updateSegmentVia(String dayId, String segmentId, List<Coord> via) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId) s.copyWith(via: via) else s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+    markSegmentStale(dayId, segmentId);
+  }
+
+  /// FR118/A0a — "move one to another day," one of the deviation panel's
+  /// affordances (`WeightsRail`'s `_ComposeDeviationPanel`): drops [coord]
+  /// from this segment's spine and appends it to the first segment of
+  /// [toDayId]'s day. The panel only offers days that already have a
+  /// segment to receive it — an empty day has nowhere for the anchor to go,
+  /// and creating one here would mean inventing a mode/shape/start with no
+  /// Author input behind them.
+  void moveViaToDay(String dayId, String segmentId, Coord coord, String toDayId) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segment = day.segments.firstWhere((s) => s.id == segmentId);
+    updateSegmentVia(
+      dayId,
+      segmentId,
+      [for (final v in segment.via) if (!_sameCoord(v, coord)) v],
+    );
+
+    final toDay = state.days.firstWhere((d) => d.id == toDayId);
+    final toSegment = toDay.segments.first;
+    updateSegmentVia(toDayId, toSegment.id, [...toSegment.via, coord]);
+  }
+
+  /// FR118/A0a — "split the day," another deviation-panel affordance: moves
+  /// the tail of this segment's spine — everything from [splitIndex] on —
+  /// onto a new day of its own (`addBlankDay`, the same blank canvas New
+  /// Route's hand-built path already produces). The new segment keeps the
+  /// old one's mode and shape but starts fresh otherwise — compose builds
+  /// a day out of the Author's own choices, not a solve, so there is no
+  /// geometry or metrics to carry over until the Author re-solves it.
+  /// Returns the new day's id so the caller can select it.
+  ///
+  /// [splitIndex] must fall strictly between 0 and `segment.via.length` —
+  /// both a real head and a real tail — which the panel enforces by only
+  /// offering the action when the spine has at least two places.
+  String splitDayAt(String dayId, String segmentId, int splitIndex) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segment = day.segments.firstWhere((s) => s.id == segmentId);
+    if (splitIndex <= 0 || splitIndex >= segment.via.length) {
+      throw ArgumentError.value(splitIndex, 'splitIndex', 'must leave both a head and a tail');
+    }
+    final tail = segment.via.sublist(splitIndex);
+    updateSegmentVia(dayId, segmentId, segment.via.sublist(0, splitIndex));
+
+    final newDayId = addBlankDay();
+    final newSegment = Segment(
+      id: _uuid.v4(),
+      mode: segment.mode,
+      shape: segment.shape,
+      start: tail.first,
+      end: segment.shape == 'point_to_point' ? segment.end : null,
+      via: tail.sublist(1),
+    );
+    final newDay = state.days.firstWhere((d) => d.id == newDayId);
+    _replaceDay(newDay.copyWith(segments: [newSegment]));
+    return newDayId;
+  }
+
   void updateSegmentTargetDistance(String dayId, String segmentId, double? valueM) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
@@ -328,7 +403,19 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// fresh id (it has no notion of "this is an edit"), so this is the one
   /// place that reconciles the two: everything an Author curated on the old
   /// segment survives the re-solve.
-  Future<void> regenerateSegment(String dayId, String segmentId) async {
+  ///
+  /// [mode] is FR117/A0's planning posture for the day this segment belongs
+  /// to (`dayPlanningModeProvider`; explore by default so every existing
+  /// caller keeps its prior behavior). ARCH §7.7: compose never sends
+  /// `target_m` — the solve reaches every via-anchor and reports whatever
+  /// length that produces — but the Author's own explore-mode target is
+  /// never cleared by it, only left out of the request, so a day switching
+  /// back to explore (FR119) still finds it there.
+  Future<void> regenerateSegment(
+    String dayId,
+    String segmentId, {
+    PlanningMode mode = PlanningMode.explore,
+  }) async {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final old = day.segments.firstWhere((s) => s.id == segmentId);
     final needsEnd = old.shape != 'loop';
@@ -392,7 +479,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       theme: (weightsPayload != null && weightsPayload.isNotEmpty)
           ? (weights?.name ?? 'balanced')
           : 'balanced',
-      targetM: old.targetDistance?.valueM,
+      targetM: composeAwareTargetM(mode, old.targetDistance),
       weights: weightsPayload,
     );
     final merged = resolved.copyWith(
@@ -403,6 +490,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       weights: old.weights,
       bands: old.bands,
       title: old.title,
+      // `old.targetDistance` wins whenever the Author has one authored,
+      // point_to_point included — that shape's target is advisory-only and
+      // never echoed back in `resolved` (service/app.py never reads it for
+      // point_to_point), so falling through to `resolved.targetDistance`
+      // there would silently wipe it on every re-solve.
+      targetDistance: old.targetDistance ?? resolved.targetDistance,
     );
     // `Segment.copyWith` never overrides `id` (see segment.dart) — rebuild
     // with the old id directly so every reference to this segment

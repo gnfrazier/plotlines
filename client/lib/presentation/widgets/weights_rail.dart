@@ -15,6 +15,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../data/routing_client.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
+import '../../state/planner_ui_state.dart';
 import '../../state/providers.dart';
 import '../../state/trip_bbox_provider.dart';
 import 'conflict_dialog.dart';
@@ -75,6 +76,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
     void setWeights(WeightProfile w) => ref
         .read(currentTripProvider.notifier)
         .updateSegmentWeights(widget.dayId, segment.id, w);
+    final mode = ref.watch(dayPlanningModeProvider(widget.dayId));
 
     return Container(
       width: 308,
@@ -93,6 +95,19 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // FR117/A0's AC — the day's mode, always the first thing in
+                  // the rail: visible without scrolling on open, and the
+                  // switch itself (ARCH §7.7: nothing about the segment is
+                  // destroyed by tapping the other mode).
+                  _PlanningModeToggle(dayId: widget.dayId, mode: mode, segment: segment),
+                  const SizedBox(height: PlotSpacing.s2),
+                  Text(
+                    mode == PlanningMode.explore
+                        ? 'Explore — weights and bands define the search space; the distance below is a constraint.'
+                        : 'Compose — the spine below defines the route; weights only flavor the connections between its places.',
+                    style: PlotTypography.small(c.textMuted),
+                  ),
+                  const SizedBox(height: PlotSpacing.s4),
                   WeightSlider(
                     label: 'Climbing',
                     hint: 'flat ↔ indifferent ↔ seek peaks',
@@ -114,50 +129,79 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                     ),
                   WeightSlider(
                     label: 'POI density',
-                    hint: 'sparse ↔ dense',
+                    hint: mode == PlanningMode.explore
+                        ? 'sparse ↔ dense'
+                        : 'sparse ↔ dense · inactive in compose — the spine already says what\'s here',
                     value: weights.poiDensity ?? 2.5,
-                    onChanged: (v) => setWeights(weights.copyWith(poiDensity: v)),
+                    onChanged: mode == PlanningMode.compose
+                        ? null
+                        : (v) => setWeights(weights.copyWith(poiDensity: v)),
                   ),
                   const SizedBox(height: PlotSpacing.s4),
-                  Text('BANDS', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: PlotSpacing.s1),
-                  Text('Acceptance range on a realised attribute — never on the weight itself.',
-                      style: PlotTypography.small(c.textMuted)),
-                  const SizedBox(height: PlotSpacing.s2),
-                  for (final band in segment.bands)
-                    BandRow(
-                      key: ValueKey(band.attribute),
-                      band: band,
-                      onChanged: (updated) => ref.read(currentTripProvider.notifier).updateSegmentBands(
-                            widget.dayId,
-                            segment.id,
-                            [for (final b in segment.bands) if (b.attribute == band.attribute) updated else b],
-                          ),
-                      onRemove: () => ref.read(currentTripProvider.notifier).updateSegmentBands(
-                            widget.dayId,
-                            segment.id,
-                            segment.bands.where((b) => b != band).toList(),
-                          ),
-                    ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: PlotButton(
-                      label: 'Add band',
-                      variant: PlotButtonVariant.ghost,
-                      icon: Icons.add,
-                      onPressed: () {
-                        final attr = _attributes.firstWhere(
-                          (a) => !segment.bands.any((b) => b.attribute == a),
-                          orElse: () => _attributes.first,
-                        );
-                        ref.read(currentTripProvider.notifier).updateSegmentBands(
+                  if (mode == PlanningMode.explore) ...[
+                    Text('BANDS', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: PlotSpacing.s1),
+                    Text('Acceptance range on a realised attribute — never on the weight itself.',
+                        style: PlotTypography.small(c.textMuted)),
+                    const SizedBox(height: PlotSpacing.s2),
+                    for (final band in segment.bands)
+                      BandRow(
+                        key: ValueKey(band.attribute),
+                        band: band,
+                        onChanged: (updated) => ref.read(currentTripProvider.notifier).updateSegmentBands(
                               widget.dayId,
                               segment.id,
-                              [...segment.bands, Band(attribute: attr, min: null, max: null)],
-                            );
-                      },
+                              [for (final b in segment.bands) if (b.attribute == band.attribute) updated else b],
+                            ),
+                        onRemove: () => ref.read(currentTripProvider.notifier).updateSegmentBands(
+                              widget.dayId,
+                              segment.id,
+                              segment.bands.where((b) => b != band).toList(),
+                            ),
+                      ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: PlotButton(
+                        label: 'Add band',
+                        variant: PlotButtonVariant.ghost,
+                        icon: Icons.add,
+                        onPressed: () {
+                          final attr = _attributes.firstWhere(
+                            (a) => !segment.bands.any((b) => b.attribute == a),
+                            orElse: () => _attributes.first,
+                          );
+                          ref.read(currentTripProvider.notifier).updateSegmentBands(
+                                widget.dayId,
+                                segment.id,
+                                [...segment.bands, Band(attribute: attr, min: null, max: null)],
+                              );
+                        },
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    Text(
+                      'Bands aren\'t edited here — the route reaches every place in the '
+                      'spine regardless. Any band you set is only used below, to report '
+                      'how the realized day compares to it.',
+                      style: PlotTypography.small(c.textMuted),
+                    ),
+                    const SizedBox(height: PlotSpacing.s4),
+                    // Unbounded, like BANDS above — compose *is* the
+                    // POI-spine trip (FR39/FR117), with no cap on how many
+                    // places it reaches, so this lives in the scrollable
+                    // middle rather than the fixed bottom rail the way the
+                    // capped 1-2-item explore VIA badges still do.
+                    Text('SPINE', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: PlotSpacing.s1),
+                    Text(
+                      'The promoted places this route reaches, in order.',
+                      style: PlotTypography.small(c.textMuted),
+                    ),
+                    const SizedBox(height: PlotSpacing.s2),
+                    _SpineEditor(dayId: widget.dayId, segment: segment),
+                    const SizedBox(height: PlotSpacing.s4),
+                    _ComposeDeviationPanel(dayId: widget.dayId, segment: segment),
+                  ],
                   if (_error != null) ...[
                     const SizedBox(height: PlotSpacing.s3),
                     ConflictBanner(explanation: _error!),
@@ -190,8 +234,8 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                   ],
                 ),
                 const SizedBox(height: PlotSpacing.s3),
-                _TargetDistanceField(dayId: widget.dayId, segment: segment),
-                if (segment.via.isNotEmpty) ...[
+                _TargetDistanceField(dayId: widget.dayId, segment: segment, mode: mode),
+                if (mode == PlanningMode.explore && segment.via.isNotEmpty) ...[
                   const SizedBox(height: PlotSpacing.s3),
                   Text('VIA (A9)', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: PlotSpacing.s2),
@@ -208,25 +252,37 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                   const SizedBox(height: PlotSpacing.s3),
                   const PlotBadge('Stale — needs re-solve', tone: PlotBadgeTone.gold, solid: true),
                 ],
+                if (_composeNeedsTarget(mode, segment)) ...[
+                  const SizedBox(height: PlotSpacing.s3),
+                  Text(
+                    'Loop always solves to a target distance, which compose doesn\'t set — '
+                    'pick out-and-back or point-to-point, or switch back to explore.',
+                    style: PlotTypography.small(c.danger),
+                  ),
+                ],
                 const SizedBox(height: PlotSpacing.s3),
                 Row(
                   children: [
-                    Expanded(
-                      child: PlotButton(
-                        label: segment.bands.isEmpty
-                            ? 'Add a band to diagnose'
-                            : (_diagnosing ? 'Diagnosing…' : 'Diagnose'),
-                        variant: PlotButtonVariant.secondary,
-                        onPressed: (_diagnosing || segment.bands.isEmpty || segment.metrics?.distanceM == null)
-                            ? null
-                            : () => _diagnose(segment),
+                    if (mode == PlanningMode.explore) ...[
+                      Expanded(
+                        child: PlotButton(
+                          label: segment.bands.isEmpty
+                              ? 'Add a band to diagnose'
+                              : (_diagnosing ? 'Diagnosing…' : 'Diagnose'),
+                          variant: PlotButtonVariant.secondary,
+                          onPressed: (_diagnosing || segment.bands.isEmpty || segment.metrics?.distanceM == null)
+                              ? null
+                              : () => _diagnose(segment),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: PlotSpacing.s2),
+                      const SizedBox(width: PlotSpacing.s2),
+                    ],
                     Expanded(
                       child: PlotButton(
                         label: _regenerating ? 'Re-solving…' : 'Regenerate',
-                        onPressed: _regenerating ? null : () => _regenerate(segment),
+                        onPressed: (_regenerating || _composeNeedsTarget(mode, segment))
+                            ? null
+                            : () => _regenerate(segment, mode),
                       ),
                     ),
                   ],
@@ -239,19 +295,28 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
     );
   }
 
-  Future<void> _regenerate(Segment segment) async {
+  Future<void> _regenerate(Segment segment, PlanningMode mode) async {
     setState(() {
       _regenerating = true;
       _error = null;
     });
     try {
-      await ref.read(currentTripProvider.notifier).regenerateSegment(widget.dayId, segment.id);
+      await ref
+          .read(currentTripProvider.notifier)
+          .regenerateSegment(widget.dayId, segment.id, mode: mode);
     } on RoutingException catch (e) {
       setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _regenerating = false);
     }
   }
+
+  /// Loop always requires `target_m` server-side (`service/app.py`), which
+  /// contradicts compose's "no target, length is an outcome" (ARCH §7.7) —
+  /// this is the one shape/mode combination Regenerate must refuse rather
+  /// than send a request the sidecar will 422.
+  static bool _composeNeedsTarget(PlanningMode mode, Segment segment) =>
+      mode == PlanningMode.compose && segment.shape == 'loop';
 
   Future<void> _diagnose(Segment segment) async {
     setState(() {
@@ -322,9 +387,14 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
 }
 
 class _TargetDistanceField extends ConsumerStatefulWidget {
-  const _TargetDistanceField({required this.dayId, required this.segment});
+  const _TargetDistanceField({required this.dayId, required this.segment, required this.mode});
   final String dayId;
   final Segment segment;
+
+  /// FR117/A0's AC — the field's meaning visibly changes with the day's
+  /// posture: a constraint the Author sets in explore, a reported outcome
+  /// they can only read in compose.
+  final PlanningMode mode;
 
   @override
   ConsumerState<_TargetDistanceField> createState() => _TargetDistanceFieldState();
@@ -337,6 +407,7 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
         : (widget.segment.targetDistance!.valueM / 1000).toStringAsFixed(1),
   );
   String? _lastSegmentId;
+  PlanningMode? _lastMode;
 
   @override
   void dispose() {
@@ -347,14 +418,55 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
-    // Re-sync the field when a different segment is selected — cheap check,
-    // avoids clobbering an in-progress edit on every rebuild.
-    if (_lastSegmentId != widget.segment.id) {
-      _lastSegmentId = widget.segment.id;
+    // Re-sync the field on a different segment, or on a compose->explore
+    // transition — the latter because switching modes is the one non-typing
+    // way this value changes underneath the field (FR119's backfill in
+    // `_PlanningModeToggle`), and there is no in-progress edit to clobber
+    // coming out of compose, which shows no text field at all.
+    if (_lastSegmentId != widget.segment.id ||
+        (_lastMode == PlanningMode.compose && widget.mode == PlanningMode.explore)) {
       _controller.text = widget.segment.targetDistance == null
           ? ''
           : (widget.segment.targetDistance!.valueM / 1000).toStringAsFixed(1);
     }
+    _lastSegmentId = widget.segment.id;
+    _lastMode = widget.mode;
+
+    // ARCH §7.7 / FR118 — in compose the distance is a reported outcome,
+    // never an editable constraint, so this reads the realized metric
+    // straight off the segment rather than the authored (and, in compose,
+    // unsent) target-distance field.
+    if (widget.mode == PlanningMode.compose) {
+      final distanceM = widget.segment.metrics?.distanceM;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s3),
+        decoration: BoxDecoration(
+          border: Border.all(color: c.border),
+          borderRadius: PlotRadii.controlShape,
+          color: c.surfaceSunk,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('DISTANCE — REPORTED OUTCOME',
+                      style: PlotTypography.small(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: PlotSpacing.s1),
+                  Text(
+                    distanceM == null ? '—' : '${(distanceM / 1000).toStringAsFixed(1)} km',
+                    style: PlotTypography.data(c.textPrimary).copyWith(fontSize: 18),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return TextField(
       controller: _controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -364,7 +476,7 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
         border: const OutlineInputBorder(),
         helperText: widget.segment.shape == 'point_to_point'
             ? 'Advisory for point-to-point — start/end govern the actual route'
-            : null,
+            : 'The constraint Generate/Regenerate solves toward',
         helperStyle: PlotTypography.small(c.textMuted),
       ),
       onSubmitted: (text) {
@@ -384,7 +496,11 @@ class WeightSlider extends StatelessWidget {
   final String label;
   final String hint;
   final double value;
-  final ValueChanged<double> onChanged;
+
+  /// Null disables the slider — compose mode's "inactive" weights (ARCH
+  /// §7.7's `interest` row) rather than hiding them outright, so the
+  /// Author's authored value stays visible even while it isn't sent.
+  final ValueChanged<double>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -473,6 +589,424 @@ class _BandRowState extends State<BandRow> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// FR117/A0 — the day's planning-mode switch, always visible at the top of
+/// the rail (the AC's "the current mode is always visible"). Doubles as
+/// FR119's switch action itself: tapping the other mode chip *is*
+/// "promote to compose" / "loosen the spine to explore" — there is no
+/// separate confirmation step because nothing about the segment is
+/// destroyed by switching (ARCH §7.7: the two postures share every
+/// authored field a segment already has).
+class _PlanningModeToggle extends ConsumerWidget {
+  const _PlanningModeToggle({required this.dayId, required this.mode, required this.segment});
+  final String dayId;
+  final PlanningMode mode;
+  final Segment segment;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    void select(PlanningMode next) {
+      if (next == mode) return;
+      // FR119 "compose -> loosen the spine -> explore": hand compose's
+      // discovered length back as explore's starting constraint, but only
+      // when the Author never authored one of their own — an existing
+      // explore target is never overwritten, and a no-op set would mark
+      // the segment stale for nothing.
+      if (next == PlanningMode.explore && segment.targetDistance == null) {
+        final backfill = loosenedTargetDistanceM(
+          existingTarget: segment.targetDistance,
+          realizedDistanceM: segment.metrics?.distanceM,
+        );
+        if (backfill != null) {
+          ref
+              .read(currentTripProvider.notifier)
+              .updateSegmentTargetDistance(dayId, segment.id, backfill);
+        }
+      }
+      ref.read(dayPlanningModeProvider(dayId).notifier).state = next;
+    }
+
+    return Wrap(
+      spacing: PlotSpacing.s2,
+      children: [
+        ChoiceChip(
+          label: const Text('EXPLORE'),
+          selected: mode == PlanningMode.explore,
+          onSelected: (_) => select(PlanningMode.explore),
+        ),
+        ChoiceChip(
+          label: const Text('COMPOSE'),
+          selected: mode == PlanningMode.compose,
+          onSelected: (_) => select(PlanningMode.compose),
+        ),
+      ],
+    );
+  }
+}
+
+/// Compose mode's spine — an ordered, editable list of the trip's promoted
+/// [Anchor]s this segment's route must reach (`Segment.via`; ARCH §7.7's
+/// "the promoted anchor set"). Explore's own via-node UI (map taps in
+/// `new_route_screen.dart`, capped at 1-2 per A9 MVP) is untouched; this is
+/// compose's counterpart for a day that has moved past initial creation,
+/// with no cap since compose *is* the POI-spine trip (FR39/FR117).
+class _SpineEditor extends ConsumerWidget {
+  const _SpineEditor({required this.dayId, required this.segment});
+  final String dayId;
+  final Segment segment;
+
+  static bool _sameCoord(Coord a, Coord b) => a[0] == b[0] && a[1] == b[1];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = PlotColors.of(context);
+    final anchors = ref.watch(currentTripProvider.select((t) => t.anchors));
+    String labelFor(Coord coord) {
+      for (final a in anchors) {
+        if (_sameCoord(a.coord, coord)) return a.title ?? 'Untitled place';
+      }
+      return 'Custom point';
+    }
+
+    final available = [
+      for (final a in anchors)
+        if (!segment.via.any((v) => _sameCoord(v, a.coord))) a,
+    ];
+    void setVia(List<Coord> via) =>
+        ref.read(currentTripProvider.notifier).updateSegmentVia(dayId, segment.id, via);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (segment.via.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
+            child: Text('No places in the spine yet — add one below.',
+                style: PlotTypography.small(c.textMuted)),
+          )
+        else
+          for (var i = 0; i < segment.via.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
+              child: PlotCard(
+                sunk: true,
+                padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
+                child: Row(
+                  children: [
+                    Text('${i + 1}.', style: PlotTypography.data(c.textMuted)),
+                    const SizedBox(width: PlotSpacing.s2),
+                    Expanded(
+                      child: Text(labelFor(segment.via[i]), style: PlotTypography.body(c.textPrimary)),
+                    ),
+                    IconButton(
+                      tooltip: 'Move earlier in the spine',
+                      icon: const Icon(Icons.arrow_upward, size: 16),
+                      onPressed: i == 0
+                          ? null
+                          : () {
+                              final via = [...segment.via];
+                              final item = via.removeAt(i);
+                              via.insert(i - 1, item);
+                              setVia(via);
+                            },
+                    ),
+                    IconButton(
+                      tooltip: 'Move later in the spine',
+                      icon: const Icon(Icons.arrow_downward, size: 16),
+                      onPressed: i == segment.via.length - 1
+                          ? null
+                          : () {
+                              final via = [...segment.via];
+                              final item = via.removeAt(i);
+                              via.insert(i + 1, item);
+                              setVia(via);
+                            },
+                    ),
+                    IconButton(
+                      tooltip: 'Remove from the spine',
+                      icon: const Icon(Icons.close, size: 16),
+                      onPressed: () {
+                        final via = [...segment.via]..removeAt(i);
+                        setVia(via);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        if (available.isNotEmpty)
+          PopupMenuButton<Anchor>(
+            tooltip: 'Add a promoted place to the spine',
+            onSelected: (a) => setVia([...segment.via, a.coord]),
+            itemBuilder: (context) => [
+              for (final a in available) PopupMenuItem(value: a, child: Text(a.title ?? 'Untitled place')),
+            ],
+            child: const _SpineAddChip(),
+          )
+        else if (anchors.isEmpty)
+          Text('Promote a place first (Curation) to add it to this spine.',
+              style: PlotTypography.small(c.textMuted)),
+      ],
+    );
+  }
+}
+
+/// The established "`PopupMenuButton` wraps a plain-looking chip" idiom
+/// (`new_route_screen.dart`'s primary-mode "+ Add") — the menu button
+/// supplies its own tap handling around whatever child it's given, so this
+/// stays visually a normal, enabled control despite carrying no `onTap`
+/// itself.
+class _SpineAddChip extends StatelessWidget {
+  const _SpineAddChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
+      decoration: BoxDecoration(
+        color: c.surfaceCard,
+        border: Border.all(color: c.border),
+        borderRadius: PlotRadii.controlShape,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.add, size: 16, color: c.textSecondary),
+          const SizedBox(width: PlotSpacing.s2),
+          Text('Add place', style: PlotTypography.data(c.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+/// FR118/A0a — "See what my chosen places make." Compose mode's
+/// editing-decision surface: realized distance, elevation and time,
+/// compared against any stated band (`statedDistanceBand`), presented with
+/// A0a's five affordances. Deliberately **not** `ConflictBanner` or
+/// `conflict_dialog.dart` — those are A6's error/relaxation surface, and
+/// FR118/FR140a are explicit that a compose-mode deviation must never
+/// route through it: this is its own card, always positive-toned framing,
+/// no "diagnose" step.
+class _ComposeDeviationPanel extends ConsumerWidget {
+  const _ComposeDeviationPanel({required this.dayId, required this.segment});
+  final String dayId;
+  final Segment segment;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = PlotColors.of(context);
+    final realizedDistanceM = segment.metrics?.distanceM;
+    if (segment.via.isEmpty || realizedDistanceM == null) {
+      return Text(
+        'Add places to the spine and regenerate to see what they make of the day.',
+        style: PlotTypography.small(c.textMuted),
+      );
+    }
+
+    final band = statedDistanceBand(segment);
+    final deviates = distanceDeviatesFromBand(realizedDistanceM, band);
+    final acceptedAt = ref.watch(composeDeviationAcceptedProvider(segment.id));
+    final accepted = isDeviationAccepted(
+      acceptedAtDistanceM: acceptedAt,
+      realizedDistanceM: realizedDistanceM,
+    );
+
+    final climbM = segment.elevation?.ascentM ?? segment.metrics?.climbM;
+    final moving = _formatHoursMinutes(segment.metrics?.movingTimeS);
+    final elapsed = _formatHoursMinutes(segment.metrics?.elapsedTimeS);
+    final detailParts = [
+      if (climbM != null) '${climbM.toStringAsFixed(0)} m of climb',
+      if (moving != null) '$moving moving',
+      if (elapsed != null) '$elapsed elapsed',
+    ];
+
+    final statusColor = deviates == null ? c.textPrimary : (deviates ? c.warning : c.success);
+
+    return Container(
+      padding: const EdgeInsets.all(PlotSpacing.s3),
+      decoration: BoxDecoration(
+        border: Border.all(color: c.border),
+        borderRadius: PlotRadii.controlShape,
+        color: c.surfaceSunk,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('REALIZED DAY', style: PlotTypography.small(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: PlotSpacing.s2),
+          Text(
+            composeDeviationHeadline(
+              placeCount: segment.via.length,
+              realizedDistanceM: realizedDistanceM,
+              band: band,
+            ),
+            style: PlotTypography.body(statusColor).copyWith(fontWeight: FontWeight.w600),
+          ),
+          if (detailParts.isNotEmpty) ...[
+            const SizedBox(height: PlotSpacing.s1),
+            Text(detailParts.join(', '), style: PlotTypography.small(c.textMuted)),
+          ],
+          if (accepted) ...[
+            const SizedBox(height: PlotSpacing.s2),
+            const PlotBadge('Accepted', tone: PlotBadgeTone.slate),
+          ],
+          const SizedBox(height: PlotSpacing.s3),
+          Wrap(
+            spacing: PlotSpacing.s2,
+            runSpacing: PlotSpacing.s2,
+            children: [
+              _DropAnchorAction(dayId: dayId, segment: segment),
+              _MoveToAnotherDayAction(dayId: dayId, segment: segment),
+              if (segment.via.length >= 2)
+                PlotButton(
+                  label: 'Split the day',
+                  variant: PlotButtonVariant.ghost,
+                  onPressed: () => ref
+                      .read(currentTripProvider.notifier)
+                      .splitDayAt(dayId, segment.id, (segment.via.length / 2).ceil()),
+                ),
+              if (deviates == true && band != null)
+                PlotButton(
+                  label: 'Widen the band',
+                  variant: PlotButtonVariant.ghost,
+                  onPressed: () => ref.read(currentTripProvider.notifier).updateSegmentBands(
+                        dayId,
+                        segment.id,
+                        [
+                          for (final b in segment.bands)
+                            if (b.attribute == 'distance_m')
+                              widenBandToAdmit(b, realizedDistanceM)
+                            else
+                              b,
+                        ],
+                      ),
+                ),
+              PlotButton(
+                label: accepted ? 'Accepted' : 'Accept',
+                variant: PlotButtonVariant.ghost,
+                onPressed: accepted
+                    ? null
+                    : () => ref
+                        .read(composeDeviationAcceptedProvider(segment.id).notifier)
+                        .state = realizedDistanceM,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String? _formatHoursMinutes(double? seconds) {
+    if (seconds == null) return null;
+    final total = seconds.round();
+    final h = total ~/ 3600;
+    final m = (total % 3600) ~/ 60;
+    return '$h:${m.toString().padLeft(2, '0')}';
+  }
+}
+
+/// A0a — "drop an anchor," the one affordance that never needs a second
+/// selection: [_ComposeDeviationPanel] only renders once the spine is
+/// non-empty, so there is always at least one via-anchor to offer here.
+class _DropAnchorAction extends ConsumerWidget {
+  const _DropAnchorAction({required this.dayId, required this.segment});
+  final String dayId;
+  final Segment segment;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final anchors = ref.watch(currentTripProvider.select((t) => t.anchors));
+    String labelFor(Coord coord) {
+      for (final a in anchors) {
+        if (a.coord[0] == coord[0] && a.coord[1] == coord[1]) return a.title ?? 'Untitled place';
+      }
+      return 'Custom point';
+    }
+
+    return PopupMenuButton<Coord>(
+      tooltip: 'Drop an anchor from the spine',
+      onSelected: (coord) => ref.read(currentTripProvider.notifier).updateSegmentVia(
+            dayId,
+            segment.id,
+            [for (final v in segment.via) if (!(v[0] == coord[0] && v[1] == coord[1])) v],
+          ),
+      itemBuilder: (context) => [
+        for (final v in segment.via) PopupMenuItem(value: v, child: Text(labelFor(v))),
+      ],
+      child: const _GhostActionChip(label: 'Drop an anchor…'),
+    );
+  }
+}
+
+/// A0a — "move one to another day." Only days that already carry a segment
+/// are offered (`CurrentTripNotifier.moveViaToDay`'s own constraint) — an
+/// empty day has nowhere for the anchor to land. Hides itself entirely
+/// when the trip has no such day, rather than showing a menu with nothing
+/// in it.
+class _MoveToAnotherDayAction extends ConsumerWidget {
+  const _MoveToAnotherDayAction({required this.dayId, required this.segment});
+  final String dayId;
+  final Segment segment;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trip = ref.watch(currentTripProvider);
+    String labelFor(Coord coord) {
+      for (final a in trip.anchors) {
+        if (a.coord[0] == coord[0] && a.coord[1] == coord[1]) return a.title ?? 'Untitled place';
+      }
+      return 'Custom point';
+    }
+
+    final otherDays = [
+      for (final d in trip.days)
+        if (d.id != dayId && d.segments.isNotEmpty) d,
+    ];
+    if (otherDays.isEmpty) return const SizedBox.shrink();
+
+    final options = [
+      for (final coord in segment.via)
+        for (final d in otherDays) (coord: coord, day: d),
+    ];
+
+    return PopupMenuButton<({Coord coord, Day day})>(
+      tooltip: 'Move a spine anchor to another day',
+      onSelected: (choice) => ref
+          .read(currentTripProvider.notifier)
+          .moveViaToDay(dayId, segment.id, choice.coord, choice.day.id),
+      itemBuilder: (context) => [
+        for (final o in options)
+          PopupMenuItem(value: o, child: Text('Move ${labelFor(o.coord)} to day ${o.day.index}')),
+      ],
+      child: const _GhostActionChip(label: 'Move to another day…'),
+    );
+  }
+}
+
+/// Shared ghost-styled `PopupMenuButton` child for [_DropAnchorAction] and
+/// [_MoveToAnotherDayAction] — same idiom as [_SpineAddChip], sized like a
+/// [PlotButton] ghost variant so the affordance row reads as one set of
+/// equal-weight actions rather than two different control styles.
+class _GhostActionChip extends StatelessWidget {
+  const _GhostActionChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
+      decoration: BoxDecoration(
+        border: Border.all(color: c.border),
+        borderRadius: PlotRadii.controlShape,
+      ),
+      child: Text(label, style: PlotTypography.data(c.textPrimary).copyWith(fontWeight: FontWeight.w600)),
     );
   }
 }
