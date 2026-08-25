@@ -16,53 +16,31 @@ When characters embark on the journey, they can sync the plan to their mobile ap
 
 ---
 
-## Current focus: desktop MVP
+## Scope: desktop MVP
 
-This repo is building the **desktop MVP**: a local Plotlines client that generates
+This repo builds the **desktop MVP**: a local Plotlines client that generates
 theme-weighted, multimodal-capable routes via a sidecar, curates them, and exports them — no
 hosted service, no accounts, no sync, no Web, no mobile field execution. See
-`docs/Plotlines_MVP_Scope_and_Setup.md` §1 for the exact in/out-of-scope line.
-
-**Status:** the Flutter Author Desktop client is built and running end to end against a real
-sidecar and a real basemap, and its UI matches `client/design`'s wireframe — not just the
-same features, the same information architecture. Every trip opens into one persistent
-**Trip Shell** with `Route / Logistics / Content / Export` tabs (an always-visible weights
-rail, a day timeline strip, and A6 conflict diagnosis as a real modal dialog, not the
-separate pushed screens this used to be), plus trip library search/grid-list, new-route (all
-three shapes: loop, out-and-back, point-to-point, location search, and a blank-canvas /
-generate-from-theme / import-GPX start method), node & narrative curation, real F1
-turn-by-turn cue sheets, and GPX/GeoJSON/TCX export with real per-day splitting and content
-toggles (waypoints, cue sheet, alternates). The basemap renders real street, place, and water
-labels now too — a one-session gap where the shipped style JSON was never actually run
-through the label-fix transform SPIKE-14 had already worked out (`packaging/build_basemap_theme.py`
-is that fix, made a real committed pipeline step instead of a one-off probe). All of this is
-verified against the rebuilt frozen sidecar binary, not just a source run, and against a real
-launch of the built app. What's left is catalogued in `docs/Plotlines_MVP_Scope_and_Setup.md`
-§8 — an arbitrary-region download pipeline (today every trip routes against the bundled
-Boulder, CO fixture regardless of what A10's first-run prompt is given), Windows sidecar
-lifecycle (no Windows box to verify FFI code against), and FIT export (gated on an unrun
-spike) — nothing there is a hidden surprise, and nothing in the client fakes data to paper
-over a gap.
+`docs/Plotlines_PRD_v2.md` §5 and §8, and `docs/Plotlines_MVP_Redirection_Punchlist.md`, for
+the exact in/out-of-scope line.
 
 ## Docs
 
 The planning docs live in `/docs` and are the source of truth:
 
-- `docs/Plotlines_PRD.md` — what/why
-- `docs/Plotlines_ARCHITECTURE.md` — how (tiers, principles, the sidecar model)
-- `docs/Plotlines_MVP_Scope_and_Setup.md` — desktop MVP scope, repo layout, build/version
-  pipeline. **§1.4 is the authoritative desktop-MVP story list** — the PRD's `[MVP]` tag
-  covers field and account work this milestone does not build, and §1.1's capability table
-  names several `[P1]` stories. §1.4 reconciles both and governs where they disagree.
-- `docs/Plotlines_Research_Spikes.md` — feasibility unknowns
+- `docs/Plotlines_PRD_v2.md` — what/why
+- `docs/Plotlines_ARCHITECTURE_v2.md` — how (tiers, principles, the sidecar model)
+- `docs/Plotlines_MVP_Redirection_Punchlist.md` — build order, acceptance, and
+  verification checklist. Read this alongside the PRD; it calls out several places where
+  the PRD's recomposed (v2.0) model contradicts older readings that may still be lying
+  around in a branch or an earlier conversation.
+- `docs/Plotlines_Author_Flows_MVP.md` — the Author's flows as Mermaid diagrams, each
+  mapped to the FRs and stories it covers.
+- `docs/Plotlines_Research_Spikes.md` — feasibility unknowns.
 - `docs/schemas/trip_payload.schema.json` — **the trip payload contract, and source of
   truth for its shape** (SPIKE-20, ARCH D28). One document serving `plotlines-core`'s
   return type, drift's `trip.payload`, the hosted JSONB column, and the Flutter domain
   layer. Where an implementation disagrees with it, it wins.
-- `docs/Plotlines - Spike Candidates.md` — **provenance, not source of truth.** A
-  technology-choice note from the PRD work, filed 2026-08-15. Its four spike candidates
-  became SPIKE-14 … SPIKE-17 and its other three rows are reconciled at the end of the
-  spikes doc; read those, not this.
 
 ## Monorepo layout
 
@@ -99,14 +77,15 @@ Toolchain, verified for WSL/Ubuntu:
   run `flutter doctor` to confirm. Needs a working display — WSLg provides this on WSL2.
 - **Git.**
 
-`core` and `service` are real: graph loading, scoring, routing (all three shapes), trip
-composition, cue derivation, and geocoding are all wired into the FastAPI sidecar wrapper
+`core` and `service` wire graph loading, scoring, routing (all three shapes), trip
+composition, cue derivation, and geocoding into a FastAPI sidecar wrapper
 (`/health`, `/segments/generate`, `/segments/envelope`, `/segments/diagnose`,
-`/segments/cues`, `/days/compose`, `/trips/split`, `/geocode`) and work end to end against the
-committed Boulder, CO fixture graph (`spikes/SPIKE-00/cache`). `client` is a real Flutter app,
-not scaffolding — see **Running the desktop app** below. Remaining known gaps (an arbitrary-
-region download pipeline, Windows sidecar lifecycle, FIT export) are tracked in
-`docs/Plotlines_MVP_Scope_and_Setup.md` §8, not silently missing.
+`/segments/cues`, `/days/compose`, `/trips/split`, `/geocode`), which runs end to end against the
+committed Boulder, CO fixture graph (`spikes/SPIKE-00/cache`) — there is no arbitrary-region
+download pipeline yet, so every trip routes against that one fixture region regardless of
+what the trip-creation location prompt is given. `client` is a Flutter app; **Running the
+desktop app** below is Linux-first (there's no `client/windows` platform scaffold yet), and
+the sidecar's own Windows process-control gap is tracked in `packaging/TODO.md`.
 
 ## Running the desktop app
 
@@ -114,7 +93,9 @@ The client always spawns its **own** sidecar process (ARCH §7.3, M12) — there
 at an already-running dev server" mode — so the sidecar binary has to be built at least once
 before `flutter run` will get past the loading screen.
 
-**1. Set up the Python side and build the sidecar** (from the repo root):
+**1. Set up the Python side and build the sidecar** (from the repo root). On Windows, run
+this step from **Git Bash** — `build_sidecar.sh` is one script for Linux, macOS, and
+Windows on purpose (see `packaging/README.md`), and it isn't a PowerShell/cmd script:
 
 ```bash
 uv venv .venv
@@ -128,9 +109,7 @@ uv pip install pyinstaller                # not a declared dependency yet — se
 This produces `packaging/dist/pyinstaller-onedir/plotlines-sidecar/plotlines-sidecar`, which
 `SidecarManager` (`client/lib/data/sidecar_manager.dart`) finds automatically via a
 repo-relative dev fallback — no environment variable or flag needed. It also falls back to
-the committed `spikes/SPIKE-00/cache` graph/DEM for the same reason: there's no region-download
-pipeline yet (MVP doc §8), so every trip today routes against Boulder, CO regardless of what
-the first-run location prompt is given.
+the committed `spikes/SPIKE-00/cache` graph/DEM for the same reason.
 
 Rebuild the binary any time `core/` or `service/` change — it's a frozen snapshot, not a live
 reload.
@@ -150,7 +129,10 @@ flutter run -d linux
 ```
 
 First launch takes a few seconds while the sidecar loads the graph (M13's honest "starting"
-screen, escalating its message if it runs long) before handing off to the trip library.
+screen, escalating its message if it runs long) before handing off to the trip library, which
+opens on an outline of the shipped Buncombe County, NC home region (`HomeRegion`, FR96/A10) —
+that's a map backdrop only, drawn with no download, and distinct from the fixture region
+trips actually route against below.
 
 The basemap only covers the Boulder, CO fixture region — `client/assets/tiles/` (496 vector
 tiles, committed) was exploded once from SPIKE-14's `spikes/SPIKE-14/tiles/boulder.pmtiles`
@@ -162,6 +144,9 @@ and lines; rerun that script if `spikes/SPIKE-14/harness/assets/style_*.json` ev
 upstream. No regeneration step needed to run the app — both the tiles and the generated
 style are already in the repo.
 
-`flutter test` and `flutter analyze` both run clean from `client/` and are worth checking
-before a PR.
+`flutter test` runs clean from `client/`. `flutter analyze` currently surfaces a handful of
+lint-level `info`s in real client code plus a few `error`s inside `client/design` — the
+imported design reference has its own `pubspec.yaml` and isn't `flutter pub get`'d, so its
+`google_fonts` import doesn't resolve. Both are worth running before a PR; neither is a
+regression to chase down as part of a docs change.
 
