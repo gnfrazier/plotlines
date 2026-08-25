@@ -160,6 +160,19 @@ class MetricsRail extends StatelessWidget {
                           ? null
                           : '${(selectedSegment!.metrics!.distanceM! / 1000).toStringAsFixed(1)} km',
                     ),
+                  if (selectedSegment != null &&
+                      selectedSegment!.via.isNotEmpty &&
+                      selectedSegment!.shape != 'point_to_point') ...[
+                    const SizedBox(height: PlotSpacing.s4),
+                    Text(
+                      'VIA-ANCHOR ROUTE',
+                      style: PlotTypography.data(
+                        c.textMuted,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: PlotSpacing.s2),
+                    _ViaAnchorSummary(segment: selectedSegment!),
+                  ],
                   const SizedBox(height: PlotSpacing.s3),
                 ],
               ),
@@ -176,6 +189,47 @@ class MetricsRail extends StatelessWidget {
     final minV = samples.reduce((a, b) => a < b ? a : b);
     final range = (maxV - minV).abs() < 1e-9 ? 1.0 : (maxV - minV);
     return samples.map((v) => (v - minV) / range).toList();
+  }
+}
+
+/// A9/FR8a — the via-anchor AC an Author cannot see just by looking at the
+/// map: did the route actually reach every via-anchor and close back on
+/// itself (a genuine loop, not an out-and-back), and how much road did that
+/// cost it twice? `overlapFarFrac` is the number that matters — road re-ridden
+/// out in the corridor rather than on a short spur into a via-anchor's own
+/// locality (`overlapNearFrac`), which is the expected "lollipop" shape and
+/// not a defect.
+class _ViaAnchorSummary extends StatelessWidget {
+  const _ViaAnchorSummary({required this.segment});
+  final Segment segment;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final hitVia = segment.solve?.hitVia;
+    final closed = segment.solve?.closed;
+    final farFrac = segment.metrics?.overlapFarFrac;
+    final nearFrac = segment.metrics?.overlapNearFrac;
+
+    final rows = <String>[
+      '${segment.via.length == 1 ? 'Via-anchor reached' : 'Via-anchors reached'}: '
+          '${hitVia == null ? 'unknown' : (hitVia ? 'yes' : 'no')}',
+      'Returns to start: ${closed == null ? 'unknown' : (closed ? 'yes' : 'no')}',
+      if (farFrac != null) 'Road ridden twice: ${(farFrac * 100).toStringAsFixed(0)}%',
+      if (nearFrac != null && nearFrac > 0)
+        '— near a via-anchor: ${(nearFrac * 100).toStringAsFixed(0)}%',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final row in rows)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text(row, style: PlotTypography.small(c.textSecondary)),
+          ),
+      ],
+    );
   }
 }
 

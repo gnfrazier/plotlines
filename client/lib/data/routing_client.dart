@@ -111,7 +111,16 @@ class RoutingClient {
           ? null
           : TargetDistance(valueM: (raw['target_m'] as num).toDouble()),
       geometry: LineString(coordinates: coords, source: 'solved'),
-      metrics: RouteMetrics(distanceM: (raw['distance_m'] as num).toDouble()),
+      // A9/FR8a — the loop-family response also carries the overlap split
+      // (`Loop.metrics`, SPIKE-01's lollipop distinction) when the sidecar sent
+      // it; point_to_point's flat response never includes these keys, so they
+      // stay null rather than reading as an honest zero.
+      metrics: RouteMetrics(
+        distanceM: (raw['distance_m'] as num).toDouble(),
+        overlapFrac: (raw['overlap_frac'] as num?)?.toDouble(),
+        overlapNearFrac: (raw['overlap_near_frac'] as num?)?.toDouble(),
+        overlapFarFrac: (raw['overlap_far_frac'] as num?)?.toDouble(),
+      ),
       elevation: Elevation(
         ascentM: (elevRaw['ascent_m'] as num?)?.toDouble(),
         descentM: (elevRaw['descent_m'] as num?)?.toDouble(),

@@ -585,6 +585,13 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             "hit_via": loop.hit_via,
             "target_m": loop.target_m,
             "distance_error": loop.distance_error,
+            # A9/FR8a AC — "a genuine loop rather than an out-and-back, with any
+            # road ridden twice reported": `Loop.metrics` already computes this
+            # split (SPIKE-01's lollipop distinction), it just never left the
+            # server before now.
+            "overlap_frac": round(loop.metrics.overlap_frac, 4) if loop.metrics else 0.0,
+            "overlap_near_frac": round(loop.metrics.overlap_near_frac, 4) if loop.metrics else 0.0,
+            "overlap_far_frac": round(loop.metrics.overlap_far_frac, 4) if loop.metrics else 0.0,
         }
 
     def _resolve_region(key: str) -> RegionState:
