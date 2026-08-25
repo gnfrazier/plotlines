@@ -50,6 +50,10 @@ class TripBbox {
   double get centerLon => (minLon + maxLon) / 2;
   LatLon get center => [centerLon, centerLat];
 
+  /// `[west, south, east, north]` — the sidecar's `POST /regions` bbox order
+  /// (issue #154; matches `plotlines_core.graph.regions`' osmnx convention).
+  List<double> get bboxWsen => [minLon, minLat, maxLon, maxLat];
+
   /// Corners in the same winding order as `HomeRegion.outline`, for reuse
   /// with `TapToPickMap`'s `outline` param.
   List<LatLon> get outline => [

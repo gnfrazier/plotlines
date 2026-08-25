@@ -17,6 +17,7 @@ import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/domain/home_region.dart';
 import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart';
 import 'package:plotlines_client/presentation/screens/trip_library_screen.dart';
+import 'package:plotlines_client/presentation/widgets/trip_location_prompt.dart';
 import 'package:plotlines_client/state/providers.dart';
 
 class _FakeSidecarManager extends SidecarManager {
@@ -81,7 +82,7 @@ void main() {
       'choosing the home region persists it and proceeds to N1\'s trip-extent step',
       (tester) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
-    List<double>? capturedExtra;
+    TripLocationChoice? capturedChoice;
     var pushed = false;
     final router = GoRouter(
       initialLocation: '/',
@@ -91,7 +92,7 @@ void main() {
           path: '/new-trip-area',
           builder: (_, state) {
             pushed = true;
-            capturedExtra = state.extra as List<double>?;
+            capturedChoice = state.extra as TripLocationChoice?;
             return const SizedBox.shrink();
           },
         ),
@@ -106,7 +107,11 @@ void main() {
     await _settleMap(tester);
 
     expect(pushed, isTrue);
-    expect(capturedExtra, isNull);
+    // Issue #154 — the location prompt's choice (center *and*, when
+    // geocoded, a framing bbox) now flows through as a whole, not just a
+    // bare coordinate; choosing the shipped home region carries neither.
+    expect(capturedChoice?.center, isNull);
+    expect(capturedChoice?.bbox, isNull);
     expect(await db.getSetting('last_trip_location'), HomeRegion.label);
   });
 

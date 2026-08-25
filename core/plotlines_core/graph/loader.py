@@ -66,16 +66,48 @@ def _distances(graph: nx.MultiDiGraph, lat: float, lon: float
     return ids, 2.0 * _EARTH_R_M * np.arcsin(np.sqrt(a))
 
 
-def nearest_node(graph: nx.MultiDiGraph, lat: float, lon: float) -> int:
+#: Snap tolerance beyond which a coordinate is treated as outside this graph's
+#: region rather than merely far from a road (issue #154 — the previously
+#: unguarded `argmin` snapped an Asheville coordinate to the edge of the
+#: Boulder fixture and returned a Boulder route with no error at all).
+#: Generous relative to real node spacing (dense urban graphs: metres; the
+#: sparsest rural fixture in this repo: rarely more than a few hundred
+#: metres) but tiny next to a cross-region distance (Boulder, CO -> Asheville,
+#: NC is ~2,000 km) — the guard exists to catch "wrong region", not to
+#: tighten in-region snapping.
+DEFAULT_MAX_SNAP_M = 3000.0
+
+
+class OutsideGraphExtent(ValueError):
+    """The coordinate is farther from any routable node than `max_snap_m`
+    allows — almost certainly a coordinate outside this graph's region
+    rather than merely off-road. A `ValueError` subclass so every existing
+    `except ValueError` handler already catches it (ARCH §7.2's honest-422
+    contract) without those call sites needing to change."""
+
+
+def nearest_node(graph: nx.MultiDiGraph, lat: float, lon: float, *,
+                 max_snap_m: float | None = DEFAULT_MAX_SNAP_M) -> int:
     """Snap a coordinate to the nearest routable node.
 
     Deliberately *not* `osmnx.distance.nearest_nodes`: on an unprojected graph that
     requires scikit-learn, which drags scikit-learn + scipy into the frozen sidecar
     for one k-NN query (SPIKE-00 finding). A vectorised haversine over the node array
     is exact, fast enough at MVP graph sizes, and costs nothing in binary size.
+
+    Raises `OutsideGraphExtent` when the nearest node is farther than
+    `max_snap_m` — pass `max_snap_m=None` to disable the guard (existing
+    within-graph callers that already know the coordinate is valid, e.g. a
+    node id round-tripped through the same graph, have no need of it).
     """
     ids, dist = _distances(graph, lat, lon)
-    return int(ids[int(np.argmin(dist))])
+    idx = int(np.argmin(dist))
+    if max_snap_m is not None and dist[idx] > max_snap_m:
+        raise OutsideGraphExtent(
+            f"({lat}, {lon}) is {dist[idx] / 1000:.1f} km from the nearest graph "
+            f"node — outside this graph's region (max snap {max_snap_m / 1000:.1f} km)"
+        )
+    return int(ids[idx])
 
 
 def nodes_within(graph: nx.MultiDiGraph, node: int, radius_m: float) -> set[int]:

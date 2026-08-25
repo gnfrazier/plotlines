@@ -103,7 +103,19 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     double? targetM,
   }) async {
     final client = _ref.read(routingClientProvider);
+    // FR120/D41, issue #154 — routing always runs against the Author's own
+    // trip bbox, never a process-wide default. `New Route`'s Generate
+    // control is disabled until a bbox exists (see `new_route_screen.dart`),
+    // so reaching here with none is a real precondition failure, not a race
+    // to paper over.
+    final bbox = _ref.read(tripBboxProvider);
+    if (bbox == null) {
+      throw StateError(
+          'no trip bbox — draw the trip area (FR120) before generating a route');
+    }
+    final region = await client.ensureRegion(bbox.bboxWsen);
     final segment = await client.generateSegment(
+      region: region,
       start: start,
       end: end,
       via: via,
@@ -324,6 +336,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       throw StateError('segment $segmentId has no start/end to re-solve from');
     }
     final client = _ref.read(routingClientProvider);
+    final bbox = _ref.read(tripBboxProvider);
+    if (bbox == null) {
+      throw StateError(
+          'no trip bbox — draw the trip area (FR120) before re-solving a route');
+    }
+    final region = await client.ensureRegion(bbox.bboxWsen);
     final weights = old.weights;
     // Author-facing 0.0-5.0 -> solver-internal 0.0-1.0 (bipolar -1..1 for
     // peaks), per scoring/profile.py's documented conversion (risk A18,
@@ -359,6 +377,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
             if (surfaceDial != null) 'surface': surfaceDial,
           };
     final resolved = await client.generateSegment(
+      region: region,
       start: old.start!,
       end: old.shape == 'loop' ? null : old.end!,
       via: old.via,

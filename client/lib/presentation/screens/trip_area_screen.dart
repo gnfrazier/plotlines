@@ -14,8 +14,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../domain/home_region.dart' hide LatLon;
@@ -27,12 +29,24 @@ import '../map/trip_area_map.dart';
 import '../widgets/trip_bbox_shrink_prompt.dart';
 
 class TripAreaScreen extends ConsumerStatefulWidget {
-  const TripAreaScreen({super.key, this.initialCenter, required this.isCreation});
+  const TripAreaScreen({
+    super.key,
+    this.initialCenter,
+    this.initialFramingBbox,
+    required this.isCreation,
+  });
 
   /// Where the trip-creation location prompt resolved to (A10). Centers the
   /// map only. Null means the Author chose the shipped home region, or this
   /// is a revision (which frames on the existing bbox instead).
   final LatLon? initialCenter;
+
+  /// Nominatim's bounding geometry for [initialCenter] (issue #154), `[west,
+  /// south, east, north]` — frames the draw map's initial camera so the
+  /// Author isn't declaring the bbox at an arbitrary zoom (FR120). **Never
+  /// becomes the trip bbox** — it only ever feeds the map's initial camera
+  /// fit, the same way [initialCenter] only ever centers it.
+  final List<double>? initialFramingBbox;
 
   /// True for trip initiation (trip_library_screen.dart, right after the
   /// location prompt); false when reached as a later revision
@@ -54,6 +68,34 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
   /// wherever the location prompt resolved to (A10) — never both mixed.
   late final LatLon _center = _startingBbox?.center ?? widget.initialCenter ?? HomeRegion.center;
 
+  /// FR120 — "the map is navigable while the extent is drawn," framed on
+  /// the extent actually being drawn (issue #154): the existing bbox when
+  /// revising, else the location prompt's geocoded bbox when starting
+  /// fresh. Null (falls back to `_center`/`HomeRegion.previewZoom`) only
+  /// when neither exists — the Author picked the shipped home region with
+  /// no geocode result to frame on.
+  CameraFit? get _initialCameraFit {
+    final starting = _startingBbox;
+    if (starting != null) {
+      return CameraFit.bounds(
+        bounds: LatLngBounds(
+          ll.LatLng(starting.minLat, starting.minLon),
+          ll.LatLng(starting.maxLat, starting.maxLon),
+        ),
+        padding: const EdgeInsets.all(48),
+      );
+    }
+    final framing = widget.initialFramingBbox;
+    if (framing == null) return null;
+    return CameraFit.bounds(
+      bounds: LatLngBounds(
+        ll.LatLng(framing[1], framing[0]),
+        ll.LatLng(framing[3], framing[2]),
+      ),
+      padding: const EdgeInsets.all(48),
+    );
+  }
+
   Future<void> _handleProposal(TripBbox proposed) async {
     await reviseTripBbox(
       context,
@@ -69,7 +111,14 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
 
   void _confirm() {
     if (widget.isCreation) {
-      context.push('/new', extra: widget.initialCenter);
+      // Issue #154's second leak: this used to forward `widget.initialCenter`
+      // (the geocode result) rather than what the Author actually drew.
+      // Picking "Use Buncombe County, NC" yields `initialCenter: null`, so
+      // New Route fell through to a hardcoded Boulder default. `bbox.center`
+      // is always non-null here — the "Use this extent" button (below) is
+      // itself disabled until a bbox exists.
+      final bbox = ref.read(tripBboxProvider);
+      context.push('/new', extra: bbox?.center);
     } else {
       context.pop();
     }
@@ -80,6 +129,13 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
     final c = PlotColors.of(context);
     final bbox = ref.watch(tripBboxProvider);
     final unit = ref.watch(settingsProvider).unit;
+    // FR120/D41, issue #154 — "the client sends the extent: tripBboxProvider
+    // is read at trip initiation to ensure the region." Watching here (not
+    // just at New Route, which needs the result) starts the graph/tile
+    // build as soon as the Author accepts a bbox, not only once they reach
+    // the next screen. `ensureRegion` is idempotent and cheap to call again
+    // for a bbox already ensured, so this never duplicates work.
+    ref.watch(tripRegionKeyProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -91,6 +147,7 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
           Expanded(
             child: TripAreaMap(
               center: _center,
+              initialCameraFit: _initialCameraFit,
               bbox: bbox,
               drawing: _drawing,
               onProposeChange: _handleProposal,

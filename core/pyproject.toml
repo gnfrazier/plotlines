@@ -11,6 +11,10 @@ dependencies = [
     "rasterio>=1.3",
     "numpy>=1.26",
     "networkx>=3.0",
+    # PMTiles archive reading/writing for the basemap tile service (FR92-94,
+    # issue #154). Pure Python, no native extension — confirmed to survive
+    # the PyInstaller freeze in packaging/build_sidecar.sh.
+    "pmtiles>=3.7,<4",
 ]
 
 [build-system]

@@ -28,6 +28,21 @@ class RoutingClient {
     return jsonDecode(resp.body) as Map<String, dynamic>;
   }
 
+  /// FR120/D41, issue #154 — ensures a routable graph exists for [bboxWsen]
+  /// (`[west, south, east, north]`), returning the region key every
+  /// `/segments/*` call must now carry. Idempotent and cheap to call again
+  /// for a bbox already ensured (a dict lookup server-side, no rebuild) —
+  /// callers are not expected to cache the result themselves.
+  Future<String> ensureRegion(List<double> bboxWsen, {String networkType = 'bike'}) async {
+    final resp = await http.post(
+      _uri('/regions'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'bbox': bboxWsen, 'network_type': networkType}),
+    );
+    _checkOk(resp);
+    return (jsonDecode(resp.body) as Map<String, dynamic>)['region'] as String;
+  }
+
   Map<String, dynamic> _latLon(Coord c) => {'lat': c[1], 'lon': c[0]};
 
   /// A7/A8/A9/B1 — solve under a named theme or raw weights, for any of the
@@ -43,6 +58,7 @@ class RoutingClient {
   /// documents (see `weight_profile.dart`'s doc comment) and this is the one
   /// place that bridges them.
   Future<Segment> generateSegment({
+    required String region,
     required Coord start,
     Coord? end,
     List<Coord> via = const [],
@@ -56,6 +72,7 @@ class RoutingClient {
       _uri('/segments/generate'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
+        'region': region,
         'start': _latLon(start),
         if (end != null) 'end': _latLon(end),
         'via': via.map(_latLon).toList(),
@@ -113,6 +130,7 @@ class RoutingClient {
   /// A5 — the attainable envelope for a loop of [targetM] from [start], so band
   /// sliders open on a real range (SPIKE-03). metric -> [min, max].
   Future<Map<String, List<double>>> envelope({
+    required String region,
     required Coord start,
     required double targetM,
     List<Coord> via = const [],
@@ -121,6 +139,7 @@ class RoutingClient {
       _uri('/segments/envelope'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
+        'region': region,
         'start': _latLon(start),
         'target_m': targetM,
         'via': via.map(_latLon).toList(),
@@ -135,6 +154,7 @@ class RoutingClient {
   /// A6, step 1 of 2 — submit bands that a solve failed to satisfy; returns a
   /// job id to poll (diagnosis is async: SPIKE-02 measured 1.3-15.0s).
   Future<String> submitDiagnose({
+    required String region,
     required Coord start,
     required double targetM,
     required List<Band> bands,
@@ -144,6 +164,7 @@ class RoutingClient {
       _uri('/segments/diagnose'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
+        'region': region,
         'start': _latLon(start),
         'target_m': targetM,
         'via': via.map(_latLon).toList(),
@@ -176,11 +197,12 @@ class RoutingClient {
   /// [segment] supplies the routing inputs (start/end/via/mode/shape/
   /// weights/target distance); its `nodes`/`hazards`/`portages`/`alternates`
   /// are the curated content the sheet is derived around.
-  Future<CueSheet> cuesFor(Segment segment) async {
+  Future<CueSheet> cuesFor(Segment segment, {required String region}) async {
     final resp = await http.post(
       _uri('/segments/cues'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
+        'region': region,
         'start': _latLon(segment.start!),
         if (segment.end != null) 'end': _latLon(segment.end!),
         'via': segment.via.map(_latLon).toList(),
@@ -279,13 +301,21 @@ class RoutingClient {
 }
 
 class GeocodeResult {
-  const GeocodeResult({required this.label, required this.coord});
+  const GeocodeResult({required this.label, required this.coord, this.bbox});
   final String label;
   final Coord coord;
+
+  /// `[west, south, east, north]` (issue #154) — Nominatim's own bounding
+  /// geometry for this place, letting the trip-area draw map frame itself on
+  /// a real extent. **Never becomes the trip bbox** (FR96: the location
+  /// prompt only ever centers the map) — callers must not pass this to
+  /// `RoutingClient.ensureRegion` as if the Author had drawn it.
+  final List<double>? bbox;
 
   factory GeocodeResult.fromJson(Map<String, dynamic> j) => GeocodeResult(
         label: j['label'] as String,
         coord: (j['coord'] as List).map((e) => (e as num).toDouble()).toList(),
+        bbox: (j['bbox'] as List?)?.map((e) => (e as num).toDouble()).toList(),
       );
 }
 

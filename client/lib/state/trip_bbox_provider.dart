@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/trip_bbox.dart';
 import '../domain/trip_bbox_revision.dart';
 import 'current_trip_provider.dart';
+import 'providers.dart';
 
 class TripBboxNotifier extends StateNotifier<TripBbox?> {
   TripBboxNotifier() : super(null);
@@ -32,6 +33,21 @@ class TripBboxNotifier extends StateNotifier<TripBbox?> {
 
 final tripBboxProvider =
     StateNotifierProvider<TripBboxNotifier, TripBbox?>((ref) => TripBboxNotifier());
+
+/// FR120/D41, issue #154 — the region key for the trip's own bbox, ensuring
+/// a routable graph exists for exactly that area rather than routing
+/// silently against whatever region happened to be loaded. Recomputes (and
+/// re-POSTs `/regions`, idempotently and cheaply — a dict lookup
+/// server-side once already built) whenever [tripBboxProvider] changes; null
+/// before any bbox has been drawn. Screens gate routing controls on
+/// `sidecarManagerProvider`'s `capabilities.routing.forRegion(key)` using
+/// the key this resolves to, per FR121's disabled-with-a-reason house style.
+final tripRegionKeyProvider = FutureProvider<String?>((ref) async {
+  final bbox = ref.watch(tripBboxProvider);
+  if (bbox == null) return null;
+  final client = ref.watch(routingClientProvider);
+  return client.ensureRegion(bbox.bboxWsen);
+});
 
 /// Anchors currently promoted into the open trip, which a bbox shrink must
 /// never silently drop. Two sources feed this, both counted: `layers_tab

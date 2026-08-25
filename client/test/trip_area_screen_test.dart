@@ -22,12 +22,16 @@ Future<void> _settleMap(WidgetTester tester) async {
   }
 }
 
-Widget _harness({List<Override> overrides = const [], required GoRouter router}) {
-  return ProviderScope(
-    overrides: [
-      appDatabaseProvider.overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
-      ...overrides,
-    ],
+ProviderContainer _containerFor({List<Override> overrides = const []}) => ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
+        ...overrides,
+      ],
+    );
+
+Widget _harness(ProviderContainer container, {required GoRouter router}) {
+  return UncontrolledProviderScope(
+    container: container,
     child: MaterialApp.router(routerConfig: router),
   );
 }
@@ -62,7 +66,7 @@ void main() {
         reachedExtra = extra;
       },
     );
-    await tester.pumpWidget(_harness(router: router));
+    await tester.pumpWidget(_harness(_containerFor(), router: router));
     await _settleMap(tester);
 
     final useExtent = tester.widget<ElevatedButton>(
@@ -77,6 +81,7 @@ void main() {
       (tester) async {
     List<double>? reachedExtra;
     var reachedNew = false;
+    final container = _containerFor();
     final router = _routerFor(
       (context, state) => const TripAreaScreen(isCreation: true, initialCenter: [-105.27, 40.02]),
       onReachedNewRoute: (extra) {
@@ -84,7 +89,7 @@ void main() {
         reachedExtra = extra;
       },
     );
-    await tester.pumpWidget(_harness(router: router));
+    await tester.pumpWidget(_harness(container, router: router));
     await _settleMap(tester);
 
     await tester.dragFrom(const Offset(200, 150), const Offset(120, 90));
@@ -97,13 +102,21 @@ void main() {
     );
     expect(useExtent.onPressed, isNotNull);
 
+    // Issue #154's second leak: `_confirm()` used to forward the
+    // trip-creation center (`initialCenter`, [-105.27, 40.02] here)
+    // unchanged rather than what the Author actually drew — picking "Use
+    // Buncombe County, NC" (a null `initialCenter`) fell through to a
+    // hardcoded Boulder default downstream. It must now forward the drawn
+    // bbox's own center.
+    final drawnBbox = container.read(tripBboxProvider);
+    expect(drawnBbox, isNotNull);
+
     await tester.tap(find.text('Use this extent'));
     await _settleMap(tester);
 
     expect(reachedNew, isTrue);
-    // The trip-creation center flows through to New Route unchanged — the
-    // bbox never substitutes for it.
-    expect(reachedExtra, [-105.27, 40.02]);
+    expect(reachedExtra, drawnBbox!.center);
+    expect(reachedExtra, isNot([-105.27, 40.02]));
   });
 
   testWidgets('revising an already-drawn extent shows its readout and pops on confirm',
@@ -126,7 +139,9 @@ void main() {
       ],
     );
     await tester.pumpWidget(_harness(
-      overrides: [tripBboxProvider.overrideWith((ref) => TripBboxNotifier()..set(existing))],
+      _containerFor(
+        overrides: [tripBboxProvider.overrideWith((ref) => TripBboxNotifier()..set(existing))],
+      ),
       router: router,
     ));
     await tester.tap(find.text('open'));

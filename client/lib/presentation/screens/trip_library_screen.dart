@@ -144,7 +144,7 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
     // N1 (FR120) — the location only centers the map; the Author still has
     // to draw the trip's own bbox before New Route's setup form.
     ref.read(tripBboxProvider.notifier).reset();
-    context.push('/new-trip-area', extra: choice.center);
+    context.push('/new-trip-area', extra: choice);
   }
 }
 

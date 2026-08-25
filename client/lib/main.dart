@@ -9,6 +9,7 @@ import 'presentation/screens/trip_area_screen.dart';
 import 'presentation/screens/trip_library_screen.dart';
 import 'presentation/screens/trip_shell_screen.dart';
 import 'presentation/widgets/sidecar_gate.dart';
+import 'presentation/widgets/trip_location_prompt.dart';
 import 'state/providers.dart';
 import 'state/settings_provider.dart';
 
@@ -24,10 +25,14 @@ final _router = GoRouter(
     // New Route's setup form.
     GoRoute(
       path: '/new-trip-area',
-      builder: (context, state) => TripAreaScreen(
-        isCreation: true,
-        initialCenter: state.extra as List<double>?,
-      ),
+      builder: (context, state) {
+        final choice = state.extra as TripLocationChoice?;
+        return TripAreaScreen(
+          isCreation: true,
+          initialCenter: choice?.center,
+          initialFramingBbox: choice?.bbox,
+        );
+      },
     ),
     // N1 (FR120) — the reachable path for revising an existing trip's
     // extent (trip_shell_screen.dart's app bar action), distinct from the

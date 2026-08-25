@@ -16,6 +16,7 @@ import '../../data/routing_client.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
+import '../../state/trip_bbox_provider.dart';
 import 'conflict_dialog.dart';
 import 'error_states.dart';
 
@@ -259,7 +260,13 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
     });
     try {
       final client = ref.read(routingClientProvider);
+      final bbox = ref.read(tripBboxProvider);
+      if (bbox == null) {
+        throw StateError('no trip bbox — draw the trip area (FR120) before diagnosing bands');
+      }
+      final region = await client.ensureRegion(bbox.bboxWsen);
       final jobId = await client.submitDiagnose(
+        region: region,
         start: segment.start!,
         targetM: segment.metrics!.distanceM!,
         bands: segment.bands,

@@ -20,29 +20,43 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart' hide Theme;
 import 'package:flutter/material.dart' as material show Theme;
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:plotlines_ui/plotlines_ui.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
-import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
+import '../../domain/home_region.dart' hide LatLon;
 import '../../domain/trip_bbox.dart';
-import 'tap_to_pick_map.dart' show MapGraticule, MapTileAssets;
+import '../../state/providers.dart';
+import 'no_basemap_notice.dart';
+import 'tap_to_pick_map.dart' show MapTileAssets;
 import 'vector_tile_provider.dart';
 
 enum _Corner { nw, ne, se, sw }
 
-class TripAreaMap extends StatefulWidget {
+class TripAreaMap extends ConsumerStatefulWidget {
   const TripAreaMap({
     super.key,
     required this.center,
-    this.initialZoom = 10,
+    this.initialZoom = HomeRegion.previewZoom,
+    this.initialCameraFit,
     required this.bbox,
     required this.drawing,
     required this.onProposeChange,
   });
 
   final LatLon center;
+
+  /// Used only when [initialCameraFit] is null — the shipped home region's
+  /// own preview zoom (issue #154), not an arbitrary z10 with no relation to
+  /// anything being framed.
   final double initialZoom;
+
+  /// FR120 — "the map is navigable while the extent is drawn," framed on
+  /// the extent actually being drawn: the existing bbox when revising, or
+  /// the location prompt's geocoded bbox when starting fresh (issue #154).
+  /// Wins over [center]/[initialZoom] when present.
+  final CameraFit? initialCameraFit;
 
   /// The committed extent, or null before anything has been drawn.
   final TripBbox? bbox;
@@ -54,10 +68,10 @@ class TripAreaMap extends StatefulWidget {
   final ValueChanged<TripBbox> onProposeChange;
 
   @override
-  State<TripAreaMap> createState() => TripAreaMapState();
+  ConsumerState<TripAreaMap> createState() => TripAreaMapState();
 }
 
-class TripAreaMapState extends State<TripAreaMap> {
+class TripAreaMapState extends ConsumerState<TripAreaMap> {
   final _mapController = MapController();
   final _mapAreaKey = GlobalKey();
 
@@ -184,13 +198,16 @@ class TripAreaMapState extends State<TripAreaMap> {
         : null;
     final backdrop = drawPreview ?? displayBbox;
 
+    final baseUrl = ref.watch(sidecarManagerProvider).baseUrl;
+
     return FutureBuilder(
-      future: Future.wait([MapTileAssets.theme(isDark ? 'dark' : 'light'), MapTileAssets.provider()]),
+      future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
       builder: (context, snapshot) {
-        final results = snapshot.data;
-        final vectorTheme = results?[0] as Theme?;
-        final provider = results?[1] as DirectoryVectorTileProvider?;
-        final tilesAvailable = vectorTheme != null && provider != null;
+        final vectorTheme = snapshot.data;
+        final provider = SidecarVectorTileProvider(baseUrl);
+        final tilesAvailable = vectorTheme != null;
+        final outOfCoverage = _mapReady &&
+            !tilesLikelyCoverViewport(_mapController.camera.visibleBounds, tripBbox: widget.bbox);
 
         // Navigating never alters the extent (FR120): panning is its own
         // gesture, so it's suspended only while a drag *is* the draw
@@ -211,6 +228,7 @@ class TripAreaMapState extends State<TripAreaMap> {
                 options: MapOptions(
                   initialCenter: ll.LatLng(widget.center[1], widget.center[0]),
                   initialZoom: widget.initialZoom,
+                  initialCameraFit: widget.initialCameraFit,
                   interactionOptions: InteractionOptions(
                     flags: dragSuspended
                         ? InteractiveFlag.pinchZoom |
@@ -242,11 +260,14 @@ class TripAreaMapState extends State<TripAreaMap> {
                 ],
               ),
             ),
-            if (!tilesAvailable)
+            if (!tilesAvailable || outOfCoverage)
               Positioned(
                 left: PlotSpacing.s3,
                 bottom: PlotSpacing.s3,
-                child: _NoBasemapNotice(loading: snapshot.connectionState != ConnectionState.done),
+                child: NoBasemapNotice(
+                  loading: snapshot.connectionState != ConnectionState.done,
+                  outOfCoverage: tilesAvailable && outOfCoverage,
+                ),
               ),
             if (_mapReady && displayBbox != null && !widget.drawing)
               for (final corner in _Corner.values) _cornerHandle(context, corner, displayBbox),
@@ -369,31 +390,3 @@ class _MapButton extends StatelessWidget {
   }
 }
 
-class _NoBasemapNotice extends StatelessWidget {
-  const _NoBasemapNotice({required this.loading});
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = PlotColors.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
-      decoration: BoxDecoration(
-        color: c.surfaceCard.withValues(alpha: 0.92),
-        borderRadius: const BorderRadius.all(PlotRadii.md),
-        border: Border.all(color: c.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.layers_outlined, size: 14, color: c.textMuted),
-          const SizedBox(width: PlotSpacing.s2),
-          Text(
-            loading ? 'Loading basemap…' : 'No basemap tiles here (Boulder, CO only)',
-            style: PlotTypography.data(c.textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}

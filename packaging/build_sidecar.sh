@@ -72,7 +72,11 @@ case "$TARGET" in
   pyinstaller-*)
     args=(--name plotlines-sidecar --noconfirm --clean
           --distpath "$DIST" --workpath "$WORK" --specpath "$WORK"
-          --add-data "$ROOT/packaging/version.lock${DATA_SEP}.")
+          --add-data "$ROOT/packaging/version.lock${DATA_SEP}."
+          # The committed home-region PMTiles archive (FR96, issue #154) —
+          # `tiles_paths.py` resolves it under sys._MEIPASS at this same
+          # relative path.
+          --add-data "$ROOT/service/plotlines_service/data/home_region.pmtiles${DATA_SEP}plotlines_service/data")
     [[ "$TARGET" == *onefile ]] && args+=(--onefile) || args+=(--onedir)
     for p in "${COLLECT_DATA[@]}";       do args+=(--collect-data "$p"); done
     for p in "${COLLECT_SUBMODULES[@]}"; do args+=(--collect-submodules "$p"); done
@@ -90,6 +94,7 @@ case "$TARGET" in
     args=(--standalone --assume-yes-for-downloads
           --output-dir="$WORK/nuitka" --output-filename="plotlines-sidecar$EXE"
           --include-data-files="$ROOT/packaging/version.lock=version.lock"
+          --include-data-files="$ROOT/service/plotlines_service/data/home_region.pmtiles=plotlines_service/data/home_region.pmtiles"
           --nofollow-import-to=tkinter --nofollow-import-to=matplotlib
           # editable installs are resolved by a .pth finder Nuitka does not follow
           --include-package=plotlines_core --include-package=plotlines_service)

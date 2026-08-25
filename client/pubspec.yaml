@@ -79,14 +79,11 @@ flutter:
 
   # The Plotlines-authored basemap theme (ARCH D24 — the label-construct fix
   # over the stock Protomaps themes), extracted from SPIKE-14's harness.
-  # The tiles themselves (assets/tiles/{z}/{x}/{y}.mvt, ~9.2 MB, exploded
-  # from spikes/SPIKE-14/tiles/boulder.pmtiles) are NOT declared here:
-  # Flutter's asset system has no recursive-directory form, and 496 files
-  # across 16 zoom levels makes listing them individually impractical. They
-  # are read directly off disk by `presentation/map/vector_tile_provider.dart`,
-  # which resolves them the same repo-relative dev-fallback way
-  # `SidecarManager` resolves the sidecar binary and cache dir — see that
-  # file for the bundled-build TODO this shares.
+  # The tiles themselves are no longer a client asset at all (issue #154,
+  # FR92): the client talks only to the sidecar's `GET /tiles/{z}/{x}/{y}`
+  # (`presentation/map/vector_tile_provider.dart`'s `SidecarVectorTileProvider`),
+  # which reads a committed PMTiles archive (`service/plotlines_service/data/`)
+  # plus each trip's own on-demand region cache — see `core/plotlines_core/tiles/`.
   assets:
     - assets/map_style/
 

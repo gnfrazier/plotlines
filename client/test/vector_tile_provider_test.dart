@@ -1,35 +1,102 @@
 // Regression coverage for the basemap gap this test exists because of:
-// SPIKE-14 already extracted real tiles and vendored the `pmtiles` CLI
-// (spikes/SPIKE-14/tiles/boulder.pmtiles, spikes/SPIKE-14/tools/pmtiles),
-// but nothing read them until this file's subject was written. This test
-// only proves the plumbing (tile bytes parse, style JSON parses) — the
-// actual rendering is `vector_map_tiles`/`vector_tile_renderer`'s concern,
-// already proven by SPIKE-14's own benchmark screenshots.
+// SPIKE-14 already extracted real tiles and vendored the `pmtiles` CLI, and
+// issue #154 moved tile serving off local disk and onto the sidecar
+// (`GET /tiles/{z}/{x}/{y}`, FR92) — `SidecarVectorTileProvider` is the
+// client-side half of that. These tests run a small local `HttpServer`
+// standing in for the sidecar rather than spawning the real process; the
+// style-JSON parse tests below are unaffected by that move and still read
+// the real committed asset.
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_map_tiles/vector_map_tiles.dart' show TileIdentity;
+import 'package:vector_map_tiles/vector_map_tiles.dart'
+    show ProviderException, Retryable, TileIdentity;
 import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
 import 'package:plotlines_client/presentation/map/vector_tile_provider.dart';
 
+/// A minimal HTTP server standing in for the sidecar's `/tiles/{z}/{x}/{y}`
+/// (issue #154) — serves [tileBytes] gzip-encoded with the same
+/// `Content-Encoding: gzip` header `service/plotlines_service/app.py`'s real
+/// endpoint sends, for exactly one z/x/y and 404s everything else.
+class _FakeTileServer {
+  _FakeTileServer(this.tileBytes);
+  final List<int> tileBytes;
+  final int z = 10, x = 277, y = 403;
+  late HttpServer _server;
+  String get baseUrl => 'http://127.0.0.1:${_server.port}';
+
+  Future<void> start() async {
+    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    _server.listen((request) async {
+      final parts = request.uri.pathSegments;
+      if (parts.length == 4 &&
+          parts[0] == 'tiles' &&
+          parts[1] == '$z' &&
+          parts[2] == '$x' &&
+          parts[3] == '$y') {
+        request.response.headers.set('Content-Encoding', 'gzip');
+        request.response.headers.contentType =
+            ContentType('application', 'vnd.mapbox-vector-tile');
+        request.response.add(gzip.encode(tileBytes));
+      } else {
+        request.response.statusCode = 404;
+      }
+      await request.response.close();
+    });
+  }
+
+  Future<void> stop() => _server.close(force: true);
+}
+
 void main() {
-  test('resolveTilesRoot finds the exploded Boulder tile tree', () {
-    final root = resolveTilesRoot();
-    expect(root, isNotNull, reason: 'client/assets/tiles should exist and be found from cwd');
-    expect(File('${root!.path}/9/106/193.mvt').existsSync(), isTrue);
+  late List<int> realTileBytes;
+
+  setUpAll(() async {
+    realTileBytes =
+        await File('${Directory.current.path}/test/fixtures/buncombe_z10_277_403.mvt').readAsBytes();
   });
 
-  test('a real extracted tile parses as valid MVT', () async {
-    final root = resolveTilesRoot()!;
-    final provider = DirectoryVectorTileProvider(root);
-    final bytes = await provider.provide(TileIdentity(9, 106, 193));
-    final tile = VectorTileReader().read(bytes);
-    expect(tile.layers, isNotEmpty);
-    expect(provider.reads, 1);
-    expect(provider.misses, 0);
+  test('provide() fetches and gzip-decodes a real tile from the sidecar', () async {
+    final server = _FakeTileServer(realTileBytes);
+    await server.start();
+    try {
+      final provider = SidecarVectorTileProvider(server.baseUrl);
+      final bytes = await provider.provide(TileIdentity(10, 277, 403));
+      expect(bytes, realTileBytes);
+      final tile = VectorTileReader().read(bytes);
+      expect(tile.layers, isNotEmpty);
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('provide() throws a non-retryable ProviderException on 404', () async {
+    final server = _FakeTileServer(realTileBytes);
+    await server.start();
+    try {
+      final provider = SidecarVectorTileProvider(server.baseUrl);
+      await expectLater(
+        provider.provide(TileIdentity(3, 1, 1)),
+        throwsA(isA<ProviderException>()
+            .having((e) => e.statusCode, 'statusCode', 404)
+            .having((e) => e.retryable, 'retryable', Retryable.none)),
+      );
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('provide() throws a retryable ProviderException when the sidecar is unreachable', () async {
+    // No server started at this port — an honest "sidecar unreachable"
+    // rather than a silent hang or a substituted tile.
+    final provider = SidecarVectorTileProvider('http://127.0.0.1:1');
+    await expectLater(
+      provider.provide(TileIdentity(10, 277, 403)),
+      throwsA(isA<ProviderException>().having((e) => e.retryable, 'retryable', Retryable.retry)),
+    );
   });
 
   test('both style themes parse into a renderable Theme', () async {

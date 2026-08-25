@@ -78,12 +78,15 @@ Toolchain, verified for WSL/Ubuntu:
 - **Git.**
 
 `core` and `service` wire graph loading, scoring, routing (all three shapes), trip
-composition, cue derivation, and geocoding into a FastAPI sidecar wrapper
-(`/health`, `/segments/generate`, `/segments/envelope`, `/segments/diagnose`,
-`/segments/cues`, `/days/compose`, `/trips/split`, `/geocode`), which runs end to end against the
-committed Boulder, CO fixture graph (`spikes/SPIKE-00/cache`) — there is no arbitrary-region
-download pipeline yet, so every trip routes against that one fixture region regardless of
-what the trip-creation location prompt is given. `client` is a Flutter app; **Running the
+composition, cue derivation, geocoding, region acquisition, and basemap tile serving into a
+FastAPI sidecar wrapper (`/health`, `POST /regions`, `/segments/generate`, `/segments/envelope`,
+`/segments/diagnose`, `/segments/cues`, `/days/compose`, `/trips/split`, `/geocode`,
+`GET /tiles/{z}/{x}/{y}`). Routing is **region-scoped, on demand** (issue #154): the Author's own
+trip bbox, drawn at trip initiation (FR120), is what gets built into a routable graph via
+`POST /regions` and Overpass — never a committed fixture. `spikes/SPIKE-00/cache`'s Boulder
+graph is a **test fixture** now (pre-seeded into a region's cache path in
+`service/tests/test_regions.py` to test the cross-region-422 case without a network call), not
+something the app loads at startup or falls back to. `client` is a Flutter app; **Running the
 desktop app** below is Linux-first (there's no `client/windows` platform scaffold yet), and
 the sidecar's own Windows process-control gap is tracked in `packaging/TODO.md`.
 
@@ -108,8 +111,10 @@ uv pip install pyinstaller                # not a declared dependency yet — se
 
 This produces `packaging/dist/pyinstaller-onedir/plotlines-sidecar/plotlines-sidecar`, which
 `SidecarManager` (`client/lib/data/sidecar_manager.dart`) finds automatically via a
-repo-relative dev fallback — no environment variable or flag needed. It also falls back to
-the committed `spikes/SPIKE-00/cache` graph/DEM for the same reason.
+repo-relative dev fallback — no environment variable or flag needed. `--cache-dir` points at a
+real OS app-support directory (`path_provider`'s `getApplicationSupportDirectory()`), where
+per-region graph and tile caches build up as trips get their own bboxes (`regions/{key}/...`)
+— there is no fixture fallback here any more.
 
 Rebuild the binary any time `core/` or `service/` change — it's a frozen snapshot, not a live
 reload.
@@ -128,21 +133,25 @@ flutter pub get
 flutter run -d linux
 ```
 
-First launch takes a few seconds while the sidecar loads the graph (M13's honest "starting"
+First launch takes a few seconds while the sidecar starts (M13's honest "starting"
 screen, escalating its message if it runs long) before handing off to the trip library, which
-opens on an outline of the shipped Buncombe County, NC home region (`HomeRegion`, FR96/A10) —
-that's a map backdrop only, drawn with no download, and distinct from the fixture region
-trips actually route against below.
+opens on a real map under the outline of the shipped Buncombe County, NC home region
+(`HomeRegion`, FR96/A10) — a constant, shipped basemap with no download of any kind, distinct
+from any trip's own bbox.
 
-The basemap only covers the Boulder, CO fixture region — `client/assets/tiles/` (496 vector
-tiles, committed) was exploded once from SPIKE-14's `spikes/SPIKE-14/tiles/boulder.pmtiles`
-via the vendored `spikes/SPIKE-14/tools/pmtiles` CLI; panning elsewhere shows an honest "no
-basemap tiles here" label rather than a blank map. `client/assets/map_style/style_{light,dark}.json`
-(also committed) are generated from the mirrored Protomaps theme by
-`packaging/build_basemap_theme.py` — real street, place, and water labels, not just polygons
-and lines; rerun that script if `spikes/SPIKE-14/harness/assets/style_*.json` ever changes
-upstream. No regeneration step needed to run the app — both the tiles and the generated
-style are already in the repo.
+Basemap tiles are served by the sidecar (`GET /tiles/{z}/{x}/{y}`, FR92/FR93; issue #154) — the
+client never reads a tile file off local disk. Two sources back that endpoint, both read
+through `core/plotlines_core/tiles/`: (a) the committed home-region archive,
+`service/plotlines_service/data/home_region.pmtiles` (~8.3 MB, z0-14, extracted from SPIKE-14's
+`spikes/SPIKE-14/tiles/wnc-corridor.pmtiles` with the vendored `spikes/SPIKE-14/tools/pmtiles`
+CLI — z14 was the highest zoom that stayed under the ~15 MB budget FR96 implies for a shipped
+asset), and (b) a bbox-scoped on-demand cache extracted for each ensured trip region (FR94),
+built alongside its graph in `POST /regions`'s background thread. Panning outside both areas
+shows an honest, viewport-based "no basemap tiles here" notice — never a substituted region —
+rather than a blank map. `client/assets/map_style/style_{light,dark}.json` (still a committed
+client asset — styling, not tile data) are generated from the mirrored Protomaps theme by
+`packaging/build_basemap_theme.py`; rerun that script if
+`spikes/SPIKE-14/harness/assets/style_*.json` ever changes upstream.
 
 `flutter test` runs clean from `client/`. `flutter analyze` currently surfaces a handful of
 lint-level `info`s in real client code plus a few `error`s inside `client/design` — the

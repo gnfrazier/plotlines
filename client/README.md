@@ -59,14 +59,16 @@ flutter run -d linux
 
 `packages/plotlines_ui` is a path dependency (real code, not reference — see its own README),
 so it needs its own `flutter pub get` the first time and after any of its own dependency
-changes. First launch takes a few seconds while the sidecar loads the route graph (M13's
-honest "starting" screen, escalating its message if it runs long) before handing off to the
-trip library.
+changes. First launch takes a few seconds while the sidecar starts (M13's honest "starting"
+screen, escalating its message if it runs long) before handing off to the trip library — no
+graph loads until an Author draws a trip bbox and `POST /regions` builds one for it.
 
-The basemap only covers the Boulder, CO fixture region — `assets/tiles/` (496 vector tiles,
-committed) was exploded once from SPIKE-14's `spikes/SPIKE-14/tiles/boulder.pmtiles`; panning
-elsewhere shows an honest "no basemap tiles here" label rather than a blank map. No
-regeneration needed to run the app.
+Basemap tiles come from the sidecar (`GET /tiles/{z}/{x}/{y}`, issue #154) — the client no
+longer bundles or reads a tile directory itself. Two areas have real basemap coverage: the
+shipped Buncombe County, NC home region (a committed archive server-side) and, once ensured
+via `POST /regions`, the Author's own trip bbox; panning elsewhere shows an honest,
+viewport-based "no basemap tiles here" notice rather than a blank map. No regeneration needed
+to run the app.
 
 ## Testing
 

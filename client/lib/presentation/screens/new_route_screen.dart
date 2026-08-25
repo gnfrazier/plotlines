@@ -41,6 +41,7 @@ import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
 import '../../state/providers.dart';
 import '../../state/trip_authoring_meta_provider.dart';
+import '../../state/trip_bbox_provider.dart';
 import '../map/tap_to_pick_map.dart';
 import '../widgets/error_states.dart';
 
@@ -110,13 +111,29 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     };
   }
 
-  /// ARCH §8.3 / PRD FR121 (M12a) — routing depends on elevation enrichment
-  /// having settled, not just the graph. Null only in the instant before the
-  /// sidecar has answered its first `/health` (SidecarGate already keeps
-  /// this screen from being reachable before then, so in practice this is
-  /// only null in tests that construct the screen without a gate).
-  CapabilityStatus? get _routingCapability =>
-      ref.watch(sidecarManagerProvider).capabilities?.routing;
+  /// ARCH §8.3 / PRD FR121 (M12a), FR120/D41 (issue #154) — routing is
+  /// per-region now: this reads the capability for the trip's *own* bbox
+  /// (`tripRegionKeyProvider`), not a process-wide flag. No trip bbox yet,
+  /// or the region still being ensured, both read as an honest not-ready
+  /// with a stated reason (FR121: never a silent disabled control).
+  CapabilityStatus get _routingCapability {
+    final regionAsync = ref.watch(tripRegionKeyProvider);
+    return regionAsync.when(
+      data: (key) {
+        if (key == null) {
+          return const CapabilityStatus(
+            ready: false,
+            reason: 'draw the trip area before routing is available',
+          );
+        }
+        return ref.watch(sidecarManagerProvider).capabilities?.routing.forRegion(key) ??
+            const CapabilityStatus(ready: false, reason: 'ensuring the routing region');
+      },
+      loading: () =>
+          const CapabilityStatus(ready: false, reason: 'ensuring the routing region'),
+      error: (e, _) => CapabilityStatus(ready: false, reason: 'failed:$e'),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -396,15 +413,15 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                       const SizedBox(height: PlotSpacing.s3),
                       NoDataBanner(onChooseAnotherArea: () => Navigator.pop(context)),
                     ],
-                    if (_routingCapability case final routing? when !routing.ready) ...[
+                    if (!_routingCapability.ready) ...[
                       const SizedBox(height: PlotSpacing.s3),
-                      CapabilityWarmingNotice(capabilityLabel: 'Routing', status: routing),
+                      CapabilityWarmingNotice(capabilityLabel: 'Routing', status: _routingCapability),
                     ],
                     const SizedBox(height: PlotSpacing.s5),
                     PlotButton(
                       label: _generating ? 'Generating…' : 'Generate route',
                       expand: true,
-                      onPressed: (!_canGenerate || _generating || _routingCapability?.ready != true)
+                      onPressed: (!_canGenerate || _generating || !_routingCapability.ready)
                           ? null
                           : _generate,
                     ),

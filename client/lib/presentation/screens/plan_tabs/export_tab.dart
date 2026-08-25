@@ -20,6 +20,7 @@ import '../../../data/export/gpx_writer.dart';
 import '../../../data/export/tcx_writer.dart';
 import '../../../domain/domain.dart';
 import '../../../state/providers.dart';
+import '../../../state/trip_bbox_provider.dart';
 import '../../widgets/error_states.dart';
 
 class ExportTab extends ConsumerWidget {
@@ -179,7 +180,13 @@ class _DayCueSectionState extends ConsumerState<_DayCueSection> {
       return _entriesFromAuthoredContent(widget.day);
     }
     final client = ref.read(routingClientProvider);
-    final sheets = await Future.wait(widget.day.segments.map(client.cuesFor));
+    // FR120/D41, issue #154 — cues re-solve against the region-scoped graph.
+    final bbox = ref.read(tripBboxProvider);
+    if (bbox == null) return _entriesFromAuthoredContent(widget.day);
+    final region = await client.ensureRegion(bbox.bboxWsen);
+    final sheets = await Future.wait(
+      widget.day.segments.map((s) => client.cuesFor(s, region: region)),
+    );
     return _entriesFromCueSheets(widget.day, sheets);
   }
 
@@ -448,11 +455,20 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
   Future<Map<String, CueSheet>> _fetchCueSheets(Trip trip) async {
     final client = ref.read(routingClientProvider);
     final result = <String, CueSheet>{};
+    // FR120/D41, issue #154 — cues re-solve against the graph, which is
+    // region-scoped. A reopened trip that hasn't redrawn its bbox yet
+    // (`TripPersistence.open`'s doc comment) has no region to ensure; the
+    // same honest-degrade rule below already covers a per-segment cue
+    // failure, so this just skips cue derivation entirely rather than
+    // failing the whole export.
+    final bbox = ref.read(tripBboxProvider);
+    if (bbox == null) return result;
+    final region = await client.ensureRegion(bbox.bboxWsen);
     for (final day in trip.days) {
       for (final segment in day.segments) {
         if (segment.start == null) continue;
         try {
-          result[segment.id] = await client.cuesFor(segment);
+          result[segment.id] = await client.cuesFor(segment, region: region);
         } catch (_) {
           // Honest degrade (MVP doc §4): a segment whose cues fail to derive
           // just exports without cue points rather than failing the whole export.

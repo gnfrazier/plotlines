@@ -3,8 +3,11 @@
 Endpoints invalid for a mode are **not registered**, not merely guarded (§7.1): a
 sidecar has no /auth/* routes to attack.
 
-SPIKE-00 scope: the routing endpoints that the spike actually exercises. The rest of
-§7.2's surface is not implemented here.
+Region- and content-scoped surface built out so far: curation (`/layers`,
+`/candidates*`), routing (`/regions`, `/segments/*`), trip composition
+(`/days/compose`, `/trips/split`), `/geocode`, and content (`/tiles/{z}/{x}/{y}`).
+The rest of §8.2's surface (accounts, group relay, reading — all hosted-mode-only)
+is not implemented here.
 """
 
 from __future__ import annotations
@@ -15,7 +18,7 @@ import uuid
 from pathlib import Path
 
 import osmnx as ox
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from plotlines_core.curation.defaults import resolve_default_layers
@@ -23,6 +26,7 @@ from plotlines_core.curation.notability import RawFeature, RULESET_VERSION, scor
 from plotlines_core.curation.providers import BBox, OsmLayerProvider
 from plotlines_core.curation.taxonomy import LAYERS
 from plotlines_core.elevation.sampler import ElevationSampler
+from plotlines_core.graph import regions as region_lib
 from plotlines_core.graph.loader import LoadedGraph, load_graphml, nearest_node
 from plotlines_core.routing.diagnose import diagnose
 from plotlines_core.routing.loops import (
@@ -33,6 +37,8 @@ from plotlines_core.routing.solve import NoRouteFound, generate_segment
 from plotlines_core.scoring.bands import Band, BandSet
 from plotlines_core.scoring.metrics import edge_walk, measure
 from plotlines_core.scoring.profile import THEMES, WeightProfile
+from plotlines_core.tiles.archive import Archive, valid_zxy
+from plotlines_core.tiles.extract import NoTilesInBbox, extract_bbox
 from plotlines_core.trips.compose import compose_day, split_trip
 from plotlines_core.trips.cues import derive_cue_sheet, route_polyline
 from plotlines_core.trips.payload import Day as PayloadDay
@@ -41,20 +47,28 @@ from plotlines_core.trips.payload import Transition as PayloadTransition
 from plotlines_core.trips.payload import WeightProfile as PayloadWeightProfile
 
 from .payload_io import parse_dataclass
+from .tiles_paths import default_home_region_archive
 from .version import VERSION
 
-GRAPH_FILE = "boulder_bike.graphml"
-DEM_FILE = "boulder_dem.tif"
+# Heuristic wall-clock estimate for the progress/eta a still-building region
+# reports (ARCH §8.3's "terrain data loading — routing available in about 3
+# minutes"), not measured telemetry (SPIKE-D is where that would come from)
+# — it only keeps the estimate from being a bare guess with no relation to
+# elapsed time. A bbox-scoped Overpass fetch + graph build is typically a few
+# seconds for an MVP-sized trip area.
+GRAPH_ESTIMATED_S = 8.0
 
-
-# Heuristic wall-clock estimates for the progress/eta a still-loading
-# capability reports (ARCH §8.3's "terrain data loading — routing available
-# in about 3 minutes"). Neither is measured telemetry (SPIKE-D is where that
-# would come from) — they only keep the estimate from being a bare guess with
-# no relation to elapsed time. Graph load is typically sub-second off local
-# disk; elevation enrichment is the "minutes-long" operation FR91 names.
-GRAPH_ESTIMATED_S = 5.0
-ELEVATION_ESTIMATED_S = 180.0
+# Elevation acquisition is explicitly out of scope for this region-build path
+# (issue #154's scoping note): D20/FR85 pin the source to GEDTM30 via
+# OpenTopography with no fallback, and that pipeline is gated on FR87 (issue
+# #148) — promoting spikes/shared/regions.py's Terrarium fetcher would be a
+# second elevation source, which D20 forbids. So `elevation` reports this
+# fixed, honest not-ready state for every region rather than ever loading —
+# never blocking routing, which needs only the graph (FR121).
+ELEVATION_NOT_CONFIGURED: dict = {
+    "ready": False,
+    "reason": "elevation_source_not_configured:tracked_in_148",
+}
 
 
 class CapabilityState:
@@ -125,70 +139,105 @@ class CapabilityState:
         return {"ready": False, "reason": "pending"}
 
 
-class Readiness:
-    """Per-capability readiness (ARCH §8.3, breaking change B1; PRD FR121).
+class RegionState:
+    """One Author-declared trip bbox's readiness lifecycle (ARCH §8.3, D41;
+    PRD FR120/FR121; issue #154). Replaces the pre-#154 single committed
+    Boulder fixture that every trip routed against regardless of its own
+    bbox — each region here is built from exactly the bbox that requested
+    it, keyed so two requests for "the same" bbox share one build and one
+    in-memory graph.
 
-    Startup order is load-bearing: the graph loads first (it is what
-    layer/POI extraction and candidate scoring need *not at all* — those
-    endpoints never consult this class — but it is also the cheaper of the
-    two loads and routing cannot come up without it), and elevation
-    enrichment runs after, off the request-handling path (FR91). Layer/POI
-    and tile capabilities have no startup dependency in this codebase and
-    are reported ready unconditionally in `health()` — they were never
-    gated on this class to begin with (B1's whole point).
+    Elevation is never attempted for a region (see `ELEVATION_NOT_CONFIGURED`
+    above) — only `graph_state` gates `routing`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, key: str, bbox: tuple[float, float, float, float],
+                network_type: str) -> None:
+        self.key = key
+        self.bbox = bbox
+        self.network_type = network_type
         self.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
-        self.elevation_state = CapabilityState(ELEVATION_ESTIMATED_S)
         self.graph: LoadedGraph | None = None
-        self.sampler: ElevationSampler | None = None
-        self.started_at = time.perf_counter()
+        self.sampler: ElevationSampler | None = None  # never populated (see module docstring)
+        self.tiles_archive: Archive | None = None
 
     @property
     def routing_ready(self) -> bool:
-        """Routing needs the graph, and needs elevation enrichment to have
-        settled — succeeded or failed — before it reports ready (§8.3's
-        `"routing": {"reason": "elevation_enriching"}`). A failed elevation
-        load still unblocks routing rather than wedging it forever; it just
-        means elevation-dependent metrics stay unavailable."""
-        return self.graph_state.ready and self.elevation_state.settled
+        return self.graph_state.ready
 
     def routing_capability(self) -> dict:
-        if not self.graph_state.ready:
-            if self.graph_state.status == "failed":
-                return {"ready": False, "reason": f"graph_failed:{self.graph_state.detail}"}
-            d = {"ready": False, "reason": "graph_loading",
-                 "progress": round(self.graph_state.progress(), 2)}
-            eta = self.graph_state.eta_s()
-            if eta is not None:
-                d["eta_s"] = round(eta, 1)
-            return d
-        if self.elevation_state.status == "loading":
-            d = {"ready": False, "reason": "elevation_enriching",
-                 "progress": round(self.elevation_state.progress(), 2)}
-            eta = self.elevation_state.eta_s()
-            if eta is not None:
-                d["eta_s"] = round(eta, 1)
-            return d
-        return {"ready": True}
+        return self.graph_state.to_dict()
 
-    def load(self, cache_dir: Path) -> None:
-        self.graph_state.start("loading graph")
+    def build(self, cache_dir: Path, tiles_upstream: str | Path) -> None:
+        self.graph_state.start("building graph")
         try:
-            self.graph = load_graphml(cache_dir / GRAPH_FILE)
-            self.graph_state.succeed("graph loaded")
-        except Exception as exc:  # noqa: BLE001 — surface honestly, never hang
+            region = region_lib.Region(key=self.key, bbox=self.bbox,
+                                       network_type=self.network_type)
+            path = region_lib.ensure_graph(region, cache_dir)
+            self.graph = load_graphml(path)
+            self.graph_state.succeed("graph ready")
+        except Exception as exc:  # noqa: BLE001 — surface honestly, never hang (A6)
             self.graph_state.fail(f"{type(exc).__name__}: {exc}")
+            return  # no graph, no point extracting tiles for this region
 
-        # Runs regardless of the graph outcome — elevation is an independent
-        # capability (§8.3: one capability failing never blocks another).
-        self.elevation_state.start("opening elevation")
+        # Tiles are best-effort and independent of routing (B1: one
+        # capability's failure never blocks another) — a bbox outside the
+        # configured tile source's coverage leaves `/tiles` to answer
+        # honestly per-request (404) rather than wedging region build.
         try:
-            self.sampler = ElevationSampler(cache_dir / DEM_FILE)
-            self.elevation_state.succeed("elevation ready")
-        except Exception as exc:  # noqa: BLE001 — surface honestly, never hang
-            self.elevation_state.fail(f"{type(exc).__name__}: {exc}")
+            tiles_path = cache_dir / "regions" / self.key / "tiles.pmtiles"
+            if not tiles_path.exists():
+                extract_bbox(tiles_upstream, self.bbox, tiles_path)
+            self.tiles_archive = Archive(tiles_path)
+        except NoTilesInBbox:
+            pass
+        except Exception:  # noqa: BLE001 — tiles are best-effort; never fail the region for this
+            pass
+
+
+class Readiness:
+    """The sidecar's region registry (ARCH §8.3, breaking change B1; PRD
+    FR120/FR121). Before #154, one `Readiness` loaded one committed graph at
+    process startup and every request used it regardless of its own
+    coordinates; now each Author-declared trip bbox gets its own `RegionState`,
+    built on demand by `POST /regions` and looked up by key on every
+    `/segments/*` call.
+
+    Layer/POI and tile-from-the-committed-archive capabilities have no
+    per-region startup dependency and are reported ready unconditionally in
+    `health()` — they were never gated on this class (B1's whole point).
+    """
+
+    def __init__(self, cache_dir: Path, tiles_upstream: str | Path) -> None:
+        self.cache_dir = cache_dir
+        self.tiles_upstream = tiles_upstream
+        self.regions: dict[str, RegionState] = {}
+        self._lock = threading.Lock()
+        self.started_at = time.perf_counter()
+
+    def ensure_region(self, bbox: tuple[float, float, float, float],
+                      network_type: str = "bike") -> str:
+        """Idempotent: a second call with the same (bbox, network_type)
+        returns the same key without starting a second build."""
+        key = region_lib.region_key(bbox, network_type)
+        with self._lock:
+            region = self.regions.get(key)
+            if region is None:
+                region = RegionState(key, bbox, network_type)
+                self.regions[key] = region
+                threading.Thread(
+                    target=region.build, args=(self.cache_dir, self.tiles_upstream),
+                    daemon=True,
+                ).start()
+        return key
+
+    def region(self, key: str) -> RegionState | None:
+        return self.regions.get(key)
+
+    def routing_capabilities(self) -> dict:
+        """§8.3's per-region `routing` breakdown — empty until an Author has
+        drawn a trip bbox and the client has called `POST /regions`."""
+        return {key: region.routing_capability() for key, region in self.regions.items()}
 
 
 class Coordinate(BaseModel):
@@ -196,7 +245,20 @@ class Coordinate(BaseModel):
     lon: float = Field(ge=-180, le=180)
 
 
+class RegionRequest(BaseModel):
+    """FR120/D41 — the Author's trip bbox, ensuring a routable graph exists
+    for exactly that area (issue #154). `bbox` is [west, south, east, north]
+    (osmnx order)."""
+
+    bbox: list[float] = Field(min_length=4, max_length=4)
+    network_type: str = "bike"
+
+
 class SegmentRequest(BaseModel):
+    # The trip's bbox key from `POST /regions` (D41: there is never a
+    # *second, different* extent for analysis) — routing runs against
+    # exactly this region's graph, never a process-wide default.
+    region: str
     start: Coordinate
     # Required for shape=point_to_point; an out_and_back turnaround the Author
     # picked by hand; ignored for shape=loop (FR7/A7 — shape is independent
@@ -260,6 +322,7 @@ class CuesRequest(BaseModel):
     cues against the real graph and the Author's curated content.
     """
 
+    region: str
     start: Coordinate
     end: Coordinate | None = None
     via: list[Coordinate] = Field(default_factory=list)
@@ -307,6 +370,7 @@ class EnvelopeRequest(BaseModel):
     `generate_loop`, which is the shape SPIKE-01/02/03 built band-awareness for.
     """
 
+    region: str
     start: Coordinate
     via: list[Coordinate] = Field(default_factory=list)
     target_m: float = Field(gt=0)
@@ -319,6 +383,7 @@ class BandInput(BaseModel):
 
 
 class DiagnoseRequest(BaseModel):
+    region: str
     start: Coordinate
     via: list[Coordinate] = Field(default_factory=list)
     target_m: float = Field(gt=0)
@@ -353,25 +418,30 @@ class DiagnoseJob:
         self.error: str | None = None
 
 
-def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
+def create_app(cache_dir: Path, mode: str = "sidecar", *,
+               tiles_upstream: str | Path | None = None) -> FastAPI:
     app = FastAPI(title="plotlines-service", version=VERSION)
-    state = Readiness()
+    state = Readiness(cache_dir, tiles_upstream or default_home_region_archive())
     app.state.readiness = state
+    home_tiles = Archive(default_home_region_archive())
     diagnose_jobs: dict[str, DiagnoseJob] = {}
-
-    threading.Thread(target=state.load, args=(cache_dir,), daemon=True).start()
 
     @app.get("/health")
     def health() -> dict:
         """Per-capability readiness (ARCH §8.3, breaking change B1; PRD
-        FR121). No single `ready` flag: `tiles` and `layers` report ready
-        unconditionally (neither has a startup dependency in this codebase —
-        the Curation Workspace must be usable while elevation enriches
-        behind it), `routing` and `elevation` report their real load state,
-        each with a progress estimate while loading. `per_layer` is `LAYERS`
-        (the built-in OSM taxonomy) reported ready; a future plugin loader
-        (ARCH §14) is where a layer could report `loading`/`failed` here —
-        that mechanism does not exist yet, so every entry is `ready` today.
+        FR120/FR121; issue #154). No single `ready` flag: `tiles` and
+        `layers` report ready unconditionally (neither has a process-wide
+        startup dependency — the Curation Workspace must be usable
+        immediately). `routing` is **per region** (D41: there is no
+        process-wide "the graph" any more — every trip bbox gets its own),
+        keyed by the region id `POST /regions` returned; empty until an
+        Author has drawn a bbox. `elevation` is a fixed not-ready state for
+        every region (see `ELEVATION_NOT_CONFIGURED`'s docstring) — never
+        blocking routing, which needs only the graph. `per_layer` is
+        `LAYERS` (the built-in OSM taxonomy) reported ready; a future plugin
+        loader (ARCH §14) is where a layer could report `loading`/`failed`
+        here — that mechanism does not exist yet, so every entry is `ready`
+        today.
 
         Version-mismatch refusal (A8, M12) is unchanged and lives entirely
         client-side in `SidecarManager.start()`, before the sidecar is even
@@ -387,10 +457,22 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
                     "ready": True,
                     "per_layer": {layer: "ready" for layer in sorted(LAYERS)},
                 },
-                "routing": state.routing_capability(),
-                "elevation": state.elevation_state.to_dict(),
+                "routing": {"regions": state.routing_capabilities()},
+                "elevation": ELEVATION_NOT_CONFIGURED,
             },
         }
+
+    @app.post("/regions", status_code=202)
+    def regions_ensure(req: RegionRequest) -> dict:
+        """FR120/D41, ARCH D25's 202-and-poll house style applied to region
+        acquisition — issue #154. Idempotent: an Author revising the same
+        bbox again (or a second client call for a bbox already ensured)
+        returns the same key without starting a second build. Poll
+        `GET /health`'s `capabilities.routing.regions[key]` for progress.
+        """
+        bbox = tuple(req.bbox)
+        key = state.ensure_region(bbox, req.network_type)
+        return {"region": key}
 
     @app.get("/layers")
     def layers(mode: str = "cycling", day_type: str = "route") -> dict:
@@ -475,7 +557,8 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
             return THEMES[theme]
         raise HTTPException(422, f"unknown theme {theme!r}")
 
-    def _loop_to_dict(loop: Loop, mode: str, theme: str, shape: str, sampler: ElevationSampler | None) -> dict:
+    def _loop_to_dict(graph, loop: Loop, mode: str, theme: str, shape: str,
+                      sampler: ElevationSampler | None) -> dict:
         """Shapes a `Loop` (routing/loops.py) into the same response family
         `Segment.to_dict()` (routing/solve.py) returns, plus the loop-specific
         fields (`closed`, `hit_via`, `target_m`) point_to_point has no opinion
@@ -483,7 +566,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
         it's already needed for cue derivation elsewhere and gives the client
         the real curved way geometry rather than SPIKE-00's simplification.
         """
-        route = route_polyline(state.graph.graph, loop.walk)
+        route = route_polyline(graph, loop.walk)
         coords_latlon = [(lat, lon) for lon, lat in route.coords]
         elevation = sampler.profile(coords_latlon) if sampler else {}
         return {
@@ -502,13 +585,26 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
             "distance_error": loop.distance_error,
         }
 
+    def _resolve_region(key: str) -> RegionState:
+        """Every `/segments/*` call names the region it routes against
+        (D41: never a process-wide default). Unknown key -> 404 (the client
+        never called `POST /regions`, or raced ahead of a region that has
+        since been dropped); known-but-not-ready -> 503 naming the reason
+        (§8.3's "never a silent failure").
+        """
+        region = state.region(key)
+        if region is None:
+            raise HTTPException(404, f"unknown region {key!r} — call POST /regions first")
+        if not region.routing_ready:
+            reason = region.routing_capability().get("reason", "not ready")
+            raise HTTPException(503, f"routing not ready for region {key!r}: {reason}")
+        return region
+
     @app.post("/segments/generate")
     def segments_generate(req: SegmentRequest) -> dict:
-        if not state.routing_ready:
-            reason = state.routing_capability().get("reason", "not ready")
-            raise HTTPException(503, f"routing not ready: {reason}")
+        region = _resolve_region(req.region)
         profile = _resolve_profile(req.theme, req.weights)
-        graph = state.graph.graph
+        graph = region.graph.graph
         via = [(c.lat, c.lon) for c in req.via]
 
         try:
@@ -517,14 +613,14 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
                     raise HTTPException(422, "loop shape requires target_m")
                 loop = generate_loop(graph, (req.start.lat, req.start.lon),
                                      req.target_m, profile, via=via)
-                return _loop_to_dict(loop, req.mode, req.theme, "loop", state.sampler)
+                return _loop_to_dict(graph, loop, req.mode, req.theme, "loop", region.sampler)
 
             if req.shape == "out_and_back":
                 end = (req.end.lat, req.end.lon) if req.end else None
                 loop = generate_out_and_back(graph, (req.start.lat, req.start.lon),
                                              profile, via=via, end=end,
                                              target_m=req.target_m)
-                return _loop_to_dict(loop, req.mode, req.theme, "out_and_back", state.sampler)
+                return _loop_to_dict(graph, loop, req.mode, req.theme, "out_and_back", region.sampler)
 
             if req.end is None:
                 raise HTTPException(422, "point_to_point shape requires end")
@@ -535,7 +631,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
                 via=via,
                 profile=profile,
                 mode=req.mode,
-                sampler=state.sampler,
+                sampler=region.sampler,
             )
         except NoRouteFound as exc:
             raise HTTPException(422, str(exc)) from exc
@@ -543,13 +639,12 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
             raise HTTPException(422, str(exc)) from exc
         return segment.to_dict()
 
-    def _solve_walk(req: CuesRequest) -> tuple[list[int], list]:
+    def _solve_walk(req: CuesRequest, graph) -> tuple[list[int], list]:
         """Shape-aware re-solve shared with `/segments/generate`'s loop/
         out_and_back paths, but always returning a `(path, walk)` pair —
         `derive_cue_sheet` needs the walk regardless of which shape produced it.
         """
         profile = _resolve_profile(req.theme, req.weights)
-        graph = state.graph.graph
         via = [(c.lat, c.lon) for c in req.via]
 
         if req.shape == "loop":
@@ -576,18 +671,17 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
 
     @app.post("/segments/cues")
     def segments_cues(req: CuesRequest) -> dict:
-        if not state.routing_ready:
-            reason = state.routing_capability().get("reason", "not ready")
-            raise HTTPException(503, f"routing not ready: {reason}")
+        region = _resolve_region(req.region)
+        graph = region.graph.graph
         try:
-            _, walk = _solve_walk(req)
+            _, walk = _solve_walk(req, graph)
         except NoRouteFound as exc:
             raise HTTPException(422, str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 
         sheet, stats = derive_cue_sheet(
-            state.graph.graph, walk,
+            graph, walk,
             segment_id=req.segment_id,
             nodes=req.nodes, hazards=req.hazards,
             portages=req.portages, alternates=req.alternates,
@@ -596,22 +690,23 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
 
     @app.post("/segments/envelope")
     def segments_envelope(req: EnvelopeRequest) -> dict:
-        if not state.routing_ready:
-            reason = state.routing_capability().get("reason", "not ready")
-            raise HTTPException(503, f"routing not ready: {reason}")
-        envelope = probe_envelope(
-            state.graph.graph,
-            start=(req.start.lat, req.start.lon),
-            target_m=req.target_m,
-            via=[(c.lat, c.lon) for c in req.via],
-        )
+        region = _resolve_region(req.region)
+        try:
+            envelope = probe_envelope(
+                region.graph.graph,
+                start=(req.start.lat, req.start.lon),
+                target_m=req.target_m,
+                via=[(c.lat, c.lon) for c in req.via],
+            )
+        except NoRouteFound as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
         return {k: [lo, hi] for k, (lo, hi) in envelope.items()}
 
     @app.post("/segments/diagnose")
     def segments_diagnose(req: DiagnoseRequest) -> dict:
-        if not state.routing_ready:
-            reason = state.routing_capability().get("reason", "not ready")
-            raise HTTPException(503, f"routing not ready: {reason}")
+        region = _resolve_region(req.region)
         try:
             bands = BandSet.of(*(
                 Band(b.metric, b.minimum, b.maximum) for b in req.bands
@@ -622,11 +717,12 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
         job_id = str(uuid.uuid4())
         job = DiagnoseJob()
         diagnose_jobs[job_id] = job
+        graph = region.graph.graph
 
         def run() -> None:
             try:
                 result = diagnose(
-                    state.graph.graph,
+                    graph,
                     start=(req.start.lat, req.start.lon),
                     target_m=req.target_m,
                     bands=bands,
@@ -661,6 +757,13 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
         but it is a live network call to a shared public service — errors
         are reported honestly (MVP doc §4's "no data for area" family)
         rather than retried silently, and callers should not hammer it.
+
+        Each result carries `bbox` (issue #154) alongside `coord` — Nominatim
+        already returns the place's bounding geometry and the pre-#154
+        endpoint discarded it, leaving the trip-area draw map with nothing
+        to frame itself on but a point. **This never becomes the trip bbox**
+        (FR96: the location prompt only ever centers the map) — it only lets
+        the draw map open on a real extent instead of an arbitrary zoom.
         """
         if not q.strip():
             raise HTTPException(422, "empty query")
@@ -672,10 +775,46 @@ def create_app(cache_dir: Path, mode: str = "sidecar") -> FastAPI:
             # honest answer to an Author — no result, not a system error.
             raise HTTPException(422, f"no match for {q!r}: {exc}") from exc
         results = [
-            {"label": row.get("display_name", q), "coord": [float(row["lon"]), float(row["lat"])]}
+            {
+                "label": row.get("display_name", q),
+                "coord": [float(row["lon"]), float(row["lat"])],
+                "bbox": [float(row["bbox_west"]), float(row["bbox_south"]),
+                        float(row["bbox_east"]), float(row["bbox_north"])],
+            }
             for _, row in gdf.iterrows()
         ]
         return {"results": results}
+
+    @app.get("/tiles/{z}/{x}/{y}")
+    def tiles(z: int, x: int, y: int) -> Response:
+        """ARCH §8.2, FR92-94; issue #154. z/x/y is range-validated before
+        any upstream work (FR93) — a request outside the tile pyramid never
+        touches an archive at all. Answered from (a) any ensured region's
+        on-demand cache extracted for that trip's own bbox, checked first
+        since it is the Author's actual area, then (b) the committed home
+        region archive (FR96) — and 404, honestly, if neither has data for
+        this address rather than ever substituting another region's tile
+        (the exact silence issue #154 was filed over, on the routing side).
+        """
+        if not valid_zxy(z, x, y):
+            raise HTTPException(422, f"invalid tile address z={z} x={x} y={y}")
+
+        for region in state.regions.values():
+            if region.tiles_archive is None:
+                continue
+            data = region.tiles_archive.tile(z, x, y)
+            if data is not None:
+                return _tile_response(data, region.tiles_archive.info())
+
+        data = home_tiles.tile(z, x, y)
+        if data is not None:
+            return _tile_response(data, home_tiles.info())
+
+        raise HTTPException(404, f"no basemap tile at z={z} x={x} y={y}")
+
+    def _tile_response(data: bytes, info) -> Response:
+        headers = {"Content-Encoding": info.content_encoding} if info.content_encoding else {}
+        return Response(content=data, media_type=info.tile_content_type, headers=headers)
 
     @app.post("/days/compose")
     def days_compose(req: DayComposeRequest) -> dict:

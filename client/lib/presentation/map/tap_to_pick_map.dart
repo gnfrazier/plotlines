@@ -1,10 +1,8 @@
 // The map canvas every screen composes with. Real pan/zoom/tap via
-// flutter_map (ARCH D22), with a real vector basemap (ARCH D23/D24,
-// SPIKE-14) — see vector_tile_provider.dart for where the tile data comes
-// from and its one real limit: only the Boulder, CO fixture bbox is
-// extracted, matching the SPIKE-00 graph every dev run routes against.
-// Panning outside it is a legitimate "no tiles here" state, not a bug, and
-// is shown rather than hidden.
+// flutter_map (ARCH D22), with a real vector basemap served by the sidecar
+// (ARCH D23/D24, FR92; see vector_tile_provider.dart). The honest-empty
+// state (`no_basemap_notice.dart`) is viewport-based, not tied to any one
+// fixture region.
 library;
 
 import 'dart:convert';
@@ -13,26 +11,32 @@ import 'dart:io';
 import 'package:flutter/material.dart' hide Theme;
 import 'package:flutter/material.dart' as material show Theme;
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:plotlines_ui/plotlines_ui.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
+import '../../domain/home_region.dart';
+import '../../state/providers.dart';
+import 'no_basemap_notice.dart';
 import 'vector_tile_provider.dart';
 
 typedef LatLonPoint = List<double>; // [lon, lat]
 
-/// Parses the style JSON and resolves the tile directory once per app run —
-/// both are pure/static for a given theme name, and re-parsing a few
-/// hundred KB of style rules on every map widget rebuild would be wasted
-/// work (SPIKE-14 timed theme parse separately for exactly this reason).
+/// Parses the style JSON once per theme name and reuses it — pure/static
+/// for a given name, and re-parsing a few hundred KB of style rules on
+/// every map widget rebuild would be wasted work (SPIKE-14 timed theme
+/// parse separately for exactly this reason).
 ///
-/// Public (not `_`-private) so `trip_area_map.dart` shares the same
-/// once-per-run cache and "no tiles here" fallback rather than duplicating
-/// this loading logic for N1's bbox-drawing map.
+/// Public (not `_`-private) so every map widget in this directory shares
+/// the same once-per-run cache rather than duplicating this loading logic.
+/// The tile *provider* is no longer cached here (issue #154): it's a thin
+/// sidecar-backed HTTP client now, cheap to construct fresh against the
+/// current `SidecarManager.baseUrl` each build — caching it would survive
+/// past a sidecar restart's port change.
 class MapTileAssets {
   static final Map<String, Future<Theme?>> _themes = {};
-  static Future<DirectoryVectorTileProvider?>? _provider;
 
   static Future<Theme?> theme(String name) => _themes.putIfAbsent(name, () async {
         try {
@@ -60,14 +64,9 @@ class MapTileAssets {
     }
     return 'assets/map_style/style_$name.json'; // will fail existence check above and fall through
   }
-
-  static Future<DirectoryVectorTileProvider?> provider() => _provider ??= Future(() {
-        final root = resolveTilesRoot();
-        return root == null ? null : DirectoryVectorTileProvider(root);
-      });
 }
 
-class TapToPickMap extends StatelessWidget {
+class TapToPickMap extends ConsumerStatefulWidget {
   const TapToPickMap({
     super.key,
     this.points = const [],
@@ -90,28 +89,51 @@ class TapToPickMap extends StatelessWidget {
   final List<LatLonPoint>? outline;
 
   @override
+  ConsumerState<TapToPickMap> createState() => _TapToPickMapState();
+}
+
+class _TapToPickMapState extends ConsumerState<TapToPickMap> {
+  final _mapController = MapController();
+  bool _mapReady = false;
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final isDark = material.Theme.of(context).brightness == Brightness.dark;
-    final startCenter = center ?? (points.isNotEmpty ? points.first : const [-105.2705, 40.0150]);
+    final startCenter =
+        widget.center ?? (widget.points.isNotEmpty ? widget.points.first : HomeRegion.center);
+    final baseUrl = ref.watch(sidecarManagerProvider).baseUrl;
 
     return FutureBuilder(
-      future: Future.wait([MapTileAssets.theme(isDark ? 'dark' : 'light'), MapTileAssets.provider()]),
+      future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
       builder: (context, snapshot) {
-        final results = snapshot.data;
-        final vectorTheme = results?[0] as Theme?;
-        final provider = results?[1] as DirectoryVectorTileProvider?;
-        final tilesAvailable = vectorTheme != null && provider != null;
+        final vectorTheme = snapshot.data;
+        final provider = SidecarVectorTileProvider(baseUrl);
+        final tilesAvailable = vectorTheme != null;
+        // The live camera bounds (issue #154: viewport-based, not tied to
+        // any one fixture region) — `_mapReady` guards the first build,
+        // before `FlutterMap` has laid out and `camera` is queryable.
+        final outOfCoverage =
+            _mapReady && !tilesLikelyCoverViewport(_mapController.camera.visibleBounds);
 
         return Stack(
           children: [
             FlutterMap(
+              mapController: _mapController,
               options: MapOptions(
                 initialCenter: ll.LatLng(startCenter[1], startCenter[0]),
-                initialZoom: initialZoom,
-                onTap: onTap == null
+                initialZoom: widget.initialZoom,
+                onTap: widget.onTap == null
                     ? null
-                    : (tapPosition, point) => onTap!([point.longitude, point.latitude]),
+                    : (tapPosition, point) => widget.onTap!([point.longitude, point.latitude]),
+                onMapEvent: (_) => setState(() {}),
+                onMapReady: () => setState(() => _mapReady = true),
               ),
               children: [
                 if (tilesAvailable)
@@ -122,113 +144,52 @@ class TapToPickMap extends StatelessWidget {
                   )
                 else
                   MapGraticule(color: c.border),
-                if (outline != null && outline!.length >= 3)
+                if (widget.outline != null && widget.outline!.length >= 3)
                   PolygonLayer(polygons: [
                     Polygon(
-                      points: [for (final p in outline!) ll.LatLng(p[1], p[0])],
+                      points: [for (final p in widget.outline!) ll.LatLng(p[1], p[0])],
                       color: c.primary.withValues(alpha: 0.05),
                       borderColor: c.primary,
                       borderStrokeWidth: 2,
                     ),
                   ]),
-                if (polyline.length >= 2)
+                if (widget.polyline.length >= 2)
                   PolylineLayer(polylines: [
                     Polyline(
-                      points: [for (final p in polyline) ll.LatLng(p[1], p[0])],
+                      points: [for (final p in widget.polyline) ll.LatLng(p[1], p[0])],
                       color: c.primary,
                       strokeWidth: 4,
                     ),
                   ]),
                 MarkerLayer(markers: [
-                  for (var i = 0; i < points.length; i++)
+                  for (var i = 0; i < widget.points.length; i++)
                     Marker(
-                      point: ll.LatLng(points[i][1], points[i][0]),
+                      point: ll.LatLng(widget.points[i][1], widget.points[i][0]),
                       width: 28,
                       height: 28,
                       child: NodeMarker(
                         i == 0
                             ? NodeMarkerType.waypoint
-                            : (i == points.length - 1 ? NodeMarkerType.regroup : NodeMarkerType.plot),
+                            : (i == widget.points.length - 1
+                                ? NodeMarkerType.regroup
+                                : NodeMarkerType.plot),
                       ),
                     ),
                 ]),
               ],
             ),
-            if (!tilesAvailable)
+            if (!tilesAvailable || outOfCoverage)
               Positioned(
                 left: PlotSpacing.s3,
                 bottom: PlotSpacing.s3,
-                child: _NoBasemapNotice(
+                child: NoBasemapNotice(
                   loading: snapshot.connectionState != ConnectionState.done,
+                  outOfCoverage: tilesAvailable && outOfCoverage,
                 ),
               ),
           ],
         );
       },
-    );
-  }
-}
-
-/// A plain lat/lon grid so panning/zooming reads as *a map* on the rare
-/// path with no tile coverage (outside Boulder, or the dev tile tree isn't
-/// on disk), while the load is still in flight, or as an honest fallback.
-class MapGraticule extends StatelessWidget {
-  const MapGraticule({super.key, required this.color});
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: _GraticulePainter(color), size: Size.infinite);
-  }
-}
-
-class _GraticulePainter extends CustomPainter {
-  _GraticulePainter(this.color);
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withValues(alpha: 0.5)
-      ..strokeWidth = 1;
-    const step = 40.0;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_GraticulePainter old) => false;
-}
-
-class _NoBasemapNotice extends StatelessWidget {
-  const _NoBasemapNotice({required this.loading});
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = PlotColors.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
-      decoration: BoxDecoration(
-        color: c.surfaceCard.withValues(alpha: 0.92),
-        borderRadius: const BorderRadius.all(PlotRadii.md),
-        border: Border.all(color: c.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.layers_outlined, size: 14, color: c.textMuted),
-          const SizedBox(width: PlotSpacing.s2),
-          Text(
-            loading ? 'Loading basemap…' : 'No basemap tiles here (Boulder, CO only)',
-            style: PlotTypography.data(c.textMuted),
-          ),
-        ],
-      ),
     );
   }
 }

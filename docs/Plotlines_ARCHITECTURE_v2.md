@@ -675,6 +675,10 @@ POST   /clusters/analyze                # bbox + params → cluster proposals (F
                                         #   named action, cacheable, never ambient
 
 # Routing — both modes
+POST   /regions                   # trip bbox → region key; 202, ARCH D25/D57 pattern.
+                                  #   Poll GET /health's capabilities.routing.regions[key].
+                                  #   Idempotent: the same (bbox, network_type) returns the
+                                  #   same key without rebuilding (issue #154).
 POST   /segments/generate         # mode + shape + weights + via-anchors → Segment.
                                   #   target_distance=None is the COMPOSE case (§7.7),
                                   #   and realized distance returns as an outcome,
@@ -756,18 +760,21 @@ GET /health →
                                 "osm_amenity":  "ready",
                                 "plugin_battlefields": "loading",
                                 "plugin_manors": "failed:licence_missing"}},
-    "routing":   {"ready": false, "reason": "elevation_enriching",
-                  "progress": 0.42, "eta_s": 180},
-    "elevation": {"ready": false, "progress": 0.42, "eta_s": 180}
+    "routing":   {"regions": {                                     # ← D57, issue #154
+                    "7aee30aebeddc034": {"ready": false, "reason": "building graph",
+                                         "progress": 0.42, "eta_s": 5},
+                    "a51f9c2e0d8b7461": {"ready": true}}},
+    "elevation": {"ready": false, "reason": "elevation_source_not_configured:tracked_in_148"}
   }
 }
 ```
 
-Three rules:
+Four rules:
 
 - **Startup order is layers-and-POI first, elevation second.** The Author needs the former immediately and the latter only when routing. This is a **reordering of existing startup work**, and SPIKE-D (§18) confirms it is cheap in the sidecar.
 - **The client enables surfaces from these flags and states a reason on every disabled control.** Never a silent failure on click; never a spinner over the whole app. This is the "honest state" brand value made mechanical.
 - **Layer readiness is per layer, not one flag** (PRD N2). A plugin dataset may be large or remote, so `capabilities.layers` carries per-layer state: built-in OSM layers go ready while a plugin layer loads, the picker shows that layer as loading rather than blocking the workspace, and **one layer failing never blocks the others** — the failure names the layer and the reason. This is B1's rule applied one level down: any long operation standing between the Author and their work gets the same treatment, and a layer set is exactly such an operation once plugins exist.
+- **Routing readiness is per region, not one flag** (D57, issue #154). D41's trip bbox is the Author's own authoring extent, so "routing" is never one process-wide state any more — it's keyed by the region id `POST /regions` returned, empty until an Author has drawn a bbox. `elevation` stays a single fixed not-ready entry across every region (gated on FR87/#148, never attempted) rather than settling per region, since no region's elevation ever comes up in this codebase yet.
 - **Version mismatch still refuses to run** (A8, §13.1). Per-capability readiness changes *what is ready*, never *whether the pair is compatible*.
 
 **Unchanged and still important:** the Field Runtime depends on the sidecar not at all — a dead sidecar degrades to "can't generate," never "can't ride."
@@ -1464,6 +1471,7 @@ D1–D33 carry from v1.0 (abbreviated below where unchanged). **D34–D45 are ne
 | **D52** | **`solve.stale`'s reach widens to every class of derived work; staleness is passive while planning, blocking on export with a resolvable list, and blocking with no override on print** | PRD FR140. The mechanism already existed (D30) and needed only more reach — routes, cue sheets, metrics, elevation profiles, day splits. Passive while planning because an Author making six edits in a row should be stopped zero times (Brand Value 4). **Re-solve-all is unconfirmed** because it destroys nothing: confirmation belongs where an action removes authored work, and requiring it to recompute is bookkeeping. Print blocks harder than export because a stale GPX is corrected by the next sync while a stale printed cue sheet goes in a jersey pocket and is believed for eight hours | Auto-recompute on edit (expensive, surprising mid-thought, and it defeats the batching the mechanism exists for); a prompt per invalidation (turns ordinary editing into a negotiation); allowing stale export with a marker (the marker is on the app, the cue sheet is in the pocket); blocking on-screen viewing too (makes an editing session a series of forced solves) |
 | **D53** | **The stale list is a distinct surface from M13's shared error surface** | Stale work is **pending work the Author caused deliberately**, and every item carries a one-action resolution. M13's enum is for failures. Routing staleness there teaches the Author that ordinary editing produces errors — precisely the defect that keeps compose-mode distance deviation out of it (§7.7). **Two things now sit deliberately outside M13, and they are the same mistake in different clothes** | Adding stale states to M13's enum (the obvious implementation, wrong for the reason above); a modal on every stale transition (violates D52's passive level); no surface at all, relying on per-object markers (an Author hunting nine stale items across nine days is exactly the tedium the list removes) |
 | **D49** | **Date and time display preference is a render-time transform only; ISO 8601 remains the sole stored, exported, filename, and digest form.** `inherit` resolves at render time rather than being frozen at install | PRD FR79. A display format reaching stored or exchanged data reintroduces exactly the ambiguity ISO exists to remove, and would make the content digest depend on who was looking. Render-time resolution of `inherit` is what lets the *setting* sync while its *resolution* stays per-device — the behaviour users expect from a machine-local preference | Storing the resolved format (freezes a locale decision at install and breaks on device change); allowing a locale format in exports (a GPX whose dates mean different days to different readers); syncing the resolved value rather than `inherit` (imposes one machine's locale on another) |
+| **D57** | **`POST /regions` acquires a routable graph (and, best-effort, a bbox-scoped tile cache) for the Author's own trip bbox, keyed on `(bbox, network_type, graph_ruleset_version)`; `nearest_node` refuses to snap farther than a bounded tolerance.** Elevation stays unattempted for every region — a fixed not-ready `capabilities.elevation`, gated on FR87 (#148) *(new — issue #154, applies D41 to routing/tiles)* | D41 established the trip bbox as the Author's real authoring extent, but routing and tile-serving kept using one committed Boulder fixture regardless — silently, since an unguarded nearest-node snap returns *a* node however far away the query point is. `POST /regions` is D25's 202-and-poll shape applied one layer down: idempotent, cache-keyed, non-blocking. Promoting `spikes/shared/regions.py`'s graph pipeline (not its Terrarium DEM fetcher — a second elevation source, which D20 forbids) into `core/plotlines_core/graph/` keeps P1 intact. Tiles are best-effort within region build (§8.2's `GET /tiles/{z}/{x}/{y}`) because a bbox outside the configured tile source's coverage is an honest per-request 404, not a reason to fail routing | A per-region readiness flag with no snap guard (still returns a wrong-region route, just for a *shorter* time before the Author notices); baking Terrarium elevation into region build (a second elevation source alongside GEDTM30, which D20 forbids — see FR87/#148 for the real path); an unbounded snap tolerance (defeats the guard's purpose — the whole failure mode is "the nearest node is always accepted"); hotlinking a public Protomaps mirror as the on-demand tile source's default (FR95 needs a Plotlines-controlled mirror, tracked separately in #139 — the extractor takes a configurable upstream so a dev URL works, but ships defaulting to the committed local archive only) |
 
 ---
 

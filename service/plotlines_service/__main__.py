@@ -25,8 +25,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--host", default="127.0.0.1",
                         help="sidecar mode binds loopback only — the trust boundary")
     parser.add_argument("--mode", default="sidecar", choices=("sidecar", "hosted"))
+    # A real app-support directory (issue #154) — per-region graph and tile
+    # caches live under here as they're built (`regions/{key}/...`), keyed on
+    # the Author's own trip bbox rather than one committed fixture.
     parser.add_argument("--cache-dir", type=Path, default=None,
-                        help="directory holding the cached graph and DEM")
+                        help="directory for per-region graph/tile caches")
+    parser.add_argument("--tiles-upstream", default=None,
+                        help="PMTiles source a region's on-demand tile cache is "
+                             "extracted from: a local archive path, or (dev-only "
+                             "until #139 stands up a Plotlines-controlled mirror) "
+                             "an http(s):// URL read via ranged GETs. Defaults to "
+                             "the committed home-region archive — no network.")
     # Not required alongside --cache-dir: the client runs `--version` to perform the
     # A8 version check *before* it has spawned anything or chosen a cache dir.
     parser.add_argument("--version", action="store_true")
@@ -50,7 +59,8 @@ def main(argv: list[str] | None = None) -> int:
         print("refusing: sidecar mode binds loopback only (ARCH §7.1)", file=sys.stderr)
         return 2
 
-    app = create_app(cache_dir=args.cache_dir, mode=args.mode)
+    app = create_app(cache_dir=args.cache_dir, mode=args.mode,
+                     tiles_upstream=args.tiles_upstream)
 
     config = uvicorn.Config(app, host=args.host, port=args.port,
                             log_level="warning", access_log=False)

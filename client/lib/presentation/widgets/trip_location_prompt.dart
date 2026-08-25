@@ -18,9 +18,16 @@ import '../../domain/home_region.dart';
 /// What the Author chose. [center] is null when they chose the shipped home
 /// region — a legitimate, non-eager choice, not a failure to resolve one.
 class TripLocationChoice {
-  const TripLocationChoice({required this.label, this.center});
+  const TripLocationChoice({required this.label, this.center, this.bbox});
   final String label;
   final LatLon? center;
+
+  /// Nominatim's bounding geometry for [center] (issue #154), `[west,
+  /// south, east, north]` — lets the trip-area draw map frame itself on a
+  /// real extent instead of an arbitrary zoom. **Never the trip bbox**
+  /// (FR96): this only ever feeds `TripAreaMap.initialCameraFit`, never
+  /// `tripBboxProvider`.
+  final List<double>? bbox;
 }
 
 /// Returns the Author's choice, or null if they cancelled trip creation
@@ -136,7 +143,11 @@ class _TripLocationDialogState extends State<_TripLocationDialog> {
         });
         return;
       }
-      Navigator.pop(context, TripLocationChoice(label: query, center: results.first.coord));
+      Navigator.pop(context, TripLocationChoice(
+        label: query,
+        center: results.first.coord,
+        bbox: results.first.bbox,
+      ));
     } catch (e) {
       if (!mounted) return;
       setState(() {

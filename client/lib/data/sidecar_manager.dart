@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 /// M12 — spawn, health-poll to readiness, restart-once, graceful stop, orphan
 /// sweep, paired-version refusal (ARCH §7.3, §12.1; PRD M12).
@@ -31,10 +32,16 @@ class CapabilityStatus {
   final double? progress;
   final double? etaS;
 
-  /// Failed *and* stopped trying — distinct from `!ready`, which is also
-  /// true while still loading. A disabled control reads this to decide
-  /// between an honest wait and an honest failure (FR121: never silent).
-  bool get failed => !ready && (reason?.startsWith('failed:') ?? false);
+  /// Stopped trying, one way or another — distinct from `!ready`, which is
+  /// also true while still loading. Generalized from a `'failed:'`-prefix
+  /// check (issue #154): a capability that will simply never load in this
+  /// codebase (`elevation`, gated on #148) reports a fixed reason with no
+  /// `progress`, which is exactly the same "stop waiting on this" signal a
+  /// genuine failure gives — the absence of `progress` is what actually
+  /// means "not actively loading" in every case `/health` produces. A
+  /// disabled control reads this to decide between an honest wait and an
+  /// honest "this isn't happening" (FR121: never silent).
+  bool get failed => !ready && progress == null;
 
   factory CapabilityStatus.fromJson(Map<String, dynamic> json) => CapabilityStatus(
         ready: json['ready'] as bool? ?? false,
@@ -56,9 +63,29 @@ class CapabilityStatus {
   }
 }
 
+/// `routing`'s per-region breakdown (ARCH §8.3, D41; issue #154) — replaces
+/// the pre-#154 single process-wide flag now that every trip bbox gets its
+/// own graph. Keyed by the region id `RoutingClient.ensureRegion` returns.
+class RoutingCapability {
+  const RoutingCapability(this.regions);
+  final Map<String, CapabilityStatus> regions;
+
+  /// Null (not yet ensured) is deliberately distinct from "not ready" — a
+  /// screen gating a control on this should show a wait/reason only once
+  /// [RoutingClient.ensureRegion] has actually returned a key.
+  CapabilityStatus? forRegion(String? key) => key == null ? null : regions[key];
+
+  factory RoutingCapability.fromJson(Map<String, dynamic> json) => RoutingCapability({
+        for (final entry in (json['regions'] as Map<String, dynamic>).entries)
+          entry.key: CapabilityStatus.fromJson(entry.value as Map<String, dynamic>),
+      });
+}
+
 /// Snapshot of `/health`'s `capabilities` object. `tiles` and `layers` are
 /// ready as soon as the sidecar answers at all in this codebase (B1);
-/// `routing` and `elevation` settle independently and later.
+/// `routing` settles per region (issue #154) and `elevation` never settles
+/// to ready in this codebase (gated on #148) but does settle to "stopped
+/// trying" immediately — see `CapabilityStatus.failed`.
 class Capabilities {
   const Capabilities({
     required this.tiles,
@@ -69,18 +96,19 @@ class Capabilities {
 
   final CapabilityStatus tiles;
   final CapabilityStatus layers;
-  final CapabilityStatus routing;
+  final RoutingCapability routing;
   final CapabilityStatus elevation;
 
-  /// Both routing and elevation have stopped changing (ready, or failed) —
-  /// the point past which polling for progress no longer serves the UI.
-  bool get settled =>
-      (routing.ready || routing.failed) && (elevation.ready || elevation.failed);
+  /// Elevation is the only capability here that ever *stays* unsettled
+  /// (`routing` per-region view has nothing to poll once no more regions
+  /// are being ensured) — kept for API continuity with call sites that used
+  /// to gate a background poll on "has everything stopped changing".
+  bool get settled => elevation.ready || elevation.failed;
 
   factory Capabilities.fromJson(Map<String, dynamic> json) => Capabilities(
         tiles: CapabilityStatus.fromJson(json['tiles'] as Map<String, dynamic>),
         layers: CapabilityStatus.fromJson(json['layers'] as Map<String, dynamic>),
-        routing: CapabilityStatus.fromJson(json['routing'] as Map<String, dynamic>),
+        routing: RoutingCapability.fromJson(json['routing'] as Map<String, dynamic>),
         elevation: CapabilityStatus.fromJson(json['elevation'] as Map<String, dynamic>),
       );
 }
@@ -192,21 +220,18 @@ class SidecarManager extends ChangeNotifier {
     throw StateError('plotlines-sidecar binary not found (dev or bundled)');
   }
 
-  Directory _resolveCacheDir() {
+  /// A real app-support directory (issue #154) — per-region graph and tile
+  /// caches (`regions/{key}/...`) live under here, built on demand from the
+  /// Author's own trip bbox rather than the pre-#154 committed Boulder
+  /// fixture. [cacheDirOverride] remains for tests that need a scratch
+  /// directory instead of the OS's real app-support path.
+  Future<Directory> _resolveCacheDir() async {
     final override = cacheDirOverride;
     if (override != null) return override;
-    // Dev fallback: the Boulder fixture graph/DEM under spikes/SPIKE-00/cache
-    // has the exact filenames app.py expects. The real region-download
-    // pipeline (A10) that would populate the app-support cache dir for an
-    // arbitrary Author-chosen location is not built yet (open question).
-    var dir = Directory.current;
-    for (var i = 0; i < 6; i++) {
-      final candidate = Directory('${dir.path}/spikes/SPIKE-00/cache');
-      if (candidate.existsSync()) return candidate;
-      if (dir.parent.path == dir.path) break;
-      dir = dir.parent;
-    }
-    throw StateError('no sidecar cache-dir found (dev fallback missing)');
+    final support = await getApplicationSupportDirectory();
+    final dir = Directory('${support.path}/sidecar_cache');
+    await dir.create(recursive: true);
+    return dir;
   }
 
   Future<int> _pickPort() async {
@@ -239,13 +264,14 @@ class SidecarManager extends ChangeNotifier {
     _confirmedVersion = sidecarVersion;
 
     _port = await _pickPort();
+    final cacheDir = await _resolveCacheDir();
     _set(SidecarState.starting, detail: 'launching sidecar');
 
     _process = await Process.start(binPath, [
       '--port=$_port',
       '--host=127.0.0.1',
       '--mode=sidecar',
-      '--cache-dir=${_resolveCacheDir().path}',
+      '--cache-dir=${cacheDir.path}',
     ]);
     _process!.exitCode.then(_onExit);
 
@@ -292,10 +318,15 @@ class SidecarManager extends ChangeNotifier {
   }
 
   /// Keeps polling `/health` after the app has unblocked, purely to track
-  /// routing/elevation settling (ARCH §8.3) — `SidecarGate` has already let
-  /// the Author in by this point, so a poll failure here degrades a single
-  /// screen's progress display, never the whole app. Stops once both
-  /// capabilities have settled, since nothing left would ever change.
+  /// per-region routing progress (ARCH §8.3, issue #154) — `SidecarGate` has
+  /// already let the Author in by this point, so a poll failure here
+  /// degrades a single screen's progress display, never the whole app.
+  ///
+  /// Runs for the session's lifetime rather than stopping once "settled":
+  /// unlike the pre-#154 single-startup-sequence model, a trip's bbox is
+  /// revisable throughout authoring (D41), so a new region can start
+  /// building at any point, not only at startup. The cost of a 2s local
+  /// loopback poll for the rest of the session is negligible.
   void _watchCapabilities() {
     _capabilityPollTimer?.cancel();
     _capabilityPollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
@@ -307,7 +338,6 @@ class SidecarManager extends ChangeNotifier {
         final body = jsonDecode(resp.body) as Map<String, dynamic>;
         _capabilities = Capabilities.fromJson(body['capabilities'] as Map<String, dynamic>);
         notifyListeners();
-        if (_capabilities!.settled) timer.cancel();
       } catch (_) {
         // Sidecar may have died mid-poll — `_onExit` handles that
         // transition; this loop just stops making noise until it's stopped.
