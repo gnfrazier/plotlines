@@ -43,7 +43,7 @@ Trip _fixtureTrip() {
       [-105.2, 40.05],
     ]),
     metrics: RouteMetrics(distanceM: 12000, climbM: 120),
-    weights: WeightProfile(name: 'balanced', climbing: 3.0, poiDensity: 4.0),
+    weights: WeightProfile(name: 'balanced', climbing: 3.0, interest: 4.0),
     bands: [Band(attribute: 'distance_m', min: 7000, max: 9000)],
     solve: SolveProvenance(solvedAt: '2026-08-17T00:00:00Z'),
   );

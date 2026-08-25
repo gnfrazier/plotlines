@@ -23,7 +23,7 @@ import 'error_states.dart';
 
 const _surfaceClasses = ['paved', 'gravel', 'singletrack'];
 const _attributes = [
-  'distance_m', 'climb_m', 'descent_m', 'traffic', 'unpaved_frac', 'scenic_frac', 'poi_density',
+  'distance_m', 'climb_m', 'descent_m', 'traffic', 'unpaved_frac', 'scenic_frac',
 ];
 const _shapes = ['loop', 'out_and_back', 'point_to_point'];
 const _shapeLabels = {'loop': 'LOOP', 'out_and_back': 'OUT-BACK', 'point_to_point': 'P2P'};
@@ -134,14 +134,18 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                       onChanged: (v) => setWeights(weights.withSurfaceClass(cls, v)),
                     ),
                   WeightSlider(
-                    label: 'POI density',
+                    // FR5/A4's AC: a single salience bias, no POI-type control —
+                    // layer selection already says what matters (FR97); this
+                    // says only how much to seek it. ARCH §7.7: inactive in
+                    // compose, where the promoted anchors are already the spine.
+                    label: 'Interest — good places',
                     hint: mode == PlanningMode.explore
-                        ? 'sparse ↔ dense'
-                        : 'sparse ↔ dense · inactive in compose — the spine already says what\'s here',
-                    value: weights.poiDensity ?? 2.5,
+                        ? 'indifferent ↔ seek high-salience places'
+                        : 'indifferent ↔ seek high-salience places · inactive in compose — the spine already says what\'s here',
+                    value: weights.interest ?? 0.0,
                     onChanged: mode == PlanningMode.compose
                         ? null
-                        : (v) => setWeights(weights.copyWith(poiDensity: v)),
+                        : (v) => setWeights(weights.copyWith(interest: v)),
                   ),
                   const SizedBox(height: PlotSpacing.s4),
                   if (mode == PlanningMode.explore) ...[

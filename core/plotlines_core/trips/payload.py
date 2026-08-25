@@ -159,27 +159,22 @@ class WeightProfile:
     climbing: float | None = None
     traffic: float | None = None
     surface: dict[str, float] = field(default_factory=dict)
-    poi_density: float | None = None
-    poi_types: list[str] = field(default_factory=list)
+    # FR5 (Story A4) / ARCH §7.3, D46: a single salience bias, no POI-type
+    # parameter (layer selection already says what matters) and no separate
+    # `detour_budget` (a second dial for the one intent this weight expresses).
+    # Explore-mode only — compose simply never sends it.
+    interest: float | None = None
     terrain_technicality: float | None = None
-    detour_budget: float | None = None
 
     def to_dict(self) -> dict:
-        poi = {}
-        if self.poi_density is not None:
-            poi["density"] = f(self.poi_density)
-        if self.poi_types:
-            poi["types"] = list(self.poi_types)
         return {
             "name": self.name,
             "climbing": None if self.climbing is None else f(self.climbing),
             "traffic": None if self.traffic is None else f(self.traffic),
             "surface": {k: f(v) for k, v in self.surface.items()} or None,
-            "poi": poi or None,
+            "interest": None if self.interest is None else f(self.interest),
             "terrain_technicality": (None if self.terrain_technicality is None
                                      else f(self.terrain_technicality)),
-            "detour_budget": (None if self.detour_budget is None
-                              else f(self.detour_budget)),
         }
 
 

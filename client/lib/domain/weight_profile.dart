@@ -4,8 +4,10 @@
 /// Two distinct `WeightProfile`s exist in this codebase and neither is a mistake:
 ///
 ///  * [WeightProfile] here mirrors `plotlines_core.trips.payload.WeightProfile` —
-///    what an Author sets, 0.0-5.0, bipolar for `climbing` (FR2-FR5). This is the one
-///    stored in `trip.payload` and is the schema's `weight_profile` $def.
+///    what an Author sets, 0.0-5.0, bipolar for `climbing`/`surface`/`traffic`
+///    (FR2-FR4) but unipolar for `interest` (FR5 — no "avoid good places" case).
+///    This is the one stored in `trip.payload` and is the schema's
+///    `weight_profile` $def.
 ///  * [ThemeWeightProfile] mirrors `plotlines_core.scoring.profile.WeightProfile` —
 ///    the solver's internal 0.0-1.0 form (`quiet`/`surface`/`scenic`/`directness`,
 ///    `peaks` -1.0-1.0), named and catalogued in [themes]. `service/app.py`'s
@@ -25,20 +27,20 @@ class WeightProfile {
     this.climbing,
     this.traffic,
     this.surface = const {},
-    this.poiDensity,
-    this.poiTypes = const [],
+    this.interest,
     this.terrainTechnicality,
-    this.detourBudget,
   });
 
   final String name;
   final double? climbing;
   final double? traffic;
   final Map<String, double> surface;
-  final double? poiDensity;
-  final List<String> poiTypes;
+
+  /// FR5 (Story A4) / ARCH D46 — a single 0.0-5.0 salience bias, no POI-type
+  /// parameter and no `detour_budget`. Unipolar, unlike [climbing]/[traffic]/
+  /// [surface]: 0.0 is "no bias", not "avoid good places". Explore-mode only.
+  final double? interest;
   final double? terrainTechnicality;
-  final double? detourBudget;
 
   factory WeightProfile.fromJson(Map<String, dynamic> json) {
     final f = JsonFields(json, 'weight_profile');
@@ -46,27 +48,16 @@ class WeightProfile {
     final climbing = f.takeNum('climbing');
     final traffic = f.takeNum('traffic');
     final surface = f.takeWeights('surface');
-    double? density;
-    var types = const <String>[];
-    final poi = f.take('poi');
-    if (poi != null) {
-      final p = JsonFields(Map<String, dynamic>.from(poi as Map), 'weight_profile.poi');
-      density = p.takeNum('density');
-      types = p.takeStrings('types');
-      p.done();
-    }
+    final interest = f.takeNum('interest');
     final technicality = f.takeNum('terrain_technicality');
-    final detour = f.takeNum('detour_budget');
     f.done();
     return WeightProfile(
       name: name,
       climbing: climbing,
       traffic: traffic,
       surface: surface,
-      poiDensity: density,
-      poiTypes: types,
+      interest: interest,
       terrainTechnicality: technicality,
-      detourBudget: detour,
     );
   }
 
@@ -77,16 +68,10 @@ class WeightProfile {
         'surface': surface.isEmpty
             ? null
             : surface.map((k, v) => MapEntry(k, finite(v, 'weight_profile.surface.$k'))),
-        'poi': pruneJson({
-          'density':
-              poiDensity == null ? null : finite(poiDensity!, 'weight_profile.poi.density'),
-          'types': poiTypes.isEmpty ? null : poiTypes,
-        }),
+        'interest': interest == null ? null : finite(interest!, 'weight_profile.interest'),
         'terrain_technicality': terrainTechnicality == null
             ? null
             : finite(terrainTechnicality!, 'weight_profile.terrain_technicality'),
-        'detour_budget':
-            detourBudget == null ? null : finite(detourBudget!, 'weight_profile.detour_budget'),
       });
 
   WeightProfile copyWith({
@@ -94,20 +79,16 @@ class WeightProfile {
     double? climbing,
     double? traffic,
     Map<String, double>? surface,
-    double? poiDensity,
-    List<String>? poiTypes,
+    double? interest,
     double? terrainTechnicality,
-    double? detourBudget,
   }) =>
       WeightProfile(
         name: name ?? this.name,
         climbing: climbing ?? this.climbing,
         traffic: traffic ?? this.traffic,
         surface: surface ?? this.surface,
-        poiDensity: poiDensity ?? this.poiDensity,
-        poiTypes: poiTypes ?? this.poiTypes,
+        interest: interest ?? this.interest,
         terrainTechnicality: terrainTechnicality ?? this.terrainTechnicality,
-        detourBudget: detourBudget ?? this.detourBudget,
       );
 
   /// A copy with one surface class's weight set, leaving the rest untouched — the
@@ -164,6 +145,17 @@ Map<String, double> surfaceWeightsFromAuthor(Map<String, double> surface) => {
       for (final entry in surface.entries) 'surface_${entry.key}': (entry.value - 2.5) / 2.5,
     };
 
+/// FR5/A4 — the Author-facing 0.0-5.0 "interest" scale mapped onto
+/// [ThemeWeightProfile.interest]'s solver-internal 0.0..1.0 scale.
+///
+/// Unlike [peaksFromClimbing]/[surfaceWeightsFromAuthor], this is the ordinary
+/// `w = ui / 5.0` conversion the module doc opens with, not the bipolar
+/// `(ui - 2.5) / 2.5` one — `interest` has no "avoid good places" reading, so
+/// there is no indifference point to re-center around. `null` (no preference
+/// authored) stays `null`, same omit-rather-than-invent rule as every other
+/// conversion here.
+double? interestFromAuthor(double? interest) => interest == null ? null : interest / 5.0;
+
 /// `plotlines_core.scoring.profile.WeightProfile` — the solver's internal 0.0-1.0
 /// theme shape. Never round-tripped through `trip.payload`; only through the
 /// sidecar's `/segments/generate` (`theme` name or raw `weights` map).
@@ -177,6 +169,7 @@ class ThemeWeightProfile {
     this.surfacePaved = 0.0,
     this.surfaceGravel = 0.0,
     this.surfaceSingletrack = 0.0,
+    this.interest = 0.0,
     this.extras = const {},
   });
 
@@ -193,6 +186,10 @@ class ThemeWeightProfile {
   final double surfacePaved;
   final double surfaceGravel;
   final double surfaceSingletrack;
+
+  /// FR5, unipolar unlike [peaks]/the surface dials: 0.0 no bias .. 1.0 max
+  /// bias toward high-salience candidates (FR98). Explore-mode only.
+  final double interest;
   final Map<String, double> extras;
 
   factory ThemeWeightProfile.fromJson(Map<String, dynamic> json) {
@@ -206,6 +203,7 @@ class ThemeWeightProfile {
       surfacePaved: f.takeNum('surface_paved') ?? 0.0,
       surfaceGravel: f.takeNum('surface_gravel') ?? 0.0,
       surfaceSingletrack: f.takeNum('surface_singletrack') ?? 0.0,
+      interest: f.takeNum('interest') ?? 0.0,
       extras: f.takeWeights('extras'),
     );
     f.done();
@@ -222,6 +220,7 @@ class ThemeWeightProfile {
         'surface_gravel': finite(surfaceGravel, 'theme_weight_profile.surface_gravel'),
         'surface_singletrack':
             finite(surfaceSingletrack, 'theme_weight_profile.surface_singletrack'),
+        'interest': finite(interest, 'theme_weight_profile.interest'),
         if (extras.isNotEmpty)
           'extras': extras.map((k, v) => MapEntry(k, finite(v, 'theme_weight_profile.extras.$k'))),
       };

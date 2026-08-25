@@ -26,6 +26,15 @@ outright, which is the defect SPIKE-03 measured (no unpaved-minimum band was
 satisfiable anywhere). The Author-facing conversion is the same
 `w = (ui - 2.5) / 2.5` as `peaks`, applied once per class
 (`weight_profile.dart`'s `surfaceWeightsFromAuthor`).
+
+FR5 (Story A4) / ARCH §7.3, D46: `interest` biases the search toward high-salience
+candidates (FR98) rather than merely counting them nearby — unipolar 0.0 (no bias)
+.. 1.0 (max bias), the ordinary `w = ui / 5.0` conversion, no bipolar "avoid good
+places" case. It carries no POI-type parameter (layer selection already says what
+matters, MVP punchlist §2.17b) and is explore-mode only (ARCH §7.7): compose never
+sends it. Where the salience signal comes from is `routing/interest.py`'s
+`annotate_interest`, which writes it onto edges as `interest_salience` before a
+solve — `edge_cost` below only ever reads what is already there.
 """
 
 from __future__ import annotations
@@ -187,10 +196,14 @@ class WeightProfile:
     surface_paved: float = 0.0
     surface_gravel: float = 0.0
     surface_singletrack: float = 0.0
+    # FR5 "interest" (Story A4): unipolar 0.0 (no bias) .. 1.0 (max bias) toward
+    # high-salience candidates. Not bipolar — there is no "avoid good places" case,
+    # unlike `peaks`/`surface_*` above.
+    interest: float = 0.0
     extras: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        for key in ("quiet", "scenic", "directness"):
+        for key in ("quiet", "scenic", "directness", "interest"):
             val = getattr(self, key)
             if not 0.0 <= val <= 1.0:
                 raise ValueError(f"weight {key}={val} outside 0.0..1.0")
@@ -291,6 +304,15 @@ def edge_cost(data: dict, profile: WeightProfile) -> float:
     # Dijkstra requires — a "seek climbing" weight must never buy a negative edge.
     if profile.peaks:
         penalty -= profile.peaks * (min(grade, _GRADE_SATURATION) / _GRADE_SATURATION) * 0.6
+
+    # FR5/FR98. `interest_salience` is written onto the edge by
+    # `routing.interest.annotate_interest`, not derived from `data` here — an edge
+    # near no candidate carries none and this term is a no-op regardless of the
+    # weight, which is what keeps "seek good places" from ever discounting a stretch
+    # of road that happens to pass nothing notable.
+    salience = data.get("interest_salience")
+    if profile.interest and salience:
+        penalty -= profile.interest * salience * 0.6
 
     # directness pulls every penalty back toward pure distance
     penalty = 1.0 + (penalty - 1.0) * (1.0 - profile.directness)

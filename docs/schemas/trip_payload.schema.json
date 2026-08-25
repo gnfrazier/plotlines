@@ -159,30 +159,20 @@
           "additionalProperties": { "$ref": "#/$defs/author_weight" },
           "propertyNames": { "enum": ["paved", "gravel", "singletrack"] }
         },
-        "poi": {
-          "description": "FR5 — density plus the Author-set type. There is no separate art/history theme.",
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "density": { "$ref": "#/$defs/author_weight" },
-            "types": { "type": "array", "items": { "type": "string" } }
-          }
+        "interest": {
+          "$ref": "#/$defs/author_weight",
+          "description": "FR5 (Story A4), ARCH D46 — a single salience bias, 0.0 (no bias) .. 5.0 (max bias). Unipolar, unlike this def's usual bipolar convention: there is no \"avoid good places\" reading. Carries no POI-type parameter — layer selection (FR97) already says what matters. Explore-mode only (ARCH §7.7); inactive in compose."
         },
         "terrain_technicality": {
           "$ref": "#/$defs/author_weight",
           "description": "FR14's land half. Unvalidated (ARCH §6.3: SPIKE-04 never measured sac_scale/mtb:scale density) — carried, not trusted."
-        },
-        "detour_budget": {
-          "type": "number",
-          "minimum": 1.0,
-          "description": "Max multiple of shortest-path distance."
         }
       }
     },
 
     "attribute": {
       "description": "A REALISED route attribute (FR6 as reworded after SPIKE-03). Bands bound these, never the weights that produced them.",
-      "enum": ["distance_m", "climb_m", "descent_m", "traffic", "unpaved_frac", "scenic_frac", "poi_density"]
+      "enum": ["distance_m", "climb_m", "descent_m", "traffic", "unpaved_frac", "scenic_frac"]
     },
 
     "band": {

@@ -442,12 +442,19 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     // omit-rather-than-invent rule as `peaks`/`quiet` above.
     final surfaceWeights =
         weights == null ? const <String, double>{} : surfaceWeightsFromAuthor(weights.surface);
+    // FR5/A4, ARCH §7.7: `interest` is explore-mode only — compose never sends
+    // it, the same way it never sends `target_m` (the promoted anchors are
+    // already the spine, so a salience bias has nothing left to decide).
+    final interest = (weights == null || mode == PlanningMode.compose)
+        ? null
+        : interestFromAuthor(weights.interest);
     final weightsPayload = weights == null
         ? null
         : {
             if (peaks != null) 'peaks': peaks,
             if (quiet != null) 'quiet': quiet,
             ...surfaceWeights,
+            if (interest != null) 'interest': interest,
           };
     final resolved = await client.generateSegment(
       region: region,

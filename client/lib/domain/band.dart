@@ -13,7 +13,6 @@ const List<String> attributeValues = [
   'traffic',
   'unpaved_frac',
   'scenic_frac',
-  'poi_density',
 ];
 
 /// FR6 / A5 — an inclusive acceptance range on one realised attribute. The schema's
