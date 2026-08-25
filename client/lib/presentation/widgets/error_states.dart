@@ -47,8 +47,10 @@ class ConflictBanner extends StatelessWidget {
             children: [
               Icon(Icons.route_outlined, size: 18, color: c.danger),
               const SizedBox(width: PlotSpacing.s2),
-              Text('No route satisfies every band',
-                  style: PlotTypography.title(c.textPrimary).copyWith(fontSize: 15)),
+              Expanded(
+                child: Text('No route satisfies every band',
+                    style: PlotTypography.title(c.textPrimary).copyWith(fontSize: 15)),
+              ),
             ],
           ),
           const SizedBox(height: PlotSpacing.s2),

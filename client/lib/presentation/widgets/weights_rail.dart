@@ -28,6 +28,41 @@ const _attributes = [
 const _shapes = ['loop', 'out_and_back', 'point_to_point'];
 const _shapeLabels = {'loop': 'LOOP', 'out_and_back': 'OUT-BACK', 'point_to_point': 'P2P'};
 
+Violation? _violationFor(List<Violation> violations, String attribute) {
+  for (final v in violations) {
+    if (v.attribute == attribute) return v;
+  }
+  return null;
+}
+
+/// FR9/A6 — plain-text summary of every band the just-solved route missed,
+/// named specifically rather than a bare "no route found" (the AC this
+/// exists to satisfy). One line per attribute; `Violation.shortfall` is
+/// signed (negative under a minimum, positive over a maximum), which is all
+/// that's needed to say which side it missed on.
+String _violationsSummary(List<Violation> violations) {
+  final lines = violations.map((v) {
+    final side = v.shortfall < 0 ? 'short of the minimum' : 'over the maximum';
+    return '${v.attribute}: realized ${_formatMetric(v.attribute, v.realised)} — '
+        '${_formatMetric(v.attribute, v.shortfall.abs())} $side.';
+  });
+  return lines.join('\n');
+}
+
+/// Same two shapes `Band.describe()` uses server-side (`scoring/bands.py`'s
+/// `format_value`) — a fraction as a percentage, everything else with its
+/// raw unit — kept intentionally simple since this is a client-side echo of
+/// numbers the solve already returned, not a new source of truth.
+String _formatMetric(String attribute, double value) {
+  if (attribute.endsWith('_frac') || attribute == 'traffic' || attribute == 'salience') {
+    return '${(value * 100).toStringAsFixed(0)}%';
+  }
+  if (attribute.endsWith('_m')) {
+    return '${value.toStringAsFixed(0)} m';
+  }
+  return value.toStringAsFixed(2);
+}
+
 class WeightsRail extends ConsumerStatefulWidget {
   const WeightsRail({super.key, required this.dayId, required this.segment});
   final String dayId;
@@ -160,6 +195,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                       BandRow(
                         key: ValueKey(band.attribute),
                         band: band,
+                        violation: _violationFor(segment.violations, band.attribute),
                         onChanged: (updated) => ref.read(currentTripProvider.notifier).updateSegmentBands(
                               widget.dayId,
                               segment.id,
@@ -171,6 +207,17 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                               segment.bands.where((b) => b != band).toList(),
                             ),
                       ),
+                    // FR9/A6's AC: the best-effort route and its band
+                    // violations return with the initial solve — this is
+                    // that synchronous surfacing (`bandViolations`,
+                    // `regenerateSegment`), distinct from the "Diagnose"
+                    // action below, which is the slow (SPIKE-02:
+                    // 1.3-15.0s), async named-conflict-plus-relaxations
+                    // half of A6.
+                    if (segment.violations.isNotEmpty) ...[
+                      const SizedBox(height: PlotSpacing.s2),
+                      ConflictBanner(explanation: _violationsSummary(segment.violations)),
+                    ],
                     Align(
                       alignment: Alignment.centerLeft,
                       child: PlotButton(
@@ -577,10 +624,21 @@ class WeightSlider extends StatelessWidget {
 }
 
 class BandRow extends StatefulWidget {
-  const BandRow({super.key, required this.band, required this.onChanged, required this.onRemove});
+  const BandRow({
+    super.key,
+    required this.band,
+    required this.onChanged,
+    required this.onRemove,
+    this.violation,
+  });
   final Band band;
   final ValueChanged<Band> onChanged;
   final VoidCallback onRemove;
+
+  /// FR9/A6 — set when the segment's just-solved metrics miss this band, so
+  /// the row can flag itself right where the Author set the band, alongside
+  /// the aggregate `ConflictBanner` above the "Add band" button.
+  final Violation? violation;
 
   @override
   State<BandRow> createState() => _BandRowState();
@@ -607,37 +665,52 @@ class _BandRowState extends State<BandRow> {
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
+    final violation = widget.violation;
     return Padding(
       padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
       child: PlotCard(
         sunk: true,
         padding: const EdgeInsets.all(PlotSpacing.s3),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              flex: 2,
-              child: Text(widget.band.attribute, style: PlotTypography.data(c.textPrimary)),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Text(widget.band.attribute,
+                      style: PlotTypography.data(violation == null ? c.textPrimary : c.danger)),
+                ),
+                SizedBox(
+                  width: 64,
+                  child: TextField(
+                    controller: _min,
+                    decoration: const InputDecoration(hintText: 'min', isDense: true),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                    onChanged: (_) => _emit(),
+                  ),
+                ),
+                const SizedBox(width: PlotSpacing.s2),
+                SizedBox(
+                  width: 64,
+                  child: TextField(
+                    controller: _max,
+                    decoration: const InputDecoration(hintText: 'max', isDense: true),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                    onChanged: (_) => _emit(),
+                  ),
+                ),
+                IconButton(icon: const Icon(Icons.close, size: 16), onPressed: widget.onRemove),
+              ],
             ),
-            SizedBox(
-              width: 64,
-              child: TextField(
-                controller: _min,
-                decoration: const InputDecoration(hintText: 'min', isDense: true),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                onChanged: (_) => _emit(),
+            if (violation != null) ...[
+              const SizedBox(height: PlotSpacing.s1),
+              Text(
+                'Missed by ${_formatMetric(widget.band.attribute, violation.shortfall.abs())} '
+                '(realized ${_formatMetric(widget.band.attribute, violation.realised)})',
+                style: PlotTypography.small(c.danger),
               ),
-            ),
-            const SizedBox(width: PlotSpacing.s2),
-            SizedBox(
-              width: 64,
-              child: TextField(
-                controller: _max,
-                decoration: const InputDecoration(hintText: 'max', isDense: true),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                onChanged: (_) => _emit(),
-              ),
-            ),
-            IconButton(icon: const Icon(Icons.close, size: 16), onPressed: widget.onRemove),
+            ],
           ],
         ),
       ),

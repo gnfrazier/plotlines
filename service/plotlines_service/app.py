@@ -704,7 +704,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             raise HTTPException(422, str(exc)) from exc
         return {k: [lo, hi] for k, (lo, hi) in envelope.items()}
 
-    @app.post("/segments/diagnose")
+    @app.post("/segments/diagnose", status_code=202)
     def segments_diagnose(req: DiagnoseRequest) -> dict:
         region = _resolve_region(req.region)
         try:

@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/domain.dart';
 import '../domain/promote.dart' as domain_promote show promoteAnchor;
-import 'planner_ui_state.dart' show PlanningMode, composeAwareTargetM;
+import 'planner_ui_state.dart' show PlanningMode, bandViolations, composeAwareTargetM;
 import 'providers.dart';
 import 'trip_authoring_meta_provider.dart';
 import 'trip_bbox_provider.dart';
@@ -490,6 +490,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       // there would silently wipe it on every re-solve.
       targetDistance: old.targetDistance ?? resolved.targetDistance,
     );
+    // FR9/A6 — the just-solved route's band violations, synchronous with
+    // this solve (see `bandViolations`' doc comment). Explore mode only:
+    // compose's own band goes through A0a's `_ComposeDeviationPanel`
+    // instead, never this surface (ARCH D53).
+    final violations =
+        mode == PlanningMode.explore ? bandViolations(merged.metrics, old.bands) : const <Violation>[];
     // `Segment.copyWith` never overrides `id` (see segment.dart) — rebuild
     // with the old id directly so every reference to this segment
     // (transitions, node ownership by dayId/segmentId pairs) still resolves.
@@ -503,7 +509,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       via: merged.via,
       targetDistance: merged.targetDistance,
       bands: merged.bands,
-      violations: merged.violations,
+      violations: violations,
       weights: merged.weights,
       geometry: merged.geometry,
       metrics: merged.metrics,

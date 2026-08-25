@@ -91,6 +91,64 @@ bool? distanceDeviatesFromBand(double? realizedDistanceM, Band? band) {
   return false;
 }
 
+/// FR9/A6's AC: "the best-effort route and its band violations return with
+/// the initial solve" — synchronous, unlike the named-conflict-plus-
+/// relaxations half of A6 (`RoutingClient.submitDiagnose`/`pollDiagnose`),
+/// which SPIKE-02 measured at 1.3-15.0s and cannot sit inside a solve
+/// request. Knowing *whether* a band was missed, and by how much, costs
+/// nothing beyond comparing numbers the solve already returned, so this runs
+/// client-side right after every explore-mode regenerate
+/// (`CurrentTripNotifier.regenerateSegment`) rather than waiting on a
+/// diagnose round trip just to learn there is nothing to diagnose.
+///
+/// Compose mode never calls this — its own band (distance only) goes through
+/// [distanceDeviatesFromBand]/A0a, which is deliberately a separate surface
+/// from A6/M13 (ARCH D53).
+List<Violation> bandViolations(RouteMetrics? metrics, List<Band> bands) {
+  if (metrics == null) return const [];
+  final out = <Violation>[];
+  for (final band in bands) {
+    final value = _bandableMetricValue(metrics, band.attribute);
+    if (value == null) continue;
+    double shortfall;
+    if (band.min != null && value < band.min!) {
+      shortfall = value - band.min!;
+    } else if (band.max != null && value > band.max!) {
+      shortfall = value - band.max!;
+    } else {
+      shortfall = 0.0;
+    }
+    if (shortfall != 0.0) {
+      out.add(Violation(attribute: band.attribute, realised: value, shortfall: shortfall));
+    }
+  }
+  return out;
+}
+
+/// The realized-attribute values [Band.attribute] can name (`band.dart`'s
+/// `attributeValues`), read off [RouteMetrics] — every one of those
+/// attributes is a metrics field of the same name.
+double? _bandableMetricValue(RouteMetrics metrics, String attribute) {
+  switch (attribute) {
+    case 'distance_m':
+      return metrics.distanceM;
+    case 'climb_m':
+      return metrics.climbM;
+    case 'descent_m':
+      return metrics.descentM;
+    case 'traffic':
+      return metrics.traffic;
+    case 'unpaved_frac':
+      return metrics.unpavedFrac;
+    case 'scenic_frac':
+      return metrics.scenicFrac;
+    case 'salience':
+      return metrics.salience;
+    default:
+      return null;
+  }
+}
+
 /// FR118's quoted editing-decision headline — *"these seven plot points
 /// make a 94-mile day; your band was 55–70"* — built from the segment
 /// actually in front of the Author. Reports in km, matching this rail's
