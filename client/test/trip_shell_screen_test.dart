@@ -88,7 +88,7 @@ void main() {
 
     // Route tab (default): weights rail + day timeline both mounted.
     expect(find.text('ROUTE WEIGHTS'), findsOneWidget);
-    expect(find.text('Climbing'), findsOneWidget);
+    expect(find.text('Peaks — climbing'), findsOneWidget); // FR2/A1's "peaks" terminology
     expect(find.text('DAY 1'), findsOneWidget);
     expect(tester.takeException(), isNull);
 

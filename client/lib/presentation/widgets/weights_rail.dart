@@ -109,7 +109,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                   ),
                   const SizedBox(height: PlotSpacing.s4),
                   WeightSlider(
-                    label: 'Climbing',
+                    // A1's AC: "'peaks' terminology in UI" — matches the
+                    // "Peaks — climbing" / "Cars — traffic tolerance"
+                    // pattern in `Flow 4 - Explore and compose.dc.html`.
+                    label: 'Peaks — climbing',
                     hint: 'flat ↔ indifferent ↔ seek peaks',
                     value: weights.climbing ?? 2.5,
                     onChanged: (v) => setWeights(weights.copyWith(climbing: v)),

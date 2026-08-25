@@ -456,10 +456,11 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       final unpaved = (gravel + singletrack) / 2.0;
       surfaceDial = ((paved - unpaved) / 5.0).clamp(0.0, 1.0);
     }
+    final peaks = weights == null ? null : peaksFromClimbing(weights.climbing);
     final weightsPayload = weights == null
         ? null
         : {
-            if (weights.climbing != null) 'peaks': (weights.climbing! - 2.5) / 2.5,
+            if (peaks != null) 'peaks': peaks,
             if (weights.traffic != null) 'quiet': weights.traffic! / 5.0,
             if (surfaceDial != null) 'surface': surfaceDial,
           };

@@ -116,6 +116,19 @@ class WeightProfile {
       copyWith(surface: {...surface, surfaceClass: value});
 }
 
+/// FR2/A1 — the Author-facing 0.0-5.0 "peaks" scale mapped onto
+/// [ThemeWeightProfile.peaks]'s solver-internal bipolar -1.0..1.0 scale, per
+/// `scoring/profile.py`'s documented conversion: `w = (ui - 2.5) / 2.5`. 2.5
+/// is the midpoint of both scales — "indifferent" on the Author-facing side,
+/// `0.0` (the identity weight; see `ThemeWeightProfile.peaks`'s doc) on the
+/// solver side — so it maps to itself. `null` (no climbing preference
+/// authored) stays `null`: the caller omits the `peaks` key from the solve
+/// request entirely rather than sending an invented 0.0 (MVP punchlist
+/// §2A.4 — this is the "one mapping function" it asks for, scoped to the
+/// Dart side, which is where the Author-facing scale actually originates).
+double? peaksFromClimbing(double? climbing) =>
+    climbing == null ? null : (climbing - 2.5) / 2.5;
+
 /// `plotlines_core.scoring.profile.WeightProfile` — the solver's internal 0.0-1.0
 /// theme shape. Never round-tripped through `trip.payload`; only through the
 /// sidecar's `/segments/generate` (`theme` name or raw `weights` map).
