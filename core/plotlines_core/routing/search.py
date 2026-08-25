@@ -32,7 +32,7 @@ import networkx as nx
 
 from plotlines_core.routing.loops import Loop, generate_loop
 from plotlines_core.routing.solve import NoRouteFound
-from plotlines_core.scoring.bands import BandSet
+from plotlines_core.scoring.bands import BandSet, ensure_distance_band
 from plotlines_core.scoring.metrics import METRIC_PRECISION, RouteMetrics
 from plotlines_core.scoring.profile import TUNABLE, WeightProfile
 
@@ -212,6 +212,10 @@ def search_bands(
     keep_attempts: bool = False,
 ) -> SearchResult:
     """Look for a route satisfying every band. Returns the closest miss if none is."""
+    # FR8/A8: distance is never dropped from the constraint set this search
+    # actually descends against — `ensure_distance_band` is a no-op whenever
+    # the caller already supplied their own `distance_m` band.
+    bands = ensure_distance_band(bands, target_m)
     t0 = time.perf_counter()
     attempts: list[Attempt] = []
     envelope: dict[str, tuple[float, float]] = {}

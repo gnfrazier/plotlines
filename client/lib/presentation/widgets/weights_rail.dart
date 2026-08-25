@@ -22,8 +22,12 @@ import 'conflict_dialog.dart';
 import 'error_states.dart';
 
 const _surfaceClasses = ['paved', 'gravel', 'singletrack'];
+// `distance_m` is deliberately absent: FR8/A8 bands it through
+// `Segment.targetDistance.minM/maxM`, not this generic list — see
+// `_TargetDistanceField`. Offering it here too would let an Author create a
+// second, independent distance band alongside the target-distance one.
 const _attributes = [
-  'distance_m', 'climb_m', 'descent_m', 'traffic', 'unpaved_frac', 'scenic_frac', 'salience',
+  'climb_m', 'descent_m', 'traffic', 'unpaved_frac', 'scenic_frac', 'salience',
 ];
 const _shapes = ['loop', 'out_and_back', 'point_to_point'];
 const _shapeLabels = {'loop': 'LOOP', 'out_and_back': 'OUT-BACK', 'point_to_point': 'P2P'};
@@ -261,82 +265,103 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
             ),
           ),
           // shape + distance + via — the wireframe's bottom rail section.
-          Container(
-            decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
-            padding: const EdgeInsets.all(PlotSpacing.s4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('SHAPE', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: PlotSpacing.s2),
-                Wrap(
-                  spacing: PlotSpacing.s2,
-                  children: [
-                    for (final s in _shapes)
-                      ChoiceChip(
-                        label: Text(_shapeLabels[s]!),
-                        selected: segment.shape == s,
-                        onSelected: (_) => ref
-                            .read(currentTripProvider.notifier)
-                            .updateSegmentShape(widget.dayId, segment.id, s),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: PlotSpacing.s3),
-                _TargetDistanceField(dayId: widget.dayId, segment: segment, mode: mode),
-                if (mode == PlanningMode.explore && segment.via.isNotEmpty) ...[
-                  const SizedBox(height: PlotSpacing.s3),
-                  Text('VIA (A9)', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: PlotSpacing.s2),
-                  Wrap(
-                    spacing: PlotSpacing.s2,
-                    runSpacing: PlotSpacing.s2,
-                    children: [
-                      for (var i = 0; i < segment.via.length; i++)
-                        PlotBadge('Via ${i + 1}', tone: PlotBadgeTone.slate),
-                    ],
-                  ),
-                ],
-                if (segment.solve?.stale ?? false) ...[
-                  const SizedBox(height: PlotSpacing.s3),
-                  const PlotBadge('Stale — needs re-solve', tone: PlotBadgeTone.gold, solid: true),
-                ],
-                if (_composeNeedsTarget(mode, segment)) ...[
-                  const SizedBox(height: PlotSpacing.s3),
-                  Text(
-                    'Loop always solves to a target distance, which compose doesn\'t set — '
-                    'pick out-and-back or point-to-point, or switch back to explore.',
-                    style: PlotTypography.small(c.danger),
-                  ),
-                ],
-                const SizedBox(height: PlotSpacing.s3),
-                Row(
-                  children: [
-                    if (mode == PlanningMode.explore) ...[
-                      Expanded(
-                        child: PlotButton(
-                          label: segment.bands.isEmpty
-                              ? 'Add a band to diagnose'
-                              : (_diagnosing ? 'Diagnosing…' : 'Diagnose'),
-                          variant: PlotButtonVariant.secondary,
-                          onPressed: (_diagnosing || segment.bands.isEmpty || segment.metrics?.distanceM == null)
-                              ? null
-                              : () => _diagnose(segment),
-                        ),
-                      ),
-                      const SizedBox(width: PlotSpacing.s2),
-                    ],
-                    Expanded(
-                      child: PlotButton(
-                        label: _regenerating ? 'Re-solving…' : 'Regenerate',
-                        onPressed: (_regenerating || _composeNeedsTarget(mode, segment))
-                            ? null
-                            : () => _regenerate(segment, mode),
+          // FR8/A8 added a per-target band row here (`_TargetDistanceField`),
+          // tall enough with VIA/stale/warning content all present that a
+          // short window can run out of room — `Flexible` lets this whole
+          // section give way to the middle section's scroll area instead of
+          // overflowing, and its own content scrolls internally
+          // (`SingleChildScrollView`) while Diagnose/Regenerate stay pinned
+          // below it, never scrolled out of reach.
+          Flexible(
+            child: Container(
+              decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
+              padding: const EdgeInsets.all(PlotSpacing.s4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('SHAPE',
+                              style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: PlotSpacing.s2),
+                          Wrap(
+                            spacing: PlotSpacing.s2,
+                            children: [
+                              for (final s in _shapes)
+                                ChoiceChip(
+                                  label: Text(_shapeLabels[s]!),
+                                  selected: segment.shape == s,
+                                  onSelected: (_) => ref
+                                      .read(currentTripProvider.notifier)
+                                      .updateSegmentShape(widget.dayId, segment.id, s),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: PlotSpacing.s3),
+                          _TargetDistanceField(dayId: widget.dayId, segment: segment, mode: mode),
+                          if (mode == PlanningMode.explore && segment.via.isNotEmpty) ...[
+                            const SizedBox(height: PlotSpacing.s3),
+                            Text('VIA (A9)',
+                                style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: PlotSpacing.s2),
+                            Wrap(
+                              spacing: PlotSpacing.s2,
+                              runSpacing: PlotSpacing.s2,
+                              children: [
+                                for (var i = 0; i < segment.via.length; i++)
+                                  PlotBadge('Via ${i + 1}', tone: PlotBadgeTone.slate),
+                              ],
+                            ),
+                          ],
+                          if (segment.solve?.stale ?? false) ...[
+                            const SizedBox(height: PlotSpacing.s3),
+                            const PlotBadge('Stale — needs re-solve', tone: PlotBadgeTone.gold, solid: true),
+                          ],
+                          if (_composeNeedsTarget(mode, segment)) ...[
+                            const SizedBox(height: PlotSpacing.s3),
+                            Text(
+                              'Loop always solves to a target distance, which compose doesn\'t set — '
+                              'pick out-and-back or point-to-point, or switch back to explore.',
+                              style: PlotTypography.small(c.danger),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: PlotSpacing.s3),
+                  Row(
+                    children: [
+                      if (mode == PlanningMode.explore) ...[
+                        Expanded(
+                          child: PlotButton(
+                            label: segment.bands.isEmpty
+                                ? 'Add a band to diagnose'
+                                : (_diagnosing ? 'Diagnosing…' : 'Diagnose'),
+                            variant: PlotButtonVariant.secondary,
+                            onPressed: (_diagnosing || segment.bands.isEmpty || segment.metrics?.distanceM == null)
+                                ? null
+                                : () => _diagnose(segment),
+                          ),
+                        ),
+                        const SizedBox(width: PlotSpacing.s2),
+                      ],
+                      Expanded(
+                        child: PlotButton(
+                          label: _regenerating ? 'Re-solving…' : 'Regenerate',
+                          onPressed: (_regenerating || _composeNeedsTarget(mode, segment))
+                              ? null
+                              : () => _regenerate(segment, mode),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -433,7 +458,21 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         region: region,
         start: segment.start!,
         targetM: segment.metrics!.distanceM!,
-        bands: segment.bands,
+        // FR8/A8: distance is never dropped from the explore search's
+        // constraint set — the Author's (possibly widened) target-distance
+        // band rides along here even though it isn't part of `segment.bands`.
+        // `diagnose` on the core side also defaults one from `targetM` if
+        // this is ever absent, but sending it means an Author's own widened
+        // band is what actually gets searched, not the default.
+        bands: [
+          ...segment.bands,
+          if (segment.targetDistance?.minM != null || segment.targetDistance?.maxM != null)
+            Band(
+              attribute: 'distance_m',
+              min: segment.targetDistance!.minM,
+              max: segment.targetDistance!.maxM,
+            ),
+        ],
         via: segment.via,
       );
       Diagnosis? result;
@@ -531,6 +570,14 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
     _lastSegmentId = widget.segment.id;
     _lastMode = widget.mode;
 
+    // FR8/A8's AC: "point-to-point has no target-distance input." Its
+    // start/end already govern the route (A7); there is nothing here to set
+    // or band. Compose's read-only report below is left shape-agnostic —
+    // it's a reported outcome, not an input, so the AC doesn't reach it.
+    if (widget.mode == PlanningMode.explore && !hasTargetDistanceControl(widget.segment.shape)) {
+      return const SizedBox.shrink();
+    }
+
     // ARCH §7.7 / FR118 — in compose the distance is a reported outcome,
     // never an editable constraint, so this reads the realized metric
     // straight off the segment rather than the authored (and, in compose,
@@ -566,26 +613,59 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
       );
     }
 
-    return TextField(
-      controller: _controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        labelText: 'Target distance (km)',
-        isDense: true,
-        border: const OutlineInputBorder(),
-        helperText: widget.segment.shape == 'point_to_point'
-            ? 'Advisory for point-to-point — start/end govern the actual route'
-            : 'The constraint Generate/Regenerate solves toward',
-        helperStyle: PlotTypography.small(c.textMuted),
-      ),
-      onSubmitted: (text) {
-        final km = double.tryParse(text);
-        ref.read(currentTripProvider.notifier).updateSegmentTargetDistance(
-              widget.dayId,
-              widget.segment.id,
-              km == null ? null : km * 1000,
-            );
-      },
+    final targetDistance = widget.segment.targetDistance;
+    // FR8/A8's AC: banded by default the moment a target is set
+    // (`bandedTargetDistance`), so a band is present here unless the Author
+    // hasn't typed a target at all yet.
+    final banded = targetDistance != null &&
+        (targetDistance.minM != null || targetDistance.maxM != null);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: 'Target distance (km)',
+            isDense: true,
+            border: const OutlineInputBorder(),
+            helperText: 'The constraint Generate/Regenerate solves toward',
+            helperStyle: PlotTypography.small(c.textMuted),
+          ),
+          onSubmitted: (text) {
+            final km = double.tryParse(text);
+            ref.read(currentTripProvider.notifier).updateSegmentTargetDistance(
+                  widget.dayId,
+                  widget.segment.id,
+                  km == null ? null : km * 1000,
+                );
+          },
+        ),
+        if (banded) ...[
+          const SizedBox(height: PlotSpacing.s2),
+          Text(
+            'Banded by default — never dropped from the search, only widened (FR8).',
+            style: PlotTypography.small(c.textMuted),
+          ),
+          const SizedBox(height: PlotSpacing.s1),
+          BandRow(
+            band: Band(attribute: 'distance_m', min: targetDistance.minM, max: targetDistance.maxM),
+            violation: _violationFor(widget.segment.violations, 'distance_m'),
+            onChanged: (updated) => ref
+                .read(currentTripProvider.notifier)
+                .updateSegmentTargetDistanceBand(
+                  widget.dayId,
+                  widget.segment.id,
+                  minM: updated.min,
+                  maxM: updated.max,
+                ),
+            // FR8/A8's AC: distance is never dropped from the explore
+            // search's constraint set — no remove control on this row.
+            onRemove: null,
+          ),
+        ],
+      ],
     );
   }
 }
@@ -628,12 +708,17 @@ class BandRow extends StatefulWidget {
     super.key,
     required this.band,
     required this.onChanged,
-    required this.onRemove,
+    this.onRemove,
     this.violation,
   });
   final Band band;
   final ValueChanged<Band> onChanged;
-  final VoidCallback onRemove;
+
+  /// Null hides the remove control entirely — FR8/A8's distance band is
+  /// never dropped from the explore search's constraint set, only widened
+  /// (`_TargetDistanceField` reuses this row with `onRemove: null` for
+  /// exactly that reason), unlike every other band in the generic BANDS list.
+  final VoidCallback? onRemove;
 
   /// FR9/A6 — set when the segment's just-solved metrics miss this band, so
   /// the row can flag itself right where the Author set the band, alongside
@@ -700,7 +785,8 @@ class _BandRowState extends State<BandRow> {
                     onChanged: (_) => _emit(),
                   ),
                 ),
-                IconButton(icon: const Icon(Icons.close, size: 16), onPressed: widget.onRemove),
+                if (widget.onRemove != null)
+                  IconButton(icon: const Icon(Icons.close, size: 16), onPressed: widget.onRemove),
               ],
             ),
             if (violation != null) ...[

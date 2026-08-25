@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 import networkx as nx
 
 from plotlines_core.routing.search import Attempt, SearchResult, search_bands
-from plotlines_core.scoring.bands import Band, BandSet, format_value
+from plotlines_core.scoring.bands import Band, BandSet, ensure_distance_band, format_value
 from plotlines_core.scoring.metrics import METRIC_LABEL, METRIC_SCALE, RouteMetrics
 
 
@@ -154,6 +154,12 @@ def diagnose(
     """Route if possible; otherwise explain what conflicts and how to loosen it."""
     t0 = time.perf_counter()
     solves = 0
+
+    # FR8/A8: fold distance into the same constraint set every check below
+    # uses — `search_bands` applies this too, but naming a distance conflict
+    # (the unattainable/deletion-filter logic further down) needs it present
+    # in *this* function's own `bands`, not just inside the search's descent.
+    bands = ensure_distance_band(bands, target_m)
 
     full: SearchResult = search_bands(graph, start, target_m, bands, via=via,
                                       budget=budget, keep_attempts=True)

@@ -10,8 +10,11 @@ included, with no metric-specific code path.
 
 import pytest
 
-from plotlines_core.scoring.bands import Band, BandSet, format_value
-from plotlines_core.scoring.metrics import RouteMetrics
+from plotlines_core.scoring.bands import (
+    DEFAULT_DISTANCE_BAND_FRAC, Band, BandSet, default_distance_band,
+    ensure_distance_band, format_value,
+)
+from plotlines_core.scoring.metrics import METRIC_PRECISION, RouteMetrics
 
 
 def _metrics(**overrides) -> RouteMetrics:
@@ -202,3 +205,72 @@ def test_salience_band_shortfall_and_describe_use_the_realized_salience_label():
     metrics = _metrics(salience=0.2)
     assert band.shortfall(metrics.value("salience")) == pytest.approx(-0.3)
     assert band.label == "realized salience"
+
+
+# ---------------------------------------------------------------------------
+# default_distance_band / ensure_distance_band — FR8/A8's "banded by
+# default in explore mode." SPIKE-03 §4 measured up to +14.8% unannounced
+# distance drift when nothing bounded it; §3's convergence sweep found
+# two-sided bands hold to within ±10% of centre everywhere tested.
+# ---------------------------------------------------------------------------
+
+
+def test_default_distance_band_is_centred_on_the_target():
+    band = default_distance_band(20_000.0)
+    assert band.metric == "distance_m"
+    assert band.minimum == pytest.approx(20_000.0 * (1 - DEFAULT_DISTANCE_BAND_FRAC))
+    assert band.maximum == pytest.approx(20_000.0 * (1 + DEFAULT_DISTANCE_BAND_FRAC))
+
+
+def test_default_distance_band_catches_the_drift_spike_03_measured():
+    # +14.8% was the worst unbanded drift SPIKE-03 observed (Boulder, §4) —
+    # the default band exists specifically to flag that, not just narrower
+    # drifts.
+    band = default_distance_band(20_000.0)
+    assert band.satisfied_by(20_000.0 * 1.148) is False
+
+
+def test_default_distance_band_is_satisfied_by_the_exact_target():
+    band = default_distance_band(20_000.0)
+    assert band.satisfied_by(20_000.0) is True
+
+
+def test_default_distance_band_respects_a_narrower_fraction_argument():
+    band = default_distance_band(20_000.0, frac=0.20)
+    assert band.minimum == pytest.approx(16_000.0)
+    assert band.maximum == pytest.approx(24_000.0)
+
+
+def test_default_distance_band_is_never_narrower_than_the_precision_floor():
+    # A very small target shouldn't band to a window tighter than the search
+    # can honestly promise (`METRIC_PRECISION`, the same floor `search.py`'s
+    # `_floor_precision` applies to a probed envelope).
+    band = default_distance_band(10.0)
+    assert band.maximum - band.minimum >= METRIC_PRECISION["distance_m"]
+
+
+def test_ensure_distance_band_adds_a_default_band_when_none_is_set():
+    bands = BandSet.of(Band("climb_m", minimum=100.0))
+    augmented = ensure_distance_band(bands, 20_000.0)
+    assert len(augmented) == 2
+    distance_band = next(b for b in augmented if b.metric == "distance_m")
+    assert distance_band == default_distance_band(20_000.0)
+
+
+def test_ensure_distance_band_never_overrides_an_author_authored_band():
+    # FR8/A8's AC: "the Author can widen the band" — an existing distance_m
+    # band, of any width, always wins over the default.
+    wide = Band("distance_m", minimum=15_000.0, maximum=30_000.0)
+    bands = BandSet.of(wide)
+    augmented = ensure_distance_band(bands, 20_000.0)
+    assert augmented.bands == (wide,)
+
+
+def test_ensure_distance_band_is_a_no_op_with_no_target():
+    bands = BandSet.of(Band("climb_m", minimum=100.0))
+    assert ensure_distance_band(bands, None) is bands
+
+
+def test_ensure_distance_band_is_a_no_op_when_bands_already_full():
+    bands = BandSet.of(Band("distance_m", minimum=18_000.0, maximum=22_000.0))
+    assert ensure_distance_band(bands, 20_000.0) is bands

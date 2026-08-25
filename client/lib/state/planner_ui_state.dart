@@ -56,6 +56,32 @@ bool canGenerateShape({
   };
 }
 
+/// FR8/A8's AC: "target-distance control for loop/out-and-back only... "
+/// point-to-point has no target-distance input." Point-to-point's start/end
+/// (A7) already govern its route, so there is nothing for a target distance
+/// to constrain — `new_route_screen.dart`'s creation flow already gates its
+/// own target-distance field on this same pair of shapes.
+bool hasTargetDistanceControl(String shape) => shape == 'loop' || shape == 'out_and_back';
+
+/// FR8/A8, SPIKE-03 §4 (`spikes/SPIKE-03/results/RESULTS.md`): left unbanded,
+/// the search silently spent up to +14.8% extra mileage satisfying other
+/// bands. §3's convergence sweep found two-sided bands hold to within ±10%
+/// of centre in every region tested (±5% failed in one of three) — the
+/// half-width a fresh target distance is banded to by default. Mirrors
+/// `core/plotlines_core/scoring/bands.py`'s `DEFAULT_DISTANCE_BAND_FRAC`
+/// (kept as an independently-declared constant, not a cross-language import —
+/// see that module's own citation of the same spike section).
+const double defaultDistanceBandFrac = 0.10;
+
+/// FR8/A8's AC: "banded by default in explore mode." Always centres the band
+/// on [valueM] — there is deliberately no way back to an unbanded target
+/// short of clearing the target itself, which is the AC's "never dropped
+/// from the explore search's constraint set."
+TargetDistance bandedTargetDistance(double valueM, {double halfWidthFrac = defaultDistanceBandFrac}) {
+  final half = valueM * halfWidthFrac;
+  return TargetDistance(valueM: valueM, minM: valueM - half, maxM: valueM + half);
+}
+
 /// FR117/A0 — the Author's per-day choice of **explore** (distance/shape/
 /// weights/bands in, route out) or **compose** (promoted anchors in, route
 /// out). ARCH §7.7: "not a second solver" — the two postures share every

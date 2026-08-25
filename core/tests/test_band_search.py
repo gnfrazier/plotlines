@@ -199,6 +199,30 @@ def test_search_bands_reports_infeasible_for_an_unattainable_salience_band():
 
 
 # ---------------------------------------------------------------------------
+# search_bands — FR8/A8: distance is never dropped from the searched
+# constraint set, even when the caller never asked for a distance_m band.
+# ---------------------------------------------------------------------------
+
+
+def test_search_bands_folds_in_a_default_distance_band_when_none_supplied():
+    bands = BandSet.of(Band("salience", minimum=0.2))
+    result = search_bands(_annotated_grid(), _CENTER, _TARGET_M, bands, budget=30)
+    assert result.feasible is True
+    distance_band = next(b for b in result.bands if b.metric == "distance_m")
+    assert distance_band.satisfied_by(result.best.metrics.distance_m)
+
+
+def test_search_bands_honours_an_authored_distance_band_over_the_default():
+    # A band wider than the default must win outright, per the AC ("the
+    # Author can widen the band").
+    wide = Band("distance_m", minimum=600.0, maximum=1_800.0)
+    bands = BandSet.of(wide, Band("salience", minimum=0.2))
+    result = search_bands(_annotated_grid(), _CENTER, _TARGET_M, bands, budget=30)
+    assert wide in result.bands.bands
+    assert sum(1 for b in result.bands if b.metric == "distance_m") == 1
+
+
+# ---------------------------------------------------------------------------
 # diagnose — AC2: "where none exists, A6 governs"
 # ---------------------------------------------------------------------------
 
@@ -212,8 +236,19 @@ def test_diagnose_reports_feasible_with_no_conflict_when_bands_are_satisfiable()
 
 
 def test_diagnose_names_an_unattainable_salience_band_and_offers_a_relaxation():
+    # FR8/A8: `diagnose`/`search_bands` now always fold a default `distance_m`
+    # band around the target into the constraint set (`ensure_distance_band`),
+    # so the offered relaxation has to be jointly reachable with distance too,
+    # not salience alone. At `_TARGET_M` (1200 m) the one annotated candidate
+    # sits close enough to center that the "notable" archetype's loop shaping
+    # never lands near it — a fixture artifact of this tiny grid, not a
+    # search regression (confirmed empirically: more solve budget and more
+    # shaping iterations both leave it stuck at 900 m). A larger target gives
+    # the shaping ring room to pass the candidate at something near the target
+    # distance, same as it already does for every other test in this file.
+    target_m = 1800.0
     bands = BandSet.of(Band("salience", minimum=0.99))
-    result = diagnose(_annotated_grid(), _CENTER, _TARGET_M, bands, budget=30, filter_budget=16)
+    result = diagnose(_annotated_grid(), _CENTER, target_m, bands, budget=30, filter_budget=16)
     assert result.feasible is False
     assert result.kind == "unattainable"
     assert result.conflict[0].metric == "salience"
@@ -223,6 +258,6 @@ def test_diagnose_names_an_unattainable_salience_band_and_offers_a_relaxation():
     # The offered replacement band must itself be satisfiable — SPIKE-02's
     # own finding: an offer pinned to the exact best-seen value can fail to
     # re-solve, so it must carry margin.
-    resolved = search_bands(_annotated_grid(), _CENTER, _TARGET_M,
+    resolved = search_bands(_annotated_grid(), _CENTER, target_m,
                             BandSet.of(relaxation.proposed), budget=30)
     assert resolved.feasible is True

@@ -34,7 +34,11 @@ Trip _fixtureTrip() {
   final segment = Segment(
     id: 'seg-1',
     mode: 'cycling',
-    shape: 'point_to_point',
+    // FR8/A8: point-to-point has no target-distance input at all, but this
+    // file's tests are about explore/compose switching (FR117/FR119) and
+    // need the field present in explore — out-and-back keeps the fixture's
+    // `end` meaningful (a picked turnaround, A7) while still exercising it.
+    shape: 'out_and_back',
     start: const [-105.27, 40.02],
     end: const [-105.2, 40.05],
     via: const [_spineCoord],

@@ -125,9 +125,13 @@ void main() {
     expect(client.lastTargetM, 15000.0);
     final container = ProviderScope.containerOf(tester.element(find.byType(WeightsRail)));
     final band = container.read(currentTripProvider).days.single.segments.single.bands.single;
-    expect(band.attribute, 'distance_m');
-    expect(band.min, 12000.0);
-    expect(band.max, 15000.0);
+    // FR8/A8: `distance_m` is no longer offered by the generic "Add band"
+    // list — it's banded automatically through `targetDistance` instead
+    // (`_TargetDistanceField`), so the first attribute "Add band" reaches
+    // for is `climb_m`.
+    expect(band.attribute, 'climb_m');
+    expect(band.min, 50.0);
+    expect(band.max, 200.0);
     expect(band.source, 'envelope');
   });
 

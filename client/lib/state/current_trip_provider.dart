@@ -5,7 +5,8 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/domain.dart';
 import '../domain/promote.dart' as domain_promote show promoteAnchor;
-import 'planner_ui_state.dart' show PlanningMode, bandViolations, composeAwareTargetM;
+import 'planner_ui_state.dart'
+    show PlanningMode, bandViolations, bandedTargetDistance, composeAwareTargetM, hasTargetDistanceControl;
 import 'providers.dart';
 import 'trip_authoring_meta_provider.dart';
 import 'trip_bbox_provider.dart';
@@ -117,7 +118,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           'no trip bbox — draw the trip area (FR120) before generating a route');
     }
     final region = await client.ensureRegion(bbox.bboxWsen);
-    final segment = await client.generateSegment(
+    final resolved = await client.generateSegment(
       region: region,
       start: start,
       end: end,
@@ -128,6 +129,16 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       weights: weights,
       targetM: targetM,
     );
+    // FR8/A8's AC: "banded by default in explore mode" — this is the New
+    // Route flow's own first solve, before the Author has ever touched
+    // `WeightsRail`'s target-distance field, so the same default banding
+    // has to apply here too, not only on later edits
+    // (`updateSegmentTargetDistance`). The server's response only ever
+    // carries a bare `target_m` (`_segmentFromSolveResponse`), never a band.
+    final targetDistance = resolved.targetDistance;
+    final segment = (targetDistance != null && hasTargetDistanceControl(resolved.shape))
+        ? resolved.copyWith(targetDistance: bandedTargetDistance(targetDistance.valueM))
+        : resolved;
     final day = _dayOrNew(dayId);
     _replaceDay(day.copyWith(segments: [...day.segments, segment]));
   }
@@ -376,12 +387,80 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     return newDayId;
   }
 
+  /// FR8/A8's AC: "banded by default in explore mode." Loop and out-and-back
+  /// get a fresh default band (`bandedTargetDistance`) every time the Author
+  /// sets a value; point-to-point (no target-distance control at all per the
+  /// AC) is left unbanded defensively, in case anything ever reaches this
+  /// with that shape. Clearing the target (`valueM: null`) goes through
+  /// [_withTargetDistance] rather than `copyWith` — `copyWith`'s
+  /// `targetDistance` parameter can't tell an explicit `null` from "leave it
+  /// alone", so it would silently keep the old value instead of clearing it.
   void updateSegmentTargetDistance(String dayId, String segmentId, double? valueM) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
         if (s.id == segmentId)
-          s.copyWith(targetDistance: valueM == null ? null : TargetDistance(valueM: valueM))
+          _withTargetDistance(
+            s,
+            valueM == null
+                ? null
+                : (hasTargetDistanceControl(s.shape)
+                    ? bandedTargetDistance(valueM)
+                    : TargetDistance(valueM: valueM)),
+          )
+        else
+          s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+    markSegmentStale(dayId, segmentId);
+  }
+
+  /// `Segment.copyWith(targetDistance: ...)` uses `targetDistance ??
+  /// this.targetDistance` like every other nullable field there, so it
+  /// cannot represent "set it to null" — only "leave it as it was" or "set
+  /// it to some real value." [updateSegmentTargetDistance] needs the former
+  /// when the Author clears the target entirely, so this constructs the
+  /// replacement `Segment` directly instead.
+  Segment _withTargetDistance(Segment s, TargetDistance? targetDistance) => Segment(
+        id: s.id,
+        title: s.title,
+        mode: s.mode,
+        shape: s.shape,
+        start: s.start,
+        end: s.end,
+        via: s.via,
+        targetDistance: targetDistance,
+        bands: s.bands,
+        violations: s.violations,
+        weights: s.weights,
+        geometry: s.geometry,
+        metrics: s.metrics,
+        elevation: s.elevation,
+        nodes: s.nodes,
+        alternates: s.alternates,
+        hazards: s.hazards,
+        portages: s.portages,
+        solve: s.solve,
+      );
+
+  /// FR8/A8's AC: "the Author can widen the band" — edits the band a target
+  /// distance is held to without touching the target itself. There is no
+  /// counterpart that clears the band back to nothing short of clearing the
+  /// target itself (`updateSegmentTargetDistance(..., null)`), which is the
+  /// AC's "never dropped from the explore search's constraint set." A no-op
+  /// when the segment has no target distance to band in the first place.
+  void updateSegmentTargetDistanceBand(String dayId, String segmentId,
+      {double? minM, double? maxM}) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId && s.targetDistance != null)
+          s.copyWith(targetDistance: TargetDistance(
+                valueM: s.targetDistance!.valueM,
+                minM: minM,
+                maxM: maxM,
+                advisory: s.targetDistance!.advisory,
+              ))
         else
           s,
     ];
@@ -493,9 +572,17 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     // FR9/A6 — the just-solved route's band violations, synchronous with
     // this solve (see `bandViolations`' doc comment). Explore mode only:
     // compose's own band goes through A0a's `_ComposeDeviationPanel`
-    // instead, never this surface (ARCH D53).
-    final violations =
-        mode == PlanningMode.explore ? bandViolations(merged.metrics, old.bands) : const <Violation>[];
+    // instead, never this surface (ARCH D53). FR8/A8's distance band lives on
+    // `targetDistance`, not `old.bands` (`statedDistanceBand`'s doc comment),
+    // so it's folded in here as a plain `Band` for this one check — the only
+    // place `bandViolations` needs to see it to flag a miss right after a
+    // solve, same as any other band.
+    final distanceBand = (old.targetDistance?.minM != null || old.targetDistance?.maxM != null)
+        ? Band(attribute: 'distance_m', min: old.targetDistance!.minM, max: old.targetDistance!.maxM)
+        : null;
+    final violations = mode == PlanningMode.explore
+        ? bandViolations(merged.metrics, [...old.bands, if (distanceBand != null) distanceBand])
+        : const <Violation>[];
     // `Segment.copyWith` never overrides `id` (see segment.dart) — rebuild
     // with the old id directly so every reference to this segment
     // (transitions, node ownership by dayId/segmentId pairs) still resolves.

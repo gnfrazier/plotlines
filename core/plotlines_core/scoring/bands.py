@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from plotlines_core.scoring.metrics import METRIC_LABEL, METRIC_SCALE, RouteMetrics
+from plotlines_core.scoring.metrics import METRIC_LABEL, METRIC_PRECISION, METRIC_SCALE, RouteMetrics
 
 
 @dataclass(frozen=True)
@@ -115,3 +115,33 @@ class BandSet:
 
     def describe(self) -> str:
         return "; ".join(b.describe() for b in self.bands)
+
+
+#: FR8/A8, SPIKE-03 §4 (`spikes/SPIKE-03/results/RESULTS.md`): left unbanded, the
+#: search silently spent up to +14.8% extra mileage satisfying other bands —
+#: "distance must be a band like any other, not a soft target. It is already
+#: supported; it simply has to be included by default." §3's convergence sweep
+#: found two-sided bands hold to within ±10% of centre in every region tested
+#: (±5% failed in one of three) — narrow enough to actually catch the drift
+#: SPIKE-03 measured, which is the half-width used whenever the Author (or the
+#: caller) hasn't set their own `distance_m` band.
+DEFAULT_DISTANCE_BAND_FRAC = 0.10
+
+
+def default_distance_band(target_m: float, frac: float = DEFAULT_DISTANCE_BAND_FRAC) -> Band:
+    """A `distance_m` band centred on `target_m`, floored to the metric's own
+    precision (`METRIC_PRECISION`) so a very small target never bands to a
+    window narrower than the search can honestly promise."""
+    half = max(frac * target_m, METRIC_PRECISION["distance_m"] / 2.0)
+    return Band("distance_m", target_m - half, target_m + half)
+
+
+def ensure_distance_band(bands: BandSet, target_m: float | None) -> BandSet:
+    """FR8/A8's AC: distance is never dropped from the explore search's
+    constraint set. An Author-authored `distance_m` band — any width,
+    including one wider than the default — always wins; this only adds one
+    when the caller supplied none at all, and only when there is a target to
+    centre it on."""
+    if target_m is None or any(b.metric == "distance_m" for b in bands):
+        return bands
+    return BandSet((*bands.bands, default_distance_band(target_m, DEFAULT_DISTANCE_BAND_FRAC)))

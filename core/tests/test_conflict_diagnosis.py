@@ -40,7 +40,11 @@ _TARGET_M = 20_000.0
 
 
 def _metrics(**overrides) -> RouteMetrics:
-    base = dict(distance_m=20_000.0, climb_m=100.0, descent_m=100.0, traffic=0.2,
+    # `distance_m` defaults to exactly `_TARGET_M` so every fake attempt below
+    # satisfies FR8/A8's now-mandatory default distance band (`diagnose`'s own
+    # `ensure_distance_band`, applied to every `bands` set this file drives
+    # through it) without having to say so at each call site.
+    base = dict(distance_m=_TARGET_M, climb_m=100.0, descent_m=100.0, traffic=0.2,
                 unpaved_frac=0.0, scenic_frac=0.1, max_grade=0.05, overlap_frac=0.0,
                 edge_count=10)
     base.update(overrides)
@@ -71,10 +75,20 @@ def _fake_search_bands(table: dict):
     the requested band set plus whether a via-node was carried — the two
     things every one of `diagnose()`'s internal calls varies on — never by
     the band's min/max, so this cannot honestly answer "does a relaxed band
-    now route" (see the module docstring)."""
+    now route" (see the module docstring).
+
+    FR8/A8: `diagnose()` now folds a default `distance_m` band into every
+    `bands` set it builds (`ensure_distance_band`), so every real call this
+    fake stands in for carries one whether a scenario cares about distance or
+    not. `_metrics()`'s `distance_m` defaults to exactly `_TARGET_M`, trivially
+    inside that band for every fake attempt below, so its presence never
+    changes which outcome a scenario maps to — `distance_m` is stripped from
+    the key here rather than threaded through every table below, the same way
+    this fake already ignores anything not deliberately varied per scenario.
+    """
 
     def fake(graph, start, target_m, bands, *, via=None, budget=30, keep_attempts=False):
-        key = (frozenset(b.metric for b in bands), via is not None)
+        key = (frozenset(b.metric for b in bands if b.metric != "distance_m"), via is not None)
         return table[key]
 
     return fake
@@ -96,6 +110,14 @@ def test_combination_conflict_names_both_bands_and_offers_working_relaxations(mo
 
     monkeypatch.setattr(diagnose_mod, "search_bands", _fake_search_bands({
         (frozenset({"climb_m", "traffic"}), True): full,
+        # FR8/A8: `bands` now carries a third (auto-injected) `distance_m`
+        # band, so the O(n) deletion filter runs one more probe than a
+        # two-band conflict alone would need — dropping either climb or
+        # traffic still leaves the other plus distance satisfiable (both
+        # attempts default `distance_m` to `_TARGET_M`), so each stays in
+        # the conflict; distance itself drops out via the `full` entry above.
+        (frozenset({"traffic"}), True): _result(True),
+        (frozenset({"climb_m"}), True): _result(True),
     }))
 
     result = diagnose(object(), _START, _TARGET_M, bands, via=[(40.1, -105.1)])
@@ -197,6 +219,44 @@ def test_via_node_implicated_when_dropping_it_makes_the_band_reachable(monkeypat
     assert result.via_relaxation is not None
     assert result.via_relaxation["action"] == "drop_via_nodes"
     assert result.via_relaxation["verified_routes"] is True
+
+
+def test_default_distance_band_can_itself_be_named_as_the_unattainable_constraint(monkeypatch):
+    """FR8/A8: distance is banded by default even when the Author never set
+    one on it — and like any other band, if nothing reachable here lands
+    inside it, `diagnose` must name *that* rather than silently let the
+    search trade distance away to satisfy everything else, which is exactly
+    the failure SPIKE-03 measured (up to +14.8% unannounced drift) and the
+    default band exists to catch. Uses a bespoke fake (not
+    `_fake_search_bands`, which deliberately strips `distance_m` from its
+    key since every other scenario in this file never varies it) because
+    this scenario is specifically about `distance_m` varying."""
+    climb = Band("climb_m", minimum=50.0)  # trivially attainable — never the culprit
+    bands = BandSet.of(climb)  # the Author set no distance_m band at all
+
+    drifted = _attempt("balanced", climb_m=100.0, distance_m=_TARGET_M * 1.30)
+    full = _result(False, attempts=(drifted,),
+                   envelope={"climb_m": (50.0, 150.0),
+                             "distance_m": (_TARGET_M * 1.25, _TARGET_M * 1.35)})
+
+    def fake(graph, start, target_m, requested, *, via=None, budget=30, keep_attempts=False):
+        key = frozenset(b.metric for b in requested)
+        if key == {"climb_m", "distance_m"}:
+            return full
+        if key == {"climb_m"}:
+            return _result(True, attempts=(drifted,))          # climb alone: attainable
+        if key == {"distance_m"}:
+            return _result(False, attempts=(drifted,))         # distance alone: unattainable here
+        raise AssertionError(f"unexpected band request: {sorted(key)}")
+
+    monkeypatch.setattr(diagnose_mod, "search_bands", fake)
+
+    result = diagnose(object(), _START, _TARGET_M, bands)
+
+    assert result.feasible is False
+    assert result.kind == "unattainable"
+    assert [b.metric for b in result.conflict] == ["distance_m"]
+    assert result.relaxations and result.relaxations[0].band.metric == "distance_m"
 
 
 def test_diagnose_never_raises_and_always_returns_an_explanation(monkeypatch):
