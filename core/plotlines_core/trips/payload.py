@@ -234,6 +234,9 @@ class RouteMetrics:
     traffic: float | None = None
     unpaved_frac: float | None = None
     scenic_frac: float | None = None
+    # FR5/FR6 (Story A5) — length-weighted mean realized salience, the
+    # attribute A5's AC adds to what a band may bound.
+    salience: float | None = None
     max_grade: float | None = None
     overlap_frac: float | None = None
     overlap_near_frac: float | None = None
@@ -249,7 +252,7 @@ class RouteMetrics:
             "climb_m": round(f(self.climb_m), 1),
             "descent_m": round(f(self.descent_m), 1),
         }
-        for key in ("traffic", "unpaved_frac", "scenic_frac", "max_grade",
+        for key in ("traffic", "unpaved_frac", "scenic_frac", "salience", "max_grade",
                     "overlap_frac", "overlap_near_frac", "overlap_far_frac"):
             value = getattr(self, key)
             out[key] = None if value is None else round(f(value), 4)
@@ -289,6 +292,7 @@ class RouteMetrics:
             traffic=blend("traffic"),
             unpaved_frac=blend("unpaved_frac"),
             scenic_frac=blend("scenic_frac"),
+            salience=blend("salience"),
             max_grade=(None if self.max_grade is None and other.max_grade is None
                        else max(self.max_grade or 0.0, other.max_grade or 0.0)),
             overlap_frac=blend("overlap_frac"),

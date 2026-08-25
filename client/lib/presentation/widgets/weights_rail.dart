@@ -23,7 +23,7 @@ import 'error_states.dart';
 
 const _surfaceClasses = ['paved', 'gravel', 'singletrack'];
 const _attributes = [
-  'distance_m', 'climb_m', 'descent_m', 'traffic', 'unpaved_frac', 'scenic_frac',
+  'distance_m', 'climb_m', 'descent_m', 'traffic', 'unpaved_frac', 'scenic_frac', 'salience',
 ];
 const _shapes = ['loop', 'out_and_back', 'point_to_point'];
 const _shapeLabels = {'loop': 'LOOP', 'out_and_back': 'OUT-BACK', 'point_to_point': 'P2P'};
@@ -40,6 +40,7 @@ class WeightsRail extends ConsumerStatefulWidget {
 class _WeightsRailState extends ConsumerState<WeightsRail> {
   bool _regenerating = false;
   bool _diagnosing = false;
+  bool _addingBand = false;
   String? _error;
 
   @override
@@ -53,6 +54,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         _error = null;
         _regenerating = false;
         _diagnosing = false;
+        _addingBand = false;
       });
     }
   }
@@ -172,20 +174,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: PlotButton(
-                        label: 'Add band',
+                        label: _addingBand ? 'Adding…' : 'Add band',
                         variant: PlotButtonVariant.ghost,
                         icon: Icons.add,
-                        onPressed: () {
-                          final attr = _attributes.firstWhere(
-                            (a) => !segment.bands.any((b) => b.attribute == a),
-                            orElse: () => _attributes.first,
-                          );
-                          ref.read(currentTripProvider.notifier).updateSegmentBands(
-                                widget.dayId,
-                                segment.id,
-                                [...segment.bands, Band(attribute: attr, min: null, max: null)],
-                              );
-                        },
+                        onPressed: _addingBand ? null : () => _addBand(segment),
                       ),
                     ),
                   ] else ...[
@@ -319,6 +311,56 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
     } finally {
       if (mounted) setState(() => _regenerating = false);
     }
+  }
+
+  /// A5's AC — a new band opens on the range this region can actually
+  /// deliver, probed from the graph (SPIKE-03: fixed defaults were feasible
+  /// 22.2% of the time, envelope-derived 100%), never on a blank/guessed
+  /// pair. `probe_envelope` only knows how to search loop shapes around a
+  /// target distance (`routing/search.py`'s own scope), so anything else
+  /// falls back to the prior blank-band behavior rather than failing —
+  /// probing is a convenience default, not a requirement, and an Author can
+  /// always type a band by hand.
+  Future<void> _addBand(Segment segment) async {
+    final attr = _attributes.firstWhere(
+      (a) => !segment.bands.any((b) => b.attribute == a),
+      orElse: () => _attributes.first,
+    );
+    double? lo, hi;
+    final targetM = segment.targetDistance?.valueM ?? segment.metrics?.distanceM;
+    if (segment.shape == 'loop' && segment.start != null && targetM != null) {
+      setState(() {
+        _addingBand = true;
+        _error = null;
+      });
+      try {
+        final client = ref.read(routingClientProvider);
+        final bbox = ref.read(tripBboxProvider);
+        if (bbox != null) {
+          final region = await client.ensureRegion(bbox.bboxWsen);
+          final envelope = await client.envelope(
+            region: region,
+            start: segment.start!,
+            targetM: targetM,
+            via: segment.via,
+          );
+          final range = envelope[attr];
+          if (range != null && range.length == 2) {
+            lo = range[0];
+            hi = range[1];
+          }
+        }
+      } on RoutingException catch (e) {
+        setState(() => _error = e.message);
+      } finally {
+        if (mounted) setState(() => _addingBand = false);
+      }
+    }
+    ref.read(currentTripProvider.notifier).updateSegmentBands(
+          widget.dayId,
+          segment.id,
+          [...segment.bands, Band(attribute: attr, min: lo, max: hi, source: lo == null && hi == null ? null : 'envelope')],
+        );
   }
 
   /// Loop always requires `target_m` server-side (`service/app.py`), which

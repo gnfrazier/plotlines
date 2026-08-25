@@ -21,6 +21,7 @@ class RouteMetrics {
     this.traffic,
     this.unpavedFrac,
     this.scenicFrac,
+    this.salience,
     this.maxGrade,
     this.overlapFrac,
     this.overlapNearFrac,
@@ -37,6 +38,10 @@ class RouteMetrics {
   final double? traffic;
   final double? unpavedFrac;
   final double? scenicFrac;
+
+  /// FR5/FR6 (Story A5) — length-weighted mean realized salience (A4's
+  /// interest weight), same shape as [traffic].
+  final double? salience;
   final double? maxGrade;
   final double? overlapFrac;
 
@@ -59,6 +64,7 @@ class RouteMetrics {
       traffic: f.takeNum('traffic'),
       unpavedFrac: f.takeNum('unpaved_frac'),
       scenicFrac: f.takeNum('scenic_frac'),
+      salience: f.takeNum('salience'),
       maxGrade: f.takeNum('max_grade'),
       overlapFrac: f.takeNum('overlap_frac'),
       overlapNearFrac: f.takeNum('overlap_near_frac'),
@@ -81,6 +87,7 @@ class RouteMetrics {
             unpavedFrac == null ? null : finite(unpavedFrac!, 'route_metrics.unpaved_frac'),
         'scenic_frac':
             scenicFrac == null ? null : finite(scenicFrac!, 'route_metrics.scenic_frac'),
+        'salience': salience == null ? null : finite(salience!, 'route_metrics.salience'),
         'max_grade': maxGrade == null ? null : finite(maxGrade!, 'route_metrics.max_grade'),
         'overlap_frac':
             overlapFrac == null ? null : finite(overlapFrac!, 'route_metrics.overlap_frac'),

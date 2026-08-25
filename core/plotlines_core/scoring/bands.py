@@ -71,7 +71,9 @@ class Band:
 
 
 def format_value(metric: str, value: float) -> str:
-    if metric.endswith("_frac") or metric == "traffic":
+    # `traffic`/`salience` are the two 0..1 continuous metrics without a `_frac`
+    # suffix (length-weighted means, not boolean-threshold shares) — FR6.
+    if metric.endswith("_frac") or metric in ("traffic", "salience"):
         return f"{value * 100:.0f}%"
     if metric.endswith("_m"):
         return f"{value:,.0f} m"

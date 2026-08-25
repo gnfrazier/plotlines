@@ -24,6 +24,7 @@ SPIKE-02 reports which of the two it is rather than blurring them.
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass, field
 
@@ -32,7 +33,7 @@ import networkx as nx
 from plotlines_core.routing.loops import Loop, generate_loop
 from plotlines_core.routing.solve import NoRouteFound
 from plotlines_core.scoring.bands import BandSet
-from plotlines_core.scoring.metrics import RouteMetrics
+from plotlines_core.scoring.metrics import METRIC_PRECISION, RouteMetrics
 from plotlines_core.scoring.profile import TUNABLE, WeightProfile
 
 #: Weight vectors chosen to drive each metric toward an extreme, so the probe phase
@@ -55,6 +56,12 @@ ARCHETYPES: tuple[WeightProfile, ...] = (
                   surface_paved=1.0, surface_gravel=-1.0, surface_singletrack=-1.0),
     WeightProfile("rough", quiet=0.8, scenic=0.7, directness=0.2,
                   surface_paved=-1.0, surface_gravel=1.0, surface_singletrack=1.0),
+    # FR5/FR6: brackets the `salience` envelope's high end. Only one direction is
+    # needed — `interest`'s identity value is 0.0 (ARCH D46: unipolar, no "avoid
+    # good places" case), which every other archetype above already reproduces —
+    # unlike `peaks`/`surface_*`, whose bipolar identity sits at a value none of
+    # the other archetypes visit on their own.
+    WeightProfile("notable", quiet=0.5, scenic=0.3, directness=0.3, interest=1.0),
 )
 
 _STEPS = (0.5, 0.25)
@@ -113,7 +120,55 @@ class SearchResult:
 
 
 #: Metrics reported by `probe_envelope`, i.e. everything a band can be set on.
-ENVELOPE_METRICS = ("distance_m", "climb_m", "traffic", "unpaved_frac", "scenic_frac")
+ENVELOPE_METRICS = ("distance_m", "climb_m", "traffic", "unpaved_frac", "scenic_frac", "salience")
+
+#: Every metric in `METRIC_PRECISION` is physically non-negative, and the four
+#: continuous 0..1 signals (`traffic`/`unpaved_frac`/`scenic_frac`/`salience`)
+#: cannot exceed 1.0 either. `_floor_precision`'s symmetric widening must not
+#: drift a reported range past either bound — a route cannot climb -25 m.
+_METRIC_DOMAIN: dict[str, tuple[float, float]] = {
+    "distance_m": (0.0, math.inf),
+    "climb_m": (0.0, math.inf),
+    "traffic": (0.0, 1.0),
+    "unpaved_frac": (0.0, 1.0),
+    "scenic_frac": (0.0, 1.0),
+    "salience": (0.0, 1.0),
+}
+
+
+def _floor_precision(metric: str, lo: float, hi: float) -> tuple[float, float]:
+    """Widen and round `(lo, hi)` so it is never narrower than
+    `METRIC_PRECISION[metric]` — A5's AC ("band precision floored in absolute
+    units") and SPIKE-03's own finding: a search this incomplete narrowing a
+    19 m climb down to a 0.95 m window is a promise it cannot keep, even
+    though nothing about the *search* was wrong.
+
+    Rounds outward (floor the low end, ceil the high end) so the reported
+    range still contains every value actually observed, never clips one out
+    to make the window look tidier.
+    """
+    precision = METRIC_PRECISION.get(metric)
+    if not precision or precision <= 0:
+        return lo, hi
+    if hi - lo < precision:
+        center = (lo + hi) / 2.0
+        lo, hi = center - precision / 2.0, center + precision / 2.0
+        # Slide the whole window back inside the metric's physical domain
+        # rather than merely clipping one edge, which would silently shrink
+        # it back under the floor right at a boundary (e.g. climb near 0).
+        dom_lo, dom_hi = _METRIC_DOMAIN.get(metric, (-math.inf, math.inf))
+        if lo < dom_lo:
+            hi += dom_lo - lo
+            lo = dom_lo
+        if hi > dom_hi:
+            lo -= hi - dom_hi
+            hi = dom_hi
+        lo, hi = max(lo, dom_lo), min(hi, dom_hi)
+    # `round(..., 9)` before floor/ceil: a boundary value like 0.95/0.05 can land
+    # at 18.999999999999996 in float64, and flooring that undershoots by a whole
+    # precision step — a rounding artefact, not a real "in-between" value.
+    return (math.floor(round(lo / precision, 9)) * precision,
+            math.ceil(round(hi / precision, 9)) * precision)
 
 
 def probe_envelope(
@@ -129,7 +184,8 @@ def probe_envelope(
     The archetype set only, with no bands and no descent. This is the number an
     Author-facing UI wants: band sliders should open on the range that exists here,
     not on an abstract 0–5, which is how a request becomes infeasible before anyone
-    has asked for anything unreasonable.
+    has asked for anything unreasonable. Each range is floored to its metric's
+    absolute precision (`_floor_precision`) before it is returned.
     """
     seen: dict[str, list[float]] = {m: [] for m in ENVELOPE_METRICS}
     for profile in ARCHETYPES:
@@ -140,7 +196,7 @@ def probe_envelope(
             continue
         for metric in ENVELOPE_METRICS:
             seen[metric].append(loop.metrics.value(metric))
-    return {m: (min(v), max(v)) for m, v in seen.items() if v}
+    return {m: _floor_precision(m, min(v), max(v)) for m, v in seen.items() if v}
 
 
 def search_bands(

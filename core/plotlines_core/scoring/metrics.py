@@ -24,6 +24,7 @@ METRIC_SCALE: dict[str, float] = {
     "traffic": 0.1,
     "unpaved_frac": 0.1,
     "scenic_frac": 0.1,
+    "salience": 0.1,
 }
 
 #: Human-facing names, used verbatim in A6's conflict messages.
@@ -33,6 +34,21 @@ METRIC_LABEL: dict[str, str] = {
     "traffic": "traffic exposure",
     "unpaved_frac": "unpaved share",
     "scenic_frac": "scenic share",
+    "salience": "realized salience",
+}
+
+#: FR6/A5, SPIKE-03 — the narrowest a probed envelope may report a band's
+#: attainable range, in the metric's own absolute unit ("≈25 m of climbing"),
+#: never as a percentage of the observed value: ±5% of a 19 m climb is a
+#: ±0.95 m window no search this incomplete should promise. `search.py`'s
+#: `probe_envelope` is the one place this is applied.
+METRIC_PRECISION: dict[str, float] = {
+    "distance_m": 100.0,
+    "climb_m": 25.0,
+    "traffic": 0.05,
+    "unpaved_frac": 0.05,
+    "scenic_frac": 0.05,
+    "salience": 0.05,
 }
 
 #: Below this surface quality an edge counts as unpaved for FR4 reporting.
@@ -55,6 +71,11 @@ class RouteMetrics:
     # wearing a loop's name. One number cannot tell those apart, so there are two.
     overlap_near_frac: float = 0.0   # inside an Author-designated point's locality
     overlap_far_frac: float = 0.0    # everywhere else — the number that must stay low
+    # FR5/FR6 (Story A5) — length-weighted mean of `interest_salience`
+    # (`routing.interest.annotate_interest`), same shape as `traffic`: a
+    # continuous 0..1 signal, not a boolean-threshold share like `scenic_frac`.
+    # An edge nothing annotated reads 0.0, same as `edge_cost`'s treatment.
+    salience: float = 0.0
 
     def value(self, metric: str) -> float:
         return float(getattr(self, metric))
@@ -92,7 +113,7 @@ def measure(graph: nx.MultiDiGraph,
         return RouteMetrics(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0)
 
     total = climb = descent = 0.0
-    stress_m = unpaved_m = scenic_m = 0.0
+    stress_m = unpaved_m = scenic_m = salience_m = 0.0
     max_grade = 0.0
     seen: dict[frozenset, float] = {}
     repeat_m = repeat_near_m = 0.0
@@ -105,6 +126,7 @@ def measure(graph: nx.MultiDiGraph,
             unpaved_m += length
         if scenic_hit:
             scenic_m += length
+        salience_m += data.get("interest_salience", 0.0) * length
         max_grade = max(max_grade, grade)
 
         # Undirected key: riding a street back the other way is still retracing it.
@@ -137,4 +159,5 @@ def measure(graph: nx.MultiDiGraph,
         edge_count=len(walk),
         overlap_near_frac=repeat_near_m / total if total else 0.0,
         overlap_far_frac=(repeat_m - repeat_near_m) / total if total else 0.0,
+        salience=salience_m / total if total else 0.0,
     )

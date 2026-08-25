@@ -172,7 +172,7 @@
 
     "attribute": {
       "description": "A REALISED route attribute (FR6 as reworded after SPIKE-03). Bands bound these, never the weights that produced them.",
-      "enum": ["distance_m", "climb_m", "descent_m", "traffic", "unpaved_frac", "scenic_frac"]
+      "enum": ["distance_m", "climb_m", "descent_m", "traffic", "unpaved_frac", "scenic_frac", "salience"]
     },
 
     "band": {
@@ -231,6 +231,10 @@
         "traffic": { "$ref": "#/$defs/unit_scalar" },
         "unpaved_frac": { "$ref": "#/$defs/unit_scalar" },
         "scenic_frac": { "$ref": "#/$defs/unit_scalar" },
+        "salience": {
+          "$ref": "#/$defs/unit_scalar",
+          "description": "FR5/FR6 (Story A5) — length-weighted mean realized salience (A4's interest weight), same shape as `traffic`."
+        },
         "max_grade": { "type": "number" },
         "overlap_frac": { "$ref": "#/$defs/unit_scalar" },
         "overlap_near_frac": {

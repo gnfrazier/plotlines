@@ -94,6 +94,7 @@ class Loop:
             "traffic": round(self.metrics.traffic, 4) if self.metrics else None,
             "scenic_frac": round(self.metrics.scenic_frac, 4) if self.metrics else None,
             "unpaved_frac": round(self.metrics.unpaved_frac, 4) if self.metrics else None,
+            "salience": round(self.metrics.salience, 4) if self.metrics else None,
             "mean_cost_per_m": round(self.mean_cost_per_m, 4),
             "node_count": len(self.path),
             "closed": self.closed,
