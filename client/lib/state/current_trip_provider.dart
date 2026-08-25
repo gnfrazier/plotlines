@@ -431,40 +431,23 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final region = await client.ensureRegion(bbox.bboxWsen);
     final weights = old.weights;
     // Author-facing 0.0-5.0 -> solver-internal 0.0-1.0 (bipolar -1..1 for
-    // peaks), per scoring/profile.py's documented conversion (risk A18,
-    // MVP doc §1.4.5 — "it lands with the first weight slider": this is
-    // that slider).
-    //
-    // `surface` is a real, lossy reduction, not a units conversion: the
-    // Author sets three independent 0-5 dials (paved/gravel/singletrack,
-    // each avoid<->seek), but the solver has one scalar `surface` dial that
-    // can only ever *penalise* low-quality surface (edge_cost's
-    // `profile.surface * (1.0 - quality)` term is never negative) — it has
-    // no way to actively seek gravel, only to stop avoiding it. Given that
-    // ceiling, the honest mapping is the Author's net preference for
-    // pavement over rough surface, clamped to what the solver can act on:
-    // 0 when indifferent or unpaved-seeking (correctly relaxes the
-    // aversion to zero, the best available response), scaling toward 1 as
-    // paved preference exceeds gravel/singletrack. Absent classes read as
-    // indifferent (2.5), matching the schema's own rule for `surface`.
-    double? surfaceDial;
-    final surface = weights?.surface;
-    if (surface != null && surface.isNotEmpty) {
-      final paved = surface['paved'] ?? 2.5;
-      final gravel = surface['gravel'] ?? 2.5;
-      final singletrack = surface['singletrack'] ?? 2.5;
-      final unpaved = (gravel + singletrack) / 2.0;
-      surfaceDial = ((paved - unpaved) / 5.0).clamp(0.0, 1.0);
-    }
+    // peaks and each surface_<class>), per scoring/profile.py's documented
+    // conversion (risk A18, MVP doc §1.4.5 — "it lands with the first
+    // weight slider": this is that slider).
     final peaks = weights == null ? null : peaksFromClimbing(weights.climbing);
     // FR3/A2: inverted, not scaled — see `quietFromTraffic`'s doc comment.
     final quiet = weights == null ? null : quietFromTraffic(weights.traffic);
+    // FR4/A3: one bipolar dial per class — see `surfaceWeightsFromAuthor`'s doc
+    // comment. Absent classes are simply absent from the spread, same
+    // omit-rather-than-invent rule as `peaks`/`quiet` above.
+    final surfaceWeights =
+        weights == null ? const <String, double>{} : surfaceWeightsFromAuthor(weights.surface);
     final weightsPayload = weights == null
         ? null
         : {
             if (peaks != null) 'peaks': peaks,
             if (quiet != null) 'quiet': quiet,
-            if (surfaceDial != null) 'surface': surfaceDial,
+            ...surfaceWeights,
           };
     final resolved = await client.generateSegment(
       region: region,

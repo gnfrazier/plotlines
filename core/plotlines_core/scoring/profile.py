@@ -18,6 +18,14 @@ than scales directly (`weight_profile.dart`'s `quietFromTraffic`).
 
 FR3 / ARCH D33 / SPIKE-03 §5: traffic stress is not simply read off `highway=*`
 below — see `_TRAFFIC_STRESS`'s doc.
+
+FR4 (Story A3) / SPIKE-03 §"lower-priority": surface, like `peaks`, is bipolar per
+class (paved / gravel / singletrack), each -1.0 avoid .. 0.0 indifferent ..
++1.0 seek — a unipolar dial can only ever *tolerate* a class, never *seek* it
+outright, which is the defect SPIKE-03 measured (no unpaved-minimum band was
+satisfiable anywhere). The Author-facing conversion is the same
+`w = (ui - 2.5) / 2.5` as `peaks`, applied once per class
+(`weight_profile.dart`'s `surfaceWeightsFromAuthor`).
 """
 
 from __future__ import annotations
@@ -26,11 +34,61 @@ import dataclasses
 from dataclasses import dataclass, field
 
 # Surface desirability, 0.0 (avoid) .. 1.0 (ideal), for a general "bike" profile.
+# Feeds `unpaved_frac` reporting (metrics.py) only — FR4's per-class *weighting*
+# below uses `surface_bucket`, not this scale.
 _SURFACE_QUALITY: dict[str, float] = {
     "asphalt": 1.0, "paved": 1.0, "concrete": 0.9, "paving_stones": 0.7,
     "compacted": 0.7, "fine_gravel": 0.65, "gravel": 0.5, "unpaved": 0.45,
     "ground": 0.35, "dirt": 0.35, "grass": 0.2, "sand": 0.1,
 }
+
+# FR4's three classes, from the `surface` tag's tread material. Mirrors
+# `trips/cues.py`'s `_PAVED`/`_GRAVEL` sets (cue text stays two-bucket; this is
+# scoring's own three-bucket read of the same tag).
+_PAVED_SURFACE = frozenset({
+    "asphalt", "paved", "concrete", "concrete:plates", "concrete:lanes",
+    "paving_stones", "sett", "cobblestone", "chipseal", "metal", "wood",
+    "bricks", "brick",
+})
+_UNPAVED_SURFACE = frozenset({
+    "gravel", "fine_gravel", "compacted", "unpaved", "dirt", "ground", "earth",
+    "grass", "sand", "mud", "pebblestone", "rock", "woodchips",
+})
+
+# `highway` classes narrow enough to read as a trail rather than a road, once the
+# tread is unpaved or untagged. `cues.py.surface_class` explicitly leaves FR4's
+# third class unmodeled ("no source here... a modelling decision this function
+# deliberately leaves to whoever takes it", SPIKE-21 §5.3) — this is that
+# decision, scoped to scoring (a routing bias) rather than to cue text. Per
+# `docs/osm_reference.md`'s "off-road singletrack/trail" row, `path`/`bridleway`
+# are the classes that carry that character; `track` is left out because it
+# reads more like a double-track farm/forest road (SPIKE-03's "gravel" theme
+# territory) than singletrack.
+_SINGLETRACK_HIGHWAY = frozenset({"path", "bridleway"})
+
+
+def surface_bucket(highway: str, data: dict) -> str | None:
+    """`paved` / `gravel` / `singletrack` / `None` (unknown) — the class FR4's
+    per-class weights bias on.
+
+    Tread material (`surface`) decides paved vs. gravel wherever it is tagged,
+    same as `cues.py.surface_class`. Singletrack has no tag of its own — it's a
+    way-*width* fact, not a tread fact — so a natural (unpaved or untagged) tread
+    on a narrow trail way reads as singletrack, while the identical tread on a
+    wider way (`track`, `residential`, ...) reads as gravel. An unknown surface
+    on anything but a trail way stays unknown, same as `cues.py`'s rule: absence
+    is a fact about the map, never guessed into a value.
+    """
+    surface = _first(data.get("surface"))
+    surface = str(surface).lower() if surface else None
+    if surface in _PAVED_SURFACE:
+        return "paved"
+    is_trail_way = highway in _SINGLETRACK_HIGHWAY
+    if surface in _UNPAVED_SURFACE:
+        return "singletrack" if is_trail_way else "gravel"
+    if surface is None and is_trail_way:
+        return "singletrack"
+    return None
 
 # Traffic stress by highway class, 0.0 (calm) .. 1.0 (hostile) — the *ceiling* a class
 # can reach, not what every edge of that class gets (see `_stress` below).
@@ -116,22 +174,30 @@ class WeightProfile:
 
     name: str = "balanced"
     quiet: float = 0.5       # prefer low-traffic ways
-    surface: float = 0.5     # prefer good surface
     scenic: float = 0.5      # prefer green/park/water-adjacent ways
     directness: float = 0.5  # penalise detour; 1.0 ≈ shortest path
     # FR2 "peaks", the one bipolar weight: -1.0 avoid climbing .. 0.0 indifferent ..
     # +1.0 seek climbing. Zero is the identity, which is why adding it did not change
     # any route SPIKE-00 measured.
     peaks: float = 0.0
+    # FR4 "surface", one bipolar dial per class, same shape as `peaks` and same
+    # reason: 0.0 is indifferent/identity, -1.0 avoids that class outright, +1.0
+    # seeks it outright — an Author can point the engine at gravel or singletrack,
+    # not merely relax pavement preference toward zero (SPIKE-03).
+    surface_paved: float = 0.0
+    surface_gravel: float = 0.0
+    surface_singletrack: float = 0.0
     extras: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        for key in ("quiet", "surface", "scenic", "directness"):
+        for key in ("quiet", "scenic", "directness"):
             val = getattr(self, key)
             if not 0.0 <= val <= 1.0:
                 raise ValueError(f"weight {key}={val} outside 0.0..1.0")
-        if not -1.0 <= self.peaks <= 1.0:
-            raise ValueError(f"weight peaks={self.peaks} outside -1.0..1.0")
+        for key in ("peaks", "surface_paved", "surface_gravel", "surface_singletrack"):
+            val = getattr(self, key)
+            if not -1.0 <= val <= 1.0:
+                raise ValueError(f"weight {key}={val} outside -1.0..1.0")
 
     def replace(self, **changes) -> WeightProfile:
         """A copy with some weights changed — what a band search walks over."""
@@ -141,10 +207,12 @@ class WeightProfile:
 #: Weight names the band search may tune, with their legal range.
 TUNABLE: dict[str, tuple[float, float]] = {
     "quiet": (0.0, 1.0),
-    "surface": (0.0, 1.0),
     "scenic": (0.0, 1.0),
     "directness": (0.0, 1.0),
     "peaks": (-1.0, 1.0),
+    "surface_paved": (-1.0, 1.0),
+    "surface_gravel": (-1.0, 1.0),
+    "surface_singletrack": (-1.0, 1.0),
 }
 
 
@@ -153,8 +221,9 @@ TUNABLE: dict[str, tuple[float, float]] = {
 _GRADE_SATURATION = 0.12
 
 
-def features(data: dict) -> tuple[float, float, float, bool, float]:
-    """Static per-edge features: (length_m, stress, surface_quality, scenic, grade).
+def features(data: dict) -> tuple[float, float, float, bool, float, str | None]:
+    """Static per-edge features: (length_m, stress, surface_quality, scenic, grade,
+    surface_bucket).
 
     Cached onto the edge dict. SPIKE-03's band search re-solves one graph dozens of
     times per scenario, and re-parsing OSM tag lists on every Dijkstra relaxation made
@@ -171,6 +240,7 @@ def features(data: dict) -> tuple[float, float, float, bool, float]:
 
     surface = _first(data.get("surface"))
     quality = _SURFACE_QUALITY.get(surface, 0.6)  # untagged ≈ mediocre-but-fine
+    bucket = surface_bucket(highway, data)
 
     # Scenic proxy: OSM doesn't tag "scenic", so stand in with the signals that
     # correlate with it on a real graph. A real implementation reads content/ POIs.
@@ -185,20 +255,36 @@ def features(data: dict) -> tuple[float, float, float, bool, float]:
     except (TypeError, ValueError):
         grade = 0.0
 
-    feat = (length, stress, quality, scenic_hit, grade)
+    feat = (length, stress, quality, scenic_hit, grade, bucket)
     data["_pl_feat"] = feat
     return feat
 
 
+#: Class name -> the `WeightProfile` field that biases it (FR4).
+_SURFACE_WEIGHT_FIELD = {
+    "paved": "surface_paved",
+    "gravel": "surface_gravel",
+    "singletrack": "surface_singletrack",
+}
+
+
 def edge_cost(data: dict, profile: WeightProfile) -> float:
     """The one scoring function. Returns a positive cost for one edge."""
-    length, stress, quality, scenic_hit, grade = features(data)
+    length, stress, quality, scenic_hit, grade, bucket = features(data)
 
     penalty = 1.0
     penalty += profile.quiet * stress * 2.0
-    penalty += profile.surface * (1.0 - quality) * 1.5
     if scenic_hit:
         penalty -= profile.scenic * 0.35
+
+    # FR4, bipolar per class like peaks below: negative avoids this edge's class
+    # (charges a penalty), positive seeks it (discounts). An edge whose class is
+    # unknown (`bucket is None`) carries no surface bias at all — an unclassifiable
+    # edge is neither sought nor avoided by any class weight.
+    if bucket is not None:
+        surface_weight = getattr(profile, _SURFACE_WEIGHT_FIELD[bucket])
+        if surface_weight:
+            penalty -= surface_weight * 0.6
 
     # FR2. Positive peaks discount steep edges (seek them), negative peaks charge for
     # them (stay flat). The clamp below keeps every cost strictly positive, which
@@ -214,10 +300,13 @@ def edge_cost(data: dict, profile: WeightProfile) -> float:
 
 THEMES: dict[str, WeightProfile] = {
     "balanced": WeightProfile("balanced"),
-    "quiet_scenic": WeightProfile("quiet_scenic", quiet=0.9, surface=0.5, scenic=0.9,
-                                  directness=0.2),
-    "fastest": WeightProfile("fastest", quiet=0.1, surface=0.3, scenic=0.0,
-                             directness=0.95),
-    "gravel": WeightProfile("gravel", quiet=0.8, surface=0.0, scenic=0.7,
-                            directness=0.3),
+    "quiet_scenic": WeightProfile("quiet_scenic", quiet=0.9, scenic=0.9,
+                                  directness=0.2, surface_paved=0.4),
+    "fastest": WeightProfile("fastest", quiet=0.1, scenic=0.0, directness=0.95),
+    # FR4 / SPIKE-03's own flagged example: this theme's whole point is to prefer
+    # gravel, which the old unipolar `surface` dial could only ever *tolerate*
+    # (surface=0.0, i.e. fully relaxed), never actually seek. Bipolar fixes it.
+    "gravel": WeightProfile("gravel", quiet=0.8, scenic=0.7, directness=0.3,
+                            surface_gravel=1.0, surface_singletrack=0.3,
+                            surface_paved=-0.5),
 }

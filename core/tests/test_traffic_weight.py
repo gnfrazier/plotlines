@@ -25,7 +25,7 @@ from plotlines_core.scoring.profile import (
 
 # Isolates the quiet term: every other weight is zero, so only `highway`/`maxspeed`/
 # `lanes` and `quiet` drive `edge_cost`'s penalty.
-_NEUTRAL = dict(surface=0.0, scenic=0.0, directness=0.0, peaks=0.0)
+_NEUTRAL = dict(scenic=0.0, directness=0.0, peaks=0.0)
 
 
 def _profile(quiet: float) -> WeightProfile:
@@ -40,7 +40,7 @@ def _profile(quiet: float) -> WeightProfile:
 @pytest.mark.parametrize("highway", ["tertiary", "secondary", "primary", "trunk", "unclassified"])
 def test_low_signal_class_with_no_contrary_signal_is_zero_stress(highway):
     edge = {"length": 100.0, "highway": highway}
-    length, stress, quality, scenic_hit, grade = features(edge)
+    length, stress, quality, scenic_hit, grade, bucket = features(edge)
     assert stress == 0.0
 
 
@@ -63,7 +63,7 @@ def test_low_signal_class_with_many_lanes_reaches_its_class_ceiling(highway):
 def test_unrecognised_highway_class_also_defaults_to_zero_stress_absent_a_signal():
     # `_TRAFFIC_STRESS.get(highway, 0.5)` is the ceiling for an unknown class, but an
     # unknown/untagged class is exactly the "no signal" case D33 governs.
-    _, stress, _, _, _ = features({"length": 100.0, "highway": "some_future_osm_tag"})
+    _, stress, _, _, _, _ = features({"length": 100.0, "highway": "some_future_osm_tag"})
     assert stress == 0.0
 
 

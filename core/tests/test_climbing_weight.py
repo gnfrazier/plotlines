@@ -18,7 +18,7 @@ from plotlines_core.scoring.profile import WeightProfile, edge_cost
 
 # Isolates the peaks term: every other weight is zero, so only `grade_abs` and
 # `peaks` drive `edge_cost`'s penalty.
-_NEUTRAL = dict(quiet=0.0, surface=0.0, scenic=0.0, directness=0.0)
+_NEUTRAL = dict(quiet=0.0, scenic=0.0, directness=0.0)
 
 
 def _profile(peaks: float) -> WeightProfile:

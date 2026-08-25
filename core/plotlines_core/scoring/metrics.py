@@ -98,7 +98,7 @@ def measure(graph: nx.MultiDiGraph,
     repeat_m = repeat_near_m = 0.0
 
     for u, v, data in walk:
-        length, stress, quality, scenic_hit, grade = features(data)
+        length, stress, quality, scenic_hit, grade, _bucket = features(data)
         total += length
         stress_m += stress * length
         if quality < _UNPAVED_BELOW:

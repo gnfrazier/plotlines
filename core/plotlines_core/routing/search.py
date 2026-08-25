@@ -39,17 +39,22 @@ from plotlines_core.scoring.profile import TUNABLE, WeightProfile
 #: brackets what the graph can do. Names appear verbatim in SPIKE-02 explanations.
 ARCHETYPES: tuple[WeightProfile, ...] = (
     WeightProfile("balanced"),
-    WeightProfile("direct", quiet=0.1, surface=0.3, scenic=0.0, directness=0.95),
-    WeightProfile("flat", quiet=0.3, surface=0.4, scenic=0.2, directness=0.7, peaks=-1.0),
-    WeightProfile("climby", quiet=0.2, surface=0.3, scenic=0.2, directness=0.1, peaks=1.0),
-    WeightProfile("quiet", quiet=1.0, surface=0.5, scenic=0.5, directness=0.2),
-    WeightProfile("quiet_climby", quiet=1.0, surface=0.4, scenic=0.4, directness=0.1,
-                  peaks=1.0),
-    WeightProfile("quiet_flat", quiet=1.0, surface=0.5, scenic=0.3, directness=0.3,
-                  peaks=-1.0),
-    WeightProfile("scenic", quiet=0.8, surface=0.5, scenic=1.0, directness=0.15),
-    WeightProfile("paved", quiet=0.6, surface=1.0, scenic=0.3, directness=0.4),
-    WeightProfile("rough", quiet=0.8, surface=0.0, scenic=0.7, directness=0.2),
+    WeightProfile("direct", quiet=0.1, scenic=0.0, directness=0.95),
+    WeightProfile("flat", quiet=0.3, scenic=0.2, directness=0.7, peaks=-1.0),
+    WeightProfile("climby", quiet=0.2, scenic=0.2, directness=0.1, peaks=1.0),
+    WeightProfile("quiet", quiet=1.0, scenic=0.5, directness=0.2),
+    WeightProfile("quiet_climby", quiet=1.0, scenic=0.4, directness=0.1, peaks=1.0),
+    WeightProfile("quiet_flat", quiet=1.0, scenic=0.3, directness=0.3, peaks=-1.0),
+    WeightProfile("scenic", quiet=0.8, scenic=1.0, directness=0.15),
+    # FR4: these two now drive the surface envelope's actual extremes — "paved"
+    # seeks pavement and avoids both unpaved classes outright, "rough" the mirror
+    # image, rather than the old unipolar dial's best case of merely relaxing to
+    # indifferent (SPIKE-03's flagged gap: no unpaved-minimum band was ever
+    # satisfiable, because nothing in the probe set could reach one).
+    WeightProfile("paved", quiet=0.6, scenic=0.3, directness=0.4,
+                  surface_paved=1.0, surface_gravel=-1.0, surface_singletrack=-1.0),
+    WeightProfile("rough", quiet=0.8, scenic=0.7, directness=0.2,
+                  surface_paved=-1.0, surface_gravel=1.0, surface_singletrack=1.0),
 )
 
 _STEPS = (0.5, 0.25)
