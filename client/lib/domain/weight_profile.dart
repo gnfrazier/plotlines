@@ -129,6 +129,22 @@ class WeightProfile {
 double? peaksFromClimbing(double? climbing) =>
     climbing == null ? null : (climbing - 2.5) / 2.5;
 
+/// FR3/A2 — the Author-facing 0.0-5.0 "cars" (traffic-tolerance) scale mapped onto
+/// [ThemeWeightProfile.quiet]'s solver-internal 0.0..1.0 scale.
+///
+/// Unlike [peaksFromClimbing], this is an inversion, not a direct scaling: `traffic`
+/// is a *tolerance* (0.0 "avoid cars" .. 5.0 "seek cars"/direct urban egress), while
+/// `quiet` is the solver's *aversion to traffic* strength (`scoring/profile.py`'s
+/// `edge_cost`: `penalty += quiet * stress`, so `quiet` only ever penalises stress —
+/// there is no "reward high-traffic edges" case). Low tolerance must therefore map to
+/// *high* quiet-aversion for A2's AC ("at low tolerance the route measurably favors
+/// lower road classes") to hold: `w = (5.0 - ui) / 5.0`. The Author-facing midpoint
+/// (2.5, "indifferent") lands on 0.5, matching `ThemeWeightProfile.quiet`'s own
+/// default and the `balanced` theme. `null` (no preference authored) stays `null`,
+/// same rule as `peaksFromClimbing`.
+double? quietFromTraffic(double? traffic) =>
+    traffic == null ? null : (5.0 - traffic) / 5.0;
+
 /// `plotlines_core.scoring.profile.WeightProfile` — the solver's internal 0.0-1.0
 /// theme shape. Never round-tripped through `trip.payload`; only through the
 /// sidecar's `/segments/generate` (`theme` name or raw `weights` map).

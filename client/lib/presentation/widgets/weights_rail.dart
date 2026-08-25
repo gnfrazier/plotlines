@@ -118,7 +118,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                     onChanged: (v) => setWeights(weights.copyWith(climbing: v)),
                   ),
                   WeightSlider(
-                    label: 'Traffic',
+                    // A2's AC: "'cars' terminology" — matches the "Peaks —
+                    // climbing" / "Cars — traffic tolerance" pattern in
+                    // `Flow 4 - Explore and compose.dc.html`.
+                    label: 'Cars — traffic tolerance',
                     hint: 'avoid cars ↔ indifferent ↔ seek cars',
                     value: weights.traffic ?? 2.5,
                     onChanged: (v) => setWeights(weights.copyWith(traffic: v)),

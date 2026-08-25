@@ -11,7 +11,13 @@ untouched so SPIKE-00's measured routes remain reproducible.
 Author-facing scale: the PRD states weights as 0.0–5.0 (FR2–FR5). Internally they are
 0.0–1.0 (and -1..1 for `peaks`), so a UI value maps linearly: `w = ui / 5.0`, and for
 peaks `w = (ui - 2.5) / 2.5`, since FR2's scale is explicitly bipolar
-("flat ↔ maximal climbing") with a neutral middle.
+("flat ↔ maximal climbing") with a neutral middle. FR3's "cars" is the inverse case —
+the Author-facing scale is a *tolerance* (0 avoid cars .. 5 seek directness), while
+`quiet` below is an *aversion* strength, so the client-side conversion inverts rather
+than scales directly (`weight_profile.dart`'s `quietFromTraffic`).
+
+FR3 / ARCH D33 / SPIKE-03 §5: traffic stress is not simply read off `highway=*`
+below — see `_TRAFFIC_STRESS`'s doc.
 """
 
 from __future__ import annotations
@@ -26,12 +32,82 @@ _SURFACE_QUALITY: dict[str, float] = {
     "ground": 0.35, "dirt": 0.35, "grass": 0.2, "sand": 0.1,
 }
 
-# Traffic stress by highway class, 0.0 (calm) .. 1.0 (hostile).
+# Traffic stress by highway class, 0.0 (calm) .. 1.0 (hostile) — the *ceiling* a class
+# can reach, not what every edge of that class gets (see `_stress` below).
 _TRAFFIC_STRESS: dict[str, float] = {
     "cycleway": 0.0, "path": 0.05, "track": 0.1, "footway": 0.15,
     "living_street": 0.2, "residential": 0.3, "unclassified": 0.4,
     "tertiary": 0.55, "secondary": 0.75, "primary": 0.9, "trunk": 1.0,
 }
+
+# FR3 / ARCH D33 / SPIKE-03 §5: for these classes the tag itself is decisive — a
+# cycleway or a residential street is calm by definition, maxspeed/lanes or not.
+_EXPLICIT_STRESS_CLASSES = frozenset({
+    "cycleway", "path", "track", "footway", "living_street", "residential",
+})
+
+# Every other class (tertiary/secondary/primary/trunk/unclassified, and anything
+# untagged or unrecognised) is ambiguous: SPIKE-03 measured Viroqua's rural county
+# roads tagged `tertiary`/`secondary` sitting at a manufactured 35-48% "traffic
+# exposure" floor purely from the class tag, though nothing distinguishes them from a
+# genuinely busy road of the same class. D33 resolves this: these classes are the
+# model's zero-stress baseline, and only a real capacity/speed signal — `maxspeed` or
+# `lanes` — raises them off it, up to the class's usual ceiling above.
+_MAXSPEED_SIGNAL_KMH = 50.0  # above a typical rural road's posted speed (25-45 km/h)
+_LANES_SIGNAL = 4  # more than one lane in each direction
+
+
+def _first(value):
+    """OSM tags arrive as str or list[str] depending on way merging."""
+    return value[0] if isinstance(value, list) and value else value
+
+
+def _maxspeed_kmh(value) -> float | None:
+    """Parse an OSM `maxspeed` tag to km/h, or `None` if absent/unparseable.
+
+    Handles bare km/h ("50"), explicit mph ("35 mph"), and leaves non-numeric
+    conventions (`"walk"`, `"national"`, `"none"`) as no signal rather than guessing.
+    """
+    value = _first(value)
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    try:
+        if text.endswith("mph"):
+            return float(text[:-3].strip()) * 1.60934
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _lane_count(value) -> int | None:
+    value = _first(value)
+    if value is None:
+        return None
+    try:
+        return int(float(str(value).strip()))
+    except ValueError:
+        return None
+
+
+def _has_capacity_signal(data: dict) -> bool:
+    """The "contrary signal" D33 requires before a low-signal class's stress rises
+    off its zero baseline: a real posted speed or lane count, not the class tag."""
+    maxspeed = _maxspeed_kmh(data.get("maxspeed"))
+    if maxspeed is not None and maxspeed >= _MAXSPEED_SIGNAL_KMH:
+        return True
+    lanes = _lane_count(data.get("lanes"))
+    if lanes is not None and lanes >= _LANES_SIGNAL:
+        return True
+    return False
+
+
+def _stress(highway: str, data: dict) -> float:
+    """FR3 / D33 — road-class ceiling gated by a vehicle-density/speed threshold."""
+    class_stress = _TRAFFIC_STRESS.get(highway, 0.5)
+    if highway in _EXPLICIT_STRESS_CLASSES or _has_capacity_signal(data):
+        return class_stress
+    return 0.0
 
 
 @dataclass(frozen=True)
@@ -72,11 +148,6 @@ TUNABLE: dict[str, tuple[float, float]] = {
 }
 
 
-def _first(value):
-    """OSM tags arrive as str or list[str] depending on way merging."""
-    return value[0] if isinstance(value, list) and value else value
-
-
 #: Grade at which the climbing term saturates. Above ~12% a cyclist is walking, so
 #: more gradient stops reading as "more climbing" and starts reading as "impassable".
 _GRADE_SATURATION = 0.12
@@ -96,7 +167,7 @@ def features(data: dict) -> tuple[float, float, float, bool, float]:
     length = float(data.get("length", 1.0)) or 1.0
 
     highway = _first(data.get("highway")) or "unclassified"
-    stress = _TRAFFIC_STRESS.get(highway, 0.5)
+    stress = _stress(highway, data)
 
     surface = _first(data.get("surface"))
     quality = _SURFACE_QUALITY.get(surface, 0.6)  # untagged ≈ mediocre-but-fine

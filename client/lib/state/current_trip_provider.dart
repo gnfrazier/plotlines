@@ -457,11 +457,13 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       surfaceDial = ((paved - unpaved) / 5.0).clamp(0.0, 1.0);
     }
     final peaks = weights == null ? null : peaksFromClimbing(weights.climbing);
+    // FR3/A2: inverted, not scaled — see `quietFromTraffic`'s doc comment.
+    final quiet = weights == null ? null : quietFromTraffic(weights.traffic);
     final weightsPayload = weights == null
         ? null
         : {
             if (peaks != null) 'peaks': peaks,
-            if (weights.traffic != null) 'quiet': weights.traffic! / 5.0,
+            if (quiet != null) 'quiet': quiet,
             if (surfaceDial != null) 'surface': surfaceDial,
           };
     final resolved = await client.generateSegment(
