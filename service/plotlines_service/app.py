@@ -266,8 +266,9 @@ class SegmentRequest(BaseModel):
     end: Coordinate | None = None
     via: list[Coordinate] = Field(default_factory=list)
     mode: str = "cycling"
-    # One of loop | out_and_back | point_to_point (FR7/A7).
-    shape: str = "point_to_point"
+    # One of loop | out_and_back | point_to_point (FR7/A7). Loop is the
+    # AC-stated default — the shape needing only a start, no destination.
+    shape: str = "loop"
     theme: str = "balanced"
     weights: dict[str, float] | None = None
     # Required for shape=loop; for out_and_back it's an envelope target used
@@ -326,7 +327,8 @@ class CuesRequest(BaseModel):
     start: Coordinate
     end: Coordinate | None = None
     via: list[Coordinate] = Field(default_factory=list)
-    shape: str = "point_to_point"
+    # FR7/A7 — same default as `SegmentRequest.shape`.
+    shape: str = "loop"
     theme: str = "balanced"
     weights: dict[str, float] | None = None
     target_m: float | None = None
@@ -631,6 +633,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 via=via,
                 profile=profile,
                 mode=req.mode,
+                shape="point_to_point",
                 sampler=region.sampler,
             )
         except NoRouteFound as exc:

@@ -63,7 +63,7 @@ class RoutingClient {
     Coord? end,
     List<Coord> via = const [],
     String mode = 'cycling',
-    String shape = 'point_to_point',
+    String shape = 'loop',
     String theme = 'balanced',
     Map<String, double>? weights,
     double? targetM,

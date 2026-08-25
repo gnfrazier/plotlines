@@ -30,6 +30,12 @@ class Segment:
     mode: str
     theme: str
     distance_m: float
+    # FR7/A7 — the response's own record of which shape produced it, the
+    # same field the loop-family response (`_loop_to_dict`) already carries.
+    # `generate_segment` only ever solves point_to_point, so this has one
+    # real value; kept as a field (not hardcoded at the call site) so a
+    # future non-loop-family shape routed through this function stays honest.
+    shape: str = "point_to_point"
     coordinates: list[list[float]] = field(default_factory=list)  # [[lon, lat], ...]
     elevation: dict = field(default_factory=dict)
     node_count: int = 0
@@ -65,6 +71,7 @@ def generate_segment(
     end: tuple[float, float],
     profile: WeightProfile,
     mode: str = "cycling",
+    shape: str = "point_to_point",
     via: list[tuple[float, float]] | None = None,
     sampler: ElevationSampler | None = None,
 ) -> Segment:
@@ -92,6 +99,7 @@ def generate_segment(
         mode=mode,
         theme=profile.name,
         distance_m=round(_path_length_m(graph, path), 1),
+        shape=shape,
         coordinates=coords_lonlat,
         elevation=elevation,
         node_count=len(path),

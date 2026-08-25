@@ -503,7 +503,8 @@
         "mode": { "$ref": "#/$defs/travel_mode" },
         "shape": {
           "enum": ["loop", "out_and_back", "point_to_point"],
-          "description": "FR7 / A7 — selectable independently of weights. point_to_point requires `end`; loop and out_and_back do not."
+          "default": "loop",
+          "description": "FR7 / A7 — selectable independently of weights. point_to_point requires `end`; loop and out_and_back do not. loop is the default shape a new passage starts with."
         },
         "start": { "$ref": "#/$defs/coord" },
         "end": { "$ref": "#/$defs/coord" },

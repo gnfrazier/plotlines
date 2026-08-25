@@ -61,7 +61,10 @@ class NewRouteScreen extends ConsumerStatefulWidget {
 
 class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   String _mode = 'cycling';
-  String _shape = 'point_to_point';
+  // FR7/A7 — the AC-stated default shape (`planner_ui_state.dart`'s single
+  // source of truth for it): loop needs only a start, no destination,
+  // unlike point_to_point.
+  String _shape = defaultSegmentShape;
   String _theme = 'balanced';
   List<double>? _start;
   List<double>? _end;
@@ -102,14 +105,12 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     return km == null ? null : km * 1000;
   }
 
-  bool get _canGenerate {
-    if (_start == null) return false;
-    return switch (_shape) {
-      'loop' => _targetM != null,
-      'out_and_back' => _end != null || _targetM != null,
-      _ => _end != null,
-    };
-  }
+  bool get _canGenerate => canGenerateShape(
+        shape: _shape,
+        hasStart: _start != null,
+        hasEnd: _end != null,
+        hasTargetM: _targetM != null,
+      );
 
   /// ARCH §8.3 / PRD FR121 (M12a), FR120/D41 (issue #154) — routing is
   /// per-region now: this reads the capability for the trip's *own* bbox

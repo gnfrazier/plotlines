@@ -29,6 +29,33 @@ final selectedSegmentProvider = StateProvider<(String dayId, String segmentId)?>
   return null;
 }
 
+/// FR7/A7 — the shape a new passage starts on, until the Author picks
+/// otherwise: loop, because it is the one shape that needs neither a
+/// destination nor even a fixed turnaround, only a start and a target
+/// distance. `NewRouteScreen`'s `_shape` reads this rather than a local
+/// literal so the default has exactly one source of truth to test.
+const defaultSegmentShape = 'loop';
+
+/// FR7/A7's AC: "point-to-point requires a destination, loop/out-and-back
+/// require only a start." `hasTargetM` covers both loop's own required
+/// target distance and out-and-back's target-distance alternative to a
+/// picked-by-hand turnaround (`routing/loops.py`'s `generate_out_and_back`
+/// accepts either); `hasEnd` alone never satisfies loop, which closes on
+/// its own start by definition (`service/app.py` ignores `end` there).
+bool canGenerateShape({
+  required String shape,
+  required bool hasStart,
+  required bool hasEnd,
+  required bool hasTargetM,
+}) {
+  if (!hasStart) return false;
+  return switch (shape) {
+    'loop' => hasTargetM,
+    'out_and_back' => hasEnd || hasTargetM,
+    _ => hasEnd, // point_to_point, and any shape this planner doesn't know yet
+  };
+}
+
 /// FR117/A0 — the Author's per-day choice of **explore** (distance/shape/
 /// weights/bands in, route out) or **compose** (promoted anchors in, route
 /// out). ARCH §7.7: "not a second solver" — the two postures share every
