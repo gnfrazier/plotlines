@@ -22,6 +22,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../../domain/domain.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
+import '../../map/tap_to_pick_map.dart';
 import '../../widgets/day_removal_prompt.dart';
 
 class LogisticsTab extends ConsumerWidget {
@@ -315,6 +316,7 @@ class _DayCard extends ConsumerWidget {
               const SizedBox(height: PlotSpacing.s3),
               _DayLimitEditor(day: day),
             ],
+            if (day.isRest) _RestDayDetails(day: day),
           ],
         ),
       ),
@@ -428,6 +430,160 @@ class _DayLimitEditorState extends ConsumerState<_DayLimitEditor> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// FR18 / C2 — a rest day "holds location, anchors, itinerary detail, and
+/// scheduled events without an active route." [Day.segments] stays empty
+/// (enforced by [Day.fromJson]/`setDayKind`); this is everywhere the rest of
+/// that sentence lives: the day's own point (distinct from a route's
+/// geometry), its free-text itinerary detail, and the anchors/scheduled
+/// events already promotable onto [Day.nodes] from the Layers tab (N3),
+/// surfaced here since Logistics is this epic's own tab and a rest day
+/// otherwise shows nothing at all.
+class _RestDayDetails extends ConsumerStatefulWidget {
+  const _RestDayDetails({required this.day});
+  final Day day;
+
+  @override
+  ConsumerState<_RestDayDetails> createState() => _RestDayDetailsState();
+}
+
+class _RestDayDetailsState extends ConsumerState<_RestDayDetails> {
+  late final _title = TextEditingController(text: widget.day.title ?? '');
+  late final _note = TextEditingController(text: widget.day.note ?? '');
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  Future<void> _editLocation() async {
+    final picked = await showDialog<Coord>(
+      context: context,
+      builder: (context) => _LocationPickerDialog(initial: widget.day.location),
+    );
+    if (picked == null || !mounted) return;
+    ref.read(currentTripProvider.notifier).setDayLocation(widget.day.id, picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final location = widget.day.location;
+    final scheduled = widget.day.nodes.where((n) => n.scheduled != null).length;
+    final anchors = widget.day.nodes.length - scheduled;
+    return PlotCard(
+      sunk: true,
+      padding: const EdgeInsets.all(PlotSpacing.s3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.place_outlined, size: 16, color: c.textMuted),
+              const SizedBox(width: PlotSpacing.s2),
+              Expanded(
+                child: Text(
+                  location == null
+                      ? 'No location set'
+                      : '${location[1].toStringAsFixed(5)}, ${location[0].toStringAsFixed(5)}',
+                  style: PlotTypography.body(c.textSecondary),
+                ),
+              ),
+              PlotButton(
+                label: location == null ? 'Set location' : 'Change',
+                variant: PlotButtonVariant.ghost,
+                onPressed: _editLocation,
+              ),
+              if (location != null)
+                IconButton(
+                  tooltip: 'Clear location',
+                  icon: Icon(Icons.close, size: 16, color: c.textMuted),
+                  onPressed: () =>
+                      ref.read(currentTripProvider.notifier).setDayLocation(widget.day.id, null),
+                ),
+            ],
+          ),
+          const SizedBox(height: PlotSpacing.s2),
+          TextField(
+            controller: _title,
+            decoration: const InputDecoration(hintText: 'What this day is about', isDense: true),
+            onChanged: (v) => ref.read(currentTripProvider.notifier).setDayTitle(widget.day.id, v),
+          ),
+          const SizedBox(height: PlotSpacing.s2),
+          TextField(
+            controller: _note,
+            minLines: 1,
+            maxLines: 3,
+            decoration: const InputDecoration(hintText: 'Itinerary detail', isDense: true),
+            onChanged: (v) => ref.read(currentTripProvider.notifier).setDayNote(widget.day.id, v),
+          ),
+          if (widget.day.nodes.isNotEmpty) ...[
+            const SizedBox(height: PlotSpacing.s2),
+            Wrap(
+              spacing: PlotSpacing.s2,
+              runSpacing: PlotSpacing.s2,
+              children: [
+                if (anchors > 0) PlotBadge('$anchors ${anchors == 1 ? 'anchor' : 'anchors'}'),
+                if (scheduled > 0)
+                  PlotBadge('$scheduled scheduled ${scheduled == 1 ? 'event' : 'events'}'),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The map picker behind [_RestDayDetails]'s "Set location"/"Change" action
+/// — a single point, not a route: FR18's "rest days hold location ...
+/// without an active route" means there is nothing here to solve.
+class _LocationPickerDialog extends StatefulWidget {
+  const _LocationPickerDialog({this.initial});
+  final Coord? initial;
+
+  @override
+  State<_LocationPickerDialog> createState() => _LocationPickerDialogState();
+}
+
+class _LocationPickerDialogState extends State<_LocationPickerDialog> {
+  Coord? _picked;
+
+  @override
+  void initState() {
+    super.initState();
+    _picked = widget.initial;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Set rest day location'),
+      content: SizedBox(
+        width: 480,
+        height: 360,
+        child: TapToPickMap(
+          points: _picked == null ? const [] : [_picked!],
+          center: _picked,
+          onTap: (point) => setState(() => _picked = point),
+        ),
+      ),
+      actions: [
+        PlotButton(
+          label: 'Cancel',
+          variant: PlotButtonVariant.ghost,
+          onPressed: () => Navigator.pop(context),
+        ),
+        PlotButton(
+          label: 'Save',
+          onPressed: _picked == null ? null : () => Navigator.pop(context, _picked),
+        ),
+      ],
     );
   }
 }

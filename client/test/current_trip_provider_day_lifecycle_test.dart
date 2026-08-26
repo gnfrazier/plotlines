@@ -230,6 +230,46 @@ void main() {
     });
   });
 
+  group('setDayLocation / setDayTitle / setDayNote', () {
+    test('setDayLocation sets a rest day\'s point', () {
+      final container = containerWithDays([Day(id: 'd1', index: 1, kind: 'rest')]);
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).setDayLocation('d1', const [-105.3, 40.0]);
+
+      expect(container.read(currentTripProvider).days.single.location, const [-105.3, 40.0]);
+    });
+
+    test('setDayLocation with null clears an existing location', () {
+      final container = containerWithDays(
+        [Day(id: 'd1', index: 1, kind: 'rest', location: const [1.0, 2.0])],
+      );
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).setDayLocation('d1', null);
+
+      expect(container.read(currentTripProvider).days.single.location, isNull);
+    });
+
+    test('setDayTitle/setDayNote write itinerary detail, and an empty string clears it', () {
+      final container = containerWithDays([Day(id: 'd1', index: 1, kind: 'rest')]);
+      addTearDown(container.dispose);
+      final notifier = container.read(currentTripProvider.notifier);
+
+      notifier.setDayTitle('d1', 'Historic district');
+      notifier.setDayNote('d1', 'Wander the main street shops.');
+      var day = container.read(currentTripProvider).days.single;
+      expect(day.title, 'Historic district');
+      expect(day.note, 'Wander the main street shops.');
+
+      notifier.setDayTitle('d1', '');
+      notifier.setDayNote('d1', '');
+      day = container.read(currentTripProvider).days.single;
+      expect(day.title, isNull);
+      expect(day.note, isNull);
+    });
+  });
+
   group('mergeDaysIntoAdjacent', () {
     test('merges a middle day into the previous day and renumbers', () {
       final container = containerWithDays([

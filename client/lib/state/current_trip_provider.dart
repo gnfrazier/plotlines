@@ -273,6 +273,28 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     _replaceDay(day.copyWith(roles: roles));
   }
 
+  /// FR18 / C2 — "rest days hold location ... without an active route": the
+  /// point a rest day sits at, distinct from a routed day's segments. `null`
+  /// clears it (`Day.copyWith`'s `clearLocation`, since a bare `null` here
+  /// would otherwise read as "leave it as it was").
+  void setDayLocation(String dayId, Coord? location) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    _replaceDay(day.copyWith(location: location, clearLocation: location == null));
+  }
+
+  /// FR18 / C2 — a day's itinerary detail: free text, distinct from the
+  /// promoted anchors and scheduled events on [Day.nodes]. An empty string
+  /// clears the field rather than storing an empty title/note.
+  void setDayTitle(String dayId, String title) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    _replaceDay(day.copyWith(title: title.isEmpty ? null : title, clearTitle: title.isEmpty));
+  }
+
+  void setDayNote(String dayId, String note) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    _replaceDay(day.copyWith(note: note.isEmpty ? null : note, clearNote: note.isEmpty));
+  }
+
   /// A1-A9 / B1 — solve a new segment via the sidecar and append it to a day
   /// (a new day if [dayId] is omitted).
   Future<void> generateSegment({

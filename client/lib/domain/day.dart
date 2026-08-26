@@ -115,14 +115,22 @@ class Day {
         'cue_sheet': cueSheet?.toJson(),
       });
 
+  /// C2 — [clearTitle], [clearNote] and [clearLocation] are the only way to
+  /// take those fields off a day: a bare `null` reads as "leave it as it
+  /// was" like every other optional field here, mirroring
+  /// `Transition.copyWith`'s `clearNode` (FR12/B3) — a caller clearing a
+  /// rest day's location or itinerary note should have to say so.
   Day copyWith({
     int? index,
     String? kind,
     Set<String>? roles,
     String? date,
     String? title,
+    bool clearTitle = false,
     String? note,
+    bool clearNote = false,
     Coord? location,
+    bool clearLocation = false,
     List<Segment>? segments,
     List<Transition>? transitions,
     List<Node>? nodes,
@@ -138,9 +146,9 @@ class Day {
         kind: kind ?? this.kind,
         roles: roles ?? this.roles,
         date: date ?? this.date,
-        title: title ?? this.title,
-        note: note ?? this.note,
-        location: location ?? this.location,
+        title: clearTitle ? null : (title ?? this.title),
+        note: clearNote ? null : (note ?? this.note),
+        location: clearLocation ? null : (location ?? this.location),
         segments: segments ?? this.segments,
         transitions: transitions ?? this.transitions,
         nodes: nodes ?? this.nodes,
