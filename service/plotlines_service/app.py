@@ -27,6 +27,7 @@ from plotlines_core.curation.providers import BBox, OsmLayerProvider
 from plotlines_core.curation.taxonomy import LAYERS
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph import regions as region_lib
+from plotlines_core.multimodal.modes import TRAVERSAL_MODES
 from plotlines_core.graph.loader import LoadedGraph, load_graphml, nearest_node
 from plotlines_core.routing.access import mode_legal_graph
 from plotlines_core.routing.diagnose import diagnose
@@ -561,6 +562,14 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 raise HTTPException(422, f"bad weights: {exc}") from exc
         if theme in THEMES:
             return THEMES[theme]
+        # FR130 / B1 — a traversal mode's own default profile is nameable here,
+        # so a mountain-biking or driving passage can be solved with the weights
+        # its registry row carries and no second scorer. The named-theme
+        # catalogue still wins; only a string that is neither a theme nor a mode
+        # is an error.
+        mode_profile = TRAVERSAL_MODES.get(theme)
+        if mode_profile is not None:
+            return mode_profile.weights
         raise HTTPException(422, f"unknown theme {theme!r}")
 
     def _loop_to_dict(graph, loop: Loop, mode: str, theme: str, shape: str,

@@ -46,6 +46,8 @@ from dataclasses import dataclass, field
 
 import networkx as nx
 
+from plotlines_core.multimodal.modes import access_mode_for
+
 # ---------------------------------------------------------------------------
 # Tag reading. OSM tags arrive as a bare string or, after way-merging during
 # simplification, a list of strings that disagreed across the merged ways
@@ -85,7 +87,10 @@ def _effective_access_values(data: dict, mode_key: str | None) -> list[str]:
 # Per-mode constraint configuration. FR128 names cycling, hiking (foot), and
 # paddling (canoe) as the seed set shipping first — "not a closed list": a
 # new traversal mode is a new `ModeConstraints` entry, exactly the extension
-# path FR130 already established for `WeightProfile`.
+# path FR130 already established for `WeightProfile`. Driving (FR29's routed
+# access leg) is the fourth row; the remaining FR10 modes need no row at all,
+# because `multimodal.modes` aliases each onto the rule set that already
+# governs it — see `constraints_for`.
 # ---------------------------------------------------------------------------
 
 
@@ -139,6 +144,11 @@ _BARRIER_DEFAULTS: dict[str, dict[str, str]] = {
     # Barriers belong to the road/path graph this module's simplification
     # reads tags from — meaningless on a waterway.
     "paddling": {},
+    # A bollard or gate across a forest road is the whole reason FR29's driving
+    # leg exists as a route rather than a note. Surfaced, not excluded: the
+    # barrier's own access value decides above, and where it is silent this
+    # names the obstacle rather than quietly deleting the only road in.
+    "driving": {"cycle_barrier": "penalty", "bollard": "penalty", "gate": "penalty"},
 }
 
 
@@ -180,7 +190,37 @@ MODE_CONSTRAINTS: dict[str, ModeConstraints] = {
         blocks_waterway_obstacles=True,
         honours_contraflow=False,
     ),
+    # FR29 [AMENDED v2.0] / B1 — driving is a routed traversal mode, so it needs a
+    # legality row like any other. `motor_vehicle=no`/`private` closes a forest road
+    # to a car outright; a ford is a hard stop for a passenger vehicle, unlike on
+    # foot. Whether a *particular* vehicle will make a road is FR29a's advisory,
+    # which warns rather than excludes and is deliberately not modelled here.
+    "driving": ModeConstraints(
+        mode="driving",
+        access_key="motor_vehicle",
+        excluded_values=frozenset({"no", "private", "destination", "permit"}),
+        generic_excluded_values=frozenset({"no", "private"}),
+        surfaced_values=frozenset(),
+        applies_to_fords=True,
+        ford_passable=False,
+        blocks_waterway_obstacles=False,
+        honours_contraflow=False,
+    ),
 }
+
+
+def constraints_for(mode: str) -> ModeConstraints | None:
+    """The legality row governing `mode`, following the traversal-mode
+    registry's `access_mode` alias (FR130).
+
+    Mountain biking is legally cycling, packrafting is legally paddling, and
+    cross-country skiing is legally foot travel — three modes, one rule set
+    each side. Resolving the alias here rather than copying rows keeps FR130's
+    claim true: a new mode is a registry row, not a second constraints table.
+    `None` for a mode nothing has an opinion on — it routes unconstrained,
+    exactly as it did before A11.
+    """
+    return MODE_CONSTRAINTS.get(access_mode_for(mode) or "")
 
 
 @dataclass(frozen=True)
@@ -215,7 +255,7 @@ def evaluate_edge(data: dict, mode: str) -> EdgeVerdict:
     """One edge's routability for `mode`. An unknown mode is unconstrained —
     this module's seed set (FR128) is not a closed list, and a mode this
     table has no opinion on should route exactly as it did before A11."""
-    constraints = MODE_CONSTRAINTS.get(mode)
+    constraints = constraints_for(mode)
     if constraints is None:
         return EdgeVerdict(True)
 
@@ -290,12 +330,15 @@ def mode_legal_graph(graph: nx.MultiDiGraph, mode: str) -> nx.MultiDiGraph:
     Returns `graph` itself, unfiltered, for a mode this module has no
     constraints for.
     """
-    constraints = MODE_CONSTRAINTS.get(mode)
+    constraints = constraints_for(mode)
     if constraints is None:
         return graph
 
+    # Keyed on the *resolved* rule set, not the requested mode: mountain biking
+    # and cycling filter to the identical graph, and re-filtering a region-sized
+    # graph for the second of them would be pure waste.
     cache: dict[str, nx.MultiDiGraph] = graph.graph.setdefault("_pl_mode_graph_cache", {})
-    cached = cache.get(mode)
+    cached = cache.get(constraints.mode)
     if cached is not None:
         return cached
 
@@ -313,7 +356,7 @@ def mode_legal_graph(graph: nx.MultiDiGraph, mode: str) -> nx.MultiDiGraph:
     if constraints.honours_contraflow:
         _add_contraflow_edges(filtered)
 
-    cache[mode] = filtered
+    cache[constraints.mode] = filtered
     return filtered
 
 

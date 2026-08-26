@@ -161,6 +161,11 @@ const Map<MessageId, String> baseLocalePatterns = {
   MessageId.termModeCycling: 'Ride',
   MessageId.termModeHiking: 'Hike',
   MessageId.termModePaddling: 'Paddle',
+  MessageId.termModeCrossCountrySkiing: 'Ski',
+  MessageId.termModePackrafting: 'Packraft',
+  MessageId.termModeRiverboarding: 'Riverboard',
+  MessageId.termModeMountainBiking: 'MTB',
+  MessageId.termModeDriving: 'Drive',
   MessageId.termModeTransit: 'Transit',
 
   // Vocabulary — capabilities.
@@ -358,6 +363,11 @@ class MessageResolver {
         'cycling' => MessageId.termModeCycling,
         'hiking' => MessageId.termModeHiking,
         'paddling' => MessageId.termModePaddling,
+        'cross_country_skiing' => MessageId.termModeCrossCountrySkiing,
+        'packrafting' => MessageId.termModePackrafting,
+        'riverboarding' => MessageId.termModeRiverboarding,
+        'mountain_biking' => MessageId.termModeMountainBiking,
+        'driving' => MessageId.termModeDriving,
         'transit' => MessageId.termModeTransit,
         _ => null,
       };

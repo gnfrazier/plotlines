@@ -362,10 +362,15 @@ enum MessageId {
   termArcClimax,
   termArcResolution,
 
-  // ── Vocabulary: travel modes (FR144) ────────────────────────────────────
+  // ── Vocabulary: travel modes (FR10, FR144) ──────────────────────────────
   termModeCycling,
   termModeHiking,
   termModePaddling,
+  termModeCrossCountrySkiing,
+  termModePackrafting,
+  termModeRiverboarding,
+  termModeMountainBiking,
+  termModeDriving,
   termModeTransit,
 
   // ── Vocabulary: capabilities (FR121, M12a) ──────────────────────────────
@@ -474,6 +479,15 @@ const Map<MessageId, MessageTemplate> messageTemplates = {
   MessageId.termModeCycling: MessageTemplate(id: MessageId.termModeCycling, usage: 'travel mode "cycling"'),
   MessageId.termModeHiking: MessageTemplate(id: MessageId.termModeHiking, usage: 'travel mode "hiking"'),
   MessageId.termModePaddling: MessageTemplate(id: MessageId.termModePaddling, usage: 'travel mode "paddling"'),
+  MessageId.termModeCrossCountrySkiing: MessageTemplate(
+      id: MessageId.termModeCrossCountrySkiing, usage: 'travel mode "cross_country_skiing"'),
+  MessageId.termModePackrafting:
+      MessageTemplate(id: MessageId.termModePackrafting, usage: 'travel mode "packrafting"'),
+  MessageId.termModeRiverboarding:
+      MessageTemplate(id: MessageId.termModeRiverboarding, usage: 'travel mode "riverboarding"'),
+  MessageId.termModeMountainBiking:
+      MessageTemplate(id: MessageId.termModeMountainBiking, usage: 'travel mode "mountain_biking"'),
+  MessageId.termModeDriving: MessageTemplate(id: MessageId.termModeDriving, usage: 'travel mode "driving"'),
   MessageId.termModeTransit: MessageTemplate(id: MessageId.termModeTransit, usage: 'travel mode "transit"'),
   MessageId.termCapabilityTiles: MessageTemplate(id: MessageId.termCapabilityTiles, usage: 'FR121 capability "tiles"'),
   MessageId.termCapabilityLayers:

@@ -301,8 +301,12 @@ def test_mode_legal_graph_keeps_and_flags_a_surfaced_constraint_edge():
 
 
 def test_mode_legal_graph_passes_through_unchanged_for_an_unconfigured_mode():
+    # Driving gained a `MODE_CONSTRAINTS` row with B1/FR29 (it is a routed
+    # traversal mode now, not a note), so the "no opinion anywhere" case needs
+    # a mode nothing configures — `multimodal.modes` has no row for this one
+    # either, which is the whole point.
     graph = _two_node_graph(bicycle="no")
-    assert mode_legal_graph(graph, "driving") is graph
+    assert mode_legal_graph(graph, "teleportation") is graph
 
 
 def test_mode_legal_graph_is_cached_per_mode():

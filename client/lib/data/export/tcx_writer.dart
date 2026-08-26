@@ -24,11 +24,21 @@ import '../../domain/domain.dart';
 import 'export_options.dart';
 import 'geo_utils.dart';
 
-//: Fallback pace by mode when no `moving_time_s` is available, m/s.
+//: Fallback pace by mode when no `moving_time_s` is available, m/s. Mirrors
+//: `core/plotlines_core/multimodal/modes.py`'s `base_speed_kmh` domain
+//: parameter — the same seed value B7/FR16 will make Author-configurable and
+//: terrain-aware. `transit` has no traversal speed of its own (its timing is
+//: an authored schedule, FR29); the number here is only so a TCX course a
+//: Character loads onto a device still paces.
 const Map<String, double> _fallbackSpeedMps = {
   'cycling': 4.17, // ~15 km/h
   'hiking': 1.39, // ~5 km/h
   'paddling': 1.11, // ~4 km/h
+  'cross_country_skiing': 2.22, // ~8 km/h
+  'packrafting': 1.25, // ~4.5 km/h
+  'riverboarding': 1.11, // ~4 km/h
+  'mountain_biking': 3.33, // ~12 km/h
+  'driving': 16.67, // ~60 km/h
   'transit': 8.33, // ~30 km/h
 };
 

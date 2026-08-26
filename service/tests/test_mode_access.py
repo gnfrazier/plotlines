@@ -143,3 +143,46 @@ def test_segments_generate_loop_response_carries_surfaced_constraints_field(
     })
     assert resp.status_code == 200
     assert "surfaced_constraints" in resp.json()
+
+
+# --- B1 / FR130 — a traversal mode is configuration, over the wire ---------
+
+
+def test_segments_generate_accepts_a_traversal_mode_name_as_a_theme(tmp_path: Path) -> None:
+    """FR130 — a mode's own `WeightProfile` entry is nameable, so a mountain-
+    biking passage solves on the weights its registry row carries and no second
+    scorer. The named-theme catalogue is untouched by this."""
+    client, key = _client_with_boulder_region(tmp_path)
+    resp = client.post("/segments/generate", json={
+        "region": key, "start": {"lat": 40.0175, "lon": -105.2797},
+        "shape": "loop", "target_m": 2000.0,
+        "mode": "mountain_biking", "theme": "mountain_biking",
+    })
+    assert resp.status_code == 200
+    assert resp.json()["theme"] == "mountain_biking"
+
+
+def test_a_string_that_is_neither_a_theme_nor_a_mode_is_still_422(tmp_path: Path) -> None:
+    client, key = _client_with_boulder_region(tmp_path)
+    resp = client.post("/segments/generate", json={
+        "region": key, "start": {"lat": 40.0175, "lon": -105.2797},
+        "shape": "loop", "target_m": 2000.0, "mode": "cycling", "theme": "teleportation",
+    })
+    assert resp.status_code == 422
+
+
+def test_a_mountain_biking_passage_inherits_cyclings_legality_over_the_wire(
+    tmp_path: Path,
+) -> None:
+    """The alias resolves on the service's own path, not just in a unit test:
+    `bicycle=no` closes the direct edge to a mountain bike, with no
+    `mountain_biking` row in `MODE_CONSTRAINTS`."""
+    client, key = _client_with_boulder_region(tmp_path)
+    _swap_in_graph(client, key, _two_route_graph(bicycle_tag="no"))
+
+    resp = client.post("/segments/generate", json={
+        "region": key, "start": _START, "end": _END, "shape": "point_to_point",
+        "mode": "mountain_biking", "theme": "balanced",
+    })
+    assert resp.status_code == 200
+    assert resp.json()["node_count"] == 4  # forced onto the same 0-2-3-1 detour

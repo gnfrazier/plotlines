@@ -127,8 +127,18 @@
     },
 
     "travel_mode": {
-      "description": "FR10 / B1 — cycling, hiking and paddling are first-class equals. Paddling's router lands in Leg 3 (MVP §1.3); the mode is nonetheless authorable from day one, which is exactly what B1's AC requires.",
-      "enum": ["cycling", "hiking", "paddling", "transit"]
+      "description": "FR10 / B1 [AMENDED v2.0] — the eight traversal modes, plus `transit`. Cycling, hiking and paddling are first-class at MVP (paddling's router lands in Leg 3, MVP \u00a71.3; the mode is nonetheless authorable from day one, which is exactly what B1's AC requires); the rest are absorbed by `WeightProfile` config (FR130) rather than by a parallel scorer, and `core/plotlines_core/multimodal/modes.py` is the registry this enum mirrors. Driving is a routed mode, not a note (FR29). `transit` is the other half of FR29 \u2014 train, shuttle and flight legs are authored notes with carrier and times, never solved. Climbing, canyoneering and jumaring are station activities (FR109 / O4) and appear nowhere in this list.",
+      "enum": [
+        "cycling",
+        "hiking",
+        "paddling",
+        "cross_country_skiing",
+        "packrafting",
+        "riverboarding",
+        "mountain_biking",
+        "driving",
+        "transit"
+      ]
     },
 
     "day_limits": {

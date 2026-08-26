@@ -68,7 +68,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   // declared mode rather than a hardcoded 'cycling' — canonical-order first
   // match, since a `Set`'s own iteration order isn't something to build a
   // default on.
-  late String _mode = kTravelModes.firstWhere(
+  late String _mode = kTraversalModes.firstWhere(
     ref.read(currentTripProvider).declaredModes.contains,
     orElse: () => 'cycling',
   );
@@ -98,7 +98,10 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   // Wireframe screen 00 shows only Ride/Paddle/Hike by default, plus a
   // "+ Add" affordance for anything else — Transit isn't a default chip.
   static const _basePrimaryModes = ['cycling', 'paddling', 'hiking'];
-  static const _primaryModeChoices = ['cycling', 'paddling', 'hiking', 'transit'];
+  // FR10/B1 — every offerable mode, traversal modes plus FR29's authored-note
+  // `transit` leg. The three base chips below are the wireframe's defaults;
+  // the rest reach the Author through the "+ Add" menu.
+  static const _primaryModeChoices = kTravelModes;
 
   @override
   void dispose() {
@@ -337,7 +340,12 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                       spacing: PlotSpacing.s2,
                       runSpacing: PlotSpacing.s2,
                       children: [
-                        for (final m in kTravelModes)
+                        // FR10/B1 — the *traversal* list: a passage is a leg
+                        // between two points, so only modes that produce a
+                        // solved route belong here. `transit` (FR29's authored
+                        // note leg, C13) is declared on the trip but never
+                        // generated.
+                        for (final m in kTraversalModes)
                           PlotToggleChip(
                             label: travelModeLabel(m),
                             icon: travelModeIcon(m),
@@ -352,6 +360,20 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                         child: Text(
                           'Paddling routing lands in a later release (Leg 3) — the mode '
                           'is saveable now, but Generate will not produce a paddling route yet.',
+                          style: PlotTypography.small(c.textMuted),
+                        ),
+                      ),
+                    // FR10/B1 + the FR46 honesty clause: cycling, hiking and
+                    // paddling are first-class at MVP; the rest are real modes
+                    // with configured weights whose routing has not been
+                    // measured yet. Say so rather than implying parity.
+                    if (!isFirstClassMode(_mode))
+                      Padding(
+                        padding: const EdgeInsets.only(top: PlotSpacing.s2),
+                        child: Text(
+                          '${travelModeLabel(_mode)} is not a first-class mode at MVP — it '
+                          'routes on its own weight profile, but that profile has not been '
+                          'tuned against real routes yet.',
                           style: PlotTypography.small(c.textMuted),
                         ),
                       ),

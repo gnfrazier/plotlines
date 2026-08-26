@@ -259,7 +259,8 @@ class Segment {
   final String id;
   final String? title;
 
-  /// One of `cycling` | `hiking` | `paddling` | `transit`.
+  /// One of `travel_mode.dart`'s [kTravelModes] — FR10's eight traversal
+  /// modes plus FR29's authored-note `transit`.
   final String mode;
 
   /// One of `loop` | `out_and_back` | `point_to_point`.

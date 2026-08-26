@@ -65,6 +65,26 @@
   "@termModePaddling": {
     "description": "travel mode \"paddling\""
   },
+  "termModeCrossCountrySkiing": "Ski",
+  "@termModeCrossCountrySkiing": {
+    "description": "travel mode \"cross_country_skiing\""
+  },
+  "termModePackrafting": "Packraft",
+  "@termModePackrafting": {
+    "description": "travel mode \"packrafting\""
+  },
+  "termModeRiverboarding": "Riverboard",
+  "@termModeRiverboarding": {
+    "description": "travel mode \"riverboarding\""
+  },
+  "termModeMountainBiking": "MTB",
+  "@termModeMountainBiking": {
+    "description": "travel mode \"mountain_biking\""
+  },
+  "termModeDriving": "Drive",
+  "@termModeDriving": {
+    "description": "travel mode \"driving\""
+  },
   "termModeTransit": "Transit",
   "@termModeTransit": {
     "description": "travel mode \"transit\""

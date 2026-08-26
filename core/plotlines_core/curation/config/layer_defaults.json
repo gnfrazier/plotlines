@@ -16,6 +16,26 @@
     "route": ["sight", "natural"],
     "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
   },
+  "cross_country_skiing": {
+    "route": ["sight", "natural"],
+    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
+  },
+  "packrafting": {
+    "route": ["sight", "natural"],
+    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
+  },
+  "riverboarding": {
+    "route": ["sight", "natural"],
+    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
+  },
+  "mountain_biking": {
+    "route": ["sight", "natural"],
+    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
+  },
+  "driving": {
+    "route": ["sight", "historic", "natural"],
+    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
+  },
   "transit": {
     "route": ["sight", "historic"],
     "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
