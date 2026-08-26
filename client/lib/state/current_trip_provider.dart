@@ -344,6 +344,69 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     reorderSegments(dayId, from, by > 0 ? to + 1 : to);
   }
 
+  /// FR12 / B3 — place or revise the transition node at a junction: the
+  /// Author's parking / gear-stash / put-in instructions, and where on the map
+  /// they apply. [coord] defaults to the junction itself
+  /// (`defaultTransitionCoord`), so an Author who only wants to write the
+  /// instruction never has to place a pin first.
+  ///
+  /// Returns the node it wrote, or `null` when [dayId]/[transitionId] name a
+  /// junction that isn't there — a stale sheet left open across a reorder,
+  /// which should do nothing rather than throw at the Author.
+  ///
+  /// The node is *not* added to either passage's node list. A transition
+  /// belongs to neither passage (`domain/transition.dart`), and duplicating it
+  /// onto one of them is how it would end up in a cue sheet twice and vanish
+  /// when that passage is removed.
+  Node? setTransitionNode(
+    String dayId,
+    String transitionId, {
+    String? instructions,
+    String? title,
+    Coord? coord,
+  }) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final index = day.transitions.indexWhere((t) => t.id == transitionId);
+    if (index < 0) return null;
+    final transition = day.transitions[index];
+    final position = day.segments.indexWhere((s) => s.id == transition.toSegmentId);
+    final at = coord ?? transition.node?.coord ?? defaultTransitionCoord(day, position);
+    if (at == null) return null;
+
+    final trimmedInstructions = instructions?.trim();
+    final trimmedTitle = title?.trim();
+    final node = Node(
+      id: transition.node?.id ?? _uuid.v4(),
+      kind: NodeKind.transition,
+      coord: at,
+      title: (trimmedTitle == null || trimmedTitle.isEmpty)
+          ? transition.node?.title
+          : trimmedTitle,
+      instructions:
+          (trimmedInstructions == null || trimmedInstructions.isEmpty) ? null : trimmedInstructions,
+      note: transition.node?.note,
+      arcStage: transition.node?.arcStage,
+      narration: transition.node?.narration,
+      scheduled: transition.node?.scheduled,
+    );
+    _replaceDay(day.copyWith(transitions: [
+      for (final t in day.transitions)
+        if (t.id == transitionId) t.copyWith(node: node) else t,
+    ]));
+    return node;
+  }
+
+  /// FR12 / B3 — take the transition node off a junction entirely. The junction
+  /// itself stays (two passages still meet there); it simply carries nothing.
+  void removeTransitionNode(String dayId, String transitionId) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    if (!day.transitions.any((t) => t.id == transitionId)) return;
+    _replaceDay(day.copyWith(transitions: [
+      for (final t in day.transitions)
+        if (t.id == transitionId) t.copyWith(clearNode: true) else t,
+    ]));
+  }
+
   /// SPIKE-20 (ARCH D30): an authored-input edit invalidates the derived
   /// geometry/metrics/elevation instantly. Every screen showing a solved
   /// number must check `segment.solve?.stale` and this is the one place that

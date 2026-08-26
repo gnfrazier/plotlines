@@ -58,4 +58,39 @@ class Transition {
         'gap_m': gapM == null ? null : finite(gapM!, 'transition.gap_m'),
         'gap_warning': gapWarning,
       });
+
+  /// FR12 / B3 — [clearNode] is the only way to take a placed transition node
+  /// off a junction: `node: null` reads as "leave it as it was" like every
+  /// other optional field in this layer's `copyWith`s, and a caller removing
+  /// an Author's instructions should have to say so.
+  Transition copyWith({
+    String? fromSegmentId,
+    String? toSegmentId,
+    String? fromMode,
+    String? toMode,
+    Node? node,
+    bool clearNode = false,
+    double? gapM,
+    bool? gapWarning,
+  }) =>
+      Transition(
+        id: id,
+        fromSegmentId: fromSegmentId ?? this.fromSegmentId,
+        toSegmentId: toSegmentId ?? this.toSegmentId,
+        fromMode: fromMode ?? this.fromMode,
+        toMode: toMode ?? this.toMode,
+        node: clearNode ? null : (node ?? this.node),
+        gapM: gapM ?? this.gapM,
+        gapWarning: gapWarning ?? this.gapWarning,
+      );
+
+  /// True when this junction is an actual change of mode — ride to paddle —
+  /// rather than two passages of the same mode laid end to end (a day split
+  /// across two rides is still a sequence, just not a mode change). Unknown
+  /// modes read as no change, since an unmeasured difference is not a fact.
+  bool get isModeChange => fromMode != null && toMode != null && fromMode != toMode;
+
+  /// FR12's payload: the Author's parking / gear-stash / put-in instructions,
+  /// if a node has been placed here and carries any.
+  String? get instructions => node?.instructions;
 }

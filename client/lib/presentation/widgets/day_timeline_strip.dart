@@ -22,6 +22,8 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
+import 'transition_editor_sheet.dart';
+import 'transition_strand_prompt.dart';
 import 'travel_mode_icons.dart';
 
 class DayTimelineStrip extends ConsumerWidget {
@@ -128,7 +130,8 @@ class _DaySegmentStrip extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           for (var i = 0; i < day.segments.length; i++) ...[
-            if (i > 0) _TransitionGlyph(transition: transitionBefore(day, i)),
+            if (i > 0)
+              _TransitionGlyph(dayId: day.id, transition: transitionBefore(day, i)),
             _SegmentChip(
               day: day,
               segment: day.segments[i],
@@ -245,23 +248,38 @@ class _SegmentChip extends ConsumerWidget {
                 _MoveButton(
                   icon: Icons.chevron_left,
                   tooltip: 'Move earlier in the day',
-                  onPressed: () => ref
-                      .read(currentTripProvider.notifier)
-                      .movePassage(day.id, segment.id, by: -1),
+                  onPressed: () => _move(context, ref, by: -1),
                 ),
               if (position < count - 1)
                 _MoveButton(
                   icon: Icons.chevron_right,
                   tooltip: 'Move later in the day',
-                  onPressed: () => ref
-                      .read(currentTripProvider.notifier)
-                      .movePassage(day.id, segment.id, by: 1),
+                  onPressed: () => _move(context, ref, by: 1),
                 ),
             ],
           ],
         ),
       ),
     );
+  }
+
+  /// FR11/B2 with FR12/B3's content at stake: a reorder that pulls apart a
+  /// junction carrying Author instructions has to say what it will drop
+  /// (FR139's rule — triggered by authored content, not by object type).
+  /// A move that strands nothing authored just happens.
+  Future<void> _move(BuildContext context, WidgetRef ref, {required int by}) async {
+    final notifier = ref.read(currentTripProvider.notifier);
+    final newOrder = reorderPassages(
+      day.segments,
+      position,
+      by > 0 ? position + by + 1 : position + by,
+    );
+    final stranded = strandedInstructedTransitions(day, newOrder);
+    if (stranded.isNotEmpty) {
+      final confirmed = await showTransitionStrandPrompt(context, stranded: stranded);
+      if (confirmed != true) return;
+    }
+    notifier.movePassage(day.id, segment.id, by: by);
   }
 }
 
@@ -286,33 +304,72 @@ class _MoveButton extends StatelessWidget {
 }
 
 class _TransitionGlyph extends StatelessWidget {
-  const _TransitionGlyph({this.transition});
+  const _TransitionGlyph({required this.dayId, this.transition});
+  final String dayId;
   final Transition? transition;
 
   @override
   Widget build(BuildContext context) {
+    final glyph = _glyph(context);
+    if (transition == null) return glyph;
+    // FR12 / B3 — the junction is the thing an Author points at to place a
+    // transition node, so it is the control that opens the editor. Nothing
+    // else on this strip represents "between these two passages".
+    return InkWell(
+      borderRadius: PlotRadii.controlShape,
+      onTap: () => showTransitionEditorSheet(context, dayId: dayId, transition: transition!),
+      child: Tooltip(message: _tooltip(), child: glyph),
+    );
+  }
+
+  /// One message, in the order an Author needs it: the hole in the day first
+  /// (B2), then what they wrote about it, then the invitation to write
+  /// something if they haven't.
+  String _tooltip() {
+    final t = transition!;
+    final parts = <String>[
+      if (t.gapWarning ?? false)
+        'These two passages do not meet — ${_metres(t.gapM)} between the first '
+            "one's end and the next one's start (warns above "
+            '${(kDefaultGapWarnM / 1000).toStringAsFixed(1)} km).',
+      if (t.instructions != null) t.instructions!,
+    ];
+    if (parts.isEmpty) return 'Add transition instructions';
+    return parts.join('\n\n');
+  }
+
+  static String _metres(double? gapM) =>
+      gapM == null ? 'an unmeasured distance' : '${gapM.round()} m';
+
+  Widget _glyph(BuildContext context) {
     final c = PlotColors.of(context);
     final warn = transition?.gapWarning ?? false;
+    final instructed = transition?.instructions != null;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s2),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.compare_arrows, size: 20, color: warn ? c.danger : c.textMuted),
+          // FR12 / B3 — a junction carrying Author instructions is a different
+          // thing from a bare mode change, and a Character has to be able to
+          // tell at a glance which junctions have something to read. A filled
+          // note glyph says so without a second row of text.
+          Icon(
+            instructed ? Icons.sticky_note_2 : Icons.compare_arrows,
+            size: 20,
+            color: warn
+                ? c.danger
+                : instructed
+                    ? c.primary
+                    : c.textMuted,
+          ),
           // FR11 / B2 — the gap is a *number*, so it is set in mono and stated
           // rather than implied: "GAP 1.2 KM" tells an Author whether this is a
           // walk across a car park or a hole in the day. Gold is a fill here,
           // never text (brand guardrail), so the warning is a solid badge while
           // the ordinary case stays a quiet caption.
           if (warn)
-            Tooltip(
-              message: 'These two passages do not meet — '
-                  "${_metres(transition!.gapM)} between the first one's end and "
-                  "the next one's start (warns above "
-                  '${(kDefaultGapWarnM / 1000).toStringAsFixed(1)} km).',
-              child: PlotBadge(_gapLabel(transition!.gapM),
-                  tone: PlotBadgeTone.gold, solid: true),
-            )
+            PlotBadge(_gapLabel(transition!.gapM), tone: PlotBadgeTone.gold, solid: true)
           else
             Text(
               _label(),
@@ -322,9 +379,6 @@ class _TransitionGlyph extends StatelessWidget {
       ),
     );
   }
-
-  static String _metres(double? gapM) =>
-      gapM == null ? 'an unmeasured distance' : '${gapM.round()} m';
 
   static String _gapLabel(double? gapM) => gapM == null
       ? 'GAP'

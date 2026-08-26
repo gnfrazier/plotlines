@@ -84,10 +84,52 @@ const _turnGlyph = {
   'uturn': 'U',
 };
 
+/// FR12 / B3 — a mode change, as a Character reads it in the sheet.
+///
+/// This is where B3's "appears on Character timeline at the mode change"
+/// actually lands today. A `Transition` belongs to the day rather than to
+/// either passage (`domain/transition.dart`), so concatenating per-passage cue
+/// sheets — which is what this preview and all three export writers do — went
+/// straight over every junction between them: a Character reading the sheet
+/// was never told to get off the bike. `dayTimeline` is the ordered reading
+/// that puts them back, at the distance the preceding passage ends.
+_CueEntry _modeChangeEntry(ModeChangeEntry change, {required double distanceAlongM}) {
+  final from = change.fromMode;
+  final to = change.toMode;
+  final title = change.transition.node?.title;
+  final lead = change.isModeChange && from != null && to != null
+      ? '${travelModeLabel(from)} → ${travelModeLabel(to)}'
+      : 'Transition';
+  final label = [
+    title == null ? lead : '$lead: $title',
+    if (change.instructions != null) change.instructions!.split('\n').first,
+  ].join(' — ');
+  return _CueEntry(
+    // Passed in rather than read off the entry: this preview and its
+    // authored-content fallback measure in different frames (day-cumulative
+    // vs. per-passage), and a mode change has to land in whichever frame the
+    // rows around it are using.
+    distanceAlongM: distanceAlongM,
+    label: label,
+    glyph: '⇄',
+    // The gap is safety-adjacent information at exactly the moment a Character
+    // is looking for the next leg, so it rides along rather than living only
+    // in the Author's timeline.
+    tag: change.gapWarning
+        ? 'GAP ${change.gapM == null ? '' : '${change.gapM!.round()} M'}'.trim()
+        : null,
+  );
+}
+
 List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
   final entries = <_CueEntry>[];
+  final modeChanges = {
+    for (final change in dayModeChanges(day)) change.transition.toSegmentId: change,
+  };
   var offset = 0.0;
   for (var i = 0; i < day.segments.length; i++) {
+    final change = modeChanges[day.segments[i].id];
+    if (change != null) entries.add(_modeChangeEntry(change, distanceAlongM: offset));
     final sheet = sheets[i];
     for (final cue in sheet.cues) {
       final glyph = switch (cue.kind) {
@@ -117,6 +159,15 @@ List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
 /// real cue derivation call fails.
 List<_CueEntry> _entriesFromAuthoredContent(Day day) {
   final entries = <_CueEntry>[];
+  // Placed at the preceding passage's own finish distance, which is the frame
+  // this fallback measures in (each passage restarts at zero here).
+  for (final change in dayModeChanges(day)) {
+    final before = day.segments
+        .where((s) => s.id == change.transition.fromSegmentId)
+        .firstOrNull;
+    entries.add(_modeChangeEntry(change,
+        distanceAlongM: before?.metrics?.distanceM ?? 0));
+  }
   for (final segment in day.segments) {
     if (segment.start != null) {
       entries.add(_CueEntry(distanceAlongM: 0, label: 'Start', glyph: 'S'));
