@@ -144,6 +144,92 @@ void main() {
     });
   });
 
+  group('setDayCount', () {
+    test('growing the trip appends blank route days', () {
+      final container = containerWithDays([Day(id: 'd1', index: 1)]);
+      addTearDown(container.dispose);
+
+      final beyond = container.read(currentTripProvider.notifier).setDayCount(3);
+
+      expect(beyond, isEmpty);
+      final trip = container.read(currentTripProvider);
+      expect(trip.days, hasLength(3));
+      expect(trip.days.map((d) => d.index).toList(), [1, 2, 3]);
+      expect(trip.days[1].kind, 'route');
+      expect(trip.days[1].segments, isEmpty);
+    });
+
+    test('shrinking drops only empty trailing days, like reduceDayCount', () {
+      final container = containerWithDays([
+        Day(id: 'd1', index: 1, segments: [segmentWithNode('s1')]),
+        Day(id: 'd2', index: 2),
+        Day(id: 'd3', index: 3),
+      ]);
+      addTearDown(container.dispose);
+
+      final beyond = container.read(currentTripProvider.notifier).setDayCount(1);
+
+      expect(beyond, isEmpty);
+      expect(container.read(currentTripProvider).days, hasLength(1));
+    });
+
+    test('shrinking past content-holding days leaves them and reports them', () {
+      final container = containerWithDays([
+        Day(id: 'd1', index: 1),
+        Day(id: 'd2', index: 2, segments: [segmentWithNode('s2')]),
+      ]);
+      addTearDown(container.dispose);
+
+      final beyond = container.read(currentTripProvider.notifier).setDayCount(1);
+
+      expect(beyond.map((d) => d.id).toList(), ['d2']);
+      expect(container.read(currentTripProvider).days, hasLength(2));
+    });
+
+    test('holding the count steady is a no-op', () {
+      final container = containerWithDays([Day(id: 'd1', index: 1), Day(id: 'd2', index: 2)]);
+      addTearDown(container.dispose);
+
+      final beyond = container.read(currentTripProvider.notifier).setDayCount(2);
+
+      expect(beyond, isEmpty);
+      expect(container.read(currentTripProvider).days, hasLength(2));
+    });
+
+    test('a negative target is rejected', () {
+      final container = containerWithDays([Day(id: 'd1', index: 1)]);
+      addTearDown(container.dispose);
+
+      expect(
+        () => container.read(currentTripProvider.notifier).setDayCount(-1),
+        throwsArgumentError,
+      );
+    });
+
+    test('records the day count on Trip.duration when no dates are set', () {
+      final container = containerWithDays([Day(id: 'd1', index: 1)]);
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).setDayCount(4);
+
+      expect(container.read(currentTripProvider).duration?.dayCount, 4);
+    });
+
+    test('never overwrites an explicit start/end date range', () {
+      final container = containerWithDays([Day(id: 'd1', index: 1)]);
+      container.read(currentTripProvider.notifier).setDuration(
+            TripDuration(startDate: '2026-09-01', endDate: '2026-09-05'),
+          );
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).setDayCount(6);
+
+      final duration = container.read(currentTripProvider).duration;
+      expect(duration?.startDate, '2026-09-01');
+      expect(duration?.endDate, '2026-09-05');
+    });
+  });
+
   group('mergeDaysIntoAdjacent', () {
     test('merges a middle day into the previous day and renumbers', () {
       final container = containerWithDays([

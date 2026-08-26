@@ -16,6 +16,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../../domain/domain.dart';
@@ -50,6 +51,8 @@ class LogisticsTab extends ConsumerWidget {
                     style: PlotTypography.small(PlotColors.of(context).textMuted),
                   ),
                 ),
+              _TripDurationCard(trip: trip),
+              const SizedBox(height: PlotSpacing.s3),
               for (final day in trip.days) _DayCard(day: day, onOpenSegment: onOpenSegment),
             ],
           ),
@@ -83,6 +86,138 @@ class LogisticsTab extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// FR17 / C1 — "Authors define adventure duration ... via start/end dates or
+/// a day count." Both live here, on the tab that owns the day list itself,
+/// rather than only at trip creation (New Route's date picker still writes
+/// the same [Trip.duration] field): a day count that grows or shrinks the
+/// trip funnels through [CurrentTripNotifier.setDayCount], which shares
+/// Q1's content-preserving shrink behaviour, so a count typed here never
+/// discards authored work silently.
+class _TripDurationCard extends ConsumerStatefulWidget {
+  const _TripDurationCard({required this.trip});
+  final Trip trip;
+
+  @override
+  ConsumerState<_TripDurationCard> createState() => _TripDurationCardState();
+}
+
+class _TripDurationCardState extends ConsumerState<_TripDurationCard> {
+  late final _dayCountController =
+      TextEditingController(text: widget.trip.days.length.toString());
+
+  @override
+  void didUpdateWidget(covariant _TripDurationCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final count = widget.trip.days.length.toString();
+    if (_dayCountController.text != count) _dayCountController.text = count;
+  }
+
+  @override
+  void dispose() {
+    _dayCountController.dispose();
+    super.dispose();
+  }
+
+  String _dateRangeLabel() {
+    final duration = widget.trip.duration;
+    final start = duration?.startDate == null ? null : DateTime.tryParse(duration!.startDate!);
+    final end = duration?.endDate == null ? null : DateTime.tryParse(duration!.endDate!);
+    if (start == null) return 'No dates set';
+    if (end == null || DateUtils.isSameDay(start, end)) return DateFormat('MMM d, y').format(start);
+    return '${DateFormat('MMM d').format(start)} – ${DateFormat('MMM d, y').format(end)}';
+  }
+
+  Future<void> _pickDates() async {
+    final duration = widget.trip.duration;
+    final now = DateTime.now();
+    final initialStart =
+        (duration?.startDate == null ? null : DateTime.tryParse(duration!.startDate!)) ?? now;
+    final initialEnd = (duration?.endDate == null ? null : DateTime.tryParse(duration!.endDate!)) ??
+        initialStart.add(const Duration(days: 3));
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 3),
+      initialDateRange: DateTimeRange(
+        start: initialStart,
+        end: initialEnd.isBefore(initialStart) ? initialStart : initialEnd,
+      ),
+    );
+    if (range == null) return;
+    ref.read(currentTripProvider.notifier).setDuration(TripDuration(
+          startDate: DateFormat('yyyy-MM-dd').format(range.start),
+          endDate: DateFormat('yyyy-MM-dd').format(range.end),
+        ));
+  }
+
+  Future<void> _submitDayCount() async {
+    final target = int.tryParse(_dayCountController.text);
+    if (target == null || target == widget.trip.days.length) return;
+    final notifier = ref.read(currentTripProvider.notifier);
+    final beyond = notifier.setDayCount(target);
+    if (beyond.isEmpty) return;
+    if (!mounted) return;
+    final labels = beyond.length == 1
+        ? 'Day ${beyond.single.index}'
+        : 'Days ${beyond.first.index}–${beyond.last.index}';
+    final choice = await showDayRemovalPrompt(
+      context,
+      dayLabels: labels,
+      summary: summarizeDaysContent(beyond),
+    );
+    switch (choice) {
+      case DayRemovalChoice.mergeIntoAdjacent:
+        notifier.mergeDaysIntoAdjacent({for (final d in beyond) d.id});
+      case DayRemovalChoice.removeExplicitly:
+        notifier.removeDaysExplicitly({for (final d in beyond) d.id});
+      case DayRemovalChoice.keep:
+      case null:
+        // FR139: declining leaves the trip as it stood before the count
+        // change — the days [setDayCount] would have removed are still
+        // empty-trailing-only-excluded, i.e. still present.
+        _dayCountController.text = widget.trip.days.length.toString();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return PlotCard(
+      padding: const EdgeInsets.all(PlotSpacing.s3),
+      child: Row(
+        children: [
+          Text('TRIP LENGTH', style: PlotTypography.data(c.textMuted)),
+          const Spacer(),
+          SizedBox(
+            width: 48,
+            child: TextField(
+              controller: _dayCountController,
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(isDense: true),
+              keyboardType: TextInputType.number,
+              onSubmitted: (_) => _submitDayCount(),
+            ),
+          ),
+          const SizedBox(width: PlotSpacing.s2),
+          Text(widget.trip.days.length == 1 ? 'day' : 'days',
+              style: PlotTypography.body(c.textSecondary)),
+          const SizedBox(width: PlotSpacing.s4),
+          Expanded(
+            child: Text(_dateRangeLabel(),
+                textAlign: TextAlign.right, style: PlotTypography.body(c.textSecondary)),
+          ),
+          const SizedBox(width: PlotSpacing.s2),
+          PlotButton(
+            label: 'Edit dates',
+            variant: PlotButtonVariant.ghost,
+            onPressed: _pickDates,
+          ),
+        ],
+      ),
     );
   }
 }

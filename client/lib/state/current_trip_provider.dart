@@ -188,6 +188,38 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ];
   }
 
+  /// FR17/C1 — the day-count half of "start/end dates or a day count":
+  /// growing the trip appends blank route days ([addBlankDay]'s own
+  /// mechanism, run in a loop); shrinking it defers entirely to
+  /// [reduceDayCount], so the same no-prompt-for-empty-days carve-out and
+  /// content-preserving behaviour apply here too. Returns whatever
+  /// content-holding days a shrink would remove, for the caller to run
+  /// through the same FR139 scope prompt — empty when [target] grows or
+  /// holds the count steady.
+  ///
+  /// A trip's [Trip.duration] can name its length two ways (FR17): explicit
+  /// dates, or a bare day count. Once dates are set they stay authoritative
+  /// — this only touches [TripDuration.dayCount] while no start/end date is
+  /// recorded, so setting a count here never silently discards a date range
+  /// entered elsewhere.
+  List<Day> setDayCount(int target) {
+    if (target < 0) throw ArgumentError.value(target, 'target', 'must not be negative');
+    final current = state.days.length;
+    var contentBeyond = const <Day>[];
+    if (target > current) {
+      for (var i = current; i < target; i++) {
+        addBlankDay();
+      }
+    } else if (target < current) {
+      contentBeyond = reduceDayCount(target);
+    }
+    final duration = state.duration;
+    if (duration?.startDate == null && duration?.endDate == null) {
+      state = state.copyWith(duration: TripDuration(dayCount: state.days.length));
+    }
+    return contentBeyond;
+  }
+
   /// FR139/Q1's "remove explicitly" choice for a day-count reduction (or any
   /// direct multi-day removal): deletes [dayIds] and their authored content,
   /// then renumbers what remains.
