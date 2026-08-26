@@ -2,23 +2,16 @@
 // tcx_writer.dart's original private haversine so gpx/geojson can place a
 // cue (which only carries `distanceAlongM`, not a coordinate — see
 // domain/cue.dart) on the line too, not just TCX.
+//
+// `haversineM` itself moved to `domain/passage_sequence.dart` when B2/FR11
+// needed the same measurement for a transition's adjacency gap: great-circle
+// distance is a fact about two coordinates, not an export concern, and two
+// copies of it is one copy too many to keep agreeing with
+// `trips/compose.py`'s. Callers get it from the domain barrel, which every
+// writer here already imports.
 library;
 
-import 'dart:math' as math;
-
 import '../../domain/domain.dart';
-
-const _earthRm = 6371000.0;
-
-double haversineM(Coord a, Coord b) {
-  final lat1 = a[1] * math.pi / 180.0;
-  final lat2 = b[1] * math.pi / 180.0;
-  final dLat = (b[1] - a[1]) * math.pi / 180.0;
-  final dLon = (b[0] - a[0]) * math.pi / 180.0;
-  final h = math.sin(dLat / 2) * math.sin(dLat / 2) +
-      math.cos(lat1) * math.cos(lat2) * math.sin(dLon / 2) * math.sin(dLon / 2);
-  return 2 * _earthRm * math.asin(math.min(1.0, math.sqrt(h)));
-}
 
 /// The point [targetM] along [coords], linearly interpolated between the
 /// two vertices it falls between. Clamps to the first/last vertex outside

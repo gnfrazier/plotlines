@@ -3,6 +3,15 @@
 // transition glyph between adjacent segments (`Day.transitions`, modeled in
 // the schema since SPIKE-20 but never surfaced in any UI until now) and a
 // day-limit breach chip (`Day.limits`, same story — real data, no prior UI).
+//
+// FR11 / B2: this strip is where a day's passage *order* is set and where the
+// adjacency gap warning lands. The order is left-to-right, which is the whole
+// reason the reorder control is a pair of arrows on the selected passage
+// rather than a drag handle — a horizontally scrolling strip gives a drag
+// nowhere obvious to go, and "move this leg one earlier" is the edit an
+// Author actually makes. The measurement itself is
+// `domain/passage_sequence.dart` (mirroring `trips/compose.py`), never
+// recomputed here.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,7 +20,9 @@ import 'package:go_router/go_router.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../domain/domain.dart';
+import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
+import 'travel_mode_icons.dart';
 
 class DayTimelineStrip extends ConsumerWidget {
   const DayTimelineStrip({
@@ -117,8 +128,13 @@ class _DaySegmentStrip extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           for (var i = 0; i < day.segments.length; i++) ...[
-            if (i > 0) _TransitionGlyph(transition: _transitionBetween(day, i)),
-            _SegmentChip(day: day, segment: day.segments[i]),
+            if (i > 0) _TransitionGlyph(transition: transitionBefore(day, i)),
+            _SegmentChip(
+              day: day,
+              segment: day.segments[i],
+              position: i,
+              count: day.segments.length,
+            ),
           ],
           if (breach != null) ...[
             const SizedBox(width: PlotSpacing.s4),
@@ -127,15 +143,6 @@ class _DaySegmentStrip extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  Transition? _transitionBetween(Day day, int i) {
-    final fromId = day.segments[i - 1].id;
-    final toId = day.segments[i].id;
-    for (final t in day.transitions) {
-      if (t.fromSegmentId == fromId && t.toSegmentId == toId) return t;
-    }
-    return null;
   }
 
   String? _breach(Day day, double dayDistance) {
@@ -171,9 +178,19 @@ class _DaySegmentStrip extends ConsumerWidget {
 }
 
 class _SegmentChip extends ConsumerWidget {
-  const _SegmentChip({required this.day, required this.segment});
+  const _SegmentChip({
+    required this.day,
+    required this.segment,
+    required this.position,
+    required this.count,
+  });
   final Day day;
   final Segment segment;
+
+  /// 0-based place in the day, and how many passages the day holds — the two
+  /// facts the reorder arrows need to know which of them can do anything.
+  final int position;
+  final int count;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -193,12 +210,7 @@ class _SegmentChip extends ConsumerWidget {
         child: Row(
           children: [
             Icon(
-              switch (segment.mode) {
-                'hiking' => Icons.hiking,
-                'paddling' => Icons.kayaking,
-                'transit' => Icons.directions_transit,
-                _ => Icons.directions_bike,
-              },
+              travelModeIcon(segment.mode),
               size: 20,
               color: selected ? c.primary : c.textSecondary,
             ),
@@ -206,7 +218,8 @@ class _SegmentChip extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(segment.mode, style: PlotTypography.body(c.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+                Text(travelModeLabel(segment.mode),
+                    style: PlotTypography.body(c.textPrimary).copyWith(fontWeight: FontWeight.w600)),
                 Text(
                   km == null ? '—' : '${km.toStringAsFixed(1)} km',
                   style: PlotTypography.small(c.textMuted),
@@ -221,9 +234,53 @@ class _SegmentChip extends ConsumerWidget {
               const SizedBox(width: PlotSpacing.s2),
               PlotBadge(segment.arcStage!, tone: PlotBadgeTone.slate),
             ],
+            // FR11 / B2 — reorder, shown only on the selected passage so the
+            // strip doesn't sprout two buttons per leg. Each arrow is hidden
+            // rather than disabled at the end it cannot move toward: there is
+            // nothing to explain about "you cannot move the first leg
+            // earlier", and a dead control invites a second click.
+            if (selected && count > 1) ...[
+              const SizedBox(width: PlotSpacing.s2),
+              if (position > 0)
+                _MoveButton(
+                  icon: Icons.chevron_left,
+                  tooltip: 'Move earlier in the day',
+                  onPressed: () => ref
+                      .read(currentTripProvider.notifier)
+                      .movePassage(day.id, segment.id, by: -1),
+                ),
+              if (position < count - 1)
+                _MoveButton(
+                  icon: Icons.chevron_right,
+                  tooltip: 'Move later in the day',
+                  onPressed: () => ref
+                      .read(currentTripProvider.notifier)
+                      .movePassage(day.id, segment.id, by: 1),
+                ),
+            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MoveButton extends StatelessWidget {
+  const _MoveButton({required this.icon, required this.tooltip, required this.onPressed});
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return IconButton(
+      tooltip: tooltip,
+      icon: Icon(icon, size: 18, color: c.textSecondary),
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      padding: EdgeInsets.zero,
+      onPressed: onPressed,
     );
   }
 }
@@ -236,27 +293,49 @@ class _TransitionGlyph extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final warn = transition?.gapWarning ?? false;
-    final label = _label(warn);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s2),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.compare_arrows, size: 20, color: warn ? c.warning : c.textMuted),
-          Text(
-            label,
-            style: PlotTypography.small(warn ? c.warning : c.textMuted).copyWith(fontSize: 8),
-          ),
+          Icon(Icons.compare_arrows, size: 20, color: warn ? c.danger : c.textMuted),
+          // FR11 / B2 — the gap is a *number*, so it is set in mono and stated
+          // rather than implied: "GAP 1.2 KM" tells an Author whether this is a
+          // walk across a car park or a hole in the day. Gold is a fill here,
+          // never text (brand guardrail), so the warning is a solid badge while
+          // the ordinary case stays a quiet caption.
+          if (warn)
+            Tooltip(
+              message: 'These two passages do not meet — '
+                  "${_metres(transition!.gapM)} between the first one's end and "
+                  "the next one's start (warns above "
+                  '${(kDefaultGapWarnM / 1000).toStringAsFixed(1)} km).',
+              child: PlotBadge(_gapLabel(transition!.gapM),
+                  tone: PlotBadgeTone.gold, solid: true),
+            )
+          else
+            Text(
+              _label(),
+              style: PlotTypography.small(c.textMuted).copyWith(fontSize: 8),
+            ),
         ],
       ),
     );
   }
 
+  static String _metres(double? gapM) =>
+      gapM == null ? 'an unmeasured distance' : '${gapM.round()} m';
+
+  static String _gapLabel(double? gapM) => gapM == null
+      ? 'GAP'
+      : gapM >= 1000
+          ? 'GAP ${(gapM / 1000).toStringAsFixed(1)} km'
+          : 'GAP ${gapM.round()} m';
+
   /// "Portage" is only the right word for a mode change into or out of
   /// paddling — any other mode change (e.g. ride to hike) is a generic
   /// transition, not a boat carry.
-  String _label(bool warn) {
-    if (warn) return 'GAP';
+  String _label() {
     final from = transition?.fromMode;
     final to = transition?.toMode;
     if (from == 'paddling' || to == 'paddling') return 'PORTAGE';

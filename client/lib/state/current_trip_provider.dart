@@ -35,7 +35,16 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// clears any generated route.
   void reset() => state = _blank();
 
-  void open(Trip trip) => state = trip;
+  /// FR11 / B2 — a trip opened from disk (or from a clone) gets its
+  /// transitions rebuilt on the way in, for the same reason [_replaceDay]
+  /// does it on the way through: the gap warning is a fact about the
+  /// passages as they stand, and a payload that predates B2 — or one an
+  /// Author edited on another device — may carry none at all. Resequencing
+  /// is idempotent and preserves B3's authored instructions, so a payload
+  /// that `compose_day` already measured comes back with the same numbers.
+  void open(Trip trip) => state = trip.copyWith(
+        days: [for (final day in trip.days) resequencePassages(day)],
+      );
 
   void renameTrip(String title) =>
       state = state.copyWith(title: title, updatedAt: _nowIso());
@@ -89,10 +98,19 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   }
 
   void _replaceDay(Day day) {
-    final exists = state.days.any((d) => d.id == day.id);
+    // FR11/B2 — every day mutation funnels through here, so this is the one
+    // place the day's transitions get rebuilt against its current passage
+    // order and each junction's gap re-measured. Same argument as
+    // [markSegmentStale]'s: a derived fact that any edit can invalidate needs
+    // a single choke point, or some edit path eventually forgets it.
+    // `resequencePassages` is idempotent and preserves B3's authored
+    // instructions, so running it on every mutation costs nothing and loses
+    // nothing.
+    final sequenced = resequencePassages(day);
+    final exists = state.days.any((d) => d.id == sequenced.id);
     final days = exists
-        ? [for (final d in state.days) if (d.id == day.id) day else d]
-        : [...state.days, day];
+        ? [for (final d in state.days) if (d.id == sequenced.id) sequenced else d]
+        : [...state.days, sequenced];
     // FR144/N0 — "not a constraint": every day/segment mutation in this
     // notifier funnels through here, so this is the one place that needs to
     // catch a passage created in an undeclared mode and fold it in, silently
@@ -292,12 +310,38 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ));
   }
 
+  /// FR11 / B2 — "reorderable to set transition sequence". [newIndex] follows
+  /// Flutter's `ReorderableListView` convention (the index *before* the moved
+  /// passage is taken out), so a list widget's callback arguments pass straight
+  /// through. [_replaceDay] rebuilds the day's transitions and re-measures each
+  /// junction's gap afterwards.
+  ///
+  /// A reorder can strand a transition whose two passages are no longer
+  /// adjacent. Callers should check `strandedInstructedTransitions`
+  /// (`domain/passage_sequence.dart`) and confirm with the Author first when
+  /// it returns anything — the same division between deciding and doing that
+  /// [removeSegment] draws.
   void reorderSegments(String dayId, int oldIndex, int newIndex) {
     final day = state.days.firstWhere((d) => d.id == dayId);
-    final segments = [...day.segments];
-    final moved = segments.removeAt(oldIndex);
-    segments.insert(newIndex > oldIndex ? newIndex - 1 : newIndex, moved);
-    _replaceDay(day.copyWith(segments: segments));
+    _replaceDay(day.copyWith(
+      segments: reorderPassages(day.segments, oldIndex, newIndex),
+    ));
+  }
+
+  /// FR11 / B2 — move a passage one place earlier or later in its day. The
+  /// arrow-button form of [reorderSegments]; a no-op at either end of the day
+  /// rather than an error, so a control can stay visible and simply do
+  /// nothing (FR121: never a silently disabled control the Author can't
+  /// explain).
+  void movePassage(String dayId, String segmentId, {required int by}) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final from = day.segments.indexWhere((s) => s.id == segmentId);
+    if (from < 0) return;
+    final to = from + by;
+    if (to < 0 || to >= day.segments.length) return;
+    // `reorderPassages` takes the pre-removal index, so a move to a later
+    // position is one further along than the destination index itself.
+    reorderSegments(dayId, from, by > 0 ? to + 1 : to);
   }
 
   /// SPIKE-20 (ARCH D30): an authored-input edit invalidates the derived

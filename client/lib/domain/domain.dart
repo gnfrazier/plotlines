@@ -18,6 +18,7 @@ export 'json_utils.dart'
 export 'message_catalog.dart';
 export 'message_template.dart';
 export 'node.dart';
+export 'passage_sequence.dart';
 export 'point_trigger.dart';
 export 'reachability.dart';
 export 'reason_phrase.dart';
