@@ -19,6 +19,16 @@ class Trips extends Table {
   /// (SPIKE-20: full-row `SELECT *` on 20 trips cost 137ms vs 1.0ms projected).
   TextColumn get modes => text()();
 
+  /// FR144/N0 — the Author's **declared** modes (`Trip.declaredModes`),
+  /// comma-joined the same way [modes] is. Lives here rather than in
+  /// `payload` because `trip_payload.schema.json` is
+  /// `additionalProperties: false` and has no such field (`trip.dart`'s doc
+  /// comment on `declaredModes`) — this column is this field's only
+  /// persistence, not a denormalized copy of something the payload also
+  /// carries. Defaulted for old rows written before this column existed;
+  /// those trips simply have nothing declared until reopened and re-set.
+  TextColumn get declaredModes => text().withDefault(const Constant(''))();
+
   /// Canonical trip_payload.schema.json JSON, as TEXT (SQLite has no JSON type).
   TextColumn get payload => text()();
 
@@ -61,7 +71,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.connection);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -69,6 +79,9 @@ class AppDatabase extends _$AppDatabase {
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.createTable(rejectedProposals);
+          }
+          if (from < 3) {
+            await m.addColumn(trips, trips.declaredModes);
           }
         },
       );
@@ -100,6 +113,7 @@ class AppDatabase extends _$AppDatabase {
     required String id,
     required String title,
     required List<String> modes,
+    required List<String> declaredModes,
     required String payloadJson,
     required DateTime updatedAt,
   }) {
@@ -107,6 +121,7 @@ class AppDatabase extends _$AppDatabase {
       id: id,
       title: title,
       modes: modes.join(','),
+      declaredModes: Value(declaredModes.join(',')),
       payload: payloadJson,
       createdAt: updatedAt,
       updatedAt: updatedAt,

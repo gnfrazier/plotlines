@@ -44,6 +44,8 @@ import '../../state/trip_authoring_meta_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import '../map/tap_to_pick_map.dart';
 import '../widgets/error_states.dart';
+import '../widgets/plot_toggle_chip.dart';
+import '../widgets/travel_mode_icons.dart';
 
 enum _StartMethod { blank, theme, import }
 
@@ -60,7 +62,16 @@ class NewRouteScreen extends ConsumerStatefulWidget {
 }
 
 class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
-  String _mode = 'cycling';
+  // FR10/FR144 (N0) — "the declared set seeds which traversal modes are
+  // offered at passage creation": every real mode stays offered below (this
+  // is never a constraint), but the one preselected here is the trip's own
+  // declared mode rather than a hardcoded 'cycling' — canonical-order first
+  // match, since a `Set`'s own iteration order isn't something to build a
+  // default on.
+  late String _mode = kTravelModes.firstWhere(
+    ref.read(currentTripProvider).declaredModes.contains,
+    orElse: () => 'cycling',
+  );
   // FR7/A7 — the AC-stated default shape (`planner_ui_state.dart`'s single
   // source of truth for it): loop needs only a start, no destination,
   // unlike point_to_point.
@@ -82,7 +93,6 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
 
-  static const _modes = ['cycling', 'hiking', 'paddling', 'transit'];
   static const _shapes = ['loop', 'out_and_back', 'point_to_point'];
   static const _themes = ['balanced', 'quiet_scenic', 'fastest', 'gravel'];
   // Wireframe screen 00 shows only Ride/Paddle/Hike by default, plus a
@@ -187,9 +197,14 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                         : ref.read(currentTripProvider.notifier).renameTrip(v.trim()),
                   ),
                   const SizedBox(height: PlotSpacing.s4),
+                  // FR144/N0 — this now edits the trip's declared modes
+                  // directly (already set ahead of the location prompt by
+                  // `showTripModePrompt`, `trip_library_screen.dart`), not
+                  // the old session-only `tripAuthoringMetaProvider` field:
+                  // "modes are editable for the life of the trip."
                   _SectionLabel('PRIMARY MODES · pick any'),
                   Builder(builder: (context) {
-                    final selected = ref.watch(tripAuthoringMetaProvider).primaryModes;
+                    final selected = ref.watch(currentTripProvider).declaredModes;
                     final extra = _primaryModeChoices
                         .where((m) => !_basePrimaryModes.contains(m))
                         .toList();
@@ -200,31 +215,31 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                       runSpacing: PlotSpacing.s2,
                       children: [
                         for (final m in _basePrimaryModes)
-                          _PlotToggleChip(
-                            label: _modeLabel(m),
-                            icon: _modeIcon(m),
+                          PlotToggleChip(
+                            label: travelModeLabel(m),
+                            icon: travelModeIcon(m),
                             selected: selected.contains(m),
                             onTap: () =>
-                                ref.read(tripAuthoringMetaProvider.notifier).togglePrimaryMode(m),
+                                ref.read(currentTripProvider.notifier).toggleDeclaredMode(m),
                           ),
                         for (final m in shownExtra)
-                          _PlotToggleChip(
-                            label: _modeLabel(m),
-                            icon: _modeIcon(m),
+                          PlotToggleChip(
+                            label: travelModeLabel(m),
+                            icon: travelModeIcon(m),
                             selected: true,
                             onTap: () =>
-                                ref.read(tripAuthoringMetaProvider.notifier).togglePrimaryMode(m),
+                                ref.read(currentTripProvider.notifier).toggleDeclaredMode(m),
                           ),
                         if (addable.isNotEmpty)
                           PopupMenuButton<String>(
                             tooltip: 'Add a mode',
                             onSelected: (m) =>
-                                ref.read(tripAuthoringMetaProvider.notifier).togglePrimaryMode(m),
+                                ref.read(currentTripProvider.notifier).toggleDeclaredMode(m),
                             itemBuilder: (context) => [
                               for (final m in addable)
-                                PopupMenuItem(value: m, child: Text(_modeLabel(m))),
+                                PopupMenuItem(value: m, child: Text(travelModeLabel(m))),
                             ],
-                            child: _PlotToggleChip(
+                            child: PlotToggleChip(
                               label: 'Add',
                               icon: Icons.add,
                               selected: false,
@@ -322,10 +337,10 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                       spacing: PlotSpacing.s2,
                       runSpacing: PlotSpacing.s2,
                       children: [
-                        for (final m in _modes)
-                          _PlotToggleChip(
-                            label: _modeLabel(m),
-                            icon: _modeIcon(m),
+                        for (final m in kTravelModes)
+                          PlotToggleChip(
+                            label: travelModeLabel(m),
+                            icon: travelModeIcon(m),
                             selected: _mode == m,
                             onTap: () => setState(() => _mode = m),
                           ),
@@ -347,7 +362,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                       runSpacing: PlotSpacing.s2,
                       children: [
                         for (final s in _shapes)
-                          _PlotToggleChip(
+                          PlotToggleChip(
                             label: s.replaceAll('_', ' '),
                             selected: _shape == s,
                             onTap: () => setState(() {
@@ -389,7 +404,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                       runSpacing: PlotSpacing.s2,
                       children: [
                         for (final t in _themes)
-                          _PlotToggleChip(
+                          PlotToggleChip(
                             label: t.replaceAll('_', ' '),
                             selected: _theme == t,
                             onTap: () => setState(() => _theme = t),
@@ -508,21 +523,6 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     }
     return '${DateFormat('MMM d').format(start)} – ${DateFormat('MMM d').format(end)}';
   }
-
-  static String _modeLabel(String m) => switch (m) {
-        'cycling' => 'Ride',
-        'paddling' => 'Paddle',
-        'hiking' => 'Hike',
-        'transit' => 'Transit',
-        _ => m,
-      };
-
-  static IconData _modeIcon(String m) => switch (m) {
-        'hiking' => Icons.hiking,
-        'paddling' => Icons.kayaking,
-        'transit' => Icons.directions_transit,
-        _ => Icons.directions_bike,
-      };
 
   void _createBlank() {
     final title = _tripNameController.text.trim();
@@ -679,55 +679,6 @@ class _PointList extends StatelessWidget {
               child: PlotButton(label: 'Clear points', variant: PlotButtonVariant.ghost, onPressed: onClear),
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// The app's established toggle-chip look (see `_SegmentChip` in
-/// `day_timeline_strip.dart`) — a bordered box, filled + accent border when
-/// selected — used here in place of Material's default `ChoiceChip`/
-/// `FilterChip` so mode/shape/theme pickers match the rest of the app
-/// instead of the stock Material chip style.
-class _PlotToggleChip extends StatelessWidget {
-  const _PlotToggleChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.icon,
-  });
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = PlotColors.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: PlotRadii.controlShape,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
-        decoration: BoxDecoration(
-          color: selected ? c.primary.withValues(alpha: 0.1) : c.surfaceCard,
-          border: Border.all(color: selected ? c.primary : c.border, width: selected ? 1.5 : 1),
-          borderRadius: PlotRadii.controlShape,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 16, color: selected ? c.primary : c.textSecondary),
-              const SizedBox(width: PlotSpacing.s2),
-            ],
-            Text(
-              label,
-              style: PlotTypography.data(selected ? c.primary : c.textPrimary)
-                  .copyWith(fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
-            ),
-          ],
-        ),
       ),
     );
   }

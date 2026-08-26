@@ -127,6 +127,7 @@ class Trip {
     this.anchors = const [],
     this.metrics,
     this.provenance,
+    this.declaredModes = const {},
   });
 
   final String schemaVersion;
@@ -222,6 +223,27 @@ class Trip {
           for (final s in d.segments) s.mode,
       };
 
+  /// FR144/N0 — the Author's **declared** travel modes: stated at trip
+  /// initiation (ahead of the location prompt), editable for the trip's
+  /// life, and never shrunk automatically. Distinct from [modes] above,
+  /// which is *derived* from whatever segments happen to exist and can be
+  /// empty for a brand-new trip with no days yet — the two must not be
+  /// conflated (an empty [modes] on a fresh trip does not mean nothing was
+  /// declared). Declaring is not a constraint (FR144): creating a passage
+  /// in a mode outside this set silently adds it here rather than being
+  /// blocked (`CurrentTripNotifier._replaceDay`), it never removes one.
+  ///
+  /// **Not part of the wire payload.** `trip_payload.schema.json` has no
+  /// such field and is `additionalProperties: false` at the top level, so
+  /// this is deliberately absent from [toJson]/[fromJson] — the same
+  /// reasoning `trip_authoring_meta_provider.dart` already documents for
+  /// party size. Unlike that provider's fields, this **is** persisted: as
+  /// its own column on the local `Trips` table (`app_database.dart`),
+  /// alongside (not inside) the canonical payload blob, the same way that
+  /// table's `modes` column already denormalizes [modes] outside the
+  /// payload for G2a's list view.
+  final Set<String> declaredModes;
+
   Trip copyWith({
     String? title,
     String? updatedAt,
@@ -232,6 +254,7 @@ class Trip {
     List<Anchor>? anchors,
     RollUp? metrics,
     Provenance? provenance,
+    Set<String>? declaredModes,
   }) =>
       Trip(
         schemaVersion: schemaVersion,
@@ -246,5 +269,6 @@ class Trip {
         anchors: anchors ?? this.anchors,
         metrics: metrics ?? this.metrics,
         provenance: provenance ?? this.provenance,
+        declaredModes: declaredModes ?? this.declaredModes,
       );
 }

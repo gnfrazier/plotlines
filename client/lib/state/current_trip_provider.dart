@@ -46,6 +46,27 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   void setDuration(TripDuration duration) =>
       state = state.copyWith(duration: duration, updatedAt: _nowIso());
 
+  /// FR144/N0 — the Author's stated set, from the mode-declaration prompt
+  /// (trip creation) or a later edit (New Route's "PRIMARY MODES", the
+  /// layer picker). "At least one is required" is enforced here too, not
+  /// only at the picker UI: an empty set is never a legal declared state,
+  /// so a call that would produce one is ignored rather than accepted.
+  void setDeclaredModes(Set<String> modes) {
+    if (modes.isEmpty) return;
+    state = state.copyWith(declaredModes: modes, updatedAt: _nowIso());
+  }
+
+  void toggleDeclaredMode(String mode) {
+    final modes = {...state.declaredModes};
+    if (modes.contains(mode)) {
+      if (modes.length == 1) return; // AC: at least one is always required.
+      modes.remove(mode);
+    } else {
+      modes.add(mode);
+    }
+    state = state.copyWith(declaredModes: modes, updatedAt: _nowIso());
+  }
+
   /// New Route's "Blank canvas" start method (wireframe screen 00) — an
   /// empty day the Author builds manually via Logistics/Route/Content
   /// rather than a sidecar-generated segment. Also Logistics's "Add rest
@@ -72,7 +93,17 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final days = exists
         ? [for (final d in state.days) if (d.id == day.id) day else d]
         : [...state.days, day];
-    state = state.copyWith(days: days, updatedAt: _nowIso());
+    // FR144/N0 — "not a constraint": every day/segment mutation in this
+    // notifier funnels through here, so this is the one place that needs to
+    // catch a passage created in an undeclared mode and fold it in, silently
+    // and unconditionally (no warning, no block, no confirmation). Declared
+    // modes only ever grow this way — a mode already present, declared or
+    // realized, changes nothing.
+    final impliedModes = {for (final d in days) for (final s in d.segments) s.mode};
+    final declaredModes = impliedModes.difference(state.declaredModes).isEmpty
+        ? state.declaredModes
+        : {...state.declaredModes, ...impliedModes};
+    state = state.copyWith(days: days, declaredModes: declaredModes, updatedAt: _nowIso());
   }
 
   void removeDay(String dayId) => state = state.copyWith(
@@ -645,6 +676,7 @@ class TripPersistence {
       id: trip.id,
       title: trip.title,
       modes: trip.modes.toList(),
+      declaredModes: trip.declaredModes.toList(),
       payloadJson: _encode(trip),
       updatedAt: DateTime.now(),
     );
@@ -655,11 +687,17 @@ class TripPersistence {
     final db = _ref.read(appDatabaseProvider);
     final row = await db.loadTrip(id);
     if (row == null) return;
-    final trip = Trip.fromJson(_decode(row.payload));
+    final trip = Trip.fromJson(_decode(row.payload)).copyWith(
+      // FR144/N0 — `declaredModes` never rode in `payload` (`trip.dart`'s
+      // doc comment); it comes back from its own column instead.
+      declaredModes: row.declaredModes.isEmpty ? const {} : row.declaredModes.split(',').toSet(),
+    );
     _ref.read(currentTripProvider.notifier).open(trip);
-    // Party size / primary modes are session-only (trip_authoring_meta_provider.dart's
-    // doc comment) — a reopened trip starts without whatever was set for the
-    // trip open before it, rather than inheriting a stale value. The trip
+    // Party size is session-only (trip_authoring_meta_provider.dart's doc
+    // comment) — a reopened trip starts without whatever was set for the
+    // trip open before it, rather than inheriting a stale value. (Travel
+    // modes used to be session-only too; FR144/N0 promoted them to
+    // `Trip.declaredModes` above, which *does* survive reopening.) The trip
     // bbox is the same accepted limitation (trip_bbox_provider.dart) — a
     // reopened trip needs the "Trip area" action (trip_shell_screen.dart) to
     // redraw it before anything bbox-scoped can run again.

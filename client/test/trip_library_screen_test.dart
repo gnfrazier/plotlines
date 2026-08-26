@@ -18,6 +18,7 @@ import 'package:plotlines_client/domain/home_region.dart';
 import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart';
 import 'package:plotlines_client/presentation/screens/trip_library_screen.dart';
 import 'package:plotlines_client/presentation/widgets/trip_location_prompt.dart';
+import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/providers.dart';
 
 class _FakeSidecarManager extends SidecarManager {
@@ -52,6 +53,19 @@ Widget _harness(AppDatabase db, {GoRouter? router}) {
   );
 }
 
+/// FR144/N0 — "New trip" now opens the mode-declaration prompt ahead of the
+/// location prompt; every scenario below that reaches the location prompt
+/// has to clear it first.
+Future<void> _declareModes(WidgetTester tester, {List<String> labels = const ['Ride']}) async {
+  expect(find.text('How are we travelling?'), findsOneWidget);
+  for (final label in labels) {
+    await tester.tap(find.text(label));
+    await tester.pump();
+  }
+  await tester.tap(find.text('Continue'));
+  await tester.pump();
+}
+
 void main() {
   testWidgets('cold start shows the shipped home region, not a blocking dialog', (tester) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -63,7 +77,7 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
   });
 
-  testWidgets('New trip prompts for a location, prefilled with the last-used value',
+  testWidgets('New trip declares travel modes, then prompts for a location, prefilled with the last-used value',
       (tester) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     await db.setSetting('last_trip_location', 'Asheville, NC');
@@ -72,10 +86,62 @@ void main() {
 
     await tester.tap(find.text('New trip'));
     await tester.pump();
+    await _declareModes(tester);
 
     expect(find.text('Where are we going?'), findsOneWidget);
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.controller!.text, 'Asheville, NC');
+  });
+
+  testWidgets('mode declaration requires at least one mode before Continue is enabled',
+      (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    await tester.pumpWidget(_harness(db));
+    await _settleMap(tester);
+
+    await tester.tap(find.text('New trip'));
+    await tester.pump();
+
+    expect(find.text('How are we travelling?'), findsOneWidget);
+    var continueButton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Continue'));
+    expect(continueButton.onPressed, isNull);
+
+    await tester.tap(find.text('Ride'));
+    await tester.pump();
+    continueButton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Continue'));
+    expect(continueButton.onPressed, isNotNull);
+
+    // Deselecting back to none disables it again — not just a one-time gate.
+    await tester.tap(find.text('Ride'));
+    await tester.pump();
+    continueButton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Continue'));
+    expect(continueButton.onPressed, isNull);
+  });
+
+  testWidgets('cancelling the mode prompt does not start a trip', (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    var pushed = false;
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(path: '/', builder: (_, _) => const TripLibraryScreen()),
+        GoRoute(path: '/new-trip-area', builder: (_, _) {
+          pushed = true;
+          return const SizedBox.shrink();
+        }),
+      ],
+    );
+    await tester.pumpWidget(_harness(db, router: router));
+    await _settleMap(tester);
+
+    await tester.tap(find.text('New trip'));
+    await tester.pump();
+    expect(find.text('How are we travelling?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+
+    expect(find.text('Where are we going?'), findsNothing);
+    expect(pushed, isFalse);
   });
 
   testWidgets(
@@ -103,6 +169,7 @@ void main() {
 
     await tester.tap(find.text('New trip'));
     await tester.pump();
+    await _declareModes(tester, labels: ['Hike']);
     await tester.tap(find.text('Use ${HomeRegion.label}'));
     await _settleMap(tester);
 
@@ -113,6 +180,10 @@ void main() {
     expect(capturedChoice?.center, isNull);
     expect(capturedChoice?.bbox, isNull);
     expect(await db.getSetting('last_trip_location'), HomeRegion.label);
+    // FR144/N0 — the declared set actually lands on the trip, not just the
+    // dialog's own local state.
+    final container = ProviderScope.containerOf(tester.element(find.byType(TripLibraryScreen)));
+    expect(container.read(currentTripProvider).declaredModes, {'hiking'});
   });
 
   testWidgets('cancelling the location prompt does not start a trip', (tester) async {
@@ -133,6 +204,7 @@ void main() {
 
     await tester.tap(find.text('New trip'));
     await tester.pump();
+    await _declareModes(tester);
     await tester.tap(find.text('Cancel'));
     await _settleMap(tester);
 

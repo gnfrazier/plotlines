@@ -27,6 +27,7 @@ import '../../state/trip_bbox_provider.dart';
 import '../../state/trip_library_provider.dart';
 import '../map/tap_to_pick_map.dart';
 import '../widgets/trip_location_prompt.dart';
+import '../widgets/trip_mode_prompt.dart';
 
 const String _lastTripLocationKey = 'last_trip_location';
 
@@ -123,11 +124,16 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
     );
   }
 
-  /// A10 — prompts for a location every time a trip starts, prefilled with
-  /// whatever was entered last time. Never gates trip creation on having
-  /// asked before, and never triggers a download: the chosen location only
-  /// centers the map the Author lands on next.
+  /// FR144/N0 — declares travel modes first (Flow 1's ordering: mode
+  /// declaration ahead of the location prompt), then A10's location prompt
+  /// every time a trip starts, prefilled with whatever was entered last
+  /// time. Neither step gates trip creation on having been asked before,
+  /// and the location choice never triggers a download: it only centers the
+  /// map the Author lands on next.
   Future<void> _startNewTrip(BuildContext context, WidgetRef ref) async {
+    final modes = await showTripModePrompt(context);
+    if (modes == null) return; // Author cancelled trip creation entirely.
+    if (!context.mounted) return;
     final db = ref.read(appDatabaseProvider);
     final lastUsed = await db.getSetting(_lastTripLocationKey);
     if (!context.mounted) return;
@@ -140,6 +146,7 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
     await db.setSetting(_lastTripLocationKey, choice.label);
     if (!context.mounted) return;
     ref.read(currentTripProvider.notifier).reset();
+    ref.read(currentTripProvider.notifier).setDeclaredModes(modes);
     ref.read(tripAuthoringMetaProvider.notifier).reset();
     // N1 (FR120) — the location only centers the map; the Author still has
     // to draw the trip's own bbox before New Route's setup form.

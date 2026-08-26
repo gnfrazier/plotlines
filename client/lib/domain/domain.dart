@@ -18,5 +18,6 @@ export 'reveal_state.dart';
 export 'route_metrics.dart';
 export 'segment.dart';
 export 'transition.dart';
+export 'travel_mode.dart';
 export 'trip.dart';
 export 'weight_profile.dart';

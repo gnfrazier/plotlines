@@ -45,12 +45,17 @@ class _LayersTabState extends ConsumerState<LayersTab> {
   Day? get _activeDay =>
       widget.trip.days.where((d) => d.id == widget.activeDayId).firstOrNull;
 
-  /// N0 (the layer picker's own dependency, per the MVP punchlist) isn't
-  /// built yet, so this reads the trip's realized modes instead of a
-  /// declared set — the same "the layer picker has no defaults without it"
-  /// gap the punchlist names, worked around the same way `Trip.modes`
-  /// already exists for.
-  String get _mode => widget.trip.modes.isNotEmpty ? widget.trip.modes.first : 'cycling';
+  /// FR144/N0 — the trip's declared modes now feed the layer picker's
+  /// defaults directly. A trip saved before N0 (nothing in `declaredModes`
+  /// yet, `app_database.dart`'s migration note) falls back to whatever
+  /// modes are actually realized in its segments, and finally to cycling
+  /// for a brand-new, day-less trip — the same fallback chain
+  /// `Trip.modes`'s own doc comment already draws a line under.
+  Set<String> get _effectiveModes {
+    if (widget.trip.declaredModes.isNotEmpty) return widget.trip.declaredModes;
+    if (widget.trip.modes.isNotEmpty) return widget.trip.modes;
+    return const {'cycling'};
+  }
 
   String get _dayType => _activeDay?.kind ?? 'route';
 
@@ -58,8 +63,9 @@ class _LayersTabState extends ConsumerState<LayersTab> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final day = _activeDay;
+    final modes = _effectiveModes;
     final catalogAsync =
-        ref.watch(layerCatalogProvider((mode: _mode, dayType: _dayType)));
+        ref.watch(layerCatalogProvider((modes: layerModesKey(modes), dayType: _dayType)));
     final selection = ref.watch(layerSelectionProvider);
     final bbox = ref.watch(tripBboxProvider);
 
@@ -73,12 +79,13 @@ class _LayersTabState extends ConsumerState<LayersTab> {
         ),
       ),
       data: (catalog) {
-        if (selection.tripLive.isEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            ref.read(layerSelectionProvider.notifier).seedTripDefaults(catalog.defaultLive);
-          });
-        }
+        // FR144/N0 — reseeds only when the declared set actually changed
+        // since the last seed (`seedForModes`'s own doc comment); switching
+        // the active day (and so `_dayType`) alone never re-triggers this.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ref.read(layerSelectionProvider.notifier).seedForModes(modes, catalog.defaultLive);
+        });
         final live = selection.liveFor(day?.id);
 
         return Row(
@@ -115,7 +122,14 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Trip layers', style: PlotTypography.title(c.textPrimary)),
-                    const SizedBox(height: PlotSpacing.s2),
+                    const SizedBox(height: PlotSpacing.s1),
+                    // FR144/N0 AC — "the layer picker states which modes it
+                    // derived its initial state from."
+                    Text(
+                      'Defaults from: ${(modes.toList()..sort()).map(travelModeLabel).join(', ')}',
+                      style: PlotTypography.small(c.textMuted),
+                    ),
+                    const SizedBox(height: PlotSpacing.s3),
                     LayerPicker(
                       layers: catalog.layers,
                       live: selection.tripLive,
