@@ -18,6 +18,7 @@ export 'node.dart';
 export 'reveal_state.dart';
 export 'route_metrics.dart';
 export 'segment.dart';
+export 'stale_work.dart';
 export 'transition.dart';
 export 'travel_mode.dart';
 export 'trip.dart';

@@ -22,6 +22,7 @@ import '../../../domain/domain.dart';
 import '../../../state/providers.dart';
 import '../../../state/trip_bbox_provider.dart';
 import '../../widgets/error_states.dart';
+import '../../widgets/stale_list_dialog.dart';
 
 class ExportTab extends ConsumerWidget {
   const ExportTab({super.key, required this.trip});
@@ -428,6 +429,11 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
   }
 
   Future<void> _export() async {
+    // FR140/Q3 — "a stale route stays viewable but is not exportable":
+    // the attempt opens the stale list rather than erroring, and export
+    // proceeds once it's cleared (by resolving or dropping every item).
+    final ready = await ensureNoStaleWork(context, widget.trip);
+    if (!mounted || !ready) return;
     setState(() => _exporting = true);
     try {
       Map<String, CueSheet> cueSheets = const {};

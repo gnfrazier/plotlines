@@ -816,6 +816,27 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     }
     return RouteMetrics(distanceM: distance, climbM: climb, descentM: descent);
   }
+
+  /// FR140/Q3 — the stale list's "re-solve-all as one unconfirmed action":
+  /// re-solves every currently-stale segment in the trip from its own
+  /// current inputs (start/end/via/mode/weights), the same as calling
+  /// [regenerateSegment] on each in turn, which clears each one's staleness
+  /// as it completes. Destroys nothing — the AC's own reason this action
+  /// never confirms — so a failure partway through simply leaves the
+  /// remaining items stale for a retry rather than needing any rollback.
+  Future<void> resolveAllStale({PlanningMode mode = PlanningMode.explore}) async {
+    for (final item in tripStaleItems(state)) {
+      await regenerateSegment(item.dayId, item.segmentId, mode: mode);
+    }
+  }
+
+  /// FR140/Q3 — the stale list's "drop it instead of re-solving" resolution
+  /// for one item, the one action on that list the AC says confirms (unlike
+  /// re-solve-all); the caller is responsible for that confirmation.
+  /// Dropping a stale passage is the same removal [removeSegment] already
+  /// defines for Q2 — its anchors still survive unattached — not a new
+  /// mechanism.
+  void dropStaleSegment(String dayId, String segmentId) => removeSegment(dayId, segmentId);
 }
 
 final currentTripProvider =

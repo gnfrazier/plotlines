@@ -30,12 +30,26 @@ class LogisticsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final staleCount = tripStaleCount(trip);
     return Column(
       children: [
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(PlotSpacing.s5),
             children: [
+              // FR140/Q3's AC: "while planning this is passive only — a
+              // marker on the object and a count in the dashboard... no
+              // modal, no banner, no interruption." This is that count —
+              // deliberately plain text, not `error_states.dart`'s banner
+              // idiom (FR140a: stale work is pending work, not a failure).
+              if (staleCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: PlotSpacing.s3),
+                  child: Text(
+                    '$staleCount stale ${staleCount == 1 ? 'route' : 'routes'} — needs re-solving before export',
+                    style: PlotTypography.small(PlotColors.of(context).textMuted),
+                  ),
+                ),
               for (final day in trip.days) _DayCard(day: day, onOpenSegment: onOpenSegment),
             ],
           ),
