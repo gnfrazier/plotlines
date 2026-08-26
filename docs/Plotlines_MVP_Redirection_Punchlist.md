@@ -328,7 +328,7 @@ Concrete end-to-end checks. Each exercises several requirements at once and fail
 
 Both are cheap, and both enforce a principle that a code review will not reliably catch.
 
-☐ **6A.1 — No Presentation-layer access to `Role.content` outside `RevealResolver`.** ARCH §15.3/§15.5 makes this the highest-value client test in v2.0. The violating path will be a print preview, an export corner, **or the TTS readout** — surfaces nobody exercises with unrevealed content present — and **a spoiled trip cannot be un-spoiled** (ARCH A22). Same enforcement shape as the existing `plotlines-core may not import fastapi` lint.
+☑ **6A.1 — No Presentation-layer access to `Role.content` outside `RevealResolver`.** *(Landed with M14/FR145 — `tools/ci/reveal_gate_lint.sh`, gate 1, wired into CI as the `reveal-gate-lint` job; verified against violating fixtures by `client/test/reveal_gate_lint_test.dart`.)* ARCH §15.3/§15.5 makes this the highest-value client test in v2.0. The violating path will be a print preview, an export corner, **or the TTS readout** — surfaces nobody exercises with unrevealed content present — and **a spoiled trip cannot be un-spoiled** (ARCH A22). Same enforcement shape as the existing `plotlines-core may not import fastapi` lint.
 
 ☐ **6A.2 — Byte-level assertions on reveal-aware export.** For every export format — GPX, TCX, FIT, GeoJSON, and any plugin `pushTrip` — assert that an unrevealed plot point's content **does not appear in the output bytes**. Assert on the bytes, not the code path. **The TTS path needs the equivalent assertion on the string handed to the speech engine.**
 

@@ -29,6 +29,7 @@ import 'package:uuid/uuid.dart';
 import '../../data/reveal_resolver.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
+import '../../state/messages_provider.dart';
 import '../map/tap_to_pick_map.dart';
 
 const _resolver = RevealResolver();
@@ -149,6 +150,7 @@ class _AnchorCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
+    final messages = ref.watch(messagesProvider);
     return Container(
       padding: const EdgeInsets.all(PlotSpacing.s3),
       constraints: const BoxConstraints(maxWidth: 260),
@@ -210,8 +212,9 @@ class _AnchorCard extends ConsumerWidget {
             children: [
               for (final role in anchor.roles)
                 previewAsCharacter
-                    ? _PreviewRoleChip(revealed: _resolver.resolve(role, hasArrived: false, anchorCoord: anchor.coord))
-                    : _RoleChip(role: role),
+                    ? _PreviewRoleChip(
+                        revealed: _resolver.resolve(role, hasArrived: false, anchorCoord: anchor.coord))
+                    : _RoleChip(role: role, placeName: anchor.title),
             ],
           ),
           // FR107 / O2 — a role offset renders as its own line so it reads
@@ -224,8 +227,16 @@ class _AnchorCard extends ConsumerWidget {
             for (final role in anchor.roles.where((r) => r.coord != null))
               Padding(
                 padding: const EdgeInsets.only(top: PlotSpacing.s1),
+                // FR145 / M14 — a template with typed slots, not a composed
+                // sentence: the coordinate arrives as a [CoordinateSlot] and
+                // is rendered by the locale's number format, not by
+                // `toStringAsFixed`, which writes an English decimal point
+                // wherever it runs.
                 child: Text(
-                  '${role.kind.wireValue} offset: ${role.coord![1].toStringAsFixed(5)}, ${role.coord![0].toStringAsFixed(5)}',
+                  messages.resolve(MessageId.roleOffsetLine, {
+                    'type': TermSlot(messages.roleKindTerm(role.kind)),
+                    'at': CoordinateSlot(lat: role.coord![1], lon: role.coord![0]),
+                  }),
                   style: PlotTypography.data(c.textMuted),
                 ),
               ),
@@ -235,34 +246,54 @@ class _AnchorCard extends ConsumerWidget {
   }
 }
 
-class _RoleChip extends StatelessWidget {
-  const _RoleChip({required this.role});
+class _RoleChip extends ConsumerWidget {
+  const _RoleChip({required this.role, this.placeName});
   final Role role;
 
+  /// The **anchor's** title (`Anchor.title`), which is what FR145's "a
+  /// message about a role names it and states its type" means. Never
+  /// `Role.title` — that is content, it belongs to [RevealResolver], and it
+  /// never becomes part of a sentence (ARCH A30).
+  final String? placeName;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
+    final messages = ref.watch(messagesProvider);
     final effective = _resolver.effectivePolicy(role);
     // FR114 / O5 — an undecided role's *effective* policy (provision's
     // default, or nothing for narrative/station) is what the tooltip states,
     // not the raw `role.reveal`, so "undecided" never reads as a fourth
     // state the Author has to mentally resolve themselves.
-    final reveal = switch ((role.reveal, effective)) {
-      (null, RevealPolicy.alwaysVisible) => 'always visible (default)',
-      (null, null) => 'reveal: the Author\'s choice — not yet set',
-      (_, RevealPolicy.alwaysVisible) => 'always visible',
-      (_, RevealPolicy.onArrival) => 'on arrival',
-      (_, null) => 'reveal: the Author\'s choice — not yet set',
+    final revealTerm = switch ((role.reveal, effective)) {
+      (null, RevealPolicy.alwaysVisible) => MessageId.termRevealAlwaysVisibleByDefault,
+      (_, RevealPolicy.alwaysVisible) => MessageId.termRevealAlwaysVisible,
+      (_, RevealPolicy.onArrival) => MessageId.termRevealOnArrival,
+      (_, null) => MessageId.termRevealNotSet,
     };
-    // FR107 / O2 — surfaced in the tooltip rather than the chip label so an
+    // FR145 / M14 — four independent templates, joined by the locale's own
+    // facet separator. The tooltip is a *list of facts about this role*, not
+    // a sentence built out of them: each facet is separately enumerable,
+    // separately translatable, and carries no authored content at all.
+    //
+    // FR107 / O2 — the offset is a facet rather than a chip label so an
     // anchor with no offsets (the common case, O2's AC) costs no extra chip
-    // width; the offset is exactly where a trigger for this role will fire.
-    final geometry = role.coord == null
-        ? reveal
-        : '$reveal · offset ${role.coord![1].toStringAsFixed(5)}, ${role.coord![0].toStringAsFixed(5)}';
-    final message = role.hazard ? '$geometry · hazard/technical crux — cannot be hidden (FR115)' : geometry;
+    // width; it is exactly where a trigger for this role will fire.
+    final tooltip = messages.joinFacets([
+      messages.resolve(MessageId.roleReveal, {
+        'role': RoleRefSlot(kind: role.kind, placeName: placeName),
+        'reveal': TermSlot(revealTerm),
+      }),
+      if (role.coord != null)
+        messages.resolve(MessageId.roleOffset, {
+          'at': CoordinateSlot(lat: role.coord![1], lon: role.coord![0]),
+        }),
+      if (role.hazard) messages.resolve(MessageId.roleHazardAlwaysVisible),
+      if (role.arc != null)
+        messages.resolve(MessageId.roleArcStage, {'arc': TermSlot(messages.arcStageTerm(role.arc!))}),
+    ]);
     return Tooltip(
-      message: role.arc == null ? message : '$message · arc: ${role.arc!.wireValue}',
+      message: tooltip,
       // A nested `Wrap`, not a `Row`: the outer anchor card constrains width
       // tightly (FR108's boundary preview map above it), and a hazard role's
       // chip-plus-badge pair must reflow rather than overflow when it
@@ -273,7 +304,7 @@ class _RoleChip extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Chip(
-            label: Text(role.kind.wireValue),
+            label: Text(messages.term(messages.roleKindTerm(role.kind))),
             labelStyle: PlotTypography.small(c.textPrimary),
             visualDensity: VisualDensity.compact,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -295,18 +326,31 @@ class _RoleChip extends StatelessWidget {
 /// [RevealResolver] released for this role and nothing else: a withheld
 /// role shows only that something is here (PRD P1's AC), never its title,
 /// note, or which reveal policy is set — that would defeat the preview.
-class _PreviewRoleChip extends StatelessWidget {
+class _PreviewRoleChip extends ConsumerWidget {
   const _PreviewRoleChip({required this.revealed});
   final RevealedRole revealed;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
-    final label = revealed.visible ? revealed.kind.wireValue : '${revealed.kind.wireValue} · hidden';
+    final messages = ref.watch(messagesProvider);
+    final kind = messages.term(messages.roleKindTerm(revealed.kind));
+    final label = revealed.visible ? kind : messages.joinFacets([kind, messages.term(MessageId.termHidden)]);
+    // FR145 / M14 — the withheld branch resolves a template that names the
+    // role by *type* and nothing else; the released branch renders the
+    // content [RevealResolver] handed over **as content**, never
+    // interpolated into a sentence. That is the same separation the TTS path
+    // makes explicit (`data/speech.dart`), for the same reason: a composed
+    // sentence is downstream of every byte assertion (ARCH A30).
+    //
+    // No `placeName` here, deliberately — this is the preview-as-Character
+    // path, and the anchor's name is not this chip's to state.
     return Tooltip(
       message: revealed.visible
-          ? (revealed.title ?? revealed.note ?? 'Visible to a Character before departure.')
-          : 'Revealed on arrival — not shown yet.',
+          ? (revealed.title ?? revealed.note ?? messages.resolve(MessageId.roleVisibleBeforeDeparture))
+          : messages.resolve(MessageId.roleWithheldUntilArrival, {
+              'role': RoleRefSlot(kind: revealed.kind, placeName: null),
+            }),
       child: Chip(
         avatar: revealed.visible ? null : Icon(Icons.lock_outline, size: 14, color: c.textMuted),
         label: Text(label),

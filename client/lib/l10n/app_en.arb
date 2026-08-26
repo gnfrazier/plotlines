@@ -1,0 +1,375 @@
+{
+  "@@locale": "en",
+  "@@x-generated-by": "client/tool/gen_message_arb.dart from lib/domain/message_template.dart + message_catalog.dart (FR145 / M14)",
+  "termRoleNarrative": "narrative",
+  "@termRoleNarrative": {
+    "description": "RoleKind.narrative"
+  },
+  "termRoleProvision": "provision",
+  "@termRoleProvision": {
+    "description": "RoleKind.provision"
+  },
+  "termRoleStation": "station",
+  "@termRoleStation": {
+    "description": "RoleKind.station"
+  },
+  "termRevealAlwaysVisible": "always visible",
+  "@termRevealAlwaysVisible": {
+    "description": "RevealPolicy.alwaysVisible, set by the Author"
+  },
+  "termRevealAlwaysVisibleByDefault": "always visible (default)",
+  "@termRevealAlwaysVisibleByDefault": {
+    "description": "FR114 — a provision role the Author left unset, resolved by the engine default"
+  },
+  "termRevealOnArrival": "on arrival",
+  "@termRevealOnArrival": {
+    "description": "RevealPolicy.onArrival"
+  },
+  "termRevealNotSet": "not set yet — the Author’s choice",
+  "@termRevealNotSet": {
+    "description": "FR114 — narrative/station with no engine default: the Author's choice"
+  },
+  "termHidden": "hidden",
+  "@termHidden": {
+    "description": "PRD P1 — a marker whose content is withheld: 'something is here'"
+  },
+  "termArcExposition": "exposition",
+  "@termArcExposition": {
+    "description": "ArcStage.exposition"
+  },
+  "termArcRising": "rising action",
+  "@termArcRising": {
+    "description": "ArcStage.rising"
+  },
+  "termArcCrux": "crux",
+  "@termArcCrux": {
+    "description": "ArcStage.crux"
+  },
+  "termArcClimax": "climax",
+  "@termArcClimax": {
+    "description": "ArcStage.climax"
+  },
+  "termArcResolution": "resolution",
+  "@termArcResolution": {
+    "description": "ArcStage.resolution"
+  },
+  "termModeCycling": "Ride",
+  "@termModeCycling": {
+    "description": "travel mode \"cycling\""
+  },
+  "termModeHiking": "Hike",
+  "@termModeHiking": {
+    "description": "travel mode \"hiking\""
+  },
+  "termModePaddling": "Paddle",
+  "@termModePaddling": {
+    "description": "travel mode \"paddling\""
+  },
+  "termModeTransit": "Transit",
+  "@termModeTransit": {
+    "description": "travel mode \"transit\""
+  },
+  "termCapabilityTiles": "the basemap",
+  "@termCapabilityTiles": {
+    "description": "FR121 capability \"tiles\""
+  },
+  "termCapabilityLayers": "layers and places",
+  "@termCapabilityLayers": {
+    "description": "FR121 capability \"layers\""
+  },
+  "termCapabilityRouting": "routing",
+  "@termCapabilityRouting": {
+    "description": "FR121 capability \"routing\""
+  },
+  "termCapabilityElevation": "elevation",
+  "@termCapabilityElevation": {
+    "description": "FR121 capability \"elevation\""
+  },
+  "unitKilometres": "{value} km",
+  "@unitKilometres": {
+    "description": "metric distance ≥ 1 km",
+    "placeholders": {
+      "value": {"type": "num", "x-slot-type": "number"}
+    }
+  },
+  "unitMetres": "{value} m",
+  "@unitMetres": {
+    "description": "metric distance < 1 km, and climb",
+    "placeholders": {
+      "value": {"type": "num", "x-slot-type": "number"}
+    }
+  },
+  "unitMiles": "{value} mi",
+  "@unitMiles": {
+    "description": "imperial distance",
+    "placeholders": {
+      "value": {"type": "num", "x-slot-type": "number"}
+    }
+  },
+  "unitFeet": "{value} ft",
+  "@unitFeet": {
+    "description": "imperial short distance and climb",
+    "placeholders": {
+      "value": {"type": "num", "x-slot-type": "number"}
+    }
+  },
+  "durationHoursMinutes": "{hours} h {minutes} min",
+  "@durationHoursMinutes": {
+    "description": "a duration of an hour or more",
+    "placeholders": {
+      "hours": {"type": "num", "x-slot-type": "number"},
+      "minutes": {"type": "num", "x-slot-type": "number"}
+    }
+  },
+  "durationMinutes": "{minutes} min",
+  "@durationMinutes": {
+    "description": "a duration under an hour",
+    "placeholders": {
+      "minutes": {"type": "num", "x-slot-type": "number"}
+    }
+  },
+  "reasonSidecarStarting": "the planning engine is still starting",
+  "@reasonSidecarStarting": {
+    "description": "M13 state: sidecar starting"
+  },
+  "reasonSidecarWontStart": "the planning engine could not start",
+  "@reasonSidecarWontStart": {
+    "description": "M13 state: sidecar won't start"
+  },
+  "reasonSidecarDiedMidSession": "the planning engine stopped during this session",
+  "@reasonSidecarDiedMidSession": {
+    "description": "M13 state: sidecar died mid-session"
+  },
+  "reasonNoRoutePossible": "no route is possible between these points",
+  "@reasonNoRoutePossible": {
+    "description": "M13 state: no route possible"
+  },
+  "reasonNoDataForArea": "there is no map data for this area yet",
+  "@reasonNoDataForArea": {
+    "description": "M13 state: no data for the area"
+  },
+  "reasonElevationVoidOrMissingTile": "elevation data is missing for part of this area",
+  "@reasonElevationVoidOrMissingTile": {
+    "description": "M13 state: elevation void / missing tile"
+  },
+  "reasonExternalProviderUnreachable": "an external data provider is unreachable",
+  "@reasonExternalProviderUnreachable": {
+    "description": "M13 state: external provider unreachable"
+  },
+  "reasonExportFailed": "the export could not be written",
+  "@reasonExportFailed": {
+    "description": "M13 state: export failed"
+  },
+  "reasonCapabilityWarming": "it is still being prepared",
+  "@reasonCapabilityWarming": {
+    "description": "M13 state: capability warming (FR121)"
+  },
+  "reasonLayerExtractionFailed": "layer extraction did not finish",
+  "@reasonLayerExtractionFailed": {
+    "description": "M13 state: layer extraction failed"
+  },
+  "reasonPluginLayerUnloadableOnLicence": "this plugin layer cannot be loaded under its licence",
+  "@reasonPluginLayerUnloadableOnLicence": {
+    "description": "M13 state: plugin layer unloadable on licence (FR101)"
+  },
+  "reasonNoClustersFoundInBbox": "no clusters were found in this area",
+  "@reasonNoClustersFoundInBbox": {
+    "description": "M13 state: no clusters found in bbox (FR102)"
+  },
+  "reasonComposeDistanceIsAnOutcome": "in Compose mode the distance is what the places add up to",
+  "@reasonComposeDistanceIsAnOutcome": {
+    "description": "FR118 — deliberately NOT an M13 failure state (ARCH D53)"
+  },
+  "reasonDerivedWorkIsStale": "an edit invalidated work that has not been re-solved",
+  "@reasonDerivedWorkIsStale": {
+    "description": "FR140a — deliberately NOT an M13 failure state (ARCH D53)"
+  },
+  "roleRefNamed": "the {type} role at {place}",
+  "@roleRefNamed": {
+    "description": "FR145 — names the role and states its type; \"place\" is Anchor.title",
+    "placeholders": {
+      "type": {"type": "String", "x-slot-type": "term"},
+      "place": {"type": "String", "x-slot-type": "name"}
+    }
+  },
+  "roleRefAnonymous": "the {type} role",
+  "@roleRefAnonymous": {
+    "description": "FR145 — an unnamed anchor: state the type alone",
+    "placeholders": {
+      "type": {"type": "String", "x-slot-type": "term"}
+    }
+  },
+  "roleReveal": "{role}: {reveal}",
+  "@roleReveal": {
+    "description": "FR114 — the resolved reveal state of one role",
+    "placeholders": {
+      "role": {"type": "String", "x-slot-type": "roleRef"},
+      "reveal": {"type": "String", "x-slot-type": "term"}
+    }
+  },
+  "roleOffset": "offset {at}",
+  "@roleOffset": {
+    "description": "FR107 — where this role triggers, as a tooltip facet",
+    "placeholders": {
+      "at": {"type": "String", "x-slot-type": "coordinate"}
+    }
+  },
+  "roleOffsetLine": "{type} offset: {at}",
+  "@roleOffsetLine": {
+    "description": "FR107 — the offset's own line under an anchor card",
+    "placeholders": {
+      "type": {"type": "String", "x-slot-type": "term"},
+      "at": {"type": "String", "x-slot-type": "coordinate"}
+    }
+  },
+  "roleHazardAlwaysVisible": "hazard/technical crux — cannot be hidden (FR115)",
+  "@roleHazardAlwaysVisible": {
+    "description": "FR115 — a hazard role cannot be hidden, on any trip"
+  },
+  "roleArcStage": "arc: {arc}",
+  "@roleArcStage": {
+    "description": "FR38 — the arc stage this role carries",
+    "placeholders": {
+      "arc": {"type": "String", "x-slot-type": "term"}
+    }
+  },
+  "roleWithheldUntilArrival": "{role} is revealed on arrival — not shown yet.",
+  "@roleWithheldUntilArrival": {
+    "description": "PRD P1 — \"something is here\", said without saying what",
+    "placeholders": {
+      "role": {"type": "String", "x-slot-type": "roleRef"}
+    }
+  },
+  "roleVisibleBeforeDeparture": "Visible to a Character before departure.",
+  "@roleVisibleBeforeDeparture": {
+    "description": "O5 — a released role with no title or note of its own"
+  },
+  "dayCount": "{count, plural, =0{No days yet} one{1 day} other{# days}}",
+  "@dayCount": {
+    "description": "days in a trip",
+    "placeholders": {
+      "count": {"type": "int", "x-slot-type": "count"}
+    }
+  },
+  "anchorCount": "{count, plural, =0{Nothing promoted yet} one{1 anchor} other{# anchors}}",
+  "@anchorCount": {
+    "description": "promoted anchors",
+    "placeholders": {
+      "count": {"type": "int", "x-slot-type": "count"}
+    }
+  },
+  "candidateCount": "{count, plural, =0{No candidates} one{1 candidate} other{# candidates}}",
+  "@candidateCount": {
+    "description": "candidates in the bbox",
+    "placeholders": {
+      "count": {"type": "int", "x-slot-type": "count"}
+    }
+  },
+  "staleItemCount": "{count, plural, =0{Nothing stale} one{1 stale item} other{# stale items}}",
+  "@staleItemCount": {
+    "description": "FR140 — the dashboard count of stale derived work",
+    "placeholders": {
+      "count": {"type": "int", "x-slot-type": "count"}
+    }
+  },
+  "dayDistance": "Distance {distance}",
+  "@dayDistance": {
+    "description": "a day's distance",
+    "placeholders": {
+      "distance": {"type": "String", "x-slot-type": "distance"}
+    }
+  },
+  "elevationGain": "Climb {rise}",
+  "@elevationGain": {
+    "description": "FR85 — climb",
+    "placeholders": {
+      "rise": {"type": "String", "x-slot-type": "distance"}
+    }
+  },
+  "realizedDistance": "Realized distance {distance}",
+  "@realizedDistance": {
+    "description": "FR8a — compose mode reports distance as an outcome",
+    "placeholders": {
+      "distance": {"type": "String", "x-slot-type": "distance"}
+    }
+  },
+  "sharedRoadShare": "Road ridden twice {share}",
+  "@sharedRoadShare": {
+    "description": "A9 — the share of a loop ridden twice",
+    "placeholders": {
+      "share": {"type": "String", "x-slot-type": "share"}
+    }
+  },
+  "dayLabel": "Day {day}",
+  "@dayLabel": {
+    "description": "the timeline label for one day",
+    "placeholders": {
+      "day": {"type": "String", "x-slot-type": "dayIndex"}
+    }
+  },
+  "lastSolvedAt": "Last solved {at}",
+  "@lastSolvedAt": {
+    "description": "when derived work last solved",
+    "placeholders": {
+      "at": {"type": "String", "x-slot-type": "timestamp"}
+    }
+  },
+  "estimatedDuration": "about {duration} remaining",
+  "@estimatedDuration": {
+    "description": "FR121 — how long a warming capability still needs",
+    "placeholders": {
+      "duration": {"type": "String", "x-slot-type": "duration"}
+    }
+  },
+  "coordinateLatLon": "{lat}, {lon}",
+  "@coordinateLatLon": {
+    "description": "a lat/lon pair, each side rendered by the locale number format",
+    "placeholders": {
+      "lat": {"type": "num", "x-slot-type": "number"},
+      "lon": {"type": "num", "x-slot-type": "number"}
+    }
+  },
+  "declaredModes": "Modes {modes}",
+  "@declaredModes": {
+    "description": "FR144 / N0 — the modes declared at trip initiation",
+    "placeholders": {
+      "modes": {"type": "String", "x-slot-type": "nameList"}
+    }
+  },
+  "spokenRoleIntroduction": "Reaching {role}.",
+  "@spokenRoleIntroduction": {
+    "description": "FR40a / H2a — what the engine says before released content",
+    "placeholders": {
+      "role": {"type": "String", "x-slot-type": "roleRef"}
+    }
+  },
+  "spokenHazardWarning": "Hazard. {role}.",
+  "@spokenHazardWarning": {
+    "description": "FR115 / I2a — a hazard role leads with a warning",
+    "placeholders": {
+      "role": {"type": "String", "x-slot-type": "roleRef"}
+    }
+  },
+  "controlDisabledBecause": "Unavailable — {reason}.",
+  "@controlDisabledBecause": {
+    "description": "M12a — every disabled control states its reason",
+    "placeholders": {
+      "reason": {"type": "String", "x-slot-type": "reason"}
+    }
+  },
+  "operationFailedBecause": "That did not finish — {reason}.",
+  "@operationFailedBecause": {
+    "description": "M13 — the shared failure surface states its cause",
+    "placeholders": {
+      "reason": {"type": "String", "x-slot-type": "reason"}
+    }
+  },
+  "capabilityUnavailableBecause": "{capability} is not ready — {reason}.",
+  "@capabilityUnavailableBecause": {
+    "description": "FR121 — which capability, and why it is not ready",
+    "placeholders": {
+      "capability": {"type": "String", "x-slot-type": "term"},
+      "reason": {"type": "String", "x-slot-type": "reason"}
+    }
+  }
+}

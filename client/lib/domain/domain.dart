@@ -15,9 +15,12 @@ export 'empty_state.dart';
 export 'hazard.dart';
 export 'json_utils.dart'
     show Coord, DayLimit, JsonFields, Ring, checkCoord, checkPolygonRings, checkRing, finite, pruneJson;
+export 'message_catalog.dart';
+export 'message_template.dart';
 export 'node.dart';
 export 'point_trigger.dart';
 export 'reachability.dart';
+export 'reason_phrase.dart';
 export 'reveal_state.dart';
 export 'route_metrics.dart';
 export 'segment.dart';
