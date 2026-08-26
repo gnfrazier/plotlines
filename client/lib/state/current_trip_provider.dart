@@ -273,10 +273,22 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     _replaceDay(day.copyWith(segments: [...day.segments, segment]));
   }
 
+  /// FR139/Q2 — removes a passage from a day. Its nodes are never deleted
+  /// with it: FR139's "anchors survive unattached" — an anchor is a place,
+  /// not a property of a route — so they move onto the day's own
+  /// day-scoped node list (`Day.nodes`, the same list a rest day's POIs
+  /// already live on), findable and re-attachable through the curation
+  /// workspace's anchors view (N4a) rather than disappearing. Callers
+  /// should check `summarizeSegmentContent(segment).hasAuthoredContent`
+  /// (`domain/edit_scope.dart`) and confirm with the Author first when it's
+  /// true — this call itself always carries the removal out once asked, the
+  /// same division `reviseTripBbox` draws between deciding and doing.
   void removeSegment(String dayId, String segmentId) {
     final day = state.days.firstWhere((d) => d.id == dayId);
+    final removed = day.segments.firstWhere((s) => s.id == segmentId);
     _replaceDay(day.copyWith(
       segments: day.segments.where((s) => s.id != segmentId).toList(),
+      nodes: [...day.nodes, ...removed.nodes],
     ));
   }
 
@@ -440,6 +452,35 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final segments = [
       for (final s in day.segments)
         if (s.id == segmentId) s.copyWith(shape: shape) else s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+    markSegmentStale(dayId, segmentId);
+  }
+
+  /// FR139/Q2 — a passage's mode is editable after routing like shape,
+  /// weights and bands; this marks the segment stale (Q3/FR140) rather than
+  /// re-solving, same as [updateSegmentShape]. Mode-legal routability
+  /// (A11) is re-checked when [regenerateSegment] next solves it, not here.
+  void updateSegmentMode(String dayId, String segmentId, String mode) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId) s.copyWith(mode: mode) else s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+    markSegmentStale(dayId, segmentId);
+  }
+
+  /// FR139/Q2 — a passage's endpoints are editable after routing too, same
+  /// stale treatment as [updateSegmentShape]/[updateSegmentMode]. Omitting
+  /// [end] leaves it as it was (a loop has none to begin with); there is no
+  /// way to clear an endpoint back to unset here, matching every other
+  /// caller of `Segment.copyWith`.
+  void updateSegmentEndpoints(String dayId, String segmentId, {Coord? start, Coord? end}) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId) s.copyWith(start: start, end: end) else s,
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);

@@ -20,6 +20,7 @@ import '../../state/providers.dart';
 import '../../state/trip_bbox_provider.dart';
 import 'conflict_dialog.dart';
 import 'error_states.dart';
+import 'passage_removal_prompt.dart';
 
 const _surfaceClasses = ['paved', 'gravel', 'singletrack'];
 // `distance_m` is deliberately absent: FR8/A8 bands it through
@@ -286,6 +287,28 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // FR139/Q2 — a passage's mode is editable after
+                          // routing, same as shape; changing it marks the
+                          // route stale rather than re-solving (Q3/FR140),
+                          // and A11's mode-legal routability re-checks on
+                          // the next solve, not here.
+                          Text('MODE',
+                              style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: PlotSpacing.s2),
+                          Wrap(
+                            spacing: PlotSpacing.s2,
+                            children: [
+                              for (final m in kTravelModes)
+                                ChoiceChip(
+                                  label: Text(travelModeLabel(m).toUpperCase()),
+                                  selected: segment.mode == m,
+                                  onSelected: (_) => ref
+                                      .read(currentTripProvider.notifier)
+                                      .updateSegmentMode(widget.dayId, segment.id, m),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: PlotSpacing.s3),
                           Text('SHAPE',
                               style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
                           const SizedBox(height: PlotSpacing.s2),
@@ -388,6 +411,12 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                               : () => _regenerate(segment, mode),
                         ),
                       ),
+                      const SizedBox(width: PlotSpacing.s2),
+                      IconButton(
+                        tooltip: 'Remove passage',
+                        icon: Icon(Icons.delete_outline, color: PlotColors.of(context).danger),
+                        onPressed: () => _removePassage(segment),
+                      ),
                     ],
                   ),
                 ],
@@ -412,6 +441,27 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
       setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _regenerating = false);
+    }
+  }
+
+  /// FR139/Q2 — "the prompt is triggered by authored content, not by
+  /// object type": a bare passage with nothing on it is removed without
+  /// friction, same as `trip_bbox_shrink_prompt.dart`'s pure-enlargement
+  /// no-prompt path (FR120). A passage that carries content prompts,
+  /// naming it (`showPassageRemovalPrompt`), before
+  /// `CurrentTripNotifier.removeSegment` carries out the removal — which
+  /// always leaves the passage's anchors unattached rather than deleting
+  /// them, regardless of whether this prompt fired.
+  Future<void> _removePassage(Segment segment) async {
+    final notifier = ref.read(currentTripProvider.notifier);
+    final summary = summarizeSegmentContent(segment);
+    if (!summary.hasAuthoredContent) {
+      notifier.removeSegment(widget.dayId, segment.id);
+      return;
+    }
+    final confirmed = await showPassageRemovalPrompt(context, summary: summary);
+    if (confirmed ?? false) {
+      notifier.removeSegment(widget.dayId, segment.id);
     }
   }
 
