@@ -21,6 +21,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../../domain/domain.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
+import '../../widgets/day_removal_prompt.dart';
 
 class LogisticsTab extends ConsumerWidget {
   const LogisticsTab({super.key, required this.trip, required this.onOpenSegment});
@@ -97,7 +98,7 @@ class _DayCard extends ConsumerWidget {
                 const Spacer(),
                 PopupMenuButton<String>(
                   icon: Icon(Icons.more_horiz, size: 18, color: c.textMuted),
-                  onSelected: (action) {
+                  onSelected: (action) async {
                     final notifier = ref.read(currentTripProvider.notifier);
                     switch (action) {
                       case 'start':
@@ -106,14 +107,42 @@ class _DayCard extends ConsumerWidget {
                         notifier.toggleDayRole(day.id, 'end');
                       case 'rest':
                         notifier.setDayKind(day.id, day.isRest ? 'route' : 'rest');
+                      case 'insert_before':
+                        notifier.insertDayAt(day.index);
+                      case 'insert_after':
+                        notifier.insertDayAt(day.index + 1);
                       case 'remove':
-                        notifier.removeDay(day.id);
+                        // FR139/Q1 — empty days are removed without a
+                        // prompt; a day holding authored content states the
+                        // scope and lets the Author choose rather than
+                        // discarding it silently.
+                        final summary = summarizeDayContent(day);
+                        if (summary.isEmpty) {
+                          notifier.removeDay(day.id);
+                          return;
+                        }
+                        final choice = await showDayRemovalPrompt(
+                          context,
+                          dayLabels: 'Day ${day.index}',
+                          summary: summary,
+                        );
+                        switch (choice) {
+                          case DayRemovalChoice.mergeIntoAdjacent:
+                            notifier.mergeDaysIntoAdjacent({day.id});
+                          case DayRemovalChoice.removeExplicitly:
+                            notifier.removeDaysExplicitly({day.id});
+                          case DayRemovalChoice.keep:
+                          case null:
+                            break;
+                        }
                     }
                   },
                   itemBuilder: (context) => const [
                     PopupMenuItem(value: 'start', child: Text('Toggle Start')),
                     PopupMenuItem(value: 'end', child: Text('Toggle End')),
                     PopupMenuItem(value: 'rest', child: Text('Toggle Rest day')),
+                    PopupMenuItem(value: 'insert_before', child: Text('Insert day before')),
+                    PopupMenuItem(value: 'insert_after', child: Text('Insert day after')),
                     PopupMenuItem(value: 'remove', child: Text('Remove day')),
                   ],
                 ),

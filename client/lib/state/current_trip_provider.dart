@@ -111,6 +111,105 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         updatedAt: _nowIso(),
       );
 
+  /// FR139/Q1 — "days may be inserted mid-trip, not only appended, with
+  /// subsequent days renumbering and their content moving with them."
+  /// [position] is the 1-based index the new day should land at; every
+  /// existing day at or after it shifts up by one. Content "moves with"
+  /// its day automatically here — it lives embedded on the `Day` object
+  /// itself, so renumbering never has to touch it. Returns the new day's
+  /// id so the caller can select it.
+  String insertDayAt(int position, {String kind = 'route'}) {
+    final sorted = [...state.days]..sort((a, b) => a.index.compareTo(b.index));
+    final clamped = position.clamp(1, sorted.length + 1);
+    final newDay = Day(id: _uuid.v4(), index: clamped, kind: kind);
+    final days = <Day>[];
+    var inserted = false;
+    for (final d in sorted) {
+      if (!inserted && d.index >= clamped) {
+        days.add(newDay);
+        inserted = true;
+      }
+      days.add(d.index >= clamped ? d.copyWith(index: d.index + 1) : d);
+    }
+    if (!inserted) days.add(newDay);
+    state = state.copyWith(days: days, updatedAt: _nowIso());
+    return newDay.id;
+  }
+
+  /// Removes [dayIds] outright — including their authored content — and
+  /// renumbers what remains so `Day.index` stays a contiguous 1-based
+  /// sequence. The one place both [removeDaysExplicitly] and
+  /// [mergeDaysIntoAdjacent] land on, and what [reduceDayCount] uses for its
+  /// no-prompt empty-day carve-out.
+  void _removeDaysAndRenumber(Set<String> dayIds) {
+    if (dayIds.isEmpty) return;
+    final remaining = state.days.where((d) => !dayIds.contains(d.id)).toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+    final renumbered = [
+      for (var i = 0; i < remaining.length; i++) remaining[i].copyWith(index: i + 1),
+    ];
+    state = state.copyWith(days: renumbered, updatedAt: _nowIso());
+  }
+
+  /// FR139/Q1 — drops every trailing day beyond [targetCount] that holds no
+  /// authored content, with no prompt (the AC's carve-out: "empty days are
+  /// removed without a prompt"). Returns whichever of those days still hold
+  /// content, for the caller to show FR139's scope prompt for and resolve
+  /// via [mergeDaysIntoAdjacent] or [removeDaysExplicitly] — this call never
+  /// removes those on its own.
+  List<Day> reduceDayCount(int targetCount) {
+    final beyond = daysBeyondCount(state.days, targetCount);
+    final empty = {
+      for (final d in beyond)
+        if (summarizeDayContent(d).isEmpty) d.id,
+    };
+    if (empty.isNotEmpty) _removeDaysAndRenumber(empty);
+    return [
+      for (final d in beyond)
+        if (!empty.contains(d.id)) d,
+    ];
+  }
+
+  /// FR139/Q1's "remove explicitly" choice for a day-count reduction (or any
+  /// direct multi-day removal): deletes [dayIds] and their authored content,
+  /// then renumbers what remains.
+  void removeDaysExplicitly(Set<String> dayIds) => _removeDaysAndRenumber(dayIds);
+
+  /// FR139/Q1's "merge into adjacent day" choice: each of [dayIds]'s
+  /// segments, nodes, hazards and transitions move onto the previous day in
+  /// trip order (the next day, for day 1), then the now-empty day is
+  /// dropped and the trip renumbered. Processes the trip's tail backward so
+  /// merging day N into day N-1 is resolved before an earlier merge could
+  /// shift day N-1's own position.
+  void mergeDaysIntoAdjacent(Set<String> dayIds) {
+    if (dayIds.isEmpty) return;
+    final days = [...state.days]..sort((a, b) => a.index.compareTo(b.index));
+    final orderedIds = [
+      for (final d in days.reversed)
+        if (dayIds.contains(d.id)) d.id,
+    ];
+    for (final id in orderedIds) {
+      final pos = days.indexWhere((d) => d.id == id);
+      if (pos == -1) continue;
+      final day = days[pos];
+      final targetPos = pos > 0 ? pos - 1 : (days.length > 1 ? 1 : -1);
+      if (targetPos == -1) {
+        days.removeAt(pos);
+        continue;
+      }
+      final target = days[targetPos];
+      days[targetPos] = target.copyWith(
+        segments: [...target.segments, ...day.segments],
+        nodes: [...target.nodes, ...day.nodes],
+        hazards: [...target.hazards, ...day.hazards],
+        transitions: [...target.transitions, ...day.transitions],
+      );
+      days.removeAt(pos);
+    }
+    final renumbered = [for (var i = 0; i < days.length; i++) days[i].copyWith(index: i + 1)];
+    state = state.copyWith(days: renumbered, updatedAt: _nowIso());
+  }
+
   /// C2 — mark a day Start / End / Rest. A rest day carries no segments.
   void setDayKind(String dayId, String kind) {
     final day = _dayOrNew(dayId);

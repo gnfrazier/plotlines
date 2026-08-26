@@ -10,6 +10,7 @@ export 'band.dart';
 export 'cue.dart';
 export 'day.dart';
 export 'diagnosis.dart';
+export 'edit_scope.dart';
 export 'hazard.dart';
 export 'json_utils.dart'
     show Coord, DayLimit, JsonFields, Ring, checkCoord, checkPolygonRings, checkRing, finite, pruneJson;
