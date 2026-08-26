@@ -178,6 +178,7 @@ def probe_envelope(
     *,
     via: list[tuple[float, float]] | None = None,
     loop_iterations: int = 3,
+    mode: str = "cycling",
 ) -> dict[str, tuple[float, float]]:
     """What this place can actually deliver at this distance, per metric.
 
@@ -186,12 +187,15 @@ def probe_envelope(
     not on an abstract 0–5, which is how a request becomes infeasible before anyone
     has asked for anything unreasonable. Each range is floored to its metric's
     absolute precision (`_floor_precision`) before it is returned.
+
+    `mode` (FR128/A11) is threaded to every probe so the envelope reflects what is
+    actually legal and physically passable, not the raw graph's superset of it.
     """
     seen: dict[str, list[float]] = {m: [] for m in ENVELOPE_METRICS}
     for profile in ARCHETYPES:
         try:
             loop = generate_loop(graph, start, target_m, profile, via=via,
-                                 max_iterations=loop_iterations)
+                                 max_iterations=loop_iterations, mode=mode)
         except NoRouteFound:
             continue
         for metric in ENVELOPE_METRICS:
@@ -210,8 +214,15 @@ def search_bands(
     seed_profile: WeightProfile | None = None,
     loop_iterations: int = 3,
     keep_attempts: bool = False,
+    mode: str = "cycling",
 ) -> SearchResult:
-    """Look for a route satisfying every band. Returns the closest miss if none is."""
+    """Look for a route satisfying every band. Returns the closest miss if none is.
+
+    `mode` (FR128/A11) is threaded to every solve in both phases, so the search
+    operates over what is actually legal and physically passable — a band search
+    that found its "best" route down a `bicycle=no` way would be reporting a route
+    nobody can ride.
+    """
     # FR8/A8: distance is never dropped from the constraint set this search
     # actually descends against — `ensure_distance_band` is a no-op whenever
     # the caller already supplied their own `distance_m` band.
@@ -226,7 +237,7 @@ def search_bands(
         nonlocal solves, error
         try:
             loop = generate_loop(graph, start, target_m, profile, via=via,
-                                 max_iterations=loop_iterations)
+                                 max_iterations=loop_iterations, mode=mode)
         except NoRouteFound as exc:
             error = str(exc)
             return None

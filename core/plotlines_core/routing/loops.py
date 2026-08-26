@@ -27,6 +27,7 @@ import networkx as nx
 from plotlines_core.graph.loader import (
     elevation_biased_node, nearest_node, nodes_within,
 )
+from plotlines_core.routing.access import flags_along_walk, mode_legal_graph
 from plotlines_core.routing.solve import NoRouteFound
 from plotlines_core.scoring.metrics import RouteMetrics, edge_walk, measure
 from plotlines_core.scoring.profile import WeightProfile, edge_cost
@@ -71,6 +72,10 @@ class Loop:
     closed: bool = False
     hit_via: bool = False
     mean_cost_per_m: float = 0.0
+    # FR128/A11 — routability constraints hit along the resolved path
+    # (dismount sections, barriers, fords), surfaced rather than silently
+    # rolled through. See `routing.access.flags_along_walk`.
+    surfaced_constraints: list[dict] = field(default_factory=list)
 
     @property
     def distance_error(self) -> float | None:
@@ -103,6 +108,7 @@ class Loop:
             "solve_ms": round(self.solve_ms, 1),
             "solver_calls": self.solver_calls,
             "iterations": self.iterations,
+            "surfaced_constraints": self.surfaced_constraints,
         }
 
 
@@ -227,6 +233,7 @@ def generate_out_and_back(
     tolerance: float = 0.15,
     max_iterations: int = 6,
     base_bearing: float = 0.0,
+    mode: str = "cycling",
 ) -> Loop:
     """A7's out-and-back: out to a point, and back along the same corridor.
 
@@ -249,10 +256,15 @@ def generate_out_and_back(
     is; `target_m` is honoured as an envelope, the same way FR8 treats it for
     a loop, because a single search point has only one degree of freedom to
     hit an exact round-trip distance with.
+
+    `mode` (FR128/A11) filters the graph to what's legal and physically
+    passable before any of the above runs — see
+    `routing.access.mode_legal_graph`.
     """
     if end is None and target_m is None:
         raise ValueError("out-and-back needs an end point or a target distance")
 
+    graph = mode_legal_graph(graph, mode)
     t0 = time.perf_counter()
     slat, slon = start
     start_node = nearest_node(graph, slat, slon)
@@ -316,6 +328,7 @@ def generate_out_and_back(
         closed=full_path[0] == full_path[-1],
         hit_via=all(n in set(out.path) for n in via_nodes),
         mean_cost_per_m=total_cost / metrics.distance_m if metrics.distance_m else 0.0,
+        surfaced_constraints=flags_along_walk(walk),
     )
 
 
@@ -333,6 +346,7 @@ def generate_loop(
     max_iterations: int = 6,
     shaping_steps: tuple[int, ...] = (0, 1),
     base_bearing: float = 0.0,
+    mode: str = "cycling",
 ) -> Loop:
     """A loop from `start` back to `start`, through every via-node, near `target_m`.
 
@@ -342,7 +356,15 @@ def generate_loop(
     `tolerance`, or the budget is spent. When the vias alone already exceed the target,
     no amount of shaping can shrink the loop; that is the infeasibility A9 hands to A6,
     and this returns its closest attempt rather than pretending to have complied.
+
+    `mode` (FR128/A11) filters the graph to what's legal and physically passable
+    before any anchor or shaping search runs — see `routing.access.mode_legal_graph`.
+    A constraint that forces a materially worse route than the unfiltered graph
+    would have found is exactly the kind of infeasibility A6 is already built to
+    name; filtering here, before the search A6 sits on top of, is what makes that
+    true for free rather than requiring A6 to know about access tags itself.
     """
+    graph = mode_legal_graph(graph, mode)
     t0 = time.perf_counter()
     slat, slon = start
     start_node = nearest_node(graph, slat, slon)
@@ -430,4 +452,5 @@ def generate_loop(
         closed=best.path[0] == best.path[-1],
         hit_via=all(n in set(best.path) for n in via_nodes),
         mean_cost_per_m=total_cost / best_metrics.distance_m if best_metrics.distance_m else 0.0,
+        surfaced_constraints=flags_along_walk(walk),
     )

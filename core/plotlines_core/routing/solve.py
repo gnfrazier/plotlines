@@ -16,6 +16,8 @@ from shapely.geometry import LineString
 
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph.loader import nearest_node
+from plotlines_core.routing.access import flags_along_walk, mode_legal_graph
+from plotlines_core.scoring.metrics import edge_walk
 from plotlines_core.scoring.profile import WeightProfile, edge_cost
 
 
@@ -41,6 +43,10 @@ class Segment:
     node_count: int = 0
     solve_ms: float = 0.0
     geometry_wkt: str = ""
+    # FR128/A11 — routability constraints hit along the resolved path
+    # (dismount sections, barriers, fords), surfaced rather than silently
+    # rolled through. See `routing.access.flags_along_walk`.
+    surfaced_constraints: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -75,8 +81,13 @@ def generate_segment(
     via: list[tuple[float, float]] | None = None,
     sampler: ElevationSampler | None = None,
 ) -> Segment:
-    """Solve start → [via...] → end under `profile` and return a Segment."""
+    """Solve start → [via...] → end under `profile` and return a Segment.
+
+    `mode` (FR128/A11) filters the graph to what's legal and physically
+    passable before the solve runs — see `routing.access.mode_legal_graph`.
+    """
     t0 = time.perf_counter()
+    graph = mode_legal_graph(graph, mode)
 
     waypoints = [start, *(via or []), end]
     nodes = [nearest_node(graph, lat, lon) for lat, lon in waypoints]
@@ -94,6 +105,7 @@ def generate_segment(
     line = LineString(coords_lonlat)
 
     elevation = sampler.profile(coords_latlon) if sampler else {}
+    walk = edge_walk(graph, path, profile)
 
     return Segment(
         mode=mode,
@@ -105,4 +117,5 @@ def generate_segment(
         node_count=len(path),
         solve_ms=round((time.perf_counter() - t0) * 1000, 2),
         geometry_wkt=line.wkt if len(coords_lonlat) < 3 else line.simplify(1e-5).wkt,
+        surfaced_constraints=flags_along_walk(walk),
     )

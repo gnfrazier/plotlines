@@ -150,8 +150,16 @@ def diagnose(
     via: list[tuple[float, float]] | None = None,
     budget: int = 30,
     filter_budget: int = 16,
+    mode: str = "cycling",
 ) -> Diagnosis:
-    """Route if possible; otherwise explain what conflicts and how to loosen it."""
+    """Route if possible; otherwise explain what conflicts and how to loosen it.
+
+    `mode` (FR128/A11) is threaded to every search below, so a route ruled out
+    only because it crossed a `bicycle=no` way or an unpassable ford is diagnosed
+    the same way any other terrain limit is — through this function's existing
+    unattainable/combination split, with no separate access-conflict path needed
+    (ARCH §7.9: "named through A6's existing conflict path").
+    """
     t0 = time.perf_counter()
     solves = 0
 
@@ -162,7 +170,7 @@ def diagnose(
     bands = ensure_distance_band(bands, target_m)
 
     full: SearchResult = search_bands(graph, start, target_m, bands, via=via,
-                                      budget=budget, keep_attempts=True)
+                                      budget=budget, keep_attempts=True, mode=mode)
     solves += full.solves
     if full.feasible:
         return Diagnosis(True, "none", [], "all bands satisfied", [],
@@ -178,7 +186,7 @@ def diagnose(
         if any(band.satisfied_by(a.metrics.value(band.metric)) for a in attempts):
             continue  # already reached once, so it is attainable alone
         solo = search_bands(graph, start, target_m, BandSet.of(band), via=via,
-                            budget=filter_budget)
+                            budget=filter_budget, mode=mode)
         solves += solo.solves
         if not solo.feasible:
             unattainable.append(band)
@@ -192,7 +200,7 @@ def diagnose(
         if via:
             without = search_bands(graph, start, target_m,
                                    BandSet(tuple(unattainable)), via=None,
-                                   budget=filter_budget)
+                                   budget=filter_budget, mode=mode)
             solves += without.solves
             if without.feasible:
                 names = " and ".join(b.describe() for b in unattainable)
@@ -253,7 +261,7 @@ def diagnose(
             break
         reduced = BandSet(tuple(b for b in conflict if b is not band))
         probe = search_bands(graph, start, target_m, reduced, via=via,
-                             budget=filter_budget)
+                             budget=filter_budget, mode=mode)
         solves += probe.solves
         if not probe.feasible:
             conflict = [b for b in conflict if b is not band]

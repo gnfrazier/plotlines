@@ -87,7 +87,8 @@ def _fake_search_bands(table: dict):
     this fake already ignores anything not deliberately varied per scenario.
     """
 
-    def fake(graph, start, target_m, bands, *, via=None, budget=30, keep_attempts=False):
+    def fake(graph, start, target_m, bands, *, via=None, budget=30,
+             keep_attempts=False, mode="cycling"):
         key = (frozenset(b.metric for b in bands if b.metric != "distance_m"), via is not None)
         return table[key]
 
@@ -239,7 +240,8 @@ def test_default_distance_band_can_itself_be_named_as_the_unattainable_constrain
                    envelope={"climb_m": (50.0, 150.0),
                              "distance_m": (_TARGET_M * 1.25, _TARGET_M * 1.35)})
 
-    def fake(graph, start, target_m, requested, *, via=None, budget=30, keep_attempts=False):
+    def fake(graph, start, target_m, requested, *, via=None, budget=30,
+             keep_attempts=False, mode="cycling"):
         key = frozenset(b.metric for b in requested)
         if key == {"climb_m", "distance_m"}:
             return full

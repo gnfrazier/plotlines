@@ -28,6 +28,7 @@ from plotlines_core.curation.taxonomy import LAYERS
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph import regions as region_lib
 from plotlines_core.graph.loader import LoadedGraph, load_graphml, nearest_node
+from plotlines_core.routing.access import mode_legal_graph
 from plotlines_core.routing.diagnose import diagnose
 from plotlines_core.routing.loops import (
     Loop, generate_loop, generate_out_and_back, solve_circuit,
@@ -332,6 +333,7 @@ class CuesRequest(BaseModel):
     theme: str = "balanced"
     weights: dict[str, float] | None = None
     target_m: float | None = None
+    mode: str = "cycling"
     segment_id: str | None = None
     nodes: list[NodeInput] = Field(default_factory=list)
     hazards: list[HazardInput] = Field(default_factory=list)
@@ -376,6 +378,7 @@ class EnvelopeRequest(BaseModel):
     start: Coordinate
     via: list[Coordinate] = Field(default_factory=list)
     target_m: float = Field(gt=0)
+    mode: str = "cycling"
 
 
 class BandInput(BaseModel):
@@ -390,6 +393,7 @@ class DiagnoseRequest(BaseModel):
     via: list[Coordinate] = Field(default_factory=list)
     target_m: float = Field(gt=0)
     bands: list[BandInput]
+    mode: str = "cycling"
 
 
 class CandidateFeatureInput(BaseModel):
@@ -592,6 +596,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             "overlap_frac": round(loop.metrics.overlap_frac, 4) if loop.metrics else 0.0,
             "overlap_near_frac": round(loop.metrics.overlap_near_frac, 4) if loop.metrics else 0.0,
             "overlap_far_frac": round(loop.metrics.overlap_far_frac, 4) if loop.metrics else 0.0,
+            # FR128/A11 — dismount/barrier/ford sections actually used, surfaced
+            # rather than silently rolled through.
+            "surfaced_constraints": loop.surfaced_constraints,
         }
 
     def _resolve_region(key: str) -> RegionState:
@@ -621,14 +628,14 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 if req.target_m is None:
                     raise HTTPException(422, "loop shape requires target_m")
                 loop = generate_loop(graph, (req.start.lat, req.start.lon),
-                                     req.target_m, profile, via=via)
+                                     req.target_m, profile, via=via, mode=req.mode)
                 return _loop_to_dict(graph, loop, req.mode, req.theme, "loop", region.sampler)
 
             if req.shape == "out_and_back":
                 end = (req.end.lat, req.end.lon) if req.end else None
                 loop = generate_out_and_back(graph, (req.start.lat, req.start.lon),
                                              profile, via=via, end=end,
-                                             target_m=req.target_m)
+                                             target_m=req.target_m, mode=req.mode)
                 return _loop_to_dict(graph, loop, req.mode, req.theme, "out_and_back", region.sampler)
 
             if req.end is None:
@@ -661,17 +668,22 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             if req.target_m is None:
                 raise HTTPException(422, "loop shape requires target_m")
             loop = generate_loop(graph, (req.start.lat, req.start.lon), req.target_m,
-                                 profile, via=via)
+                                 profile, via=via, mode=req.mode)
             return loop.path, loop.walk
 
         if req.shape == "out_and_back":
             end = (req.end.lat, req.end.lon) if req.end else None
             loop = generate_out_and_back(graph, (req.start.lat, req.start.lon), profile,
-                                         via=via, end=end, target_m=req.target_m)
+                                         via=via, end=end, target_m=req.target_m,
+                                         mode=req.mode)
             return loop.path, loop.walk
 
         if req.end is None:
             raise HTTPException(422, "point_to_point shape requires end")
+        # FR128/A11 — same legality filter the loop/out_and_back branches above
+        # apply internally, needed explicitly here since `solve_circuit` is a
+        # lower-level primitive with no `mode` of its own.
+        graph = mode_legal_graph(graph, req.mode)
         start_node = nearest_node(graph, req.start.lat, req.start.lon)
         via_nodes = [nearest_node(graph, c.lat, c.lon) for c in req.via]
         end_node = nearest_node(graph, req.end.lat, req.end.lon)
@@ -707,6 +719,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 start=(req.start.lat, req.start.lon),
                 target_m=req.target_m,
                 via=[(c.lat, c.lon) for c in req.via],
+                mode=req.mode,
             )
         except NoRouteFound as exc:
             raise HTTPException(422, str(exc)) from exc
@@ -737,6 +750,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                     target_m=req.target_m,
                     bands=bands,
                     via=[(c.lat, c.lon) for c in req.via],
+                    mode=req.mode,
                 )
                 job.result = result.to_dict()
             except Exception as exc:  # noqa: BLE001 — surface honestly (A6)
