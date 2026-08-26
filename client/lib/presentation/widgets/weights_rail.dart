@@ -1027,7 +1027,14 @@ class _ComposeDeviationPanel extends ConsumerWidget {
       realizedDistanceM: realizedDistanceM,
     );
 
-    final climbM = segment.elevation?.ascentM ?? segment.metrics?.climbM;
+    // FR121/N2 — `climbM` is otherwise always a real-looking number (the
+    // backend defaults it to 0.0, never null: `route_metrics.dart`'s doc
+    // comment), which would misreport "no climb" while elevation isn't
+    // ready rather than "unknown." Omitted here the same way `moving`/
+    // `elapsed` already are when their source data is absent.
+    final elevationReady =
+        ref.watch(sidecarManagerProvider).capabilities?.elevation.ready ?? false;
+    final climbM = elevationReady ? (segment.elevation?.ascentM ?? segment.metrics?.climbM) : null;
     final moving = _formatHoursMinutes(segment.metrics?.movingTimeS);
     final elapsed = _formatHoursMinutes(segment.metrics?.elapsedTimeS);
     final detailParts = [

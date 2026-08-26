@@ -9,8 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
+import '../../../data/sidecar_manager.dart' show CapabilityStatus;
 import '../../../domain/domain.dart';
 import '../../../state/planner_ui_state.dart';
+import '../../../state/providers.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/day_timeline_strip.dart';
 import '../../widgets/metrics_rail.dart';
@@ -29,6 +31,13 @@ class RouteTab extends ConsumerStatefulWidget {
 
 class _RouteTabState extends ConsumerState<RouteTab> {
   bool _addingNode = false;
+
+  /// FR121/N2 — same "no trip-wide flag" reading `new_route_screen.dart`'s
+  /// `_routingCapability` uses: before the sidecar has answered `/health`
+  /// even once this is an honest wait, not a bare "not ready".
+  CapabilityStatus get _elevationCapability =>
+      ref.watch(sidecarManagerProvider).capabilities?.elevation ??
+      const CapabilityStatus(ready: false, reason: 'waiting for the sidecar');
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +100,11 @@ class _RouteTabState extends ConsumerState<RouteTab> {
             ],
           ),
         ),
-        MetricsRail(trip: widget.trip, selectedSegment: selectedSegment),
+        MetricsRail(
+          trip: widget.trip,
+          selectedSegment: selectedSegment,
+          elevationCapability: _elevationCapability,
+        ),
       ],
     );
   }

@@ -10,20 +10,32 @@ library;
 import 'package:flutter/material.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
+import '../../data/sidecar_manager.dart' show CapabilityStatus;
 import '../../domain/domain.dart';
+import 'error_states.dart' show CapabilityWarmingNotice;
 
 class MetricsRail extends StatelessWidget {
   const MetricsRail({
     super.key,
     required this.trip,
     required this.selectedSegment,
+    required this.elevationCapability,
   });
   final Trip trip;
   final Segment? selectedSegment;
 
+  /// FR121/N2 — `climb`/the elevation profile below are both derived from
+  /// node elevation the graph never carries until this capability is ready
+  /// (`ensure_graph` bakes in no elevation; see `graph/regions.py`), so
+  /// showing a bare "↑ 0 m" while it's still loading (or, today, fixed
+  /// not-configured pending #148) would read as a real measurement rather
+  /// than "unknown." This rail states the honest reason instead.
+  final CapabilityStatus elevationCapability;
+
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
+    final elevationReady = elevationCapability.ready;
     double distance = 0, climb = 0;
     final byDay = <(int, double)>[];
     final byMode = <String, double>{};
@@ -89,11 +101,19 @@ class MetricsRail extends StatelessWidget {
                       Expanded(
                         child: _StatCard(
                           label: 'TOTAL CLIMB',
-                          value: '↑ ${climb.toStringAsFixed(0)} m',
+                          value: elevationReady ? '↑ ${climb.toStringAsFixed(0)} m' : '↑ —',
+                          muted: !elevationReady,
                         ),
                       ),
                     ],
                   ),
+                  if (!elevationReady) ...[
+                    const SizedBox(height: PlotSpacing.s2),
+                    CapabilityWarmingNotice(
+                      capabilityLabel: 'Elevation',
+                      status: elevationCapability,
+                    ),
+                  ],
                   if (byDay.isNotEmpty) ...[
                     const SizedBox(height: PlotSpacing.s4),
                     Text(
@@ -141,7 +161,17 @@ class MetricsRail extends StatelessWidget {
                     ).copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: PlotSpacing.s2),
-                  if (samples.isEmpty)
+                  if (!elevationReady)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: PlotSpacing.s4,
+                      ),
+                      child: CapabilityWarmingNotice(
+                        capabilityLabel: 'Elevation profile',
+                        status: elevationCapability,
+                      ),
+                    )
+                  else if (samples.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         vertical: PlotSpacing.s4,
@@ -234,9 +264,14 @@ class _ViaAnchorSummary extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.label, required this.value});
+  const _StatCard({required this.label, required this.value, this.muted = false});
   final String label;
   final String value;
+
+  /// FR121/N2 — true while the value behind this card (e.g. climb, gated on
+  /// elevation readiness) isn't real yet, so the number reads as "not
+  /// available" rather than a normally-styled measurement.
+  final bool muted;
 
   @override
   Widget build(BuildContext context) {
@@ -255,7 +290,7 @@ class _StatCard extends StatelessWidget {
           Text(
             value,
             style: PlotTypography.data(
-              c.textPrimary,
+              muted ? c.textMuted : c.textPrimary,
             ).copyWith(fontSize: 16, fontWeight: FontWeight.w700),
           ),
         ],

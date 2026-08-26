@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:plotlines_client/data/sidecar_manager.dart' show CapabilityStatus;
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/metrics_rail.dart';
 
@@ -27,7 +28,11 @@ Trip _tripWith(Segment segment) {
 Future<void> _pump(WidgetTester tester, Segment segment) async {
   await tester.pumpWidget(MaterialApp(
     home: Scaffold(
-      body: MetricsRail(trip: _tripWith(segment), selectedSegment: segment),
+      body: MetricsRail(
+        trip: _tripWith(segment),
+        selectedSegment: segment,
+        elevationCapability: const CapabilityStatus(ready: true),
+      ),
     ),
   ));
   await tester.pump();

@@ -27,6 +27,28 @@ class _FakeSidecarManager extends SidecarManager {
   SidecarStatus get status => const SidecarStatus(SidecarState.ready);
 }
 
+/// FR121/N2 — same fake, but with a stated `/health` snapshot so a test can
+/// pin the panel's behaviour once elevation is (or isn't) ready, rather than
+/// relying on `_FakeSidecarManager`'s default null `capabilities` (which
+/// already reads as "not ready" — see the gating tests below).
+class _FakeSidecarManagerWithCapabilities extends SidecarManager {
+  _FakeSidecarManagerWithCapabilities(this._capabilities);
+  final Capabilities _capabilities;
+  @override
+  Future<void> start() async {}
+  @override
+  SidecarStatus get status => const SidecarStatus(SidecarState.ready);
+  @override
+  Capabilities? get capabilities => _capabilities;
+}
+
+Capabilities _capsWithElevation(CapabilityStatus elevation) => Capabilities(
+      tiles: const CapabilityStatus(ready: true),
+      layers: const CapabilityStatus(ready: true),
+      routing: const RoutingCapability({}),
+      elevation: elevation,
+    );
+
 const _spineCoordA = [-105.23, 40.03];
 const _spineCoordB = [-105.22, 40.04];
 
@@ -86,11 +108,11 @@ Finder _inWeightsRail(Finder matching) =>
     find.descendant(of: find.byType(WeightsRail), matching: matching);
 
 void main() {
-  Future<void> pumpShell(WidgetTester tester, {Trip? trip}) async {
+  Future<void> pumpShell(WidgetTester tester, {Trip? trip, SidecarManager? sidecar}) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+          sidecarManagerProvider.overrideWith((ref) => sidecar ?? _FakeSidecarManager()),
           appDatabaseProvider.overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
           currentTripProvider
               .overrideWith((ref) => CurrentTripNotifier(ref)..open(trip ?? _fixtureTrip())),
@@ -209,6 +231,36 @@ void main() {
       findsOneWidget,
     );
     expect(_inWeightsRail(find.text('Widen the band')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'FR121/N2: omits the climb detail while elevation isn\'t ready, never stating a fake figure',
+      (tester) async {
+    // `_FakeSidecarManager`'s `capabilities` is null (never polled `/health`
+    // in this harness), which the panel reads the same honest way
+    // `RouteTab`/`MetricsRail` do: not ready.
+    await pumpShell(tester);
+    await switchToCompose(tester);
+
+    expect(_inWeightsRail(find.textContaining('m of climb')), findsNothing);
+    // Unaffected — moving/elapsed have their own, unrelated data source.
+    expect(_inWeightsRail(find.textContaining('moving')), findsOneWidget);
+    expect(_inWeightsRail(find.textContaining('elapsed')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('FR121/N2: shows the real climb figure once elevation capability is ready',
+      (tester) async {
+    await pumpShell(
+      tester,
+      sidecar: _FakeSidecarManagerWithCapabilities(
+        _capsWithElevation(const CapabilityStatus(ready: true)),
+      ),
+    );
+    await switchToCompose(tester);
+
+    expect(_inWeightsRail(find.textContaining('2410 m of climb')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
