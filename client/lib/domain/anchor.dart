@@ -12,11 +12,17 @@
 /// the set exists: one anchor holds a narrative role (the statue) and a provision
 /// role (restrooms, water), one arrival, one pin — a type field cannot express both.
 ///
-/// Deliberately absent from [Role], reserved for later stories per ARCH §7.8's own
+/// Deliberately absent from [Role], reserved for a later story per ARCH §7.8's own
 /// note that the four properties shown there are "the whole point," not the full
-/// set: station activity (FR109 / O4) and arc stage (FR38 / O6). Each adds its own
-/// field to this file, the schema, and the core Python mirror together when it is
-/// built.
+/// set: station activity (FR109 / O4). It adds its own field to this file, the
+/// schema, and the core Python mirror together when it is built.
+///
+/// [Role.arc] (FR38 / O6) is the other of ARCH §7.8's four properties: arc attaches
+/// to a role — one anchor's narrative role can be the story's crux while its
+/// provision role carries none — and, per the same FR, to a [Segment] (the
+/// "passage" between anchors, `domain/segment.dart`) too, so the long grind between
+/// two anchors can itself be the rising action rather than only the places at
+/// either end.
 ///
 /// [Role.coord] (FR107 / O2) is a role's optional point offset from its anchor, so
 /// the overlook 400 m up the spur can trigger at the overlook rather than the
@@ -80,6 +86,33 @@ enum RevealPolicy {
   String get wireValue => switch (this) {
         RevealPolicy.alwaysVisible => 'always_visible',
         RevealPolicy.onArrival => 'on_arrival',
+      };
+}
+
+/// FR38 / O6. Exposition, rising action, crux, climax, resolution — one stage in
+/// the day's story. Valid on a [Role] and on a [Segment] (`segment.dart`) both.
+enum ArcStage {
+  exposition,
+  rising,
+  crux,
+  climax,
+  resolution;
+
+  static ArcStage fromWire(String value) => switch (value) {
+        'exposition' => ArcStage.exposition,
+        'rising' => ArcStage.rising,
+        'crux' => ArcStage.crux,
+        'climax' => ArcStage.climax,
+        'resolution' => ArcStage.resolution,
+        _ => throw FormatException('unknown arc_stage "$value"'),
+      };
+
+  String get wireValue => switch (this) {
+        ArcStage.exposition => 'exposition',
+        ArcStage.rising => 'rising',
+        ArcStage.crux => 'crux',
+        ArcStage.climax => 'climax',
+        ArcStage.resolution => 'resolution',
       };
 }
 
@@ -189,6 +222,10 @@ bool _ringContainsPoint(Ring ring, Coord point) {
 /// unrepresentable rather than merely discouraged. [RevealResolver] applies
 /// the other half (forcing the *effective* policy to always-visible even
 /// when [reveal] is left `null`).
+///
+/// [arc] (FR38 / O6) is this role's stage in the day's story, or `null` when
+/// this role carries no arc beat (the common case: not every promoted place
+/// is a story point).
 class Role {
   Role({
     required this.kind,
@@ -200,6 +237,7 @@ class Role {
     this.note,
     this.media = const [],
     this.hazard = false,
+    this.arc,
   }) {
     if (hazard && reveal == RevealPolicy.onArrival) {
       throw ArgumentError(
@@ -217,6 +255,7 @@ class Role {
   final String? note;
   final List<MediaRef> media;
   final bool hazard;
+  final ArcStage? arc;
 
   Role copyWith({
     RoleKind? kind,
@@ -230,6 +269,8 @@ class Role {
     String? note,
     List<MediaRef>? media,
     bool? hazard,
+    ArcStage? arc,
+    bool clearArc = false,
   }) =>
       Role(
         id: id,
@@ -241,6 +282,7 @@ class Role {
         note: note ?? this.note,
         media: media ?? this.media,
         hazard: hazard ?? this.hazard,
+        arc: clearArc ? null : (arc ?? this.arc),
       );
 
   factory Role.fromJson(Map<String, dynamic> json) {
@@ -250,6 +292,7 @@ class Role {
     final coord = f.takeCoord('coord');
     final area = f.takeObject('area', Area.fromJson);
     final rawReveal = f.takeString('reveal');
+    final rawArc = f.takeString('arc');
     final r = Role(
       id: id,
       kind: kind,
@@ -260,6 +303,7 @@ class Role {
       note: f.takeString('note'),
       media: f.takeList('media', MediaRef.fromJson),
       hazard: f.takeBool('hazard') ?? false,
+      arc: rawArc == null ? null : ArcStage.fromWire(rawArc),
     );
     f.done();
     return r;
@@ -278,6 +322,7 @@ class Role {
         // treatment `Area.source` gets: a flag this consequential should
         // never be ambiguous between "false" and "absent."
         'hazard': hazard,
+        'arc': arc?.wireValue,
       });
 }
 

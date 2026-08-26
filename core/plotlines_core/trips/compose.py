@@ -109,18 +109,39 @@ def compose_day(
     return day
 
 
+def _ends_at_resolution(day: Day) -> bool:
+    """FR38 / O6 — C3's "a day may close at a resolution-stage anchor rather
+    than only at a distance threshold": true when the terminal node of the
+    day's last segment carries `arc_stage == "resolution"`. Nodes are ordered
+    by `distance_along_m` when it's set (falling back to list order for any
+    that leave it unset, which sorts them first — the conservative reading:
+    an unpositioned node is never assumed to be the terminal one)."""
+    if not day.segments:
+        return False
+    nodes = day.segments[-1].nodes
+    if not nodes:
+        return False
+    ordered = sorted(nodes, key=lambda n: (n.distance_along_m is None, n.distance_along_m or 0.0))
+    return ordered[-1].arc_stage == "resolution"
+
+
 def _breaches(day: Day, limits: dict[str, dict[str, float]]) -> list[LimitBreach]:
-    """C3 — per-mode min/max distance per day, as data rather than a UI comparison."""
+    """C3 — per-mode min/max distance per day, as data rather than a UI
+    comparison. FR38 / O6: a day that closes at a resolution-stage anchor is
+    exempt from a "min" breach — the day fell short of the band on purpose,
+    at a deliberate narrative closing point, not by accident. "max" breaches
+    still apply: the arc closing early doesn't excuse a day that ran long."""
     effective = {**limits, **day.limits}
     found: list[LimitBreach] = []
     if not day.metrics:
         return found
+    closes_at_resolution = _ends_at_resolution(day)
     for mode, metrics in (day.metrics.by_mode or {}).items():
         band = effective.get(mode)
         if not band:
             continue
         low, high = band.get("min_m"), band.get("max_m")
-        if low is not None and metrics.distance_m < low:
+        if low is not None and metrics.distance_m < low and not closes_at_resolution:
             found.append(LimitBreach(mode=mode, bound="min", limit_m=low,
                                      realised_m=metrics.distance_m, day_id=day.id))
         if high is not None and metrics.distance_m > high:

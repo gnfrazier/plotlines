@@ -260,8 +260,9 @@ class _RoleChip extends StatelessWidget {
     final geometry = role.coord == null
         ? reveal
         : '$reveal · offset ${role.coord![1].toStringAsFixed(5)}, ${role.coord![0].toStringAsFixed(5)}';
+    final message = role.hazard ? '$geometry · hazard/technical crux — cannot be hidden (FR115)' : geometry;
     return Tooltip(
-      message: role.hazard ? '$geometry · hazard/technical crux — cannot be hidden (FR115)' : geometry,
+      message: role.arc == null ? message : '$message · arc: ${role.arc!.wireValue}',
       // A nested `Wrap`, not a `Row`: the outer anchor card constrains width
       // tightly (FR108's boundary preview map above it), and a hazard role's
       // chip-plus-badge pair must reflow rather than overflow when it
@@ -281,6 +282,9 @@ class _RoleChip extends StatelessWidget {
           // badge: the one visual cue that this role's reveal cannot be
           // hidden by any setting, on any trip, under any role.
           if (role.hazard) const PlotBadge('Hazard', tone: PlotBadgeTone.ember, solid: true),
+          // FR38 / O6 — this role's stage in the day's story, distinguished
+          // from a plain content chip so it reads as structure, not a label.
+          if (role.arc != null) PlotBadge(role.arc!.wireValue, tone: PlotBadgeTone.slate),
         ],
       ),
     );
@@ -342,6 +346,9 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
   final Map<RoleKind, TextEditingController> _offsetLon = {
     for (final kind in RoleKind.values) kind: TextEditingController(),
   };
+  // FR38 / O6 — one optional arc stage per role kind, `null` (no arc beat) by
+  // default: most promoted places carry no arc at all.
+  final Map<RoleKind, ArcStage?> _arc = {};
   // FR108 / O3 — Flow 3's "Role geometry: point, offset, or area": whether
   // this anchor is a district/block/reserve rather than a pin. Off by
   // default, since most promoted places remain points (O2's AC extended).
@@ -480,6 +487,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                   } else {
                     _selectedRoles.remove(kind);
                     _hazard.remove(kind);
+                    _arc.remove(kind);
                   }
                 }),
               ),
@@ -560,6 +568,28 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                 ],
               ),
             ),
+          // FR38 / O6 — this role's optional stage in the day's story.
+          // "No arc" is the common case and stays selected by default; the
+          // Dropdown offers it explicitly rather than only via a clear icon,
+          // matching the reveal dropdown's "decide later" entry above.
+          if (selected)
+            Padding(
+              padding: const EdgeInsets.only(left: PlotSpacing.s6, bottom: PlotSpacing.s2),
+              child: DropdownButton<ArcStage?>(
+                isDense: true,
+                isExpanded: true,
+                value: _arc[kind],
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Arc: none')),
+                  DropdownMenuItem(value: ArcStage.exposition, child: Text('Exposition')),
+                  DropdownMenuItem(value: ArcStage.rising, child: Text('Rising action')),
+                  DropdownMenuItem(value: ArcStage.crux, child: Text('Crux')),
+                  DropdownMenuItem(value: ArcStage.climax, child: Text('Climax')),
+                  DropdownMenuItem(value: ArcStage.resolution, child: Text('Resolution')),
+                ],
+                onChanged: (stage) => setState(() => _arc[kind] = stage),
+              ),
+            ),
         ],
       ),
     );
@@ -633,6 +663,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
           coord: offsets[entry.key],
           reveal: entry.value,
           hazard: _hazard[entry.key] ?? false,
+          arc: _arc[entry.key],
         ),
     ];
     // Hand-placed provenance carries no `sourceId`, so `promoteAnchor`'s

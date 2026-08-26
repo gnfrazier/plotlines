@@ -18,11 +18,21 @@ Authority for the wire shape is `docs/schemas/trip_payload.schema.json`'s `ancho
 `role`, `role_kind`, `reveal_policy`, and `anchor_provenance` $defs — where this module
 and the schema disagree, the schema wins (ARCH D28).
 
-Deliberately absent from `Role` and reserved for later stories, per ARCH §7.8's own
+Deliberately absent from `Role` and reserved for a later story, per ARCH §7.8's own
 note that the four properties shown there are "the whole point," not the full set:
-station activity (FR109 / O4) and arc stage (FR38 / O6). Each adds its own field to
-this module, the schema, and the Dart mirror together when it is built — not guessed
-ahead of time here.
+station activity (FR109 / O4). It adds its own field to this module, the schema, and
+the Dart mirror together when it is built — not guessed ahead of time here.
+
+`Role.arc` (FR38 / O6) is the other of ARCH §7.8's four properties: arc attaches to a
+Role — one anchor's narrative role can be the story's crux while its provision role
+carries none — and, per the same FR, to a `Segment` (`trips.payload`'s "passage")
+too, so the long grind between two anchors can itself be the rising action rather
+than only the places at either end. `trips.payload.Segment.arc_stage` mirrors this
+module's `ARC_STAGES` values by convention (not by import — `trips.payload` leaves
+every enum-shaped field, including `Node.arc_stage` already, unvalidated at the
+dataclass level and lets the schema be the sole authority there); this module
+validates `Role.arc` directly since `content/` already validates `kind` and `reveal`
+the same way.
 
 `Role.coord` (FR107 / O2) is a role's optional point offset from its anchor, so the
 overlook 400 m up the spur can trigger at the overlook rather than the parking lot at
@@ -54,6 +64,11 @@ AREA_SOURCES = ("authored", "imported")
 
 #: FR106 / O1 — a role set, not a type field.
 ROLE_KINDS = ("narrative", "provision", "station")
+
+#: FR38 / O6 — exposition, rising action, crux, climax, resolution. Valid on a
+#: `Role` and on a `trips.payload.Segment` (the "passage" between anchors) both;
+#: `trips.payload` imports this constant rather than redeclaring it.
+ARC_STAGES = ("exposition", "rising", "crux", "climax", "resolution")
 
 #: FR114 / O5. `reveal` may be left unset at promotion (O1's AC: "set here or
 #: later"); when an Author does set it, it must be one of these.
@@ -204,6 +219,13 @@ class Role:
     the resolver-side half of the exemption (forcing the *effective* policy to
     always-visible even when `reveal` is left unset) is the client's, since only
     the client has a resolver yet.
+
+    `arc` (FR38 / O6) is this role's stage in the day's story — exposition,
+    rising action, crux, climax, resolution — one of `ARC_STAGES`, or `None`
+    when this role carries no arc beat (the common case: not every promoted
+    place is a story point). Day composition (`trips.compose`) reads it to let
+    a day close at a resolution-stage anchor rather than only at a distance
+    threshold.
     """
 
     kind: str
@@ -215,6 +237,7 @@ class Role:
     note: str | None = None
     media: list[MediaRef] = field(default_factory=list)
     hazard: bool = False
+    arc: str | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in ROLE_KINDS:
@@ -226,6 +249,8 @@ class Role:
                 f"role {self.id}: FR115 forbids a hazard/technical-crux role from "
                 "being set on_arrival — hazards are always visible, enforced in the model"
             )
+        if self.arc is not None and self.arc not in ARC_STAGES:
+            raise ValueError(f"arc stage {self.arc!r} not in {ARC_STAGES}")
 
     def to_dict(self) -> dict:
         return {
@@ -241,6 +266,7 @@ class Role:
             # treatment `Polygon.source` gets: a flag this consequential should
             # never be ambiguous between "false" and "absent."
             "hazard": self.hazard,
+            "arc": self.arc,
         }
 
 

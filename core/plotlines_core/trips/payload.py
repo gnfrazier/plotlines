@@ -52,8 +52,12 @@ from plotlines_core.content.anchor import Anchor
 #: Bumped to 1.4.0 by FR108/FR126 (Story O3), which added `anchor.area` and
 #: `role.area` — additive once more: an absent `area` still parses, and an
 #: anchor/role with none behaves exactly as a point (O3 extends O2's AC to
-#: polygons).
-SCHEMA_VERSION = "1.4.0"
+#: polygons). Bumped to 1.5.0 by FR38 (Story O6), which added `role.arc` and
+#: `segment.arc_stage` — arc now attaches to anchors (via their roles) and to
+#: passages, not just to point `node`s (v1.0's reading). Additive again: an
+#: absent `arc`/`arc_stage` still parses, and a role/segment with neither
+#: carries no arc beat, same as today.
+SCHEMA_VERSION = "1.5.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -592,7 +596,14 @@ class RollUp:
 
 @dataclass
 class Segment:
-    """FR10 / B1. One routed or Author-drawn leg."""
+    """FR10 / B1. One routed or Author-drawn leg — the "passage" FR38/O6 names.
+
+    `arc_stage` (FR38 / O6) is this passage's own stage in the day's story,
+    distinct from any arc stage on a `Node` along it: the long grind between
+    two anchors can itself be the rising action, not just the places at
+    either end. One of `content.anchor.ARC_STAGES`, or `None` for a segment
+    that carries no arc beat of its own (the common case).
+    """
 
     mode: str
     shape: str
@@ -613,6 +624,7 @@ class Segment:
     hazards: list[Hazard] = field(default_factory=list)
     portages: list[Portage] = field(default_factory=list)
     solve: SolveProvenance | None = None
+    arc_stage: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -632,6 +644,7 @@ class Segment:
             "hazards": [h.to_dict() for h in self.hazards] or None,
             "portages": [p.to_dict() for p in self.portages] or None,
             "solve": self.solve.to_dict() if self.solve else None,
+            "arc_stage": self.arc_stage,
         }
 
 

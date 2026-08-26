@@ -2,7 +2,7 @@
 
 import pytest
 
-from plotlines_core.content.anchor import ROLE_KINDS, Anchor, AnchorProvenance, MediaRef, Polygon, Role
+from plotlines_core.content.anchor import ARC_STAGES, ROLE_KINDS, Anchor, AnchorProvenance, MediaRef, Polygon, Role
 from plotlines_core.trips.payload import Trip
 
 # A closed square ring, wound counter-clockwise (canonical exterior winding).
@@ -269,6 +269,60 @@ def test_role_hazard_with_no_reveal_or_always_visible_is_accepted():
 def test_role_hazard_is_orthogonal_to_kind():
     for kind in ROLE_KINDS:
         assert Role(kind=kind, hazard=True).to_dict()["hazard"] is True
+
+
+# --- FR38 / O6 — arc stage on a role -------------------------------------
+
+
+def test_role_arc_defaults_to_none_and_is_omitted():
+    role = Role(kind="narrative")
+    assert role.arc is None
+    assert role.to_dict()["arc"] is None
+
+
+def test_role_arc_round_trips_for_every_stage():
+    for stage in ARC_STAGES:
+        role = Role(kind="narrative", arc=stage)
+        assert role.to_dict()["arc"] == stage
+
+
+def test_role_arc_is_orthogonal_to_kind():
+    # The crux of a day's story can land on any role kind — a station role
+    # (a climb) is as valid a climax as a narrative one (a viewpoint).
+    for kind in ROLE_KINDS:
+        assert Role(kind=kind, arc="climax").to_dict()["arc"] == "climax"
+
+
+def test_invalid_arc_stage_is_rejected():
+    with pytest.raises(ValueError, match="arc stage"):
+        Role(kind="narrative", arc="denouement")
+
+
+def test_role_arc_coexists_with_hazard_and_reveal():
+    # FR38 is orthogonal to FR115/FR114 — a hazard role can carry an arc
+    # stage (the crux often *is* the technical crux), and arc never loosens
+    # the hazard/on_arrival constraint.
+    role = Role(kind="station", hazard=True, arc="crux")
+    out = role.to_dict()
+    assert out["hazard"] is True
+    assert out["arc"] == "crux"
+
+
+def test_national_monument_narrative_role_carries_the_climax():
+    # O6's worked case in miniature: the statue (narrative role) is the
+    # climax; the restroom (provision role) carries no arc beat at all.
+    anchor = Anchor(
+        coord=[-105.27, 40.02],
+        title="Independence Monument",
+        roles=[
+            Role(kind="narrative", reveal="on_arrival", arc="climax"),
+            Role(kind="provision", reveal="always_visible"),
+        ],
+    )
+    out = anchor.to_dict()
+    by_kind = {r["kind"]: r for r in out["roles"]}
+    assert by_kind["narrative"]["arc"] == "climax"
+    assert by_kind["provision"]["arc"] is None
 
 
 def test_trip_carries_anchors_and_prunes_when_empty():

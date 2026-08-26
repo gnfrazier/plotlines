@@ -182,6 +182,67 @@ void main() {
     });
   });
 
+  // FR38 / O6 — arc attaches to a role (an anchor's arc, via its roles) as
+  // well as to a Segment (`segment_test.dart`), not just to point nodes.
+  group('Role.arc (FR38 / O6)', () {
+    test('defaults to null and is absent from JSON', () {
+      final role = Role(id: 'r1', kind: RoleKind.narrative);
+      expect(role.arc, isNull);
+      expect(role.toJson().containsKey('arc'), isFalse);
+    });
+
+    test('round-trips through JSON for every stage', () {
+      for (final stage in ArcStage.values) {
+        final role = Role(id: 'r1', kind: RoleKind.narrative, arc: stage);
+        expect(Role.fromJson(role.toJson()).arc, stage);
+      }
+    });
+
+    test('is orthogonal to role kind', () {
+      for (final kind in RoleKind.values) {
+        expect(Role(id: 'r1', kind: kind, arc: ArcStage.climax).arc, ArcStage.climax);
+      }
+    });
+
+    test('coexists with hazard — arc never loosens the hazard/on_arrival constraint', () {
+      final role = Role(id: 'r1', kind: RoleKind.station, hazard: true, arc: ArcStage.crux);
+      expect(role.hazard, isTrue);
+      expect(role.arc, ArcStage.crux);
+      expect(
+        () => Role(id: 'r1', kind: RoleKind.station, hazard: true, reveal: RevealPolicy.onArrival, arc: ArcStage.crux),
+        throwsArgumentError,
+      );
+    });
+
+    test('an unknown arc_stage on read throws rather than silently dropping', () {
+      expect(
+        () => Role.fromJson({'id': 'r1', 'kind': 'narrative', 'arc': 'denouement'}),
+        throwsFormatException,
+      );
+    });
+
+    test('copyWith preserves arc by default and clears it via clearArc', () {
+      final role = Role(id: 'r1', kind: RoleKind.narrative, arc: ArcStage.rising);
+      expect(role.copyWith(title: 'x').arc, ArcStage.rising);
+      expect(role.copyWith(clearArc: true).arc, isNull);
+    });
+
+    test('the national monument\'s narrative role carries the climax, its provision role none', () {
+      final anchor = Anchor(
+        id: 'a1',
+        coord: [-105.27, 40.02],
+        title: 'Independence Monument',
+        roles: [
+          Role(id: 'r1', kind: RoleKind.narrative, reveal: RevealPolicy.onArrival, arc: ArcStage.climax),
+          Role(id: 'r2', kind: RoleKind.provision, reveal: RevealPolicy.alwaysVisible),
+        ],
+      );
+      final byKind = {for (final r in anchor.roles) r.kind: r};
+      expect(byKind[RoleKind.narrative]!.arc, ArcStage.climax);
+      expect(byKind[RoleKind.provision]!.arc, isNull);
+    });
+  });
+
   group('Trip.anchors', () {
     test('round-trips and is absent when empty', () {
       final empty = Trip(id: 't1', title: 'Empty', createdAt: 'x', updatedAt: 'x');

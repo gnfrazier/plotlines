@@ -228,7 +228,10 @@ class SolveProvenance {
 
 /// FR10 / B1 — one routed (or Author-drawn) leg with a start, an end, and a primary
 /// mode. `shape == point_to_point` requires [end] (schema `allOf`); loop and
-/// out_and_back do not.
+/// out_and_back do not. This is the "passage" FR38/O6 names: [arcStage] is this
+/// passage's own stage in the day's story, distinct from any arc stage on a
+/// [Node] along it — the long grind between two anchors can itself be the rising
+/// action, not just the places at either end.
 class Segment {
   Segment({
     required this.id,
@@ -250,6 +253,7 @@ class Segment {
     this.hazards = const [],
     this.portages = const [],
     this.solve,
+    this.arcStage,
   });
 
   final String id;
@@ -280,6 +284,12 @@ class Segment {
   final List<Portage> portages;
   final SolveProvenance? solve;
 
+  /// FR38 / O6 — one of `exposition` | `rising` | `crux` | `climax` |
+  /// `resolution`, or `null` for a segment that carries no arc beat of its own
+  /// (the common case). Kept a raw string, like [Node.arcStage], rather than a
+  /// typed enum: this is `trips.payload`'s loosely-typed layer, not `Role`'s.
+  final String? arcStage;
+
   factory Segment.fromJson(Map<String, dynamic> json) {
     final f = JsonFields(json, 'segment');
     final s = Segment(
@@ -302,6 +312,7 @@ class Segment {
       hazards: f.takeList('hazards', Hazard.fromJson),
       portages: f.takeList('portages', Portage.fromJson),
       solve: f.takeObject('solve', SolveProvenance.fromJson),
+      arcStage: f.takeString('arc_stage'),
     );
     f.done();
     return s;
@@ -327,6 +338,7 @@ class Segment {
         'hazards': hazards.isEmpty ? null : hazards.map((h) => h.toJson()).toList(),
         'portages': portages.isEmpty ? null : portages.map((p) => p.toJson()).toList(),
         'solve': solve?.toJson(),
+        'arc_stage': arcStage,
       });
 
   Segment copyWith({
@@ -348,6 +360,8 @@ class Segment {
     List<Hazard>? hazards,
     List<Portage>? portages,
     SolveProvenance? solve,
+    String? arcStage,
+    bool clearArcStage = false,
   }) =>
       Segment(
         id: id,
@@ -369,5 +383,6 @@ class Segment {
         hazards: hazards ?? this.hazards,
         portages: portages ?? this.portages,
         solve: solve ?? this.solve,
+        arcStage: clearArcStage ? null : (arcStage ?? this.arcStage),
       );
 }

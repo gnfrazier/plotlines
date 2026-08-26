@@ -141,7 +141,11 @@ class _DaySegmentStrip extends ConsumerWidget {
   String? _breach(Day day, double dayDistance) {
     final limit = day.limits['distance_m'];
     if (limit == null) return null;
-    if (limit.minM != null && dayDistance < limit.minM!) {
+    // FR38 / O6 (C3) — a day that closes at a resolution-stage anchor is
+    // exempt from falling short of the band: the story ended on purpose, not
+    // by accident. Mirrors `trips.compose._ends_at_resolution` server-side —
+    // running long past the band is still flagged; only "under" is excused.
+    if (limit.minM != null && dayDistance < limit.minM! && !_endsAtResolution(day)) {
       return '${(dayDistance / 1000).toStringAsFixed(0)} km · below ${(limit.minM! / 1000).toStringAsFixed(0)}–'
           '${limit.maxM == null ? '∞' : (limit.maxM! / 1000).toStringAsFixed(0)} km limit';
     }
@@ -150,6 +154,19 @@ class _DaySegmentStrip extends ConsumerWidget {
           '${(limit.maxM! / 1000).toStringAsFixed(0)} km limit';
     }
     return null;
+  }
+
+  bool _endsAtResolution(Day day) {
+    if (day.segments.isEmpty) return false;
+    final nodes = day.segments.last.nodes;
+    if (nodes.isEmpty) return false;
+    final ordered = [...nodes]..sort((a, b) {
+        final aUnset = a.distanceAlongM == null;
+        final bUnset = b.distanceAlongM == null;
+        if (aUnset != bUnset) return aUnset ? -1 : 1;
+        return (a.distanceAlongM ?? 0.0).compareTo(b.distanceAlongM ?? 0.0);
+      });
+    return ordered.last.arcStage == 'resolution';
   }
 }
 
@@ -196,6 +213,14 @@ class _SegmentChip extends ConsumerWidget {
                 ),
               ],
             ),
+            // FR38 / O6 — this passage's own arc stage, distinguished on the
+            // timeline the way `_BreachChip`/`_TransitionGlyph` already
+            // distinguish their own facts about a segment: absent for the
+            // common case of a segment with no arc beat.
+            if (segment.arcStage != null) ...[
+              const SizedBox(width: PlotSpacing.s2),
+              PlotBadge(segment.arcStage!, tone: PlotBadgeTone.slate),
+            ],
           ],
         ),
       ),

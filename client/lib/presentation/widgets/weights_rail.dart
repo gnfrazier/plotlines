@@ -31,6 +31,7 @@ const _attributes = [
 ];
 const _shapes = ['loop', 'out_and_back', 'point_to_point'];
 const _shapeLabels = {'loop': 'LOOP', 'out_and_back': 'OUT-BACK', 'point_to_point': 'P2P'};
+const _arcStages = ['exposition', 'rising', 'crux', 'climax', 'resolution'];
 
 Violation? _violationFor(List<Violation> violations, String attribute) {
   for (final v in violations) {
@@ -298,6 +299,35 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                                   onSelected: (_) => ref
                                       .read(currentTripProvider.notifier)
                                       .updateSegmentShape(widget.dayId, segment.id, s),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: PlotSpacing.s3),
+                          // FR38 / O6 — this passage's own arc stage: the
+                          // stretch of route itself can be the rising action,
+                          // not just the anchors at either end. "none" is a
+                          // real, distinct choice (most segments carry no arc
+                          // beat), not just the absence of a selection.
+                          Text('ARC (O6 / FR38)',
+                              style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: PlotSpacing.s2),
+                          Wrap(
+                            spacing: PlotSpacing.s2,
+                            children: [
+                              ChoiceChip(
+                                label: const Text('none'),
+                                selected: segment.arcStage == null,
+                                onSelected: (_) => ref
+                                    .read(currentTripProvider.notifier)
+                                    .updateSegmentArcStage(widget.dayId, segment.id, null),
+                              ),
+                              for (final stage in _arcStages)
+                                ChoiceChip(
+                                  label: Text(stage),
+                                  selected: segment.arcStage == stage,
+                                  onSelected: (_) => ref
+                                      .read(currentTripProvider.notifier)
+                                      .updateSegmentArcStage(widget.dayId, segment.id, stage),
                                 ),
                             ],
                           ),

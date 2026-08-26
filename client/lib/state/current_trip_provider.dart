@@ -346,6 +346,23 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     markSegmentStale(dayId, segmentId);
   }
 
+  /// FR38 / O6 — a passage's own arc stage: the stretch of route between two
+  /// anchors can itself be the rising action, not just the places at either
+  /// end. Unlike [updateSegmentShape]/[updateSegmentWeights]/[updateSegmentBands],
+  /// this never marks the segment stale — arc is narrative structure, not a
+  /// solver input, and doesn't change what a re-solve would produce.
+  void updateSegmentArcStage(String dayId, String segmentId, String? arcStage) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId)
+          s.copyWith(arcStage: arcStage, clearArcStage: arcStage == null)
+        else
+          s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+  }
+
   /// FR117/A0 — compose mode's spine editor (`WeightsRail`'s `_SpineEditor`):
   /// replaces a segment's via-anchor order wholesale, since reordering the
   /// spine is exactly as common an edit as adding or removing a place from

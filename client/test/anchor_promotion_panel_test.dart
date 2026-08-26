@@ -318,6 +318,62 @@ void main() {
     });
   });
 
+  // FR38 / O6 — arc attaches to a role: promotion assigns one, and the
+  // anchor card distinguishes it.
+  group('arc stage (FR38 / O6)', () {
+    testWidgets('checking a role leaves its arc at "none" by default', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(Checkbox).at(0)); // narrative
+      await tester.pump();
+
+      expect(find.byType(DropdownButton<ArcStage?>), findsOneWidget);
+      expect(find.text('Arc: none'), findsOneWidget);
+    });
+
+    testWidgets('promoting a role with an arc stage shows it as a badge on the anchor card', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      await tester.tap(find.byType(Checkbox).at(0)); // narrative
+      await tester.pump();
+
+      await tester.tap(find.byType(DropdownButton<ArcStage?>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Climax').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      // PlotBadge uppercases its label.
+      expect(find.text('CLIMAX'), findsOneWidget);
+    });
+
+    testWidgets('promoting a role left at "none" adds no arc badge', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      await tester.tap(find.byType(Checkbox).at(0)); // narrative
+      await tester.pump();
+
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('CLIMAX'), findsNothing);
+      expect(find.text('CRUX'), findsNothing);
+    });
+  });
+
   // O5's AC — "the Author can preview the trip as a Character would see it
   // before departure."
   group('preview as Character (O5 AC)', () {
@@ -335,7 +391,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('On arrival').last);
       await tester.pump();
-      await tester.tap(find.byType(Checkbox).at(1)); // provision — defaults always visible
+      // The narrative role's reveal + arc dropdowns (FR38/O6) push the
+      // provision checkbox below the fold — scroll it into view first.
+      final provisionCheckbox = find.byType(Checkbox).at(1);
+      await tester.ensureVisible(provisionCheckbox);
+      await tester.tap(provisionCheckbox); // provision — defaults always visible
       await tester.pump();
       await tester.tap(find.text('Promote'));
       await tester.pumpAndSettle();

@@ -322,10 +322,7 @@
           "items": { "type": "string" }
         },
         "poi_type": { "type": "string", "description": "FR5 — the Author-set type this node counts as." },
-        "arc_stage": {
-          "enum": ["exposition", "rising", "crux", "climax", "resolution"],
-          "description": "FR38 / E2."
-        },
+        "arc_stage": { "$ref": "#/$defs/arc_stage", "description": "FR38 / E2." },
         "narration": { "$ref": "#/$defs/narration" },
         "instructions": {
           "$ref": "#/$defs/markdown",
@@ -368,6 +365,11 @@
       }
     },
 
+    "arc_stage": {
+      "description": "FR38 / O6. Exposition, rising action, crux, climax, resolution — one stage in the day's story. Valid on a `role` (an anchor's arc, via its roles) and on a `segment` (a passage's own arc, the stretch of route between anchors) as well as the legacy point `node`; a day may close at a resolution-stage anchor rather than only at a distance threshold (`trips.compose`).",
+      "enum": ["exposition", "rising", "crux", "climax", "resolution"]
+    },
+
     "role_kind": {
       "description": "FR106 / O1. A role SET, not a type field: an anchor may carry more than one of these at once (the national monument's statue and its restroom are one anchor, two roles).",
       "enum": ["narrative", "provision", "station"]
@@ -379,7 +381,7 @@
     },
 
     "role": {
-      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). `hazard` (FR115/O5) flags this role a hazard or technical-crux warning, orthogonal to `kind`; see the `not` clause below for the hard constraint it carries. Station activity (FR109/O4) and arc stage (FR38/O6) are later stories' additions to this object and are not present yet.",
+      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). `hazard` (FR115/O5) flags this role a hazard or technical-crux warning, orthogonal to `kind`; see the `not` clause below for the hard constraint it carries. `arc` (FR38/O6) is this role's stage in the day's story, or absent for a role with no arc beat. Station activity (FR109/O4) is a later story's addition to this object and is not present yet.",
       "type": "object",
       "required": ["id", "kind"],
       "additionalProperties": false,
@@ -392,7 +394,8 @@
         "title": { "type": "string" },
         "note": { "$ref": "#/$defs/markdown" },
         "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" } },
-        "hazard": { "type": "boolean", "description": "FR115 / O5 — hard constraint: `true` marks this role a hazard or technical-crux warning, whose effective reveal is always-visible regardless of `reveal` and cannot be set otherwise by any Author. Defaults to `false` when absent." }
+        "hazard": { "type": "boolean", "description": "FR115 / O5 — hard constraint: `true` marks this role a hazard or technical-crux warning, whose effective reveal is always-visible regardless of `reveal` and cannot be set otherwise by any Author. Defaults to `false` when absent." },
+        "arc": { "$ref": "#/$defs/arc_stage", "description": "FR38 / O6 — this role's stage in the day's story. Absent means this role carries no arc beat." }
       },
       "not": {
         "description": "FR115 / O5 — enforced at the wire boundary too, not just by the Dart/Python constructors: a hazard role can never be stored as on_arrival.",
@@ -493,7 +496,7 @@
     },
 
     "segment": {
-      "description": "FR10 / B1 — one routed (or Author-drawn) leg with a start, an end, and a primary mode.",
+      "description": "FR10 / B1 — one routed (or Author-drawn) leg with a start, an end, and a primary mode. This is the \"passage\" FR38/O6 names: `arc_stage` is the passage's own stage in the day's story, distinct from any arc stage on a `node` along it.",
       "type": "object",
       "required": ["id", "mode", "shape"],
       "additionalProperties": false,
@@ -527,7 +530,8 @@
         "alternates": { "type": "array", "items": { "$ref": "#/$defs/alternate" } },
         "hazards": { "type": "array", "items": { "$ref": "#/$defs/hazard" } },
         "portages": { "type": "array", "items": { "$ref": "#/$defs/portage" } },
-        "solve": { "$ref": "#/$defs/solve_provenance" }
+        "solve": { "$ref": "#/$defs/solve_provenance" },
+        "arc_stage": { "$ref": "#/$defs/arc_stage", "description": "FR38 / O6 — this passage's own arc stage. Absent means this segment carries no arc beat of its own." }
       },
       "allOf": [
         {
