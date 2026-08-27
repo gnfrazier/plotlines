@@ -5,6 +5,14 @@
 // splitting — `export_options.dart`'s `ExportOptions` reached the writers,
 // including wiring `/segments/cues` into them for the cue-sheet toggle,
 // which the old screen only ever showed on-screen, never exported.
+//
+// F2 (FR48, FR133) adds `_ItinerarySection`, above the per-day cue sheets:
+// the master (every day) or an individual (attended-days-only) itinerary,
+// previewed in the same narrative register it prints/exports in. See
+// `domain/itinerary.dart` for why "places" reads from `Node`s rather than
+// the promoted `Anchor`/`Role` layer, and why reveal policy isn't applied
+// here (neither is it on the cue-sheet preview below, which reads the same
+// day-scoped nodes).
 library;
 
 import 'dart:io';
@@ -17,6 +25,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../../data/export/export_options.dart';
 import '../../../data/export/geojson_writer.dart';
 import '../../../data/export/gpx_writer.dart';
+import '../../../data/export/itinerary_writer.dart';
 import '../../../data/export/tcx_writer.dart';
 import '../../../domain/domain.dart';
 import '../../../state/providers.dart';
@@ -37,6 +46,7 @@ class ExportTab extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(PlotSpacing.s5),
             children: [
+              _ItinerarySection(trip: trip),
               for (final day in trip.days) _DayCueSection(day: day),
               if (trip.days.every((d) => d.segments.isEmpty))
                 Padding(
@@ -57,6 +67,198 @@ class ExportTab extends ConsumerWidget {
           child: _ExportPanel(trip: trip),
         ),
       ],
+    );
+  }
+}
+
+/// F2 (FR48, FR133) — master/individual itinerary preview, print preview,
+/// and Markdown export. Attendance is modelled as a plain set of day ids
+/// (`buildItinerary`'s `attendedDayIds`), not a persisted roster — there is
+/// no roster/Character object anywhere in the trip payload yet (that is its
+/// own future story), and FR48's "tailored individual itineraries for
+/// partial-attendance Characters" is satisfiable today as an ad hoc
+/// day-attendance selection the Author makes at export time.
+class _ItinerarySection extends StatefulWidget {
+  const _ItinerarySection({required this.trip});
+  final Trip trip;
+
+  @override
+  State<_ItinerarySection> createState() => _ItinerarySectionState();
+}
+
+class _ItinerarySectionState extends State<_ItinerarySection> {
+  bool _individual = false;
+  final Set<String> _attendedDayIds = {};
+  final _labelController = TextEditingController();
+  bool _exporting = false;
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    super.dispose();
+  }
+
+  Itinerary get _itinerary => buildItinerary(
+        widget.trip,
+        attendedDayIds: _individual ? _attendedDayIds : null,
+        characterLabel: _individual && _labelController.text.trim().isNotEmpty
+            ? _labelController.text.trim()
+            : null,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final itinerary = _itinerary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: PlotSpacing.s5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('ITINERARY',
+              style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: PlotSpacing.s2),
+          Row(
+            children: [
+              Expanded(
+                child: ChoiceChip(
+                  label: const Text('MASTER'),
+                  selected: !_individual,
+                  onSelected: (_) => setState(() => _individual = false),
+                ),
+              ),
+              const SizedBox(width: PlotSpacing.s2),
+              Expanded(
+                child: ChoiceChip(
+                  label: const Text('INDIVIDUAL'),
+                  selected: _individual,
+                  onSelected: (_) => setState(() => _individual = true),
+                ),
+              ),
+            ],
+          ),
+          if (_individual) ...[
+            const SizedBox(height: PlotSpacing.s3),
+            TextField(
+              controller: _labelController,
+              decoration: const InputDecoration(
+                labelText: 'Character (optional)',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: PlotSpacing.s3),
+            Text('ATTENDS', style: PlotTypography.data(c.textMuted)),
+            const SizedBox(height: PlotSpacing.s2),
+            Wrap(
+              spacing: PlotSpacing.s2,
+              runSpacing: PlotSpacing.s2,
+              children: [
+                for (final day in widget.trip.days)
+                  FilterChip(
+                    label: Text('DAY ${day.index}'),
+                    selected: _attendedDayIds.contains(day.id),
+                    onSelected: (selected) => setState(() {
+                      if (selected) {
+                        _attendedDayIds.add(day.id);
+                      } else {
+                        _attendedDayIds.remove(day.id);
+                      }
+                    }),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: PlotSpacing.s4),
+          PlotCard(
+            padding: const EdgeInsets.all(PlotSpacing.s4),
+            child: itinerary.days.isEmpty
+                ? Text(
+                    _individual ? 'No days selected yet.' : 'No days on this trip yet.',
+                    style: PlotTypography.body(c.textMuted),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final entry in itinerary.days) ...[
+                        Text(entry.heading, style: PlotTypography.title(c.textPrimary)),
+                        const SizedBox(height: PlotSpacing.s1),
+                        for (final paragraph in entry.paragraphs)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
+                            child: Text(paragraph, style: PlotTypography.body(c.textSecondary)),
+                          ),
+                        const SizedBox(height: PlotSpacing.s2),
+                      ],
+                    ],
+                  ),
+          ),
+          const SizedBox(height: PlotSpacing.s3),
+          Row(
+            children: [
+              Expanded(
+                child: PlotButton(
+                  label: 'Print preview',
+                  variant: PlotButtonVariant.secondary,
+                  onPressed: itinerary.days.isEmpty ? null : () => _showPrintPreview(itinerary),
+                ),
+              ),
+              const SizedBox(width: PlotSpacing.s2),
+              Expanded(
+                child: PlotButton(
+                  label: _exporting ? 'Exporting…' : 'Export itinerary (MD)',
+                  onPressed:
+                      (_exporting || itinerary.days.isEmpty) ? null : () => _export(itinerary),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _export(Itinerary itinerary) async {
+    setState(() => _exporting = true);
+    try {
+      final content = itineraryToMarkdown(itinerary);
+      final safeName = itinerary.title.replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '').trim();
+      final location = await getSaveLocation(
+        suggestedName: '${safeName.isEmpty ? 'itinerary' : safeName}.md',
+      );
+      if (location == null) return; // Author cancelled — not a failure.
+      await File(location.path).writeAsString(content);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Exported ${location.path}')));
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  /// "Printable" (FR48) with no PDF/printing dependency in this app yet
+  /// (`pubspec.yaml` carries none): a chrome-free, letter-proportioned view
+  /// of the exact document `_export` writes, which the desktop OS's own
+  /// print command can act on. A real "Print" button that talks to a
+  /// printer driver needs a printing package added as its own decision —
+  /// flagging that rather than reaching for a new dependency here.
+  Future<void> _showPrintPreview(Itinerary itinerary) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        child: SizedBox(
+          width: 640,
+          height: 800,
+          child: Padding(
+            padding: const EdgeInsets.all(PlotSpacing.s5),
+            child: SingleChildScrollView(
+              child: SelectableText(itineraryToMarkdown(itinerary)),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
