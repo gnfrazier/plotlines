@@ -625,6 +625,11 @@ class Segment:
     portages: list[Portage] = field(default_factory=list)
     solve: SolveProvenance | None = None
     arc_stage: str | None = None
+    note: str | None = None
+    """FR37 / E1 — rich notes/instructions attached to this passage itself,
+    distinct from any role's own note (`content.anchor.Role.note`)."""
+    media: list[MediaRef] = field(default_factory=list)
+    """FR37 / E1 — media attached to this passage."""
 
     def to_dict(self) -> dict:
         return {
@@ -645,6 +650,8 @@ class Segment:
             "portages": [p.to_dict() for p in self.portages] or None,
             "solve": self.solve.to_dict() if self.solve else None,
             "arc_stage": self.arc_stage,
+            "note": self.note,
+            "media": [m.to_dict() for m in self.media] or None,
         }
 
 
@@ -684,6 +691,9 @@ class Day:
     date: str | None = None
     title: str | None = None
     note: str | None = None
+    media: list[MediaRef] = field(default_factory=list)
+    """FR37 / E1 — media attached to this day itself, distinct from any
+    role's or passage's own media."""
     location: Coord | None = None
     segments: list[Segment] = field(default_factory=list)
     transitions: list[Transition] = field(default_factory=list)
@@ -698,7 +708,9 @@ class Day:
         return {
             "id": self.id, "index": self.index, "kind": self.kind,
             "roles": list(self.roles) or None, "date": self.date,
-            "title": self.title, "note": self.note, "location": self.location,
+            "title": self.title, "note": self.note,
+            "media": [m.to_dict() for m in self.media] or None,
+            "location": self.location,
             "segments": [s.to_dict() for s in self.segments] or None,
             "transitions": [t.to_dict() for t in self.transitions] or None,
             "nodes": [n.to_dict() for n in self.nodes] or None,

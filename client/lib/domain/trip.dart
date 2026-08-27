@@ -12,8 +12,11 @@ import 'weight_profile.dart';
 // and the trip-level `anchors` array — additive: an absent `anchors` list
 // still parses. Bumped to 1.3.0 by FR107 (Story O2), which added
 // `role.coord` — additive again: a role with no `coord` still parses, and
-// behaves exactly as a single point (O2's AC).
-const String tripSchemaVersion = '1.3.0';
+// behaves exactly as a single point (O2's AC). Bumped to 1.4.0 by FR37
+// (Story E1), which added `segment.note`/`segment.media` and `day.media`
+// (`day.note` already existed) — additive again: a segment or day with
+// neither still parses.
+const String tripSchemaVersion = '1.4.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {

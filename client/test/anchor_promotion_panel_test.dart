@@ -414,4 +414,56 @@ void main() {
       expect(find.byIcon(Icons.close), findsNothing);
     });
   });
+
+  group('role content (FR37 / E1)', () {
+    testWidgets('adding a note/media to a role after promotion shows the filled content icon', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      await tester.tap(find.byType(Checkbox).at(0)); // narrative
+      await tester.pump();
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      // O1's AC: content may be "set here or later" — this is later, and
+      // starts empty (the outlined icon, "Add content").
+      expect(find.byIcon(Icons.notes_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.notes), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.notes_outlined));
+      await tester.pumpAndSettle();
+      expect(find.text('Role content'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextField, 'Rich note'), 'The statue tells the story.');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      // The chip now reads as carrying content (filled icon).
+      expect(find.byIcon(Icons.notes), findsOneWidget);
+      expect(find.byIcon(Icons.notes_outlined), findsNothing);
+    });
+
+    testWidgets('cancelling the content dialog discards the edit', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      await tester.tap(find.byType(Checkbox).at(0));
+      await tester.pump();
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.notes_outlined));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Rich note'), 'Never saved');
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.notes_outlined), findsOneWidget); // still empty
+    });
+  });
 }

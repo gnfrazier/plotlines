@@ -36,4 +36,39 @@ void main() {
       expect(segment.copyWith(arcStage: 'climax').arcStage, 'climax');
     });
   });
+
+  group('Segment.note / Segment.media (FR37 / E1)', () {
+    test('default to null/empty and are absent from JSON', () {
+      final segment = Segment(id: 's1', mode: 'hiking', shape: 'loop');
+      expect(segment.note, isNull);
+      expect(segment.media, isEmpty);
+      final json = segment.toJson();
+      expect(json.containsKey('note'), isFalse);
+      expect(json.containsKey('media'), isFalse);
+    });
+
+    test('round-trip through JSON, distinct from arc_stage or any role', () {
+      final segment = Segment(
+        id: 's1',
+        mode: 'hiking',
+        shape: 'loop',
+        note: 'The grind between the two overlooks.',
+        media: [MediaRef(id: 'm1', kind: 'image', path: 'grind.jpg', caption: 'The climb')],
+      );
+      final decoded = Segment.fromJson(segment.toJson());
+      expect(decoded.note, 'The grind between the two overlooks.');
+      expect(decoded.media.single.path, 'grind.jpg');
+      expect(decoded.media.single.caption, 'The climb');
+    });
+
+    test('copyWith replaces note/media without disturbing other fields, and clearNote clears it', () {
+      final segment = Segment(id: 's1', mode: 'hiking', shape: 'loop', arcStage: 'crux', note: 'old');
+      final updated = segment.copyWith(note: 'new', media: [MediaRef(id: 'm1', kind: 'image', path: 'p.jpg')]);
+      expect(updated.note, 'new');
+      expect(updated.media.single.path, 'p.jpg');
+      expect(updated.arcStage, 'crux'); // untouched
+
+      expect(segment.copyWith(clearNote: true).note, isNull);
+    });
+  });
 }

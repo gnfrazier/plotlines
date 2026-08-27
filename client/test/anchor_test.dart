@@ -243,6 +243,25 @@ void main() {
     });
   });
 
+  group('Role.note / Role.title clear flags (FR37 / E1)', () {
+    test('copyWith preserves title/note by default and clears them via clearTitle/clearNote', () {
+      final role = Role(id: 'r1', kind: RoleKind.narrative, title: 'The Overlook', note: 'A vista.');
+      expect(role.copyWith(hazard: false).title, 'The Overlook');
+      expect(role.copyWith(hazard: false).note, 'A vista.');
+      expect(role.copyWith(clearTitle: true).title, isNull);
+      expect(role.copyWith(clearNote: true).note, isNull);
+      // Clearing one leaves the other untouched.
+      expect(role.copyWith(clearNote: true).title, 'The Overlook');
+    });
+
+    test('a new note/media value replaces the old one via copyWith', () {
+      final role = Role(id: 'r1', kind: RoleKind.narrative, note: 'old');
+      final updated = role.copyWith(note: 'new', media: [MediaRef(id: 'm1', kind: 'image', path: 'p.jpg')]);
+      expect(updated.note, 'new');
+      expect(updated.media.single.path, 'p.jpg');
+    });
+  });
+
   group('Trip.anchors', () {
     test('round-trips and is absent when empty', () {
       final empty = Trip(id: 't1', title: 'Empty', createdAt: 'x', updatedAt: 'x');

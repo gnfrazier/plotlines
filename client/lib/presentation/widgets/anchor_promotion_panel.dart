@@ -27,10 +27,12 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../data/reveal_resolver.dart';
+import '../../data/role_content.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/messages_provider.dart';
 import '../map/tap_to_pick_map.dart';
+import 'note_media_editor.dart';
 
 const _resolver = RevealResolver();
 
@@ -214,7 +216,7 @@ class _AnchorCard extends ConsumerWidget {
                 previewAsCharacter
                     ? _PreviewRoleChip(
                         revealed: _resolver.resolve(role, hasArrived: false, anchorCoord: anchor.coord))
-                    : _RoleChip(role: role, placeName: anchor.title),
+                    : _RoleChip(anchorId: anchor.id, role: role, placeName: anchor.title),
             ],
           ),
           // FR107 / O2 — a role offset renders as its own line so it reads
@@ -246,8 +248,63 @@ class _AnchorCard extends ConsumerWidget {
   }
 }
 
+/// FR37 / E1 — the role-content editor: rich note + media, gated on read by
+/// [RevealResolver] wherever it's shown to a Character (never here — this is
+/// the Author's own authoring surface). A dialog, not an inline expansion,
+/// because the anchor card's width is already tight (FR108's boundary
+/// preview map) and a multiline note field needs room to breathe.
+Future<void> _editRoleContent(
+  BuildContext context,
+  WidgetRef ref, {
+  required String anchorId,
+  required Role role,
+}) async {
+  final draft = loadRoleContent(role);
+  var note = draft.note;
+  var media = draft.media;
+  await showDialog<void>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text('Role content'),
+        content: SizedBox(
+          width: 420,
+          child: NoteMediaEditor(
+            note: note,
+            media: media,
+            noteLabel: 'Rich note',
+            onNoteChanged: (v) => note = v,
+            onMediaChanged: (v) => setState(() => media = v),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              final trimmed = note?.trim();
+              ref.read(currentTripProvider.notifier).updateRole(
+                    anchorId,
+                    role.id,
+                    note: (trimmed == null || trimmed.isEmpty) ? null : trimmed,
+                    clearNote: trimmed == null || trimmed.isEmpty,
+                    media: media,
+                  );
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _RoleChip extends ConsumerWidget {
-  const _RoleChip({required this.role, this.placeName});
+  const _RoleChip({required this.anchorId, required this.role, this.placeName});
+
+  /// FR37 / E1 — needed to route a content edit back through
+  /// `CurrentTripNotifier.updateRole(anchorId, roleId, ...)`.
+  final String anchorId;
   final Role role;
 
   /// The **anchor's** title (`Anchor.title`), which is what FR145's "a
@@ -255,6 +312,8 @@ class _RoleChip extends ConsumerWidget {
   /// `Role.title` — that is content, it belongs to [RevealResolver], and it
   /// never becomes part of a sentence (ARCH A30).
   final String? placeName;
+
+  bool get _hasContent => loadRoleContent(role).hasContent;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -316,6 +375,22 @@ class _RoleChip extends ConsumerWidget {
           // FR38 / O6 — this role's stage in the day's story, distinguished
           // from a plain content chip so it reads as structure, not a label.
           if (role.arc != null) PlotBadge(role.arc!.wireValue, tone: PlotBadgeTone.slate),
+          // FR37 / E1 — content (note/media) may be left unset at promotion
+          // and decided later (O1's AC); this is that "later." A filled icon
+          // marks a role that already carries a note or media so the Author
+          // can tell content apart from an empty role at a glance.
+          IconButton(
+            tooltip: _hasContent ? 'Edit content' : 'Add content',
+            icon: Icon(
+              _hasContent ? Icons.notes : Icons.notes_outlined,
+              size: 16,
+              color: c.textMuted,
+            ),
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            padding: EdgeInsets.zero,
+            onPressed: () => _editRoleContent(context, ref, anchorId: anchorId, role: role),
+          ),
         ],
       ),
     );

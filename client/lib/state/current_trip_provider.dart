@@ -536,6 +536,44 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     return anchor;
   }
 
+  /// FR37 / E1 — a role's own content: [Role.title]/[Role.note]/[Role.media]
+  /// may be left unset at promotion and decided later (O1's AC), and this is
+  /// that "later" — the only mutator that edits an existing anchor's role
+  /// after promotion (every other anchor/role field is currently set once,
+  /// at [promoteAnchor] time). [RevealResolver] (`data/reveal_resolver.dart`)
+  /// is what gates this content by [Role.reveal] on every read surface —
+  /// nothing here decides visibility.
+  void updateRole(
+    String anchorId,
+    String roleId, {
+    String? title,
+    bool clearTitle = false,
+    String? note,
+    bool clearNote = false,
+    List<MediaRef>? media,
+  }) {
+    final anchors = [
+      for (final a in state.anchors)
+        if (a.id == anchorId)
+          a.copyWith(roles: [
+            for (final r in a.roles)
+              if (r.id == roleId)
+                r.copyWith(
+                  title: title,
+                  clearTitle: clearTitle,
+                  note: note,
+                  clearNote: clearNote,
+                  media: media,
+                )
+              else
+                r,
+          ])
+        else
+          a,
+    ];
+    state = state.copyWith(anchors: anchors, updatedAt: _nowIso());
+  }
+
   /// FR139's carve-out applies here without a prompt: an anchor that holds
   /// no authored content and is not yet attached to anything is ordinary
   /// working-state tidying, not the destructive case that rule guards.
@@ -662,6 +700,37 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           s,
     ];
     _replaceDay(day.copyWith(segments: segments));
+  }
+
+  /// FR37 / E1 — a passage's (segment's) own note, distinct from any role's.
+  /// An empty string clears the field, mirroring [setDayNote].
+  void updateSegmentNote(String dayId, String segmentId, String note) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId)
+          s.copyWith(note: note.isEmpty ? null : note, clearNote: note.isEmpty)
+        else
+          s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+  }
+
+  /// FR37 / E1 — a passage's (segment's) own media.
+  void updateSegmentMedia(String dayId, String segmentId, List<MediaRef> media) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId) s.copyWith(media: media) else s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+  }
+
+  /// FR37 / E1 — a day's own media (its note, [Day.note], already had a
+  /// mutator: [setDayNote]).
+  void updateDayMedia(String dayId, List<MediaRef> media) {
+    final day = _dayOrNew(dayId);
+    _replaceDay(day.copyWith(media: media));
   }
 
   /// FR117/A0 — compose mode's spine editor (`WeightsRail`'s `_SpineEditor`):

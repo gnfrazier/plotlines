@@ -22,6 +22,7 @@ class Day {
     this.date,
     this.title,
     this.note,
+    this.media = const [],
     this.location,
     this.segments = const [],
     this.transitions = const [],
@@ -46,6 +47,10 @@ class Day {
   final String? date;
   final String? title;
   final String? note;
+
+  /// FR37 / E1 — media attached to this day itself, distinct from any
+  /// role's or passage's own media.
+  final List<MediaRef> media;
 
   /// A rest day holds a location without an active route.
   final Coord? location;
@@ -78,6 +83,7 @@ class Day {
       date: f.takeString('date'),
       title: f.takeString('title'),
       note: f.takeString('note'),
+      media: f.takeList('media', MediaRef.fromJson),
       location: f.takeCoord('location'),
       segments: f.takeList('segments', Segment.fromJson),
       transitions: f.takeList('transitions', Transition.fromJson),
@@ -103,6 +109,7 @@ class Day {
         'date': date,
         'title': title,
         'note': note,
+        'media': media.isEmpty ? null : media.map((m) => m.toJson()).toList(),
         'location': location == null ? null : checkCoord(location!, 'day.location'),
         'segments': segments.isEmpty ? null : segments.map((s) => s.toJson()).toList(),
         'transitions':
@@ -129,6 +136,7 @@ class Day {
     bool clearTitle = false,
     String? note,
     bool clearNote = false,
+    List<MediaRef>? media,
     Coord? location,
     bool clearLocation = false,
     List<Segment>? segments,
@@ -148,6 +156,7 @@ class Day {
         date: date ?? this.date,
         title: clearTitle ? null : (title ?? this.title),
         note: clearNote ? null : (note ?? this.note),
+        media: media ?? this.media,
         location: clearLocation ? null : (location ?? this.location),
         segments: segments ?? this.segments,
         transitions: transitions ?? this.transitions,

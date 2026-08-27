@@ -254,6 +254,8 @@ class Segment {
     this.portages = const [],
     this.solve,
     this.arcStage,
+    this.note,
+    this.media = const [],
   });
 
   final String id;
@@ -291,6 +293,13 @@ class Segment {
   /// typed enum: this is `trips.payload`'s loosely-typed layer, not `Role`'s.
   final String? arcStage;
 
+  /// FR37 / E1 — rich notes/instructions attached to this passage itself,
+  /// distinct from any role's own note (`Role.note`, `anchor.dart`).
+  final String? note;
+
+  /// FR37 / E1 — media attached to this passage.
+  final List<MediaRef> media;
+
   factory Segment.fromJson(Map<String, dynamic> json) {
     final f = JsonFields(json, 'segment');
     final s = Segment(
@@ -314,6 +323,8 @@ class Segment {
       portages: f.takeList('portages', Portage.fromJson),
       solve: f.takeObject('solve', SolveProvenance.fromJson),
       arcStage: f.takeString('arc_stage'),
+      note: f.takeString('note'),
+      media: f.takeList('media', MediaRef.fromJson),
     );
     f.done();
     return s;
@@ -340,6 +351,8 @@ class Segment {
         'portages': portages.isEmpty ? null : portages.map((p) => p.toJson()).toList(),
         'solve': solve?.toJson(),
         'arc_stage': arcStage,
+        'note': note,
+        'media': media.isEmpty ? null : media.map((m) => m.toJson()).toList(),
       });
 
   Segment copyWith({
@@ -363,6 +376,9 @@ class Segment {
     SolveProvenance? solve,
     String? arcStage,
     bool clearArcStage = false,
+    String? note,
+    bool clearNote = false,
+    List<MediaRef>? media,
   }) =>
       Segment(
         id: id,
@@ -385,5 +401,7 @@ class Segment {
         portages: portages ?? this.portages,
         solve: solve ?? this.solve,
         arcStage: clearArcStage ? null : (arcStage ?? this.arcStage),
+        note: clearNote ? null : (note ?? this.note),
+        media: media ?? this.media,
       );
 }

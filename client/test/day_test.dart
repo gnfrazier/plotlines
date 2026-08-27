@@ -57,6 +57,37 @@ void main() {
     });
   });
 
+  group('Day.media (FR37 / E1)', () {
+    test('defaults to empty and is absent from JSON', () {
+      final day = Day(id: 'd1', index: 1);
+      expect(day.media, isEmpty);
+      expect(day.toJson().containsKey('media'), isFalse);
+    });
+
+    test('round-trips through JSON, distinct from a segment\'s own media', () {
+      final day = Day(
+        id: 'd1',
+        index: 1,
+        media: [MediaRef(id: 'm1', kind: 'image', path: 'camp.jpg')],
+        segments: [
+          Segment(id: 's1', mode: 'hiking', shape: 'loop', media: [
+            MediaRef(id: 'm2', kind: 'image', path: 'trail.jpg'),
+          ]),
+        ],
+      );
+      final decoded = Day.fromJson(day.toJson());
+      expect(decoded.media.single.path, 'camp.jpg');
+      expect(decoded.segments.single.media.single.path, 'trail.jpg');
+    });
+
+    test('copyWith replaces media without touching note', () {
+      final day = Day(id: 'd1', index: 1, note: 'Some detail');
+      final updated = day.copyWith(media: [MediaRef(id: 'm1', kind: 'image', path: 'p.jpg')]);
+      expect(updated.media.single.path, 'p.jpg');
+      expect(updated.note, 'Some detail');
+    });
+  });
+
   group('computeDayLimitBreaches (FR19 / C3)', () {
     Segment leg(String id, String mode, double distanceM) => Segment(
           id: id,

@@ -21,10 +21,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../../domain/domain.dart';
+import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/anchor_promotion_panel.dart';
 import '../../widgets/node_editor_sheet.dart';
+import '../../widgets/note_media_editor.dart';
 
 class ContentTab extends ConsumerStatefulWidget {
   const ContentTab({super.key, required this.trip});
@@ -127,6 +129,7 @@ class _ContentTabState extends ConsumerState<ContentTab> {
                     ],
                   ),
                 ),
+              _PassageAndDayContent(day: day, segment: segment),
               Expanded(
                 child: coord == null
                     ? Center(
@@ -155,4 +158,62 @@ class _ContentTabState extends ConsumerState<ContentTab> {
     );
   }
 
+}
+
+/// FR37 / E1 — the other two of the AC's three content homes (role content
+/// lives on the anchor card, `anchor_promotion_panel.dart`'s `_RoleChip`):
+/// a passage's (segment's) own note/media, distinct from any node or role
+/// along it, and the day's own — collapsed by default so an Author who
+/// never uses this doesn't pay for it in the node editor's limited vertical
+/// space below.
+class _PassageAndDayContent extends ConsumerWidget {
+  const _PassageAndDayContent({required this.day, required this.segment});
+  final Day day;
+  final Segment segment;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = PlotColors.of(context);
+    final hasContent = segment.note != null ||
+        segment.media.isNotEmpty ||
+        day.note != null ||
+        day.media.isNotEmpty;
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        title: Text(
+          hasContent ? 'PASSAGE & DAY CONTENT' : 'PASSAGE & DAY CONTENT (empty)',
+          style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700, fontSize: 11),
+        ),
+        childrenPadding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
+        children: [
+          Text('PASSAGE', style: PlotTypography.small(c.textMuted)),
+          const SizedBox(height: PlotSpacing.s1),
+          NoteMediaEditor(
+            key: ValueKey('passage-${segment.id}'),
+            note: segment.note,
+            media: segment.media,
+            noteLabel: 'Passage note',
+            onNoteChanged: (v) =>
+                ref.read(currentTripProvider.notifier).updateSegmentNote(day.id, segment.id, v),
+            onMediaChanged: (v) =>
+                ref.read(currentTripProvider.notifier).updateSegmentMedia(day.id, segment.id, v),
+          ),
+          const SizedBox(height: PlotSpacing.s4),
+          Text('DAY ${day.index}', style: PlotTypography.small(c.textMuted)),
+          const SizedBox(height: PlotSpacing.s1),
+          NoteMediaEditor(
+            key: ValueKey('day-${day.id}'),
+            note: day.note,
+            media: day.media,
+            noteLabel: 'Day note',
+            onNoteChanged: (v) => ref.read(currentTripProvider.notifier).setDayNote(day.id, v),
+            onMediaChanged: (v) =>
+                ref.read(currentTripProvider.notifier).updateDayMedia(day.id, v),
+          ),
+        ],
+      ),
+    );
+  }
 }

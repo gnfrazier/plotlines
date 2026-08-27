@@ -541,7 +541,9 @@
         "hazards": { "type": "array", "items": { "$ref": "#/$defs/hazard" } },
         "portages": { "type": "array", "items": { "$ref": "#/$defs/portage" } },
         "solve": { "$ref": "#/$defs/solve_provenance" },
-        "arc_stage": { "$ref": "#/$defs/arc_stage", "description": "FR38 / O6 — this passage's own arc stage. Absent means this segment carries no arc beat of its own." }
+        "arc_stage": { "$ref": "#/$defs/arc_stage", "description": "FR38 / O6 — this passage's own arc stage. Absent means this segment carries no arc beat of its own." },
+        "note": { "$ref": "#/$defs/markdown", "description": "FR37 / E1 — rich notes/instructions attached to this passage itself, distinct from any role's own note. Absent means nothing authored here yet." },
+        "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" }, "description": "FR37 / E1 — media attached to this passage." }
       },
       "allOf": [
         {
@@ -660,6 +662,7 @@
         "date": { "$ref": "#/$defs/date" },
         "title": { "type": "string" },
         "note": { "$ref": "#/$defs/markdown" },
+        "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" }, "description": "FR37 / E1 — media attached to this day itself, distinct from any role's or passage's own media." },
         "location": { "$ref": "#/$defs/coord", "description": "C2 — a rest day holds a location without an active route." },
         "segments": { "type": "array", "items": { "$ref": "#/$defs/segment" } },
         "transitions": { "type": "array", "items": { "$ref": "#/$defs/transition" } },
