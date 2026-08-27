@@ -2,6 +2,16 @@
 
 Working reference of OpenStreetMap tags relevant to the rebrand, in two parts: "cool/interesting things to see" (content/curation, Leg 6, FR5, FR23) and cycling-specific infrastructure (routing input, cyclist support amenities, greenways). Source: [OSM Map Features](https://wiki.openstreetmap.org/wiki/Map_features), cross-checked against `Key:tourism`, `Key:historic`, `Key:leisure`, `Key:natural`, `Key:man_made`, `Key:amenity`, `Key:cycleway`, `Key:highway`, and the `Bicycle` wiki page.
 
+> **This file is directional, not constraining (ARCH Q16).** It records tags
+> *considered* for the rebrand and why — it is not an allowlist and not the
+> source of truth for what the curation taxonomy carries. The source of
+> truth is the OSM wiki itself (`Key:amenity`, `Key:tourism`, …). The
+> machine-readable taxonomy that actually drives extraction and scoring is
+> `core/plotlines_core/curation/taxonomy.py`; where the two disagree, the
+> code and the OSM wiki win. An omission here is not a decision to exclude a
+> tag — it usually just means this doc was written for a touring cyclist's
+> *sights* and never revisited for another purpose.
+
 # "Cool / Interesting Things to See"
 
 Scoped to what a touring cyclist might detour or stop for — not general infrastructure tagging.
@@ -89,6 +99,34 @@ Scoped to what a touring cyclist might detour or stop for — not general infras
 | `amenity=grave_yard`                                                                                                                                                | Small burial ground, often churchside   | Candidate — can be genuinely scenic/historic                                                                                |
 | `amenity=cinema`                                                                                                                                                    | Movie theater                           | Candidate (caution) — usually modern/generic, weak fit                                                                      |
 | `amenity=community_centre`/`conference_centre`/`events_venue`/`exhibition_centre`/`social_centre`/`stage`/`music_school`/`research_institute`/`school`/`university` | Institutional/functional venues         | Excluded — not sightseeing destinations                                                                                     |
+
+## Amenity — provisions subset (FR104, ARCH Q16)
+
+A distinct use from the sightseeing subset above: these are the co-locatable
+**utility** amenities FR104's provision-cluster proposals are built from
+("toilet + drinking water + shelter"; "café + restroom + bike repair
+station"). They carry the `provision` role affinity in `taxonomy.py`, are
+live on **rest** days only (`config/layer_defaults.json`), and feed the
+Frodo-principle rendering (FR133) rather than the "interesting to see"
+layers. Values below are from the OSM wiki `Key:amenity`; the
+Candidate/Excluded distinction that governs the sights tables does not apply
+— a provision is proposed by co-location with others, not by a per-type
+sightseeing verdict.
+
+| Tag | Description | Status |
+|---|---|---|
+| `amenity=toilets` | Public toilets / restroom | Wired — `taxonomy.py`, `provision` |
+| `amenity=drinking_water` | Potable water source | Wired (pre-existing), `provision` |
+| `amenity=water_point` | Larger-volume drinking-water point (container/tank filling) | Wired — `provision` |
+| `amenity=shower` | Public shower | Wired — `provision` |
+| `amenity=shelter` | Small weather shelter (`shelter_type=*` for kind) | Wired (pre-existing), `provision` |
+| `amenity=cafe` | Informal sit-down place for drinks and light meals | Wired — `provision` |
+| `amenity=restaurant` | Sit-down eating establishment | Wired — `provision` |
+| `amenity=fast_food` | Counter-service food | Wired — `provision` |
+| `amenity=pharmacy` | Dispensing chemist | Wired — `provision` |
+| `amenity=bicycle_repair_station` | Self-service bike tools (often with a pump) | Wired — `provision` |
+| `amenity=compressed_air` | Tyre-inflation device | Wired — `provision` |
+| `amenity=bench` / `amenity=waste_basket` | Seating / litter bin | Deferred — genuine provisions but in FR98(b)'s over-triggering density class with no useful qualifying attribute; belongs with SPIKE-A's regional density calibration, not this mapping pass |
 
 ## Leisure — sightseeing subset
 
@@ -326,7 +364,8 @@ OSM's climbing schema is deep — route-level bolt counts, per-region grading sy
 - Ties into FR23 (building/architectural interest theme) and the Leg 6 content-layer direction in `rebrand-plan.md` — this file is the tag-level detail underneath that decision, not a replacement for it.
 - The greenway/rail-trail tagging pattern described above (highway + surface + name, no dedicated key) is inferred from general OSM tagging convention, not confirmed against this project's actual extracts — verify before relying on it to detect greenways programmatically.
 - Routing-input tags here overlap with FR3 (lowest-traffic) and FR12 (surface-type scoring) — this file catalogs the tags: deciding how they fold into those themes' actual weight functions is separate, unstarted work.
-- POI-candidate cyclist amenities (repair stations, parking, bike shops) aren't attached to any FR yet — closest existing hook is FR14's lodging-style provider pattern in `providers.py`, but no functional requirement currently covers "cyclist support amenities" as a category.
+- POI-candidate cyclist amenities (repair stations, parking, bike shops) aren't attached to any FR yet — closest existing hook is FR14's lodging-style provider pattern in `providers.py`, but no functional requirement currently covers "cyclist support amenities" as a category. *(Partly closed: `bicycle_repair_station` and `compressed_air` are now wired as `provision`s for FR104 — see the provisions subset above. `bicycle_parking`/`shop=bicycle` remain unattached.)*
+- ~~The utility-amenity layer lacks `amenity=toilets` and the café/restroom/pharmacy/shower provisions FR104 needs~~ — **done (ARCH Q16, 2026-08-27).** The provision-oriented pass added them to `core/plotlines_core/curation/taxonomy.py` as `provision`-affinity rows, sourced from the OSM wiki `Key:amenity`. `RULESET_VERSION` → `1.1.0`. `bench`/`waste_basket` deliberately deferred to SPIKE-A density calibration.
 - MTB, paddling, nordic skiing, hiking, and climbing have zero existing FR/theme coverage — everything under "Other Human-Powered Outdoor Activities" is pure gathering per the broadened brief, not a scoped feature.
 - Regional fit varies a lot by activity and hasn't been checked, **except paddling, which now has been**: the guess that "paddling is plausible in NC" was right about the *rivers* and wrong about the *data*. Western NC has the whitewater and OSM carries none of its grading. Nordic skiing, climbing, and MTB regional fit are still unchecked.
 - **OSM is not the paddling network source.** SPIKE-04 found USGS NHDPlus HR carries roughly twice the paddleable-scale river length in the same bboxes, with declared topology and flow direction, where OSM has neither — and OSM has no equivalent of NHD's artificial paths across lakes, which is why a third of Western NC's mapped boat ramps sit up to 3 km from anything a router would consider water. The tags above stay useful for **access points, hazards, and `canoe=*` legality**; the graph itself comes from elsewhere (ARCH §6.4, §13.2).

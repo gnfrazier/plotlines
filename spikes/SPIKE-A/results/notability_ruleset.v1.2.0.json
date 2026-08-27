@@ -1,0 +1,272 @@
+{
+  "ruleset_version": "1.2.0",
+  "uncataloged_wildcard_weight": 0.2,
+  "calibrated_by": "SPIKE-A (issue #158), 2026-08-27, extracts: avl / lwr / sgv",
+  "rules": [
+    {
+      "layer": "historic",
+      "key": "historic",
+      "value": "*",
+      "base_weight": 0.3,
+      "role_affinity": "narrative",
+      "value_weights": {
+        "castle": 0.95,
+        "fort": 0.9,
+        "archaeological_site": 0.85,
+        "monument": 0.75,
+        "ruins": 0.7,
+        "battlefield": 0.65,
+        "wayside_shrine": 0.35,
+        "wayside_cross": 0.3,
+        "boundary_stone": 0.1,
+        "milestone": 0.1,
+        "district": 0.9,
+        "citywalls": 0.85,
+        "aqueduct": 0.7,
+        "railway_station": 0.6,
+        "train_station": 0.6,
+        "tomb": 0.55,
+        "aircraft": 0.5,
+        "locomotive": 0.5,
+        "ship": 0.5,
+        "building": 0.35,
+        "house": 0.35,
+        "yes": 0.05
+      }
+    },
+    {
+      "layer": "historic",
+      "key": "historic",
+      "value": "memorial",
+      "base_weight": 0.4,
+      "role_affinity": "narrative"
+    },
+    {
+      "layer": "natural",
+      "key": "natural",
+      "value": "tree",
+      "base_weight": 0.5,
+      "role_affinity": "narrative",
+      "qualification": {
+        "requires_value": {
+          "denotation": [
+            "natural_monument",
+            "landmark",
+            "memorial",
+            "historic"
+          ]
+        }
+      }
+    },
+    {
+      "layer": "leisure",
+      "key": "leisure",
+      "value": "park",
+      "base_weight": 0.4,
+      "role_affinity": "narrative",
+      "qualification": {
+        "requires_any": [
+          "name"
+        ],
+        "min_area_m2": 20000.0
+      }
+    },
+    {
+      "layer": "sight",
+      "key": "tourism",
+      "value": "attraction",
+      "base_weight": 0.6,
+      "role_affinity": "narrative",
+      "qualification": {
+        "requires_any": [
+          "name"
+        ]
+      }
+    },
+    {
+      "layer": "man_made",
+      "key": "man_made",
+      "value": "silo",
+      "base_weight": 0.3,
+      "role_affinity": "narrative",
+      "qualification": {
+        "requires_any": [
+          "name",
+          "heritage"
+        ]
+      }
+    },
+    {
+      "layer": "man_made",
+      "key": "man_made",
+      "value": "water_tower",
+      "base_weight": 0.3,
+      "role_affinity": "narrative",
+      "qualification": {
+        "requires_any": [
+          "name",
+          "heritage"
+        ]
+      }
+    },
+    {
+      "layer": "man_made",
+      "key": "man_made",
+      "value": "tower",
+      "base_weight": 0.35,
+      "role_affinity": "narrative",
+      "qualification": {
+        "requires_any": [
+          "name"
+        ]
+      }
+    },
+    {
+      "layer": "sight",
+      "key": "tourism",
+      "value": "viewpoint",
+      "base_weight": 0.7,
+      "role_affinity": "narrative"
+    },
+    {
+      "layer": "sight",
+      "key": "tourism",
+      "value": "museum",
+      "base_weight": 0.7,
+      "role_affinity": "narrative"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "drinking_water",
+      "base_weight": 0.5,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "shelter",
+      "base_weight": 0.4,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "leisure",
+      "value": "sauna",
+      "base_weight": 0.4,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "toilets",
+      "base_weight": 0.5,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "water_point",
+      "base_weight": 0.45,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "shower",
+      "base_weight": 0.4,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "cafe",
+      "base_weight": 0.55,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "restaurant",
+      "base_weight": 0.55,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "fast_food",
+      "base_weight": 0.45,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "pharmacy",
+      "base_weight": 0.5,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "bicycle_repair_station",
+      "base_weight": 0.6,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "amenity",
+      "key": "amenity",
+      "value": "compressed_air",
+      "base_weight": 0.45,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "natural",
+      "key": "natural",
+      "value": "peak",
+      "base_weight": 0.55,
+      "role_affinity": "narrative"
+    },
+    {
+      "layer": "natural",
+      "key": "natural",
+      "value": "spring",
+      "base_weight": 0.6,
+      "role_affinity": "provision"
+    },
+    {
+      "layer": "man_made",
+      "key": "man_made",
+      "value": "bridge",
+      "base_weight": 0.3,
+      "role_affinity": "narrative",
+      "qualification": {
+        "requires_any": [
+          "heritage",
+          "wikidata",
+          "wikipedia"
+        ]
+      }
+    },
+    {
+      "layer": "leisure",
+      "key": "leisure",
+      "value": "nature_reserve",
+      "base_weight": 0.7,
+      "role_affinity": "narrative"
+    },
+    {
+      "layer": "sight",
+      "key": "amenity",
+      "value": "place_of_worship",
+      "base_weight": 0.45,
+      "role_affinity": "narrative",
+      "qualification": {
+        "requires_any": [
+          "heritage",
+          "wikidata",
+          "wikipedia"
+        ]
+      }
+    }
+  ]
+}

@@ -293,7 +293,7 @@ Concrete end-to-end checks. Each exercises several requirements at once and fail
 ☐ **5.2 Wireframes** — the desktop planner wireframe now needs the layer picker, candidate map, cluster proposal review, and the promotion interaction. These did not exist when it was drawn. The mobile consumer wireframe needs reveal states and arrival.
 
 ☐ **5.3 OSM attribute mapping** — needs three passes, and it is now a **build input rather than reference material**:
-- A **provision-oriented pass**. It currently lacks `amenity=toilets` entirely, plus `cafe`, `restaurant`, `pharmacy`, `shower`. **FR104's "toilet + water + shelter" cluster cannot be computed from the mapping as written.**
+- ~~A **provision-oriented pass**. It currently lacks `amenity=toilets` entirely, plus `cafe`, `restaurant`, `pharmacy`, `shower`. **FR104's "toilet + water + shelter" cluster cannot be computed from the mapping as written.**~~ **Done 2026-08-27 (ARCH §18 Q16).** `taxonomy.py` gained `provision`-affinity rows for `toilets`, `water_point`, `shower`, `cafe`, `restaurant`, `fast_food`, `pharmacy`, `bicycle_repair_station`, `compressed_air` (source: OSM wiki `Key:amenity`). `osm_reference.md` now states at its head that it is directional, not an allowlist. `bench`/`waste_basket` deferred to SPIKE-A, which then **confirmed they stay out** — both land in the unmatched tail as correct omissions (neither is a sight or a provision-cluster input). `RULESET_VERSION` → `1.1.0` (SPIKE-A took it to `1.2.0`).
 - The Candidate/Excluded column restructured as **defaults per (mode × day-type)** rather than global verdicts.
 - **A role-affinity and salience-weight column per type** (FR100, FR105, ARCH D47). Without it the built-in OSM layers cannot be expressed as `LayerProvider` implementations, and the interface's own proof-of-realness test (ARCH §14.2) fails.
 - **Add the driving-surface tags** — `surface`, `smoothness`, `tracktype`, `4wd_only`, `motor_vehicle` — which FR29a needs and the mapping does not carry.
@@ -310,7 +310,7 @@ Concrete end-to-end checks. Each exercises several requirements at once and fail
 
 ## §6 — New spikes
 
-☐ **SPIKE-A · Notability tuning.** Calibrate FR98's per-tag rules and `historic=*` sub-weighting against real extracts in NC, WI, and SoCal. Under- and over-filtering both fail visibly; correct values are likely regional. **Blocks cluster analysis quality.**
+☑ **SPIKE-A · Notability tuning.** ~~Calibrate FR98's per-tag rules and `historic=*` sub-weighting against real extracts in NC, WI, and SoCal.~~ **Done 2026-08-27 (#158, `spikes/SPIKE-A/`).** Ran against three trip-sized bboxes (Asheville NC / Lower Wisconsin Riverway / San Gabriel foothills). The under-filtering failure was real — 4,149 street trees in one 382 km² bbox, because the `natural=tree` gate checked `denotation` presence not value. Fixed (`Qualification.requires_value`), plus `historic=*` sub-weight extensions, `natural=peak` 0.8→0.55, `man_made=bridge` gated, `+leisure=nature_reserve`, `+amenity=place_of_worship`. **Correct values are NOT regional** — one default ruleset; regional variation is candidate *volume*, which is SPIKE-B's problem. `RULESET_VERSION` → `1.2.0`; golden candidate sets checked in. Q11 closed.
 
 ☐ **SPIKE-B · Cluster ranking.** How salience and tightness trade off; whether corridor proximity should dominate once a route exists; what a reviewable proposal count is for a large bbox. *(FR105a)*
 

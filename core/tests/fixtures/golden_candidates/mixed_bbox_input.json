@@ -1,0 +1,256 @@
+{
+  "features": [
+    {
+      "id": "castle",
+      "tags": {
+        "historic": "castle",
+        "name": "Biltmore replica folly"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "hist_district",
+      "tags": {
+        "historic": "district",
+        "name": "Montford Historic District"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "hist_ruins",
+      "tags": {
+        "historic": "ruins",
+        "name": "Switzer Camp"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "hist_yes",
+      "tags": {
+        "historic": "yes"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "hist_building",
+      "tags": {
+        "historic": "building",
+        "name": "Old County Courthouse"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "hist_boundary",
+      "tags": {
+        "historic": "boundary_stone"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "memorial",
+      "tags": {
+        "historic": "memorial",
+        "name": "Vance Monument"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "tree_avenue",
+      "tags": {
+        "natural": "tree",
+        "denotation": "avenue"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "tree_urban",
+      "tags": {
+        "natural": "tree",
+        "denotation": "urban"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "tree_monument",
+      "tags": {
+        "natural": "tree",
+        "denotation": "natural_monument",
+        "name": "Eagle Oak"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "tree_bare",
+      "tags": {
+        "natural": "tree"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "peak_named",
+      "tags": {
+        "natural": "peak",
+        "name": "Lane Pinnacle",
+        "ele": "1520"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "spring",
+      "tags": {
+        "natural": "spring",
+        "name": "Cold Spring"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "park_big",
+      "tags": {
+        "leisure": "park",
+        "name": "French Broad River Park"
+      },
+      "area_m2": 45000.0
+    },
+    {
+      "id": "park_small_named",
+      "tags": {
+        "leisure": "park",
+        "name": "Pritchard Park"
+      },
+      "area_m2": 1800.0
+    },
+    {
+      "id": "park_small_unnamed",
+      "tags": {
+        "leisure": "park"
+      },
+      "area_m2": 1200.0
+    },
+    {
+      "id": "nature_reserve",
+      "tags": {
+        "leisure": "nature_reserve",
+        "name": "Monrovia Canyon Park"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "bridge_plain",
+      "tags": {
+        "man_made": "bridge",
+        "name": "Commonwealth Avenue"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "bridge_heritage",
+      "tags": {
+        "man_made": "bridge",
+        "name": "Colorado Street Bridge",
+        "heritage": "2"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "pow_plain",
+      "tags": {
+        "amenity": "place_of_worship",
+        "name": "First Baptist Church"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "pow_heritage",
+      "tags": {
+        "amenity": "place_of_worship",
+        "name": "Cathedral of All Souls",
+        "heritage": "2",
+        "wikidata": "Q123"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "museum",
+      "tags": {
+        "tourism": "museum",
+        "name": "Asheville Art Museum"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "viewpoint",
+      "tags": {
+        "tourism": "viewpoint",
+        "name": "Inspiration Point"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "attraction_named",
+      "tags": {
+        "tourism": "attraction",
+        "name": "Big Rock"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "attraction_bare",
+      "tags": {
+        "tourism": "attraction"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "toilets",
+      "tags": {
+        "amenity": "toilets"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "cafe",
+      "tags": {
+        "amenity": "cafe",
+        "name": "Trade & Lore"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "restaurant",
+      "tags": {
+        "amenity": "restaurant",
+        "name": "Rhubarb"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "bike_repair",
+      "tags": {
+        "amenity": "bicycle_repair_station"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "drinking_water",
+      "tags": {
+        "amenity": "drinking_water"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "shop_bakery",
+      "tags": {
+        "shop": "bakery",
+        "name": "Old World"
+      },
+      "area_m2": null
+    },
+    {
+      "id": "bench",
+      "tags": {
+        "amenity": "bench"
+      },
+      "area_m2": null
+    }
+  ]
+}

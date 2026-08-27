@@ -15,7 +15,15 @@ from .taxonomy import match, weight_for
 # ARCH §4.2's candidate cache key is `(bbox, layer_set_version, filter_ruleset_version)`.
 # Bump this when TAXONOMY's rules change so a stale ruleset version is never
 # read as still describing the current scores.
-RULESET_VERSION = "1.0.0"
+#   1.1.0 — FR104 / ARCH Q16 provision-oriented pass: added the utility
+#           amenities (toilets, cafe, restaurant, pharmacy, shower, bike
+#           repair, …) the provision cluster is built from.
+#   1.2.0 — SPIKE-A (#158): calibrated historic=* sub-weights and the
+#           qualification gates against NC/WI/SoCal extracts. natural=tree
+#           now gates on denotation *value*; man_made=bridge gated;
+#           natural=peak weight 0.8→0.55; added leisure=nature_reserve and
+#           amenity=place_of_worship.
+RULESET_VERSION = "1.2.0"
 
 
 @dataclass(frozen=True)

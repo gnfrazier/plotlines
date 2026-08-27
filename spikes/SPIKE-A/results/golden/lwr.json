@@ -1,0 +1,597 @@
+{
+  "region": "lwr",
+  "bbox_south_west_north_east": [
+    43.1,
+    -90.18,
+    43.34,
+    -89.86
+  ],
+  "layers": [
+    "amenity",
+    "historic",
+    "leisure",
+    "man_made",
+    "natural",
+    "sight"
+  ],
+  "ruleset_version": "1.2.0",
+  "candidate_count": 72,
+  "candidates": [
+    {
+      "id": "node/3169833648",
+      "salience": 0.75,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=monument  (wildcard historic=*)",
+      "title": "Frank Lloyd Wright"
+    },
+    {
+      "id": "node/11547469748",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": "Prairie Overlook"
+    },
+    {
+      "id": "node/11608861563",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": null
+    },
+    {
+      "id": "node/742765405",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": "House on the Rock Lookout"
+    },
+    {
+      "id": "relation/10650496",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Taliesin"
+    },
+    {
+      "id": "relation/11344929",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Spring Green Preserve"
+    },
+    {
+      "id": "relation/6068594",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Bakken's Pond State Natural Area"
+    },
+    {
+      "id": "relation/6824418",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Lower Wisconsin State Riverway"
+    },
+    {
+      "id": "relation/9795356",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": null
+    },
+    {
+      "id": "way/1245647667",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=ruins  (wildcard historic=*)",
+      "title": "Barn Foundation"
+    },
+    {
+      "id": "way/1338975808",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Bear Creek Fishing Area"
+    },
+    {
+      "id": "way/26335029",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Natural Bridge State Park"
+    },
+    {
+      "id": "way/373591225",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Arena Pines & Sand Barrens State Natural Area"
+    },
+    {
+      "id": "way/568784474",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Sauk County Forest"
+    },
+    {
+      "id": "way/753621000",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Arena High School Woods"
+    },
+    {
+      "id": "way/99824995",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Tower Hill State Park"
+    },
+    {
+      "id": "node/742840856",
+      "salience": 0.6,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=attraction",
+      "title": "House on The Rock"
+    },
+    {
+      "id": "node/11607920318",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Riverview Terrace Cafe"
+    },
+    {
+      "id": "node/3063669033",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Percussion Rock"
+    },
+    {
+      "id": "node/3063669034",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Deer Shelter Rock"
+    },
+    {
+      "id": "node/349444353",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Cedar Hill"
+    },
+    {
+      "id": "node/349447481",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Pine Knob"
+    },
+    {
+      "id": "node/349450902",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Twin Bluffs"
+    },
+    {
+      "id": "node/349451026",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Tower Hill"
+    },
+    {
+      "id": "node/4695989235",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Tower Rock"
+    },
+    {
+      "id": "relation/8555671",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Shifflet\u2019s Bar & Riverside Grille"
+    },
+    {
+      "id": "way/358848810",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Rumble Seats"
+    },
+    {
+      "id": "way/577874123",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Spring Green General Store"
+    },
+    {
+      "id": "way/689005648",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Reunion Family Barbecue"
+    },
+    {
+      "id": "way/689169939",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Arthur's Supper Club"
+    },
+    {
+      "id": "way/754852124",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Grandma Mary's Cafe"
+    },
+    {
+      "id": "node/11548202115",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/11548202117",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/7174911349",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/7243896155",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/619002739",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/619002743",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/619002750",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/635024347",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/635024348",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/689230266",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/969590924",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/790704212",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Subway"
+    },
+    {
+      "id": "way/1242619456",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Concessions"
+    },
+    {
+      "id": "way/689169615",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Culver's"
+    },
+    {
+      "id": "node/11545324777",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "node/354531737",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Spring Green Preserve State Natural Area"
+    },
+    {
+      "id": "node/354532825",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Tower Hill Bottoms State Natural Area"
+    },
+    {
+      "id": "node/7243896153",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "node/7243896154",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "node/7243896156",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "node/7415266174",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/1242620414",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": "John's Place"
+    },
+    {
+      "id": "way/1242620415",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": "Shuttle Stop"
+    },
+    {
+      "id": "way/1242620416",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": "Shuttle Stop"
+    },
+    {
+      "id": "way/1242674783",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": "Pavillion"
+    },
+    {
+      "id": "way/1535290671",
+      "salience": 0.4,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=memorial",
+      "title": null
+    },
+    {
+      "id": "way/1546193706",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "West Park"
+    },
+    {
+      "id": "way/1548331414",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/226329328",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Spring Green Municipal Park"
+    },
+    {
+      "id": "way/287996115",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Plain Municipal Park"
+    },
+    {
+      "id": "way/301595682",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Honey Creek Rod And Gun Club Park And Lake"
+    },
+    {
+      "id": "way/38520972",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/441738309",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Arena Community Park"
+    },
+    {
+      "id": "way/605386883",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": null
+    },
+    {
+      "id": "way/605388211",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Spring Green South Park"
+    },
+    {
+      "id": "way/635024349",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/689230211",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/876358322",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "node/5991431311",
+      "salience": 0.35,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=building  (wildcard historic=*)",
+      "title": "Shot Tunnel"
+    },
+    {
+      "id": "relation/17195732",
+      "salience": 0.35,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=house  (wildcard historic=*)",
+      "title": "Taliesin"
+    },
+    {
+      "id": "way/1242511761",
+      "salience": 0.35,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=building  (wildcard historic=*)",
+      "title": "Shot Tower and Smelter House"
+    }
+  ]
+}

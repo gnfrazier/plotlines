@@ -1,0 +1,168 @@
+{
+  "ruleset_version": "1.2.0",
+  "note": "SPIKE-A (#158) golden candidate set. Regenerate with regen.py.",
+  "candidate_count": 23,
+  "candidates": [
+    {
+      "id": "castle",
+      "salience": 0.95,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "title": "Biltmore replica folly"
+    },
+    {
+      "id": "hist_district",
+      "salience": 0.9,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "title": "Montford Historic District"
+    },
+    {
+      "id": "hist_ruins",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "title": "Switzer Camp"
+    },
+    {
+      "id": "nature_reserve",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "title": "Monrovia Canyon Park"
+    },
+    {
+      "id": "museum",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "title": "Asheville Art Museum"
+    },
+    {
+      "id": "viewpoint",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "title": "Inspiration Point"
+    },
+    {
+      "id": "spring",
+      "salience": 0.6,
+      "layer": "natural",
+      "role_affinity": "provision",
+      "title": "Cold Spring"
+    },
+    {
+      "id": "attraction_named",
+      "salience": 0.6,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "title": "Big Rock"
+    },
+    {
+      "id": "bike_repair",
+      "salience": 0.6,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "title": null
+    },
+    {
+      "id": "peak_named",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "title": "Lane Pinnacle"
+    },
+    {
+      "id": "cafe",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "title": "Trade & Lore"
+    },
+    {
+      "id": "restaurant",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "title": "Rhubarb"
+    },
+    {
+      "id": "tree_monument",
+      "salience": 0.5,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "title": "Eagle Oak"
+    },
+    {
+      "id": "toilets",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "title": null
+    },
+    {
+      "id": "drinking_water",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "title": null
+    },
+    {
+      "id": "pow_heritage",
+      "salience": 0.45,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "title": "Cathedral of All Souls"
+    },
+    {
+      "id": "memorial",
+      "salience": 0.4,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "title": "Vance Monument"
+    },
+    {
+      "id": "park_big",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "title": "French Broad River Park"
+    },
+    {
+      "id": "park_small_named",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "title": "Pritchard Park"
+    },
+    {
+      "id": "hist_building",
+      "salience": 0.35,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "title": "Old County Courthouse"
+    },
+    {
+      "id": "bridge_heritage",
+      "salience": 0.3,
+      "layer": "man_made",
+      "role_affinity": "narrative",
+      "title": "Colorado Street Bridge"
+    },
+    {
+      "id": "hist_boundary",
+      "salience": 0.1,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "title": null
+    },
+    {
+      "id": "hist_yes",
+      "salience": 0.05,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "title": null
+    }
+  ]
+}

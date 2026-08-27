@@ -14,6 +14,23 @@ threshold (street trees, park polygons, generic "attraction" pins, silos and
 water towers) requires a qualifying attribute before it is displayable at
 all — this is a seed list, not exhaustive; a new layer is qualified by
 applying the same rule, not by being added here (FR98).
+
+The sub-weights and gates were calibrated by **SPIKE-A** (issue #158,
+2026-08-27) against real OSM extracts in three trip-sized bboxes — Asheville
+NC, the Lower Wisconsin Riverway, and the San Gabriel foothills. See
+`spikes/SPIKE-A/results/RESULTS.md`; the golden candidate sets that lock this
+ruleset's output live in `core/tests/fixtures/golden_candidates/`. The two
+structural findings that changed code rather than values: bare-presence
+qualification is not enough (`Qualification.requires_value`), and
+`natural=peak` cannot be gated by any single attribute in mountain terrain.
+
+The `provision`-affinity rows carry the utility-amenity coverage FR104's
+cluster proposals are built from (ARCH Q16). `docs/osm_reference.md` was
+scoped to a touring cyclist's *sights* and cycling infrastructure — it is a
+directional working reference, never a source of truth or an allowlist; the
+OSM wiki (`Key:amenity` etc.) is. FR104's two worked examples — "toilet +
+drinking water + shelter" and "café + restroom + bike repair station" —
+were inexpressible until these rows existed.
 """
 
 from __future__ import annotations
@@ -39,18 +56,28 @@ class Qualification:
     """FR98(b) — a displayability gate, not a score.
 
     Satisfied if any of `requires_any`'s tag keys carries a non-empty value,
-    or if `min_area_m2` is set and the feature's area meets it. A rule with
-    neither is unconditionally satisfied (most types never over-trigger and
+    if any `requires_value` key carries one of its listed values, or if
+    `min_area_m2` is set and the feature's area meets it. A rule with none of
+    the three is unconditionally satisfied (most types never over-trigger and
     need no gate at all).
+
+    `requires_value` exists because SPIKE-A found bare-presence gates are not
+    enough: in the San Gabriel foothills 3,988 street trees carry
+    `denotation=avenue` — a value meaning *row of trees along a street*, the
+    opposite of notable — so `requires_any=("denotation",)` passed every one
+    of them. `natural=tree` now demands `denotation ∈ {natural_monument, …}`.
     """
 
     requires_any: tuple[str, ...] = ()
+    requires_value: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     min_area_m2: float | None = None
 
     def satisfied_by(self, tags: Mapping[str, str], area_m2: float | None) -> bool:
-        if not self.requires_any and self.min_area_m2 is None:
+        if not self.requires_any and not self.requires_value and self.min_area_m2 is None:
             return True
         if any(tags.get(k) for k in self.requires_any):
+            return True
+        if any(tags.get(k) in allowed for k, allowed in self.requires_value.items()):
             return True
         if self.min_area_m2 is not None and area_m2 is not None:
             return area_m2 >= self.min_area_m2
@@ -87,6 +114,10 @@ class TypeRule:
 TAXONOMY: tuple[TypeRule, ...] = (
     # historic=* — FR98(a)'s seed case. A castle, fort, or archaeological
     # site must outrank a boundary stone or milestone, not score identically.
+    # Values below the split line were added by SPIKE-A from the values that
+    # actually appear in the NC / WI / SoCal extracts: `historic=district`
+    # (a whole conservation area) is the strongest thing the wildcard sees
+    # and was scoring 0.2; `historic=yes`/`building` are the noisy long tail.
     TypeRule(
         layer="historic", key="historic", value="*", base_weight=0.3,
         role_affinity="narrative",
@@ -101,6 +132,19 @@ TAXONOMY: tuple[TypeRule, ...] = (
             "wayside_cross": 0.3,
             "boundary_stone": 0.1,
             "milestone": 0.1,
+            # --- SPIKE-A additions (measured 2026-08-27) ---
+            "district": 0.9,
+            "citywalls": 0.85,
+            "aqueduct": 0.7,
+            "railway_station": 0.6,
+            "train_station": 0.6,
+            "tomb": 0.55,
+            "aircraft": 0.5,
+            "locomotive": 0.5,
+            "ship": 0.5,
+            "building": 0.35,
+            "house": 0.35,
+            "yes": 0.05,
         },
     ),
     TypeRule(
@@ -111,7 +155,14 @@ TAXONOMY: tuple[TypeRule, ...] = (
     TypeRule(
         layer="natural", key="natural", value="tree", base_weight=0.5,
         role_affinity="narrative",
-        qualification=Qualification(requires_any=("denotation",)),
+        # SPIKE-A: a bare `denotation` presence check let 4,149 street trees
+        # through in San Gabriel (3,988 of them `denotation=avenue`). The
+        # notable values are these four; everything else is a street or
+        # garden tree. Zero tree candidates survived in all three regions
+        # after this change — which is the correct answer, not a regression.
+        qualification=Qualification(requires_value={
+            "denotation": ("natural_monument", "landmark", "memorial", "historic"),
+        }),
     ),
     TypeRule(
         layer="leisure", key="leisure", value="park", base_weight=0.4,
@@ -149,12 +200,58 @@ TAXONOMY: tuple[TypeRule, ...] = (
               role_affinity="provision"),
     TypeRule(layer="amenity", key="leisure", value="sauna", base_weight=0.4,
               role_affinity="provision"),
-    TypeRule(layer="natural", key="natural", value="peak", base_weight=0.8,
+    # FR104 / ARCH Q16 — the provision-oriented mapping pass. Co-locatable
+    # utility amenities, sourced from the OSM wiki (`Key:amenity`), not from
+    # `docs/osm_reference.md`, which never carried them. All `provision`
+    # affinity, so a cluster of any of them proposes a rest-stop / provision
+    # anchor (ARCH D47). Seed weights like every other row here — SPIKE-A
+    # calibrates against real regional extracts, it does not gate.
+    TypeRule(layer="amenity", key="amenity", value="toilets", base_weight=0.5,
+              role_affinity="provision"),
+    TypeRule(layer="amenity", key="amenity", value="water_point", base_weight=0.45,
+              role_affinity="provision"),
+    TypeRule(layer="amenity", key="amenity", value="shower", base_weight=0.4,
+              role_affinity="provision"),
+    TypeRule(layer="amenity", key="amenity", value="cafe", base_weight=0.55,
+              role_affinity="provision"),
+    TypeRule(layer="amenity", key="amenity", value="restaurant", base_weight=0.55,
+              role_affinity="provision"),
+    TypeRule(layer="amenity", key="amenity", value="fast_food", base_weight=0.45,
+              role_affinity="provision"),
+    TypeRule(layer="amenity", key="amenity", value="pharmacy", base_weight=0.5,
+              role_affinity="provision"),
+    TypeRule(layer="amenity", key="amenity", value="bicycle_repair_station", base_weight=0.6,
+              role_affinity="provision"),
+    TypeRule(layer="amenity", key="amenity", value="compressed_air", base_weight=0.45,
+              role_affinity="provision"),
+    # SPIKE-A: peak was 0.8 — high enough that 61 named knolls in the French
+    # Broad valley outranked every museum and viewpoint. In a mountain region
+    # every bump is named and carries `ele`, so no single attribute gates it;
+    # the fix is a lower base weight until SPIKE-B can scale it by prominence
+    # and corridor proximity.
+    TypeRule(layer="natural", key="natural", value="peak", base_weight=0.55,
               role_affinity="narrative"),
     TypeRule(layer="natural", key="natural", value="spring", base_weight=0.6,
               role_affinity="provision"),
+    # SPIKE-A: bridge was ungated at 0.3 — 141 in San Gabriel, 30 in
+    # Asheville. `name` does NOT gate it: 66 of the 68 named San Gabriel
+    # bridges are named after the road they carry ("Commonwealth Avenue",
+    # "I 210") — cartographic labelling, not notability. Only a heritage /
+    # wiki signal separates the Colorado Street Bridge from a freeway
+    # overpass, so that is the gate.
     TypeRule(layer="man_made", key="man_made", value="bridge", base_weight=0.3,
+              role_affinity="narrative",
+              qualification=Qualification(requires_any=("heritage", "wikidata", "wikipedia"))),
+    # SPIKE-A additions — `osm_reference.md` flags both as strong fits and
+    # neither was in the taxonomy, so they fell to the unmatched tail.
+    # `leisure=nature_reserve` is low-density and effectively always notable;
+    # `amenity=place_of_worship` is common (165 in Asheville) so it is gated
+    # to the architecturally-recognised subset (heritage / wiki signal).
+    TypeRule(layer="leisure", key="leisure", value="nature_reserve", base_weight=0.7,
               role_affinity="narrative"),
+    TypeRule(layer="sight", key="amenity", value="place_of_worship", base_weight=0.45,
+              role_affinity="narrative",
+              qualification=Qualification(requires_any=("heritage", "wikidata", "wikipedia"))),
 )
 
 

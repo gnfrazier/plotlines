@@ -61,3 +61,38 @@ def test_qualification_area_threshold():
     assert q.satisfied_by({}, 10_000.0) is False
     assert q.satisfied_by({}, 20_000.0) is True
     assert q.satisfied_by({}, None) is False
+
+
+def test_qualification_requires_value_checks_the_value_not_just_presence():
+    # SPIKE-A: `denotation=avenue` (a street tree) must NOT satisfy a gate that
+    # `denotation=natural_monument` does.
+    q = Qualification(requires_value={"denotation": ("natural_monument", "landmark")})
+    assert q.satisfied_by({"denotation": "natural_monument"}, None) is True
+    assert q.satisfied_by({"denotation": "avenue"}, None) is False
+    assert q.satisfied_by({"denotation": ""}, None) is False
+    assert q.satisfied_by({}, None) is False
+
+
+def test_tree_gates_on_denotation_value():
+    # The calibrated `natural=tree` rule: only the notable denotation values pass.
+    assert match({"natural": "tree"}) is not None  # it has a rule
+    rule = match({"natural": "tree"})
+    assert rule.qualification.satisfied_by({"natural": "tree", "denotation": "avenue"}, None) is False
+    assert rule.qualification.satisfied_by(
+        {"natural": "tree", "denotation": "natural_monument"}, None) is True
+
+
+def test_historic_district_outranks_a_plain_historic_building():
+    # SPIKE-A sub-weight addition: a whole conservation area is the strongest
+    # thing the `historic=*` wildcard sees.
+    wild = match({"historic": "district"})
+    assert weight_for(wild, {"historic": "district"}) > weight_for(wild, {"historic": "building"})
+    assert weight_for(wild, {"historic": "yes"}) <= 0.1
+
+
+def test_bridge_needs_a_heritage_signal_not_just_a_name():
+    rule = match({"man_made": "bridge"})
+    assert rule is not None
+    assert rule.qualification.satisfied_by({"man_made": "bridge", "name": "Gould Avenue"}, None) is False
+    assert rule.qualification.satisfied_by(
+        {"man_made": "bridge", "name": "Colorado Street Bridge", "heritage": "2"}, None) is True

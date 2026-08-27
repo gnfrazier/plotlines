@@ -1,0 +1,907 @@
+[
+  {
+    "region": "avl",
+    "name": "Asheville & the French Broad, NC",
+    "area_km2": 486.8,
+    "raw_features": 5574,
+    "matched": 1586,
+    "unmatched": 3988,
+    "candidates": 715,
+    "filtered_by_qualification": 871,
+    "candidates_per_100km2": 146.9,
+    "salience_buckets": {
+      "0.0-0.2": 1,
+      "0.2-0.4": 9,
+      "0.4-0.6": 665,
+      "0.6-0.8": 39,
+      "0.8-1.0": 1
+    },
+    "affinity_split": {
+      "narrative": 194,
+      "provision": 521
+    },
+    "candidates_by_type": [
+      [
+        "amenity=restaurant",
+        289
+      ],
+      [
+        "amenity=fast_food",
+        110
+      ],
+      [
+        "leisure=park",
+        74
+      ],
+      [
+        "natural=peak",
+        61
+      ],
+      [
+        "amenity=cafe",
+        51
+      ],
+      [
+        "amenity=shelter",
+        28
+      ],
+      [
+        "amenity=toilets",
+        21
+      ],
+      [
+        "amenity=pharmacy",
+        15
+      ],
+      [
+        "tourism=viewpoint",
+        11
+      ],
+      [
+        "historic=ruins  (wildcard historic=*)",
+        9
+      ],
+      [
+        "historic=memorial",
+        7
+      ],
+      [
+        "tourism=museum",
+        5
+      ],
+      [
+        "amenity=place_of_worship",
+        5
+      ],
+      [
+        "leisure=nature_reserve",
+        4
+      ],
+      [
+        "tourism=attraction",
+        4
+      ],
+      [
+        "historic=monument  (wildcard historic=*)",
+        3
+      ],
+      [
+        "amenity=bicycle_repair_station",
+        3
+      ],
+      [
+        "amenity=drinking_water",
+        2
+      ],
+      [
+        "leisure=sauna",
+        2
+      ],
+      [
+        "historic=building  (wildcard historic=*)",
+        2
+      ],
+      [
+        "man_made=tower",
+        2
+      ],
+      [
+        "historic=castle  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=wayside_shrine  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=Shrine  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=chimney  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=railway  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=government  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=yes  (wildcard historic=*)",
+        1
+      ]
+    ],
+    "over_reviewable_types": [
+      [
+        "amenity=restaurant",
+        289
+      ],
+      [
+        "amenity=fast_food",
+        110
+      ],
+      [
+        "leisure=park",
+        74
+      ],
+      [
+        "natural=peak",
+        61
+      ],
+      [
+        "amenity=cafe",
+        51
+      ]
+    ],
+    "historic_value_frequency": [
+      [
+        "ruins",
+        9
+      ],
+      [
+        "memorial",
+        8
+      ],
+      [
+        "monument",
+        3
+      ],
+      [
+        "building",
+        2
+      ],
+      [
+        "wayside_shrine",
+        1
+      ],
+      [
+        "Shrine",
+        1
+      ],
+      [
+        "chimney",
+        1
+      ],
+      [
+        "railway",
+        1
+      ],
+      [
+        "government",
+        1
+      ],
+      [
+        "yes",
+        1
+      ],
+      [
+        "castle",
+        1
+      ]
+    ],
+    "unmatched_top": [
+      [
+        "amenity=parking",
+        883
+      ],
+      [
+        "leisure=swimming_pool",
+        675
+      ],
+      [
+        "leisure=pitch",
+        276
+      ],
+      [
+        "natural=water",
+        238
+      ],
+      [
+        "amenity=bench",
+        185
+      ],
+      [
+        "natural=wood",
+        111
+      ],
+      [
+        "tourism=hotel",
+        75
+      ],
+      [
+        "man_made=surveillance",
+        69
+      ],
+      [
+        "amenity=fuel",
+        61
+      ],
+      [
+        "amenity=waste_basket",
+        60
+      ],
+      [
+        "tourism=information",
+        54
+      ],
+      [
+        "amenity=parking_entrance",
+        47
+      ],
+      [
+        "amenity=bicycle_parking",
+        46
+      ],
+      [
+        "amenity=bank",
+        45
+      ],
+      [
+        "leisure=playground",
+        45
+      ],
+      [
+        "leisure=outdoor_seating",
+        44
+      ],
+      [
+        "amenity=bar",
+        43
+      ],
+      [
+        "amenity=parking_space",
+        43
+      ],
+      [
+        "man_made=mast",
+        43
+      ],
+      [
+        "tourism=gallery",
+        42
+      ],
+      [
+        "natural=scrub",
+        35
+      ],
+      [
+        "man_made=planter",
+        35
+      ],
+      [
+        "man_made=storage_tank",
+        35
+      ],
+      [
+        "leisure=garden",
+        30
+      ],
+      [
+        "man_made=manhole",
+        30
+      ]
+    ]
+  },
+  {
+    "region": "lwr",
+    "name": "Lower Wisconsin Riverway (Spring Green - Sauk City)",
+    "area_km2": 693.2,
+    "raw_features": 1019,
+    "matched": 171,
+    "unmatched": 848,
+    "candidates": 72,
+    "filtered_by_qualification": 99,
+    "candidates_per_100km2": 10.4,
+    "salience_buckets": {
+      "0.0-0.2": 0,
+      "0.2-0.4": 3,
+      "0.4-0.6": 52,
+      "0.6-0.8": 17,
+      "0.8-1.0": 0
+    },
+    "affinity_split": {
+      "narrative": 37,
+      "provision": 35
+    },
+    "candidates_by_type": [
+      [
+        "amenity=shelter",
+        14
+      ],
+      [
+        "leisure=nature_reserve",
+        11
+      ],
+      [
+        "amenity=toilets",
+        11
+      ],
+      [
+        "leisure=park",
+        9
+      ],
+      [
+        "natural=peak",
+        7
+      ],
+      [
+        "amenity=restaurant",
+        5
+      ],
+      [
+        "tourism=viewpoint",
+        3
+      ],
+      [
+        "amenity=fast_food",
+        3
+      ],
+      [
+        "amenity=cafe",
+        2
+      ],
+      [
+        "historic=building  (wildcard historic=*)",
+        2
+      ],
+      [
+        "historic=monument  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=ruins  (wildcard historic=*)",
+        1
+      ],
+      [
+        "tourism=attraction",
+        1
+      ],
+      [
+        "historic=memorial",
+        1
+      ],
+      [
+        "historic=house  (wildcard historic=*)",
+        1
+      ]
+    ],
+    "over_reviewable_types": [],
+    "historic_value_frequency": [
+      [
+        "building",
+        2
+      ],
+      [
+        "monument",
+        1
+      ],
+      [
+        "ruins",
+        1
+      ],
+      [
+        "memorial",
+        1
+      ],
+      [
+        "house",
+        1
+      ]
+    ],
+    "unmatched_top": [
+      [
+        "natural=wood",
+        379
+      ],
+      [
+        "natural=water",
+        132
+      ],
+      [
+        "natural=grassland",
+        58
+      ],
+      [
+        "amenity=parking",
+        52
+      ],
+      [
+        "natural=wetland",
+        49
+      ],
+      [
+        "leisure=pitch",
+        29
+      ],
+      [
+        "amenity=school",
+        15
+      ],
+      [
+        "amenity=bench",
+        15
+      ],
+      [
+        "natural=tree_row",
+        14
+      ],
+      [
+        "leisure=playground",
+        8
+      ],
+      [
+        "leisure=swimming_pool",
+        7
+      ],
+      [
+        "leisure=bleachers",
+        7
+      ],
+      [
+        "tourism=information",
+        6
+      ],
+      [
+        "tourism=picnic_site",
+        5
+      ],
+      [
+        "man_made=mine",
+        5
+      ],
+      [
+        "man_made=mast",
+        5
+      ],
+      [
+        "amenity=fuel",
+        4
+      ],
+      [
+        "amenity=grave_yard",
+        3
+      ],
+      [
+        "amenity=townhall",
+        3
+      ],
+      [
+        "amenity=bar",
+        3
+      ],
+      [
+        "amenity=fire_station",
+        3
+      ],
+      [
+        "natural=scrub",
+        3
+      ],
+      [
+        "leisure=golf_course",
+        3
+      ],
+      [
+        "tourism=hotel",
+        2
+      ],
+      [
+        "tourism=camp_site",
+        2
+      ]
+    ]
+  },
+  {
+    "region": "sgv",
+    "name": "San Gabriel foothills (Pasadena - Sierra Madre), CA",
+    "area_km2": 382.3,
+    "raw_features": 16860,
+    "matched": 9453,
+    "unmatched": 7407,
+    "candidates": 1208,
+    "filtered_by_qualification": 8245,
+    "candidates_per_100km2": 316.0,
+    "salience_buckets": {
+      "0.0-0.2": 9,
+      "0.2-0.4": 94,
+      "0.4-0.6": 1001,
+      "0.6-0.8": 103,
+      "0.8-1.0": 1
+    },
+    "affinity_split": {
+      "narrative": 321,
+      "provision": 887
+    },
+    "candidates_by_type": [
+      [
+        "amenity=restaurant",
+        344
+      ],
+      [
+        "amenity=fast_food",
+        207
+      ],
+      [
+        "amenity=cafe",
+        133
+      ],
+      [
+        "amenity=toilets",
+        80
+      ],
+      [
+        "amenity=drinking_water",
+        73
+      ],
+      [
+        "leisure=park",
+        65
+      ],
+      [
+        "man_made=tower",
+        42
+      ],
+      [
+        "leisure=nature_reserve",
+        34
+      ],
+      [
+        "natural=peak",
+        33
+      ],
+      [
+        "historic=building  (wildcard historic=*)",
+        28
+      ],
+      [
+        "amenity=shelter",
+        27
+      ],
+      [
+        "tourism=viewpoint",
+        21
+      ],
+      [
+        "tourism=attraction",
+        16
+      ],
+      [
+        "amenity=pharmacy",
+        16
+      ],
+      [
+        "historic=ruins  (wildcard historic=*)",
+        14
+      ],
+      [
+        "historic=memorial",
+        14
+      ],
+      [
+        "tourism=museum",
+        12
+      ],
+      [
+        "historic=house  (wildcard historic=*)",
+        8
+      ],
+      [
+        "historic=yes  (wildcard historic=*)",
+        8
+      ],
+      [
+        "amenity=place_of_worship",
+        7
+      ],
+      [
+        "man_made=bridge",
+        4
+      ],
+      [
+        "amenity=bicycle_repair_station",
+        3
+      ],
+      [
+        "natural=spring",
+        3
+      ],
+      [
+        "historic=heritage  (wildcard historic=*)",
+        2
+      ],
+      [
+        "historic=Nike Site  (wildcard historic=*)",
+        2
+      ],
+      [
+        "historic=district  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=tomb  (wildcard historic=*)",
+        1
+      ],
+      [
+        "amenity=compressed_air",
+        1
+      ],
+      [
+        "historic=wayside_cross  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=icon  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=billboard  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=cannon  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=garage  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=hotel  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=water_well  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=road  (wildcard historic=*)",
+        1
+      ],
+      [
+        "historic=milestone  (wildcard historic=*)",
+        1
+      ]
+    ],
+    "over_reviewable_types": [
+      [
+        "amenity=restaurant",
+        344
+      ],
+      [
+        "amenity=fast_food",
+        207
+      ],
+      [
+        "amenity=cafe",
+        133
+      ],
+      [
+        "amenity=toilets",
+        80
+      ],
+      [
+        "amenity=drinking_water",
+        73
+      ],
+      [
+        "leisure=park",
+        65
+      ],
+      [
+        "man_made=tower",
+        42
+      ]
+    ],
+    "historic_value_frequency": [
+      [
+        "building",
+        29
+      ],
+      [
+        "memorial",
+        14
+      ],
+      [
+        "ruins",
+        14
+      ],
+      [
+        "house",
+        11
+      ],
+      [
+        "yes",
+        10
+      ],
+      [
+        "heritage",
+        2
+      ],
+      [
+        "Nike Site",
+        2
+      ],
+      [
+        "bridge",
+        2
+      ],
+      [
+        "icon",
+        1
+      ],
+      [
+        "wayside_cross",
+        1
+      ],
+      [
+        "billboard",
+        1
+      ],
+      [
+        "milestone",
+        1
+      ],
+      [
+        "cannon",
+        1
+      ],
+      [
+        "farm",
+        1
+      ],
+      [
+        "garage",
+        1
+      ],
+      [
+        "hotel",
+        1
+      ],
+      [
+        "train_station",
+        1
+      ],
+      [
+        "tomb",
+        1
+      ],
+      [
+        "water_well",
+        1
+      ],
+      [
+        "road",
+        1
+      ],
+      [
+        "district",
+        1
+      ]
+    ],
+    "unmatched_top": [
+      [
+        "leisure=swimming_pool",
+        2018
+      ],
+      [
+        "leisure=pitch",
+        781
+      ],
+      [
+        "amenity=parking",
+        752
+      ],
+      [
+        "man_made=utility_pole",
+        595
+      ],
+      [
+        "amenity=bicycle_parking",
+        308
+      ],
+      [
+        "man_made=surveillance",
+        226
+      ],
+      [
+        "man_made=mast",
+        203
+      ],
+      [
+        "natural=sand",
+        143
+      ],
+      [
+        "natural=water",
+        142
+      ],
+      [
+        "amenity=school",
+        134
+      ],
+      [
+        "amenity=bench",
+        110
+      ],
+      [
+        "leisure=picnic_table",
+        99
+      ],
+      [
+        "man_made=storage_tank",
+        86
+      ],
+      [
+        "leisure=garden",
+        79
+      ],
+      [
+        "amenity=parking_entrance",
+        78
+      ],
+      [
+        "tourism=hotel",
+        75
+      ],
+      [
+        "amenity=parking_space",
+        62
+      ],
+      [
+        "leisure=playground",
+        60
+      ],
+      [
+        "natural=wood",
+        59
+      ],
+      [
+        "amenity=bank",
+        56
+      ],
+      [
+        "amenity=waste_basket",
+        51
+      ],
+      [
+        "amenity=fuel",
+        49
+      ],
+      [
+        "tourism=information",
+        46
+      ],
+      [
+        "natural=ridge",
+        46
+      ],
+      [
+        "natural=scrub",
+        43
+      ]
+    ]
+  }
+]

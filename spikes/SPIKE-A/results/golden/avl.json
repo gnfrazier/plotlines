@@ -1,0 +1,5741 @@
+{
+  "region": "avl",
+  "bbox_south_west_north_east": [
+    35.46,
+    -82.66,
+    35.68,
+    -82.44
+  ],
+  "layers": [
+    "amenity",
+    "historic",
+    "leisure",
+    "man_made",
+    "natural",
+    "sight"
+  ],
+  "ruleset_version": "1.2.0",
+  "candidate_count": 715,
+  "candidates": [
+    {
+      "id": "way/1245144392",
+      "salience": 0.95,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=castle  (wildcard historic=*)",
+      "title": "Overlook Castle"
+    },
+    {
+      "id": "node/3899064626",
+      "salience": 0.75,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=monument  (wildcard historic=*)",
+      "title": "Dixie Highway Monument"
+    },
+    {
+      "id": "node/4631157183",
+      "salience": 0.75,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=monument  (wildcard historic=*)",
+      "title": "The Bunkum Stone"
+    },
+    {
+      "id": "node/5688185213",
+      "salience": 0.75,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=monument  (wildcard historic=*)",
+      "title": null
+    },
+    {
+      "id": "node/12018305515",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=museum",
+      "title": "Asheville Pinball Museum"
+    },
+    {
+      "id": "node/12096145567",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=ruins  (wildcard historic=*)",
+      "title": null
+    },
+    {
+      "id": "node/12096145568",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=ruins  (wildcard historic=*)",
+      "title": "Rattlesnake Lodge"
+    },
+    {
+      "id": "node/12096145587",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=ruins  (wildcard historic=*)",
+      "title": "Swimming Pool"
+    },
+    {
+      "id": "node/12096157216",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=ruins  (wildcard historic=*)",
+      "title": "Tennis Court"
+    },
+    {
+      "id": "node/12096161265",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=ruins  (wildcard historic=*)",
+      "title": "The Den"
+    },
+    {
+      "id": "node/12096161282",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=ruins  (wildcard historic=*)",
+      "title": "Tool Shed"
+    },
+    {
+      "id": "node/12096161283",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=ruins  (wildcard historic=*)",
+      "title": "Potato House"
+    },
+    {
+      "id": "node/12096161284",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=ruins  (wildcard historic=*)",
+      "title": "Spring House"
+    },
+    {
+      "id": "node/12096161287",
+      "salience": 0.7,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=ruins  (wildcard historic=*)",
+      "title": "Caretaker's Cabin"
+    },
+    {
+      "id": "node/12920539547",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": null
+    },
+    {
+      "id": "node/1839022435",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": null
+    },
+    {
+      "id": "node/2898011741",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Beaver Lake Bird Sanctuary"
+    },
+    {
+      "id": "node/2898011779",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": null
+    },
+    {
+      "id": "node/2914616467",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": "Haw Creek Valley (MP 380.0)"
+    },
+    {
+      "id": "node/2914616468",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": "Tanbark Ridge Overlook (MP 376.7)"
+    },
+    {
+      "id": "node/2976874143",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": null
+    },
+    {
+      "id": "node/3363248022",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": "Lane Pinnacle Overlook (MP 372.1)"
+    },
+    {
+      "id": "node/7359285910",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": "Bull Creek Valley Overlook (MP 373.8)"
+    },
+    {
+      "id": "node/981812145",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": "View Chesnut Cove"
+    },
+    {
+      "id": "relation/7277177",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Pisgah National Forest"
+    },
+    {
+      "id": "way/1245151562",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Collier Cove Nature Preserve"
+    },
+    {
+      "id": "way/33129562",
+      "salience": 0.7,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=nature_reserve",
+      "title": "Falconhurst-West Asheville Preserve"
+    },
+    {
+      "id": "way/379472904",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=museum",
+      "title": "Asheville Art Museum"
+    },
+    {
+      "id": "way/490446943",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=museum",
+      "title": "Black Mountain College Museum + Arts Center"
+    },
+    {
+      "id": "way/952347622",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=museum",
+      "title": "Bob Moog Foundation"
+    },
+    {
+      "id": "way/955565293",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=museum",
+      "title": "Asheville Museum of Science"
+    },
+    {
+      "id": "way/98261200",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": "French Broad River Overlook"
+    },
+    {
+      "id": "way/98261211",
+      "salience": 0.7,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=viewpoint",
+      "title": "Sleepy Gap Parking"
+    },
+    {
+      "id": "node/12646569905",
+      "salience": 0.6,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=bicycle_repair_station",
+      "title": null
+    },
+    {
+      "id": "node/3376088039",
+      "salience": 0.6,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=bicycle_repair_station",
+      "title": null
+    },
+    {
+      "id": "node/3376088040",
+      "salience": 0.6,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=bicycle_repair_station",
+      "title": null
+    },
+    {
+      "id": "node/4333123501",
+      "salience": 0.6,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=attraction",
+      "title": "Antler Hill Village"
+    },
+    {
+      "id": "way/1381391529",
+      "salience": 0.6,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=attraction",
+      "title": "Ironland"
+    },
+    {
+      "id": "way/225454922",
+      "salience": 0.6,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=attraction",
+      "title": "Biltmore Estate"
+    },
+    {
+      "id": "way/602619251",
+      "salience": 0.6,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "tourism=attraction",
+      "title": "Botanical Gardens at Asheville"
+    },
+    {
+      "id": "node/10582452085",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Early Girl Eatery"
+    },
+    {
+      "id": "node/10659201816",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Bellagio Bistro"
+    },
+    {
+      "id": "node/10671744412",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Madness"
+    },
+    {
+      "id": "node/10795424258",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Root Down Kitchen @ Salvage Station"
+    },
+    {
+      "id": "node/11165695050",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Dobra Tea"
+    },
+    {
+      "id": "node/11166012379",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Penny Cup Coffe Co"
+    },
+    {
+      "id": "node/11166032024",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Creekside Taphouse"
+    },
+    {
+      "id": "node/11169845396",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Pomodoros Greek & Itallian East"
+    },
+    {
+      "id": "node/11300576164",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "12 Bones"
+    },
+    {
+      "id": "node/11300578603",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Penny Coffee"
+    },
+    {
+      "id": "node/11304343951",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Well Played Board Game Caf\u00e9"
+    },
+    {
+      "id": "node/11352501986",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": null
+    },
+    {
+      "id": "node/11382306745",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/11382306747",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": null
+    },
+    {
+      "id": "node/11382306749",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/11382306764",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/11382306767",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/11382328280",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": null
+    },
+    {
+      "id": "node/11382328293",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/11382328300",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/11460809248",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Starbucks"
+    },
+    {
+      "id": "node/11460812175",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "botiwalla"
+    },
+    {
+      "id": "node/11460812191",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/11460812214",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Starbucks"
+    },
+    {
+      "id": "node/11460812226",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Starbucks"
+    },
+    {
+      "id": "node/11460812232",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "IHOP"
+    },
+    {
+      "id": "node/11461000293",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/11466232444",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/11466239016",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Universal Joint"
+    },
+    {
+      "id": "node/11466239023",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "9 mile"
+    },
+    {
+      "id": "node/11466239034",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "bad manners coffee"
+    },
+    {
+      "id": "node/11466239037",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "haywood lounge"
+    },
+    {
+      "id": "node/11466239038",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "tastee diner"
+    },
+    {
+      "id": "node/11523954692",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Apollo Flame Bistro"
+    },
+    {
+      "id": "node/11545349839",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Bottle Riot"
+    },
+    {
+      "id": "node/11547472053",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Bull and Begger"
+    },
+    {
+      "id": "node/11583177146",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Cecilia's Kitchen"
+    },
+    {
+      "id": "node/11739960603",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Lennys Grill & Subs"
+    },
+    {
+      "id": "node/11806002527",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Stone Bowl Korean Restaurant"
+    },
+    {
+      "id": "node/11842863425",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Delvecchio's Pizza"
+    },
+    {
+      "id": "node/11861492175",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Asheville Pizza"
+    },
+    {
+      "id": "node/12018287441",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Asheville Proper"
+    },
+    {
+      "id": "node/12018287442",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Huli Sue's BBQ and Grill"
+    },
+    {
+      "id": "node/12018328267",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Roman's Deli & Catering"
+    },
+    {
+      "id": "node/12031559130",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Isa's Bistro"
+    },
+    {
+      "id": "node/12036794503",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Altamont Deli & Grill"
+    },
+    {
+      "id": "node/12050019760",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Favilla's New York Pizza"
+    },
+    {
+      "id": "node/12099164236",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "French Broad Chocolate Factory & Cafe"
+    },
+    {
+      "id": "node/12106533006",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Brixx Wood Fired Pizza"
+    },
+    {
+      "id": "node/12106533011",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Hickory Tavern"
+    },
+    {
+      "id": "node/12106893208",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "131 Main"
+    },
+    {
+      "id": "node/12182083079",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Table Ashville"
+    },
+    {
+      "id": "node/12200090414",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Havana Miami"
+    },
+    {
+      "id": "node/12288475579",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "High Five Coffee"
+    },
+    {
+      "id": "node/12333554729",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Holeman + Finch Asheville"
+    },
+    {
+      "id": "node/12333554730",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mamacitas"
+    },
+    {
+      "id": "node/12333554820",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "67 Biltmore"
+    },
+    {
+      "id": "node/12333554876",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Salsa's"
+    },
+    {
+      "id": "node/12512346794",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "12 Baskets"
+    },
+    {
+      "id": "node/12512370203",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Asheville Sushi and Hibachi"
+    },
+    {
+      "id": "node/12512370213",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Green Sage Cafe"
+    },
+    {
+      "id": "node/12767032710",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mr. Kabab Grill"
+    },
+    {
+      "id": "node/12800547349",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Ruth's Chris Steak House"
+    },
+    {
+      "id": "node/12855417838",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Starbucks"
+    },
+    {
+      "id": "node/13012317601",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Baba Nahm"
+    },
+    {
+      "id": "node/13025591317",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/13025591319",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Nine Mile"
+    },
+    {
+      "id": "node/13102113501",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Sawasdee Thai Cuisine"
+    },
+    {
+      "id": "node/13107118502",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Dripolator Coffeehouse"
+    },
+    {
+      "id": "node/13131698201",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Green Sage Cafe"
+    },
+    {
+      "id": "node/13144802869",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Lenny's sub shop"
+    },
+    {
+      "id": "node/13208955133",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Pizza Hut"
+    },
+    {
+      "id": "node/13214263384",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": null
+    },
+    {
+      "id": "node/13274818532",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Daddy Mac's Down Home Dive"
+    },
+    {
+      "id": "node/13458068191",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mizu"
+    },
+    {
+      "id": "node/13606008107",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Joey's Bagels - Asheville"
+    },
+    {
+      "id": "node/13723194701",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Woodfin Coffee Dept"
+    },
+    {
+      "id": "node/13925253002",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Corner Grill Arden"
+    },
+    {
+      "id": "node/1395083738",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Kathmandu Cafe"
+    },
+    {
+      "id": "node/13961165336",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Buzzard's Roost"
+    },
+    {
+      "id": "node/14014369774",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/14032443958",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Ay Caramba"
+    },
+    {
+      "id": "node/14032443960",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Silverball Subs"
+    },
+    {
+      "id": "node/14032443961",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Pizza Hut"
+    },
+    {
+      "id": "node/14032511995",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Rosita's"
+    },
+    {
+      "id": "node/14032511996",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Village Porch"
+    },
+    {
+      "id": "node/14079382401",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Andaaz"
+    },
+    {
+      "id": "node/14080956701",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Sweets & Seats Cafe"
+    },
+    {
+      "id": "node/14081325401",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "PIE.ZZA Pizza"
+    },
+    {
+      "id": "node/14100166904",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Flour"
+    },
+    {
+      "id": "node/14113202170",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Maguro"
+    },
+    {
+      "id": "node/1423520079",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Cracker Barrel"
+    },
+    {
+      "id": "node/1681716037",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Addisae"
+    },
+    {
+      "id": "node/2120983325",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Carmel's Restaurant & Bar"
+    },
+    {
+      "id": "node/2364357626",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Baby Bull"
+    },
+    {
+      "id": "node/2456376879",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Malaprop's"
+    },
+    {
+      "id": "node/2489440470",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Chorizo"
+    },
+    {
+      "id": "node/2622261014",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Fresh Wood Fire Pizza"
+    },
+    {
+      "id": "node/2783310891",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Papas and Beer"
+    },
+    {
+      "id": "node/2798806657",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Over Easy Cafe"
+    },
+    {
+      "id": "node/3320160984",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Mosaic Cafe"
+    },
+    {
+      "id": "node/3320161751",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Starbucks"
+    },
+    {
+      "id": "node/3324451361",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Rhubarb"
+    },
+    {
+      "id": "node/3372379004",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Posana Restaurant"
+    },
+    {
+      "id": "node/3421619181",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Sage Cafe"
+    },
+    {
+      "id": "node/3421654251",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "The Owl's Nest"
+    },
+    {
+      "id": "node/3488038589",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Yao"
+    },
+    {
+      "id": "node/3488070339",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Applebee's"
+    },
+    {
+      "id": "node/3488092496",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Fatz Cafe"
+    },
+    {
+      "id": "node/3488102770",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Waffle House"
+    },
+    {
+      "id": "node/3488103896",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "El Chapala Mexican Restaurant"
+    },
+    {
+      "id": "node/3488106744",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Hungry Bear Cafe"
+    },
+    {
+      "id": "node/3488203413",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Pizza Hut"
+    },
+    {
+      "id": "node/357770008",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Big Cedar Mountain"
+    },
+    {
+      "id": "node/357771494",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Deaver View Mountain"
+    },
+    {
+      "id": "node/357782682",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Pleasant Knob"
+    },
+    {
+      "id": "node/357783487",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Rich Knob"
+    },
+    {
+      "id": "node/357786592",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Spivey Mountain"
+    },
+    {
+      "id": "node/357800945",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Britton Mountain"
+    },
+    {
+      "id": "node/357800977",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Brown Mountain"
+    },
+    {
+      "id": "node/357801523",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Ducker Mountain"
+    },
+    {
+      "id": "node/357801847",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Glenn Bald"
+    },
+    {
+      "id": "node/357801895",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Grassy Knob"
+    },
+    {
+      "id": "node/357802326",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Lance Mountain"
+    },
+    {
+      "id": "node/357802481",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Lookout Mountain"
+    },
+    {
+      "id": "node/357803381",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Rice Knob"
+    },
+    {
+      "id": "node/357803775",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Stradley Mountain"
+    },
+    {
+      "id": "node/357806354",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Baird Mountain"
+    },
+    {
+      "id": "node/357806382",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Baldwin Gap"
+    },
+    {
+      "id": "node/357806388",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Ball Mountain"
+    },
+    {
+      "id": "node/357806399",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Bartlett Mountain"
+    },
+    {
+      "id": "node/357806434",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Beaucatcher Mountain"
+    },
+    {
+      "id": "node/357806594",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Blake Mountain"
+    },
+    {
+      "id": "node/357806817",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Bull Mountain"
+    },
+    {
+      "id": "node/357806854",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Busbee Mountain"
+    },
+    {
+      "id": "node/357806858",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Butler Mountain"
+    },
+    {
+      "id": "node/357806989",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Chestnut Mountain"
+    },
+    {
+      "id": "node/357807023",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Cisco Mountain"
+    },
+    {
+      "id": "node/357807051",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Concord Mountain"
+    },
+    {
+      "id": "node/357807241",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Dryman Mountain"
+    },
+    {
+      "id": "node/357807402",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Frady Mountain"
+    },
+    {
+      "id": "node/357807466",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Goldview Knob"
+    },
+    {
+      "id": "node/357807605",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Hemphill Knob"
+    },
+    {
+      "id": "node/357807642",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Hickory Top"
+    },
+    {
+      "id": "node/357807682",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "High Point"
+    },
+    {
+      "id": "node/357807689",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "High Swan"
+    },
+    {
+      "id": "node/357807853",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Jones Knob"
+    },
+    {
+      "id": "node/357807856",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Jones Mountain"
+    },
+    {
+      "id": "node/357807892",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Killian Mountain"
+    },
+    {
+      "id": "node/357807971",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Little Cedar Mountain"
+    },
+    {
+      "id": "node/357807980",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Little Davis Mountain"
+    },
+    {
+      "id": "node/357807999",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Little Hickory Top"
+    },
+    {
+      "id": "node/357808102",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Lone Pine Mountain"
+    },
+    {
+      "id": "node/357808143",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Lydie Mountain"
+    },
+    {
+      "id": "node/357808201",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Meadows Mountain"
+    },
+    {
+      "id": "node/357808211",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Merrill Mountain"
+    },
+    {
+      "id": "node/357808544",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Patton Mountain"
+    },
+    {
+      "id": "node/357808550",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Peach Knob"
+    },
+    {
+      "id": "node/357808682",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Piney Mountain"
+    },
+    {
+      "id": "node/357808906",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Reynolds Mountain"
+    },
+    {
+      "id": "node/357808910",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Rice Pinnacle"
+    },
+    {
+      "id": "node/357808920",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Rich Knob"
+    },
+    {
+      "id": "node/357808956",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Richmond Hill"
+    },
+    {
+      "id": "node/357809042",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Rocky Knob"
+    },
+    {
+      "id": "node/357809176",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Scott Mountain"
+    },
+    {
+      "id": "node/357809377",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Sunset Mountain"
+    },
+    {
+      "id": "node/357809382",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Swan Mountain"
+    },
+    {
+      "id": "node/357809470",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Truckwheel Mountain"
+    },
+    {
+      "id": "node/357809552",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Weston Knob"
+    },
+    {
+      "id": "node/357809604",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Wolf Knob"
+    },
+    {
+      "id": "node/357809704",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Gouch Peak"
+    },
+    {
+      "id": "node/3674114701",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Beehive Coffee Bar"
+    },
+    {
+      "id": "node/3835782663",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Burgerworx"
+    },
+    {
+      "id": "node/3864158057",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Thai Pearl"
+    },
+    {
+      "id": "node/3980176062",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Junction"
+    },
+    {
+      "id": "node/4094419290",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "Elk Mountain"
+    },
+    {
+      "id": "node/4172060097",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Starbucks"
+    },
+    {
+      "id": "node/4332950479",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Courtyard Market"
+    },
+    {
+      "id": "node/4332951060",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Stable Caf\u00e9"
+    },
+    {
+      "id": "node/4333104197",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Ice Cream Parlor"
+    },
+    {
+      "id": "node/4333123001",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Bistro"
+    },
+    {
+      "id": "node/4333123002",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Cedric's Tavern"
+    },
+    {
+      "id": "node/4333123198",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Creamery"
+    },
+    {
+      "id": "node/4333123199",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Village Social"
+    },
+    {
+      "id": "node/4375048892",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/4760899206",
+      "salience": 0.55,
+      "layer": "natural",
+      "role_affinity": "narrative",
+      "type": "natural=peak",
+      "title": "LR 606"
+    },
+    {
+      "id": "node/5110125621",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Noodle Shop"
+    },
+    {
+      "id": "node/5111639421",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Shogun Buffet Hibachi Grill & Sushi"
+    },
+    {
+      "id": "node/5383428523",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "S&W Artisanal"
+    },
+    {
+      "id": "node/5443380620",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "King's Chinese Kitchen"
+    },
+    {
+      "id": "node/5443380721",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Angelo's Pizza"
+    },
+    {
+      "id": "node/5443380722",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "El Rebozo Mexican"
+    },
+    {
+      "id": "node/5670526824",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "City Bakery"
+    },
+    {
+      "id": "node/5670527322",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Bone and Broth"
+    },
+    {
+      "id": "node/5670550821",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mamacitas Taco Temple"
+    },
+    {
+      "id": "node/5685299958",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Cantina At Historic Biltmore Village"
+    },
+    {
+      "id": "node/5685415692",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Gemelli Italian"
+    },
+    {
+      "id": "node/5688730559",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Another Broken Egg Cafe"
+    },
+    {
+      "id": "node/5700436324",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Fig"
+    },
+    {
+      "id": "node/5744702488",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Red Ginger Dimsum & Tapas"
+    },
+    {
+      "id": "node/5744702489",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Jerusalem Garden Cafe"
+    },
+    {
+      "id": "node/5744735072",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Nightbell Restaurant & Lounge"
+    },
+    {
+      "id": "node/5744735073",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "The Rhu"
+    },
+    {
+      "id": "node/5752531909",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "China Wok"
+    },
+    {
+      "id": "node/5761064578",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Frank's Roman Pizza"
+    },
+    {
+      "id": "node/5784576725",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "El Chapala"
+    },
+    {
+      "id": "node/5784576726",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Standard Pizza"
+    },
+    {
+      "id": "node/5987516307",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Biscuit Head"
+    },
+    {
+      "id": "node/6113809092",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Pizza Mind"
+    },
+    {
+      "id": "node/6113996088",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Sovereign Remedies"
+    },
+    {
+      "id": "node/6117302585",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "HomeGrown"
+    },
+    {
+      "id": "node/6117304885",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Bomba"
+    },
+    {
+      "id": "node/6117316786",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "A Taste of El Salvador"
+    },
+    {
+      "id": "node/6117316787",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mr. Sushi"
+    },
+    {
+      "id": "node/6117336786",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Gourmet Chip Company"
+    },
+    {
+      "id": "node/6117343485",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Farm to Fender Cafe"
+    },
+    {
+      "id": "node/6117348685",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Baked Pie Company"
+    },
+    {
+      "id": "node/6117348686",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Baked Pie Company"
+    },
+    {
+      "id": "node/6117351085",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Abeja\u2019s House Cafe"
+    },
+    {
+      "id": "node/6117391410",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "China Taste"
+    },
+    {
+      "id": "node/6124725685",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Summit Coffee Company"
+    },
+    {
+      "id": "node/6124725687",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "High Five"
+    },
+    {
+      "id": "node/6124727785",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Slava"
+    },
+    {
+      "id": "node/6124732285",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "High Five"
+    },
+    {
+      "id": "node/6233799885",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Rocky's Hot Chicken Shack (South)"
+    },
+    {
+      "id": "node/6238651485",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Papa's & Beer"
+    },
+    {
+      "id": "node/6254922285",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": null
+    },
+    {
+      "id": "node/6412961378",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "828 Family Pizzeria"
+    },
+    {
+      "id": "node/6412961379",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Metro Chinese Restaurant"
+    },
+    {
+      "id": "node/6418609541",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Gauchinho Brazilian Steakhouse"
+    },
+    {
+      "id": "node/6418609549",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Oriental Pavilion"
+    },
+    {
+      "id": "node/6418609583",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "El Que Pasa"
+    },
+    {
+      "id": "node/6419766454",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Blaze Pizza"
+    },
+    {
+      "id": "node/6419766483",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "India Garden"
+    },
+    {
+      "id": "node/6419766699",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Ole's Guacamole"
+    },
+    {
+      "id": "node/6419766718",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Wild Wok"
+    },
+    {
+      "id": "node/6419793733",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Ganko"
+    },
+    {
+      "id": "node/6419934113",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Chuck E. Cheese"
+    },
+    {
+      "id": "node/6419934115",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Bonefish Grill"
+    },
+    {
+      "id": "node/6474124043",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Nine Mile"
+    },
+    {
+      "id": "node/6489314202",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Starbucks"
+    },
+    {
+      "id": "node/6489544411",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "China Grill"
+    },
+    {
+      "id": "node/6538160837",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "SalSarita's Fresh Cantina"
+    },
+    {
+      "id": "node/6670315017",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Dripolator"
+    },
+    {
+      "id": "node/6699465776",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Pupuseria Patty"
+    },
+    {
+      "id": "node/7133758486",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Farm Burger"
+    },
+    {
+      "id": "node/8332509120",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Strada"
+    },
+    {
+      "id": "node/8339804075",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/8567413323",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Early Girl Eatery"
+    },
+    {
+      "id": "node/8857633916",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Pelican's SnoBalls of Woodfin"
+    },
+    {
+      "id": "node/8915107887",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Acropolis Pizza Cafe"
+    },
+    {
+      "id": "node/8915107890",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "China Max"
+    },
+    {
+      "id": "node/9380529817",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Hemmingway\u2019s Cuba"
+    },
+    {
+      "id": "node/9416373451",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Forage"
+    },
+    {
+      "id": "node/9679998437",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Itto Ramen & Japanese Tapas"
+    },
+    {
+      "id": "node/9925850220",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Twisted Laurel"
+    },
+    {
+      "id": "node/9936103140",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Del Vecchios"
+    },
+    {
+      "id": "node/9936537376",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Benne on Eagle"
+    },
+    {
+      "id": "way/1074994955",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "White Duck Taco Shop"
+    },
+    {
+      "id": "way/1074998358",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Vivian"
+    },
+    {
+      "id": "way/1075001519",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Universal Joint"
+    },
+    {
+      "id": "way/1075009392",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Bull and Beggar"
+    },
+    {
+      "id": "way/1075014513",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Biscuit Head"
+    },
+    {
+      "id": "way/1075017717",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Standard Pizza Co."
+    },
+    {
+      "id": "way/1075019734",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Grata Pizzeria"
+    },
+    {
+      "id": "way/1075020691",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Sugar and Snow Gelato"
+    },
+    {
+      "id": "way/1075021860",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Green Tea Sushi Japanese Restaurant"
+    },
+    {
+      "id": "way/1075022016",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Round Earth Roasters"
+    },
+    {
+      "id": "way/1075029243",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Ivory Road"
+    },
+    {
+      "id": "way/1075029520",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Izzy's Coffee House"
+    },
+    {
+      "id": "way/1075046466",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Rocky's Hot Chicken Shack"
+    },
+    {
+      "id": "way/1075052909",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Post 25 Kitchen & Lounge"
+    },
+    {
+      "id": "way/1082722171",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "5 Points Restaurant"
+    },
+    {
+      "id": "way/1082744184",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "way/1082747388",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "way/1082747406",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Regina\u2019s"
+    },
+    {
+      "id": "way/1082747421",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Little Louie's"
+    },
+    {
+      "id": "way/1082756582",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Taco Boy West Asheville"
+    },
+    {
+      "id": "way/1084450604",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Itto Ramen Bar & Tapas"
+    },
+    {
+      "id": "way/1084450608",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Wings"
+    },
+    {
+      "id": "way/1085455450",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Simple Cafe & Juice Bar"
+    },
+    {
+      "id": "way/1134139478",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Eldr"
+    },
+    {
+      "id": "way/1157620132",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Little Chango"
+    },
+    {
+      "id": "way/1157627740",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Smokey Park Supper Club"
+    },
+    {
+      "id": "way/1157631418",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "way/1173561319",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Hole Doughnuts"
+    },
+    {
+      "id": "way/1205460492",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Athenian Bistro"
+    },
+    {
+      "id": "way/1215662648",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Texas Roadhouse"
+    },
+    {
+      "id": "way/1219589785",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "way/1223904743",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": null
+    },
+    {
+      "id": "way/1245143881",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Abuela's Little Kitchen"
+    },
+    {
+      "id": "way/1328241110",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Bywater"
+    },
+    {
+      "id": "way/1443093069",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Shorties Drive-thru BBQ"
+    },
+    {
+      "id": "way/1495966103",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Plant Bar"
+    },
+    {
+      "id": "way/213772756",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Chili's"
+    },
+    {
+      "id": "way/237756696",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Asheville Pizza & Brewing"
+    },
+    {
+      "id": "way/237757423",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Suwanna's Thai Orchid"
+    },
+    {
+      "id": "way/238079390",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "La Carreta"
+    },
+    {
+      "id": "way/241257477",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Ben's Tune Up"
+    },
+    {
+      "id": "way/255485067",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mayfel's"
+    },
+    {
+      "id": "way/268629447",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Pizza Hut"
+    },
+    {
+      "id": "way/268654511",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "East Village Grille"
+    },
+    {
+      "id": "way/268720784",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "J&S Cafeteria"
+    },
+    {
+      "id": "way/268935275",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mamas & Beer"
+    },
+    {
+      "id": "way/268951512",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Cocula"
+    },
+    {
+      "id": "way/273398300",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "IHOP"
+    },
+    {
+      "id": "way/273398309",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Waffle House"
+    },
+    {
+      "id": "way/273398804",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Carrabba's Italian Grill"
+    },
+    {
+      "id": "way/273492805",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "O'Charley's"
+    },
+    {
+      "id": "way/273492807",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Red Lobster"
+    },
+    {
+      "id": "way/287713966",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Waffle House"
+    },
+    {
+      "id": "way/287713980",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Harbor Inn Seafood"
+    },
+    {
+      "id": "way/287713989",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Stone Ridge Tavern"
+    },
+    {
+      "id": "way/297208307",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Granny's Kitchen"
+    },
+    {
+      "id": "way/297212253",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Plant"
+    },
+    {
+      "id": "way/297300093",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Pizza Hut"
+    },
+    {
+      "id": "way/297300095",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Stony Knob Cafe"
+    },
+    {
+      "id": "way/377617038",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Taco Billy"
+    },
+    {
+      "id": "way/377617995",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "All Day Darling"
+    },
+    {
+      "id": "way/377684358",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Clingman Cafe"
+    },
+    {
+      "id": "way/377687896",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "All Soul's Pizza"
+    },
+    {
+      "id": "way/377691897",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Sunny Point Cafe"
+    },
+    {
+      "id": "way/377691898",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Rabbit Hole"
+    },
+    {
+      "id": "way/379470289",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Tupelo Honey"
+    },
+    {
+      "id": "way/379472903",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "White Duck Taco"
+    },
+    {
+      "id": "way/379485741",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Lobster Trap"
+    },
+    {
+      "id": "way/379485744",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Med"
+    },
+    {
+      "id": "way/381114964",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Battle Cat Coffee Bar"
+    },
+    {
+      "id": "way/381122842",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "West Asheville Lounge & Kitchen"
+    },
+    {
+      "id": "way/381122843",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Admiral"
+    },
+    {
+      "id": "way/403093656",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Chai Pani"
+    },
+    {
+      "id": "way/403106352",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Cornerstone"
+    },
+    {
+      "id": "way/403106740",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Barley's Taproom & Pizzeria"
+    },
+    {
+      "id": "way/422827172",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mikado"
+    },
+    {
+      "id": "way/428270568",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "P.F. Chang's"
+    },
+    {
+      "id": "way/435580898",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Lioncrest"
+    },
+    {
+      "id": "way/439828803",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Wild Wing Cafe"
+    },
+    {
+      "id": "way/439835830",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Waffle House"
+    },
+    {
+      "id": "way/454014371",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Elena's Mexican Grill"
+    },
+    {
+      "id": "way/468621256",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Chestnut"
+    },
+    {
+      "id": "way/468666885",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Bartaco"
+    },
+    {
+      "id": "way/468666887",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Double D's Coffee & Desserts"
+    },
+    {
+      "id": "way/468666889",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Doc Chey's"
+    },
+    {
+      "id": "way/469231397",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "C\u00farate"
+    },
+    {
+      "id": "way/473919774",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Wild Wing Cafe"
+    },
+    {
+      "id": "way/490234025",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mela Indian Restaurant"
+    },
+    {
+      "id": "way/490235634",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mellow Mushroom"
+    },
+    {
+      "id": "way/490448530",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Pack's Tavern"
+    },
+    {
+      "id": "way/490614741",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Noble Cider Downtown"
+    },
+    {
+      "id": "way/490614743",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Heiwa Shokudo"
+    },
+    {
+      "id": "way/493928837",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Jargon"
+    },
+    {
+      "id": "way/493928838",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "way/493928845",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Biscuit Head"
+    },
+    {
+      "id": "way/596985071",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Village Wayside Bar & Grille"
+    },
+    {
+      "id": "way/597397051",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Juicy Lucy's Burger Bar and Grill"
+    },
+    {
+      "id": "way/604111548",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "RendezVous"
+    },
+    {
+      "id": "way/604398400",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Papa's and Beer"
+    },
+    {
+      "id": "way/604398402",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Buffalo Wild Wings"
+    },
+    {
+      "id": "way/604398404",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Cracker Barrel"
+    },
+    {
+      "id": "way/604398405",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Outback Steakhouse"
+    },
+    {
+      "id": "way/604398410",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "way/604398411",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "way/604398422",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Olive Garden"
+    },
+    {
+      "id": "way/604398424",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "LongHorn Steakhouse"
+    },
+    {
+      "id": "way/604492583",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Asaka"
+    },
+    {
+      "id": "way/604492598",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "CAVA"
+    },
+    {
+      "id": "way/604525189",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Cheddar's"
+    },
+    {
+      "id": "way/604810311",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Little Pigs BBQ"
+    },
+    {
+      "id": "way/605081405",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Sovereign Kava Bar"
+    },
+    {
+      "id": "way/605942121",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "TreeRock Social Cider House"
+    },
+    {
+      "id": "way/606560162",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Frazier's Tavern"
+    },
+    {
+      "id": "way/606828832",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Vinnie's"
+    },
+    {
+      "id": "way/606828836",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Asheville Pizza and Brewing Company"
+    },
+    {
+      "id": "way/606828838",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Bruegger's Bagel Bakery"
+    },
+    {
+      "id": "way/607762197",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mountain Madre"
+    },
+    {
+      "id": "way/607762204",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Ay Caramba Mexican Grill & Bar"
+    },
+    {
+      "id": "way/607762206",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Mod Pizza"
+    },
+    {
+      "id": "way/608005546",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "The Barrelhouse"
+    },
+    {
+      "id": "way/608005547",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Montford Deli"
+    },
+    {
+      "id": "way/608009719",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Moe's Original BBQ Woodfin"
+    },
+    {
+      "id": "way/613500652",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Corner Kitchen"
+    },
+    {
+      "id": "way/616192807",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Farenheight Pizza"
+    },
+    {
+      "id": "way/652063139",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Jettie Rae's Oyster House"
+    },
+    {
+      "id": "way/684487529",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Cecilia's Kitchen"
+    },
+    {
+      "id": "way/684487537",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Luella's BBQ"
+    },
+    {
+      "id": "way/684573779",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "HomeGrown"
+    },
+    {
+      "id": "way/684895284",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Wynn's Diner"
+    },
+    {
+      "id": "way/685086919",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Happy Jacks Biscuits and Gravy"
+    },
+    {
+      "id": "way/685135675",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "way/694274521",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Moose Cafe"
+    },
+    {
+      "id": "way/764137490",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Piazza"
+    },
+    {
+      "id": "way/764137539",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Nachos & Beer"
+    },
+    {
+      "id": "way/764140987",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Bear's Smokehouse"
+    },
+    {
+      "id": "way/819551149",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Tall John's"
+    },
+    {
+      "id": "way/832248105",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=cafe",
+      "title": "Farewell"
+    },
+    {
+      "id": "way/897229096",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Iconic"
+    },
+    {
+      "id": "way/943676307",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Elena's Mexican Grill"
+    },
+    {
+      "id": "way/948027215",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "12 Bones Brewing"
+    },
+    {
+      "id": "way/987520606",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Oyster House Brewing Company"
+    },
+    {
+      "id": "way/987521352",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "Haywood Common"
+    },
+    {
+      "id": "way/992370894",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=restaurant",
+      "title": "White Duck Taco Shop"
+    },
+    {
+      "id": "node/11066970148",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/11930665928",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "CVS"
+    },
+    {
+      "id": "node/12646461959",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/12646570450",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/13223470811",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/1786089353",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/2914616469",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/4104047709",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/4104047710",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/4106933575",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/4106933580",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/4332950475",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/4332950730",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/4332970007",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/4333123395",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=drinking_water",
+      "title": null
+    },
+    {
+      "id": "node/4333123798",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "node/4633750814",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=drinking_water",
+      "title": "Drinking Fountain"
+    },
+    {
+      "id": "node/5744702490",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "Asheville Discount Pharmacy"
+    },
+    {
+      "id": "node/6418609544",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "CVS Pharmacy"
+    },
+    {
+      "id": "node/6434052691",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "Pinnacle Apothecary"
+    },
+    {
+      "id": "node/8487054180",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "Asheville Mountain Pharmacy"
+    },
+    {
+      "id": "way/1285759190",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/1303315053",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/1342971238",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/1395881375",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/213772758",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "Walgreens"
+    },
+    {
+      "id": "way/268720798",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "CVS Pharmacy"
+    },
+    {
+      "id": "way/271672177",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/297183542",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "CVS Pharmacy"
+    },
+    {
+      "id": "way/377684355",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/439835819",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "CVS Pharmacy"
+    },
+    {
+      "id": "way/606833172",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "Asheville Compounding Pharmacy"
+    },
+    {
+      "id": "way/607762202",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "Walgreens"
+    },
+    {
+      "id": "way/607825942",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "Rite Aid"
+    },
+    {
+      "id": "way/684895282",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "Walgreens"
+    },
+    {
+      "id": "way/685006894",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "Walgreens"
+    },
+    {
+      "id": "way/688268849",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=toilets",
+      "title": null
+    },
+    {
+      "id": "way/691546887",
+      "salience": 0.5,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=pharmacy",
+      "title": "Rite Aid"
+    },
+    {
+      "id": "node/10018097083",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Papa's Pizza"
+    },
+    {
+      "id": "node/10297047274",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Sonic"
+    },
+    {
+      "id": "node/11382328271",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "KFC"
+    },
+    {
+      "id": "node/11382328284",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Cook Out"
+    },
+    {
+      "id": "node/11382328287",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Little Caesars"
+    },
+    {
+      "id": "node/11382328294",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Jersey Mike's Subs"
+    },
+    {
+      "id": "node/11382328320",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Domino's"
+    },
+    {
+      "id": "node/11414638460",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Domino's"
+    },
+    {
+      "id": "node/11460809247",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Chipotle"
+    },
+    {
+      "id": "node/11460809250",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Papa John's"
+    },
+    {
+      "id": "node/11460809251",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Firehouse Subs"
+    },
+    {
+      "id": "node/11460812213",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Chick-fil-A"
+    },
+    {
+      "id": "node/11460812220",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Bojangles'"
+    },
+    {
+      "id": "node/11460812221",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Arby's"
+    },
+    {
+      "id": "node/11460812231",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Popeyes"
+    },
+    {
+      "id": "node/12106893335",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Which Wich?"
+    },
+    {
+      "id": "node/12111494854",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Dunkin'"
+    },
+    {
+      "id": "node/12111494855",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Taco Bell"
+    },
+    {
+      "id": "node/12111494858",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Domino's"
+    },
+    {
+      "id": "node/12111494860",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Panera Bread"
+    },
+    {
+      "id": "node/12111494861",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Papa John's"
+    },
+    {
+      "id": "node/12111494862",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Five Guys"
+    },
+    {
+      "id": "node/12111494863",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Chipotle"
+    },
+    {
+      "id": "node/12111494864",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Chick-fil-A"
+    },
+    {
+      "id": "node/12111494865",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "node/12111494866",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Zaxby's"
+    },
+    {
+      "id": "node/12111494867",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Wendy's"
+    },
+    {
+      "id": "node/12111494868",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Bojangles'"
+    },
+    {
+      "id": "node/12111494870",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Dunkin'"
+    },
+    {
+      "id": "node/12111494872",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Chick-fil-A"
+    },
+    {
+      "id": "node/12111494873",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Wingstop"
+    },
+    {
+      "id": "node/12111494875",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Five Guys"
+    },
+    {
+      "id": "node/12111494876",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Dunkin'"
+    },
+    {
+      "id": "node/12111494877",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "node/12111494878",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Bojangles'"
+    },
+    {
+      "id": "node/12111494881",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Zaxby's"
+    },
+    {
+      "id": "node/13312524502",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "New Moon Donuts"
+    },
+    {
+      "id": "node/14032443959",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Dunkin'"
+    },
+    {
+      "id": "node/3488093981",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Wendy's"
+    },
+    {
+      "id": "node/3488103901",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Burger King"
+    },
+    {
+      "id": "node/3488110000",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Subway"
+    },
+    {
+      "id": "node/3488122310",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Thunder Burgerz"
+    },
+    {
+      "id": "node/3488122322",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Hardee's"
+    },
+    {
+      "id": "node/3488125108",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Dunkin'"
+    },
+    {
+      "id": "node/3835782664",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Baba Nahm"
+    },
+    {
+      "id": "node/4068142767",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "node/4068142768",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Taco Bell"
+    },
+    {
+      "id": "node/4227492789",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "La Carreta"
+    },
+    {
+      "id": "node/4361615705",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Schlotzsky's"
+    },
+    {
+      "id": "node/4361617649",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "node/4375048891",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Firehouse Subs"
+    },
+    {
+      "id": "node/4375138665",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Cinnabon"
+    },
+    {
+      "id": "node/4847495602",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Mike's Philly Steak Plus"
+    },
+    {
+      "id": "node/5683197568",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Bruegger's Bagels"
+    },
+    {
+      "id": "node/5750659887",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Firehouse Subs"
+    },
+    {
+      "id": "node/5752531887",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Jersey Mike's Subs"
+    },
+    {
+      "id": "node/5759121284",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Papa John's"
+    },
+    {
+      "id": "node/5784576727",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Jimmy John's"
+    },
+    {
+      "id": "node/6117336785",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Taqueria Mu\u00f1oz"
+    },
+    {
+      "id": "node/6419304578",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Firehouse Subs"
+    },
+    {
+      "id": "node/6419934111",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Jersey Mike's Subs"
+    },
+    {
+      "id": "node/6422142109",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Panda Express"
+    },
+    {
+      "id": "node/6489544417",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Little Caesars"
+    },
+    {
+      "id": "node/6489544418",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Subway"
+    },
+    {
+      "id": "node/7792381037",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Subway"
+    },
+    {
+      "id": "node/8487054188",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Domino's"
+    },
+    {
+      "id": "node/8915107888",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Auntie Anne's"
+    },
+    {
+      "id": "node/9333543289",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Limones Restaurant"
+    },
+    {
+      "id": "node/9923194349",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "way/1074992778",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Finest"
+    },
+    {
+      "id": "way/1082512106",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Panera Bread"
+    },
+    {
+      "id": "way/1082744195",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Burger King"
+    },
+    {
+      "id": "way/1082751997",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Zaxby's"
+    },
+    {
+      "id": "way/1239932595",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Popeyes"
+    },
+    {
+      "id": "way/1239932596",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Chipotle"
+    },
+    {
+      "id": "way/1327356279",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "way/1327356281",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Arby's"
+    },
+    {
+      "id": "way/1327400828",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Bojangles'"
+    },
+    {
+      "id": "way/1445998620",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Dunkin'"
+    },
+    {
+      "id": "way/268629446",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "way/268648253",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Sonic"
+    },
+    {
+      "id": "way/268715981",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "way/268715983",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "KFC"
+    },
+    {
+      "id": "way/268951517",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Arby's"
+    },
+    {
+      "id": "way/268951518",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Bojangles'"
+    },
+    {
+      "id": "way/273485977",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Chick-fil-A"
+    },
+    {
+      "id": "way/287713967",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "way/287713970",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Taco Bell"
+    },
+    {
+      "id": "way/287713972",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Long John Silver's"
+    },
+    {
+      "id": "way/381235788",
+      "salience": 0.45,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "amenity=place_of_worship",
+      "title": "Basilica of Saint Lawrence"
+    },
+    {
+      "id": "way/405197557",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Arby's"
+    },
+    {
+      "id": "way/439835817",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": null
+    },
+    {
+      "id": "way/450432310",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Chick-fil-A"
+    },
+    {
+      "id": "way/486273042",
+      "salience": 0.45,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "amenity=place_of_worship",
+      "title": "Cathedral of All Souls"
+    },
+    {
+      "id": "way/490448509",
+      "salience": 0.45,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "amenity=place_of_worship",
+      "title": "First Baptist Church"
+    },
+    {
+      "id": "way/565110018",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "DQ Grill & Chill"
+    },
+    {
+      "id": "way/596963660",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Moe's Southwest Grill"
+    },
+    {
+      "id": "way/596978795",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Hardee's"
+    },
+    {
+      "id": "way/596978796",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "way/604395418",
+      "salience": 0.45,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "amenity=place_of_worship",
+      "title": "Saint Lukes Church"
+    },
+    {
+      "id": "way/604398413",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Burger King"
+    },
+    {
+      "id": "way/604406426",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Cook Out"
+    },
+    {
+      "id": "way/604492580",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Moe's Southwest Grill"
+    },
+    {
+      "id": "way/604492584",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Long John Silver's"
+    },
+    {
+      "id": "way/606553377",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Moe's Southwest Grill"
+    },
+    {
+      "id": "way/606560182",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Wendy's"
+    },
+    {
+      "id": "way/606833169",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "McDonald's"
+    },
+    {
+      "id": "way/606833171",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Subway"
+    },
+    {
+      "id": "way/684895283",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Sonic"
+    },
+    {
+      "id": "way/685020692",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Taco Bell"
+    },
+    {
+      "id": "way/696673999",
+      "salience": 0.45,
+      "layer": "sight",
+      "role_affinity": "narrative",
+      "type": "amenity=place_of_worship",
+      "title": "Saint Marys Episcopal Church"
+    },
+    {
+      "id": "way/749485106",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Pelican Snoballs"
+    },
+    {
+      "id": "way/764137516",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Sonic"
+    },
+    {
+      "id": "way/827509126",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Vortex Doughnuts"
+    },
+    {
+      "id": "way/893138611",
+      "salience": 0.45,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=fast_food",
+      "title": "Bojangles'"
+    },
+    {
+      "id": "node/10099303177",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "node/10671744410",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Lake View Park"
+    },
+    {
+      "id": "node/11166023960",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "leisure=sauna",
+      "title": "Still Point Wellness"
+    },
+    {
+      "id": "node/11466232432",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "node/11627788754",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "French Broad River Park"
+    },
+    {
+      "id": "node/11627788755",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Carrier Park"
+    },
+    {
+      "id": "node/11627788756",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Jean Webb Park"
+    },
+    {
+      "id": "node/11627788757",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Owens-Bell Park"
+    },
+    {
+      "id": "node/11627788758",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Murray Hill Park"
+    },
+    {
+      "id": "node/12031563499",
+      "salience": 0.4,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=memorial",
+      "title": "Anne Penland"
+    },
+    {
+      "id": "node/12468964238",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "leisure=sauna",
+      "title": "Drip Sauna"
+    },
+    {
+      "id": "node/12587517089",
+      "salience": 0.4,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=memorial",
+      "title": "Giving Tree Memorial"
+    },
+    {
+      "id": "node/12800535622",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "node/13208876940",
+      "salience": 0.4,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=memorial",
+      "title": null
+    },
+    {
+      "id": "node/13477485289",
+      "salience": 0.4,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=memorial",
+      "title": "Riverside Cemetery Marker"
+    },
+    {
+      "id": "node/13477685013",
+      "salience": 0.4,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=memorial",
+      "title": "1st U.S. Colored Heavy Artillery Marker"
+    },
+    {
+      "id": "node/13477688823",
+      "salience": 0.4,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=memorial",
+      "title": "Jeter C. Pritchard Historical Marker"
+    },
+    {
+      "id": "node/14112696596",
+      "salience": 0.4,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=memorial",
+      "title": "Young Men's Institute"
+    },
+    {
+      "id": "node/153913728",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Brooklawn Park"
+    },
+    {
+      "id": "node/154401578",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Rosebank Park"
+    },
+    {
+      "id": "node/357767444",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Asheville Recreation Park"
+    },
+    {
+      "id": "node/357800701",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Beaverdam Wildlife Restoration Area"
+    },
+    {
+      "id": "node/357803296",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Powhatan Recreation Area"
+    },
+    {
+      "id": "node/357805262",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Westside Community Park"
+    },
+    {
+      "id": "node/357805263",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Malvern Hills Park"
+    },
+    {
+      "id": "node/4104047702",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "North Carolina Arboretum"
+    },
+    {
+      "id": "node/8435752355",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "The Slabs"
+    },
+    {
+      "id": "relation/17421503",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Kenilworth Forest Neighborhood Park"
+    },
+    {
+      "id": "relation/18820687",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Charlie L. Bullman Park"
+    },
+    {
+      "id": "relation/6536096",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Lake Julian Park"
+    },
+    {
+      "id": "relation/8062154",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Jake Rusher Park"
+    },
+    {
+      "id": "way/1298591144",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Highland Park"
+    },
+    {
+      "id": "way/1304096210",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Masters Park"
+    },
+    {
+      "id": "way/1329762835",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/1330251701",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/1330641884",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/1334903120",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/1336284953",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/1337602079",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/1350302027",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/1368410405",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Silver Line Park"
+    },
+    {
+      "id": "way/1413170808",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Seven Springs Park"
+    },
+    {
+      "id": "way/1413173669",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Forest Park"
+    },
+    {
+      "id": "way/1531048094",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/205853856",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Pack Square"
+    },
+    {
+      "id": "way/205854396",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Stephens-Lee Center"
+    },
+    {
+      "id": "way/205854642",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Aston Park"
+    },
+    {
+      "id": "way/205854772",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Montford Park"
+    },
+    {
+      "id": "way/205991701",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Malvern Hills Park"
+    },
+    {
+      "id": "way/205996133",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Carrier Park"
+    },
+    {
+      "id": "way/205996277",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Roger Farmer Memorial Park"
+    },
+    {
+      "id": "way/213790335",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Murphy-Oakley Park"
+    },
+    {
+      "id": "way/237756599",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Pritchard Park"
+    },
+    {
+      "id": "way/265965173",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": "Rotary Centennial Pavilion"
+    },
+    {
+      "id": "way/311365675",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Choctaw Park"
+    },
+    {
+      "id": "way/312295908",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Riverlink Sculpture and Performance Plaza"
+    },
+    {
+      "id": "way/327349641",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": "Tea House"
+    },
+    {
+      "id": "way/33112217",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Woodfin Riverside Park"
+    },
+    {
+      "id": "way/33112465",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Montford Recreation Complex"
+    },
+    {
+      "id": "way/33112501",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Thomas Wolfe Memorial"
+    },
+    {
+      "id": "way/33112515",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Martin Luther King Jr Park"
+    },
+    {
+      "id": "way/33130063",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "French Broad River Park"
+    },
+    {
+      "id": "way/335030403",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Entry-Way Garden"
+    },
+    {
+      "id": "way/335031497",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Formal Gardens"
+    },
+    {
+      "id": "way/403104038",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Kenilworth Park"
+    },
+    {
+      "id": "way/403104450",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Mountain Biking Pump Track"
+    },
+    {
+      "id": "way/42152313",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Weaver Park"
+    },
+    {
+      "id": "way/468661995",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Triangle Park"
+    },
+    {
+      "id": "way/468922482",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": "Pack Square Park Pavilion"
+    },
+    {
+      "id": "way/469408846",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Grove Park"
+    },
+    {
+      "id": "way/469408847",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Sunset Park"
+    },
+    {
+      "id": "way/469408848",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Albermarle Park"
+    },
+    {
+      "id": "way/469408850",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Hummingbird Park"
+    },
+    {
+      "id": "way/469408851",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Magnolia Park"
+    },
+    {
+      "id": "way/469408852",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Owens-Bell Park"
+    },
+    {
+      "id": "way/552184190",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Leah Chiles Park"
+    },
+    {
+      "id": "way/552185429",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Caledonia Park"
+    },
+    {
+      "id": "way/583161011",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Memorial Stadium"
+    },
+    {
+      "id": "way/583161012",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Mountainside Park"
+    },
+    {
+      "id": "way/594771633",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/594771634",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/594771637",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/597405980",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Biltmore Plaza"
+    },
+    {
+      "id": "way/599499009",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Haw Creek Park"
+    },
+    {
+      "id": "way/599499011",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": "Haw Creek Park Picnic Shelter"
+    },
+    {
+      "id": "way/599499013",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": "Haw Creek Park Gazebo"
+    },
+    {
+      "id": "way/604395419",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/609079081",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Karen Cragnolin Park"
+    },
+    {
+      "id": "way/609079084",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Amboy Road River Park"
+    },
+    {
+      "id": "way/609079088",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Hominy Creek River Park"
+    },
+    {
+      "id": "way/609087090",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Buncombe County Sports Park"
+    },
+    {
+      "id": "way/609092897",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "West Asheville Park"
+    },
+    {
+      "id": "way/609092904",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Jean Webb Park"
+    },
+    {
+      "id": "way/609092905",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Murray Hill Park"
+    },
+    {
+      "id": "way/676716970",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/676719090",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/686880915",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/688268847",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/688268866",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Geneva Maney Park"
+    },
+    {
+      "id": "way/689368008",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Walton Street Park"
+    },
+    {
+      "id": "way/689399671",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Livingston Street Park"
+    },
+    {
+      "id": "way/749483355",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Ballantree neighborhood park"
+    },
+    {
+      "id": "way/764063397",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/764063398",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/830182900",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/830192961",
+      "salience": 0.4,
+      "layer": "amenity",
+      "role_affinity": "provision",
+      "type": "amenity=shelter",
+      "title": null
+    },
+    {
+      "id": "way/862181580",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Oakhurst Park"
+    },
+    {
+      "id": "way/910953710",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Lower Slab"
+    },
+    {
+      "id": "way/947500018",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Ray L Kisiah Park"
+    },
+    {
+      "id": "way/958281693",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Bent Creek River Park"
+    },
+    {
+      "id": "way/958975539",
+      "salience": 0.4,
+      "layer": "leisure",
+      "role_affinity": "narrative",
+      "type": "leisure=park",
+      "title": "Anne Patton Joyce Park"
+    },
+    {
+      "id": "node/357805639",
+      "salience": 0.35,
+      "layer": "man_made",
+      "role_affinity": "narrative",
+      "type": "man_made=tower",
+      "title": "WUNF-FM (Asheville)"
+    },
+    {
+      "id": "node/357806201",
+      "salience": 0.35,
+      "layer": "man_made",
+      "role_affinity": "narrative",
+      "type": "man_made=tower",
+      "title": "WHNS-TV (Asheville)"
+    },
+    {
+      "id": "node/6542442914",
+      "salience": 0.35,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=wayside_shrine  (wildcard historic=*)",
+      "title": null
+    },
+    {
+      "id": "way/225453264",
+      "salience": 0.35,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=building  (wildcard historic=*)",
+      "title": "Biltmore House"
+    },
+    {
+      "id": "way/422041790",
+      "salience": 0.35,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=building  (wildcard historic=*)",
+      "title": "Thomas Wolfe House"
+    },
+    {
+      "id": "node/10158865719",
+      "salience": 0.2,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=chimney  (wildcard historic=*)",
+      "title": null
+    },
+    {
+      "id": "node/8435739059",
+      "salience": 0.2,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=Shrine  (wildcard historic=*)",
+      "title": null
+    },
+    {
+      "id": "way/377683200",
+      "salience": 0.2,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=railway  (wildcard historic=*)",
+      "title": "Norfolk Southern Railway Roundhouse"
+    },
+    {
+      "id": "way/380236113",
+      "salience": 0.2,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=government  (wildcard historic=*)",
+      "title": "Asheville City Hall"
+    },
+    {
+      "id": "way/381826064",
+      "salience": 0.05,
+      "layer": "historic",
+      "role_affinity": "narrative",
+      "type": "historic=yes  (wildcard historic=*)",
+      "title": null
+    }
+  ]
+}
