@@ -109,6 +109,10 @@ void main() {
     expect(find.text('Overlook'), findsOneWidget); // the fixture node, as a selectable chip
     expect(tester.takeException(), isNull);
 
+    await _switchTab(tester, 'ROSTER');
+    expect(find.text('PROFILE & PERMISSIONS REQUEST'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
     await _switchTab(tester, 'EXPORT');
     expect(find.text('FORMAT'), findsOneWidget);
     expect(find.text('CONTENTS'), findsOneWidget);

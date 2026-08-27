@@ -22,6 +22,7 @@ export 'message_template.dart';
 export 'node.dart';
 export 'passage_sequence.dart';
 export 'point_trigger.dart';
+export 'profile_request.dart';
 export 'reachability.dart';
 export 'reason_phrase.dart';
 export 'reveal_state.dart';

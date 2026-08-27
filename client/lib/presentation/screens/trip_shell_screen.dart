@@ -22,6 +22,7 @@ import 'plan_tabs/content_tab.dart';
 import 'plan_tabs/export_tab.dart';
 import 'plan_tabs/layers_tab.dart';
 import 'plan_tabs/logistics_tab.dart';
+import 'plan_tabs/roster_tab.dart';
 import 'plan_tabs/route_tab.dart';
 
 class TripShellScreen extends ConsumerStatefulWidget {
@@ -32,7 +33,7 @@ class TripShellScreen extends ConsumerStatefulWidget {
 }
 
 class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTickerProviderStateMixin {
-  late final _tabController = TabController(length: 5, vsync: this)..addListener(_handleTabChange);
+  late final _tabController = TabController(length: 6, vsync: this)..addListener(_handleTabChange);
   String? _activeDayId;
   int _activeTabIndex = 0;
 
@@ -99,6 +100,7 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
             Tab(text: 'LOGISTICS'),
             Tab(text: 'LAYERS'),
             Tab(text: 'CONTENT'),
+            Tab(text: 'ROSTER'),
             Tab(text: 'EXPORT'),
           ],
         ),
@@ -130,7 +132,8 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
             builder: (_) => LayersTab(trip: trip, activeDayId: _activeDayId),
           ),
           _LazyTab(active: _activeTabIndex == 3, builder: (_) => ContentTab(trip: trip)),
-          _LazyTab(active: _activeTabIndex == 4, builder: (_) => ExportTab(trip: trip)),
+          _LazyTab(active: _activeTabIndex == 4, builder: (_) => const RosterTab()),
+          _LazyTab(active: _activeTabIndex == 5, builder: (_) => ExportTab(trip: trip)),
         ],
       ),
     );
