@@ -1,0 +1,198 @@
+{
+  "scenario": "PRD \u00a75.4a \u2014 Grandfather Mtn / Linville, 4 layers, BRP route",
+  "worked_pass": {
+    "bbox_km": [
+      29,
+      24
+    ],
+    "proposals_total": 38,
+    "prd_5_4a_reference": {
+      "proposals": 43,
+      "tree_park_noise": 19,
+      "off_route_provision": 6,
+      "remaining": 18
+    },
+    "bulk_reject_below_member_salience": {
+      "threshold": 0.55,
+      "removed": 7
+    },
+    "off_route_filter": {
+      "over_m": 1200.0,
+      "removed": 22
+    },
+    "remaining_to_judge": 9,
+    "default_top_10": [
+      "0.913 narrative            n= 3 s=0.95 t=0.87 @5.7km  Wiseman's View",
+      "0.898 narrative+provision  n= 4 s=0.96 t=0.77 @1.0km  Wilson Center for Nature Discovery",
+      "0.894 narrative            n= 3 s=0.97 t=0.71 @20.3km  Viewpoint",
+      "0.891 narrative            n= 3 s=0.96 t=0.75 @20.8km  Jane Bald",
+      "0.891 provision            n= 6 s=0.99 t=0.64 @6.6km  The Tropical Grill",
+      "0.890 narrative            n= 4 s=0.99 t=0.63 @18.9km  Viewpoint",
+      "0.878 narrative            n= 3 s=0.96 t=0.70 @6.2km  Hawksbill Mountain",
+      "0.875 narrative            n= 5 s=1.00 t=0.56 @0.8km  Plunge Basin Overlook",
+      "0.869 provision            n= 6 s=0.99 t=0.57 @7.0km  Carolina Barbeque",
+      "0.867 provision            n= 5 s=0.97 t=0.61 @3.2km  Mountain Grounds Coffee"
+    ],
+    "top_after_filters": [
+      "0.898 narrative+provision  n= 4 s=0.96 t=0.77 @1.0km  Wilson Center for Nature Discovery",
+      "0.875 narrative            n= 5 s=1.00 t=0.56 @0.8km  Plunge Basin Overlook",
+      "0.860 narrative            n= 2 s=0.91 t=0.80 @0.0km  Grandmother View",
+      "0.830 narrative            n= 2 s=0.91 t=0.69 @1.0km  Erwin's View Outlook",
+      "0.823 narrative            n= 2 s=0.86 t=0.83 @0.1km  Flat Rock",
+      "0.823 narrative            n= 2 s=0.86 t=0.83 @0.1km  Little Table Rock Mountain",
+      "0.821 narrative            n= 2 s=0.91 t=0.65 @0.1km  Viewpoint",
+      "0.811 narrative            n= 2 s=0.86 t=0.78 @0.1km  Beacon Heights"
+    ]
+  },
+  "corridor_comparison": {
+    "treatments": {
+      "default (salience x tightness)": {
+        "top10": [
+          "0.913 narrative            n= 3 s=0.95 t=0.87 @5.7km  Wiseman's View",
+          "0.898 narrative+provision  n= 4 s=0.96 t=0.77 @1.0km  Wilson Center for Nature Discovery",
+          "0.894 narrative            n= 3 s=0.97 t=0.71 @20.3km  Viewpoint",
+          "0.891 narrative            n= 3 s=0.96 t=0.75 @20.8km  Jane Bald",
+          "0.891 provision            n= 6 s=0.99 t=0.64 @6.6km  The Tropical Grill",
+          "0.890 narrative            n= 4 s=0.99 t=0.63 @18.9km  Viewpoint",
+          "0.878 narrative            n= 3 s=0.96 t=0.70 @6.2km  Hawksbill Mountain",
+          "0.875 narrative            n= 5 s=1.00 t=0.56 @0.8km  Plunge Basin Overlook",
+          "0.869 provision            n= 6 s=0.99 t=0.57 @7.0km  Carolina Barbeque",
+          "0.867 provision            n= 5 s=0.97 t=0.61 @3.2km  Mountain Grounds Coffee"
+        ]
+      },
+      "corridor resort d=2500": {
+        "top10": [
+          "0.860 narrative            n= 2 s=0.91 t=0.80 @0.0km  Grandmother View",
+          "0.823 narrative            n= 2 s=0.86 t=0.83 @0.1km  Little Table Rock Mountain",
+          "0.823 narrative            n= 2 s=0.86 t=0.83 @0.1km  Flat Rock",
+          "0.821 narrative            n= 2 s=0.91 t=0.65 @0.1km  Viewpoint",
+          "0.811 narrative            n= 2 s=0.86 t=0.78 @0.1km  Beacon Heights",
+          "0.875 narrative            n= 5 s=1.00 t=0.56 @0.8km  Plunge Basin Overlook",
+          "0.898 narrative+provision  n= 4 s=0.96 t=0.77 @1.0km  Wilson Center for Nature Discovery",
+          "0.830 narrative            n= 2 s=0.91 t=0.69 @1.0km  Erwin's View Outlook",
+          "0.725 provision            n= 2 s=0.80 t=0.67 @1.0km  Famous Louise's Rock House Restaur",
+          "0.789 provision            n= 3 s=0.82 t=0.86 @1.4km  Toilets"
+        ]
+      },
+      "corridor resort d=800": {
+        "top10": [
+          "0.860 narrative            n= 2 s=0.91 t=0.80 @0.0km  Grandmother View",
+          "0.823 narrative            n= 2 s=0.86 t=0.83 @0.1km  Little Table Rock Mountain",
+          "0.823 narrative            n= 2 s=0.86 t=0.83 @0.1km  Flat Rock",
+          "0.811 narrative            n= 2 s=0.86 t=0.78 @0.1km  Beacon Heights",
+          "0.821 narrative            n= 2 s=0.91 t=0.65 @0.1km  Viewpoint",
+          "0.875 narrative            n= 5 s=1.00 t=0.56 @0.8km  Plunge Basin Overlook",
+          "0.898 narrative+provision  n= 4 s=0.96 t=0.77 @1.0km  Wilson Center for Nature Discovery",
+          "0.830 narrative            n= 2 s=0.91 t=0.69 @1.0km  Erwin's View Outlook",
+          "0.725 provision            n= 2 s=0.80 t=0.67 @1.0km  Famous Louise's Rock House Restaur",
+          "0.789 provision            n= 3 s=0.82 t=0.86 @1.4km  Toilets"
+        ]
+      },
+      "dominant (distance bands)": {
+        "top10": [
+          "0.860 narrative            n= 2 s=0.91 t=0.80 @0.0km  Grandmother View",
+          "0.823 narrative            n= 2 s=0.86 t=0.83 @0.1km  Flat Rock",
+          "0.823 narrative            n= 2 s=0.86 t=0.83 @0.1km  Little Table Rock Mountain",
+          "0.811 narrative            n= 2 s=0.86 t=0.78 @0.1km  Beacon Heights",
+          "0.821 narrative            n= 2 s=0.91 t=0.65 @0.1km  Viewpoint",
+          "0.898 narrative+provision  n= 4 s=0.96 t=0.77 @1.0km  Wilson Center for Nature Discovery",
+          "0.875 narrative            n= 5 s=1.00 t=0.56 @0.8km  Plunge Basin Overlook",
+          "0.725 provision            n= 2 s=0.80 t=0.67 @1.0km  Famous Louise's Rock House Restaur",
+          "0.857 narrative+provision  n= 3 s=0.90 t=0.83 @2.3km  Linville Caverns",
+          "0.830 narrative            n= 2 s=0.91 t=0.69 @1.0km  Erwin's View Outlook"
+        ]
+      }
+    },
+    "ground_truth_ranks": {
+      "Wiseman's View": {
+        "default (salience x tightness)": 1,
+        "corridor resort d=2500": 20,
+        "corridor resort d=800": 20,
+        "dominant (distance bands)": 18
+      },
+      "Linville Caverns": {
+        "default (salience x tightness)": 13,
+        "corridor resort d=2500": 14,
+        "corridor resort d=800": 17,
+        "dominant (distance bands)": 9
+      },
+      "Plunge Basin": {
+        "default (salience x tightness)": 8,
+        "corridor resort d=2500": 6,
+        "corridor resort d=800": 6,
+        "dominant (distance bands)": 7
+      },
+      "Beacon Heights": {
+        "default (salience x tightness)": 20,
+        "corridor resort d=2500": 5,
+        "corridor resort d=800": 4,
+        "dominant (distance bands)": 4
+      },
+      "Wilson Center": {
+        "default (salience x tightness)": 2,
+        "corridor resort d=2500": 7,
+        "corridor resort d=800": 7,
+        "dominant (distance bands)": 6
+      },
+      "Erwin's View": {
+        "default (salience x tightness)": 15,
+        "corridor resort d=2500": 8,
+        "corridor resort d=800": 8,
+        "dominant (distance bands)": 10
+      },
+      "Grandmother": {
+        "default (salience x tightness)": 11,
+        "corridor resort d=2500": 1,
+        "corridor resort d=800": 1,
+        "dominant (distance bands)": 1
+      },
+      "Rough Ridge": {
+        "default (salience x tightness)": null,
+        "corridor resort d=2500": null,
+        "corridor resort d=800": null,
+        "dominant (distance bands)": null
+      }
+    }
+  },
+  "cap": {
+    "formula": "cap_floor + round(cap_per_route_km * route_km)",
+    "cap_floor": 30,
+    "cap_per_route_km": 0.5,
+    "no_route": 30,
+    "worked_pass_route_cap": 80,
+    "route_km": 99.5,
+    "proposals_vs_scale": [
+      {
+        "area_km2": 8815,
+        "candidates": 2966,
+        "proposals": 480
+      },
+      {
+        "area_km2": 4407,
+        "candidates": 1293,
+        "proposals": 181
+      },
+      {
+        "area_km2": 2204,
+        "candidates": 529,
+        "proposals": 66
+      },
+      {
+        "area_km2": 1058,
+        "candidates": 271,
+        "proposals": 35
+      },
+      {
+        "area_km2": 529,
+        "candidates": 137,
+        "proposals": 17
+      },
+      {
+        "area_km2": 264,
+        "candidates": 43,
+        "proposals": 1
+      }
+    ],
+    "note": "Proposals grow ~linearly with area (~1 per 18 km2), so a pure area cap would 10x on a 200 km bbox. Tie the cap to route length where a route exists: a longer tour has more worth reviewing, but it grows with corridor km (~1D) not bbox area (~2D). 30 floor covers \u00a75.4a's ~40; 0.5/route-km puts a 250 km tour at ~155, the rest shown as '+N beyond', never truncated (N4a)."
+  }
+}

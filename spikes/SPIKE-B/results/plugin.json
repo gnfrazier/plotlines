@@ -1,0 +1,513 @@
+{
+  "kinds_present": [
+    "narrative",
+    "narrative+provision",
+    "provision",
+    "provision+station"
+  ],
+  "sample_narrative": [
+    {
+      "name": "Linville Historic District",
+      "kind": "narrative",
+      "roles": [
+        "narrative"
+      ],
+      "members": [
+        {
+          "type": "historic=district",
+          "affinity": "narrative",
+          "salience": 0.9
+        },
+        {
+          "type": "type=battlefield",
+          "affinity": "narrative",
+          "salience": 0.8
+        }
+      ]
+    },
+    {
+      "name": "Wiseman's View",
+      "kind": "narrative",
+      "roles": [
+        "narrative"
+      ],
+      "members": [
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "historic=memorial",
+          "affinity": "narrative",
+          "salience": 0.4
+        }
+      ]
+    },
+    {
+      "name": "Viewpoint",
+      "kind": "narrative",
+      "roles": [
+        "narrative"
+      ],
+      "members": [
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        }
+      ]
+    }
+  ],
+  "sample_provision": [
+    {
+      "name": "The Tropical Grill",
+      "kind": "provision",
+      "roles": [
+        "provision"
+      ],
+      "members": [
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=cafe",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=toilets",
+          "affinity": "provision",
+          "salience": 0.5
+        }
+      ]
+    },
+    {
+      "name": "Carolina Barbeque",
+      "kind": "provision",
+      "roles": [
+        "provision"
+      ],
+      "members": [
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=fast_food",
+          "affinity": "provision",
+          "salience": 0.45
+        },
+        {
+          "type": "amenity=fast_food",
+          "affinity": "provision",
+          "salience": 0.45
+        }
+      ]
+    },
+    {
+      "name": "Mountain Grounds Coffee",
+      "kind": "provision",
+      "roles": [
+        "provision"
+      ],
+      "members": [
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=cafe",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=pharmacy",
+          "affinity": "provision",
+          "salience": 0.5
+        },
+        {
+          "type": "amenity=fast_food",
+          "affinity": "provision",
+          "salience": 0.45
+        }
+      ]
+    }
+  ],
+  "sample_mixed": [
+    {
+      "name": "Wilson Center for Nature Discovery",
+      "kind": "narrative+provision",
+      "roles": [
+        "narrative",
+        "provision"
+      ],
+      "members": [
+        {
+          "type": "tourism=museum",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=toilets",
+          "affinity": "provision",
+          "salience": 0.5
+        },
+        {
+          "type": "amenity=shelter",
+          "affinity": "provision",
+          "salience": 0.4
+        }
+      ]
+    },
+    {
+      "name": "Linville Caverns",
+      "kind": "narrative+provision",
+      "roles": [
+        "narrative",
+        "provision"
+      ],
+      "members": [
+        {
+          "type": "tourism=attraction",
+          "affinity": "narrative",
+          "salience": 0.6
+        },
+        {
+          "type": "amenity=toilets",
+          "affinity": "provision",
+          "salience": 0.5
+        },
+        {
+          "type": "amenity=toilets",
+          "affinity": "provision",
+          "salience": 0.5
+        }
+      ]
+    },
+    {
+      "name": "Puerto Nuevo Taqueria",
+      "kind": "narrative+provision",
+      "roles": [
+        "narrative",
+        "provision"
+      ],
+      "members": [
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        },
+        {
+          "type": "amenity=pharmacy",
+          "affinity": "provision",
+          "salience": 0.5
+        },
+        {
+          "type": "historic=memorial",
+          "affinity": "narrative",
+          "salience": 0.4
+        },
+        {
+          "type": "historic=memorial",
+          "affinity": "narrative",
+          "salience": 0.4
+        },
+        {
+          "type": "amenity=shelter",
+          "affinity": "provision",
+          "salience": 0.4
+        }
+      ]
+    }
+  ],
+  "proposals_without_plugin": 38,
+  "proposals_with_plugin": 43,
+  "plugin_bearing_proposals": [
+    {
+      "name": "Linville Historic District",
+      "kind": "narrative",
+      "roles": [
+        "narrative"
+      ],
+      "members": [
+        {
+          "type": "historic=district",
+          "affinity": "narrative",
+          "salience": 0.9
+        },
+        {
+          "type": "type=battlefield",
+          "affinity": "narrative",
+          "salience": 0.8
+        }
+      ]
+    },
+    {
+      "name": "Manor House 0",
+      "kind": "narrative",
+      "roles": [
+        "narrative"
+      ],
+      "members": [
+        {
+          "type": "type=manor_house",
+          "affinity": "narrative",
+          "salience": 0.75
+        },
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "natural=peak",
+          "affinity": "narrative",
+          "salience": 0.55
+        }
+      ]
+    },
+    {
+      "name": "Manor House 1",
+      "kind": "narrative",
+      "roles": [
+        "narrative"
+      ],
+      "members": [
+        {
+          "type": "type=manor_house",
+          "affinity": "narrative",
+          "salience": 0.75
+        },
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        }
+      ]
+    },
+    {
+      "name": "Battlefield 1",
+      "kind": "narrative",
+      "roles": [
+        "narrative"
+      ],
+      "members": [
+        {
+          "type": "type=battlefield",
+          "affinity": "narrative",
+          "salience": 0.8
+        },
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "tourism=attraction",
+          "affinity": "narrative",
+          "salience": 0.6
+        }
+      ]
+    },
+    {
+      "name": "Wilson Creek Valley Overlook",
+      "kind": "narrative",
+      "roles": [
+        "narrative"
+      ],
+      "members": [
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "type=covered_bridge",
+          "affinity": "narrative",
+          "salience": 0.6
+        }
+      ]
+    },
+    {
+      "name": "Crag 0",
+      "kind": "provision+station",
+      "roles": [
+        "provision",
+        "station"
+      ],
+      "members": [
+        {
+          "type": "type=crag",
+          "affinity": "station",
+          "salience": 0.7
+        },
+        {
+          "type": "amenity=drinking_water",
+          "affinity": "provision",
+          "salience": 0.6
+        }
+      ]
+    },
+    {
+      "name": "Covered Bridge 0",
+      "kind": "narrative",
+      "roles": [
+        "narrative"
+      ],
+      "members": [
+        {
+          "type": "tourism=viewpoint",
+          "affinity": "narrative",
+          "salience": 0.7
+        },
+        {
+          "type": "type=covered_bridge",
+          "affinity": "narrative",
+          "salience": 0.6
+        }
+      ]
+    },
+    {
+      "name": "Crag 1",
+      "kind": "provision+station",
+      "roles": [
+        "provision",
+        "station"
+      ],
+      "members": [
+        {
+          "type": "type=crag",
+          "affinity": "station",
+          "salience": 0.7
+        },
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        }
+      ]
+    }
+  ],
+  "station_role_proposals": [
+    {
+      "name": "Crag 0",
+      "kind": "provision+station",
+      "roles": [
+        "provision",
+        "station"
+      ],
+      "members": [
+        {
+          "type": "type=crag",
+          "affinity": "station",
+          "salience": 0.7
+        },
+        {
+          "type": "amenity=drinking_water",
+          "affinity": "provision",
+          "salience": 0.6
+        }
+      ]
+    },
+    {
+      "name": "Crag 1",
+      "kind": "provision+station",
+      "roles": [
+        "provision",
+        "station"
+      ],
+      "members": [
+        {
+          "type": "type=crag",
+          "affinity": "station",
+          "salience": 0.7
+        },
+        {
+          "type": "amenity=restaurant",
+          "affinity": "provision",
+          "salience": 0.55
+        }
+      ]
+    }
+  ]
+}

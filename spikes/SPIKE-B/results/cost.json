@@ -1,0 +1,140 @@
+{
+  "region": "Blue Ridge Parkway corridor, Asheville-Boone NC",
+  "area_km2": 8815,
+  "raw_features": 31818,
+  "candidates_all_layers": 2968,
+  "params": {
+    "max_diameter_m": 160.0,
+    "cap_floor": 30,
+    "cap_per_route_km": 0.5
+  },
+  "area_sweep": [
+    {
+      "frac": 1.0,
+      "area_km2": 8815,
+      "candidates": 2966,
+      "seconds": 0.1621,
+      "peak_mb": 1.45,
+      "shown": 30,
+      "beyond_cap": 450
+    },
+    {
+      "frac": 0.5,
+      "area_km2": 4407,
+      "candidates": 1293,
+      "seconds": 0.049,
+      "peak_mb": 0.52,
+      "shown": 30,
+      "beyond_cap": 151
+    },
+    {
+      "frac": 0.25,
+      "area_km2": 2204,
+      "candidates": 529,
+      "seconds": 0.0174,
+      "peak_mb": 0.2,
+      "shown": 30,
+      "beyond_cap": 36
+    },
+    {
+      "frac": 0.12,
+      "area_km2": 1058,
+      "candidates": 271,
+      "seconds": 0.0089,
+      "peak_mb": 0.09,
+      "shown": 30,
+      "beyond_cap": 5
+    },
+    {
+      "frac": 0.06,
+      "area_km2": 529,
+      "candidates": 137,
+      "seconds": 0.0047,
+      "peak_mb": 0.04,
+      "shown": 17,
+      "beyond_cap": 0
+    },
+    {
+      "frac": 0.03,
+      "area_km2": 264,
+      "candidates": 43,
+      "seconds": 0.0007,
+      "peak_mb": 0.01,
+      "shown": 1,
+      "beyond_cap": 0
+    }
+  ],
+  "layer_sweep": [
+    {
+      "layers": "2 (historic+natural)",
+      "candidates": 1018,
+      "seconds": 0.0218,
+      "peak_mb": 0.45,
+      "shown": 30,
+      "beyond_cap": 5
+    },
+    {
+      "layers": "3 (+sight)",
+      "candidates": 1262,
+      "seconds": 0.0351,
+      "peak_mb": 0.56,
+      "shown": 30,
+      "beyond_cap": 53
+    },
+    {
+      "layers": "4 (+amenity)",
+      "candidates": 2713,
+      "seconds": 0.1469,
+      "peak_mb": 1.37,
+      "shown": 30,
+      "beyond_cap": 405
+    },
+    {
+      "layers": "6 (all)",
+      "candidates": 2968,
+      "seconds": 0.1603,
+      "peak_mb": 1.45,
+      "shown": 30,
+      "beyond_cap": 450
+    }
+  ],
+  "dense_sweep": [
+    {
+      "factor": 1,
+      "candidates": 2968,
+      "seconds": 0.1573,
+      "peak_mb": 1.45,
+      "shown": 30,
+      "beyond_cap": 450
+    },
+    {
+      "factor": 2,
+      "candidates": 5936,
+      "seconds": 0.4957,
+      "peak_mb": 6.59,
+      "shown": 30,
+      "beyond_cap": 1044
+    },
+    {
+      "factor": 5,
+      "candidates": 14840,
+      "seconds": 1.2901,
+      "peak_mb": 6.81,
+      "shown": 30,
+      "beyond_cap": 3402
+    },
+    {
+      "factor": 10,
+      "candidates": 29680,
+      "seconds": 3.5433,
+      "peak_mb": 16.45,
+      "shown": 30,
+      "beyond_cap": 7447
+    }
+  ],
+  "cap": {
+    "no_route": 30,
+    "brp_route_len_km": 99.5,
+    "brp_route_cap": 80
+  }
+}

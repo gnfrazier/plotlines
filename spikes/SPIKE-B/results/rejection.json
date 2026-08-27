@@ -1,0 +1,60 @@
+{
+  "run1_proposals": 38,
+  "bulk_rejected": 13,
+  "run2_proposals_no_memory": 41,
+  "run2_proposals_with_memory": 28,
+  "rejected_reappeared": 0,
+  "rejected_spots_suppressed_despite_membership_change": 4,
+  "changed_but_suppressed_sample": [
+    [
+      "Battlefield 1",
+      [
+        "node/10249526361",
+        "node/10249526364",
+        "node/10249572082",
+        "node/4681075774",
+        "node/7014994480",
+        "node/7015011699",
+        "plugin/battlefield/1"
+      ]
+    ],
+    [
+      "Manor House 1",
+      [
+        "node/5118550247",
+        "node/5734090497",
+        "plugin/manor_house/1",
+        "way/513759018",
+        "way/513759021",
+        "way/514042887",
+        "way/891399830"
+      ]
+    ],
+    [
+      "Battlefield 0",
+      [
+        "node/7560616078",
+        "plugin/battlefield/0",
+        "way/808544844"
+      ]
+    ],
+    [
+      "Manor House 0",
+      [
+        "node/5118563144",
+        "plugin/manor_house/0",
+        "way/1322383005"
+      ]
+    ]
+  ],
+  "marked_new": 4,
+  "marked_carried_over": 24,
+  "plugin_features_among_new": 3,
+  "new_sample": [
+    "Plunge Basin Overlook  narrative  new=True",
+    "Linville Historic District  narrative  new=True",
+    "Flat Rock View  narrative+station  new=True",
+    "Upper Falls Overlook  narrative  new=True"
+  ],
+  "PASS": true
+}
