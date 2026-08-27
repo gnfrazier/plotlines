@@ -4,6 +4,13 @@
 // the breach chip when its last node carries `arc_stage == "resolution"`,
 // mirroring `trips.compose._ends_at_resolution` server-side. Running over
 // the band is still flagged regardless.
+//
+// `Day.limits` keys are travel modes (the schema's own words), so every
+// fixture here keys its limit by 'hiking' — the mode `_segment()` below
+// actually uses — rather than a blended, mode-agnostic key.
+// `day_timeline_strip_per_mode_breach_test.dart` covers C3's per-mode
+// behaviour (a day mixing two modes, each with its own band) that this
+// file's single-mode fixtures don't exercise.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,7 +73,7 @@ void main() {
       id: 'day-1',
       index: 1,
       segments: [_segment(distanceM: 10000)],
-      limits: {'distance_m': DayLimit(minM: 20000)},
+      limits: {'hiking': DayLimit(minM: 20000)},
     );
     await _pump(tester, _tripWithDay(day));
     expect(find.textContaining('below'), findsOneWidget);
@@ -77,7 +84,7 @@ void main() {
       id: 'day-1',
       index: 1,
       segments: [_segment(distanceM: 10000, nodes: [_node(distanceAlongM: 10000, arcStage: 'resolution')])],
-      limits: {'distance_m': DayLimit(minM: 20000)},
+      limits: {'hiking': DayLimit(minM: 20000)},
     );
     await _pump(tester, _tripWithDay(day));
     expect(find.textContaining('below'), findsNothing);
@@ -88,7 +95,7 @@ void main() {
       id: 'day-1',
       index: 1,
       segments: [_segment(distanceM: 50000, nodes: [_node(distanceAlongM: 50000, arcStage: 'resolution')])],
-      limits: {'distance_m': DayLimit(minM: 20000, maxM: 40000)},
+      limits: {'hiking': DayLimit(minM: 20000, maxM: 40000)},
     );
     await _pump(tester, _tripWithDay(day));
     expect(find.textContaining('above'), findsOneWidget);
@@ -104,7 +111,7 @@ void main() {
           _node(distanceAlongM: 10000, arcStage: 'rising'),
         ]),
       ],
-      limits: {'distance_m': DayLimit(minM: 20000)},
+      limits: {'hiking': DayLimit(minM: 20000)},
     );
     await _pump(tester, _tripWithDay(day));
     expect(find.textContaining('below'), findsOneWidget);

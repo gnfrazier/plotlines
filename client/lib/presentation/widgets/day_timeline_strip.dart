@@ -118,11 +118,12 @@ class _DaySegmentStrip extends ConsumerWidget {
             style: PlotTypography.small(c.textMuted)),
       );
     }
-    double dayDistance = 0;
-    for (final s in day.segments) {
-      dayDistance += s.metrics?.distanceM ?? 0;
-    }
-    final breach = _breach(day, dayDistance);
+    // FR19 / C3 — one chip per breaching mode: `Day.limits` is per-mode, so
+    // a day mixing e.g. cycling and hiking can breach one band without the
+    // other, and both need to be visible. `computeDayLimitBreaches` is the
+    // one place this is computed, shared with the metrics dashboard, so the
+    // two surfaces can never disagree about which mode ran short or long.
+    final breaches = computeDayLimitBreaches(day);
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -139,44 +140,22 @@ class _DaySegmentStrip extends ConsumerWidget {
               count: day.segments.length,
             ),
           ],
-          if (breach != null) ...[
+          for (final breach in breaches) ...[
             const SizedBox(width: PlotSpacing.s4),
-            _BreachChip(text: breach),
+            _BreachChip(text: _describeBreach(breach)),
           ],
         ],
       ),
     );
   }
 
-  String? _breach(Day day, double dayDistance) {
-    final limit = day.limits['distance_m'];
-    if (limit == null) return null;
-    // FR38 / O6 (C3) — a day that closes at a resolution-stage anchor is
-    // exempt from falling short of the band: the story ended on purpose, not
-    // by accident. Mirrors `trips.compose._ends_at_resolution` server-side —
-    // running long past the band is still flagged; only "under" is excused.
-    if (limit.minM != null && dayDistance < limit.minM! && !_endsAtResolution(day)) {
-      return '${(dayDistance / 1000).toStringAsFixed(0)} km · below ${(limit.minM! / 1000).toStringAsFixed(0)}–'
-          '${limit.maxM == null ? '∞' : (limit.maxM! / 1000).toStringAsFixed(0)} km limit';
-    }
-    if (limit.maxM != null && dayDistance > limit.maxM!) {
-      return '${(dayDistance / 1000).toStringAsFixed(0)} km · above ${limit.minM == null ? '0' : (limit.minM! / 1000).toStringAsFixed(0)}–'
-          '${(limit.maxM! / 1000).toStringAsFixed(0)} km limit';
-    }
-    return null;
-  }
-
-  bool _endsAtResolution(Day day) {
-    if (day.segments.isEmpty) return false;
-    final nodes = day.segments.last.nodes;
-    if (nodes.isEmpty) return false;
-    final ordered = [...nodes]..sort((a, b) {
-        final aUnset = a.distanceAlongM == null;
-        final bUnset = b.distanceAlongM == null;
-        if (aUnset != bUnset) return aUnset ? -1 : 1;
-        return (a.distanceAlongM ?? 0.0).compareTo(b.distanceAlongM ?? 0.0);
-      });
-    return ordered.last.arcStage == 'resolution';
+  String _describeBreach(LimitBreach breach) {
+    final realisedKm = (breach.realisedM / 1000).toStringAsFixed(0);
+    final limitKm = (breach.limitM / 1000).toStringAsFixed(0);
+    final mode = travelModeLabel(breach.mode);
+    return breach.bound == 'min'
+        ? '$mode: $realisedKm km · below $limitKm km min'
+        : '$mode: $realisedKm km · above $limitKm km max';
   }
 }
 

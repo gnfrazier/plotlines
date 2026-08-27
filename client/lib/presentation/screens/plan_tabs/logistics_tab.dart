@@ -354,28 +354,82 @@ class _SegmentTile extends StatelessWidget {
   }
 }
 
-/// C1-C3 — per-day distance limits overriding the trip default
-/// (`Trip.dayLimits`), feeding `/days/compose`'s existing breach detection
-/// (already surfaced on the Route tab's day timeline strip as a chip).
-class _DayLimitEditor extends ConsumerStatefulWidget {
+/// FR19 / C3 — per-mode distance limits overriding the trip default
+/// (`Trip.dayLimits`), feeding `computeDayLimitBreaches`' breach detection
+/// (surfaced on the Route tab's day timeline strip and the metrics
+/// dashboard, both as one-chip/one-row-per-mode). `Day.limits`' keys are
+/// travel modes — a day mixing cycling and hiking needs its own band per
+/// mode, not one blended distance for the whole day — so this renders one
+/// row per limited mode plus an affordance to add a limit for another mode.
+class _DayLimitEditor extends ConsumerWidget {
   const _DayLimitEditor({required this.day});
   final Day day;
 
   @override
-  ConsumerState<_DayLimitEditor> createState() => _DayLimitEditorState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = PlotColors.of(context);
+    final limitedModes = day.limits.keys.toList()..sort();
+    final dayModes = {for (final s in day.segments) s.mode};
+    final addable = [
+      for (final mode in kTraversalModes)
+        if (!day.limits.containsKey(mode)) mode,
+    ]..sort((a, b) {
+        // Modes actually present on this day surface first — the likely case.
+        final aPresent = dayModes.contains(a), bPresent = dayModes.contains(b);
+        if (aPresent != bPresent) return aPresent ? -1 : 1;
+        return a.compareTo(b);
+      });
+
+    return PlotCard(
+      sunk: true,
+      padding: const EdgeInsets.all(PlotSpacing.s3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('DAY LIMITS (km)', style: PlotTypography.data(c.textMuted)),
+              const Spacer(),
+              if (addable.isNotEmpty)
+                PopupMenuButton<String>(
+                  tooltip: 'Add a mode limit',
+                  icon: Icon(Icons.add_circle_outline, size: 18, color: c.textMuted),
+                  onSelected: (mode) => ref.read(currentTripProvider.notifier).updateDayLimits(
+                        day.id,
+                        {...day.limits, mode: DayLimit()},
+                      ),
+                  itemBuilder: (context) => [
+                    for (final mode in addable)
+                      PopupMenuItem(value: mode, child: Text(travelModeLabel(mode))),
+                  ],
+                ),
+            ],
+          ),
+          for (final mode in limitedModes)
+            Padding(
+              padding: const EdgeInsets.only(top: PlotSpacing.s2),
+              child: _DayLimitRow(day: day, mode: mode),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
-class _DayLimitEditorState extends ConsumerState<_DayLimitEditor> {
-  late final _min = TextEditingController(
-    text: widget.day.limits['distance_m']?.minM == null
-        ? ''
-        : (widget.day.limits['distance_m']!.minM! / 1000).toStringAsFixed(0),
-  );
-  late final _max = TextEditingController(
-    text: widget.day.limits['distance_m']?.maxM == null
-        ? ''
-        : (widget.day.limits['distance_m']!.maxM! / 1000).toStringAsFixed(0),
-  );
+class _DayLimitRow extends ConsumerStatefulWidget {
+  const _DayLimitRow({required this.day, required this.mode});
+  final Day day;
+  final String mode;
+
+  @override
+  ConsumerState<_DayLimitRow> createState() => _DayLimitRowState();
+}
+
+class _DayLimitRowState extends ConsumerState<_DayLimitRow> {
+  late final _min = TextEditingController(text: _kmText(widget.day.limits[widget.mode]?.minM));
+  late final _max = TextEditingController(text: _kmText(widget.day.limits[widget.mode]?.maxM));
+
+  String _kmText(double? metres) => metres == null ? '' : (metres / 1000).toStringAsFixed(0);
 
   @override
   void dispose() {
@@ -387,49 +441,55 @@ class _DayLimitEditorState extends ConsumerState<_DayLimitEditor> {
   void _emit() {
     final minKm = double.tryParse(_min.text);
     final maxKm = double.tryParse(_max.text);
-    final limits = {...widget.day.limits};
-    if (minKm == null && maxKm == null) {
-      limits.remove('distance_m');
-    } else {
-      limits['distance_m'] = DayLimit(
+    ref.read(currentTripProvider.notifier).updateDayLimits(widget.day.id, {
+      ...widget.day.limits,
+      widget.mode: DayLimit(
         minM: minKm == null ? null : minKm * 1000,
         maxM: maxKm == null ? null : maxKm * 1000,
-      );
-    }
+      ),
+    });
+  }
+
+  void _remove() {
+    final limits = {...widget.day.limits}..remove(widget.mode);
     ref.read(currentTripProvider.notifier).updateDayLimits(widget.day.id, limits);
   }
 
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
-    return PlotCard(
-      sunk: true,
-      padding: const EdgeInsets.all(PlotSpacing.s3),
-      child: Row(
-        children: [
-          Text('DISTANCE LIMIT (km)', style: PlotTypography.data(c.textMuted)),
-          const Spacer(),
-          SizedBox(
-            width: 64,
-            child: TextField(
-              controller: _min,
-              decoration: const InputDecoration(hintText: 'min', isDense: true),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => _emit(),
-            ),
+    return Row(
+      children: [
+        SizedBox(
+          width: 64,
+          child: Text(travelModeLabel(widget.mode), style: PlotTypography.body(c.textSecondary)),
+        ),
+        const Spacer(),
+        SizedBox(
+          width: 64,
+          child: TextField(
+            controller: _min,
+            decoration: const InputDecoration(hintText: 'min', isDense: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => _emit(),
           ),
-          const SizedBox(width: PlotSpacing.s2),
-          SizedBox(
-            width: 64,
-            child: TextField(
-              controller: _max,
-              decoration: const InputDecoration(hintText: 'max', isDense: true),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => _emit(),
-            ),
+        ),
+        const SizedBox(width: PlotSpacing.s2),
+        SizedBox(
+          width: 64,
+          child: TextField(
+            controller: _max,
+            decoration: const InputDecoration(hintText: 'max', isDense: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => _emit(),
           ),
-        ],
-      ),
+        ),
+        IconButton(
+          tooltip: 'Remove ${travelModeLabel(widget.mode)} limit',
+          icon: Icon(Icons.close, size: 16, color: c.textMuted),
+          onPressed: _remove,
+        ),
+      ],
     );
   }
 }

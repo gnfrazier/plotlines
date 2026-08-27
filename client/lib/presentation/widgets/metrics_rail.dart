@@ -37,7 +37,7 @@ class MetricsRail extends StatelessWidget {
     final c = PlotColors.of(context);
     final elevationReady = elevationCapability.ready;
     double distance = 0, climb = 0;
-    final byDay = <(int, double)>[];
+    final byDay = <(int, double, bool)>[];
     final byMode = <String, double>{};
     for (final day in trip.days) {
       var dayDistance = 0.0;
@@ -48,7 +48,12 @@ class MetricsRail extends StatelessWidget {
         climb += s.metrics?.climbM ?? s.elevation?.ascentM ?? 0;
         byMode.update(s.mode, (v) => v + d, ifAbsent: () => d);
       }
-      if (day.segments.isNotEmpty) byDay.add((day.index, dayDistance));
+      // FR19 / C3 — "reflected in the dashboard": the same per-mode breach
+      // set the day timeline strip's chip already renders, so the two
+      // surfaces can never disagree about which day ran short or long.
+      if (day.segments.isNotEmpty) {
+        byDay.add((day.index, dayDistance, computeDayLimitBreaches(day).isNotEmpty));
+      }
     }
     final maxDayDistance = byDay.isEmpty
         ? 1.0
@@ -123,14 +128,15 @@ class MetricsRail extends StatelessWidget {
                       ).copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: PlotSpacing.s2),
-                    for (final (index, dist) in byDay)
+                    for (final (index, dist, breached) in byDay)
                       _BarRow(
                         label: 'Day $index',
                         fraction: maxDayDistance <= 0
                             ? 0
                             : dist / maxDayDistance,
                         valueLabel: '${(dist / 1000).toStringAsFixed(1)} km',
-                        color: c.primary,
+                        color: breached ? c.warning : c.primary,
+                        breached: breached,
                       ),
                   ],
                   if (byMode.isNotEmpty) ...[
@@ -305,11 +311,16 @@ class _BarRow extends StatelessWidget {
     required this.fraction,
     required this.valueLabel,
     required this.color,
+    this.breached = false,
   });
   final String label;
   final double fraction;
   final String valueLabel;
   final Color color;
+
+  /// FR19 / C3 — "reflected in the dashboard": true when the day this row
+  /// represents breaches one of its per-mode limits (`computeDayLimitBreaches`).
+  final bool breached;
 
   @override
   Widget build(BuildContext context) {
@@ -322,6 +333,10 @@ class _BarRow extends StatelessWidget {
             width: 56,
             child: Text(label, style: PlotTypography.data(c.textSecondary)),
           ),
+          if (breached) ...[
+            Icon(Icons.warning_amber_rounded, size: 14, color: c.warning),
+            const SizedBox(width: 2),
+          ],
           Expanded(
             child: ClipRRect(
               borderRadius: PlotRadii.controlShape,

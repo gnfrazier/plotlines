@@ -57,6 +57,117 @@ void main() {
     });
   });
 
+  group('computeDayLimitBreaches (FR19 / C3)', () {
+    Segment leg(String id, String mode, double distanceM) => Segment(
+          id: id,
+          mode: mode,
+          shape: 'point_to_point',
+          metrics: RouteMetrics(distanceM: distanceM),
+        );
+
+    test('a day with no limits has no breaches', () {
+      final day = Day(id: 'd1', index: 1, segments: [leg('s1', 'cycling', 5000)]);
+      expect(computeDayLimitBreaches(day), isEmpty);
+    });
+
+    test('a mode within its band produces no breach', () {
+      final day = Day(
+        id: 'd1',
+        index: 1,
+        segments: [leg('s1', 'cycling', 50000)],
+        limits: {'cycling': DayLimit(minM: 20000, maxM: 80000)},
+      );
+      expect(computeDayLimitBreaches(day), isEmpty);
+    });
+
+    test('below the min band is a min breach', () {
+      final day = Day(
+        id: 'd1',
+        index: 1,
+        segments: [leg('s1', 'hiking', 5000)],
+        limits: {'hiking': DayLimit(minM: 10000)},
+      );
+      final breaches = computeDayLimitBreaches(day);
+      expect(breaches, hasLength(1));
+      expect(breaches.single.mode, 'hiking');
+      expect(breaches.single.bound, 'min');
+      expect(breaches.single.realisedM, 5000);
+      expect(breaches.single.limitM, 10000);
+      expect(breaches.single.dayId, 'd1');
+    });
+
+    test('above the max band is a max breach', () {
+      final day = Day(
+        id: 'd1',
+        index: 1,
+        segments: [leg('s1', 'cycling', 120000)],
+        limits: {'cycling': DayLimit(maxM: 80000)},
+      );
+      expect(computeDayLimitBreaches(day).single.bound, 'max');
+    });
+
+    test('two modes in the same day breach independently', () {
+      final day = Day(
+        id: 'd1',
+        index: 1,
+        segments: [leg('s1', 'cycling', 120000), leg('s2', 'hiking', 2000)],
+        limits: {
+          'cycling': DayLimit(maxM: 80000),
+          'hiking': DayLimit(minM: 10000),
+        },
+      );
+      final breaches = computeDayLimitBreaches(day);
+      expect(breaches.map((b) => (b.mode, b.bound)).toSet(), {
+        ('cycling', 'max'),
+        ('hiking', 'min'),
+      });
+    });
+
+    test('a limit on a mode absent from the day\'s segments produces no breach', () {
+      final day = Day(
+        id: 'd1',
+        index: 1,
+        segments: [leg('s1', 'cycling', 50000)],
+        limits: {'hiking': DayLimit(minM: 10000)},
+      );
+      expect(computeDayLimitBreaches(day), isEmpty);
+    });
+
+    test('a day closing at a resolution-stage anchor is exempt from a min breach', () {
+      final resolutionSegment = Segment(
+        id: 's1',
+        mode: 'hiking',
+        shape: 'point_to_point',
+        metrics: RouteMetrics(distanceM: 5000),
+        nodes: [Node(id: 'n1', kind: NodeKind.poi, coord: const [0, 0], arcStage: 'resolution')],
+      );
+      final day = Day(
+        id: 'd1',
+        index: 1,
+        segments: [resolutionSegment],
+        limits: {'hiking': DayLimit(minM: 10000)},
+      );
+      expect(computeDayLimitBreaches(day), isEmpty);
+    });
+
+    test('the resolution exemption never excuses a max breach', () {
+      final resolutionSegment = Segment(
+        id: 's1',
+        mode: 'hiking',
+        shape: 'point_to_point',
+        metrics: RouteMetrics(distanceM: 50000),
+        nodes: [Node(id: 'n1', kind: NodeKind.poi, coord: const [0, 0], arcStage: 'resolution')],
+      );
+      final day = Day(
+        id: 'd1',
+        index: 1,
+        segments: [resolutionSegment],
+        limits: {'hiking': DayLimit(minM: 10000, maxM: 40000)},
+      );
+      expect(computeDayLimitBreaches(day).single.bound, 'max');
+    });
+  });
+
   group('FR18 / C2 — a rest day composed of an area anchor (O3)', () {
     test('a rest day location can sit inside a trip-level area anchor, expressing what a point '
         'anchor could not', () {

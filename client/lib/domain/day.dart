@@ -159,3 +159,57 @@ class Day {
         cueSheet: cueSheet ?? this.cueSheet,
       );
 }
+
+/// FR19 / C3 — per-mode min/max distance breaches for [day]. [Day.limits]'
+/// keys are travel modes (the schema's own words: "Keys are travel modes;
+/// key order is meaningless"), so a day mixing cycling and hiking can carry
+/// one band per mode rather than one blended distance for the whole day.
+///
+/// Mirrors `plotlines_core.trips.compose._breaches`/`_ends_at_resolution`
+/// exactly, including FR38/O6's exemption of a min breach when the day
+/// closes at a resolution-stage anchor (a deliberate early ending, not a
+/// shortfall) — over-length is never excused, only under. Pure and
+/// synchronous: every input (segment metrics, day limits, node arc stages)
+/// already sits on the payload, so this needs no solve to answer, and is
+/// the one place both the day-timeline breach chip and the metrics
+/// dashboard compute it, so they can never disagree.
+List<LimitBreach> computeDayLimitBreaches(Day day) {
+  if (day.limits.isEmpty) return const [];
+  final realisedByMode = <String, double>{};
+  for (final segment in day.segments) {
+    final distance = segment.metrics?.distanceM;
+    if (distance == null) continue;
+    realisedByMode.update(segment.mode, (v) => v + distance, ifAbsent: () => distance);
+  }
+  final closesAtResolution = _dayEndsAtResolution(day);
+  final breaches = <LimitBreach>[];
+  for (final entry in day.limits.entries) {
+    final realised = realisedByMode[entry.key];
+    if (realised == null) continue; // no segment in this mode — nothing realized to breach.
+    final limit = entry.value;
+    if (limit.minM != null && realised < limit.minM! && !closesAtResolution) {
+      breaches.add(LimitBreach(
+        mode: entry.key, bound: 'min', limitM: limit.minM!, realisedM: realised, dayId: day.id,
+      ));
+    }
+    if (limit.maxM != null && realised > limit.maxM!) {
+      breaches.add(LimitBreach(
+        mode: entry.key, bound: 'max', limitM: limit.maxM!, realisedM: realised, dayId: day.id,
+      ));
+    }
+  }
+  return breaches;
+}
+
+bool _dayEndsAtResolution(Day day) {
+  if (day.segments.isEmpty) return false;
+  final nodes = day.segments.last.nodes;
+  if (nodes.isEmpty) return false;
+  final ordered = [...nodes]..sort((a, b) {
+      final aUnset = a.distanceAlongM == null;
+      final bUnset = b.distanceAlongM == null;
+      if (aUnset != bUnset) return aUnset ? -1 : 1;
+      return (a.distanceAlongM ?? 0.0).compareTo(b.distanceAlongM ?? 0.0);
+    });
+  return ordered.last.arcStage == 'resolution';
+}
