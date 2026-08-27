@@ -223,6 +223,9 @@ class RoutingClient {
               'id': n.id, 'kind': n.kind.wireValue, 'coord': n.coord,
               'distance_along_m': n.distanceAlongM, 'title': n.title,
               'instructions': n.instructions,
+              // C5 / F1 (FR133) — woven into the cue's own instruction text
+              // server-side (`cues.node_cues`), not a separate logistics list.
+              'amenities': n.amenities,
             }).toList(),
         'hazards': segment.hazards.map((h) => {
               'id': h.id, 'severity': h.severity, 'coord': h.coord,

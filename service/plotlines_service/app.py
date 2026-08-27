@@ -291,6 +291,10 @@ class NodeInput(BaseModel):
     distance_along_m: float | None = None
     title: str | None = None
     instructions: str | None = None
+    # C5 / F1 (FR133) — water, toilets, food, shelter. Woven into the cue's
+    # own instruction text by `cues.node_cues`, not carried as a separate
+    # logistics list.
+    amenities: list[str] = Field(default_factory=list)
 
 
 class HazardInput(BaseModel):

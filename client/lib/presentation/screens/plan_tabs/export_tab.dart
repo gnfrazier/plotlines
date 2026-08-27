@@ -341,6 +341,11 @@ List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
         'hazard' => '⚠',
         'portage' => '▲',
         'surface' => '~',
+        // FR133 — C5's amenities, woven into `cue.instruction` server-side
+        // (`cues.node_cues`); this glyph is the only thing that marks the
+        // line as a provision rather than a plain waypoint.
+        'provision' => 'P',
+        'event' => '◷',
         _ => '●',
       };
       entries.add(
@@ -348,7 +353,7 @@ List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
           distanceAlongM: offset + cue.distanceAlongM,
           label: cue.instruction ?? cue.kind,
           glyph: glyph,
-          tag: cue.retrace == true ? 'RETRACE' : null,
+          tag: cue.retrace == true ? 'RETRACE' : (cue.kind == 'provision' ? 'PROVISION' : null),
         ),
       );
     }
@@ -375,12 +380,24 @@ List<_CueEntry> _entriesFromAuthoredContent(Day day) {
       entries.add(_CueEntry(distanceAlongM: 0, label: 'Start', glyph: 'S'));
     }
     for (final node in segment.nodes) {
+      // FR133 — the same narrative-register weaving `cues.node_cues` does
+      // server-side, kept here too since this fallback runs whenever the
+      // sidecar/region graph is unavailable (`_load`'s other branch).
+      final label = node.amenities.isEmpty
+          ? (node.title ?? node.kind.wireValue)
+          : '${node.title ?? node.kind.wireValue} — ${node.amenities.join(', ')}';
       entries.add(
         _CueEntry(
           distanceAlongM: node.distanceAlongM ?? 0,
-          label: node.title ?? node.kind.wireValue,
-          glyph: node.kind == NodeKind.regroup ? '◆' : '●',
-          tag: node.poiType?.toUpperCase(),
+          label: label,
+          glyph: node.amenities.isNotEmpty
+              ? 'P'
+              : node.kind == NodeKind.regroup
+                  ? '◆'
+                  : node.kind == NodeKind.event
+                      ? '◷'
+                      : '●',
+          tag: node.amenities.isNotEmpty ? 'PROVISION' : node.poiType?.toUpperCase(),
         ),
       );
     }
@@ -510,11 +527,52 @@ class _DayCueSectionState extends ConsumerState<_DayCueSection> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: PlotSpacing.s2),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: PlotButton(
+                      label: 'Print preview',
+                      variant: PlotButtonVariant.ghost,
+                      onPressed: entries.isEmpty ? null : () => _showPrintPreview(entries),
+                    ),
+                  ),
                 ],
               );
             },
           ),
         ],
+      ),
+    );
+  }
+
+  /// FR46 — "viewable in-app and printable." Same no-PDF-dependency
+  /// reasoning as the itinerary's own print preview
+  /// (`_ItinerarySectionState._showPrintPreview`): a chrome-free view of
+  /// exactly what's on screen, for the desktop OS's own print command to
+  /// act on. FR116's "print inherits reveal policy" is satisfied by
+  /// construction here — this reads the same [entries] the on-screen list
+  /// does, so there is no second, unguarded path for content to leak
+  /// through.
+  Future<void> _showPrintPreview(List<_CueEntry> entries) {
+    final day = widget.day;
+    final lines = [
+      'Day ${day.index}${day.title != null ? ' — ${day.title}' : ''}',
+      '',
+      for (final e in entries)
+        '${(e.distanceAlongM / 1000).toStringAsFixed(1)} km  ${e.glyph}  ${e.label}'
+            '${e.tag != null ? '  [${e.tag}]' : ''}',
+    ];
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        child: SizedBox(
+          width: 640,
+          height: 800,
+          child: Padding(
+            padding: const EdgeInsets.all(PlotSpacing.s5),
+            child: SingleChildScrollView(child: SelectableText(lines.join('\n'))),
+          ),
+        ),
       ),
     );
   }

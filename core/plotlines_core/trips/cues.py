@@ -568,9 +568,28 @@ _NODE_TEXT = {
 #: Which payload node kinds become which cue kind.
 _NODE_CUE_KIND = {"transition": "transition", "event": "event"}
 
+#: C5's amenity vocabulary, in the order they read best woven into a
+#: sentence — "water, toilets" reads better than tag order, which is
+#: whatever the Author happened to check first.
+_AMENITY_LABEL = {
+    "water": "water", "toilets": "toilets", "food": "food", "shelter": "shelter",
+}
+
 
 def node_cues(route: Route, nodes, settings: CueSettings) -> tuple[list[Cue], dict]:
-    """Author-placed nodes, projected onto the route and cued in route order."""
+    """Author-placed nodes, projected onto the route and cued in route order.
+
+    FR133 (the Frodo principle) / F1 — a node carrying C5 amenities (water,
+    toilets, food, shelter) is cued as `kind="provision"` rather than the
+    generic `"node"`, and its amenities are woven into the same instruction
+    line ("Rest stop: Overlook Camp — water, toilets") rather than living in
+    a separate list a Character has to cross-reference. Provisions are never
+    dropped by the merge pass either way (`_SAFETY_CRITICAL` covers hazards/
+    portages/transitions explicitly, but a provision's own line is short
+    enough that crowding it into a neighbour would bury exactly the
+    "where's the water" fact this cue exists to answer) — kept a distinct
+    kind precisely so a caller that wants to promise that can select on it.
+    """
     cues: list[Cue] = []
     stats = {"considered": 0, "off_route": 0, "emitted": 0}
 
@@ -589,9 +608,16 @@ def node_cues(route: Route, nodes, settings: CueSettings) -> tuple[list[Cue], di
             else f"{prefix}: {title}"
         if node.kind == "transition" and node.instructions:
             instruction = f"{instruction} — {node.instructions.splitlines()[0]}"
+        present = set(getattr(node, "amenities", None) or [])
+        amenities = [label for tag, label in _AMENITY_LABEL.items() if tag in present]
+        kind = _NODE_CUE_KIND.get(node.kind, "node")
+        if amenities:
+            instruction = f"{instruction} — {', '.join(amenities)}"
+            if kind == "node":
+                kind = "provision"
         cues.append(Cue(
             sequence=0, distance_along_m=along,
-            kind=_NODE_CUE_KIND.get(node.kind, "node"),
+            kind=kind,
             instruction=instruction, ref_id=node.id,
         ))
         stats["emitted"] += 1

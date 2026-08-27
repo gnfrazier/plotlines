@@ -111,7 +111,9 @@ void main() {
     testWidgets('opens a chrome-free document with the same narrative content', (tester) async {
       await _pump(tester, _twoDayTrip());
 
-      await tester.tap(find.text('Print preview'));
+      // F1 (issue #67) added a second "Print preview" button per day's cue
+      // section, below the itinerary's own — `.first` is the itinerary's.
+      await tester.tap(find.text('Print preview').first);
       await tester.pumpAndSettle();
 
       expect(find.textContaining('# Test trip'), findsOneWidget);
