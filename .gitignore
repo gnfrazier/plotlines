@@ -207,3 +207,12 @@ spikes/SPIKE-20/results/dart/*.dart_edited.json
 # payloads), the Dart harness's byte-identical copies and local databases are not.
 spikes/SPIKE-21/results/dart/*.dart_reserialized.json
 spikes/SPIKE-21/results/dart/*.dart_edited.json
+
+# SPIKE-D layer-extraction timing caches: osmnx's own Overpass response cache,
+# per-region graphs, the DEM mosaic, and any downloaded regional extract. All of
+# it is re-derivable from probe.py, and the graph+DEM pair alone is tens of MB.
+# What IS committed is the evidence: results/RESULTS.md, results/*.json, and
+# raw/*.json.gz — the `RawFeature` sets the timed extraction stages produced, so
+# analyze.py, tour_scale.py and concurrency.py reproduce every published number
+# without anyone re-hitting the Overpass commons that A23 is a risk about.
+spikes/SPIKE-D/cache/

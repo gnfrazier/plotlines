@@ -1,0 +1,485 @@
+{
+  "a23": {
+    "candidate_vs_graph": [
+      {
+        "area_km2": 704.2,
+        "box": "trip",
+        "candidate_fetch_s": 15.8,
+        "candidate_is_heavier_by_bytes": 0.78,
+        "candidate_is_heavier_by_time": 0.43,
+        "candidate_mb": 5.48,
+        "candidate_requests": 1,
+        "graph_build_s": 36.72,
+        "graph_mb": 7.06,
+        "graph_requests": 1
+      },
+      {
+        "area_km2": 1799.0,
+        "box": "enlarged",
+        "candidate_fetch_s": 13.89,
+        "candidate_is_heavier_by_bytes": 0.24,
+        "candidate_is_heavier_by_time": 0.12,
+        "candidate_mb": 6.11,
+        "candidate_requests": 1,
+        "graph_build_s": 116.59,
+        "graph_mb": 24.96,
+        "graph_requests": 1
+      }
+    ],
+    "overpass_cache_bytes": 28525879,
+    "per_run": [
+      {
+        "area_km2": 704.2,
+        "elements": 1184,
+        "failed": false,
+        "label": "trip / default 3 layers",
+        "mb": 0.13,
+        "requests": 1,
+        "retries": 0,
+        "server_s": 2.48,
+        "slot_pause_s": 0.0
+      },
+      {
+        "area_km2": 704.2,
+        "elements": 69803,
+        "failed": false,
+        "label": "trip / all 6 layers",
+        "mb": 5.48,
+        "requests": 1,
+        "retries": 0,
+        "server_s": 14.18,
+        "slot_pause_s": 0.0
+      },
+      {
+        "area_km2": 704.2,
+        "elements": 69803,
+        "failed": false,
+        "label": "trip / all (warm cache)",
+        "mb": 5.48,
+        "requests": 1,
+        "retries": 0,
+        "server_s": 0.25,
+        "slot_pause_s": 0.0
+      },
+      {
+        "area_km2": 352.1,
+        "elements": 35482,
+        "failed": false,
+        "label": "sweep 352 km2",
+        "mb": 2.77,
+        "requests": 1,
+        "retries": 0,
+        "server_s": 11.08,
+        "slot_pause_s": 0.0
+      },
+      {
+        "area_km2": 176.1,
+        "elements": 31266,
+        "failed": false,
+        "label": "sweep 176 km2",
+        "mb": 2.42,
+        "requests": 1,
+        "retries": 0,
+        "server_s": 8.06,
+        "slot_pause_s": 0.0
+      },
+      {
+        "area_km2": 70.4,
+        "elements": 264,
+        "failed": false,
+        "label": "sweep 70 km2",
+        "mb": 0.03,
+        "requests": 1,
+        "retries": 0,
+        "server_s": 2.96,
+        "slot_pause_s": 0.0
+      },
+      {
+        "area_km2": 1799.0,
+        "elements": 75946,
+        "failed": false,
+        "label": "enlarged / all 6 layers",
+        "mb": 6.11,
+        "requests": 1,
+        "retries": 0,
+        "server_s": 11.67,
+        "slot_pause_s": 0.0
+      },
+      {
+        "area_km2": 8814.8,
+        "elements": 18362,
+        "failed": false,
+        "label": "tour / default 3 layers",
+        "mb": 1.83,
+        "requests": 6,
+        "retries": 0,
+        "server_s": 30.75,
+        "slot_pause_s": 0.0
+      },
+      {
+        "area_km2": 8814.8,
+        "elements": 319953,
+        "failed": false,
+        "label": "tour / all 6 layers",
+        "mb": 25.56,
+        "requests": 6,
+        "retries": 0,
+        "server_s": 61.65,
+        "slot_pause_s": 0.0
+      }
+    ],
+    "run_to_run_spread": [
+      {
+        "label": "sweep 176 km2",
+        "max_s": 185.86,
+        "min_s": 8.79,
+        "ratio": 21.1,
+        "retries": [
+          0,
+          2
+        ],
+        "samples": 2
+      },
+      {
+        "label": "trip / all 6 layers",
+        "max_s": 178.52,
+        "min_s": 15.8,
+        "ratio": 11.3,
+        "retries": [
+          2,
+          0
+        ],
+        "samples": 2
+      },
+      {
+        "label": "tour / default 3 layers",
+        "max_s": 191.08,
+        "min_s": 33.23,
+        "ratio": 5.8,
+        "retries": [
+          1,
+          0
+        ],
+        "samples": 2
+      },
+      {
+        "label": "tour / all 6 layers",
+        "max_s": 317.81,
+        "min_s": 73.55,
+        "ratio": 4.3,
+        "retries": [
+          2,
+          0
+        ],
+        "samples": 2
+      },
+      {
+        "label": "sweep 70 km2",
+        "max_s": 12.55,
+        "min_s": 3.05,
+        "ratio": 4.1,
+        "retries": [
+          0,
+          0
+        ],
+        "samples": 2
+      },
+      {
+        "label": "enlarged / all 6 layers",
+        "max_s": 19.58,
+        "min_s": 13.9,
+        "ratio": 1.4,
+        "retries": [
+          0,
+          0
+        ],
+        "samples": 2
+      },
+      {
+        "label": "sweep 352 km2",
+        "max_s": 14.17,
+        "min_s": 11.94,
+        "ratio": 1.2,
+        "retries": [
+          0,
+          0
+        ],
+        "samples": 2
+      },
+      {
+        "label": "trip / default 3 layers",
+        "max_s": 2.96,
+        "min_s": 2.69,
+        "ratio": 1.1,
+        "retries": [
+          0,
+          0
+        ],
+        "samples": 2
+      },
+      {
+        "label": "trip / all (warm cache)",
+        "max_s": 1.83,
+        "min_s": 1.75,
+        "ratio": 1.0,
+        "retries": [
+          0,
+          0
+        ],
+        "samples": 2
+      }
+    ],
+    "tour_tiles": [],
+    "whole_vs_tiled_trip": {
+      "tiled_failures": 0,
+      "tiled_features": 435,
+      "tiled_requests": 4,
+      "tiled_total_s": 166.62,
+      "whole_failed": false,
+      "whole_features": 429,
+      "whole_requests": 1,
+      "whole_total_s": 15.8
+    }
+  },
+  "d34": {
+    "authoring_slowdown_under_enrichment": 1.15,
+    "ceiling_s": 20.0,
+    "d34_confirmed": false,
+    "enrichment_is_the_longer_half": false,
+    "extraction_within_ceiling_best": true,
+    "extraction_within_ceiling_worst": false,
+    "health_p95_ms_idle": 1.5,
+    "health_p95_ms_under_enrichment": 63.5,
+    "ratio_enrichment_over_extraction": 0.56,
+    "rows": [
+      {
+        "area_km2": 704.2,
+        "authorable_s": 2.69,
+        "candidates": 175,
+        "error": null,
+        "extent": "trip / default 3 layers",
+        "fetch_s": 2.69,
+        "index_s": 0.002,
+        "within_ceiling": true
+      },
+      {
+        "area_km2": 704.2,
+        "authorable_s": 15.8,
+        "candidates": 288,
+        "error": null,
+        "extent": "trip / all 6 layers",
+        "fetch_s": 15.8,
+        "index_s": 0.002,
+        "within_ceiling": true
+      },
+      {
+        "area_km2": 704.2,
+        "authorable_s": 1.75,
+        "candidates": 288,
+        "error": null,
+        "extent": "trip / all (warm cache)",
+        "fetch_s": 1.75,
+        "index_s": 0.002,
+        "within_ceiling": true
+      },
+      {
+        "area_km2": 1799.0,
+        "authorable_s": 13.9,
+        "candidates": 873,
+        "error": null,
+        "extent": "enlarged / all 6 layers",
+        "fetch_s": 13.89,
+        "index_s": 0.007,
+        "within_ceiling": true
+      },
+      {
+        "area_km2": 8814.8,
+        "authorable_s": 33.23,
+        "candidates": 1258,
+        "error": null,
+        "extent": "tour / default 3 layers",
+        "fetch_s": 33.21,
+        "index_s": 0.02,
+        "within_ceiling": false
+      },
+      {
+        "area_km2": 8814.8,
+        "authorable_s": 73.55,
+        "candidates": 2979,
+        "error": null,
+        "extent": "tour / all 6 layers",
+        "fetch_s": 73.51,
+        "index_s": 0.034,
+        "within_ceiling": false
+      }
+    ],
+    "trip_authorable_best_s": 15.8,
+    "trip_authorable_worst_s": 178.52,
+    "trip_enrichment_s": 8.84,
+    "trip_graph_build_s": 36.72
+  },
+  "enlarge": {
+    "added_area_km2": 1094.8,
+    "added_frac_of_new_extent": 0.609,
+    "correct": true,
+    "full_reextract_candidates": 873,
+    "full_reextract_s": 13.9,
+    "incremental_runs": [
+      {
+        "area_km2": 698.7,
+        "box": "enlarged-add-n",
+        "candidates": 532,
+        "error": null,
+        "features": 1200,
+        "fetch_s": 104.98,
+        "index_s": 0.005,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 5426334,
+          "elements": 68056,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            103.2
+          ],
+          "requests": 1,
+          "retries": 1,
+          "server_s": 103.2,
+          "slot_pause_s": 0.0,
+          "total_s": 103.2
+        },
+        "peak_mb": 46.4,
+        "total_s": 104.99
+      },
+      {
+        "area_km2": 396.1,
+        "box": "enlarged-add-e",
+        "candidates": 59,
+        "error": null,
+        "features": 76,
+        "fetch_s": 8.9,
+        "index_s": 0.001,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2439339,
+          "elements": 31656,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            8.18
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 8.18,
+          "slot_pause_s": 0.0,
+          "total_s": 8.18
+        },
+        "peak_mb": 20.1,
+        "total_s": 8.9
+      }
+    ],
+    "incremental_s": 113.89,
+    "n_extra": 0,
+    "n_missing": 0,
+    "offline_partition_check": {
+      "added_candidates": 585,
+      "features_in_two_added_rects": 0,
+      "full_candidates": 873,
+      "n_extra": 0,
+      "n_missing": 0,
+      "partition_is_exact": true,
+      "trip_candidates": 288,
+      "union_candidates": 873
+    },
+    "saving": -7.194,
+    "union_candidates": 873
+  },
+  "health_summary": {
+    "prototype": {
+      "passed": 9,
+      "total": 9
+    },
+    "shipped": {
+      "passed": 3,
+      "total": 8
+    }
+  },
+  "scaling": {
+    "points": [
+      {
+        "area_km2": 70.4,
+        "candidates": 29,
+        "candidates_per_1000km2": 411.9,
+        "fetch_s": 3.05,
+        "index_s": 0.001,
+        "label": "sweep 70 km2",
+        "s_per_1000km2": 43.32,
+        "total_s": 3.05
+      },
+      {
+        "area_km2": 176.1,
+        "candidates": 65,
+        "candidates_per_1000km2": 369.1,
+        "fetch_s": 8.79,
+        "index_s": 0.001,
+        "label": "sweep 176 km2",
+        "s_per_1000km2": 49.91,
+        "total_s": 8.79
+      },
+      {
+        "area_km2": 352.1,
+        "candidates": 141,
+        "candidates_per_1000km2": 400.5,
+        "fetch_s": 11.94,
+        "index_s": 0.002,
+        "label": "sweep 352 km2",
+        "s_per_1000km2": 33.91,
+        "total_s": 11.94
+      },
+      {
+        "area_km2": 704.2,
+        "candidates": 288,
+        "candidates_per_1000km2": 409.0,
+        "fetch_s": 15.8,
+        "index_s": 0.002,
+        "label": "trip / all 6 layers",
+        "s_per_1000km2": 22.44,
+        "total_s": 15.8
+      },
+      {
+        "area_km2": 1799.0,
+        "candidates": 873,
+        "candidates_per_1000km2": 485.3,
+        "fetch_s": 13.89,
+        "index_s": 0.007,
+        "label": "enlarged / all 6 layers",
+        "s_per_1000km2": 7.73,
+        "total_s": 13.9
+      },
+      {
+        "area_km2": 8814.8,
+        "candidates": 2979,
+        "candidates_per_1000km2": 338.0,
+        "fetch_s": 73.51,
+        "index_s": 0.034,
+        "label": "tour / all 6 layers",
+        "s_per_1000km2": 8.34,
+        "total_s": 73.55
+      }
+    ]
+  }
+}

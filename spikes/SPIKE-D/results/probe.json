@@ -1,0 +1,1084 @@
+{
+  "elevation": {
+    "area_km2": 704.2,
+    "box": "trip",
+    "dem_bytes": 4195826,
+    "dem_fetch_mosaic_reproject_s": 8.73,
+    "edge_grade_s": 0.01,
+    "edges": 10602,
+    "elevation_max_m": 1548.4,
+    "elevation_min_m": 381.6,
+    "node_sample_s": 0.1,
+    "nodes": 4538,
+    "nodes_with_elevation": 4538,
+    "overpass_endpoint": "https://maps.mail.ru/osm/tools/overpass/api",
+    "source": "AWS Terrain Tiles (Terrarium) z12 \u2014 stand-in for GEDTM30 (D20/FR85), gated on FR87/#148",
+    "total_s": 8.84
+  },
+  "enlarge": {
+    "added_area_km2": 1094.8,
+    "added_frac_of_new_extent": 0.609,
+    "added_parts": [
+      {
+        "area_km2": 698.7,
+        "key": "enlarged-add-n"
+      },
+      {
+        "area_km2": 396.1,
+        "key": "enlarged-add-e"
+      }
+    ],
+    "extra_in_union": [],
+    "full_reextract_candidates": 873,
+    "incremental_candidates": 589,
+    "incremental_runs": [
+      {
+        "area_km2": 698.7,
+        "box": "enlarged-add-n",
+        "candidates": 532,
+        "error": null,
+        "features": 1200,
+        "fetch_s": 104.98,
+        "index_s": 0.005,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 5426334,
+          "elements": 68056,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            103.2
+          ],
+          "requests": 1,
+          "retries": 1,
+          "server_s": 103.2,
+          "slot_pause_s": 0.0,
+          "total_s": 103.2
+        },
+        "peak_mb": 46.4,
+        "total_s": 104.99
+      },
+      {
+        "area_km2": 396.1,
+        "box": "enlarged-add-e",
+        "candidates": 59,
+        "error": null,
+        "features": 76,
+        "fetch_s": 8.9,
+        "index_s": 0.001,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2439339,
+          "elements": 31656,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            8.18
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 8.18,
+          "slot_pause_s": 0.0,
+          "total_s": 8.18
+        },
+        "peak_mb": 20.1,
+        "total_s": 8.9
+      }
+    ],
+    "incremental_total_s": 113.89,
+    "missing_from_union": [],
+    "n_extra": 0,
+    "n_missing": 0,
+    "offline_partition_check": {
+      "added_candidates": 585,
+      "features_in_two_added_rects": 0,
+      "full_candidates": 873,
+      "n_extra": 0,
+      "n_missing": 0,
+      "partition_is_exact": true,
+      "trip_candidates": 288,
+      "union_candidates": 873
+    },
+    "overpass_endpoint": "https://maps.mail.ru/osm/tools/overpass/api",
+    "trip_candidates": 288,
+    "union_candidates": 873
+  },
+  "extract": {
+    "incomplete": false,
+    "overpass_cache_bytes": 28525879,
+    "overpass_endpoint": "https://maps.mail.ru/osm/tools/overpass/api",
+    "runs": [
+      {
+        "area_km2": 704.2,
+        "box": "trip",
+        "candidates": 175,
+        "cold": true,
+        "error": null,
+        "features": 314,
+        "fetch_s": 2.69,
+        "index_s": 0.002,
+        "label": "trip / default 3 layers",
+        "layers": [
+          "historic",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 130793,
+          "elements": 1184,
+          "failures": [],
+          "per_request_s": [
+            2.48
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 2.48,
+          "slot_pause_s": 0.0,
+          "total_s": 2.48
+        },
+        "peak_mb": 1.2,
+        "total_s": 2.69
+      },
+      {
+        "area_km2": 704.2,
+        "box": "trip",
+        "candidates": 288,
+        "cold": true,
+        "error": null,
+        "features": 429,
+        "fetch_s": 178.51,
+        "index_s": 0.003,
+        "label": "trip / all 6 layers",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 16433265,
+          "elements": 209409,
+          "failures": [],
+          "per_request_s": [
+            176.98
+          ],
+          "requests": 1,
+          "retries": 2,
+          "server_s": 176.98,
+          "slot_pause_s": 0.0,
+          "total_s": 176.98
+        },
+        "peak_mb": 47.0,
+        "total_s": 178.52
+      },
+      {
+        "area_km2": 704.2,
+        "box": "trip",
+        "candidates": 288,
+        "cold": false,
+        "error": null,
+        "features": 429,
+        "fetch_s": 1.75,
+        "index_s": 0.002,
+        "label": "trip / all (warm cache)",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 5477755,
+          "elements": 69803,
+          "failures": [],
+          "per_request_s": [
+            0.25
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 0.25,
+          "slot_pause_s": 0.0,
+          "total_s": 0.25
+        },
+        "peak_mb": 32.9,
+        "total_s": 1.75
+      },
+      {
+        "area_km2": 352.1,
+        "box": "trip-050",
+        "candidates": 141,
+        "cold": true,
+        "error": null,
+        "features": 223,
+        "fetch_s": 14.17,
+        "index_s": 0.002,
+        "label": "sweep 352 km2",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2765702,
+          "elements": 35482,
+          "failures": [],
+          "per_request_s": [
+            13.31
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 13.31,
+          "slot_pause_s": 0.0,
+          "total_s": 13.31
+        },
+        "peak_mb": 23.8,
+        "total_s": 14.17
+      },
+      {
+        "area_km2": 176.1,
+        "box": "trip-025",
+        "candidates": 65,
+        "cold": true,
+        "error": null,
+        "features": 110,
+        "fetch_s": 8.79,
+        "index_s": 0.001,
+        "label": "sweep 176 km2",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2416502,
+          "elements": 31266,
+          "failures": [],
+          "per_request_s": [
+            8.06
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 8.06,
+          "slot_pause_s": 0.0,
+          "total_s": 8.06
+        },
+        "peak_mb": 20.8,
+        "total_s": 8.79
+      },
+      {
+        "area_km2": 70.4,
+        "box": "trip-010",
+        "candidates": 29,
+        "cold": true,
+        "error": null,
+        "features": 45,
+        "fetch_s": 3.05,
+        "index_s": 0.001,
+        "label": "sweep 70 km2",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 27523,
+          "elements": 264,
+          "failures": [],
+          "per_request_s": [
+            2.96
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 2.96,
+          "slot_pause_s": 0.0,
+          "total_s": 2.96
+        },
+        "peak_mb": 0.4,
+        "total_s": 3.05
+      },
+      {
+        "area_km2": 1799.0,
+        "box": "enlarged",
+        "candidates": 873,
+        "cold": true,
+        "error": null,
+        "features": 1699,
+        "fetch_s": 13.89,
+        "index_s": 0.007,
+        "label": "enlarged / all 6 layers",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 6110728,
+          "elements": 75946,
+          "failures": [],
+          "per_request_s": [
+            11.67
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 11.67,
+          "slot_pause_s": 0.0,
+          "total_s": 11.67
+        },
+        "peak_mb": 52.1,
+        "total_s": 13.9
+      },
+      {
+        "area_km2": 8814.8,
+        "box": "tour",
+        "candidates": 1258,
+        "cold": true,
+        "error": null,
+        "features": 5591,
+        "fetch_s": 191.06,
+        "index_s": 0.022,
+        "label": "tour / default 3 layers",
+        "layers": [
+          "historic",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 1984952,
+          "elements": 19675,
+          "failures": [],
+          "per_request_s": [
+            3.03,
+            5.18,
+            37.28,
+            108.58,
+            16.82,
+            17.43
+          ],
+          "requests": 6,
+          "retries": 1,
+          "server_s": 188.32,
+          "slot_pause_s": 0.0,
+          "total_s": 188.32
+        },
+        "peak_mb": 26.6,
+        "total_s": 191.08
+      },
+      {
+        "area_km2": 8814.8,
+        "box": "tour",
+        "candidates": 2979,
+        "cold": true,
+        "error": null,
+        "features": 7437,
+        "fetch_s": 317.78,
+        "index_s": 0.03,
+        "label": "tour / all 6 layers",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 36551451,
+          "elements": 458410,
+          "failures": [],
+          "per_request_s": [
+            15.05,
+            116.67,
+            18.91,
+            14.39,
+            19.51,
+            121.31
+          ],
+          "requests": 6,
+          "retries": 2,
+          "server_s": 305.85,
+          "slot_pause_s": 0.0,
+          "total_s": 305.85
+        },
+        "peak_mb": 156.7,
+        "total_s": 317.81
+      }
+    ],
+    "tour_tiles": [],
+    "trip_tiled_features": 435,
+    "trip_tiled_total_s": 166.62,
+    "trip_tiles": [
+      {
+        "area_km2": 176.2,
+        "box": "trip-t00",
+        "candidates": 59,
+        "error": null,
+        "features": 93,
+        "fetch_s": 15.95,
+        "index_s": 0.001,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2375529,
+          "elements": 30787,
+          "failures": [],
+          "per_request_s": [
+            15.2
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 15.2,
+          "slot_pause_s": 0.0,
+          "total_s": 15.2
+        },
+        "peak_mb": 19.6,
+        "total_s": 15.95
+      },
+      {
+        "area_km2": 175.9,
+        "box": "trip-t01",
+        "candidates": 52,
+        "error": null,
+        "features": 111,
+        "fetch_s": 114.73,
+        "index_s": 0.001,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 10103414,
+          "elements": 129846,
+          "failures": [],
+          "per_request_s": [
+            113.44
+          ],
+          "requests": 1,
+          "retries": 1,
+          "server_s": 113.44,
+          "slot_pause_s": 0.0,
+          "total_s": 113.44
+        },
+        "peak_mb": 43.4,
+        "total_s": 114.73
+      },
+      {
+        "area_km2": 176.2,
+        "box": "trip-t10",
+        "candidates": 46,
+        "error": null,
+        "features": 52,
+        "fetch_s": 18.25,
+        "index_s": 0.001,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2450587,
+          "elements": 31818,
+          "failures": [],
+          "per_request_s": [
+            17.51
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 17.51,
+          "slot_pause_s": 0.0,
+          "total_s": 17.51
+        },
+        "peak_mb": 20.2,
+        "total_s": 18.25
+      },
+      {
+        "area_km2": 175.9,
+        "box": "trip-t11",
+        "candidates": 137,
+        "error": null,
+        "features": 179,
+        "fetch_s": 17.68,
+        "index_s": 0.001,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2439036,
+          "elements": 31423,
+          "failures": [],
+          "per_request_s": [
+            16.93
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 16.93,
+          "slot_pause_s": 0.0,
+          "total_s": 16.93
+        },
+        "peak_mb": 21.0,
+        "total_s": 17.69
+      }
+    ]
+  },
+  "extract_run2": {
+    "incomplete": false,
+    "overpass_cache_bytes": 28525879,
+    "overpass_endpoint": "https://maps.mail.ru/osm/tools/overpass/api",
+    "runs": [
+      {
+        "area_km2": 704.2,
+        "box": "trip",
+        "candidates": 175,
+        "cold": true,
+        "error": null,
+        "features": 314,
+        "fetch_s": 2.96,
+        "index_s": 0.002,
+        "label": "trip / default 3 layers",
+        "layers": [
+          "historic",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 130793,
+          "elements": 1184,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            2.77
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 2.77,
+          "slot_pause_s": 0.0,
+          "total_s": 2.77
+        },
+        "peak_mb": 1.2,
+        "total_s": 2.96
+      },
+      {
+        "area_km2": 704.2,
+        "box": "trip",
+        "candidates": 288,
+        "cold": true,
+        "error": null,
+        "features": 429,
+        "fetch_s": 15.8,
+        "index_s": 0.002,
+        "label": "trip / all 6 layers",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 5477755,
+          "elements": 69803,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            14.18
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 14.18,
+          "slot_pause_s": 0.0,
+          "total_s": 14.18
+        },
+        "peak_mb": 46.9,
+        "total_s": 15.8
+      },
+      {
+        "area_km2": 704.2,
+        "box": "trip",
+        "candidates": 288,
+        "cold": false,
+        "error": null,
+        "features": 429,
+        "fetch_s": 1.83,
+        "index_s": 0.002,
+        "label": "trip / all (warm cache)",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 5477755,
+          "elements": 69803,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            0.26
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 0.26,
+          "slot_pause_s": 0.0,
+          "total_s": 0.26
+        },
+        "peak_mb": 32.9,
+        "total_s": 1.83
+      },
+      {
+        "area_km2": 352.1,
+        "box": "trip-050",
+        "candidates": 141,
+        "cold": true,
+        "error": null,
+        "features": 223,
+        "fetch_s": 11.94,
+        "index_s": 0.002,
+        "label": "sweep 352 km2",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2765702,
+          "elements": 35482,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            11.08
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 11.08,
+          "slot_pause_s": 0.0,
+          "total_s": 11.08
+        },
+        "peak_mb": 23.8,
+        "total_s": 11.94
+      },
+      {
+        "area_km2": 176.1,
+        "box": "trip-025",
+        "candidates": 65,
+        "cold": true,
+        "error": null,
+        "features": 110,
+        "fetch_s": 185.86,
+        "index_s": 0.001,
+        "label": "sweep 176 km2",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2416502,
+          "elements": 31266,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            185.09
+          ],
+          "requests": 1,
+          "retries": 2,
+          "server_s": 185.09,
+          "slot_pause_s": 0.0,
+          "total_s": 185.09
+        },
+        "peak_mb": 20.9,
+        "total_s": 185.86
+      },
+      {
+        "area_km2": 70.4,
+        "box": "trip-010",
+        "candidates": 29,
+        "cold": true,
+        "error": null,
+        "features": 45,
+        "fetch_s": 12.55,
+        "index_s": 0.001,
+        "label": "sweep 70 km2",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 27523,
+          "elements": 264,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            12.43
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 12.43,
+          "slot_pause_s": 0.0,
+          "total_s": 12.43
+        },
+        "peak_mb": 0.4,
+        "total_s": 12.55
+      },
+      {
+        "area_km2": 1799.0,
+        "box": "enlarged",
+        "candidates": 873,
+        "cold": true,
+        "error": null,
+        "features": 1699,
+        "fetch_s": 19.57,
+        "index_s": 0.009,
+        "label": "enlarged / all 6 layers",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 6110728,
+          "elements": 75946,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            17.15
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 17.15,
+          "slot_pause_s": 0.0,
+          "total_s": 17.15
+        },
+        "peak_mb": 52.1,
+        "total_s": 19.58
+      },
+      {
+        "area_km2": 8814.8,
+        "box": "tour",
+        "candidates": 1258,
+        "cold": true,
+        "error": null,
+        "features": 5591,
+        "fetch_s": 33.21,
+        "index_s": 0.02,
+        "label": "tour / default 3 layers",
+        "layers": [
+          "historic",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 1832303,
+          "elements": 18362,
+          "failures": [],
+          "fetch_calls": 6,
+          "per_request_s": [
+            3.08,
+            3.66,
+            4.91,
+            3.73,
+            12.83,
+            2.54
+          ],
+          "requests": 6,
+          "retries": 0,
+          "server_s": 30.75,
+          "slot_pause_s": 0.0,
+          "total_s": 30.75
+        },
+        "peak_mb": 26.5,
+        "total_s": 33.23
+      },
+      {
+        "area_km2": 8814.8,
+        "box": "tour",
+        "candidates": 2979,
+        "cold": true,
+        "error": null,
+        "features": 7437,
+        "fetch_s": 73.51,
+        "index_s": 0.034,
+        "label": "tour / all 6 layers",
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 25563656,
+          "elements": 319953,
+          "failures": [],
+          "fetch_calls": 6,
+          "per_request_s": [
+            8.23,
+            9.35,
+            9.47,
+            12.11,
+            11.32,
+            11.18
+          ],
+          "requests": 6,
+          "retries": 0,
+          "server_s": 61.65,
+          "slot_pause_s": 0.0,
+          "total_s": 61.65
+        },
+        "peak_mb": 156.7,
+        "total_s": 73.55
+      }
+    ],
+    "tour_tiles": [],
+    "trip_tiled_features": 435,
+    "trip_tiled_total_s": 34.39,
+    "trip_tiles": [
+      {
+        "area_km2": 176.2,
+        "box": "trip-t00",
+        "candidates": 59,
+        "error": null,
+        "features": 93,
+        "fetch_s": 4.74,
+        "index_s": 0.001,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2375529,
+          "elements": 30787,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            3.94
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 3.94,
+          "slot_pause_s": 0.0,
+          "total_s": 3.94
+        },
+        "peak_mb": 19.6,
+        "total_s": 4.74
+      },
+      {
+        "area_km2": 175.9,
+        "box": "trip-t01",
+        "candidates": 52,
+        "error": null,
+        "features": 111,
+        "fetch_s": 12.21,
+        "index_s": 0.001,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 5051707,
+          "elements": 64923,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            10.84
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 10.84,
+          "slot_pause_s": 0.0,
+          "total_s": 10.84
+        },
+        "peak_mb": 43.3,
+        "total_s": 12.21
+      },
+      {
+        "area_km2": 176.2,
+        "box": "trip-t10",
+        "candidates": 46,
+        "error": null,
+        "features": 52,
+        "fetch_s": 7.97,
+        "index_s": 0.001,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2450587,
+          "elements": 31818,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            7.19
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 7.19,
+          "slot_pause_s": 0.0,
+          "total_s": 7.19
+        },
+        "peak_mb": 20.2,
+        "total_s": 7.98
+      },
+      {
+        "area_km2": 175.9,
+        "box": "trip-t11",
+        "candidates": 137,
+        "error": null,
+        "features": 179,
+        "fetch_s": 9.46,
+        "index_s": 0.001,
+        "layers": [
+          "amenity",
+          "historic",
+          "leisure",
+          "man_made",
+          "natural",
+          "sight"
+        ],
+        "overpass": {
+          "bytes": 2439036,
+          "elements": 31423,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            8.7
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 8.7,
+          "slot_pause_s": 0.0,
+          "total_s": 8.7
+        },
+        "peak_mb": 21.0,
+        "total_s": 9.46
+      }
+    ]
+  },
+  "graph": {
+    "builds": [
+      {
+        "area_km2": 704.2,
+        "box": "trip",
+        "build_s": 36.72,
+        "edges": 10602,
+        "graphml_bytes": 7800327,
+        "nodes": 4538,
+        "overpass": {
+          "bytes": 7061102,
+          "elements": 87099,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            11.53
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 11.53,
+          "slot_pause_s": 0.0,
+          "total_s": 11.53
+        },
+        "peak_mb": 352.4
+      },
+      {
+        "area_km2": 1799.0,
+        "box": "enlarged",
+        "build_s": 116.59,
+        "edges": 44389,
+        "graphml_bytes": 31806435,
+        "nodes": 19238,
+        "overpass": {
+          "bytes": 24964294,
+          "elements": 306717,
+          "failures": [],
+          "fetch_calls": 1,
+          "per_request_s": [
+            17.08
+          ],
+          "requests": 1,
+          "retries": 0,
+          "server_s": 17.08,
+          "slot_pause_s": 0.0,
+          "total_s": 17.08
+        },
+        "peak_mb": 1163.7
+      }
+    ],
+    "overpass_endpoint": "https://maps.mail.ru/osm/tools/overpass/api"
+  }
+}

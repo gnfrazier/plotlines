@@ -1,0 +1,63 @@
+{
+  "solo": {
+    "candidates_score": {
+      "max_ms": 6.1,
+      "mean_ms": 5.0,
+      "n": 20,
+      "p50_ms": 4.9,
+      "p95_ms": 6.1
+    },
+    "enrichment_pass_s": 7.86,
+    "health": {
+      "max_ms": 8.9,
+      "mean_ms": 1.1,
+      "n": 300,
+      "p50_ms": 1.0,
+      "p95_ms": 1.5
+    },
+    "layers": {
+      "max_ms": 3.4,
+      "mean_ms": 1.0,
+      "n": 300,
+      "p50_ms": 1.0,
+      "p95_ms": 1.4
+    },
+    "score_notability_ms": 0.9
+  },
+  "under_enrichment": {
+    "candidates_score": {
+      "max_ms": 102.0,
+      "mean_ms": 54.4,
+      "n": 20,
+      "p50_ms": 52.9,
+      "p95_ms": 102.0
+    },
+    "enrichment_pass_s": 23.3,
+    "enrichment_passes": 2,
+    "enrichment_slowdown": 2.96,
+    "health": {
+      "max_ms": 113.0,
+      "mean_ms": 33.2,
+      "n": 300,
+      "p50_ms": 30.5,
+      "p95_ms": 63.5
+    },
+    "layers": {
+      "max_ms": 77.4,
+      "mean_ms": 32.3,
+      "n": 300,
+      "p50_ms": 29.8,
+      "p95_ms": 59.4
+    },
+    "score_notability_ms": 1.0,
+    "score_notability_slowdown": 1.15
+  },
+  "workload": {
+    "dem_bytes": 4195826,
+    "extra_samples_per_pass": 500000,
+    "graph_edges": 10602,
+    "graph_nodes": 4538,
+    "raw_features": 429,
+    "substrate": "TRIP (Grandfather Mountain / Linville, NC)"
+  }
+}

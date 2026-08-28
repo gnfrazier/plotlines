@@ -1,0 +1,133 @@
+{
+  "clauses": [
+    {
+      "app": "shipped",
+      "clause": "C1 layers ready immediately",
+      "observed": "layers.ready=True",
+      "pass": true,
+      "source": "ARCH \u00a78.3, N2"
+    },
+    {
+      "app": "shipped",
+      "clause": "C2 per_layer present",
+      "observed": "6 layers reported",
+      "pass": true,
+      "source": "N2, ARCH \u00a78.3"
+    },
+    {
+      "app": "shipped",
+      "clause": "C3 slow plugin layer shows loading",
+      "observed": "loading=none, builtins ready=True",
+      "pass": false,
+      "source": "N2 AC"
+    },
+    {
+      "app": "shipped",
+      "clause": "C4 failure names layer and reason",
+      "observed": "failed=none",
+      "pass": false,
+      "source": "N2 AC, ARCH \u00a78.3"
+    },
+    {
+      "app": "shipped",
+      "clause": "C5 failed layer does not gate the capability",
+      "observed": "0 failed, layers.ready=True",
+      "pass": false,
+      "source": "N2 AC"
+    },
+    {
+      "app": "shipped",
+      "clause": "C6 extraction survives one bad layer",
+      "observed": "HTTP 422, 0 candidates back",
+      "pass": false,
+      "source": "N2 AC"
+    },
+    {
+      "app": "shipped",
+      "clause": "C7 response names unavailable layers",
+      "observed": "layers_unavailable=n/a",
+      "pass": false,
+      "source": "N2 AC, M13"
+    },
+    {
+      "app": "shipped",
+      "clause": "C8 failed region leaves layers ready",
+      "observed": "region failed=True, layers.ready=True",
+      "pass": true,
+      "source": "ARCH \u00a78.3 B1"
+    },
+    {
+      "app": "prototype",
+      "clause": "C1 layers ready immediately",
+      "observed": "layers.ready=True",
+      "pass": true,
+      "source": "ARCH \u00a78.3, N2"
+    },
+    {
+      "app": "prototype",
+      "clause": "C2 per_layer present",
+      "observed": "9 layers reported",
+      "pass": true,
+      "source": "N2, ARCH \u00a78.3"
+    },
+    {
+      "app": "prototype",
+      "clause": "C3 slow plugin layer shows loading",
+      "observed": "loading=['plugin_battlefields'], builtins ready=True",
+      "pass": true,
+      "source": "N2 AC"
+    },
+    {
+      "app": "prototype",
+      "clause": "C4 failure names layer and reason",
+      "observed": "failed={'plugin_manors': 'failed:licence_missing'}",
+      "pass": true,
+      "source": "N2 AC, ARCH \u00a78.3"
+    },
+    {
+      "app": "prototype",
+      "clause": "C5 failed layer does not gate the capability",
+      "observed": "1 failed, layers.ready=True",
+      "pass": true,
+      "source": "N2 AC"
+    },
+    {
+      "app": "prototype",
+      "clause": "C6 extraction survives one bad layer",
+      "observed": "HTTP 200, 2 candidates back",
+      "pass": true,
+      "source": "N2 AC"
+    },
+    {
+      "app": "prototype",
+      "clause": "C7 response names unavailable layers",
+      "observed": "layers_unavailable={'plugin_crags': 'failed:TimeoutError'}",
+      "pass": true,
+      "source": "N2 AC, M13"
+    },
+    {
+      "app": "prototype",
+      "clause": "C8 failed region leaves layers ready",
+      "observed": "region failed=True, layers.ready=True",
+      "pass": true,
+      "source": "ARCH \u00a78.3 B1"
+    },
+    {
+      "app": "prototype",
+      "clause": "C9 loading layer settles to ready",
+      "observed": "plugin_battlefields=ready",
+      "pass": true,
+      "source": "N2 AC, FR121"
+    }
+  ],
+  "summary": {
+    "prototype": {
+      "passed": 9,
+      "total": 9
+    },
+    "shipped": {
+      "passed": 3,
+      "total": 8
+    }
+  }
+}

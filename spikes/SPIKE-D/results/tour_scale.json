@@ -1,0 +1,69 @@
+{
+  "area_km2": 8814.8,
+  "extent": "tour",
+  "runs": [
+    {
+      "candidates": 1262,
+      "features": 31818,
+      "index_s": 0.044,
+      "layers": [
+        "historic",
+        "natural",
+        "sight"
+      ],
+      "peak_mb": 0.4
+    },
+    {
+      "candidates": 2968,
+      "features": 31818,
+      "index_s": 0.051,
+      "layers": [
+        "amenity",
+        "historic",
+        "leisure",
+        "man_made",
+        "natural",
+        "sight"
+      ],
+      "peak_mb": 1.2
+    }
+  ],
+  "source": "spikes/SPIKE-B/raw/brp-*.json.gz (committed; not re-queried)",
+  "wire": {
+    "elements": 31975,
+    "gz_bytes": 764793,
+    "json_bytes": 5225636,
+    "per_key": {
+      "amenity": {
+        "elements": 8641,
+        "gz_bytes": 317885,
+        "json_bytes": 1849316
+      },
+      "historic": {
+        "elements": 124,
+        "gz_bytes": 7048,
+        "json_bytes": 23674
+      },
+      "leisure": {
+        "elements": 3729,
+        "gz_bytes": 83198,
+        "json_bytes": 530314
+      },
+      "man_made": {
+        "elements": 1177,
+        "gz_bytes": 32744,
+        "json_bytes": 229615
+      },
+      "natural": {
+        "elements": 17022,
+        "gz_bytes": 271114,
+        "json_bytes": 2310471
+      },
+      "tourism": {
+        "elements": 1282,
+        "gz_bytes": 52804,
+        "json_bytes": 282246
+      }
+    }
+  }
+}
