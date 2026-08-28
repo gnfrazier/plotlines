@@ -1,16 +1,22 @@
-// Wireframe screen "05 Open Trip" (G2a, PRD FR74a) — save a trip locally,
-// reopen it, list what exists. The "plain thing", deliberately lighter than
-// G2's [P1] portfolio surface: no sync badges, no roster, no thumbnails
-// beyond the brand hatch pattern. Adds the wireframe's search field and
-// grid/list toggle over the previous grid-only pass; "About" moved into
-// the merged Preferences & About screen (settings_screen.dart) per the
-// wireframe's screen 06, so this app bar only routes to Settings now.
+// The Author's Trip Library / portfolio workspace (G2a → G2, PRD FR74 /
+// FR74b / FR74a / FR76).
+//
+// G2a shipped the floor: save a trip locally, reopen it, list what exists,
+// with a search field and a grid/list toggle. G2 (#71) builds the portfolio
+// surface on top: cards carry distance / elevation / day count / variant
+// count / group size and a sync-status badge (FR76); the collection filters
+// by mode and by duration; and every card has an actions menu — Edit route,
+// Manage roster & preferences, Export backup, Clone. G2b (#73) is the Clone
+// action's scope picker (`clone_scope_dialog.dart`) and the four copy scopes
+// behind it (`domain/clone.dart`).
+//
+// Named travel circles (FR143) are Later and not built here.
 //
 // Also owns A10's cold-start map (PRD FR96, Author Flows MVP §Flow 1): with
 // no trips yet, this screen shows the shipped Buncombe County home region
-// rather than a blank/iconic placeholder — a constant, never fetched — and
-// "New trip" prompts for a location every time (prefilled with the
-// last-used value), never gated behind a one-time first-run dialog.
+// rather than a blank/iconic placeholder, and "New trip" prompts for a
+// location every time (prefilled with the last-used value), never gated
+// behind a one-time first-run dialog.
 library;
 
 import 'package:flutter/material.dart';
@@ -19,17 +25,42 @@ import 'package:go_router/go_router.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../data/app_database.dart';
+import '../../domain/domain.dart';
 import '../../domain/home_region.dart';
+import '../../state/current_roster_provider.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
 import '../../state/trip_authoring_meta_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import '../../state/trip_library_provider.dart';
 import '../map/tap_to_pick_map.dart';
+import '../widgets/clone_scope_dialog.dart';
 import '../widgets/trip_location_prompt.dart';
 import '../widgets/trip_mode_prompt.dart';
 
 const String _lastTripLocationKey = 'last_trip_location';
+
+/// FR74 — "filter by ... duration". Bucketed off the authored day count so a
+/// card with no solved route still filters on the shape of the trip.
+enum DurationFilter {
+  any('All lengths', null, null),
+  dayTrip('Day trip', 1, 1),
+  multiDay('Multi-day', 2, 6),
+  multiWeek('Multi-week', 7, null);
+
+  const DurationFilter(this.label, this.minDays, this.maxDays);
+  final String label;
+  final int? minDays;
+  final int? maxDays;
+
+  bool matches(int? dayCount) {
+    if (this == DurationFilter.any) return true;
+    if (dayCount == null || dayCount == 0) return false;
+    if (minDays != null && dayCount < minDays!) return false;
+    if (maxDays != null && dayCount > maxDays!) return false;
+    return true;
+  }
+}
 
 class TripLibraryScreen extends ConsumerStatefulWidget {
   const TripLibraryScreen({super.key});
@@ -42,11 +73,32 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   bool _grid = true;
+  final Set<String> _modeFilter = {};
+  DurationFilter _durationFilter = DurationFilter.any;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// The search + mode + duration filters, applied together (FR74).
+  List<TripListEntry> _visible(List<TripListEntry> all) {
+    return all.where((t) {
+      if (_query.isNotEmpty && !t.title.toLowerCase().contains(_query)) {
+        return false;
+      }
+      if (_modeFilter.isNotEmpty && !t.allModes.any(_modeFilter.contains)) {
+        return false;
+      }
+      if (!_durationFilter.matches(t.summary.dayCount)) return false;
+      return true;
+    }).toList();
+  }
+
+  List<String> _allModes(List<TripListEntry> trips) {
+    final modes = <String>{for (final t in trips) ...t.allModes};
+    return modes.toList()..sort();
   }
 
   @override
@@ -110,13 +162,17 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
                       ],
                     ),
                   ),
+                  _FilterBar(
+                    modes: _allModes(trips),
+                    selectedModes: _modeFilter,
+                    onToggleMode: (m) => setState(() {
+                      _modeFilter.contains(m) ? _modeFilter.remove(m) : _modeFilter.add(m);
+                    }),
+                    duration: _durationFilter,
+                    onDuration: (d) => setState(() => _durationFilter = d),
+                  ),
                   Expanded(
-                    child: _TripCollection(
-                      trips: _query.isEmpty
-                          ? trips
-                          : trips.where((t) => t.title.toLowerCase().contains(_query)).toList(),
-                      grid: _grid,
-                    ),
+                    child: _TripCollection(trips: _visible(trips), grid: _grid),
                   ),
                 ],
               ),
@@ -147,11 +203,66 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
     if (!context.mounted) return;
     ref.read(currentTripProvider.notifier).reset();
     ref.read(currentTripProvider.notifier).setDeclaredModes(modes);
+    ref.read(currentRosterProvider.notifier).reset();
     ref.read(tripAuthoringMetaProvider.notifier).reset();
     // N1 (FR120) — the location only centers the map; the Author still has
     // to draw the trip's own bbox before New Route's setup form.
     ref.read(tripBboxProvider.notifier).reset();
     context.push('/new-trip-area', extra: choice);
+  }
+}
+
+/// FR74 — filter by mode and by duration. Modes are the union of realised and
+/// declared modes across the library; the row is hidden entirely when there
+/// is nothing to filter on.
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({
+    required this.modes,
+    required this.selectedModes,
+    required this.onToggleMode,
+    required this.duration,
+    required this.onDuration,
+  });
+
+  final List<String> modes;
+  final Set<String> selectedModes;
+  final ValueChanged<String> onToggleMode;
+  final DurationFilter duration;
+  final ValueChanged<DurationFilter> onDuration;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s5),
+        children: [
+          for (final d in DurationFilter.values)
+            Padding(
+              padding: const EdgeInsets.only(right: PlotSpacing.s2),
+              child: ChoiceChip(
+                label: Text(d.label, style: PlotTypography.small(c.textSecondary)),
+                selected: duration == d,
+                onSelected: (_) => onDuration(d),
+              ),
+            ),
+          if (modes.isNotEmpty) ...[
+            const SizedBox(width: PlotSpacing.s3),
+            for (final m in modes)
+              Padding(
+                padding: const EdgeInsets.only(right: PlotSpacing.s2),
+                child: FilterChip(
+                  label: Text(m.toUpperCase(), style: PlotTypography.small(c.textSecondary)),
+                  selected: selectedModes.contains(m),
+                  onSelected: (_) => onToggleMode(m),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -204,7 +315,7 @@ class _TripCollection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (trips.isEmpty) {
       return Center(
-        child: Text('No trips match that search.',
+        child: Text('No trips match those filters.',
             style: PlotTypography.body(PlotColors.of(context).textMuted)),
       );
     }
@@ -215,7 +326,9 @@ class _TripCollection extends ConsumerWidget {
           maxCrossAxisExtent: 320,
           mainAxisSpacing: PlotSpacing.s4,
           crossAxisSpacing: PlotSpacing.s4,
-          childAspectRatio: 1.35,
+          // Fixed height rather than an aspect ratio: the card face now
+          // carries the FR74 metric chips, which wrap to a few lines.
+          mainAxisExtent: 244,
         ),
         itemCount: trips.length,
         itemBuilder: (context, i) => _TripCard(trip: trips[i]),
@@ -225,10 +338,15 @@ class _TripCollection extends ConsumerWidget {
       padding: const EdgeInsets.all(PlotSpacing.s5),
       itemCount: trips.length,
       separatorBuilder: (_, _) => const SizedBox(height: PlotSpacing.s3),
-      itemBuilder: (context, i) => SizedBox(height: 96, child: _TripCard(trip: trips[i])),
+      // The card needs a bounded height for its Flexible content area.
+      itemBuilder: (context, i) => SizedBox(height: 180, child: _TripCard(trip: trips[i])),
     );
   }
 }
+
+/// FR74's per-card actions, plus G2a's delete (kept from the long-press it
+/// used to live behind).
+enum _CardAction { editRoute, manageRoster, exportBackup, clone, delete }
 
 class _TripCard extends ConsumerWidget {
   const _TripCard({required this.trip});
@@ -236,22 +354,79 @@ class _TripCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return GestureDetector(
-      onLongPress: () => _confirmDelete(context, ref, trip),
-      child: TripCard(
-        title: trip.title,
-        stats: ['Updated ${_relativeDay(trip.updatedAt)}'],
-        modeTag: trip.modes.isEmpty ? null : trip.modes.join('+').toUpperCase(),
-        offlineReady: true,
-        onTap: () async {
-          await ref.read(tripPersistenceProvider).open(trip.id);
-          if (context.mounted) context.push('/plan');
-        },
+    final c = PlotColors.of(context);
+    return TripCard(
+      title: trip.title,
+      stats: _stats(),
+      modeTag: trip.modes.isEmpty ? null : trip.modes.join('+').toUpperCase(),
+      badge: PlotBadge(trip.syncBadge.label, tone: PlotBadgeTone.spruce, solid: true),
+      trailing: Material(
+        color: c.surfaceCard,
+        shape: const CircleBorder(),
+        child: PopupMenuButton<_CardAction>(
+          icon: Icon(Icons.more_vert, size: 18, color: c.textSecondary),
+          tooltip: 'Trip actions',
+          onSelected: (a) => _onAction(context, ref, a),
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: _CardAction.editRoute, child: Text('Edit route')),
+            PopupMenuItem(
+                value: _CardAction.manageRoster, child: Text('Manage roster & preferences')),
+            PopupMenuItem(value: _CardAction.exportBackup, child: Text('Export backup')),
+            PopupMenuItem(value: _CardAction.clone, child: Text('Clone…')),
+            PopupMenuDivider(),
+            PopupMenuItem(value: _CardAction.delete, child: Text('Delete…')),
+          ],
+        ),
       ),
+      onTap: () => _open(context, ref),
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, TripListEntry trip) async {
+  /// FR74's card face: distance / elevation / day count / variant count /
+  /// group size, from the denormalized summary (no payload decode). Grouped
+  /// into at most three short mono chips so the card stays legible — the
+  /// brand `TripCard` is built for a couple of stats, not a table.
+  List<String> _stats() {
+    final s = trip.summary;
+    final out = <String>['Updated ${_relativeDay(trip.updatedAt)}'];
+
+    final route = <String>[
+      if (s.distanceM != null) '${(s.distanceM! / 1000).toStringAsFixed(0)} KM',
+      if (s.ascentM != null) '↑ ${s.ascentM!.toStringAsFixed(0)} M',
+    ];
+    if (route.isNotEmpty) out.add(route.join('  '));
+
+    final party = <String>[
+      if ((s.dayCount ?? 0) > 0) '${s.dayCount} ${s.dayCount == 1 ? 'DAY' : 'DAYS'}',
+      if ((s.variantCount ?? 0) > 0) '${s.variantCount} VAR',
+      if ((s.groupSize ?? 0) > 0) '${s.groupSize} IN GROUP',
+    ];
+    if (party.isNotEmpty) out.add(party.join('  '));
+
+    return out;
+  }
+
+  Future<void> _open(BuildContext context, WidgetRef ref) async {
+    await ref.read(tripPersistenceProvider).open(trip.id);
+    if (context.mounted) context.push('/plan');
+  }
+
+  Future<void> _onAction(BuildContext context, WidgetRef ref, _CardAction action) async {
+    switch (action) {
+      // Edit route / Manage roster / Export backup all land in the trip
+      // shell today; deep-linking to a specific tab is a later refinement.
+      case _CardAction.editRoute:
+      case _CardAction.manageRoster:
+      case _CardAction.exportBackup:
+        await _open(context, ref);
+      case _CardAction.clone:
+        await _clone(context, ref);
+      case _CardAction.delete:
+        await _confirmDelete(context, ref);
+    }
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final confirmed = await PlotDialog.confirm(
       context,
       title: 'Delete "${trip.title}"?',
@@ -262,6 +437,48 @@ class _TripCard extends ConsumerWidget {
     if (confirmed == true) {
       await ref.read(tripPersistenceProvider).delete(trip.id);
     }
+  }
+
+  Future<void> _clone(BuildContext context, WidgetRef ref) async {
+    final request = await showCloneScopeDialog(context, tripTitle: trip.title);
+    if (request == null || !context.mounted) return;
+    final outcome = await ref.read(tripPersistenceProvider).clone(
+          trip.id,
+          request.scope,
+          parts: request.parts,
+        );
+    if (!context.mounted) return;
+    if (outcome.runsTripInitiation) {
+      // FR74b — a roster-only clone has no bbox / modes / itinerary to
+      // inherit, so it runs trip initiation like a new trip, keeping the
+      // roster it just cloned.
+      await _initClonedTrip(context, ref, outcome);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cloned as "${outcome.trip.title}"')),
+      );
+    }
+  }
+
+  Future<void> _initClonedTrip(
+      BuildContext context, WidgetRef ref, CloneOutcome outcome) async {
+    ref.read(tripPersistenceProvider).adopt(outcome);
+    final modes = await showTripModePrompt(context);
+    if (modes == null || !context.mounted) return;
+    final db = ref.read(appDatabaseProvider);
+    final lastUsed = await db.getSetting(_lastTripLocationKey);
+    if (!context.mounted) return;
+    final choice = await showTripLocationPrompt(
+      context,
+      prefill: lastUsed ?? '',
+      geocode: ref.read(routingClientProvider).geocode,
+    );
+    if (choice == null) return;
+    await db.setSetting(_lastTripLocationKey, choice.label);
+    if (!context.mounted) return;
+    ref.read(currentTripProvider.notifier).setDeclaredModes(modes);
+    ref.read(tripBboxProvider.notifier).reset();
+    context.push('/new-trip-area', extra: choice);
   }
 
   String _relativeDay(DateTime dt) {

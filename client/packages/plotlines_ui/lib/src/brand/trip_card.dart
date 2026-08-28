@@ -14,6 +14,8 @@ class TripCard extends StatelessWidget {
     required this.stats,
     this.thumbnail,
     this.offlineReady = false,
+    this.badge,
+    this.trailing,
     this.modeTag,
     this.onTap,
   });
@@ -26,6 +28,15 @@ class TripCard extends StatelessWidget {
   /// Optional custom thumbnail; defaults to a hatched placeholder band.
   final Widget? thumbnail;
   final bool offlineReady;
+
+  /// Overrides the default "Offline ready" badge on the thumbnail band — e.g.
+  /// a sync-status badge (FR76). When null and [offlineReady] is true, the
+  /// default badge is shown.
+  final PlotBadge? badge;
+
+  /// Optional trailing control on the thumbnail band, e.g. a per-card actions
+  /// menu (FR74). Placed at top-left so it never collides with [badge].
+  final Widget? trailing;
 
   /// Trailing mode tag on the stat line, e.g. "GRAVEL+PADDLE".
   final String? modeTag;
@@ -47,6 +58,7 @@ class TripCard extends StatelessWidget {
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
@@ -62,44 +74,62 @@ class TripCard extends StatelessWidget {
                             ),
                           ),
                     ),
-                    if (offlineReady)
+                    if (badge != null)
+                      Positioned(top: 10, right: 10, child: badge!)
+                    else if (offlineReady)
                       Positioned(
                         top: 10,
                         right: 10,
                         child: PlotBadge('Offline ready',
                             tone: PlotBadgeTone.spruce, solid: true),
                       ),
+                    if (trailing != null)
+                      Positioned(top: 4, left: 4, child: trailing!),
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(PlotSpacing.s4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: PlotTypography.title(c.textPrimary)
-                            .copyWith(fontSize: 17)),
-                    const SizedBox(height: PlotSpacing.s2),
-                    Wrap(
-                      spacing: PlotSpacing.s2,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        for (int i = 0; i < stats.length; i++) ...[
-                          Text(stats[i],
-                              style: PlotTypography.data(c.textSecondary)),
-                          if (i < stats.length - 1)
-                            Text('·', style: PlotTypography.data(c.textMuted)),
-                        ],
-                        if (modeTag != null) ...[
-                          Text('·', style: PlotTypography.data(c.textMuted)),
-                          Text(modeTag!,
-                              style: PlotTypography.data(c.success)),
-                        ],
-                      ],
-                    ),
-                  ],
+              // Flexible content area: the card is given a fixed height by
+              // its grid/list parent, so a long title or a full set of stat
+              // chips must degrade gracefully. The title ellipsises at two
+              // lines; the stat Wrap scrolls inside whatever height is left
+              // rather than overflowing the card's box.
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.all(PlotSpacing.s4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: PlotTypography.title(c.textPrimary)
+                              .copyWith(fontSize: 17)),
+                      const SizedBox(height: PlotSpacing.s2),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Wrap(
+                            spacing: PlotSpacing.s2,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              for (int i = 0; i < stats.length; i++) ...[
+                                Text(stats[i],
+                                    style: PlotTypography.data(c.textSecondary)),
+                                if (i < stats.length - 1)
+                                  Text('·', style: PlotTypography.data(c.textMuted)),
+                              ],
+                              if (modeTag != null) ...[
+                                Text('·', style: PlotTypography.data(c.textMuted)),
+                                Text(modeTag!,
+                                    style: PlotTypography.data(c.success)),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
