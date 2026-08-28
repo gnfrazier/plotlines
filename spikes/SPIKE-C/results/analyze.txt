@@ -1,0 +1,133 @@
+
+INVENTORY
+region        kind               km2     ways        km  hike-rel  mtb-rel
+boulder       fixture             40    6,604       459         0        0
+davis         fixture             27    4,543       318         0        0
+viroqua       fixture            251       69        41         0        0
+whites        mode-popular     2,132    4,916     2,642       816       36
+bentonville   mode-popular     1,196   10,433     1,642         7      695
+methow        mode-popular     1,640      985     1,236        82        0
+tyrol         homeland         1,262   29,872     6,397    13,770    2,427
+
+SAC_SCALE   (hiking)   — % of eligible ways tagged, by denominator
+region            broad n     broad %    strict n    strict %   curated n   curated % signposte n signposte %  %km(broad)           band
+boulder             2,771        0.29         975        0.82           0         n/a           -           -        3.26         absent
+davis               1,996        0.00          80        0.00           0         n/a           -           -        0.00         absent
+viroqua                41        0.00          20         n/a           0         n/a           -           -        0.00         absent
+whites              3,395        7.86       1,688       11.43         522       31.80           -           -       19.04         absent
+bentonville         1,963        0.05         522        0.19           6         n/a           -           -        0.49         absent
+methow                843        1.30         384        2.86          32        0.00           -           -        6.33         absent
+tyrol              24,738       17.04       8,069       36.88       2,165       55.06           -           -       35.92         absent
+    boulder     values: mountain_hiking=5, hiking=3
+    whites      values: mountain_hiking=170, hiking=87, demanding_mountain_hiking=6, alpine_hiking=3, undefined=1   [unparsed 1]
+    bentonville values: hiking=1
+    methow      values: mountain_hiking=9, alpine_hiking=1, demanding_alpine_hiking=1
+    tyrol       values: hiking=2062, mountain_hiking=1576, demanding_mountain_hiking=362, alpine_hiking=107, demanding_alpine_hiking=42, strolling=38   [unparsed 38]
+
+TRAIL_VISIBILITY   (hiking)   — % of eligible ways tagged, by denominator
+region            broad n     broad %    strict n    strict %   curated n   curated % signposte n signposte %  %km(broad)           band
+boulder             2,771        0.25         975        0.41           0         n/a           -           -        0.37         absent
+davis               1,996        0.00          80        0.00           0         n/a           -           -        0.00         absent
+viroqua                41        2.44          20         n/a           0         n/a           -           -        1.33         absent
+whites              3,395        2.65       1,688        3.38         522        0.96           -           -        3.30         absent
+bentonville         1,963        0.05         522        0.19           6         n/a           -           -        0.49         absent
+methow                843        2.97         384        6.51          32        3.12           -           -        8.12         absent
+tyrol              24,738        6.85       8,069       20.08       2,165       14.78           -           -       13.03         absent
+    boulder     values: excellent=6, good=1
+    viroqua     values: bad=1
+    whites      values: excellent=28, intermediate=27, bad=14, good=13, horrible=5, very_bad=2   [unparsed 3]
+    bentonville values: excellent=1
+    methow      values: bad=7, intermediate=7, horrible=4, no=3, excellent=3, good=1
+    tyrol       values: good=559, intermediate=430, excellent=308, bad=258, horrible=88, no=51
+
+MTB:SCALE   (mtb)   — % of eligible ways tagged, by denominator
+region            broad n     broad %    strict n    strict %   curated n   curated % signposte n signposte %  %km(broad)           band
+boulder             1,771        0.00         975        0.00           0         n/a          18         n/a        0.00         absent
+davis               1,302        0.00          80        0.00           0         n/a           6         n/a        0.00         absent
+viroqua                44        0.00          20         n/a           0         n/a           0         n/a        0.00         absent
+whites              2,835        2.33       1,688        3.61          17         n/a           5         n/a        4.50         absent
+bentonville         4,238        0.76         522        0.19         560        5.71           9         n/a        1.25         absent
+methow                768        0.00         384        0.00           0         n/a           1         n/a        0.00         absent
+tyrol              17,080        4.50       8,069        4.13         970       29.48         115       24.35        8.65         absent
+    whites      values: 1=22, 2=15, 0=13, 3=11, 4=4, 5=1
+    bentonville values: 2=21, 1=7, 3=4
+    tyrol       values: 0=405, 1=128, 2=124, 3=78, 4=19, 2+=7
+
+MTB:SCALE:UPHILL   (mtb)   — % of eligible ways tagged, by denominator
+region            broad n     broad %    strict n    strict %   curated n   curated % signposte n signposte %  %km(broad)           band
+boulder             1,771        0.00         975        0.00           0         n/a          18         n/a        0.00         absent
+davis               1,302        0.00          80        0.00           0         n/a           6         n/a        0.00         absent
+viroqua                44        0.00          20         n/a           0         n/a           0         n/a        0.00         absent
+whites              2,835        0.21       1,688        0.06          17         n/a           5         n/a        0.44         absent
+bentonville         4,238        0.50         522        0.19         560        3.75           9         n/a        0.73         absent
+methow                768        0.00         384        0.00           0         n/a           1         n/a        0.00         absent
+tyrol              17,080        1.00       8,069        0.90         970        7.42         115       12.17        1.82         absent
+    whites      values: 0=6
+    bentonville values: 2=21
+    tyrol       values: 1=70, 4=29, 2=27, 5=21, 3=13, 0=8
+
+MTB:SCALE:IMBA   (mtb)   — % of eligible ways tagged, by denominator
+region            broad n     broad %    strict n    strict %   curated n   curated % signposte n signposte %  %km(broad)           band
+boulder             1,771        3.39         975        0.21           0         n/a          18         n/a        3.96         absent
+davis               1,302        0.00          80        0.00           0         n/a           6         n/a        0.00         absent
+viroqua                44        2.27          20         n/a           0         n/a           0         n/a        4.79         absent
+whites              2,835        1.09       1,688        1.84          17         n/a           5         n/a        3.07         absent
+bentonville         4,238        8.75         522       39.27         560       36.96           9         n/a       16.00         absent
+methow                768        6.12         384       11.98           0         n/a           1         n/a        7.06         absent
+tyrol              17,080        0.05       8,069        0.10         970        0.00         115        1.74        0.12         absent
+    boulder     values: 1=42, 2=7, 3=6, 2.5=3, 3.5=1, 4=1   [unparsed 4]
+    viroqua     values: 1=1
+    whites      values: 2=11, 1=9, 3=9, 4=2
+    bentonville values: 1=153, 2=146, 3=49, 0=15, 4=8
+    methow      values: 2=23, 1=22, 3=2
+    tyrol       values: 2=8, 4=1
+
+PISTE:DIFFICULTY   (nordic)   — % of eligible ways tagged, by denominator
+region            broad n     broad %    strict n    strict %   curated n   curated % signposte n signposte %  %km(broad)           band
+boulder                11         n/a          11         n/a           -           -           -           -      100.00            n/a
+davis                   0         n/a           0         n/a           -           -           -           -        0.00            n/a
+viroqua                 0         n/a           0         n/a           -           -           -           -        0.00            n/a
+whites                575       86.43         575       86.43           -           -           -           -       85.78           read
+bentonville             0         n/a           0         n/a           -           -           -           -        0.00            n/a
+methow                299      100.00         299      100.00           -           -           -           -      100.00           read
+tyrol                 507       97.24         507       97.24           -           -           -           -       96.25           read
+    boulder     values: easy=11
+    whites      values: easy=298, intermediate=129, advanced=69, novice=1
+    methow      values: easy=166, intermediate=99, advanced=31, novice=3
+    tyrol       values: easy=230, intermediate=163, advanced=98, novice=2
+
+CONTROLS — same ways, broad denominator, % carrying an ordinary tag
+region        schema               elig  surface   smooth     name  incline    width
+boulder       sac_scale           2,771     45.9      0.2      7.8      2.9      7.0
+boulder       mtb:scale           1,771     74.9      2.0     39.3      1.4     32.8
+boulder       piste:difficulty       11     36.4      0.0    100.0      0.0      0.0
+davis         sac_scale           1,996     20.1      0.7      0.3      0.7      0.1
+davis         mtb:scale           1,302     46.4      1.8      8.7      0.0      0.1
+davis         piste:difficulty        0      0.0      0.0      0.0      0.0      0.0
+viroqua       sac_scale              41     65.8      0.0     12.2      2.4      4.9
+viroqua       mtb:scale              44     47.7      0.0     38.6      2.3      2.3
+viroqua       piste:difficulty        0      0.0      0.0      0.0      0.0      0.0
+whites        sac_scale           3,395     33.1      0.4     38.6      0.7      0.2
+whites        mtb:scale           2,835     33.8      0.5     36.6      0.4      0.1
+whites        piste:difficulty      575     14.8      0.0     40.9      0.0      0.0
+bentonville   sac_scale           1,963     47.9      0.8     25.9      1.2      4.7
+bentonville   mtb:scale           4,238     74.4      7.7     59.7      0.8     32.2
+bentonville   piste:difficulty        0      0.0      0.0      0.0      0.0      0.0
+methow        sac_scale             843     39.3      0.5     52.3      1.2      0.7
+methow        mtb:scale             768     40.5      0.5     54.2      0.7      0.5
+methow        piste:difficulty      299     19.1      0.0     88.0      0.0      0.3
+tyrol         sac_scale          24,738     51.3      6.8      7.8      5.2      5.4
+tyrol         mtb:scale          17,080     49.2      7.2     10.2      2.2      5.9
+tyrol         piste:difficulty      507     16.4      2.2      9.1      1.4      2.4
+
+ROUTE RELATIONS — community-activity proxy
+region           hiking      foot       mtb   bicycle       ski     piste
+boulder               0         0         0        23         0         0
+davis                 0         0         0         2         0         0
+viroqua               0         0         0         0         0         0
+whites              165         0         2         5         0         6
+bentonville           1         1       239       110         0         0
+methow               11         0         0         2         0        55
+tyrol               271        73       144        32        17       163
+
+wrote /home/greg/projects/plotlines/spikes/SPIKE-C/results/coverage.json

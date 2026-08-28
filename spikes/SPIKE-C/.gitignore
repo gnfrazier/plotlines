@@ -1,0 +1,5 @@
+# Per-tile fetch buffer. Byte-for-byte duplicates of the merged `<region>-ways.json`
+# next door, kept only so a 504 on the last tile of a 3x3 does not discard eight good
+# pulls. `probe.py` short-circuits on the merged file, so a fresh clone reproduces every
+# number without these and without re-querying Overpass.
+raw/tiles/
