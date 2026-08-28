@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import 'sidecar_process.dart';
+
 /// M12 — spawn, health-poll to readiness, restart-once, graceful stop, orphan
 /// sweep, paired-version refusal (ARCH §7.3, §12.1; PRD M12).
 ///
@@ -164,7 +166,7 @@ class SidecarManager extends ChangeNotifier {
   final Directory? cacheDirOverride;
   final String? binaryOverride;
 
-  Process? _process;
+  SidecarProcess? _process;
   int? _port;
   String? _confirmedVersion;
   SidecarStatus _status = const SidecarStatus(SidecarState.starting);
@@ -267,7 +269,7 @@ class SidecarManager extends ChangeNotifier {
     final cacheDir = await _resolveCacheDir();
     _set(SidecarState.starting, detail: 'launching sidecar');
 
-    _process = await Process.start(binPath, [
+    _process = await SidecarProcess.start(binPath, [
       '--port=$_port',
       '--host=127.0.0.1',
       '--mode=sidecar',
@@ -363,25 +365,18 @@ class SidecarManager extends ChangeNotifier {
             'generation unavailable');
   }
 
-  /// Graceful stop. POSIX: SIGTERM, then SIGKILL after a grace period.
-  /// Windows has no deliverable SIGTERM (TerminateProcess is an unblockable
-  /// hard kill), so the real contract needs AttachConsole + a muted default
-  /// Ctrl handler + CTRL_BREAK_EVENT (ARCH §7.3) — that sequence requires
-  /// Win32 FFI calls not implemented here yet (open question; untestable on
-  /// this Linux dev machine regardless). `taskkill` is the interim fallback.
+  /// Graceful stop, then a hard kill if the sidecar outlasts the grace
+  /// period. The platform split lives in [SidecarProcess]: POSIX is
+  /// `SIGTERM` → `SIGKILL`; Windows is `AttachConsole` + a muted default
+  /// Ctrl handler + `CTRL_BREAK_EVENT`, since Windows cannot deliver
+  /// `SIGTERM` and a GUI process has no console to signal through (ARCH
+  /// §7.3; SPIKE-00 `WINDOWS.md` §3).
   Future<void> stop() async {
     _stoppingDeliberately = true;
     _capabilityPollTimer?.cancel();
     final proc = _process;
     if (proc == null) return;
-    if (Platform.isWindows) {
-      await Process.run('taskkill', ['/pid', '${proc.pid}', '/t', '/f']);
-    } else {
-      proc.kill(ProcessSignal.sigterm);
-      final exited = await proc.exitCode
-          .timeout(const Duration(seconds: 5), onTimeout: () => -1);
-      if (exited == -1) proc.kill(ProcessSignal.sigkill);
-    }
+    await proc.stop(grace: const Duration(seconds: 5));
     _set(SidecarState.stopped, detail: 'stopped');
   }
 }

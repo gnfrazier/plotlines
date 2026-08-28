@@ -1,3 +1,5 @@
+import 'dart:ui' show AppExitResponse;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,12 +66,31 @@ class PlotlinesApp extends ConsumerStatefulWidget {
 }
 
 class _PlotlinesAppState extends ConsumerState<PlotlinesApp> {
+  late final AppLifecycleListener _lifecycle;
+
   @override
   void initState() {
     super.initState();
     // Fire-and-forget: SidecarGate renders the starting/failed states off
     // sidecarManagerProvider's own notifications, not this future.
     Future.microtask(() => ref.read(sidecarManagerProvider).start());
+    // A desktop window close routes through here first. Stop the sidecar
+    // gracefully before the process exits, so the Windows CTRL_BREAK stop
+    // path (ARCH §7.3) actually runs in production — `ref.onDispose` never
+    // fires before app exit, and a severed in-flight write is exactly what
+    // that path exists to prevent.
+    _lifecycle = AppLifecycleListener(
+      onExitRequested: () async {
+        await ref.read(sidecarManagerProvider).stop();
+        return AppExitResponse.exit;
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
   }
 
   @override

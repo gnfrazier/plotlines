@@ -17,11 +17,15 @@ sentinel and confirming all three built binaries still reported their build-time
 they read the bundled copy, not the source tree. `--version` works without `--cache-dir`
 so the client can run the A8 check *before* spawning anything.
 
-**Client half: built, POSIX-only.** `SidecarManager` (`client/lib/data/sidecar_manager.dart`)
+**Client half: built.** `SidecarManager` (`client/lib/data/sidecar_manager.dart`)
 runs the client's own `--version` check against the spawned binary and refuses a mismatch
-before anything else is committed, and implements graceful POSIX stop (SIGTERM → SIGKILL).
-On Windows it still owes the §7.3 process control that SPIKE-00 found cannot be improvised
-(`taskkill /f` is the interim stand-in) — see `TODO.md`.
+before anything else is committed. The OS-process concern lives behind `SidecarProcess`
+(`client/lib/data/sidecar_process.dart`): POSIX is `dart:io` `SIGTERM → SIGKILL`; Windows
+spawns via Win32 `CreateProcess` with `CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW`, holds
+the child in a `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` Job Object, and stops it with
+`AttachConsole` + `CTRL_BREAK_EVENT` — the §7.3 dance SPIKE-00 found cannot be improvised,
+now with the `taskkill` stand-in gone. Still unverified end-to-end from the client on real
+Windows hardware — see `TODO.md`.
 
 ## Building the sidecar
 

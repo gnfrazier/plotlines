@@ -78,12 +78,22 @@ start becomes the binding UX constraint on Windows specifically, Nuitka is worth
 - **Client-side version check.** The sidecar half is done and verified on both platforms
   (Nuitka included). The Flutter client does not exist yet, so the comparison that
   refuses a mismatch is unwritten.
-- **Client-side Windows process control** — new, and the one thing that would ship broken
-  if forgotten. The client must spawn `CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW`, hold
-  the sidecar in a **Job Object** (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) so a client crash
-  cannot orphan it, and stop it via `AttachConsole` + `CTRL_BREAK_EVENT`. A GUI process
-  cannot send a console control event without that dance — the send fails outright. See
-  ARCH §7.3 and WINDOWS.md §3.
+- **Client-side Windows process control** — **implemented** (2026-08-27).
+  `client/lib/data/sidecar_process.dart` holds the platform split behind `SidecarProcess`:
+  POSIX stays `dart:io` `SIGTERM → SIGKILL`; Windows spawns via Win32 `CreateProcess`
+  (`CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW | CREATE_SUSPENDED`), pins the child in a
+  `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` Job Object before resuming it, and stops it via
+  `AttachConsole` + a muted default Ctrl handler + `GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT)`,
+  hard-killing only past the grace period. `main.dart` now stops the sidecar from
+  `AppLifecycleListener.onExitRequested`, so that path actually runs on window close
+  rather than only on provider teardown (which never fires before app exit). Uses the
+  `win32` + `ffi` packages; two symbols win32 5.15 omits (`GenerateConsoleCtrlEvent`,
+  `ResumeThread`) and the `JOBOBJECT_*` structs are bound directly against `kernel32.dll`.
+  **Not yet verified end-to-end from the client on Windows hardware** — only the argv→
+  command-line quoting is unit-tested (`test/sidecar_process_test.dart`); the FFI sequence
+  itself is still covered only by SPIKE-00's `harness/windows_stop_matrix.py`, which drives
+  the same calls from Python. A client-side lifecycle integration test on a `windows-latest`
+  runner is the remaining gap. See ARCH §7.3 and WINDOWS.md §3.
 - **First-launch antivirus cost in onboarding.** ~5–6.7 s on first run versus ~1.6 s
   after, on Windows. The §7.3 wait-state design should be sized for the first run. Worth
   re-measuring once a real installer exists, since install-time file writes may absorb
