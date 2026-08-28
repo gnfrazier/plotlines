@@ -1,0 +1,300 @@
+{
+  "colocation": {
+    "examples": [
+      {
+        "kind": "narrative",
+        "members": [
+          {
+            "affinity": "narrative",
+            "id": "way/606177572",
+            "layer": "sight",
+            "type": "tourism=viewpoint"
+          },
+          {
+            "affinity": "narrative",
+            "id": "nps-poi/36593",
+            "layer": "sight",
+            "type": "sight"
+          }
+        ],
+        "name": "Boulder Field Overlook",
+        "role_affinities": [
+          "narrative"
+        ]
+      },
+      {
+        "kind": "narrative",
+        "members": [
+          {
+            "affinity": "narrative",
+            "id": "node/5748021660",
+            "layer": "sight",
+            "type": "tourism=viewpoint"
+          },
+          {
+            "affinity": "narrative",
+            "id": "nps-poi/34993",
+            "layer": "sight",
+            "type": "sight"
+          }
+        ],
+        "name": "Yonahlossee Overlook",
+        "role_affinities": [
+          "narrative"
+        ]
+      },
+      {
+        "kind": "narrative",
+        "members": [
+          {
+            "affinity": "narrative",
+            "id": "node/5748022230",
+            "layer": "sight",
+            "type": "tourism=viewpoint"
+          },
+          {
+            "affinity": "narrative",
+            "id": "nps-poi/36318",
+            "layer": "sight",
+            "type": "sight"
+          }
+        ],
+        "name": "Grandfather Mountain Overlook",
+        "role_affinities": [
+          "narrative"
+        ]
+      },
+      {
+        "kind": "narrative+station",
+        "members": [
+          {
+            "affinity": "narrative",
+            "id": "nps-poi/34819",
+            "layer": "sight",
+            "type": "sight"
+          },
+          {
+            "affinity": "narrative",
+            "id": "node/1731068873",
+            "layer": "sight",
+            "type": "tourism=viewpoint"
+          },
+          {
+            "affinity": "narrative",
+            "id": "nps-poi/36231",
+            "layer": "sight",
+            "type": "sight"
+          },
+          {
+            "affinity": "station",
+            "id": "nps-poi/35026",
+            "layer": "sight",
+            "type": "sight"
+          }
+        ],
+        "name": "Bear Den Falls",
+        "role_affinities": [
+          "narrative",
+          "station"
+        ]
+      },
+      {
+        "kind": "narrative+station",
+        "members": [
+          {
+            "affinity": "narrative",
+            "id": "node/6161732786",
+            "layer": "sight",
+            "type": "tourism=viewpoint"
+          },
+          {
+            "affinity": "narrative",
+            "id": "nps-poi/36502",
+            "layer": "sight",
+            "type": "sight"
+          },
+          {
+            "affinity": "station",
+            "id": "nps-poi/36046",
+            "layer": "sight",
+            "type": "sight"
+          }
+        ],
+        "name": "Lost Cove Cliffs Overlook (MP 310)",
+        "role_affinities": [
+          "narrative",
+          "station"
+        ]
+      }
+    ],
+    "merged_candidates": 372,
+    "mixed_source_proposals": 14,
+    "proposals": 30,
+    "station_affinity_proposals": 2
+  },
+  "external": {
+    "nc_markers": {
+      "count": 4,
+      "fetch_s": 0.0,
+      "licence_satisfiable": false
+    },
+    "nps_pois": {
+      "by_poi_type": {
+        "Bridge": 21,
+        "Campground": 1,
+        "Mile Marker": 25,
+        "Mountain Pass (saddle / Gap)": 2,
+        "Overlook": 19,
+        "Peak": 8,
+        "Picnic Area": 1,
+        "Visitor Center": 1,
+        "Waterfall": 4
+      },
+      "count": 82,
+      "fetch_s": 0.0,
+      "licence_satisfiable": true
+    },
+    "scenic_byways": {
+      "count": 10,
+      "fetch_s": 0.01,
+      "licence_satisfiable": true,
+      "routes": [
+        {
+          "centroid": [
+            -82.85454075759468,
+            35.791190939362195
+          ],
+          "length_km": "69.4",
+          "n_paths": "1",
+          "n_vertices": "881",
+          "name": "Appalachian Medley"
+        },
+        {
+          "centroid": [
+            -82.27390881475084,
+            35.4885055199232
+          ],
+          "length_km": "48.6",
+          "n_paths": "29",
+          "n_vertices": "700",
+          "name": "Black Mountain Rag"
+        },
+        {
+          "centroid": [
+            -81.77709595095361,
+            36.10635460376752
+          ],
+          "length_km": "30.7",
+          "n_paths": "1",
+          "n_vertices": "530",
+          "name": "Little Parkway"
+        },
+        {
+          "centroid": [
+            -82.54659950003114,
+            35.89457554875089
+          ],
+          "length_km": "14.5",
+          "n_paths": "1",
+          "n_vertices": "82",
+          "name": "Interstate 26 Scenic Highway"
+        },
+        {
+          "centroid": [
+            -81.87443208242294,
+            35.882877963146825
+          ],
+          "length_km": "77.8",
+          "n_paths": "1",
+          "n_vertices": "1031",
+          "name": "Pisgah Loop Scenic Byway"
+        },
+        {
+          "centroid": [
+            -82.23761246250459,
+            35.81173597624657
+          ],
+          "length_km": "406.7",
+          "n_paths": "2",
+          "n_vertices": "5307",
+          "name": "Blue Ridge Parkway"
+        },
+        {
+          "centroid": [
+            -82.34502296406916,
+            35.48195250499657
+          ],
+          "length_km": "17.6",
+          "n_paths": "3",
+          "n_vertices": "301",
+          "name": "Drovers Road"
+        },
+        {
+          "centroid": [
+            -82.64171934727848,
+            35.738790836795474
+          ],
+          "length_km": "26.3",
+          "n_paths": "1",
+          "n_vertices": "239",
+          "name": "French Broad Overview"
+        },
+        {
+          "centroid": [
+            -81.83460066278691,
+            36.192937234910275
+          ],
+          "length_km": "29.1",
+          "n_paths": "1",
+          "n_vertices": "430",
+          "name": "Mission Crossing"
+        },
+        {
+          "centroid": [
+            -81.76995176836756,
+            35.51884768824602
+          ],
+          "length_km": "60.0",
+          "n_paths": "2",
+          "n_vertices": "460",
+          "name": "South Mountain Scenery"
+        }
+      ]
+    }
+  },
+  "geometry": {
+    "byway_km_discarded": 780.7,
+    "byway_routes": 10,
+    "byway_vertices_discarded": 9961,
+    "candidate_has_area_field": false,
+    "raw_features_total": 429,
+    "raw_features_with_area_m2": 149
+  },
+  "licence_gate": {
+    "amenity": "ready",
+    "historic": "ready",
+    "leisure": "ready",
+    "man_made": "ready",
+    "natural": "ready",
+    "plugin_nc_markers": "failed:licence_unsatisfiable",
+    "plugin_nps_pois": "ready",
+    "sight": "ready"
+  },
+  "load_state": {
+    "broken_state": "failed:RuntimeError: ArcGIS error querying nps_broken_layer_demo (https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_POIs/MapServer/99/query): 404 Layer not found",
+    "slow_candidates": 82,
+    "slow_fetch_s": 0.0
+  },
+  "osm": {
+    "bbox": "TRIP",
+    "by_layer": {
+      "amenity": 90,
+      "historic": 10,
+      "leisure": 22,
+      "man_made": 2,
+      "natural": 95,
+      "sight": 71
+    },
+    "total_candidates": 290
+  }
+}
