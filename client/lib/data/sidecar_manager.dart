@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import 'sidecar_process.dart';
+import 'sidecar_registry.dart';
 
 /// M12 — spawn, health-poll to readiness, restart-once, graceful stop, orphan
 /// sweep, paired-version refusal (ARCH §7.3, §12.1; PRD M12).
@@ -14,6 +15,44 @@ import 'sidecar_process.dart';
 /// The eight desktop states in M13 include three that live here: "sidecar
 /// starting", "sidecar won't start", "sidecar died mid-session".
 enum SidecarState { starting, ready, restarting, failed, degraded, stopped }
+
+/// What a mid-session sidecar exit means, given only the two facts that
+/// decide it (ARCH §8.4 / PRD M12: "restarts **once**, and a second failure
+/// degrades honestly"). Extracted as a pure function so the lifecycle rule
+/// is verifiable without spawning a process — see `sidecar_lifecycle_test.dart`.
+enum SidecarExitDecision {
+  /// The client asked for this stop; settle to [SidecarState.stopped].
+  stop,
+
+  /// First unexpected exit — bring it back exactly once.
+  restartOnce,
+
+  /// It already came back once and died again — stop looping and degrade
+  /// honestly (cached trips still viewable, generation unavailable).
+  degrade,
+}
+
+@visibleForTesting
+SidecarExitDecision decideOnSidecarExit({
+  required bool stoppingDeliberately,
+  required bool alreadyRestarted,
+}) {
+  if (stoppingDeliberately) return SidecarExitDecision.stop;
+  if (!alreadyRestarted) return SidecarExitDecision.restartOnce;
+  return SidecarExitDecision.degrade;
+}
+
+/// Binds an OS-assigned ephemeral port, reads it back, and releases the
+/// socket so the sidecar can take it (ARCH §8.4: "bind :0, read assigned
+/// port, release"). Top-level and `@visibleForTesting` because "spawn binds
+/// an ephemeral port" is a named line in M12's acceptance criteria.
+@visibleForTesting
+Future<int> pickEphemeralPort() async {
+  final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+  final port = socket.port;
+  await socket.close();
+  return port;
+}
 
 class SidecarStatus {
   const SidecarStatus(this.state, {this.detail = '', this.port});
@@ -161,10 +200,12 @@ String resolveClientVersion() {
 }
 
 class SidecarManager extends ChangeNotifier {
-  SidecarManager({this.cacheDirOverride, this.binaryOverride});
+  SidecarManager({this.cacheDirOverride, this.binaryOverride, SidecarRegistry? registry})
+      : _registryOverride = registry;
 
   final Directory? cacheDirOverride;
   final String? binaryOverride;
+  final SidecarRegistry? _registryOverride;
 
   SidecarProcess? _process;
   int? _port;
@@ -174,6 +215,7 @@ class SidecarManager extends ChangeNotifier {
   bool _stoppingDeliberately = false;
   Capabilities? _capabilities;
   Timer? _capabilityPollTimer;
+  SidecarRegistry? _registry;
 
   SidecarStatus get status => _status;
   int? get port => _port;
@@ -236,12 +278,23 @@ class SidecarManager extends ChangeNotifier {
     return dir;
   }
 
-  Future<int> _pickPort() async {
-    final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    final port = socket.port;
-    await socket.close();
-    return port;
+  /// The next-launch orphan sweep's registry (ARCH §8.4). Lazily resolved so
+  /// tests can inject one and production gets a file under the same
+  /// app-support tree as the sidecar cache.
+  Future<SidecarRegistry> _resolveRegistry() async {
+    final override = _registryOverride;
+    if (override != null) return override;
+    final cached = _registry;
+    if (cached != null) return cached;
+    final cacheDir = await _resolveCacheDir();
+    return _registry = SidecarRegistry(File('${cacheDir.path}/orphan_registry.json'));
   }
+
+  /// M12 — terminate any sidecar the previous client left running, then
+  /// return its PID(s). Call once at app start, *before* [start], so a
+  /// crashed prior session never leaves a process holding the loopback port
+  /// (ARCH §8.4). A no-op on Windows, where the Job Object is the backstop.
+  Future<List<int>> sweepOrphans() async => (await _resolveRegistry()).sweep();
 
   /// Runs `--version` against the resolved binary without spawning a server,
   /// so the A8 mismatch check can happen before anything else is committed.
@@ -265,7 +318,7 @@ class SidecarManager extends ChangeNotifier {
     }
     _confirmedVersion = sidecarVersion;
 
-    _port = await _pickPort();
+    _port = await pickEphemeralPort();
     final cacheDir = await _resolveCacheDir();
     _set(SidecarState.starting, detail: 'launching sidecar');
 
@@ -276,6 +329,12 @@ class SidecarManager extends ChangeNotifier {
       '--cache-dir=${cacheDir.path}',
     ]);
     _process!.exitCode.then(_onExit);
+    // Record this child so the next launch can sweep it if we die without
+    // stopping it (ARCH §8.4). Failure to record is not worth blocking the
+    // spawn over.
+    unawaited(_resolveRegistry()
+        .then((r) => r.record(_process!.pid, _port!))
+        .catchError((Object e) => debugPrint('sidecar: could not record for orphan sweep: $e')));
 
     await _pollUntilReady();
   }
@@ -349,20 +408,31 @@ class SidecarManager extends ChangeNotifier {
 
   void _onExit(int code) {
     _capabilityPollTimer?.cancel();
-    if (_stoppingDeliberately) {
-      _set(SidecarState.stopped, detail: 'stopped');
-      return;
+
+    // This PID is gone whatever happens next — drop it from the orphan
+    // registry so a subsequent crash of *this* client doesn't leave the next
+    // launch chasing a dead PID.
+    final deadPid = _process?.pid;
+    if (deadPid != null) {
+      unawaited(_resolveRegistry().then((r) => r.forget(deadPid)).catchError((Object _) {}));
     }
-    if (!_restarted) {
-      _restarted = true;
-      _set(SidecarState.restarting, detail: 'sidecar exited unexpectedly — restarting');
-      start();
-      return;
+
+    switch (decideOnSidecarExit(
+      stoppingDeliberately: _stoppingDeliberately,
+      alreadyRestarted: _restarted,
+    )) {
+      case SidecarExitDecision.stop:
+        _set(SidecarState.stopped, detail: 'stopped');
+      case SidecarExitDecision.restartOnce:
+        _restarted = true;
+        _set(SidecarState.restarting, detail: 'sidecar exited unexpectedly — restarting');
+        start();
+      case SidecarExitDecision.degrade:
+        // Second failure: degrade honestly rather than loop (M13, M12).
+        _set(SidecarState.degraded,
+            detail: 'sidecar died twice — cached trips still viewable, '
+                'generation unavailable');
     }
-    // Second failure: degrade honestly rather than loop (M13, M12).
-    _set(SidecarState.degraded,
-        detail: 'sidecar died twice — cached trips still viewable, '
-            'generation unavailable');
   }
 
   /// Graceful stop, then a hard kill if the sidecar outlasts the grace
@@ -377,6 +447,12 @@ class SidecarManager extends ChangeNotifier {
     final proc = _process;
     if (proc == null) return;
     await proc.stop(grace: const Duration(seconds: 5));
+    // A clean shutdown leaves nothing for the next launch to sweep.
+    try {
+      await (await _resolveRegistry()).forget(proc.pid);
+    } catch (_) {
+      // Best-effort — `_onExit` also forgets this PID.
+    }
     _set(SidecarState.stopped, detail: 'stopped');
   }
 }

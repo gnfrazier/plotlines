@@ -72,8 +72,14 @@ class _PlotlinesAppState extends ConsumerState<PlotlinesApp> {
   void initState() {
     super.initState();
     // Fire-and-forget: SidecarGate renders the starting/failed states off
-    // sidecarManagerProvider's own notifications, not this future.
-    Future.microtask(() => ref.read(sidecarManagerProvider).start());
+    // sidecarManagerProvider's own notifications, not this future. The
+    // orphan sweep (ARCH §8.4) runs first, so a sidecar the previous session
+    // crashed without stopping is cleared before this one binds its port.
+    Future.microtask(() async {
+      final manager = ref.read(sidecarManagerProvider);
+      await manager.sweepOrphans();
+      await manager.start();
+    });
     // A desktop window close routes through here first. Stop the sidecar
     // gracefully before the process exits, so the Windows CTRL_BREAK stop
     // path (ARCH §7.3) actually runs in production — `ref.onDispose` never

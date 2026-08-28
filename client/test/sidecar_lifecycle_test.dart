@@ -1,0 +1,244 @@
+// M12 — the sidecar-lifecycle test suite named in the story's AC and in
+// ARCH §12: ephemeral-port binding, the mid-session death-and-restart rule
+// ("restarts once, then a second failure degrades honestly"), and the
+// next-launch orphan sweep after an ungraceful client exit.
+//
+// The Win32 FFI stop path is verified separately (see sidecar_process_test.dart
+// and spikes/SPIKE-00/harness/), and the per-capability /health parsing has
+// its own suite (sidecar_manager_capabilities_test.dart). What is left is the
+// lifecycle logic, exercised here without spawning a real process.
+
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:plotlines_client/data/sidecar_manager.dart';
+import 'package:plotlines_client/data/sidecar_registry.dart';
+
+void main() {
+  group('pickEphemeralPort (M12: "spawn binds an ephemeral port")', () {
+    test('returns a real, non-privileged port', () async {
+      final port = await pickEphemeralPort();
+      expect(port, greaterThan(1024));
+      expect(port, lessThanOrEqualTo(65535));
+    });
+
+    test('releases the socket so the caller can bind the port it was given', () async {
+      final port = await pickEphemeralPort();
+      // If pickEphemeralPort had held the socket, this bind would throw.
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, port);
+      expect(server.port, port);
+      await server.close();
+    });
+
+    test('successive calls hand out usable ports even while earlier ones are held', () async {
+      final held = <ServerSocket>[];
+      final ports = <int>{};
+      for (var i = 0; i < 5; i++) {
+        final port = await pickEphemeralPort();
+        ports.add(port);
+        held.add(await ServerSocket.bind(InternetAddress.loopbackIPv4, port));
+      }
+      expect(ports.length, 5, reason: 'every pick was a distinct free port');
+      for (final s in held) {
+        await s.close();
+      }
+    });
+  });
+
+  group('decideOnSidecarExit (M12: restart once, then degrade)', () {
+    test('a deliberate stop settles to stopped', () {
+      expect(
+        decideOnSidecarExit(stoppingDeliberately: true, alreadyRestarted: false),
+        SidecarExitDecision.stop,
+      );
+    });
+
+    test('a deliberate stop still settles to stopped even after a restart', () {
+      expect(
+        decideOnSidecarExit(stoppingDeliberately: true, alreadyRestarted: true),
+        SidecarExitDecision.stop,
+      );
+    });
+
+    test('the first unexpected exit restarts exactly once', () {
+      expect(
+        decideOnSidecarExit(stoppingDeliberately: false, alreadyRestarted: false),
+        SidecarExitDecision.restartOnce,
+      );
+    });
+
+    test('a second unexpected exit degrades honestly instead of looping', () {
+      expect(
+        decideOnSidecarExit(stoppingDeliberately: false, alreadyRestarted: true),
+        SidecarExitDecision.degrade,
+      );
+    });
+  });
+
+  group('SidecarRegistry — the next-launch orphan sweep (ARCH §8.4)', () {
+    late Directory dir;
+    late File file;
+
+    setUp(() async {
+      dir = await Directory.systemTemp.createTemp('plotlines_orphan_test');
+      file = File('${dir.path}/orphan_registry.json');
+    });
+
+    tearDown(() async {
+      if (await dir.exists()) await dir.delete(recursive: true);
+    });
+
+    SidecarRegistry registry({
+      Set<int> alive = const {},
+      Set<int> sidecarPorts = const {},
+      List<int>? killed,
+      bool actOnThisPlatform = true,
+    }) {
+      return SidecarRegistry(
+        file,
+        actOnThisPlatform: actOnThisPlatform,
+        isProcessAlive: alive.contains,
+        respondsAsSidecar: (port) async => sidecarPorts.contains(port),
+        terminate: (pid) async => killed?.add(pid),
+      );
+    }
+
+    test('record then re-read round-trips the entry', () async {
+      await registry().record(4242, 51000);
+      final raw = await file.readAsString();
+      expect(raw, contains('4242'));
+      expect(raw, contains('51000'));
+    });
+
+    test('recording the same PID twice keeps a single entry', () async {
+      final r = registry();
+      await r.record(4242, 51000);
+      await r.record(4242, 51001);
+      final killed = <int>[];
+      await registry(alive: {4242}, sidecarPorts: {51001}, killed: killed).sweep();
+      expect(killed, [4242]);
+    });
+
+    test('forget removes one entry and leaves the others', () async {
+      final r = registry();
+      await r.record(10, 5000);
+      await r.record(20, 5001);
+      await r.forget(10);
+      final killed = <int>[];
+      await registry(alive: {10, 20}, sidecarPorts: {5000, 5001}, killed: killed).sweep();
+      expect(killed, [20]);
+    });
+
+    test('forget of an unrecorded PID is a no-op', () async {
+      final r = registry();
+      await r.record(20, 5001);
+      await r.forget(999);
+      final killed = <int>[];
+      await registry(alive: {20}, sidecarPorts: {5001}, killed: killed).sweep();
+      expect(killed, [20]);
+    });
+
+    test('sweep terminates a survivor that is alive AND still answers as a sidecar', () async {
+      await registry().record(777, 52000);
+      final killed = <int>[];
+      final swept =
+          await registry(alive: {777}, sidecarPorts: {52000}, killed: killed).sweep();
+      expect(swept, [777]);
+      expect(killed, [777]);
+    });
+
+    test('sweep leaves a dead PID alone', () async {
+      await registry().record(777, 52000);
+      final killed = <int>[];
+      final swept = await registry(alive: {}, sidecarPorts: {52000}, killed: killed).sweep();
+      expect(swept, isEmpty);
+      expect(killed, isEmpty);
+    });
+
+    test('sweep leaves a recycled PID alone when its old port is not a sidecar', () async {
+      // PID 777 is live again, but owned by something unrelated now — the
+      // recorded port answers nothing.
+      await registry().record(777, 52000);
+      final killed = <int>[];
+      final swept = await registry(alive: {777}, sidecarPorts: {}, killed: killed).sweep();
+      expect(swept, isEmpty);
+      expect(killed, isEmpty);
+    });
+
+    test('sweep clears the registry afterward so the next launch starts clean', () async {
+      await registry().record(777, 52000);
+      await registry(alive: {777}, sidecarPorts: {52000}).sweep();
+      final swept2 = await registry(alive: {777}, sidecarPorts: {52000}).sweep();
+      expect(swept2, isEmpty, reason: 'entries were consumed by the first sweep');
+    });
+
+    test('sweep on a missing registry file is a silent no-op', () async {
+      expect(await file.exists(), isFalse);
+      final swept = await registry(alive: {1}, sidecarPorts: {1}).sweep();
+      expect(swept, isEmpty);
+    });
+
+    test('a corrupt registry file never blocks startup', () async {
+      await file.writeAsString('{ this is not json');
+      final killed = <int>[];
+      final swept = await registry(alive: {1}, sidecarPorts: {1}, killed: killed).sweep();
+      expect(swept, isEmpty);
+      expect(killed, isEmpty);
+    });
+
+    test('sweep is a no-op off-POSIX (Windows relies on the Job Object)', () async {
+      await registry().record(777, 52000);
+      final killed = <int>[];
+      final swept = await registry(
+        alive: {777},
+        sidecarPorts: {52000},
+        killed: killed,
+        actOnThisPlatform: false,
+      ).sweep();
+      expect(swept, isEmpty);
+      expect(killed, isEmpty);
+    });
+
+    test('a terminate that throws is swallowed and the sweep still completes', () async {
+      await registry().record(1, 100);
+      await registry().record(2, 200);
+      final killed = <int>[];
+      final r = SidecarRegistry(
+        file,
+        actOnThisPlatform: true,
+        isProcessAlive: {1, 2}.contains,
+        respondsAsSidecar: (p) async => {100, 200}.contains(p),
+        terminate: (pid) async {
+          if (pid == 1) throw const OSError('boom');
+          killed.add(pid);
+        },
+      );
+      final swept = await r.sweep();
+      expect(swept, [2], reason: 'pid 1 threw, pid 2 still handled');
+      expect(killed, [2]);
+    });
+  });
+
+  group('SidecarManager wires the registry in', () {
+    test('sweepOrphans delegates to the injected registry', () async {
+      final dir = await Directory.systemTemp.createTemp('plotlines_mgr_sweep');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/orphan_registry.json')
+        ..writeAsStringSync('{"entries":[{"pid":424242,"port":53000,'
+            '"spawned_at":"2026-01-01T00:00:00.000Z"}]}');
+      final killed = <int>[];
+      final manager = SidecarManager(
+        registry: SidecarRegistry(
+          file,
+          actOnThisPlatform: true,
+          isProcessAlive: {424242}.contains,
+          respondsAsSidecar: (p) async => p == 53000,
+          terminate: (pid) async => killed.add(pid),
+        ),
+      );
+      final swept = await manager.sweepOrphans();
+      expect(swept, [424242]);
+      expect(killed, [424242]);
+    });
+  });
+}
