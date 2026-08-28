@@ -36,7 +36,7 @@ from plotlines_core.routing.loops import (
 )
 from plotlines_core.routing.search import probe_envelope
 from plotlines_core.routing.solve import NoRouteFound, generate_segment
-from plotlines_core.scoring.bands import Band, BandSet
+from plotlines_core.scoring.bands import Band, BandSet, distance_is_advisory
 from plotlines_core.scoring.metrics import edge_walk, measure
 from plotlines_core.scoring.profile import THEMES, WeightProfile
 from plotlines_core.tiles.archive import Archive, valid_zxy
@@ -577,13 +577,20 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         raise HTTPException(422, f"unknown theme {theme!r}")
 
     def _loop_to_dict(graph, loop: Loop, mode: str, theme: str, shape: str,
-                      sampler: ElevationSampler | None) -> dict:
+                      sampler: ElevationSampler | None,
+                      *, target_advisory: bool = False) -> dict:
         """Shapes a `Loop` (routing/loops.py) into the same response family
         `Segment.to_dict()` (routing/solve.py) returns, plus the loop-specific
         fields (`closed`, `hit_via`, `target_m`) point_to_point has no opinion
         about. `route_polyline` — not a straight node-to-node line — because
         it's already needed for cue derivation elsewhere and gives the client
         the real curved way geometry rather than SPIKE-00's simplification.
+
+        `target_advisory` (A9a/FR8a) is set by the caller when three or more
+        via-anchors fixed the loop's length: `target_m`/`distance_error` are
+        still reported, but the client presents the deviation as an editing
+        decision (A0a) routed through `/segments/diagnose`, not as a missed
+        constraint.
         """
         route = route_polyline(graph, loop.walk)
         coords_latlon = [(lat, lon) for lon, lat in route.coords]
@@ -602,6 +609,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             "hit_via": loop.hit_via,
             "target_m": loop.target_m,
             "distance_error": loop.distance_error,
+            # A9a/FR8a — three or more via-anchors make the target advisory:
+            # reported, not honoured (SPIKE-01: +30.7%/+81.9% at three vias).
+            "target_advisory": target_advisory,
             # A9/FR8a AC — "a genuine loop rather than an out-and-back, with any
             # road ridden twice reported": `Loop.metrics` already computes this
             # split (SPIKE-01's lollipop distinction), it just never left the
@@ -637,19 +647,26 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         via = [(c.lat, c.lon) for c in req.via]
 
         try:
+            # A9a/FR8a — three or more via-anchors fix the loop's length, so
+            # the target distance is advisory (reported, not honoured). The
+            # solve is unchanged; only how the response is framed differs.
+            advisory = distance_is_advisory(req.target_m, len(via))
+
             if req.shape == "loop":
                 if req.target_m is None:
                     raise HTTPException(422, "loop shape requires target_m")
                 loop = generate_loop(graph, (req.start.lat, req.start.lon),
                                      req.target_m, profile, via=via, mode=req.mode)
-                return _loop_to_dict(graph, loop, req.mode, req.theme, "loop", region.sampler)
+                return _loop_to_dict(graph, loop, req.mode, req.theme, "loop",
+                                     region.sampler, target_advisory=advisory)
 
             if req.shape == "out_and_back":
                 end = (req.end.lat, req.end.lon) if req.end else None
                 loop = generate_out_and_back(graph, (req.start.lat, req.start.lon),
                                              profile, via=via, end=end,
                                              target_m=req.target_m, mode=req.mode)
-                return _loop_to_dict(graph, loop, req.mode, req.theme, "out_and_back", region.sampler)
+                return _loop_to_dict(graph, loop, req.mode, req.theme, "out_and_back",
+                                     region.sampler, target_advisory=advisory)
 
             if req.end is None:
                 raise HTTPException(422, "point_to_point shape requires end")

@@ -69,6 +69,8 @@ class Diagnosis {
     required this.explanation,
     this.viaImplicated = false,
     this.viaRelaxation,
+    this.distanceAdvisory = false,
+    this.advisoryDeviation,
     this.relaxations = const [],
     this.envelope = const {},
     required this.solves,
@@ -78,7 +80,7 @@ class Diagnosis {
 
   final bool feasible;
 
-  /// One of `none` | `unattainable` | `combination`.
+  /// One of `none` | `unattainable` | `combination` | `advisory`.
   final String kind;
 
   /// Human-readable band descriptions (`Band.describe()`), not structured bands —
@@ -89,6 +91,16 @@ class Diagnosis {
   /// Set when a via-node, not the terrain, is what makes the request impossible.
   final bool viaImplicated;
   final Map<String, dynamic>? viaRelaxation;
+
+  /// A9a / FR8a — set when three or more via-anchors made the target distance
+  /// advisory for this request. Not a conflict: the loop still routes and
+  /// closes, the via-anchors just fixed its length. [advisoryDeviation] carries
+  /// the realised distance against the target plus an A6-shaped relaxation
+  /// offer (`relaxation`) whenever the realised length fell outside the band
+  /// the target would have carried in explore mode. Presented as an editing
+  /// decision (A0a), never through M13's error surface (ARCH §7.7, D53).
+  final bool distanceAdvisory;
+  final Map<String, dynamic>? advisoryDeviation;
   final List<Relaxation> relaxations;
 
   /// metric -> `[min, max]` observed across every attempt.
@@ -109,6 +121,7 @@ class Diagnosis {
         : (rawEnvelope as Map).map((k, v) => MapEntry(
             k as String, (v as List).map((n) => (n as num).toDouble()).toList()));
     final viaRelaxation = f.take('via_relaxation');
+    final advisoryDeviation = f.take('advisory_deviation');
     final bestEffort = f.take('best_effort');
     final d = Diagnosis(
       feasible: f.takeBool('feasible')!,
@@ -117,6 +130,9 @@ class Diagnosis {
       explanation: f.takeString('explanation')!,
       viaImplicated: f.takeBool('via_implicated') ?? false,
       viaRelaxation: viaRelaxation == null ? null : Map<String, dynamic>.from(viaRelaxation as Map),
+      distanceAdvisory: f.takeBool('distance_advisory') ?? false,
+      advisoryDeviation:
+          advisoryDeviation == null ? null : Map<String, dynamic>.from(advisoryDeviation as Map),
       relaxations: f.takeList('relaxations', Relaxation.fromJson),
       envelope: envelope,
       solves: f.takeInt('solves')!,
@@ -134,6 +150,8 @@ class Diagnosis {
         'explanation': explanation,
         'via_implicated': viaImplicated,
         'via_relaxation': viaRelaxation,
+        'distance_advisory': distanceAdvisory,
+        'advisory_deviation': advisoryDeviation,
         'relaxations': relaxations.map((r) => r.toJson()).toList(),
         'envelope': envelope.map((k, v) => MapEntry(
             k, v.map((n) => finite(n, 'diagnosis.envelope.$k')).toList())),

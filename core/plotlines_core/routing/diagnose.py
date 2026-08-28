@@ -28,7 +28,10 @@ from dataclasses import dataclass, field
 import networkx as nx
 
 from plotlines_core.routing.search import Attempt, SearchResult, search_bands
-from plotlines_core.scoring.bands import Band, BandSet, ensure_distance_band, format_value
+from plotlines_core.scoring.bands import (
+    Band, BandSet, default_distance_band, distance_is_advisory, ensure_distance_band,
+    format_value,
+)
 from plotlines_core.scoring.metrics import METRIC_LABEL, METRIC_SCALE, RouteMetrics
 
 
@@ -55,7 +58,7 @@ class Relaxation:
 @dataclass
 class Diagnosis:
     feasible: bool
-    kind: str                       # "none" | "unattainable" | "combination"
+    kind: str                       # "none" | "unattainable" | "combination" | "advisory"
     conflict: list[Band]
     explanation: str
     relaxations: list[Relaxation]
@@ -66,6 +69,15 @@ class Diagnosis:
     #: Set when the via-nodes, not the terrain, are what make the request impossible.
     via_implicated: bool = False
     via_relaxation: dict | None = None
+    #: A9a — set whenever three or more via-anchors made the target distance
+    #: advisory for this request (`scoring.bands.distance_is_advisory`). The
+    #: request is *not* a conflict when this is set: the request still routes,
+    #: the vias just fixed the length. `advisory_deviation` carries the
+    #: reported realised distance against the target, plus an A6-shaped
+    #: relaxation offer whenever the realised length falls outside the band
+    #: the target would have been given in explore mode.
+    distance_advisory: bool = False
+    advisory_deviation: dict | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -75,6 +87,12 @@ class Diagnosis:
             "explanation": self.explanation,
             "via_implicated": self.via_implicated,
             "via_relaxation": self.via_relaxation,
+            "distance_advisory": self.distance_advisory,
+            # A9a — omitted rather than sent as null when there is no
+            # deviation to report, matching the "absent means unset" contract
+            # the Dart reader (`client/lib/domain/diagnosis.dart`) enforces.
+            **({"advisory_deviation": self.advisory_deviation}
+               if self.advisory_deviation is not None else {}),
             "relaxations": [r.to_dict() for r in self.relaxations],
             "envelope": {k: [round(lo, 4), round(hi, 4)]
                          for k, (lo, hi) in self.envelope.items()},
@@ -159,7 +177,109 @@ def diagnose(
     the same way any other terrain limit is — through this function's existing
     unattainable/combination split, with no separate access-conflict path needed
     (ARCH §7.9: "named through A6's existing conflict path").
+
+    A9a: with three or more via-anchors the target distance is advisory
+    (`scoring.bands.distance_is_advisory`) — it is never named as a conflict,
+    and the realised length is reported back with an A6-shaped relaxation
+    offer whenever it falls outside the band the target would have carried.
+    That reporting is layered on by `_mark_distance_advisory` *after* the
+    ordinary band diagnosis, so a genuine conflict on some *other* band under
+    the same request is still diagnosed exactly as it would be without vias.
     """
+    result = _diagnose_bands(graph, start, target_m, bands, via=via, budget=budget,
+                             filter_budget=filter_budget, mode=mode)
+    if distance_is_advisory(target_m, len(via or [])):
+        _mark_distance_advisory(result, target_m, bands)
+    return result
+
+
+def _mark_distance_advisory(result: Diagnosis, target_m: float,
+                            requested: BandSet) -> None:
+    """A9a — annotate `result` with the advisory-distance reporting three or
+    more via-anchors call for, mutating it in place.
+
+    `result` came back from `_diagnose_bands` with no `distance_m` band in
+    play at all (`ensure_distance_band` withholds the default one once the
+    target is advisory), so nothing here is *re-diagnosing* — it is attaching
+    the realised-length readout and, when the length missed what the target
+    asked for, a single relaxation offer shaped exactly like A6's
+    (`Relaxation.to_dict`), so an Author-facing surface can present the
+    deviation through the same path it already renders conflict relaxations.
+    """
+    result.distance_advisory = True
+    best = result.best_effort or {}
+    realised = best.get("distance_m")
+    if realised is None:
+        result.explanation = (
+            f"{result.explanation}; three or more via-anchors fix this loop's "
+            f"length, so the target distance is advisory here"
+        ).lstrip("; ")
+        return
+
+    nominal = default_distance_band(target_m)
+    error = (realised - target_m) / target_m if target_m else 0.0
+    deviates = not nominal.satisfied_by(realised)
+
+    deviation: dict = {
+        "realised_m": round(realised, 1),
+        "target_m": target_m,
+        "distance_error": round(error, 4),
+        "nominal_band": [round(nominal.minimum, 1), round(nominal.maximum, 1)],
+        "deviates": deviates,
+        "explanation": (
+            f"Three or more via-anchors fix this loop's length: it comes out at "
+            f"{format_value('distance_m', realised)} against a "
+            f"{format_value('distance_m', target_m)} target "
+            f"({'+' if error >= 0 else ''}{error * 100:.1f}%). Distance is "
+            f"advisory here — move or drop a via-anchor, widen the target, or "
+            f"accept the realised length."
+        ),
+        "affordances": ["drop_via_anchor", "move_via_anchor", "widen_target", "accept"],
+    }
+
+    if deviates:
+        widened = nominal.widened_to(realised)
+        others = [
+            f"{b.label} {format_value(b.metric, best.get(b.metric))} "
+            f"({'still inside' if b.satisfied_by(best.get(b.metric, 0.0)) else 'now outside'} "
+            f"its band)"
+            for b in requested
+            if b.metric != "distance_m" and best.get(b.metric) is not None
+        ]
+        tail = "; ".join(others) if others else "no other band affected"
+        deviation["relaxation"] = {
+            "metric": "distance_m",
+            "from": nominal.describe(),
+            "to": widened.describe(),
+            "trade_off": (
+                f"accepts a realised {format_value('distance_m', realised)} loop; {tail}"
+            ),
+            "reached_by": best.get("profile", "best effort"),
+        }
+        # A9a's AC — "the deviation is surfaced with A6's relaxation path": a
+        # feasible band solve whose only miss is the advisory distance is
+        # reported as `advisory`, not a bare `none`, so the client shows the
+        # deviation panel rather than nothing.
+        if result.feasible and result.kind == "none":
+            result.kind = "advisory"
+            result.explanation = deviation["explanation"]
+
+    result.advisory_deviation = deviation
+
+
+def _diagnose_bands(
+    graph: nx.MultiDiGraph,
+    start: tuple[float, float],
+    target_m: float,
+    bands: BandSet,
+    *,
+    via: list[tuple[float, float]] | None = None,
+    budget: int = 30,
+    filter_budget: int = 16,
+    mode: str = "cycling",
+) -> Diagnosis:
+    """The ordinary FR9/A6 band diagnosis. `diagnose` is a thin wrapper that
+    adds A9a's advisory-distance reporting on top of whatever this returns."""
     t0 = time.perf_counter()
     solves = 0
 
@@ -167,7 +287,10 @@ def diagnose(
     # uses — `search_bands` applies this too, but naming a distance conflict
     # (the unattainable/deletion-filter logic further down) needs it present
     # in *this* function's own `bands`, not just inside the search's descent.
-    bands = ensure_distance_band(bands, target_m)
+    # A9a: `via_count` withholds that default band once three or more
+    # via-anchors make the target advisory, so distance is never named as the
+    # conflict when the vias are what fixed the length.
+    bands = ensure_distance_band(bands, target_m, via_count=len(via or []))
 
     full: SearchResult = search_bands(graph, start, target_m, bands, via=via,
                                       budget=budget, keep_attempts=True, mode=mode)

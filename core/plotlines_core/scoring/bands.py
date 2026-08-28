@@ -136,12 +136,48 @@ def default_distance_band(target_m: float, frac: float = DEFAULT_DISTANCE_BAND_F
     return Band("distance_m", target_m - half, target_m + half)
 
 
-def ensure_distance_band(bands: BandSet, target_m: float | None) -> BandSet:
+#: A9a / SPIKE-01 — three or more via-anchors pin a loop's length. SPIKE-01
+#: measured distance error jumping from under ±14% at two via-nodes to +30.7%
+#: (Boulder) / +81.9% (Viroqua) at three, with every via hit and every loop
+#: closed: the solver was never the problem, the places simply determine the
+#: length. At or past this count an explore request's target distance stops
+#: being a constraint the search will chase and becomes advisory — reported,
+#: with any deviation surfaced through A6's relaxation path
+#: (`routing.diagnose`). Compose mode (`target_m is None`) already reports
+#: distance as an outcome (FR118), so this threshold is an explore-mode
+#: concept only.
+ADVISORY_VIA_THRESHOLD = 3
+
+
+def distance_is_advisory(target_m: float | None, via_count: int) -> bool:
+    """A9a — True when an explore request's target distance can only be
+    reported, not honoured, because `via_count` via-anchors already fix the
+    loop's length (see `ADVISORY_VIA_THRESHOLD`).
+
+    `target_m is None` is compose mode, where distance is a reported outcome
+    regardless of how many anchors there are (FR118): there is no target to
+    downgrade, so this is False.
+    """
+    return target_m is not None and via_count >= ADVISORY_VIA_THRESHOLD
+
+
+def ensure_distance_band(bands: BandSet, target_m: float | None,
+                         *, via_count: int = 0) -> BandSet:
     """FR8/A8's AC: distance is never dropped from the explore search's
     constraint set. An Author-authored `distance_m` band — any width,
     including one wider than the default — always wins; this only adds one
     when the caller supplied none at all, and only when there is a target to
-    centre it on."""
+    centre it on.
+
+    A9a: when `via_count` via-anchors make the target advisory
+    (`distance_is_advisory`), no default band is synthesised — the explore
+    search stops chasing a distance the vias have already fixed, and the
+    deviation is surfaced by `routing.diagnose` instead. An Author-authored
+    `distance_m` band still wins even then: downgrading a band the Author set
+    by hand is their decision to make, not this function's.
+    """
     if target_m is None or any(b.metric == "distance_m" for b in bands):
+        return bands
+    if distance_is_advisory(target_m, via_count):
         return bands
     return BandSet((*bands.bands, default_distance_band(target_m, DEFAULT_DISTANCE_BAND_FRAC)))

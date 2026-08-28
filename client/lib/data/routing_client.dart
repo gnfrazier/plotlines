@@ -109,7 +109,13 @@ class RoutingClient {
       via: via,
       targetDistance: raw['target_m'] == null
           ? null
-          : TargetDistance(valueM: (raw['target_m'] as num).toDouble()),
+          : TargetDistance(
+              valueM: (raw['target_m'] as num).toDouble(),
+              // A9a/FR8a — three or more via-anchors fixed the loop's length,
+              // so the target was reported, not honoured. The deviation is an
+              // editing decision (A0a), routed through `submitDiagnose`.
+              advisory: raw['target_advisory'] as bool?,
+            ),
       geometry: LineString(coordinates: coords, source: 'solved'),
       // A9/FR8a — the loop-family response also carries the overlap split
       // (`Loop.metrics`, SPIKE-01's lollipop distinction) when the sidecar sent

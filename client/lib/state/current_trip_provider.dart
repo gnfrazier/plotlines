@@ -6,7 +6,13 @@ import 'package:uuid/uuid.dart';
 import '../domain/domain.dart';
 import '../domain/promote.dart' as domain_promote show promoteAnchor;
 import 'planner_ui_state.dart'
-    show PlanningMode, bandViolations, bandedTargetDistance, composeAwareTargetM, hasTargetDistanceControl;
+    show
+        PlanningMode,
+        bandViolations,
+        composeAwareTargetM,
+        hasTargetDistanceControl,
+        targetDistanceForViaCount,
+        viaAnchorsMakeDistanceAdvisory;
 import 'providers.dart';
 import 'trip_authoring_meta_provider.dart';
 import 'trip_bbox_provider.dart';
@@ -339,7 +345,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     // carries a bare `target_m` (`_segmentFromSolveResponse`), never a band.
     final targetDistance = resolved.targetDistance;
     final segment = (targetDistance != null && hasTargetDistanceControl(resolved.shape))
-        ? resolved.copyWith(targetDistance: bandedTargetDistance(targetDistance.valueM))
+        // A9a — `targetDistanceForViaCount` bands as FR8 requires and marks the
+        // band advisory when three or more via-anchors fixed the loop's length.
+        ? resolved.copyWith(
+            targetDistance: targetDistanceForViaCount(targetDistance.valueM, via.length))
         : resolved;
     final day = _dayOrNew(dayId);
     _replaceDay(day.copyWith(segments: [...day.segments, segment]));
@@ -743,10 +752,32 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
-        if (s.id == segmentId) s.copyWith(via: via) else s,
+        if (s.id == segmentId) _reconcileTargetAdvisory(s.copyWith(via: via)) else s,
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
+  }
+
+  /// A9a / FR8a — keep a banded target distance's `advisory` flag in step
+  /// with the via-anchor count whenever that count changes. Three or more
+  /// via-anchors fix the loop's length ([viaAnchorsMakeDistanceAdvisory]),
+  /// so the target becomes a readout, not a constraint; dropping back below
+  /// the threshold restores it. Only touches a segment that already has a
+  /// banded target — clearing or setting the target itself goes through
+  /// [updateSegmentTargetDistance], which applies the same rule.
+  Segment _reconcileTargetAdvisory(Segment s) {
+    final target = s.targetDistance;
+    if (target == null || !hasTargetDistanceControl(s.shape)) return s;
+    final advisory = viaAnchorsMakeDistanceAdvisory(s.via.length);
+    if ((target.advisory ?? false) == advisory) return s;
+    return s.copyWith(
+      targetDistance: TargetDistance(
+        valueM: target.valueM,
+        minM: target.minM,
+        maxM: target.maxM,
+        advisory: advisory,
+      ),
+    );
   }
 
   /// FR118/A0a — "move one to another day," one of the deviation panel's
@@ -823,7 +854,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
             valueM == null
                 ? null
                 : (hasTargetDistanceControl(s.shape)
-                    ? bandedTargetDistance(valueM)
+                    // A9a — three or more via-anchors make the fresh band advisory.
+                    ? targetDistanceForViaCount(valueM, s.via.length)
                     : TargetDistance(valueM: valueM)),
           )
         else

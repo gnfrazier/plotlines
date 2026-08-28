@@ -225,8 +225,11 @@ def search_bands(
     """
     # FR8/A8: distance is never dropped from the constraint set this search
     # actually descends against — `ensure_distance_band` is a no-op whenever
-    # the caller already supplied their own `distance_m` band.
-    bands = ensure_distance_band(bands, target_m)
+    # the caller already supplied their own `distance_m` band. A9a: with three
+    # or more via-anchors it is also a no-op — the vias fix the length and the
+    # target is advisory, so the descent stops chasing a distance it cannot
+    # move (`routing.diagnose` surfaces the deviation instead).
+    bands = ensure_distance_band(bands, target_m, via_count=len(via or []))
     t0 = time.perf_counter()
     attempts: list[Attempt] = []
     envelope: dict[str, tuple[float, float]] = {}

@@ -82,6 +82,46 @@ TargetDistance bandedTargetDistance(double valueM, {double halfWidthFrac = defau
   return TargetDistance(valueM: valueM, minM: valueM - half, maxM: valueM + half);
 }
 
+/// A9a / FR8a — three or more via-anchors pin a loop's length. SPIKE-01
+/// measured distance error jumping from under ±14% at two via-anchors to
+/// +30.7% (Boulder) / +81.9% (Viroqua) at three, every via hit and every
+/// loop closed: the solver was never the problem, the places determine the
+/// length. Past this count an explore day's target distance is advisory —
+/// reported, with any deviation surfaced through A6's relaxation path
+/// (`RoutingClient.submitDiagnose`), never chased. Mirrors
+/// `core/plotlines_core/scoring/bands.py`'s `ADVISORY_VIA_THRESHOLD`, kept as
+/// an independently-declared constant rather than a cross-language import.
+const int advisoryViaAnchorThreshold = 3;
+
+/// A9a — does an explore day with [viaCount] via-anchors have an advisory
+/// (reported, not enforced) target distance? Compose mode sends no target at
+/// all (FR118, [composeAwareTargetM]), so this is an explore-mode question
+/// only: a compose day's anchors are its spine and its distance is already
+/// an outcome regardless of how many there are.
+bool viaAnchorsMakeDistanceAdvisory(int viaCount) => viaCount >= advisoryViaAnchorThreshold;
+
+/// A9a — the [TargetDistance] a fresh explore target gets, given [viaCount]
+/// via-anchors: banded as usual (FR8, [bandedTargetDistance]), plus
+/// `advisory: true` once the via count reaches [advisoryViaAnchorThreshold]
+/// so every downstream surface (the metrics rail, the diagnose panel) knows
+/// the band is a readout of a length the via-anchors fixed, not a constraint
+/// the solver honoured. The band values are still carried — A0a and
+/// `diagnose` both report the realised distance *against* them.
+TargetDistance targetDistanceForViaCount(
+  double valueM,
+  int viaCount, {
+  double halfWidthFrac = defaultDistanceBandFrac,
+}) {
+  final banded = bandedTargetDistance(valueM, halfWidthFrac: halfWidthFrac);
+  if (!viaAnchorsMakeDistanceAdvisory(viaCount)) return banded;
+  return TargetDistance(
+    valueM: banded.valueM,
+    minM: banded.minM,
+    maxM: banded.maxM,
+    advisory: true,
+  );
+}
+
 /// FR117/A0 — the Author's per-day choice of **explore** (distance/shape/
 /// weights/bands in, route out) or **compose** (promoted anchors in, route
 /// out). ARCH §7.7: "not a second solver" — the two postures share every
