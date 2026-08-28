@@ -7,6 +7,7 @@ library;
 export 'anchor.dart';
 export 'area_trigger.dart';
 export 'band.dart';
+export 'character_variant.dart';
 export 'cue.dart';
 export 'day.dart';
 export 'day_timeline.dart';
