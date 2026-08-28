@@ -26,7 +26,7 @@ Two series, and they are not interchangeable. The **numbered** spikes (SPIKE-00�
 |---|---|
 | **SPIKE-A** notability calibration | Done — shipped `RULESET_VERSION 1.2.0`; values are **not** regional |
 | **SPIKE-B** co-location cost + ranking | Done — cost is a non-issue; ranking function shipped |
-| **SPIKE-C** non-whitewater difficulty coverage | **Not run** — v1.0 generalized the whitewater result untested |
+| **SPIKE-C** non-whitewater difficulty coverage | Done — **split**: nordic reads, land schemas do not; see below |
 | **SPIKE-D** extraction / POI indexing timing | Done — **negative**, see below |
 | **SPIKE-E** driving-mode routing + access advisory | **Not run** |
 | **SPIKE-F** anonymous web reading | **Not run** — gated to the web leg |
@@ -39,6 +39,7 @@ Two series, and they are not interchangeable. The **numbered** spikes (SPIKE-00�
 - **ARCH D34's stated reason is inverted.** It rests on "layers first, elevation second is a reordering of existing startup work (SPIKE-D confirms)" — an attribution written before the spike existed. FR121's *conclusion* survives (never block the app); its reason does not.
 - **Risk A23 is backwards.** A candidate pull is ×0.43 the time of a graph build; the real cost is **×21 run-to-run variance** from public-Overpass throttling. Tiling is a *pessimisation* below ~2,500 km²; caching plus retry-with-backoff are the load-bearing mitigations.
 - **`GRAPH_ESTIMATED_S = 8.0`** in `service/plotlines_service/app.py` against a measured 36.7–116.6 s graph build, and enrichment runs ×2.96 slower while the Author works. A fixed constant cannot be honest here — the indicator needs observed progress or a stated range.
+- **Difficulty grading is split by schema, and land grades may not be aggregated (SPIKE-C).** `piste:difficulty` reads from OSM and rolls up to a leg — 86.4–100% coverage wherever a nordic piste exists. `sac_scale`, `trail_visibility`, `mtb:scale`, `:uphill` and `:imba` are shown **on the way that carries them and never summarised**: a leg grade is worst-of its ways, a worst-of over a sample is biased low by construction, and at real North American coverage 16–32% of such summaries are wrong and always too easy. FR14/B8's **Author declaration is the primary source** for land leg difficulty, not the fallback. Read both MTB scales and convert neither — `:imba` is the North American one (39.3% in Bentonville, 0.10% in the Tyrol) and `mtb:scale` the European one (the reverse). Every reading states its source and coverage; the silent case must never render as easy.
 - **ARCH §4.3 says the notability ruleset "lives in a versioned config file."** It lives in `curation/taxonomy.py`. To add or change a tag rule, edit that and **bump `RULESET_VERSION`** — it is part of the candidate cache key.
 
 ## The story model (PRD §4)
