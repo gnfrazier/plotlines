@@ -788,6 +788,7 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 ### Epic C — Author: Multi-Day Logistics
 
 **C1 — Define adventure duration** *[MVP]* — *FR17*
+**As an** Author, **I want to** set single-day, multi-day, or multi-week duration **so that** the structure fits the group's time.
 *AC:* Start/end date or day count; single-day, multi-day, and multi-week all supported.
 
 **C2 — Set start, end, and rest days** *[MVP]* **[AMENDED v2.0]** — *FR18*
@@ -803,27 +804,35 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 *AC:* **Accommodation alternates** tagged Bypass/Easiest or Extension/Challenge; **branch alternates** carrying different content on each path (the long way past the abandoned mine vs. the direct way home), each with its own anchors, narration, and reveal policy; both kinds available across any mode and visible to Characters on map and cue sheet; the authoring UI distinguishes the two intents so an Author has the vocabulary for a narrative choice. *(v1.0 offered a fitness ladder only.)*
 
 **C5 — Place waypoints, regroup points, rest stops** *[MVP]* — *FR21*
+**As an** Author, **I want to** mark waypoints, regroup points, and amenity-tagged rest stops **so that** a mixed-pace group has rally points and known services.
 *AC:* Anchors placeable on a passage; a waypoint can be flagged a regroup point; rest stops carry amenity tags (water, toilets, food, shelter); N4's provision-cluster proposals feed this directly.
 
 **C6 — Set group size** *[P1]* — *FR22*
+**As an** Author, **I want to** set a group-size tier **so that** logistics, rest stops, and lodging scale to the group.
 *AC:* One tier (solo / small / party / large / event); saved to trip metadata; downstream logistics reflect it.
 
 **C7 — Place lodging and campgrounds** *[P1]* — *FR23*
+**As an** Author, **I want to** filter and place lodging on the map **so that** accommodations fit the group.
 *AC:* Filter by type (campsite, hotel, hut, hostel); overlays update with filters; placed lodging attaches to the day.
 
 **C8 — Build gear checklists** *[P1]* **[AMENDED v2.0]** — *FR24*
+**As an** Author, **I want** mode-specific gear lists with shared-gear assignment **so that** Characters pack exactly what each segment requires.
 *AC:* Mandatory and recommended gear attachable per mode **and per station activity (O4)**; items designatable Shared Group Gear and assignable to Characters; Characters see a consolidated personal+assigned list and check items off.
 
 **C9 — Mark water, resupply, and meals** *[P1]* — *FR25*
+**As an** Author, **I want to** mark water points, resupply stops, and group meals **so that** Characters manage hydration and nutrition between supply points.
 *AC:* Water points tagged potable or filter-required; resupply points with hours and notes; meal responsibilities assignable; itineraries show water-carry distance between sources; these are provision-role anchors and are **always visible** per O5.
 
 **C10 — Track permits, access, and passes** *[P1]* — *FR26*
+**As an** Author, **I want to** attach permits, access rules, and parking passes to segments/nodes **so that** Characters arrive with the right permissions.
 *AC:* Permit status tags; confirmation numbers, documents, or links attachable; Characters get a pre-trip permit/pass checklist.
 
 **C11 — Warn of hazards and cruxes** *[MVP]* **[AMENDED v2.0]** — *FR27, FR115*
+**As an** Author, **I want to** place hazard and technical-crux warnings with severity and gear notes **so that** Characters are alerted to high-risk terrain in advance.
 *AC:* Hazard/crux marker attachable to any route, transit leg, or anchor; severity levels with safety notes and gear callouts; highlighted on map, elevation, itineraries, cue sheets; high-severity triggers a distinct Character alert on sync; **never subject to reveal policy — a hazard cannot be hidden by any Author under any setting**, enforced in the model.
 
 **C12 — Embed scheduled events** *[P1]* — *FR28*
+**As an** Author, **I want to** schedule time-bound events into a day **so that** routing and arrivals align with fixed times.
 *AC:* Scheduled-event node with date/time window and location; timeline flags a conflict when planned pace would miss the window, **accounting for station durations (O4) and anchor opening hours (N6)**; events populate itineraries, cue sheets, and the mobile timeline.
 
 **C13 — Build transit and access legs** *[P1]* **[AMENDED v2.0]** — *FR29*
@@ -835,23 +844,29 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 *AC:* Author declares expected vehicle capability per driving leg (2WD / AWD / high-clearance / 4WD); Plotlines reads `surface=*`, `smoothness=*`, `tracktype=*`, `4wd_only=*`, `highway=track`, and `motor_vehicle=*` and **flags the sections that exceed the declared capability**, in the leg summary and on the cue sheet, with the specific signal that triggered the flag. **Advisory only — it warns, it never excludes or reroutes**, on the same footing as B8's gauge band: tag coverage is uneven, and whether a given vehicle makes a given road is the Author's call. **Coverage is stated plainly** — an unflagged leg means *no contrary signal found*, not *confirmed passable* — per the honesty clause in F1.
 
 **C14 — Set the offline buffer distance** *[P1]* — *FR35*
+**As an** Author, **I want to** set the corridor buffer for offline downloads **so that** Characters get enough surrounding map context without oversized files.
 *AC:* Buffer distance enterable/selectable (mi/km from the finished route); saved as a download parameter for the package; **distinct from the trip's authoring bbox (N1) and the home region (A10)**.
 
 **C15 — Scope a weight profile to a day or passage** *[P1]* — *FR36*
+**As an** Author, **I want to** override the tour's weight profile for one day or partial segment **so that** I can front-load climbing or favor gravel without re-planning.
 *AC:* Tour-level default; override at day or partial-passage scope; override applies only in scope; re-scoring touches only the affected scope.
 
 ### Epic D — Author: Metrics, Weather, Roster & Group Insight
 
 **D1 — Watch planning metrics live** *[MVP]* — *FR31*
+**As an** Author, **I want** a dashboard of distance, elevation, and time by segment/day/total/mode **so that** I judge each edit immediately.
 *AC:* Persistent panel with active-passage, day-total, and trip-total distance and elevation by mode; with FR16, moving time / elapsed time (including station durations) / ETA; updates on every add/edit/reorder.
 
 **D2 — Compare elevation profiles across options** *[P1]* — *FR32*
+**As an** Author, **I want to** overlay elevation profiles for a route and its alternates **so that** I compare climbing and steepness without toggling.
 *AC:* Primary and all alternates render together, colour-distinguished; hover/scrub highlights the corresponding map point across all shown options.
 
 **D3 — Read historical weather** *[P1]* — *FR33*
+**As an** Author, **I want** historical temperature and precipitation for a segment and date **so that** I anticipate conditions.
 *AC:* 5-year box-and-whisker temperature with all-time high/low as bounds; expandable to a 10-year distribution ±3 days with precipitation volume and type; clearly labeled historical, never conflated with forecast.
 
 **D4 — Review aggregated group preferences** *[P1]* — *FR34*
+**As an** Author, **I want** submitted Character preferences aggregated **so that** I design routes fitting the group's collective ability.
 *AC:* Aggregates climbing/traffic/surface/distance/speed/river-class with Min/Max/Avg/Mode; histogram for groups over ten; only whole-trip-mode preferences shown.
 
 **D4a — Request the profile fields I need** *[P1]* **[AMENDED v2.0]** — *FR78a, FR123*
@@ -891,9 +906,11 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 *AC:* **This is compose mode (A0), not a variant feature** — promoted anchors are the spine, the engine reaches them, and A0a governs the distance conversation; the trip presents the places as its organizing structure in itinerary, cue sheet, and recap. *(v1.0 had this as one P1 sentence with no supporting machinery; it is now a primary path with the whole of Epics N and O beneath it.)*
 
 **E4 — Add audio narration** *[P1]* — *FR40, FR41*
+**As an** Author, **I want to** attach audio narration to a POI and set its trigger distance **so that** Characters hear the story hands-free at the right moment.
 *AC:* Audio attachable per role; per-role trigger distance settable, or area entry for area roles (O3); audio downloads with the offline package; plays from the node card and via GPS trigger (H2), subject to reveal policy.
 
 **E5 — Export a journey as GeoJSON** *[P1]* — *FR43*
+**As an** Author, **I want to** export a trip as RFC-7946 GeoJSON **so that** the journey is portable to any geospatial tool.
 *AC:* Valid RFC-7946 GeoJSON with custom feature properties for roles, arc, modes, and metadata; **area anchors export as polygons and role offsets as distinct features**; round-trips through standard GIS readers.
 
 ### Epic F — Author: Outputs
@@ -903,20 +920,25 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 *AC:* Per-day cues with turns, distances, surface shifts, plot points, provisions, portages, hazards, stations, and scheduled events; **provisions rendered within the narrative register rather than in a separate logistics panel (FR133)**; **reveal policy inherited, so the printed sheet cannot spoil an unrevealed plot point but always shows every provision and hazard (O5)**; syncs to Character offline; print-optimized. **Cues are derived, ordered by distance, and bounded in density** — SPIKE-21 measured 0.87–2.86 derived cues/km against a 4.0 ceiling, with hazards, portages and transitions never thinned. **Two limits stated rather than implied:** surface shifts are best-effort and bounded by OSM tagging (six across 132 km of test routes, none in one region) and never inferred from road class; a turn cue names a way only where OSM names one (46% of edges in the densest test region), otherwise describing its type. **A cue on road already ridden is marked as a retrace.**
 
 **F2 — Generate group and individual itineraries** *[P1]* **[AMENDED v2.0]** — *FR48, FR133*
+**As an** Author, **I want** a master itinerary and tailored individual ones **so that** partial-attendance Characters get accurate personal plans.
 *AC:* Master aggregates days/routes/modes/places/rest stops/lodging; individual reflects only that Character's days/passages/transit and retains relevant notes and places; **both render logistics within the narrative register (FR133)** and inherit reveal policy; both previewable, printable, exportable.
 
 **F3 — Configure export contents and splitting** *[MVP]* — *FR44, FR45*
+**As an** Author, **I want to** choose export contents and splitting **so that** each Character gets what their device needs.
 *AC:* GPX/TCX/FIT; toggle track+elevation, waypoints/stops, cue sheet, variants; single or per-day files; native course/turn points and plot-point notes preserved where supported.
 
 ### Epic G — Author-as-Participant & Workspace
 
 **G1 — Participate in my own trip** *[P1]* **[AMENDED v2.0]** — *FR82*
+**As an** Author, **I want to** join my own trip as a Character without a second account **so that** I get offline packages and Character views while keeping my Author tools.
 *AC:* "Participate as Character" toggle; generates a Character profile counted in aggregations/headcounts/group size; merges Author edit tools with Character execution views; rosters and itineraries list the Author as a participant; **the Author may opt into reveal**, experiencing their own unrevealed content in the field rather than seeing it in the plan.
 
 **G2 — Manage my trip library** *[P1]* **[AMENDED v2.0]** — *FR74, FR76*
+**As an** Author, **I want** a portfolio workspace **so that** I can find, organize, and launch trips.
 *AC:* Grid/list of authored trips with thumbnail, title, modes, distance/elevation, day count, variant count, group size, sync badge; filter by mode/duration; search; per-card Edit Route / Manage Roster & Preferences / Export Backup / Clone. **Clone states what it carries before it runs**: roster membership, group assignments, and the whole authored trip — and **explicitly not profile grants or arrival visibility**, which every Character re-grants per trip (K2). Author notes follow the person automatically (D6), needing no rule. **Cloning last year's trip is the MVP answer for a recurring group**; named travel circles (FR143) are Later.
 
 **G2a — Save, reopen, and list my local trips** *[MVP]* — *FR74a*
+**As an** Author on a single device with no account, **I want to** save a trip locally, reopen it later, and see a list of what I've saved **so that** I don't lose work between sessions and can find a trip again without G2's full portfolio machinery.
 *AC:* "Save" persists the current trip locally under its title; a list surface shows title, modes, and last-edited, most-recent-first; selecting reopens into the planner with all edits intact — **including promoted anchors, roles, and reveal settings**; no thumbnails, sync badges, or roster data required; works with no sign-in and no network.
 
 **G2b — Reuse part of a trip** *[MVP]* **[NEW v2.0]** — *FR74b*
@@ -926,9 +948,11 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 ### Epic H — Character: Experience the Journey
 
 **H1 — View my itinerary** *[MVP]* — *FR48*
+**As a** Character, **I want to** view the master or my individual itinerary **so that** I understand scope, daily stages, lodging, and my arrival/departure.
 *AC:* End-to-end timeline on mobile/web; personalized dates if partial; daily start/end, distance, and modes shown; subject to reveal policy.
 
 **H2 — Hear authored narration as I reach it** *[MVP]* — *FR49, FR41, FR126*
+**As a** Character with my phone pocketed, **I want** a node's narration to play when I reach the Author-set distance **so that** I experience the story hands-free.
 *AC:* Fires when GPS enters a role's trigger distance **or crosses an area anchor's boundary**; plays with no screen interaction, phone pocketed; runs fully offline from raw GPS; audio included in the offline package (H7).
 
 **H2a — Have text read aloud by my device** *[P1]* **[NEW v2.0]** — *FR40a, FR114, FR52*
@@ -936,33 +960,43 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 *AC:* A Character-controlled setting enables **the device's native TTS engine** (platform speech synthesis, not a Plotlines voice and not a network service); when on, plot-point notes, provision detail, Set context, cue text, and hazard notes can be spoken. **Reveal policy governs what is spoken** — TTS reads only what the Reveal Resolver has released, so an unrevealed plot point is never read aloud early, and hazard content is always speakable (O5). **Authored audio wins:** where an Author attached narration for a role (E4), that audio plays and TTS does not read the same text over it. Works **offline** wherever the platform's voices are installed on-device, and says so plainly when they are not, rather than failing silently. Respects the trigger priority order — a hazard alert interrupts speech; narration and TTS queue rather than overlap (I2a). Playback is controllable hands-free per I4 (volume-button or swipe step, pause, skip, repeat). Available on mobile and, where the platform supports it, on the web reading surface (H13). Setting is per-device and lives with display preferences (K5); voice, rate, and language follow the device's own TTS configuration rather than being reimplemented in-app, and default to off.
 
 **H3 — Inspect multimodal days and transitions** *[MVP]* — *FR11, FR12*
+**As a** Character, **I want to** see each day broken down by mode and transition **so that** I know when and how we switch activities.
 *AC:* Timeline distinguishes mode changes (drive → transition → bike → paddle); transition nodes show Author instructions.
 
 **H4 — See regroup points and rest-stop amenities** *[MVP]* — *FR21*
+**As a** Character, **I want to** see regroup points and amenity-rich rest stops **so that** I know where to rally and what services to expect.
 *AC:* Regroup points highlighted mandatory/optional; rest stops show tagged amenities and distance to the next amenity cluster.
 
 **H5 — Access notes and story highlights** *[MVP]* — *FR37, FR38*
+**As a** Character, **I want to** tap nodes and plot points to read the Author's notes, media, and narrative **so that** I experience the curated context.
 *AC:* Tap opens a content card (text/media) for any revealed role; arc stages distinguished on map and timeline for anchors **and passages**.
 
 **H6 — Personalize within the Author's bounds** *[P1]* — *FR6, FR20*
+**As a** Character, **I want to** set my own weighting on Author-variable parameters and toggle alternates **so that** the day fits me without leaving the trip.
 *AC:* Author-variable parameters Character-adjustable; locked ones visible but fixed; personal choices produce a Character-scoped variant that never alters the Author's canonical route; metrics update on toggle.
 
 **H7 — Download for offline use** *[MVP]* — *FR64, FR64a*
+**As a** Character, **I want to** download the full adventure package before departure **so that** I have maps, routes, cues, media, and narration with zero connectivity.
 *AC:* One action packages routes, cue sheets, media, narration audio, and basemaps within the corridor buffer; full function in airplane mode including GPS-triggered narration (H2), reveal (P1), and the position-aware cue sheet (I1); **unrevealed content downloads but is not browsable through any ordinary UI path before its trigger** — a product guarantee against accidental spoiling, documented as such rather than as a security boundary.
 
 **H8 — Review weather forecast vs. baseline** *[P1]* — *FR66*
+**As a** Character, **I want** the live forecast (within its 10-day horizon) overlaid on the historical baseline **so that** I pack for expected ranges.
 *AC:* Active forecast shown alongside historical ranges; deviations highlighted; forecast never removes or obscures historical; age-stamped with a short cache expiry.
 
 **H9 — Submit my capability and preference profile** *[P1]* — *FR77*
+**As a** Character, **I want to** submit my thresholds (climbing, river class, distance, speed, surface, traffic) **so that** the Author can build trips matching my ability.
 *AC:* Profile captures the listed fields; feeds the Author's aggregation (D4); shared per the request/response controls (K2).
 
 **H10 — Inspect elevation profiles and comparisons** *[P1]* — *FR32*
+**As a** Character, **I want to** view daily elevation profiles and compare alternates **so that** I understand steepness and gain before starting.
 *AC:* Profile highlights steep-grade % and gain; scrubbing tracks the map position marker; alternates comparable side-by-side.
 
 **H11 — Inspect portage and water details** *[P1]* — *FR15*
+**As a** Character on a paddling trip, **I want** portage callouts with exit bank, land distance, surface, and hazard severity **so that** I execute water-to-land transitions safely.
 *AC:* Portage alerts show exit side, carry distance, and trail grade; mandatory portages render prominent safety banners in app and cue sheet.
 
 **H12 — Submit trip feedback for the Author** *[P1]* — *FR42*
+**As a** Character on a trip, **I want to** submit feedback on the trip's routes and POIs that the Author and my fellow Characters can see and vote on **so that** useful observations surface to the Author, who decides what to fold into the plotline.
 *AC:* Feedback attaches to a route, passage, or anchor within the current trip, visible only to that trip's Author and Characters; fellow Characters upvote/downvote; the Author sees all feedback with tallies; incorporation is manual. No moderation queue, reputation system, or cross-account store.
 
 **H13 — Read my trip on the web or on paper** *[P1]* **[NEW v2.0]** — *FR132, FR116*
@@ -973,42 +1007,55 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 ### Epic I — Character: Field Execution
 
 **I1 — Glance at a position-aware cue sheet** *[MVP]* — *FR47*
+**As a** Character, **I want** the cue sheet to track my position and highlight current/next cue **so that** a glance tells me where I am and what's next.
 *AC:* Advances with GPS, highlighting current + next cue; readable in one look-down; advances offline from raw GPS with the basemap out of the critical path.
 
 **I2 — Use the auto-updating cue HUD** *[MVP]* — *FR50*
+**As a** Character, **I want** a live cue HUD **so that** I see upcoming turns and metrics without digging through map layers.
 *AC:* Active trip opens to the HUD with a progress readout; next cue in focus with distance remaining; header shows remaining distance, elevation, ETA; tapping expands notes/photos/hazards/transitions; one gesture toggles to the map.
 
 **I2a — Choose stowed or mounted posture** *[MVP]* — *FR50a*
+**As a** Character, **I want** the HUD to behave differently when my phone is pocketed versus mounted **so that** it speaks up and tracks silently in my pocket but auto-scrolls live on my handlebars — without wasting battery drawing a screen no one sees.
 *AC:* Two postures over the same position/cue state — **Stowed** (screen off/dimmed: GPS silently advances cues and fires narration/hazard alerts/reveals, no live rendering) and **Mounted** (screen on: HUD auto-scrolls live); switching re-syncs to current position; never auto-scrolls while stowed; posture follows screen state, manually overridable.
 
 **I3 — Get dynamic cue/ETA recalculation** *[MVP]* — *FR51*
+**As a** Character, **I want** cue distances and ETAs to recalc from my actual position and pace **so that** the sheet stays accurate through late starts, rests, and detours.
 *AC:* Passing/missing a cue advances the marker; remaining ETAs update live with pace, including station durations; toggling an alternate inlines its cues without a full reload.
 
 **I4 — Navigate hands-free and glove-friendly** *[P1]* — *FR52*
+**As a** Character riding, hiking, or paddling with gloves, **I want** large controls and high-visibility type **so that** I interact with single taps or gestures.
 *AC:* Oversized high-contrast type and directional arrows; ≥48dp touch targets; optional volume-button/swipe stepping.
 
 **I5 — Receive hazard and crux alerts** *[MVP]* — *FR53, FR115*
+**As a** Character, **I want** prominent alerts approaching Author-designated hazards **so that** I'm warned of rough access, exposure, or big rapids in advance.
 *AC:* Severity badges and gear notes; a warning tone/header when offline position nears a high-severity hazard; **always fires regardless of reveal settings**.
 
 **I6 — Keep navigating through GPS dead zones** *[P1]* — *FR54*
+**As a** Character losing GPS in cover or canyons, **I want** the app to hold last-known position and let me scroll mileage manually **so that** I navigate by landmark and distance until signal returns.
 *AC:* Holds last-known position on signal loss; manual mileage scrolling; resumes automatically when GPS returns.
 
 **I6a — Preserve battery with adaptive location accuracy** *[MVP]* — *FR54a*
+**As a** Character on a long day with limited battery, **I want** the app to sip location power while stowed and only spend high-accuracy GPS when it matters **so that** narration and cues stay reliable without draining my phone before the finish.
 *AC:* Low-power tier drives proximity detection while stowed; escalates near a narration, hazard, or **reveal** trigger, or when the screen is active; automatic and invisible; triggers still fire reliably at their Author-set distances; no network wake-ups introduced.
 
 **I7 — Create simple point-to-point routes offline** *[P1]* — *FR63*
+**As a** Character, **I want to** make a quick A→B route within my downloaded map set **so that** I can improvise off-plan without connectivity.
 *AC:* Point-to-point within the downloaded set via the Dart-first engine; no offline elevation, no real-time guidance; result exports like any route.
 
 **I8 — Amend a route in the field** *[P1]* — *FR55*
+**As a** User in the field, **I want to** toggle a pre-planned alternate or draw a modification offline **so that** my local views and cues update when I hit a washout or high water.
 *AC:* Toggle an alternate or draw a modification on the offline map; local map, elevation, and cue sheet update; edits persist locally and auto-sync.
 
 **I9 — Publish and evaluate route amendments** *[P1]* — *FR56*
+**As a** participant who rerouted in the field, **I want to** publish the amendment to the group and evaluate others' **so that** we adopt necessary changes — especially safety-critical ones — while keeping control of our own path.
 *AC:* Any participant can publish; connected members get a change summary; recipient sees current-vs-proposed with updated distance/elevation/hazard; Accept / Decline / Select-Alternate updates that individual's path independently. Amendments flaggable **hazard/high-importance with a free-text safety note**, surfacing as a warning-level alert to everyone approaching that point.
 
 **I9a — Pin a field note for the group** *[P1]* — *FR56a*
+**As a** participant seeing something worth sharing, **I want to** pin a short note to a spot on our route **so that** others approaching it benefit from what I just learned — without changing anyone's route.
 *AC:* Location-anchored, timestamped, attached to a point on the shared route; peer-to-peer to the trip roster; advisory only; attributed to its poster; syncs when connectivity allows.
 
 **I9b — Receive field notes as I approach** *[P1]* — *FR56a*
+**As a** Character on the route, **I want** pinned field notes to surface as I near their location **so that** I get timely, local intel ("farmers market today, booth 12"; "construction, we detoured here") in context.
 *AC:* Surfaces as the Character nears its location, with text, poster, and age; dismissible per-Character; persists until the Author curates it into the plotline (**O8**) or dismisses it for the group; visually distinguished from Author-authored content so provenance is clear.
 
 ### Epic P — Character: Acting in the Story *(new)*
@@ -1028,6 +1075,7 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 ### Epic J — Character: Capture & Keepsake
 
 **J1 — Log field notes, photos, and voice** *[P1]* — *FR72*
+**As a** Character, **I want to** attach personal notes, photos, and voice snippets to nodes or days **so that** I capture my experience alongside the Author's plotlines.
 *AC:* Attachable to any anchor or track coordinate during/after a trip; private or shareable to the group; stored on device first, then synced.
 
 **J2 — See a post-trip recap** *[P1]* **[AMENDED v2.0]** — *FR73*
@@ -1035,11 +1083,13 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 *AC:* Planned-vs-actual distance, moving time, and elevation by mode; **plus a narrative axis — which plot points were reached, in what order, at what hour (P3), which branches were taken and which stations attempted (P2)**; combines Author narrative with Character logs into a digital keepsake. *(v1.0 was metrics-only.)*
 
 **J3 — Manage my trip vault** *[P1]* — *FR75, FR76*
+**As a** Character, **I want** a personal library of my trips **so that** I manage downloads, cue sheets, exports, and recaps.
 *AC:* Trips under Active/Upcoming, Offline Ready, Completed/Archived; each card shows Author, attendance dates, modes, offline badge; one-tap download or export; completed trips link to recap, photos, journal.
 
 ### Epic K — Any User: Account & Platform
 
 **K1 — Sign in with a magic link** *[MVP]* — *FR57*
+**As a** User, **I want** passwordless magic-link sign-in **so that** I authenticate without a password or SMS code.
 *AC:* Magic link is the only auth and the recovery path; no password, no SMS OTP; local planning works immediately.
 
 **K2 — Respond to an Author's request** *[P1]* **[AMENDED v2.0]** — *FR77, FR78, FR78a, FR123*
@@ -1047,27 +1097,35 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 *AC:* Character sees exactly which fields **and permissions** the Author requested, **including arrival visibility (P3)**; can grant the requested set, decline individual items, and add unrequested fields (e.g. an allergy or medical condition); nothing shared until the Character responds; **default is nothing shared**; response is per-trip and revisable at any time including mid-trip; preference fields still seed weight defaults.
 
 **K3 — Sync across my devices** *[MVP]* — *FR58, FR59*
+**As a** signed-in User, **I want** trips and preferences to sync via a canonical copy with a version check **so that** I plan on desktop and execute on mobile without losing edits.
 *AC:* Canonical server copy; local working copy functions offline; version comparison on open and before save; User chooses save-as or overwrite; never silent overwrite; guests excluded.
 
 **K4 — Use Plotlines as a guest** *[MVP]* — *FR60, FR61*
+**As a** Guest, **I want to** generate, view, and export in the browser with no account **so that** I can try Plotlines or ride a route planned for me with zero setup.
 *AC:* Core loop + export + both weather types with no account; work persists in the browser across refresh; nothing server-side; limits stated plainly.
 
 **K5 — Configure display and measurement preferences** *[MVP]* — *FR79*
+**As a** User, **I want to** set units, theme, and contrast **so that** everything matches my standards and viewing conditions.
 *AC:* Miles/km, °F/°C, light/dark/system, indoor/outdoor contrast; applies live across charts, cue sheets, dashboards, maps, weather; mobile defaults outdoor, desktop indoor, override synced. **Time and date format inherit the device's own settings by default** — the platform's clock preference and locale date pattern — **with explicit overrides**: a 12/24-hour toggle and the seven date formats in FR79. *Inherit defers to the platform's pattern, which may not be one of the seven, and resolves at render time rather than being frozen at install.* **The setting syncs; `inherit` resolves per-device**, so an explicit choice follows the user across machines while an inheriting user gets each device's own answer. Web guests are inherit-only with nothing persisted. **The device-TTS readout toggle (H2a/FR40a) lives here too and is per-device rather than synced** — it depends on which voices are installed on the device in front of the Character.
 
 **K6 — Set my language** *[P1]* — *FR83*
+**As a** User, **I want to** pick my app language **so that** UI, labels, and notifications appear in my language.
 *AC:* Language menu in native scripts; defaults to device locale, falls back to English; switching updates static UI live; preference saved and synced.
 
 **K7 — Prune downloaded content** *[P1]* — *FR80*
+**As a** User, **I want to** delete downloaded maps/elevation I no longer need **so that** I reclaim storage safely.
 *AC:* View downloaded content with footprint; delete anything not needed for a current/upcoming trip; a delete affecting an upcoming trip warns first; N/A on Web.
 
 **K8 — Reset planning controls** *[MVP]* **[AMENDED v2.0]** — *FR81*
+**As a** User, **I want** one action to revert planning controls and clear the route **so that** I back out cleanly.
 *AC:* Always-visible reset; reverts theme, shape, start, destination, distance to defaults and clears the generated route; **in compose mode it does not discard promoted anchors, roles, or reveal settings** — losing an afternoon of curation to a single reset would be unrecoverable; if the Author wants that, it is a separate, confirmed action.
 
 **K9 — See sync/offline status at a glance** *[P1]* — *FR76*
+**As a** User, **I want** clear status badges on trip cards **so that** I know my data is backed up before going offline.
 *AC:* Cards show Cloud Synced, This Device, and Offline Ready distinctly.
 
 **K10 — See required data attribution and app/sidecar version** *[MVP]* **[AMENDED v2.0]** — *FR86, FR95, FR101*
+**As a** User, **I want** an About/info surface listing every licensed data source's attribution and the app's (and, on desktop, sidecar's) version **so that** Plotlines meets its licence obligations honestly and I can tell what I'm running.
 *AC:* Reachable from every platform surface that displays licensed data, including the lightest ones; shows the CC BY credit for elevation and the ODbL `© OpenStreetMap` credit for the basemap together, since they are separate obligations under different licences; **plus per-layer attribution for every loaded plugin dataset (N5)**, which likewise propagates to exports and print; shows the running app version and, on desktop, the sidecar version matching `/health`; **a missing attribution is a build failure and this surface is a release gate**. **The privacy statement (K11) is reachable from here on every platform**, including Web guest and the share-token reading view.
 
 **K11 — Read what Plotlines knows and shares** *[MVP]* **[NEW v2.0]** — *FR138*
@@ -1113,53 +1171,69 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 ### Epic L — Portability & Durability
 
 **L1 — Auto-back-up trips locally as GeoJSON** *[P1]* — *FR68*
+**As a** User editing an adventure, **I want** automatic local GeoJSON backups **so that** my edits survive crashes and network drops.
 *AC:* Auto-saves spatial layers as valid RFC-7946 GeoJSON to local storage on key edits and at intervals; **includes area anchors as polygons, role offsets as distinct features, and role/arc/reveal metadata as feature properties**.
 
 **L2 — Keep notes as portable Markdown** *[P1]* — *FR69*
+**As a** User, **I want** notes and journals stored as Markdown **so that** they stay readable and portable.
 *AC:* Notes/journals saved as valid `.md`; images as relative references; links/coords/anchor references as standard Markdown links.
 
 **L3 — Export a full trip archive** *[P1]* — *FR70*
+**As a** User, **I want to** export a trip as a `.zip` **so that** I have a vendor-neutral offline backup of the whole adventure.
 *AC:* One `.zip` with `/routes`, `/journal`, `/photos`, and `manifest.json`; generated locally/in background without choking the device.
 
 **L4 — Restore a trip from an archive** *[P1]* — *FR71*
+**As a** User, **I want to** restore/import from a Plotlines `.zip` **so that** I can recover, migrate, or import a shared trip cleanly.
 *AC:* Validate `manifest.json` and file integrity before import; restore geometries, sequencing, metadata, cue sheets, Markdown notes, photos, **and the full anchor/role/reveal/arc model**; resolve relative references without breakage; show progress and a completion summary.
 
 ### Epic M — Developer: Architectural Seams
 
 **M1 — Model themes as data** *[MVP]* — *design goal*
+**As a** Developer, **I want** every theme to be a `WeightProfile` instance fed to one scoring function **so that** a new theme is a config entry, not new code.
 *AC:* Each theme is values in a shared `WeightProfile` (elevation, traffic class, surface penalty, POI bonus, detour budget, plus mode-specific weights); one scoring function consumes any profile; adding a **traversal mode** requires only a new profile entry; **adding a station activity requires no routing change at all** (FR130) — the two extension paths are distinct and both are configuration.
 
 **M2 — Resolve weights per edge via a position lookup** *[MVP]* — *FR36 seam*
+**As a** Developer, **I want** the solver to read an edge's weight via `weights.at(position)` from day one **so that** scoped/segment-varying weighting later is a one-function change.
 *AC:* Solver obtains weights through `weights.at(position)`; scalar case returns the same profile each time; introducing scopes changes only the lookup, not the solver.
 
 **M3 — Abstract elevation behind one interface** *[MVP]* — *FR62 seam*
+**As a** Developer, **I want** elevation requested for a bounding box through one interface **so that** adding a shared cache later is a config change, not a client rewrite.
 *AC:* One elevation interface from the first milestone; initial resolution is local-cache-then-direct-provider; a later phase inserts a shared cache ahead of the direct call, changing only order and base URL.
 
 **M4 — Serve web auth same-site** *[MVP]* — *architecture requirement*
+**As a** Developer, **I want** web and API on subdomains of one registered domain with a first-party `SameSite=Lax` session cookie **so that** sessions survive Safari and Firefox third-party-cookie blocking.
 *AC:* Web and API on subdomains of one registered domain; cookie `HttpOnly; Secure; SameSite=Lax` on the shared parent; no tokens in `localStorage`/`IndexedDB`; persistence verified in Safari and Firefox as a release gate.
 
 **M5 — Rate-limit guest compute per IP** *[P1]* — *architecture requirement*
+**As a** Developer, **I want** an in-memory per-IP limiter with progressive cool-off **so that** the guest tier's cost and abuse surface stays bounded without new infrastructure.
 *AC:* Per-IP in-memory counter on the single instance; calibrated threshold with progressive cool-off; guest sessions stateless server-side; single-instance limitation documented as accepted.
 
 **M6 — Cache external resources by volatility** *[P1]* — *responsible-use NFR*
+**As a** Developer, **I want** every external dependency cached with a volatility-appropriate TTL, bounded with eviction, and never re-requested when held **so that** we respect free-tier limits and attribution.
 *AC:* Per-dependency TTLs; size-bounded caches with eviction; held data never re-fetched; attributions shown wherever that data appears.
 
 **M7 — Pass the processing-core limit in from the caller** *[P1]* — *core-allocation rule*
+**As a** Developer, **I want** the routing core to receive its core limit as a parameter **so that** route computation doesn't starve the UI and the library stays host-agnostic.
 *AC:* Desktop/Mobile pass `floor(coreCount / 2)`; the core treats the limit as a parameter and never queries the host; server uses a fixed allocation by instance size.
 
 **M8 — Build an ARB-based localization framework** *[P1]* — *FR83 foundation*
+**As a** Developer, **I want** a `flutter_localizations` + `.arb` pipeline **so that** adding languages is streamlined, type-safe, and decoupled from app logic.
 *AC:* UI strings extracted to `.arb` templates in `/l10n`; codegen produces type-safe `AppLocalizations`; interpolation, pluralization, and date/number formatting via `intl`; missing keys fall back to base locale with build-time warnings.
 
 **M9 — Run within device power-saving mode** *[P1]* — *FR67*
+**As a** Developer, **I want** the mobile app to minimize GPS/CPU/network wake-ups and keep working under OS power-saving **so that** navigation survives a full day in the field.
 *AC:* Minimized wake-ups during active navigation; no errors/crashes under OS power-saving; core navigation remains available.
 
 **M10 — Ship a single, licensed elevation source with no fallback** *[MVP]* — *FR85, FR88*
+**As a** Developer, **I want** one fused elevation source with an explicit void/nodata/NaN policy **so that** elevation reads are simple, predictable, and never the reason a solve hangs or throws.
 *AC:* GEDTM30/OpenTopography only, no secondary fallback; nodata (including NaN via explicit `isnan`) and out-of-bounds/missing-raster all resolve to `0.0`, logged at most once per raster path; no network call inside a solve.
 
 **M11 — Serve tiles only through our own service** *[MVP]* — *FR92–FR95*
+**As a** Developer, **I want** the client to depend on one tile contract regardless of the upstream tile source **so that** swapping the basemap vendor or generation tooling never touches client code.
 *AC:* Client requests tiles only from `GET /tiles/{z}/{x}/{y}`; service validates z/x/y before upstream work; generation is bbox-scoped and on-demand, shared with the offline-bundle pipeline; tiles extracted from a Plotlines-hosted Protomaps mirror; ODbL `© OpenStreetMap` ships alongside elevation's CC BY.
 
 **M12 — Manage the sidecar's lifecycle and enforce a paired version** *[MVP]* — *ARCH §7.3, §12.1*
+**As a** Developer, **I want** the client to spawn, health-poll, restart, stop, and version-check the sidecar exactly as specified **so that** the two-artifact desktop app never hangs, orphans a process, or silently runs the client against mismatched routing code.
 *AC:* Spawn binds an ephemeral port; the client polls `GET /health`; a sidecar that dies mid-session restarts **once**, and a second failure degrades honestly; graceful stop is platform-specific — POSIX SIGTERM→SIGKILL; Windows `AttachConsole` + muted Ctrl handling + `CTRL_BREAK_EVENT`→`TerminateProcess`, with the sidecar in a Job Object (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`); app start performs an orphan sweep; client and sidecar versions compared at startup and **the app refuses to run on a mismatch**. Verified by the sidecar-lifecycle test suite.
 
 **M12a — Report readiness per capability** *[MVP]* **[NEW v2.0]** — *FR121, FR91*
@@ -1171,6 +1245,7 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 *AC:* **Every template is enumerable with its slots typed**; a message with an unbounded string slot fails review; **reason phrases are an enum plus a bounded table** — adding a cause means adding a table entry, never writing a sentence at a call site — and the enum aligns with M13's typed state enum where the cause is a failure; **plural and list rules are locale-driven** via M8's ARB framework, never hardcoded to English; **a CI check asserts no template accepts `Role.content` or any authored text field as a slot value**, enforced by the same lint that keeps role content out of Presentation; the TTS path (H2a) reads **templates and resolved content separately**, never a pre-composed sentence. *(A composed sentence is assembled in Presentation, which is downstream of the export-path byte assertions — so it is invisible to them.)*
 
 **M13 — Handle every desktop error/empty state through one shared surface** *[MVP]* **[AMENDED v2.0]** — *design goal; FR9*
+**As a** Developer, **I want** the desktop app's failure and empty states routed through one shared handling surface rather than ad-hoc dialogs invented at each call site **so that** every failure gets its defined, consistent treatment and a failure in an optional enrichment never destroys the primary work.
 *AC:* One shared surface driven by a typed state enum covers all desktop states — sidecar starting, sidecar won't start, sidecar died mid-session, no route possible, no data for the area, elevation void/missing tile, external provider unreachable, export failed — **plus four new v2.0 states: capability-warming (FR121), layer-extraction-failed, plugin-layer-unloadable-on-licence (FR101), and no-clusters-found-in-bbox (FR102)** — each with its defined treatment; the surface is stubbed before the first screen is built; a failure in an optional enrichment never blocks generation or discards the route. **Compose-mode distance deviation is explicitly *not* an error state** and does not route through this surface (A0a). **Neither is stale derived work** (Q3, FR140a): the stale list is a **distinct surface** with its own presentation and its own one-action resolutions, because stale work is pending work the Author caused deliberately by editing. Routing either through this enum teaches the Author that ordinary editing produces errors.
 ---
 
