@@ -10,6 +10,7 @@ export 'band.dart';
 export 'cue.dart';
 export 'day.dart';
 export 'day_timeline.dart';
+export 'desktop_error_state.dart';
 export 'diagnosis.dart';
 export 'edit_scope.dart';
 export 'empty_state.dart';
