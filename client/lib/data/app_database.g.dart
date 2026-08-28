@@ -58,6 +58,28 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _rosterMeta = const VerificationMeta('roster');
+  @override
+  late final GeneratedColumn<String> roster = GeneratedColumn<String>(
+    'roster',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _summaryMeta = const VerificationMeta(
+    'summary',
+  );
+  @override
+  late final GeneratedColumn<String> summary = GeneratedColumn<String>(
+    'summary',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -87,6 +109,8 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     modes,
     declaredModes,
     payload,
+    roster,
+    summary,
     createdAt,
     updatedAt,
   ];
@@ -140,6 +164,18 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     } else if (isInserting) {
       context.missing(_payloadMeta);
     }
+    if (data.containsKey('roster')) {
+      context.handle(
+        _rosterMeta,
+        roster.isAcceptableOrUnknown(data['roster']!, _rosterMeta),
+      );
+    }
+    if (data.containsKey('summary')) {
+      context.handle(
+        _summaryMeta,
+        summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -185,6 +221,14 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         DriftSqlType.string,
         data['${effectivePrefix}payload'],
       )!,
+      roster: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}roster'],
+      )!,
+      summary: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}summary'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -223,6 +267,25 @@ class TripRow extends DataClass implements Insertable<TripRow> {
 
   /// Canonical trip_payload.schema.json JSON, as TEXT (SQLite has no JSON type).
   final String payload;
+
+  /// FR134–FR136 / G2b — the trip's roster layer (`TripRoster.toJson()`):
+  /// membership, group and sub-group assignments, shared-gear and meal
+  /// responsibilities, and Author notes. Kept **beside** [payload], not
+  /// inside it, for the same reason [declaredModes] is: the roster is not a
+  /// `trip_payload.schema.json` type (FR136 — group "is stored on the trip
+  /// roster entry, not the account profile", and equally not on the payload),
+  /// and in hosted mode it maps to the separate `roster_entry` / `author_note`
+  /// tables (ARCH §11.1), not to `trip.payload JSONB`. Empty string = no
+  /// roster (old rows, or a trip nobody has been added to yet).
+  final String roster;
+
+  /// G2 (FR74) — a compact JSON of the card-face metrics the Trip Library
+  /// grid/list shows without decoding [payload] per row (SPIKE-20): distance,
+  /// elevation gain, day count, variant count, and group size. Computed from
+  /// the `Trip` and `TripRoster` at save time, the same denormalization
+  /// [modes] already does. `{}` for old rows — the card falls back to
+  /// "no metrics yet".
+  final String summary;
   final DateTime createdAt;
   final DateTime updatedAt;
   const TripRow({
@@ -231,6 +294,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     required this.modes,
     required this.declaredModes,
     required this.payload,
+    required this.roster,
+    required this.summary,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -242,6 +307,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     map['modes'] = Variable<String>(modes);
     map['declared_modes'] = Variable<String>(declaredModes);
     map['payload'] = Variable<String>(payload);
+    map['roster'] = Variable<String>(roster);
+    map['summary'] = Variable<String>(summary);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -254,6 +321,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       modes: Value(modes),
       declaredModes: Value(declaredModes),
       payload: Value(payload),
+      roster: Value(roster),
+      summary: Value(summary),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -270,6 +339,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       modes: serializer.fromJson<String>(json['modes']),
       declaredModes: serializer.fromJson<String>(json['declaredModes']),
       payload: serializer.fromJson<String>(json['payload']),
+      roster: serializer.fromJson<String>(json['roster']),
+      summary: serializer.fromJson<String>(json['summary']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -283,6 +354,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       'modes': serializer.toJson<String>(modes),
       'declaredModes': serializer.toJson<String>(declaredModes),
       'payload': serializer.toJson<String>(payload),
+      'roster': serializer.toJson<String>(roster),
+      'summary': serializer.toJson<String>(summary),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -294,6 +367,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     String? modes,
     String? declaredModes,
     String? payload,
+    String? roster,
+    String? summary,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => TripRow(
@@ -302,6 +377,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     modes: modes ?? this.modes,
     declaredModes: declaredModes ?? this.declaredModes,
     payload: payload ?? this.payload,
+    roster: roster ?? this.roster,
+    summary: summary ?? this.summary,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -314,6 +391,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           ? data.declaredModes.value
           : this.declaredModes,
       payload: data.payload.present ? data.payload.value : this.payload,
+      roster: data.roster.present ? data.roster.value : this.roster,
+      summary: data.summary.present ? data.summary.value : this.summary,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -327,6 +406,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           ..write('modes: $modes, ')
           ..write('declaredModes: $declaredModes, ')
           ..write('payload: $payload, ')
+          ..write('roster: $roster, ')
+          ..write('summary: $summary, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -340,6 +421,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     modes,
     declaredModes,
     payload,
+    roster,
+    summary,
     createdAt,
     updatedAt,
   );
@@ -352,6 +435,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           other.modes == this.modes &&
           other.declaredModes == this.declaredModes &&
           other.payload == this.payload &&
+          other.roster == this.roster &&
+          other.summary == this.summary &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -362,6 +447,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   final Value<String> modes;
   final Value<String> declaredModes;
   final Value<String> payload;
+  final Value<String> roster;
+  final Value<String> summary;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -371,6 +458,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     this.modes = const Value.absent(),
     this.declaredModes = const Value.absent(),
     this.payload = const Value.absent(),
+    this.roster = const Value.absent(),
+    this.summary = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -381,6 +470,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     required String modes,
     this.declaredModes = const Value.absent(),
     required String payload,
+    this.roster = const Value.absent(),
+    this.summary = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -396,6 +487,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Expression<String>? modes,
     Expression<String>? declaredModes,
     Expression<String>? payload,
+    Expression<String>? roster,
+    Expression<String>? summary,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -406,6 +499,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       if (modes != null) 'modes': modes,
       if (declaredModes != null) 'declared_modes': declaredModes,
       if (payload != null) 'payload': payload,
+      if (roster != null) 'roster': roster,
+      if (summary != null) 'summary': summary,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -418,6 +513,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Value<String>? modes,
     Value<String>? declaredModes,
     Value<String>? payload,
+    Value<String>? roster,
+    Value<String>? summary,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -428,6 +525,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       modes: modes ?? this.modes,
       declaredModes: declaredModes ?? this.declaredModes,
       payload: payload ?? this.payload,
+      roster: roster ?? this.roster,
+      summary: summary ?? this.summary,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -452,6 +551,12 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
     }
+    if (roster.present) {
+      map['roster'] = Variable<String>(roster.value);
+    }
+    if (summary.present) {
+      map['summary'] = Variable<String>(summary.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -472,6 +577,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
           ..write('modes: $modes, ')
           ..write('declaredModes: $declaredModes, ')
           ..write('payload: $payload, ')
+          ..write('roster: $roster, ')
+          ..write('summary: $summary, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -985,6 +1092,8 @@ typedef $$TripsTableCreateCompanionBuilder =
       required String modes,
       Value<String> declaredModes,
       required String payload,
+      Value<String> roster,
+      Value<String> summary,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -996,6 +1105,8 @@ typedef $$TripsTableUpdateCompanionBuilder =
       Value<String> modes,
       Value<String> declaredModes,
       Value<String> payload,
+      Value<String> roster,
+      Value<String> summary,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -1031,6 +1142,16 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
 
   ColumnFilters<String> get payload => $composableBuilder(
     column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get roster => $composableBuilder(
+    column: $table.roster,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get summary => $composableBuilder(
+    column: $table.summary,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1079,6 +1200,16 @@ class $$TripsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get roster => $composableBuilder(
+    column: $table.roster,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -1115,6 +1246,12 @@ class $$TripsTableAnnotationComposer
 
   GeneratedColumn<String> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<String> get roster =>
+      $composableBuilder(column: $table.roster, builder: (column) => column);
+
+  GeneratedColumn<String> get summary =>
+      $composableBuilder(column: $table.summary, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -1156,6 +1293,8 @@ class $$TripsTableTableManager
                 Value<String> modes = const Value.absent(),
                 Value<String> declaredModes = const Value.absent(),
                 Value<String> payload = const Value.absent(),
+                Value<String> roster = const Value.absent(),
+                Value<String> summary = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -1165,6 +1304,8 @@ class $$TripsTableTableManager
                 modes: modes,
                 declaredModes: declaredModes,
                 payload: payload,
+                roster: roster,
+                summary: summary,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -1176,6 +1317,8 @@ class $$TripsTableTableManager
                 required String modes,
                 Value<String> declaredModes = const Value.absent(),
                 required String payload,
+                Value<String> roster = const Value.absent(),
+                Value<String> summary = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -1185,6 +1328,8 @@ class $$TripsTableTableManager
                 modes: modes,
                 declaredModes: declaredModes,
                 payload: payload,
+                roster: roster,
+                summary: summary,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../data/app_database.dart' show TripCardMetrics;
 import '../domain/domain.dart';
 import '../domain/promote.dart' as domain_promote show promoteAnchor;
 import 'planner_ui_state.dart'
@@ -13,6 +14,7 @@ import 'planner_ui_state.dart'
         hasTargetDistanceControl,
         targetDistanceForViaCount,
         viaAnchorsMakeDistanceAdvisory;
+import 'current_roster_provider.dart';
 import 'providers.dart';
 import 'trip_authoring_meta_provider.dart';
 import 'trip_bbox_provider.dart';
@@ -1104,13 +1106,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
 final currentTripProvider =
     StateNotifierProvider<CurrentTripNotifier, Trip>((ref) => CurrentTripNotifier(ref));
 
-/// G2a save/reopen, against [currentTripProvider].
+/// G2a save/reopen and G2b clone, against [currentTripProvider] /
+/// [currentRosterProvider].
 class TripPersistence {
   TripPersistence(this._ref);
   final Ref _ref;
 
   Future<void> save() async {
     final trip = _ref.read(currentTripProvider);
+    final roster = _ref.read(currentRosterProvider);
     final db = _ref.read(appDatabaseProvider);
     await db.saveTrip(
       id: trip.id,
@@ -1118,6 +1122,8 @@ class TripPersistence {
       modes: trip.modes.toList(),
       declaredModes: trip.declaredModes.toList(),
       payloadJson: _encode(trip),
+      rosterJson: _encodeRoster(roster),
+      summaryJson: _summaryFor(trip, roster).toJsonString(),
       updatedAt: DateTime.now(),
     );
     _ref.invalidate(tripLibraryProvider);
@@ -1133,6 +1139,9 @@ class TripPersistence {
       declaredModes: row.declaredModes.isEmpty ? const {} : row.declaredModes.split(',').toSet(),
     );
     _ref.read(currentTripProvider.notifier).open(trip);
+    // FR134–FR136 — the roster is its own column too, and rehydrates here
+    // rather than starting blank on reopen (unlike party size / bbox below).
+    _ref.read(currentRosterProvider.notifier).open(_decodeRoster(row.roster));
     // Party size is session-only (trip_authoring_meta_provider.dart's doc
     // comment) — a reopened trip starts without whatever was set for the
     // trip open before it, rather than inheriting a stale value. (Travel
@@ -1149,9 +1158,89 @@ class TripPersistence {
     await _ref.read(appDatabaseProvider).deleteTrip(id);
     _ref.invalidate(tripLibraryProvider);
   }
+
+  /// FR74 / FR74b (G2, G2b) — clone the stored trip [sourceId] at [scope],
+  /// persist the result as a new trip row, and return its [CloneOutcome].
+  /// Does **not** open the clone in the planner — the caller decides whether
+  /// to route into it or (for a scope that [CloneOutcome.runsTripInitiation])
+  /// run trip initiation first.
+  ///
+  /// The consent / Character-layer exclusion is enforced in [cloneTrip]
+  /// (`domain/clone.dart`); this method only moves bytes.
+  Future<CloneOutcome> clone(
+    String sourceId,
+    CloneScope scope, {
+    CloneParts parts = const CloneParts(),
+    String? title,
+  }) async {
+    final db = _ref.read(appDatabaseProvider);
+    final row = await db.loadTrip(sourceId);
+    if (row == null) {
+      throw StateError('clone: no stored trip with id "$sourceId"');
+    }
+    final source = Trip.fromJson(_decode(row.payload));
+    final sourceRoster = _decodeRoster(row.roster);
+    final sourceDeclaredModes =
+        row.declaredModes.isEmpty ? const <String>{} : row.declaredModes.split(',').toSet();
+
+    final outcome = cloneTrip(
+      source: source,
+      sourceRoster: sourceRoster,
+      sourceDeclaredModes: sourceDeclaredModes,
+      scope: scope,
+      parts: parts,
+      newId: _uuid.v4(),
+      nowIso: _nowIso(),
+      title: title,
+    );
+
+    await db.saveTrip(
+      id: outcome.trip.id,
+      title: outcome.trip.title,
+      modes: outcome.trip.modes.toList(),
+      declaredModes: outcome.declaredModes.toList(),
+      payloadJson: _encode(outcome.trip),
+      rosterJson: _encodeRoster(outcome.roster),
+      summaryJson: _summaryFor(outcome.trip, outcome.roster).toJsonString(),
+      updatedAt: DateTime.now(),
+    );
+    _ref.invalidate(tripLibraryProvider);
+    return outcome;
+  }
+
+  /// Opens an already-cloned [CloneOutcome] in the planner — used when the
+  /// clone carried the authored trip (nothing to initialise). For a
+  /// roster-only clone the caller runs trip initiation instead.
+  void adopt(CloneOutcome outcome) {
+    _ref.read(currentTripProvider.notifier).open(
+          outcome.trip.copyWith(declaredModes: outcome.declaredModes),
+        );
+    _ref.read(currentRosterProvider.notifier).open(outcome.roster);
+    _ref.read(tripAuthoringMetaProvider.notifier).reset();
+    _ref.read(tripBboxProvider.notifier).reset();
+  }
 }
 
+/// G2 (FR74) — the card-face metrics denormalized into `Trips.summary` on
+/// every save, so the Trip Library never decodes a payload per row.
+TripCardMetrics _summaryFor(Trip trip, TripRoster roster) => TripCardMetrics(
+      distanceM: trip.metrics?.total?.distanceM,
+      ascentM: trip.metrics?.total?.climbM,
+      dayCount: trip.days.length,
+      // H6 variants are a session-only layer and are not persisted, so this
+      // is 0 until they are — the field exists so the card and write path
+      // already have a home for it.
+      variantCount: 0,
+      groupSize: roster.entries.length,
+    );
+
 final tripPersistenceProvider = Provider((ref) => TripPersistence(ref));
+
+TripRoster _decodeRoster(String json) => json.isEmpty
+    ? TripRoster.empty
+    : TripRoster.fromJson(Map<String, dynamic>.from(jsonDecode(json) as Map));
+String _encodeRoster(TripRoster roster) =>
+    roster.isEmpty ? '' : jsonEncode(roster.toJson());
 
 Map<String, dynamic> _decode(String json) =>
     Map<String, dynamic>.from(jsonDecode(json) as Map);
