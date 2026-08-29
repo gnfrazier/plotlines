@@ -43,6 +43,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="dev only: permit --tiles-upstream to point at an "
                              "http(s):// host other than the Plotlines mirror. "
                              "Never the shipped path (FR92/FR95).")
+    parser.add_argument("--web-domain", default=None,
+                        help="hosted mode only: the registrable parent domain "
+                             "(e.g. plotlines.app) that app.<domain> and "
+                             "api.<domain> share, so the signed-in session rides "
+                             "a first-party SameSite=Lax cookie that survives "
+                             "Safari/Firefox (ARCH §10.3, story M4). Required in "
+                             "hosted mode; a *.onrender.com-style public-suffix "
+                             "host is refused.")
     # Not required alongside --cache-dir: the client runs `--version` to perform the
     # A8 version check *before* it has spawned anything or chosen a cache dir.
     parser.add_argument("--version", action="store_true")
@@ -66,9 +74,19 @@ def main(argv: list[str] | None = None) -> int:
         print("refusing: sidecar mode binds loopback only (ARCH §7.1)", file=sys.stderr)
         return 2
 
-    app = create_app(cache_dir=args.cache_dir, mode=args.mode,
-                     tiles_upstream=args.tiles_upstream,
-                     allow_unmirrored_tiles=args.allow_unmirrored_tiles)
+    if args.mode == "hosted" and not args.web_domain:
+        print("refusing: hosted mode requires --web-domain for the same-site "
+              "session cookie (ARCH §10.3, story M4)", file=sys.stderr)
+        return 2
+
+    try:
+        app = create_app(cache_dir=args.cache_dir, mode=args.mode,
+                         tiles_upstream=args.tiles_upstream,
+                         allow_unmirrored_tiles=args.allow_unmirrored_tiles,
+                         web_domain=args.web_domain)
+    except ValueError as exc:
+        print(f"refusing: {exc}", file=sys.stderr)
+        return 2
 
     config = uvicorn.Config(app, host=args.host, port=args.port,
                             log_level="warning", access_log=False)
