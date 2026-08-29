@@ -124,7 +124,11 @@ def http_server_url(world_archive):
 
 
 def test_extract_bbox_reads_an_http_range_upstream(http_server_url, tmp_path):
+    # A loopback test server is not the Plotlines mirror, so this exercises
+    # the dev-only `allow_unmirrored` path (the mirror policy itself lives in
+    # `test_tiles_mirror.py`).
     out = extract_bbox(http_server_url, (-180.0, -85.0, 180.0, 85.0),
-                       tmp_path / "out.pmtiles", min_zoom=0, max_zoom=0)
+                       tmp_path / "out.pmtiles", min_zoom=0, max_zoom=0,
+                       allow_unmirrored=True)
     with Archive(out) as archive:
         assert archive.tile(0, 0, 0) == b"0/0/0"

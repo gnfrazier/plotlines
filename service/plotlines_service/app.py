@@ -52,6 +52,7 @@ from plotlines_core.scoring.metrics import edge_walk, measure
 from plotlines_core.scoring.profile import THEMES, WeightProfile
 from plotlines_core.tiles.archive import Archive, valid_zxy
 from plotlines_core.tiles.extract import NoTilesInBbox, extract_bbox
+from plotlines_core.tiles.mirror import basemap_attribution
 from plotlines_core.trips.compose import compose_day, split_trip
 from plotlines_core.trips.cues import derive_cue_sheet, route_polyline
 from plotlines_core.trips.payload import Day as PayloadDay
@@ -181,7 +182,8 @@ class RegionState:
     def routing_capability(self) -> dict:
         return self.graph_state.to_dict()
 
-    def build(self, cache_dir: Path, tiles_upstream: str | Path) -> None:
+    def build(self, cache_dir: Path, tiles_upstream: str | Path,
+              allow_unmirrored: bool = False) -> None:
         self.graph_state.start("building graph")
         try:
             region = region_lib.Region(key=self.key, bbox=self.bbox,
@@ -200,7 +202,8 @@ class RegionState:
         try:
             tiles_path = cache_dir / "regions" / self.key / "tiles.pmtiles"
             if not tiles_path.exists():
-                extract_bbox(tiles_upstream, self.bbox, tiles_path)
+                extract_bbox(tiles_upstream, self.bbox, tiles_path,
+                             allow_unmirrored=allow_unmirrored)
             self.tiles_archive = Archive(tiles_path)
         except NoTilesInBbox:
             pass
@@ -221,9 +224,11 @@ class Readiness:
     `health()` — they were never gated on this class (B1's whole point).
     """
 
-    def __init__(self, cache_dir: Path, tiles_upstream: str | Path) -> None:
+    def __init__(self, cache_dir: Path, tiles_upstream: str | Path,
+                 allow_unmirrored: bool = False) -> None:
         self.cache_dir = cache_dir
         self.tiles_upstream = tiles_upstream
+        self.allow_unmirrored = allow_unmirrored
         self.regions: dict[str, RegionState] = {}
         self._lock = threading.Lock()
         self.started_at = time.perf_counter()
@@ -239,7 +244,8 @@ class Readiness:
                 region = RegionState(key, bbox, network_type)
                 self.regions[key] = region
                 threading.Thread(
-                    target=region.build, args=(self.cache_dir, self.tiles_upstream),
+                    target=region.build,
+                    args=(self.cache_dir, self.tiles_upstream, self.allow_unmirrored),
                     daemon=True,
                 ).start()
         return key
@@ -486,9 +492,11 @@ class DiagnoseJob:
 
 
 def create_app(cache_dir: Path, mode: str = "sidecar", *,
-               tiles_upstream: str | Path | None = None) -> FastAPI:
+               tiles_upstream: str | Path | None = None,
+               allow_unmirrored_tiles: bool = False) -> FastAPI:
     app = FastAPI(title="plotlines-service", version=VERSION)
-    state = Readiness(cache_dir, tiles_upstream or default_home_region_archive())
+    state = Readiness(cache_dir, tiles_upstream or default_home_region_archive(),
+                      allow_unmirrored=allow_unmirrored_tiles)
     app.state.readiness = state
     home_tiles = Archive(default_home_region_archive())
     diagnose_jobs: dict[str, DiagnoseJob] = {}
@@ -593,13 +601,19 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
 
     @app.get("/attribution")
     def attribution() -> dict:
-        """FR101 / ARCH §12.2 — attribution derived from the *loaded* layer
-        set, not hardcoded. The About surface (K10), exports where the
+        """FR95 / FR101 / ARCH §12.2 — attribution derived from the *loaded*
+        layer set, not hardcoded. The About surface (K10), exports where the
         format permits, and printed itineraries / cue sheets all read this.
         `complete` is the release-gate answer: false with `missing` naming
-        the offenders means a build failure, not a render-time warning."""
+        the offenders means a build failure, not a render-time warning.
+
+        The basemap's ODbL `© OpenStreetMap` line (FR95, story M11) is always
+        present — the basemap always ships — and is a **separate obligation**
+        from elevation's CC BY, carried here so every export/print surface
+        reads one source rather than a hardcoded credit list."""
         registry = app.state.layer_registry
-        lines = [a.as_dict() for a in attributions_for(registry)]
+        lines = [basemap_attribution()]
+        lines += [a.as_dict() for a in attributions_for(registry)]
         try:
             assert_attribution_complete(registry)
             complete, missing = True, []
