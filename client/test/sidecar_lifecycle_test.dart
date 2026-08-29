@@ -75,6 +75,27 @@ void main() {
     });
   });
 
+  group('sidecarVersionIsPaired (M12: "the app refuses to run on a mismatch")', () {
+    test('identical stamps are a pair', () {
+      expect(sidecarVersionIsPaired('1.4.2', '1.4.2'), isTrue);
+    });
+
+    test('surrounding whitespace is ignored on either side', () {
+      expect(sidecarVersionIsPaired('1.4.2\n', '  1.4.2 '), isTrue);
+    });
+
+    test('any difference is a mismatch — the app must refuse', () {
+      expect(sidecarVersionIsPaired('1.4.2', '1.4.3'), isFalse);
+      expect(sidecarVersionIsPaired('1.4.2', '1.4.2-dev'), isFalse);
+    });
+
+    test('an empty stamp on either side is never a pair', () {
+      expect(sidecarVersionIsPaired('', ''), isFalse);
+      expect(sidecarVersionIsPaired('1.4.2', ''), isFalse);
+      expect(sidecarVersionIsPaired('   ', '1.4.2'), isFalse);
+    });
+  });
+
   group('SidecarRegistry — the next-launch orphan sweep (ARCH §8.4)', () {
     late Directory dir;
     late File file;

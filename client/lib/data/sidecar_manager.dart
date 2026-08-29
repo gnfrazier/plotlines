@@ -42,6 +42,21 @@ SidecarExitDecision decideOnSidecarExit({
   return SidecarExitDecision.degrade;
 }
 
+/// A8 / M12 — whether the client may run against this sidecar. The two build
+/// stamps must be byte-identical once trimmed, or the app refuses to start
+/// rather than run the client against mismatched routing code (PRD M12:
+/// "the app refuses to run on a mismatch"). An empty stamp on either side is
+/// never a pair — a binary that printed nothing for `--version` has not
+/// proven anything. Extracted as a pure function so the paired-version
+/// refusal is checked by the sidecar-lifecycle suite without spawning the
+/// binary — see `sidecar_lifecycle_test.dart`.
+@visibleForTesting
+bool sidecarVersionIsPaired(String clientVersion, String sidecarVersion) {
+  final client = clientVersion.trim();
+  final sidecar = sidecarVersion.trim();
+  return client.isNotEmpty && client == sidecar;
+}
+
 /// Binds an OS-assigned ephemeral port, reads it back, and releases the
 /// socket so the sidecar can take it (ARCH §8.4: "bind :0, read assigned
 /// port, release"). Top-level and `@visibleForTesting` because "spawn binds
@@ -340,14 +355,14 @@ class SidecarManager extends ChangeNotifier {
 
     final sidecarVersion = await readBinaryVersion();
     final clientVersion = resolveClientVersion();
-    if (sidecarVersion != clientVersion) {
+    if (!sidecarVersionIsPaired(clientVersion, sidecarVersion)) {
       // A8: never run the client against a mismatched sidecar.
       _set(SidecarState.failed,
           detail: 'version mismatch: client $clientVersion, '
               'sidecar $sidecarVersion');
       return;
     }
-    _confirmedVersion = sidecarVersion;
+    _confirmedVersion = sidecarVersion.trim();
 
     _port = await pickEphemeralPort();
     final cacheDir = await _resolveCacheDir();
