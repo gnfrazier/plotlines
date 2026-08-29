@@ -1,0 +1,1361 @@
+{
+  "provider": "postmark",
+  "from_address": "login@auth.plotlines.app",
+  "sent_at": "2026-08-29T00:00:00Z",
+  "wait_window_seconds": 300,
+  "rounds": 25,
+  "synthetic": true,
+  "note": "SYNTHETIC fixture. Not a measured run. Exists only to exercise analyze.py and lock the band thresholds in bands.py. See results/RESULTS.md.",
+  "observations": [
+    {
+      "recipient": "plotlines.seed00@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 12.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed00@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 10.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed00@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 23.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed00@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed00@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed00@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed01@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 12.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed01@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.8,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed01@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 8.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed01@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed01@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 8.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed01@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed02@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.8,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed02@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 32.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed02@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.8,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed02@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.8,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed02@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.8,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed02@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed03@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed03@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed03@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 70.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed03@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed03@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 8.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed03@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed04@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 3.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed04@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed04@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed04@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 27.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed04@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 8.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed04@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed05@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 12.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed05@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 12.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed05@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 10.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed05@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed05@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed05@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed06@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed06@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed06@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed06@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 10.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed06@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed06@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 3.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed07@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 10.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed07@microsoft.example",
+      "host": "microsoft",
+      "placement": "spam",
+      "time_to_inbox_seconds": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed07@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed07@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed07@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 12.8,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed07@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 12.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed08@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed08@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 10.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed08@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed08@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed08@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed08@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed09@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 8.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed09@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 12.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed09@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 30.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed09@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed09@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed09@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 12.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed10@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 3.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed10@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed10@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed10@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed10@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed10@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 21.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed11@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed11@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed11@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed11@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed11@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 43.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed11@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed12@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed12@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed12@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed12@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed12@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed12@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed13@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed13@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed13@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 3.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed13@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed13@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed13@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed14@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed14@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed14@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed14@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed14@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed14@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed15@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 3.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed15@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed15@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed15@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 38.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed15@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed15@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed16@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 8.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed16@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 3.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed16@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed16@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed16@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 10.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed16@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed17@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed17@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.8,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed17@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed17@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed17@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed17@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed18@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 8.8,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed18@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 10.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed18@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 8.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed18@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 18.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed18@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed18@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 20.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed19@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 22.8,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed19@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed19@yahoo.example",
+      "host": "yahoo",
+      "placement": "spam",
+      "time_to_inbox_seconds": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "fail"
+    },
+    {
+      "recipient": "plotlines.seed19@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 67.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed19@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 10.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed19@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 7.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed20@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed20@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed20@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed20@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed20@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 59.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed20@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 3.8,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed21@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed21@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed21@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed21@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed21@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 10.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed21@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed22@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed22@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed22@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 6.5,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed22@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed22@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 3.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed22@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.3,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed23@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 10.1,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed23@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 51.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed23@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 9.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed23@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 48.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed23@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed23@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 30.7,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed24@gmail.example",
+      "host": "gmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed24@microsoft.example",
+      "host": "microsoft",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 13.6,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed24@yahoo.example",
+      "host": "yahoo",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 3.9,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed24@icloud.example",
+      "host": "icloud",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 5.4,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed24@proton.example",
+      "host": "proton",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 11.0,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    },
+    {
+      "recipient": "plotlines.seed24@fastmail.example",
+      "host": "fastmail",
+      "placement": "inbox",
+      "time_to_inbox_seconds": 4.2,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass"
+    }
+  ]
+}

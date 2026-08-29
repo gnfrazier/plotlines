@@ -420,7 +420,7 @@ Generated from the GitHub project board: every issue carrying the **`mvp`** labe
 
 | # | Spike | Gates |
 |---|---|---|
-| 168 | SPIKE-13 — Magic-link email deliverability | K1 (#107) |
+| 168 | ~~SPIKE-13 — Magic-link email deliverability~~ | K1 (#107) — **resolved 2026-08-29 (documented-gap branch).** Postmark, dedicated transactional stream; sender on the same registrable domain as Web (A10 / §10.3); magic-link-only ships with a re-send + support-issued-link fallback. Live run deferred to the Web leg (needs the custom domain + provider account + seed mailboxes). See `spikes/SPIKE-13/results/RESULTS.md` |
 | 161 | SPIKE-G — Candidate/proposal rendering at bbox scale | curation map surfaces; ARCH Q15 / 2A.5 |
 | 162 | SPIKE-15 — Dart isolates for background processing | I3 (#91), I-series recompute |
 | 164 | SPIKE-06 — Backgrounded GPS-triggered audio on real devices | H2 (#75), I5 (#93) |

@@ -1,0 +1,6 @@
+# Seed-mailbox descriptors hold IMAP credentials — never commit.
+seeds*.json
+# Real run outputs are timestamped; the committed sample is the only checked-in run.
+results/run-*.json
+results/auth_records.json
+__pycache__/

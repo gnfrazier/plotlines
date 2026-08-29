@@ -465,11 +465,12 @@ Three specific unknowns sit inside that:
 
 ## Authentication
 
-### SPIKE-13 — Magic-link email deliverability
+### SPIKE-13 — Magic-link email deliverability ✅ **RESOLVED 2026-08-29 (documented-gap branch)**
 **Covers:** FR57 (Story K1) — the sole auth path (Web/Leg-4 milestone)
 **Priority:** Implementation-informing — but with an unusually high failure cost
+**Resolution (2026-08-29):** Lands on the **FALLBACK** band — the second branch of *Done when*. The live measurement is not run: it needs a registered custom domain (already a hard A10 prerequisite for Web), DNS control for SPF/DKIM/DMARC, a funded provider account, and seed mailboxes on all six major consumer hosts — none of which exist before the Web leg, and none worth standing up early when prior art already places the answer at the STAKE/FALLBACK boundary rather than at STAKE. Provider + sender config are decided; magic-link-only is **not** safe as the sole path and K1 ships with a documented backup. Pre-registered bands, an offline analyzer, and a ready-to-run live harness are committed at [`spikes/SPIKE-13/`](../spikes/SPIKE-13/results/RESULTS.md). **Decides:** provider = **Postmark**, dedicated transactional Message Stream (SES is the documented alternative but its 4–6 week IP warmup makes it a schedule commitment, not a late swap-in); sender = `login@<web-domain>` on the **same registrable domain as the Web app** (the A10 / §10.3 custom-domain decision carries sender reputation too — one domain, decided once), SPF `-all`/`~all` + provider DKIM + DMARC `p=quarantine`→`p=reject`; **fallback** = in-product re-send with cooldown + link TTL ≥ 15 min (outlasts greylisting) + an identity-checked support-issued-link runbook + delivery-webhook telemetry. **Doc edits owed by K1:** FR57/K1 AC ("magic link is the only auth *and the recovery path*" → recovery is re-send + support-issued link, not a password), ARCH D9 annotation, ARCH §10.3 note.
 **Unknown:** Magic-link-only auth has a single point of failure by design: there is no password fallback (ARCH D9). If the login email lands in spam, is delayed minutes, or is dropped, the user simply *cannot log in*. Whether a chosen transactional-email provider delivers reliably and within seconds — across common consumer mail hosts and their spam filters — is an unglamorous but real feasibility question.
-**Spike question:** Send magic-link emails through a candidate provider (e.g. a transactional-email service) to accounts on the major consumer mail hosts; measure delivery rate, time-to-inbox, and spam-folder placement. Check SPF/DKIM/DMARC setup and whether the custom domain (ARCH §9.3) is needed for sender reputation too.
+**Spike question:** Send magic-link emails through a candidate provider (e.g. a transactional-email service) to accounts on the major consumer mail hosts; measure delivery rate, time-to-inbox, and spam-folder placement. Check SPF/DKIM/DMARC setup and whether the custom domain (ARCH §10.3) is needed for sender reputation too.
 **Decides:** Which email provider and sender configuration the Web milestone depends on, and whether magic-link-only is safe as the sole path or wants a documented backup (e.g. re-send, or a support recovery route).
 **Done when:** Delivery rate and time-to-inbox meet a bar you'd stake login on across the major mail hosts, or the gap is documented so the auth approach can add a fallback before Web ships.
 
@@ -505,7 +506,7 @@ Three specific unknowns sit inside that:
 | SPIKE-07 Adaptive accuracy | FR54a | Implementation | No |
 | SPIKE-08 Power-saving OEMs | FR67 | Implementation | No |
 | SPIKE-11 Group propagation | FR56, FR56a, FR59 | Implementation | No |
-| SPIKE-13 Magic-link deliverability | FR57 | Implementation | No (high failure cost) |
+| ~~SPIKE-13 Magic-link deliverability~~ | FR57 | Implementation | **Resolved 2026-08-29 — documented-gap branch.** Prior art places authenticated transactional mail on a warmed custom domain at the STAKE/FALLBACK boundary, not at STAKE; the live run needs Web-leg infra (custom domain, DNS, provider account, seed mailboxes) that does not exist yet. **Provider = Postmark** (dedicated transactional stream; SES alternative but 4–6 wk warmup); **sender** on the same registrable domain as Web (A10 / §10.3 — one domain carries the cookie *and* sender reputation); **magic-link-only ships with a backup** — re-send + TTL ≥ 15 min + support-issued-link runbook + webhook telemetry. Pre-registered bands + offline analyzer + ready live harness at `spikes/SPIKE-13/`. FR57/K1 AC, ARCH D9 & §10.3 edits owed by K1 (#107) |
 
 ---
 

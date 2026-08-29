@@ -520,7 +520,7 @@ FR1–FR96 carry forward from v1.0 with their numbering intact. **FR97–FR133 a
 
 | FR | Requirement | Origin |
 |---|---|---|
-| **FR57** | Users authenticate via **magic link** only; no password, no SMS OTP. Local planning works immediately; only account-scoped surfaces wait on sign-in. | CTP FR19, rescoped |
+| **FR57** | Users authenticate via **magic link** only; no password, no SMS OTP. Local planning works immediately; only account-scoped surfaces wait on sign-in. **Recovery is a re-send (with cooldown) plus a support-issued link, not a password** — SPIKE-13 found magic-link email is not reliable enough to be the *sole* path with no backup; the sign-in email sends via a transactional provider (Postmark) from the same custom domain as the Web session (ARCH §10.3), with SPF/DKIM/DMARC and a link TTL ≥ 15 min. | CTP FR19, rescoped |
 | **FR58** | Signed-in Users' trips and non-trip preferences **sync** across devices via a canonical per-account copy; each device keeps an offline-capable working copy. | CTP FR21 |
 | **FR59** | Sync uses a **version-checked conditional write** on open and before save: on conflict, the User chooses save-as or overwrite — never a silent overwrite, no auto-merge UI. | CTP FR32 |
 | **FR60** | **Guests** use the core loop statelessly, with work persisted only in their own browser; nothing stored server-side; limits stated plainly. | CTP FR22 |
@@ -1090,7 +1090,7 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 
 **K1 — Sign in with a magic link** *[MVP]* — *FR57*
 **As a** User, **I want** passwordless magic-link sign-in **so that** I authenticate without a password or SMS code.
-*AC:* Magic link is the only auth and the recovery path; no password, no SMS OTP; local planning works immediately.
+*AC:* Magic link is the only auth; no password, no SMS OTP; local planning works immediately. **Recovery is re-send (with a visible cooldown) plus an identity-checked support-issued link — not a password** (SPIKE-13). Sign-in link TTL ≥ 15 min so a greylisting delay does not expire it; a delivery-telemetry surface makes a deliverability regression visible before it becomes a support queue.
 
 **K2 — Respond to an Author's request** *[P1]* **[AMENDED v2.0]** — *FR77, FR78, FR78a, FR123*
 **As a** Character, **I want to** respond to what an Author asks for — granting what I choose, declining specifics, and volunteering things they didn't ask — **so that** the Author can plan well while I stay in control.

@@ -913,6 +913,8 @@ cookie: Domain=.<domain>; HttpOnly; Secure; SameSite=Lax
 
 A custom domain is a prerequisite for the Web milestone; Safari and Firefox verification is a release exit criterion. **Rejected:** a Bearer token in web storage (XSS-readable). **Fallback:** serve the Flutter Web build from FastAPI itself — one origin, same-site by construction.
 
+**The same domain carries magic-link sender reputation (SPIKE-13).** The magic-link email sends from `login@<domain>` on this same registrable domain, with SPF, provider-published DKIM, and a DMARC policy ramping `p=quarantine`→`p=reject`. So the custom-domain decision is made once for two purposes — the first-party session cookie and transactional-email deliverability — not twice. SPIKE-13 also found magic-link-only is not safe as the *sole* path (ARCH D9): K1 ships with an in-product re-send (link TTL ≥ 15 min, to outlast greylisting), an identity-checked support-issued-link runbook, and delivery-webhook telemetry. Provider: Postmark, dedicated transactional stream (SES is the documented alternative, but its multi-week IP warmup makes it a schedule commitment rather than a late swap-in).
+
 **v2.0 adds a second Web surface with a different auth shape:** the Character-facing reading view (`GET /read/{share_token}`, FR132) is **share-token-authorized, not session-authorized**, so a Character can read a journey without an account. Sharing a token is not sharing a session — the token grants read access to one trip's reveal-filtered content and nothing else, and is revocable (`DELETE /shares/{token}`).
 
 ### 10.4 The usability foundation *[NEW v2.0]*
@@ -1424,7 +1426,7 @@ D1–D33 carry from v1.0 (abbreviated below where unchanged). **D34–D45 are ne
 | D6 | "Fewest turns" removed from the scoring model |
 | D7 | Canon vs. layers (P8) |
 | D8 | Group relay is trip-scoped, route-anchored, advisory, peer-to-peer (P9) |
-| D9 | Magic-link-only auth |
+| D9 | Magic-link-only auth — with a re-send + support-issued-link recovery fallback, not a password (SPIKE-13) |
 | D10 | Store-and-forward group messaging |
 | D11 | `trip.payload` as JSONB; group tables separate |
 | D12 | `granted_fields`/`volunteered_fields` are allowlists |
