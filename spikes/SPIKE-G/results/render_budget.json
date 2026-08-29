@@ -1,0 +1,3451 @@
+{
+  "spike": "SPIKE-G",
+  "question": "ARCH Q15 \u2014 candidate/proposal rendering at bbox scale; re-measure A16",
+  "method": "analytical model calibrated to SPIKE-14 anchors + SPIKE-A densities; live harness in HARNESS.md",
+  "regions": [
+    {
+      "region": "avl",
+      "place": "Asheville & the French Broad, NC",
+      "km2": 487,
+      "candidates_v1_2_0": 715,
+      "candidates_v1_1_0_flood": 749,
+      "area_anchor_count": 79,
+      "density_per_100km2": 146.8,
+      "strategies": {
+        "naive": {
+          "band": "red",
+          "axes": {
+            "frame_ok_gpu": false,
+            "frame_ok_swraster_overview": false,
+            "select_ok_gpu": true,
+            "intent_hard_fail": false,
+            "intent_soft_fail": false,
+            "intent_reasons": []
+          },
+          "worst_candidate_layer_add_mb_gpu": 6.42,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 715,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 1229,
+                  "in_viewport": 715,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 35.24,
+                  "total_p95_ms": 50.75,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 6.42,
+                  "total_mb": 706.4,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 32.89,
+                  "rebuild_on_select_ms": 28.6,
+                  "worst_ms": 32.89,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 715,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 1229,
+                  "in_viewport": 715,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 15.28,
+                  "total_p95_ms": 22.88,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 6.42,
+                  "total_mb": 1006.4,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 32.89,
+                  "rebuild_on_select_ms": 28.6,
+                  "worst_ms": 32.89,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 693,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 1217,
+                  "in_viewport": 693,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 34.22,
+                  "total_p95_ms": 49.73,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 6.23,
+                  "total_mb": 706.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 31.88,
+                  "rebuild_on_select_ms": 27.72,
+                  "worst_ms": 31.88,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 693,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 1217,
+                  "in_viewport": 693,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 14.83,
+                  "total_p95_ms": 22.43,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 6.23,
+                  "total_mb": 1006.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 31.88,
+                  "rebuild_on_select_ms": 27.72,
+                  "worst_ms": 31.88,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 341,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 772,
+                  "in_viewport": 341,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 17.28,
+                  "total_p95_ms": 32.77,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 3.09,
+                  "total_mb": 703.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 15.69,
+                  "rebuild_on_select_ms": 13.64,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 341,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 772,
+                  "in_viewport": 341,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 7.44,
+                  "total_p95_ms": 15.04,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 3.09,
+                  "total_mb": 1003.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 15.69,
+                  "rebuild_on_select_ms": 13.64,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 22,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 107,
+                  "in_viewport": 22,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 1.26,
+                  "total_p95_ms": 16.76,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.2,
+                  "total_mb": 700.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 1.01,
+                  "rebuild_on_select_ms": 0.88,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 22,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 107,
+                  "in_viewport": 22,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.53,
+                  "total_p95_ms": 8.13,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.2,
+                  "total_mb": 1000.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 1.01,
+                  "rebuild_on_select_ms": 0.88,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            }
+          }
+        },
+        "zoom_threshold": {
+          "band": "red",
+          "axes": {
+            "frame_ok_gpu": true,
+            "frame_ok_swraster_overview": true,
+            "select_ok_gpu": true,
+            "intent_hard_fail": true,
+            "intent_soft_fail": true,
+            "intent_reasons": [
+              "overview (z10) renders nothing",
+              "salience aggregated away at z10 (FR99)"
+            ]
+          },
+          "worst_candidate_layer_add_mb_gpu": 3.09,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 715,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 15.5,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 715,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 7.6,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 1000.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": false,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 693,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 15.5,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 693,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 7.6,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 1000.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": false,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 341,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 772,
+                  "in_viewport": 341,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 17.28,
+                  "total_p95_ms": 32.77,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 3.09,
+                  "total_mb": 703.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 15.69,
+                  "rebuild_on_select_ms": 13.64,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 341,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 772,
+                  "in_viewport": 341,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 7.44,
+                  "total_p95_ms": 15.04,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 3.09,
+                  "total_mb": 1003.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 15.69,
+                  "rebuild_on_select_ms": 13.64,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 22,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 107,
+                  "in_viewport": 22,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 1.26,
+                  "total_p95_ms": 16.76,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.2,
+                  "total_mb": 700.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 1.01,
+                  "rebuild_on_select_ms": 0.88,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 22,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 107,
+                  "in_viewport": 22,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.53,
+                  "total_p95_ms": 8.13,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.2,
+                  "total_mb": 1000.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 1.01,
+                  "rebuild_on_select_ms": 0.88,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            }
+          }
+        },
+        "cluster_grid": {
+          "band": "amber",
+          "axes": {
+            "frame_ok_gpu": true,
+            "frame_ok_swraster_overview": true,
+            "select_ok_gpu": true,
+            "intent_hard_fail": false,
+            "intent_soft_fail": true,
+            "intent_reasons": [
+              "salience aggregated away at z10 (FR99)",
+              "tap->card ambiguous at z14 (N4a)",
+              "cannot promote directly from map at z14 (FR99)",
+              "tap->card ambiguous at z16 (N4a)",
+              "cannot promote directly from map at z16 (FR99)"
+            ]
+          },
+          "worst_candidate_layer_add_mb_gpu": 1.12,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 1,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 13,
+                  "polygon_vertices": 6,
+                  "in_viewport": 715,
+                  "notes": "14 occupied cells: 1 singles + 13 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.64,
+                  "total_p95_ms": 16.14,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.4,
+                  "total_mb": 700.4,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.64,
+                  "rebuild_on_select_ms": 0.56,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 1,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 13,
+                  "polygon_vertices": 6,
+                  "in_viewport": 715,
+                  "notes": "14 occupied cells: 1 singles + 13 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.28,
+                  "total_p95_ms": 7.88,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.4,
+                  "total_mb": 1000.4,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.64,
+                  "rebuild_on_select_ms": 0.56,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 24,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 61,
+                  "polygon_vertices": 42,
+                  "in_viewport": 693,
+                  "notes": "85 occupied cells: 24 singles + 61 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 3.93,
+                  "total_p95_ms": 19.43,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 1.03,
+                  "total_mb": 701.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 3.91,
+                  "rebuild_on_select_ms": 3.4,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 24,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 61,
+                  "polygon_vertices": 42,
+                  "in_viewport": 693,
+                  "notes": "85 occupied cells: 24 singles + 61 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 1.73,
+                  "total_p95_ms": 9.33,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 1.03,
+                  "total_mb": 1001.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 3.91,
+                  "rebuild_on_select_ms": 3.4,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 32,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 60,
+                  "polygon_vertices": 248,
+                  "in_viewport": 341,
+                  "notes": "92 occupied cells: 32 singles + 60 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 4.76,
+                  "total_p95_ms": 20.26,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 1.12,
+                  "total_mb": 701.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 4.23,
+                  "rebuild_on_select_ms": 3.68,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 32,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 60,
+                  "polygon_vertices": 248,
+                  "in_viewport": 341,
+                  "notes": "92 occupied cells: 32 singles + 60 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 2.04,
+                  "total_p95_ms": 9.64,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 1.12,
+                  "total_mb": 1001.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 4.23,
+                  "rebuild_on_select_ms": 3.68,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 12,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 4,
+                  "polygon_vertices": 107,
+                  "in_viewport": 22,
+                  "notes": "16 occupied cells: 12 singles + 4 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.99,
+                  "total_p95_ms": 16.49,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.43,
+                  "total_mb": 700.4,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.74,
+                  "rebuild_on_select_ms": 0.64,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 12,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 4,
+                  "polygon_vertices": 107,
+                  "in_viewport": 22,
+                  "notes": "16 occupied cells: 12 singles + 4 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.41,
+                  "total_p95_ms": 8.01,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.43,
+                  "total_mb": 1000.4,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.74,
+                  "rebuild_on_select_ms": 0.64,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            }
+          }
+        },
+        "salience_gated": {
+          "band": "amber",
+          "axes": {
+            "frame_ok_gpu": true,
+            "frame_ok_swraster_overview": false,
+            "select_ok_gpu": true,
+            "intent_hard_fail": false,
+            "intent_soft_fail": false,
+            "intent_reasons": []
+          },
+          "worst_candidate_layer_add_mb_gpu": 2.84,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 715,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 1229,
+                  "in_viewport": 715,
+                  "notes": "K=0: 0 widgets + 715 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 3.93,
+                  "total_p95_ms": 19.43,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.17,
+                  "total_mb": 700.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.02,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 305,
+                  "canvas_dots": 410,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 1229,
+                  "in_viewport": 715,
+                  "notes": "K=305: 305 widgets + 410 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 7.24,
+                  "total_p95_ms": 14.85,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 2.84,
+                  "total_mb": 1002.8,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 14.04,
+                  "rebuild_on_select_ms": 12.2,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 693,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 1217,
+                  "in_viewport": 693,
+                  "notes": "K=0: 0 widgets + 693 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 3.87,
+                  "total_p95_ms": 19.37,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.17,
+                  "total_mb": 700.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.02,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 305,
+                  "canvas_dots": 388,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 1217,
+                  "in_viewport": 693,
+                  "notes": "K=305: 305 widgets + 388 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 7.23,
+                  "total_p95_ms": 14.83,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 2.84,
+                  "total_mb": 1002.8,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 14.04,
+                  "rebuild_on_select_ms": 12.2,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 341,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 772,
+                  "in_viewport": 341,
+                  "notes": "K=0: 0 widgets + 341 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 2.34,
+                  "total_p95_ms": 17.84,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.11,
+                  "total_mb": 700.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.01,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 305,
+                  "canvas_dots": 36,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 772,
+                  "in_viewport": 341,
+                  "notes": "K=305: 305 widgets + 36 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 6.73,
+                  "total_p95_ms": 14.33,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 2.77,
+                  "total_mb": 1002.8,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 14.03,
+                  "rebuild_on_select_ms": 12.2,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 22,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 107,
+                  "in_viewport": 22,
+                  "notes": "K=0: 0 widgets + 22 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.3,
+                  "total_p95_ms": 15.79,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.01,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 22,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 107,
+                  "in_viewport": 22,
+                  "notes": "K=305: 22 widgets + 0 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.53,
+                  "total_p95_ms": 8.13,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.2,
+                  "total_mb": 1000.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 1.01,
+                  "rebuild_on_select_ms": 0.88,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "region": "lwr",
+      "place": "Lower Wisconsin Riverway, WI",
+      "km2": 693,
+      "candidates_v1_2_0": 72,
+      "candidates_v1_1_0_flood": 63,
+      "area_anchor_count": 20,
+      "density_per_100km2": 10.4,
+      "strategies": {
+        "naive": {
+          "band": "amber",
+          "axes": {
+            "frame_ok_gpu": true,
+            "frame_ok_swraster_overview": false,
+            "select_ok_gpu": true,
+            "intent_hard_fail": false,
+            "intent_soft_fail": false,
+            "intent_reasons": []
+          },
+          "worst_candidate_layer_add_mb_gpu": 0.68,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 72,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 418,
+                  "in_viewport": 72,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 4.28,
+                  "total_p95_ms": 19.79,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.68,
+                  "total_mb": 700.7,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 3.31,
+                  "rebuild_on_select_ms": 2.88,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 72,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 418,
+                  "in_viewport": 72,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 1.77,
+                  "total_p95_ms": 9.37,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.68,
+                  "total_mb": 1000.7,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 3.31,
+                  "rebuild_on_select_ms": 2.88,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 62,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 267,
+                  "in_viewport": 62,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 3.46,
+                  "total_p95_ms": 18.96,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.57,
+                  "total_mb": 700.6,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 2.85,
+                  "rebuild_on_select_ms": 2.48,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 62,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 267,
+                  "in_viewport": 62,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 1.45,
+                  "total_p95_ms": 9.05,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.57,
+                  "total_mb": 1000.6,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 2.85,
+                  "rebuild_on_select_ms": 2.48,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 20,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 77,
+                  "in_viewport": 20,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 1.09,
+                  "total_p95_ms": 16.59,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.19,
+                  "total_mb": 700.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.92,
+                  "rebuild_on_select_ms": 0.8,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 20,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 77,
+                  "in_viewport": 20,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.46,
+                  "total_p95_ms": 8.06,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.19,
+                  "total_mb": 1000.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.92,
+                  "rebuild_on_select_ms": 0.8,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 0,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 15.5,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 0,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 7.6,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 1000.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            }
+          }
+        },
+        "zoom_threshold": {
+          "band": "red",
+          "axes": {
+            "frame_ok_gpu": true,
+            "frame_ok_swraster_overview": true,
+            "select_ok_gpu": true,
+            "intent_hard_fail": true,
+            "intent_soft_fail": true,
+            "intent_reasons": [
+              "overview (z10) renders nothing",
+              "salience aggregated away at z10 (FR99)"
+            ]
+          },
+          "worst_candidate_layer_add_mb_gpu": 0.19,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 72,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 15.5,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 72,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 7.6,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 1000.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": false,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 62,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 15.5,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 62,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 7.6,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 1000.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": false,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 20,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 77,
+                  "in_viewport": 20,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 1.09,
+                  "total_p95_ms": 16.59,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.19,
+                  "total_mb": 700.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.92,
+                  "rebuild_on_select_ms": 0.8,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 20,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 77,
+                  "in_viewport": 20,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.46,
+                  "total_p95_ms": 8.06,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.19,
+                  "total_mb": 1000.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.92,
+                  "rebuild_on_select_ms": 0.8,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 0,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 15.5,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 0,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 7.6,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 1000.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            }
+          }
+        },
+        "cluster_grid": {
+          "band": "amber",
+          "axes": {
+            "frame_ok_gpu": true,
+            "frame_ok_swraster_overview": true,
+            "select_ok_gpu": true,
+            "intent_hard_fail": false,
+            "intent_soft_fail": true,
+            "intent_reasons": [
+              "salience aggregated away at z10 (FR99)",
+              "tap->card ambiguous at z14 (N4a)",
+              "cannot promote directly from map at z14 (FR99)"
+            ]
+          },
+          "worst_candidate_layer_add_mb_gpu": 0.23,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 4,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 9,
+                  "polygon_vertices": 66,
+                  "in_viewport": 72,
+                  "notes": "13 occupied cells: 4 singles + 9 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.75,
+                  "total_p95_ms": 16.25,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.15,
+                  "total_mb": 700.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.6,
+                  "rebuild_on_select_ms": 0.52,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 4,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 9,
+                  "polygon_vertices": 66,
+                  "in_viewport": 72,
+                  "notes": "13 occupied cells: 4 singles + 9 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.31,
+                  "total_p95_ms": 7.91,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.15,
+                  "total_mb": 1000.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.6,
+                  "rebuild_on_select_ms": 0.52,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 13,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 9,
+                  "polygon_vertices": 103,
+                  "in_viewport": 62,
+                  "notes": "22 occupied cells: 13 singles + 9 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 1.25,
+                  "total_p95_ms": 16.75,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.23,
+                  "total_mb": 700.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 1.01,
+                  "rebuild_on_select_ms": 0.88,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 13,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 9,
+                  "polygon_vertices": 103,
+                  "in_viewport": 62,
+                  "notes": "22 occupied cells: 13 singles + 9 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.52,
+                  "total_p95_ms": 8.12,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.23,
+                  "total_mb": 1000.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 1.01,
+                  "rebuild_on_select_ms": 0.88,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 5,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 6,
+                  "polygon_vertices": 0,
+                  "in_viewport": 20,
+                  "notes": "11 occupied cells: 5 singles + 6 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.49,
+                  "total_p95_ms": 15.99,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.13,
+                  "total_mb": 700.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.51,
+                  "rebuild_on_select_ms": 0.44,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 5,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 6,
+                  "polygon_vertices": 0,
+                  "in_viewport": 20,
+                  "notes": "11 occupied cells: 5 singles + 6 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.22,
+                  "total_p95_ms": 7.82,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.13,
+                  "total_mb": 1000.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.51,
+                  "rebuild_on_select_ms": 0.44,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 0,
+                  "notes": "0 occupied cells: 0 singles + 0 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 15.5,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.03,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 0,
+                  "notes": "0 occupied cells: 0 singles + 0 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 7.6,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.03,
+                  "total_mb": 1000.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            }
+          }
+        },
+        "salience_gated": {
+          "band": "green",
+          "axes": {
+            "frame_ok_gpu": true,
+            "frame_ok_swraster_overview": true,
+            "select_ok_gpu": true,
+            "intent_hard_fail": false,
+            "intent_soft_fail": false,
+            "intent_reasons": []
+          },
+          "worst_candidate_layer_add_mb_gpu": 0.68,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 72,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 418,
+                  "in_viewport": 72,
+                  "notes": "K=0: 0 widgets + 72 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 1.13,
+                  "total_p95_ms": 16.63,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.05,
+                  "total_mb": 700.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 72,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 418,
+                  "in_viewport": 72,
+                  "notes": "K=305: 72 widgets + 0 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 1.77,
+                  "total_p95_ms": 9.37,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.68,
+                  "total_mb": 1000.7,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 3.31,
+                  "rebuild_on_select_ms": 2.88,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 62,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 267,
+                  "in_viewport": 62,
+                  "notes": "K=0: 0 widgets + 62 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.74,
+                  "total_p95_ms": 16.24,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.03,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 62,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 267,
+                  "in_viewport": 62,
+                  "notes": "K=305: 62 widgets + 0 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 1.45,
+                  "total_p95_ms": 9.05,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.57,
+                  "total_mb": 1000.6,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 2.85,
+                  "rebuild_on_select_ms": 2.48,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 20,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 77,
+                  "in_viewport": 20,
+                  "notes": "K=0: 0 widgets + 20 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.21,
+                  "total_p95_ms": 15.72,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.01,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 20,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 77,
+                  "in_viewport": 20,
+                  "notes": "K=305: 20 widgets + 0 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.46,
+                  "total_p95_ms": 8.06,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.19,
+                  "total_mb": 1000.2,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.92,
+                  "rebuild_on_select_ms": 0.8,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 0,
+                  "notes": "K=0: 0 widgets + 0 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 15.5,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 0,
+                  "notes": "K=305: 0 widgets + 0 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 7.6,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 1000.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "region": "sgv",
+      "place": "San Gabriel foothills, CA",
+      "km2": 382,
+      "candidates_v1_2_0": 1208,
+      "candidates_v1_1_0_flood": 5453,
+      "area_anchor_count": 100,
+      "density_per_100km2": 316.2,
+      "strategies": {
+        "naive": {
+          "band": "red",
+          "axes": {
+            "frame_ok_gpu": false,
+            "frame_ok_swraster_overview": false,
+            "select_ok_gpu": true,
+            "intent_hard_fail": false,
+            "intent_soft_fail": false,
+            "intent_reasons": []
+          },
+          "worst_candidate_layer_add_mb_gpu": 10.86,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 1207,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 2163,
+                  "in_viewport": 1207,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 59.72,
+                  "total_p95_ms": 75.22,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 10.86,
+                  "total_mb": 710.9,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 55.52,
+                  "rebuild_on_select_ms": 48.28,
+                  "worst_ms": 55.52,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 1207,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 2163,
+                  "in_viewport": 1207,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 25.87,
+                  "total_p95_ms": 33.47,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 10.86,
+                  "total_mb": 1010.9,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 55.52,
+                  "rebuild_on_select_ms": 48.28,
+                  "worst_ms": 55.52,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 1173,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 2145,
+                  "in_viewport": 1173,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 58.14,
+                  "total_p95_ms": 73.65,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 10.56,
+                  "total_mb": 710.6,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 53.96,
+                  "rebuild_on_select_ms": 46.92,
+                  "worst_ms": 53.96,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 1173,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 2145,
+                  "in_viewport": 1173,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 25.18,
+                  "total_p95_ms": 32.78,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 10.56,
+                  "total_mb": 1010.6,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 53.96,
+                  "rebuild_on_select_ms": 46.92,
+                  "worst_ms": 53.96,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 615,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 552,
+                  "in_viewport": 615,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 29.06,
+                  "total_p95_ms": 44.55,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 5.47,
+                  "total_mb": 705.5,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 28.29,
+                  "rebuild_on_select_ms": 24.6,
+                  "worst_ms": 28.29,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 615,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 552,
+                  "in_viewport": 615,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 12.74,
+                  "total_p95_ms": 20.34,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 5.47,
+                  "total_mb": 1005.5,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 28.29,
+                  "rebuild_on_select_ms": 24.6,
+                  "worst_ms": 28.29,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 14,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 47,
+                  "in_viewport": 14,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.75,
+                  "total_p95_ms": 16.25,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.13,
+                  "total_mb": 700.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.64,
+                  "rebuild_on_select_ms": 0.56,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 14,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 47,
+                  "in_viewport": 14,
+                  "notes": "every candidate is a live widget; cost scales with density"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.32,
+                  "total_p95_ms": 7.92,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.13,
+                  "total_mb": 1000.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.64,
+                  "rebuild_on_select_ms": 0.56,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            }
+          }
+        },
+        "zoom_threshold": {
+          "band": "red",
+          "axes": {
+            "frame_ok_gpu": false,
+            "frame_ok_swraster_overview": true,
+            "select_ok_gpu": true,
+            "intent_hard_fail": true,
+            "intent_soft_fail": true,
+            "intent_reasons": [
+              "overview (z10) renders nothing",
+              "salience aggregated away at z10 (FR99)"
+            ]
+          },
+          "worst_candidate_layer_add_mb_gpu": 5.47,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 1207,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 15.5,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 1207,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 7.6,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 1000.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": false,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 1173,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 15.5,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 0,
+                  "in_viewport": 1173,
+                  "notes": "z<13: nothing drawn \u2014 the overview is blank, N4a map->card impossible here"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.0,
+                  "total_p95_ms": 7.6,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.0,
+                  "total_mb": 1000.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": false,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 615,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 552,
+                  "in_viewport": 615,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 29.06,
+                  "total_p95_ms": 44.55,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 5.47,
+                  "total_mb": 705.5,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 28.29,
+                  "rebuild_on_select_ms": 24.6,
+                  "worst_ms": 28.29,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 615,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 552,
+                  "in_viewport": 615,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 12.74,
+                  "total_p95_ms": 20.34,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 5.47,
+                  "total_mb": 1005.5,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 28.29,
+                  "rebuild_on_select_ms": 24.6,
+                  "worst_ms": 28.29,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 14,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 47,
+                  "in_viewport": 14,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.75,
+                  "total_p95_ms": 16.25,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.13,
+                  "total_mb": 700.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.64,
+                  "rebuild_on_select_ms": 0.56,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 14,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 47,
+                  "in_viewport": 14,
+                  "notes": "z>=13: identical to naive above the threshold"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.32,
+                  "total_p95_ms": 7.92,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.13,
+                  "total_mb": 1000.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.64,
+                  "rebuild_on_select_ms": 0.56,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            }
+          }
+        },
+        "cluster_grid": {
+          "band": "amber",
+          "axes": {
+            "frame_ok_gpu": true,
+            "frame_ok_swraster_overview": true,
+            "select_ok_gpu": true,
+            "intent_hard_fail": false,
+            "intent_soft_fail": true,
+            "intent_reasons": [
+              "salience aggregated away at z10 (FR99)",
+              "tap->card ambiguous at z14 (N4a)",
+              "cannot promote directly from map at z14 (FR99)",
+              "tap->card ambiguous at z16 (N4a)",
+              "cannot promote directly from map at z16 (FR99)"
+            ]
+          },
+          "worst_candidate_layer_add_mb_gpu": 1.41,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 2,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 13,
+                  "polygon_vertices": 6,
+                  "in_viewport": 1207,
+                  "notes": "15 occupied cells: 2 singles + 13 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.68,
+                  "total_p95_ms": 16.19,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.6,
+                  "total_mb": 700.6,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.69,
+                  "rebuild_on_select_ms": 0.6,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 2,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 13,
+                  "polygon_vertices": 6,
+                  "in_viewport": 1207,
+                  "notes": "15 occupied cells: 2 singles + 13 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.3,
+                  "total_p95_ms": 7.9,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.6,
+                  "total_mb": 1000.6,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.69,
+                  "rebuild_on_select_ms": 0.6,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 11,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 60,
+                  "polygon_vertices": 37,
+                  "in_viewport": 1173,
+                  "notes": "71 occupied cells: 11 singles + 60 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 3.29,
+                  "total_p95_ms": 18.79,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 1.09,
+                  "total_mb": 701.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 3.27,
+                  "rebuild_on_select_ms": 2.84,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 11,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 60,
+                  "polygon_vertices": 37,
+                  "in_viewport": 1173,
+                  "notes": "71 occupied cells: 11 singles + 60 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 1.45,
+                  "total_p95_ms": 9.05,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 1.09,
+                  "total_mb": 1001.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 3.27,
+                  "rebuild_on_select_ms": 2.84,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 37,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 68,
+                  "polygon_vertices": 172,
+                  "in_viewport": 615,
+                  "notes": "105 occupied cells: 37 singles + 68 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 5.15,
+                  "total_p95_ms": 20.66,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 1.41,
+                  "total_mb": 701.4,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 4.83,
+                  "rebuild_on_select_ms": 4.2,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 37,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 68,
+                  "polygon_vertices": 172,
+                  "in_viewport": 615,
+                  "notes": "105 occupied cells: 37 singles + 68 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 2.24,
+                  "total_p95_ms": 9.84,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 1.41,
+                  "total_mb": 1001.4,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 4.83,
+                  "rebuild_on_select_ms": 4.2,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 4,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 3,
+                  "polygon_vertices": 16,
+                  "in_viewport": 14,
+                  "notes": "7 occupied cells: 4 singles + 3 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.36,
+                  "total_p95_ms": 15.85,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.53,
+                  "total_mb": 700.5,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.32,
+                  "rebuild_on_select_ms": 0.28,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 4,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 3,
+                  "polygon_vertices": 16,
+                  "in_viewport": 14,
+                  "notes": "7 occupied cells: 4 singles + 3 clusters"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.15,
+                  "total_p95_ms": 7.75,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.53,
+                  "total_mb": 1000.5,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.32,
+                  "rebuild_on_select_ms": 0.28,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": false,
+                "overview_usable": true,
+                "map_to_list_exact": false,
+                "promote_from_map_direct": false
+              }
+            }
+          }
+        },
+        "salience_gated": {
+          "band": "amber",
+          "axes": {
+            "frame_ok_gpu": true,
+            "frame_ok_swraster_overview": false,
+            "select_ok_gpu": true,
+            "intent_hard_fail": false,
+            "intent_soft_fail": false,
+            "intent_reasons": []
+          },
+          "worst_candidate_layer_add_mb_gpu": 2.97,
+          "by_zoom": {
+            "10": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 1207,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 2163,
+                  "in_viewport": 1207,
+                  "notes": "K=0: 0 widgets + 1207 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 6.86,
+                  "total_p95_ms": 22.36,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.31,
+                  "total_mb": 700.3,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.04,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 305,
+                  "canvas_dots": 902,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 2163,
+                  "in_viewport": 1207,
+                  "notes": "K=305: 305 widgets + 902 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 8.19,
+                  "total_p95_ms": 15.79,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 2.97,
+                  "total_mb": 1003.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 14.06,
+                  "rebuild_on_select_ms": 12.2,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "12": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 1173,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 2145,
+                  "in_viewport": 1173,
+                  "notes": "K=0: 0 widgets + 1173 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 6.77,
+                  "total_p95_ms": 22.27,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.31,
+                  "total_mb": 700.3,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.04,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 305,
+                  "canvas_dots": 868,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 2145,
+                  "in_viewport": 1173,
+                  "notes": "K=305: 305 widgets + 868 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 8.17,
+                  "total_p95_ms": 15.76,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 2.97,
+                  "total_mb": 1003.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 14.06,
+                  "rebuild_on_select_ms": 12.2,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "14": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 615,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 552,
+                  "in_viewport": 615,
+                  "notes": "K=0: 0 widgets + 615 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 2.12,
+                  "total_p95_ms": 17.62,
+                  "over_budget": true
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.09,
+                  "total_mb": 700.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.02,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 305,
+                  "canvas_dots": 310,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 552,
+                  "in_viewport": 615,
+                  "notes": "K=305: 305 widgets + 310 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 6.66,
+                  "total_p95_ms": 14.27,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 2.76,
+                  "total_mb": 1002.8,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 14.04,
+                  "rebuild_on_select_ms": 12.2,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            },
+            "16": {
+              "linux-swraster": {
+                "plan": {
+                  "widget_markers": 0,
+                  "canvas_dots": 14,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 47,
+                  "in_viewport": 14,
+                  "notes": "K=0: 0 widgets + 14 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 15.5,
+                  "candidate_add_ms": 0.14,
+                  "total_p95_ms": 15.63,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 700,
+                  "candidate_add_mb": 0.01,
+                  "total_mb": 700.0,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.0,
+                  "rebuild_on_select_ms": 0.0,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "windows-gpu": {
+                "plan": {
+                  "widget_markers": 14,
+                  "canvas_dots": 0,
+                  "cluster_glyphs": 0,
+                  "polygon_vertices": 47,
+                  "in_viewport": 14,
+                  "notes": "K=305: 14 widgets + 0 dots"
+                },
+                "frame": {
+                  "basemap_p95_ms": 7.6,
+                  "candidate_add_ms": 0.32,
+                  "total_p95_ms": 7.92,
+                  "over_budget": false
+                },
+                "memory": {
+                  "spike14_client_mb": 1000,
+                  "candidate_add_mb": 0.13,
+                  "total_mb": 1000.1,
+                  "over_1gb": false
+                },
+                "selection": {
+                  "list_to_map_ms": 20.0,
+                  "map_to_list_ms": 0.64,
+                  "rebuild_on_select_ms": 0.56,
+                  "worst_ms": 20.0,
+                  "usable": true
+                }
+              },
+              "intent": {
+                "salience_visible": true,
+                "overview_usable": true,
+                "map_to_list_exact": true,
+                "promote_from_map_direct": true
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "recommended_strategy": "salience_gated",
+    "pinned_cut_k": {
+      "linux-swraster": 0,
+      "windows-gpu": 305
+    },
+    "gpu_display_density_ceiling": 2804,
+    "per_strategy_bands": {
+      "naive": {
+        "per_region": {
+          "avl": "red",
+          "lwr": "amber",
+          "sgv": "red"
+        },
+        "worst": "red"
+      },
+      "zoom_threshold": {
+        "per_region": {
+          "avl": "red",
+          "lwr": "red",
+          "sgv": "red"
+        },
+        "worst": "red"
+      },
+      "cluster_grid": {
+        "per_region": {
+          "avl": "amber",
+          "lwr": "amber",
+          "sgv": "amber"
+        },
+        "worst": "amber"
+      },
+      "salience_gated": {
+        "per_region": {
+          "avl": "amber",
+          "lwr": "green",
+          "sgv": "amber"
+        },
+        "worst": "amber"
+      }
+    },
+    "a16_restated": {
+      "spike14_client_budget_mb_gpu": 1000,
+      "recommended_strategy": "salience_gated",
+      "worst_candidate_layer_add_mb": 3.0,
+      "headroom_mb": 150,
+      "budget_mb": 1153.0,
+      "statement": "Budget the curation workspace at ~1153 MB working set on a Windows GPU client: SPIKE-14's ~1000 MB basemap client, + ~3.0 MB for the salience_gated candidate layer at its density ceiling, + ~150 MB tile-cache / transient headroom. Re-measure on a release build (HARNESS.md)."
+    }
+  }
+}
