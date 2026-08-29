@@ -523,10 +523,22 @@ def diff_runs(previous: Sequence[ClusterProposal],
     last run.' Returns `current` with `is_new` set from whether an
     equivalent proposal (same member set, allowing one added/removed member)
     was in `previous`."""
-    prev_keys = [p.member_key for p in previous]
+    return mark_new_against(current, [p.member_key for p in previous])
+
+
+def mark_new_against(
+    current: Sequence[ClusterProposal],
+    previous_member_keys: Iterable[frozenset[str]],
+) -> list[ClusterProposal]:
+    """`diff_runs`, but taking just the prior run's member-id sets rather
+    than whole `ClusterProposal`s — the form a stateless endpoint has, since
+    the client persists only the small sets (ARCH §4.4), not the proposals.
+    A proposal whose membership matches a prior one (Jaccard ≥ 0.6, i.e. up
+    to one member added or removed) is `is_new=False`."""
+    prev = [frozenset(k) for k in previous_member_keys]
     out: list[ClusterProposal] = []
     for p in current:
-        seen = any(_jaccard(p.member_key, k) >= 0.6 for k in prev_keys)
+        seen = any(_jaccard(p.member_key, k) >= 0.6 for k in prev)
         out.append(_replace_is_new(p, not seen))
     return out
 

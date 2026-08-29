@@ -8,7 +8,7 @@ from dataclasses import replace
 
 from plotlines_core.curation.colocate import (
     analyze_colocation, analyze_colocation_full, by_corridor_proximity,
-    diff_runs, reviewable_cap, DEFAULTS,
+    diff_runs, mark_new_against, reviewable_cap, DEFAULTS,
 )
 from plotlines_core.curation.notability import Candidate
 from plotlines_core.curation.providers import BBox
@@ -230,6 +230,29 @@ def test_diff_runs_marks_new_and_carried_over():
     by_first = {p.members[0].candidate_id: p for p in marked}
     assert by_first["a"].is_new is False
     assert by_first["x"].is_new is True
+
+
+def test_mark_new_against_takes_bare_member_sets():
+    # The stateless-endpoint form (story N4): only the prior run's member-id
+    # sets are kept, not whole proposals.
+    p0, p1 = (0.0, 0.0), (0.5, 0.5)
+    run1_cands = [cand("a", *p0), cand("b", *at(*p0, 25, 0))]
+    run1 = analyze_colocation(run1_cands, BOX)
+    run2_cands = run1_cands + [cand("x", *p1), cand("y", *at(*p1, 25, 0))]
+    run2 = analyze_colocation(run2_cands, BOX, replace(DEFAULTS, cap_floor=100))
+
+    marked = mark_new_against(run2, [p.member_key for p in run1])
+    by_first = {p.members[0].candidate_id: p for p in marked}
+    assert by_first["a"].is_new is False
+    assert by_first["x"].is_new is True
+    # equivalent to diff_runs given the same prior run
+    assert [p.is_new for p in marked] == [p.is_new for p in diff_runs(run1, run2)]
+
+
+def test_mark_new_against_empty_prior_marks_all_new():
+    p0 = (0.0, 0.0)
+    props = analyze_colocation([cand("a", *p0), cand("b", *at(*p0, 25, 0))], BOX)
+    assert all(p.is_new for p in mark_new_against(props, []))
 
 
 def test_proposal_id_is_stable_across_runs():

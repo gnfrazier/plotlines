@@ -24,6 +24,14 @@ from pydantic import BaseModel, Field
 from plotlines_core.curation.attribution import (
     MissingAttributionError, assert_attribution_complete, attributions_for,
 )
+from plotlines_core.curation.colocate import (
+    DEFAULTS as COLOCATION_DEFAULTS,
+    ColocationParams,
+    analyze_colocation_full,
+    by_corridor_proximity,
+    mark_new_against,
+    reviewable_cap,
+)
 from plotlines_core.curation.defaults import resolve_default_layers
 from plotlines_core.curation.notability import RawFeature, RULESET_VERSION, score_notability
 from plotlines_core.curation.providers import BBox, OsmLayerProvider
@@ -425,6 +433,51 @@ class CandidatesScoreRequest(BaseModel):
     features: list[CandidateFeatureInput] = Field(default_factory=list)
 
 
+class ColocationParamsInput(BaseModel):
+    """Optional overrides for `curation.colocate.ColocationParams` — SPIKE-B's
+    tuned defaults apply for any field left unset. Data, not code (same
+    discipline as the notability ruleset), so a later region can adjust a
+    knob without a release."""
+
+    max_diameter_m: float | None = None
+    tightness_scale_m: float | None = None
+    tightness_floor: float | None = None
+    min_member_salience: float | None = None
+    min_cluster_score: float | None = None
+    corridor_decay_m: float | None = None
+    cap_floor: int | None = None
+    cap_per_route_km: float | None = None
+
+
+class ClustersAnalyzeRequest(BaseModel):
+    """FR102–FR105a, story N4 — co-location analysis as a **named Author
+    action over a fixed bbox** (never ambient over a viewport). Extracts the
+    bbox's candidates across `layers` (one failing layer never fails the
+    run — same subtract-not-abort as `/candidates`), clusters across the
+    live heterogeneous layers, and returns ranked, capped proposals.
+    """
+
+    bbox: list[float] = Field(min_length=4, max_length=4)  # [w, s, e, n]
+    layers: list[str]
+    #: Optional lon/lat polyline of an existing route — enables
+    #: `distance_to_route_m` on every proposal, the corridor filter, the
+    #: `sort=corridor` resort, and grows the reviewable cap by route-km.
+    route: list[list[float]] = Field(default_factory=list)
+    #: Member-id sets the Author has already rejected for this trip (ARCH
+    #: §4.4's small rejection set). A fresh cluster matching one is dropped,
+    #: so a re-run does not re-propose it (FR110).
+    rejected: list[list[str]] = Field(default_factory=list)
+    #: Member-id sets from the previous run — proposals not matching one are
+    #: flagged `is_new` (N4a: "marks which proposals are new since the last
+    #: run").
+    previous: list[list[str]] = Field(default_factory=list)
+    #: `rank` (default, combined salience × tightness) | `corridor` (resort
+    #: pulling corridor-adjacent proposals up — an opt-in view, never the
+    #: default, SPIKE-B/Q12).
+    sort: str = "rank"
+    params: ColocationParamsInput | None = None
+
+
 class DiagnoseJob:
     def __init__(self) -> None:
         self.done = False
@@ -623,6 +676,99 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         body["layers_served"] = sorted(live - set(errors))
         body["layers_unavailable"] = errors
         return body
+
+    def _colocation_params(inp: "ColocationParamsInput | None") -> ColocationParams:
+        if inp is None:
+            return COLOCATION_DEFAULTS
+        overrides = {k: v for k, v in inp.model_dump().items() if v is not None}
+        if not overrides:
+            return COLOCATION_DEFAULTS
+        base = COLOCATION_DEFAULTS
+        return ColocationParams(**{
+            f: overrides.get(f, getattr(base, f))
+            for f in (
+                "max_diameter_m", "tightness_scale_m", "tightness_floor",
+                "min_member_salience", "min_cluster_score", "corridor_decay_m",
+                "cap_floor", "cap_per_route_km",
+            )
+        })
+
+    def _proposal_to_dict(p) -> dict:
+        return {
+            "id": p.id,
+            "name": p.name,
+            "kind": p.kind,
+            "role_affinities": list(p.role_affinities),
+            "members": [
+                {
+                    "candidate_id": m.candidate_id,
+                    "layer": m.layer,
+                    "type": m.type,
+                    "title": m.title,
+                    "salience": m.salience,
+                    "role_affinity": m.role_affinity,
+                }
+                for m in p.members
+            ],
+            "centroid": list(p.centroid),
+            "extent_m": p.extent_m,
+            "tightness": p.tightness,
+            "salience_score": p.salience_score,
+            "rank_score": p.rank_score,
+            "distance_to_route_m": p.distance_to_route_m,
+            "is_new": p.is_new,
+        }
+
+    @app.post("/clusters/analyze")
+    def clusters_analyze(req: ClustersAnalyzeRequest) -> dict:
+        """ARCH §8.2, FR102–FR105a, story N4 — "find the good spots".
+
+        A named Author action over the trip bbox: extract the bbox's
+        candidates across the live layers, find spatial clusters across the
+        heterogeneous layers, score each by combined salience (noisy-OR) ×
+        tightness, propose a role set from the affinity union of its members
+        (FR105 — a plugin layer's types participate on the day they load),
+        and return the ranked list **capped** (FR105a) with the count beyond
+        the cap always reported, never silently truncated.
+
+        Separate from `/candidates` for the same reason `/segments/envelope`
+        is separate from `/segments/generate` (D26): expensive, cacheable,
+        and triggered by a distinct intent. It never writes canon (ARCH P10)
+        — a proposal is reviewed and promoted or rejected, never auto-added.
+        """
+        west, south, east, north = req.bbox
+        bbox = BBox(west, south, east, north)
+        registry = app.state.layer_registry
+        live = {l for l in req.layers if l}
+        if not live:
+            raise HTTPException(422, "no live layers requested")
+        if req.sort not in ("rank", "corridor"):
+            raise HTTPException(422, f"unknown sort {req.sort!r}")
+
+        candidates, errors = registry.fetch_candidates_all(bbox, live)
+        params = _colocation_params(req.params)
+        route = [(pt[0], pt[1]) for pt in req.route] if len(req.route) >= 2 else None
+        rejected = [frozenset(s) for s in req.rejected]
+
+        proposals, n_beyond = analyze_colocation_full(
+            candidates, bbox, params, route=route, rejected=rejected)
+        if req.previous:
+            proposals = mark_new_against(
+                proposals, [frozenset(s) for s in req.previous])
+        if req.sort == "corridor":
+            proposals = by_corridor_proximity(proposals, params)
+
+        return {
+            "ruleset_version": RULESET_VERSION,
+            "bbox": list(req.bbox),
+            "sort": req.sort,
+            "cap": reviewable_cap(params, route),
+            "n_beyond_cap": n_beyond,
+            "n_candidates": len(candidates),
+            "layers_served": sorted(live - set(errors)),
+            "layers_unavailable": errors,
+            "proposals": [_proposal_to_dict(p) for p in proposals],
+        }
 
     def _resolve_profile(theme: str, weights: dict[str, float] | None) -> WeightProfile:
         if weights:
