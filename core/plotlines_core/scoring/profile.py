@@ -40,6 +40,7 @@ solve — `edge_cost` below only ever reads what is already there.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 # Surface desirability, 0.0 (avoid) .. 1.0 (ideal), for a general "bike" profile.
@@ -215,6 +216,70 @@ class WeightProfile:
     def replace(self, **changes) -> WeightProfile:
         """A copy with some weights changed — what a band search walks over."""
         return dataclasses.replace(self, **changes)
+
+
+@dataclass(frozen=True)
+class WeightScope:
+    """One ``[start, end)`` span of a route and the `WeightProfile` governing it.
+
+    `start`/`end` sit on the same axis `Weights.at` is queried with — by
+    convention a 0.0..1.0 fraction of the passage, but the resolver treats them
+    as opaque bounds and never interprets the unit (FR36's "whole-tour, a single
+    day, or a partial-day passage" are all just narrower spans on that axis).
+    """
+
+    start: float
+    end: float
+    profile: WeightProfile
+
+    def covers(self, position: float) -> bool:
+        return self.start <= position < self.end
+
+
+@dataclass(frozen=True)
+class Weights:
+    """The per-edge weight lookup the solver reads through (PRD M2, ARCH §7.6).
+
+    The solver never holds a `WeightProfile` directly — for every edge it calls
+    ``weights.at(position)``. In the **scalar** case (`Weights.of(profile)`) that
+    returns the *same object* every time and `position` is ignored. In a
+    **scoped** case (`Weights.scoped(...)`, FR36) it returns the profile
+    governing that position, the tour default elsewhere. Introducing scopes is a
+    change to this class alone: the solver, `edge_cost`, and the metrics path do
+    not move.
+    """
+
+    default: WeightProfile
+    scopes: tuple[WeightScope, ...] = ()
+
+    @classmethod
+    def of(cls, weights: Weights | WeightProfile) -> Weights:
+        """Normalise a caller argument — a `Weights` passes through unchanged, a
+        bare `WeightProfile` becomes the scalar resolver. Lets every entry point
+        accept either without the solver caring which it got."""
+        return weights if isinstance(weights, cls) else cls(weights)
+
+    @classmethod
+    def scoped(
+        cls,
+        default: WeightProfile,
+        scopes: Iterable[WeightScope | tuple[float, float, WeightProfile]],
+    ) -> Weights:
+        """FR36 — `default` governs the whole route except where a scope overrides
+        it. Scopes are consulted in order; the first that covers `position` wins.
+        """
+        norm = tuple(
+            s if isinstance(s, WeightScope) else WeightScope(*s) for s in scopes
+        )
+        return cls(default, norm)
+
+    def at(self, position: float = 0.0) -> WeightProfile:
+        """The `WeightProfile` governing `position`. Scalar case: always
+        `self.default`, the identical object on every call."""
+        for scope in self.scopes:
+            if scope.covers(position):
+                return scope.profile
+        return self.default
 
 
 #: Weight names the band search may tune, with their legal range.
