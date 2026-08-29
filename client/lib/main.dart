@@ -4,19 +4,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'presentation/screens/new_route_screen.dart';
 import 'presentation/screens/settings_screen.dart';
 import 'presentation/screens/trip_area_screen.dart';
 import 'presentation/screens/trip_library_screen.dart';
 import 'presentation/screens/trip_shell_screen.dart';
+import 'presentation/widgets/desktop_window_frame.dart';
 import 'presentation/widgets/sidecar_gate.dart';
 import 'presentation/widgets/trip_location_prompt.dart';
 import 'state/providers.dart';
 import 'state/settings_provider.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _initDesktopWindow();
   runApp(const ProviderScope(child: PlotlinesApp()));
+}
+
+/// X1 (issue #180) — strip the native window frame and hand sizing to the
+/// app before the first frame, so there is no flash of an unstyled or
+/// oversized window and the custom titlebar (`AppTitleBar`) is the only
+/// chrome the user ever sees. No-op off desktop.
+Future<void> _initDesktopWindow() async {
+  if (!isDesktopWindowingPlatform) return;
+  await windowManager.ensureInitialized();
+  const options = WindowOptions(
+    size: Size(1280, 720),
+    minimumSize: Size(800, 600),
+    center: true,
+    title: 'Plotlines',
+    titleBarStyle: TitleBarStyle.hidden,
+  );
+  await windowManager.waitUntilReadyToShow(options, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
 }
 
 final _router = GoRouter(
@@ -115,7 +139,9 @@ class _PlotlinesAppState extends ConsumerState<PlotlinesApp> {
           : PlotTheme.dark(),
       themeMode: settings.themeMode,
       routerConfig: _router,
-      builder: (context, child) => SidecarGate(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => DesktopWindowFrame(
+        child: SidecarGate(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

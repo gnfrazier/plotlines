@@ -57,6 +57,7 @@ dependencies:
   # SPIKE-00 WINDOWS.md §3). `dart:io` exposes none of these.
   win32: ^5.5.0
   ffi: ^2.1.0
+  window_manager: ^0.5.2
 
 dev_dependencies:
   flutter_test:

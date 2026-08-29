@@ -16,6 +16,8 @@ import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/main.dart';
 import 'package:plotlines_client/state/providers.dart';
 
+import 'support/fake_window_manager.dart';
+
 class _FakeSidecarManager extends SidecarManager {
   @override
   Future<void> start() async {}
@@ -25,6 +27,13 @@ class _FakeSidecarManager extends SidecarManager {
 }
 
 void main() {
+  // The app now wraps its content in DesktopWindowFrame (X1 / issue #180),
+  // which drives the `window_manager` channel from the title bar — fake it so
+  // the smoke test isn't fighting a missing desktop embedder.
+  late FakeWindowManager wm;
+  setUp(() => wm = FakeWindowManager());
+  tearDown(() => wm.dispose());
+
   testWidgets('app shell builds without throwing', (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
