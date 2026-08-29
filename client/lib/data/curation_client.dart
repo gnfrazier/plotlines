@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../domain/candidate.dart';
+import '../domain/cluster_proposal.dart';
 import '../domain/json_utils.dart' show Coord;
 import '../domain/trip_bbox.dart';
 
@@ -93,6 +94,41 @@ class CurationClient {
     return (raw['candidates'] as List)
         .map((c) => Candidate.fromJson(c as Map<String, dynamic>))
         .toList();
+  }
+
+  /// FR102–FR105a (Story N4) — "find the good spots". A **named Author
+  /// action over the trip bbox**, never ambient: co-location analysis across
+  /// the live heterogeneous layers, returning ranked, capped
+  /// [ClusterProposal]s.
+  ///
+  /// [rejected] is the set of member-id sets the Author has already dismissed
+  /// for this trip (ARCH §4.4) — a re-run does not re-propose them.
+  /// [previous] is the prior run's member-id sets, so proposals not seen last
+  /// time are flagged [ClusterProposal.isNew]. [route], when given, is a
+  /// lon/lat polyline: every proposal then carries `distanceToRouteM`, and
+  /// the reviewable cap grows with route length.
+  Future<ColocationResult> analyzeColocation({
+    required TripBbox bbox,
+    required Set<String> liveLayers,
+    List<Coord> route = const [],
+    Iterable<Set<String>> rejected = const [],
+    Iterable<Set<String>> previous = const [],
+    String sort = 'rank',
+  }) async {
+    final resp = await http.post(
+      _uri('/clusters/analyze'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'bbox': [bbox.minLon, bbox.minLat, bbox.maxLon, bbox.maxLat],
+        'layers': liveLayers.toList(),
+        if (route.isNotEmpty) 'route': route,
+        if (rejected.isNotEmpty) 'rejected': [for (final s in rejected) s.toList()],
+        if (previous.isNotEmpty) 'previous': [for (final s in previous) s.toList()],
+        'sort': sort,
+      }),
+    );
+    _checkOk(resp);
+    return ColocationResult.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
   }
 
   void _checkOk(http.Response resp) {

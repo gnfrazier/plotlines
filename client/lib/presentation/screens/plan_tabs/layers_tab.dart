@@ -25,6 +25,8 @@ import '../../../state/providers.dart';
 import '../../../state/trip_bbox_provider.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/layer_picker.dart';
+import '../../../data/curation_client.dart' show LayerCatalog;
+import 'proposals_view.dart';
 
 const _uuid = Uuid();
 
@@ -41,6 +43,7 @@ class _LayersTabState extends ConsumerState<LayersTab> {
   List<Candidate> _candidates = const [];
   bool _loading = false;
   String? _error;
+  _CurationView _view = _CurationView.candidates;
 
   Day? get _activeDay =>
       widget.trip.days.where((d) => d.id == widget.activeDayId).firstOrNull;
@@ -67,12 +70,6 @@ class _LayersTabState extends ConsumerState<LayersTab> {
     final catalogAsync =
         ref.watch(layerCatalogProvider((modes: layerModesKey(modes), dayType: _dayType)));
     final selection = ref.watch(layerSelectionProvider);
-    final bbox = ref.watch(tripBboxProvider);
-    // Per-layer readiness (ARCH §8.3, story N2). Empty for the six built-in
-    // OSM layers; a plugin dataset (N5) reports `loading`/`failed` here and
-    // the picker disables just that chip, never the workspace.
-    final layerStates =
-        ref.watch(sidecarManagerProvider).capabilities?.layersPerLayer ?? const {};
 
     return catalogAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -93,7 +90,37 @@ class _LayersTabState extends ConsumerState<LayersTab> {
         });
         final live = selection.liveFor(day?.id);
 
-        return Row(
+        // PRD §5.4a / N4a — "the workspace carries three views over the same
+        // bbox: candidates, proposals, and anchors."
+        final Widget viewBody = switch (_view) {
+          _CurationView.candidates => _candidatesView(context, catalog, live, day),
+          _CurationView.proposals => ProposalsView(trip: widget.trip, liveLayers: live),
+          _CurationView.anchors => AnchorsView(trip: widget.trip),
+        };
+
+        return Column(
+          children: [
+            _CurationViewSwitcher(
+              value: _view,
+              anchorCount: widget.trip.anchors.length,
+              onChanged: (v) => setState(() => _view = v),
+            ),
+            const Divider(height: 1),
+            Expanded(child: viewBody),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _candidatesView(BuildContext context, LayerCatalog catalog, Set<String> live, Day? day) {
+    final c = PlotColors.of(context);
+    final selection = ref.watch(layerSelectionProvider);
+    final bbox = ref.watch(tripBboxProvider);
+    final modes = _effectiveModes;
+    final layerStates =
+        ref.watch(sidecarManagerProvider).capabilities?.layersPerLayer ?? const {};
+    return Row(
           children: [
             Expanded(
               child: Stack(
@@ -207,8 +234,6 @@ class _LayersTabState extends ConsumerState<LayersTab> {
             ),
           ],
         );
-      },
-    );
   }
 
   Future<void> _fetchCandidates(Set<String> liveLayers) async {
@@ -297,6 +322,161 @@ class _ErrorBanner extends StatelessWidget {
         border: Border.all(color: c.danger),
       ),
       child: Text(message, style: PlotTypography.data(c.danger)),
+    );
+  }
+}
+
+/// PRD §5.4a / N4a — the three views the curation workspace carries over the
+/// same bbox.
+enum _CurationView { candidates, proposals, anchors }
+
+class _CurationViewSwitcher extends StatelessWidget {
+  const _CurationViewSwitcher({
+    required this.value,
+    required this.anchorCount,
+    required this.onChanged,
+  });
+
+  final _CurationView value;
+  final int anchorCount;
+  final ValueChanged<_CurationView> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(PlotSpacing.s3),
+      child: SegmentedButton<_CurationView>(
+        segments: [
+          const ButtonSegment(value: _CurationView.candidates, label: Text('Candidates')),
+          const ButtonSegment(value: _CurationView.proposals, label: Text('Proposals')),
+          ButtonSegment(
+            value: _CurationView.anchors,
+            label: Text(anchorCount == 0 ? 'Anchors' : 'Anchors ($anchorCount)'),
+          ),
+        ],
+        selected: {value},
+        showSelectedIcon: false,
+        onSelectionChanged: (s) => onChanged(s.first),
+      ),
+    );
+  }
+}
+
+/// N4a — the anchors view: what has been promoted, filterable by attachment.
+/// **Unattached anchors are ordinary working state, not a problem queue** —
+/// not badged, not counted as errors, never blocking anything (Q2).
+class AnchorsView extends ConsumerStatefulWidget {
+  const AnchorsView({super.key, required this.trip});
+  final Trip trip;
+
+  @override
+  ConsumerState<AnchorsView> createState() => _AnchorsViewState();
+}
+
+enum _AttachFilter { all, attached, unattached }
+
+class _AnchorsViewState extends ConsumerState<AnchorsView> {
+  _AttachFilter _filter = _AttachFilter.all;
+
+  /// An anchor is "attached" if any day's node carries its id as a POI type
+  /// hint or title match — best-effort on this build, where passages do not
+  /// yet reference anchor ids directly.
+  bool _isAttached(String anchorId, String? title) {
+    for (final day in widget.trip.days) {
+      for (final node in day.nodes) {
+        if (node.title != null && title != null && node.title == title) return true;
+      }
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final anchors = widget.trip.anchors;
+    if (anchors.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(PlotSpacing.s6),
+          child: Text(
+            'Nothing promoted yet. Promote a candidate or a proposal to park a '
+            'place here — an anchor can sit unattached to any day, which is '
+            'ordinary working state, not a problem.',
+            style: PlotTypography.body(c.textMuted),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    final rows = [
+      for (final a in anchors)
+        (anchor: a, attached: _isAttached(a.id, a.title)),
+    ];
+    final filtered = switch (_filter) {
+      _AttachFilter.all => rows,
+      _AttachFilter.attached => rows.where((r) => r.attached).toList(),
+      _AttachFilter.unattached => rows.where((r) => !r.attached).toList(),
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(PlotSpacing.s3),
+          child: Wrap(
+            spacing: PlotSpacing.s2,
+            children: [
+              for (final f in _AttachFilter.values)
+                ChoiceChip(
+                  label: Text(switch (f) {
+                    _AttachFilter.all => 'All',
+                    _AttachFilter.attached => 'Attached',
+                    _AttachFilter.unattached => 'Unattached',
+                  }),
+                  selected: _filter == f,
+                  onSelected: (_) => setState(() => _filter = f),
+                ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(PlotSpacing.s3),
+            itemCount: filtered.length,
+            separatorBuilder: (_, _) => const SizedBox(height: PlotSpacing.s2),
+            itemBuilder: (context, i) {
+              final r = filtered[i];
+              return PlotCard(
+                padding: const EdgeInsets.all(PlotSpacing.s3),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(r.anchor.title ?? 'Untitled anchor',
+                              style: PlotTypography.title(c.textPrimary)),
+                          const SizedBox(height: PlotSpacing.s1),
+                          Text(
+                            r.anchor.roles.map((role) => role.kind.name).join(' · ').toUpperCase(),
+                            style: PlotTypography.data(c.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Attachment is shown as a plain status, never as an error
+                    // badge on the unattached ones.
+                    Text(r.attached ? 'attached' : 'unattached',
+                        style: PlotTypography.small(c.textMuted)),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
