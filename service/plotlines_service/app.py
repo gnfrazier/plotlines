@@ -21,9 +21,13 @@ import osmnx as ox
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
+from plotlines_core.curation.attribution import (
+    MissingAttributionError, assert_attribution_complete, attributions_for,
+)
 from plotlines_core.curation.defaults import resolve_default_layers
 from plotlines_core.curation.notability import RawFeature, RULESET_VERSION, score_notability
 from plotlines_core.curation.providers import BBox, OsmLayerProvider
+from plotlines_core.curation.registry import build_default_registry
 from plotlines_core.curation.taxonomy import LAYERS
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph import regions as region_lib
@@ -485,18 +489,67 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         key = state.ensure_region(bbox, req.network_type)
         return {"region": key}
 
+    # The layer registry (ARCH §8.3 / §14.2, stories N2/N5). Holds the six
+    # built-in OSM layers and every plugin layer discovered via the
+    # `plotlines.layer_providers` entry point, each with its own readiness
+    # lifecycle and its own `LayerLicence`. On `app.state` so a test can
+    # substitute one with no plugins / a fake OSM engine.
+    app.state.layer_registry = build_default_registry()
+
     @app.get("/layers")
     def layers(mode: str = "cycling", day_type: str = "route") -> dict:
-        """FR97 — the layer catalog plus this (mode, day type) pair's default
-        live set. Deliberately independent of the graph/elevation loading
-        state tracked in `Readiness`: layer/POI capability comes up ahead of
-        elevation (ARCH B1/D34/§8.3), and the Curation Workspace must be
-        usable while enrichment still runs."""
+        """FR97 / FR100 / FR101 — the layer catalog (built-in OSM plus any
+        loaded plugin dataset), each entry carrying its licence and
+        attribution metadata and its per-layer readiness state, plus this
+        (mode, day type) pair's default live set.
+
+        Deliberately independent of the graph/elevation loading state tracked
+        in `Readiness`: layer/POI capability comes up ahead of elevation
+        (ARCH B1/D34/§8.3), and the Curation Workspace must be usable while
+        enrichment still runs."""
+        registry = app.state.layer_registry
+        detail = registry.per_layer_detail()
+        credits = {a.layer: a for a in attributions_for(registry)}
+        catalog = []
+        for layer in registry.known_layers():
+            d = detail.get(layer, {})
+            cred = credits.get(layer)
+            catalog.append({
+                "id": layer,
+                "builtin": bool(d.get("builtin")),
+                "state": d.get("state", "ready"),
+                "version": d.get("version", ""),
+                "licence": (
+                    {"id": cred.licence_id, "attribution": cred.attribution,
+                     "terms_url": cred.terms_url}
+                    if cred is not None else None
+                ),
+                **({"reason": d["reason"]} if "reason" in d else {}),
+                **({"progress": d["progress"]} if "progress" in d else {}),
+            })
         return {
-            "layers": sorted(LAYERS),
+            "layers": registry.known_layers(),
+            "catalog": catalog,
             "default_live": sorted(resolve_default_layers(mode, day_type)),
             "ruleset_version": RULESET_VERSION,
         }
+
+    @app.get("/attribution")
+    def attribution() -> dict:
+        """FR101 / ARCH §12.2 — attribution derived from the *loaded* layer
+        set, not hardcoded. The About surface (K10), exports where the
+        format permits, and printed itineraries / cue sheets all read this.
+        `complete` is the release-gate answer: false with `missing` naming
+        the offenders means a build failure, not a render-time warning."""
+        registry = app.state.layer_registry
+        lines = [a.as_dict() for a in attributions_for(registry)]
+        try:
+            assert_attribution_complete(registry)
+            complete, missing = True, []
+        except MissingAttributionError as exc:
+            complete = False
+            missing = str(exc).split(": ", 1)[-1].split(", ")
+        return {"attributions": lines, "complete": complete, "missing": missing}
 
     def _candidates_response(candidates: list) -> dict:
         return {

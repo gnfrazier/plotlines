@@ -1,23 +1,34 @@
 """LayerProvider — the extraction seam for candidate features (ARCH §14.2,
-D40, D47). Only the OSM-backed implementation lives here for MVP; a
-plugin's own LayerProvider ships as its own package (FR100 — Leg 2.5's
-data-input contract, not this story).
+D40, D47). The built-in OSM layers live here, expressed *as* `LayerProvider`s
+(ARCH §14.2's "proof of realness" test); a plugin's own `LayerProvider` ships
+as its own installable package and is discovered via an entry point
+(`plugins.discover_layer_providers`, FR100 — Leg 2.5's data-input contract).
 
-`OsmLayerProvider` is deliberately built the way any plugin `LayerProvider`
-would be: it reads `taxonomy.TAXONOMY` for what to ask Overpass for, rather
-than a privileged internal tag list (ARCH §14.2's "proof of realness" test —
-if the built-in layers can't be expressed this way, the interface is wrong).
+**Reconciled with ARCH §14.2 for stories N2/N5 (2026-08-28).** The shipped
+shape was a reduced `licence: str` + multi-layer `fetch(bbox, layers) ->
+list[RawFeature]`; SPIKE-D (#159) found that a bare-list return leaves
+per-layer state and per-layer failure with nowhere to live, which is the
+direct cause of one bad layer 422-ing a whole extraction. SPIKE-H (#160)
+validated the §14.2 shape below against the built-in OSM taxonomy and two
+real external sources. `LayerRegistry` (`registry.py`) is what holds the
+per-layer lifecycle on top.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterable, Protocol
 
-from .notability import RawFeature
-from .taxonomy import TAXONOMY
+from .notability import RawFeature, score_with_taxonomy
+from .taxonomy import LAYERS, TAXONOMY, TypeRule, TypeTaxonomy
 
 _EARTH_R_M = 6_371_000.0
+
+# A layer's readiness lifecycle (ARCH §8.3, D48): a provider's own
+# `load_state()` reports one of these; the registration-time licence gate
+# (D45) is a separate registry-side refusal that can leave a layer `failed`
+# even when its `load_state()` would honestly say `ready`.
+PENDING, LOADING, READY, FAILED = "pending", "loading", "ready", "failed"
 
 
 @dataclass(frozen=True)
@@ -28,15 +39,77 @@ class BBox:
     north: float
 
 
+@dataclass(frozen=True)
+class LayerLicence:
+    """FR101 / ARCH §12.2 / D45 — what a layer must declare before it is
+    loadable. `id` and `attribution` are both required for `satisfiable`;
+    a source that supplies neither is honestly unsatisfiable rather than
+    guessed at, and the registry refuses to load it. `note` records where
+    the value came from (the source's own metadata, or asserted by the
+    integrator — the realistic case for most government REST sources, per
+    SPIKE-H §5).
+
+    A missing attribution on a *loaded* layer is a build failure, not a
+    render-time warning — see `attribution.assert_attribution_complete`.
+    """
+
+    id: str = ""
+    attribution: str = ""
+    terms_url: str = ""
+    note: str = ""
+
+    @property
+    def satisfiable(self) -> bool:
+        return bool(self.id.strip()) and bool(self.attribution.strip())
+
+
+@dataclass(frozen=True)
+class LayerLoadState:
+    """ARCH §8.3 / D48's per-layer readiness, returned by the provider
+    itself. `progress` is observed fraction in 0..1 where the provider can
+    report one; an honest range or elapsed-derived figure, never a fixed
+    ETA (FR121 — acquisition runs ×2.96 slower while the Author works, so a
+    constant estimate is wrong precisely when the Author is busiest)."""
+
+    state: str = READY
+    reason: str = ""
+    progress: float | None = None
+
+    def as_dict(self) -> dict:
+        out: dict = {"state": self.state}
+        if self.reason:
+            out["reason"] = self.reason
+        if self.progress is not None:
+            out["progress"] = round(self.progress, 2)
+        return out
+
+
 class LayerProvider(Protocol):
     """ARCH §14.2 — what a curation data layer, built-in or plugin, must
-    supply: a licence (enforced at registration, not this story — ARCH
-    §12.2/D45), and both point and area geometry for a bbox+layer-set query
-    in one call."""
+    supply. Four members, structural (no base class to subclass):
 
-    licence: str
+    - `licence` — a `LayerLicence`, enforced at registration (D45/§12.2).
+    - `taxonomy` — a `TypeTaxonomy` in which every type declares one primary
+      role affinity and a salience weight (D47). This is what makes
+      co-location analysis generic rather than recipe-driven: a plugin's
+      types participate in clustering on the day they load, with no core
+      change (ARCH §14.4).
+    - `fetch_candidates(bbox)` — point *and* area geometry in one call,
+      already notability-scored against this provider's own `taxonomy`
+      (via `score_with_taxonomy`), returned as finished `Candidate`s.
+    - `load_state()` — this layer's own readiness, so a large or remote
+      dataset never blocks the workspace (§8.3, story N2).
+    """
 
-    def fetch(self, bbox: BBox, layers: set[str]) -> list[RawFeature]: ...
+    @property
+    def licence(self) -> LayerLicence: ...
+
+    @property
+    def taxonomy(self) -> TypeTaxonomy: ...
+
+    def fetch_candidates(self, bbox: BBox) -> list["object"]: ...
+
+    def load_state(self) -> LayerLoadState: ...
 
 
 def osm_tags_for(layers: set[str]) -> dict[str, "bool | list[str]"]:
@@ -94,15 +167,37 @@ def feature_from_geometry(feature_id: str, geometry, tags: dict[str, str]) -> Ra
         return None
     centroid = geometry.centroid
     area_m2 = None
+    ring: tuple[tuple[float, float], ...] | None = None
     if geometry.geom_type in ("Polygon", "MultiPolygon"):
         area_m2 = _approx_area_m2(geometry, centroid.y)
-    return RawFeature(id=feature_id, coord=(centroid.x, centroid.y), tags=tags, area_m2=area_m2)
+        poly = geometry if geometry.geom_type == "Polygon" else max(
+            geometry.geoms, key=lambda g: g.area)
+        ring = tuple((float(x), float(y)) for x, y in poly.exterior.coords)
+    return RawFeature(id=feature_id, coord=(centroid.x, centroid.y), tags=tags,
+                      area_m2=area_m2, geometry=ring)
+
+
+#: ARCH §14.2's `LayerLicence` for the built-in OSM layers. Asserted by the
+#: integrator (Overpass does not return a machine-readable licence field),
+#: exactly as it was the bare string `"ODbL"` before this reconciliation.
+OSM_LICENCE = LayerLicence(
+    id="ODbL-1.0",
+    attribution="© OpenStreetMap contributors",
+    terms_url="https://www.openstreetmap.org/copyright",
+    note="asserted by plotlines-core; Overpass returns no licence field.",
+)
 
 
 class OsmLayerProvider:
-    """ARCH §14.2's proof-of-realness test: the built-in OSM
-    sightseeing/amenity/natural/historic/leisure/man-made layers, expressed
-    *as* a LayerProvider rather than a privileged internal extraction path.
+    """The batched Overpass extraction engine for the six built-in OSM
+    layers. One network call answers every layer asked for in the same
+    `fetch`, so this is *not* one-provider-per-layer — `BuiltinOsmLayerProvider`
+    below wraps it to satisfy §14.2's per-layer `LayerProvider` shape while
+    the six siblings still share one round trip (`SharedOsmFetch`).
+
+    `.licence` stays a bare `"ODbL"` string here for backward compatibility
+    with callers that predate the reconciliation; `OSM_LICENCE` is the
+    `LayerLicence` the registry path uses.
     """
 
     licence = "ODbL"
@@ -125,3 +220,64 @@ class OsmLayerProvider:
                 if k != "geometry" and v is not None and str(v) != "nan"
             }
             yield feature_from_geometry(feature_id, row.geometry, tags)
+
+
+class SharedOsmFetch:
+    """One bbox -> one `OsmLayerProvider.fetch` call, shared by the six
+    per-layer `BuiltinOsmLayerProvider` instances registered against it
+    (SPIKE-H §1's recorded bend: §14.2's per-instance shape is right for a
+    plugin — one dataset, one provider — and would turn one Overpass query
+    into six for a batched built-in source). `engine` is injectable so a
+    test can feed committed fixtures instead of hitting the commons.
+    """
+
+    def __init__(self, engine: "OsmLayerProvider | None" = None) -> None:
+        self._engine = engine or OsmLayerProvider()
+        self._cache: dict[tuple[float, float, float, float], list[RawFeature]] = {}
+
+    def features_for(self, bbox: BBox, layers: set[str]) -> list[RawFeature]:
+        key = (bbox.west, bbox.south, bbox.east, bbox.north)
+        if key not in self._cache:
+            # Always fetch every built-in layer for this bbox, once, so a
+            # second per-layer sibling reads the cache rather than re-querying.
+            self._cache[key] = self._engine.fetch(bbox, set(LAYERS))
+        return self._cache[key]
+
+
+class BuiltinOsmLayerProvider:
+    """One built-in OSM layer, as a real §14.2 `LayerProvider`. Its
+    `taxonomy` is the slice of `TAXONOMY` for this layer; `fetch_candidates`
+    scores that slice via the same `score_with_taxonomy` a plugin uses.
+    Built-in, synchronous, no warm-up — `load_state()` is always `ready`
+    (D48: the built-in layers unlock curation immediately).
+    """
+
+    def __init__(self, layer: str, shared: SharedOsmFetch) -> None:
+        if layer not in LAYERS:
+            raise ValueError(f"not a built-in OSM layer: {layer!r}")
+        self._layer = layer
+        self._shared = shared
+
+    @property
+    def licence(self) -> LayerLicence:
+        return OSM_LICENCE
+
+    @property
+    def taxonomy(self) -> TypeTaxonomy:
+        return tuple(r for r in TAXONOMY if r.layer == self._layer)
+
+    def fetch_candidates(self, bbox: BBox) -> list:
+        features = self._shared.features_for(bbox, {self._layer})
+        return score_with_taxonomy(features, self.taxonomy, live_layers={self._layer})
+
+    def load_state(self) -> LayerLoadState:
+        return LayerLoadState(READY)
+
+
+def builtin_osm_providers(
+    engine: "OsmLayerProvider | None" = None,
+) -> dict[str, BuiltinOsmLayerProvider]:
+    """One `BuiltinOsmLayerProvider` per built-in OSM layer, all sharing one
+    `SharedOsmFetch` so the six only ever cost one Overpass round trip."""
+    shared = SharedOsmFetch(engine)
+    return {layer: BuiltinOsmLayerProvider(layer, shared) for layer in sorted(LAYERS)}

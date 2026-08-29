@@ -50,6 +50,12 @@ LAYERS: frozenset[str] = frozenset({
 # values that matter; anything else falls to the taxonomy's own floor.
 _UNCATALOGED_WILDCARD_WEIGHT = 0.2
 
+# A layer taxonomy is just a tuple of rules — the built-in `TAXONOMY` below is
+# one, and a plugin `LayerProvider` (ARCH §14.2, story N5) supplies its own of
+# the same shape. ARCH's line "each type declares a primary role affinity and a
+# salience weight" is `TypeRule` verbatim, so there is no rival record type.
+TypeTaxonomy = tuple["TypeRule", ...]
+
 
 @dataclass(frozen=True)
 class Qualification:
@@ -255,16 +261,21 @@ TAXONOMY: tuple[TypeRule, ...] = (
 )
 
 
-def match(tags: Mapping[str, str]) -> TypeRule | None:
-    """The taxonomy entry for `tags`, or None if nothing recognizes it.
+def match_in(taxonomy: TypeTaxonomy, tags: Mapping[str, str]) -> TypeRule | None:
+    """The `taxonomy` entry for `tags`, or None if nothing recognizes it.
 
     An exact `key=value` rule wins over a wildcard on the same key, so a
     named ``historic=memorial`` scores off its own entry rather than the
     wildcard's sub-weight table.
+
+    Parameterised on `taxonomy` rather than closed over the module-global
+    `TAXONOMY` so a plugin `LayerProvider` (ARCH §14.2, story N5) can score
+    its own feature types against its own declared taxonomy without its rows
+    being merged into the core table — the core-code edit ARCH §14.4 forbids.
     """
     exact = None
     wildcard = None
-    for rule in TAXONOMY:
+    for rule in taxonomy:
         if rule.key not in tags:
             continue
         if not rule.is_wildcard and tags[rule.key] == rule.value:
@@ -272,6 +283,12 @@ def match(tags: Mapping[str, str]) -> TypeRule | None:
         elif rule.is_wildcard and wildcard is None:
             wildcard = rule
     return exact or wildcard
+
+
+def match(tags: Mapping[str, str]) -> TypeRule | None:
+    """`match_in` against the built-in `TAXONOMY`. Kept as the name the
+    notability filter and existing callers use."""
+    return match_in(TAXONOMY, tags)
 
 
 def weight_for(rule: TypeRule, tags: Mapping[str, str]) -> float:

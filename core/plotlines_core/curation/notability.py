@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Iterable, Mapping
 
-from .taxonomy import match, weight_for
+from .taxonomy import TypeTaxonomy, TAXONOMY, match_in, weight_for
 
 # ARCH §4.2's candidate cache key is `(bbox, layer_set_version, filter_ruleset_version)`.
 # Bump this when TAXONOMY's rules change so a stale ruleset version is never
@@ -36,6 +36,11 @@ class RawFeature:
     coord: tuple[float, float]  # [lon, lat]
     tags: Mapping[str, str] = field(default_factory=dict)
     area_m2: float | None = None
+    # FR100 / ARCH D37 — exterior ring (lon, lat pairs) for an area feature,
+    # so a plugin's polygon (FR108 rest-day-on-a-polygon, area-entry
+    # triggers) survives to something downstream can read, not just a
+    # centroid. `None` for a point feature.
+    geometry: tuple[tuple[float, float], ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +56,49 @@ class Candidate:
     role_affinity: str
     tags: Mapping[str, str]
     title: str | None = None
+    # Carried through from the RawFeature so an area candidate is not
+    # indistinguishable from a pin once scored (SPIKE-H §3). Both `None`
+    # for a point.
+    area_m2: float | None = None
+    geometry: tuple[tuple[float, float], ...] | None = None
+
+
+def score_with_taxonomy(
+    features: Iterable[RawFeature],
+    taxonomy: TypeTaxonomy,
+    live_layers: Iterable[str],
+) -> list[Candidate]:
+    """`score_notability`'s body, parameterised on the taxonomy to match
+    against instead of closed over the module-global `TAXONOMY`.
+
+    This is what a plugin `LayerProvider.fetch_candidates` calls against its
+    *own* declared taxonomy (ARCH §14.2, story N5): a provider scores against
+    its own types and returns finished `Candidate`s, so a plugin's rows never
+    have to be merged into the core table — the core-code edit ARCH §14.4
+    forbids. Ranking, the qualification gate (FR98(b)) and the uncatalogued-
+    wildcard floor are identical to the built-in path.
+    """
+    live = set(live_layers)
+    out: list[Candidate] = []
+    for feature in features:
+        rule = match_in(taxonomy, feature.tags)
+        if rule is None or rule.layer not in live:
+            continue
+        if not rule.qualification.satisfied_by(feature.tags, feature.area_m2):
+            continue
+        out.append(Candidate(
+            id=feature.id,
+            coord=feature.coord,
+            layer=rule.layer,
+            salience=weight_for(rule, feature.tags),
+            role_affinity=rule.role_affinity,
+            tags=dict(feature.tags),
+            title=feature.tags.get("name"),
+            area_m2=feature.area_m2,
+            geometry=feature.geometry,
+        ))
+    out.sort(key=lambda c: c.salience, reverse=True)
+    return out
 
 
 def score_notability(
@@ -64,23 +112,8 @@ def score_notability(
     it is filtered out, not scored low. Results are ranked by salience,
     highest first, since that ranking is what a bbox-scale map needs to
     decide what to draw first (ARCH A21/Q15).
+
+    Delegates to `score_with_taxonomy` against the built-in `TAXONOMY` — the
+    same matching logic every plugin layer runs against its own.
     """
-    live = set(live_layers)
-    out: list[Candidate] = []
-    for feature in features:
-        rule = match(feature.tags)
-        if rule is None or rule.layer not in live:
-            continue
-        if not rule.qualification.satisfied_by(feature.tags, feature.area_m2):
-            continue
-        out.append(Candidate(
-            id=feature.id,
-            coord=feature.coord,
-            layer=rule.layer,
-            salience=weight_for(rule, feature.tags),
-            role_affinity=rule.role_affinity,
-            tags=dict(feature.tags),
-            title=feature.tags.get("name"),
-        ))
-    out.sort(key=lambda c: c.salience, reverse=True)
-    return out
+    return score_with_taxonomy(features, TAXONOMY, live_layers)
