@@ -101,3 +101,41 @@ For **any** visual/UI work — screens, components, colors, typography, map styl
 5. Skim `Plotlines_MVP_Redirection_Punchlist.md` and PRD §10 (Open Items) for anything that overrides a literal PRD reading or resolves a question you'd otherwise treat as open.
 6. If trip data is involved, implement against `docs/schemas/trip_payload.schema.json` rather than a new shape. If curation is involved, extend `core/plotlines_core/curation/` rather than starting a parallel implementation.
 7. If any UI is involved, invoke `plotlines-design` before writing markup/widgets.
+8. When you finish **or stop** work on the issue, set its **Plotlines Project** board Status (`Dev Complete` only if every item is done, otherwise `In Progress`) and post an outcome comment. See “GitHub issues — status and completion” below.
+
+## GitHub issues — status and completion
+
+**Use the `gh` CLI for every GitHub operation** — issues, comments, labels, PRs, and the project board. Don't hand-assemble REST/GraphQL URLs or push the user toward the web UI when `gh` covers it; `gh api graphql` is the fallback only for the few project-board mutations `gh` has no porcelain for. If `gh` isn't authenticated, say so and stop — don't fall back to raw `git`+API guesswork.
+
+Every Story issue is tracked on the **Plotlines Project** board (`gh project` number **1**, owner **`gnfrazier`**) via its **Status** field. Set that Status whenever you stop work on an issue, so the user can see where it stands without reading the whole thread:
+
+- **All items done → `Dev Complete`.** Every acceptance-criterion clause is satisfied, every `- [ ]` checkbox in the issue body is checked, nothing was deferred, stubbed, or left as a `TODO`, and the test suite plus `tools/ci/reveal_gate_lint.sh` are green.
+- **Anything left → `In Progress`.** One clause unmet, one checkbox open, a sub-item blocked on a decision or another issue, a spike divergence noted but not resolved — any of these. `In Progress` is the user's cue to revisit, so it is the right state for any worked issue that is not wholly finished. Never leave a worked issue at `Todo`.
+
+The board's options are `Todo / In Progress / Dev Complete / In QA/UAT / Done`. `In QA/UAT` and `Done` are the user's to set — the build agent goes no further than `Dev Complete`. Leave the issue **open** either way: `Dev Complete` is a board state, not issue closure, and closing/merging/pushing still follows the repo's git rules (only when asked).
+
+### Recording the outcome
+
+1. **Post a comment on the issue.** Keep the existing `**Dev complete — <story>**` shape: new/changed files, which FR clauses are covered, test count, and anything skipped. If the Status is going to `In Progress`, the comment **must enumerate exactly what remains and why**, so the revisit has a starting point.
+2. **Set the board Status.** This `gh` version has no `--value` flag, so use the node-ID form (stable across the board's life):
+
+   ```bash
+   PROJECT_ID=PVT_kwHOAUDf284BgF6X                     # Plotlines Project
+   STATUS_FIELD=PVTSSF_lAHOAUDf284BgF6XzhaUEnc         # "Status" single-select
+   OPT_IN_PROGRESS=47fc9ee4
+   OPT_DEV_COMPLETE=78a2be76
+
+   ISSUE=<N>
+   # ensure the issue is on the board, then get its item id:
+   gh project item-add 1 --owner gnfrazier --url "https://github.com/gnfrazier/plotlines/issues/$ISSUE" 2>/dev/null || true
+   ITEM_ID=$(gh project item-list 1 --owner gnfrazier --format json --limit 400 \
+     | jq -r --argjson n "$ISSUE" '.items[] | select(.content.number==$n) | .id')
+
+   gh project item-edit --project-id "$PROJECT_ID" --id "$ITEM_ID" \
+     --field-id "$STATUS_FIELD" --single-select-option-id "$OPT_DEV_COMPLETE"   # or "$OPT_IN_PROGRESS"
+   ```
+
+   If those IDs ever stop resolving (board recreated), re-read them:
+   `gh project field-list 1 --owner gnfrazier` for the field id, then
+   `gh api graphql -f query='{ node(id:"<field-id>"){ ... on ProjectV2SingleSelectField { options { id name } } } }'`.
+   A newer `gh` also accepts the friendly form: `gh project item-edit --owner gnfrazier 1 --url <issue-url> --field Status --value "Dev Complete"`.
