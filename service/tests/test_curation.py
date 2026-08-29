@@ -9,9 +9,12 @@ from plotlines_core.curation.notability import RawFeature
 from plotlines_service.app import create_app
 
 
-class _FakeLayerProvider:
-    """Stands in for `OsmLayerProvider` so `/candidates` never makes a live
-    Overpass call in a unit test."""
+class _FakeOsmEngine:
+    """Stands in for the batched `OsmLayerProvider` engine so `/candidates`
+    never makes a live Overpass call in a unit test. The registry's built-in
+    per-layer providers share one of these."""
+
+    licence = "ODbL"
 
     def __init__(self, features: list[RawFeature]) -> None:
         self._features = features
@@ -20,6 +23,13 @@ class _FakeLayerProvider:
     def fetch(self, bbox, layers) -> list[RawFeature]:
         self.calls.append((bbox, frozenset(layers)))
         return self._features
+
+
+def _use_fake_engine(client: TestClient, engine) -> None:
+    from plotlines_core.curation.registry import build_default_registry
+
+    client.app.state.layer_registry = build_default_registry(
+        osm_engine=engine, discover_plugins=False)
 
 
 @pytest.fixture()
@@ -100,32 +110,83 @@ def test_candidates_score_omits_unqualified_over_triggering_features(client: Tes
 
 
 def test_candidates_extract_scores_features_from_the_layer_provider(client: TestClient) -> None:
-    fake = _FakeLayerProvider([
+    engine = _FakeOsmEngine([
         RawFeature(id="peak1", coord=(-105.3, 40.0), tags={"natural": "peak"}),
         RawFeature(id="water1", coord=(-105.3, 40.0), tags={"amenity": "drinking_water"}),
     ])
-    client.app.state.layer_provider = fake
+    _use_fake_engine(client, engine)
 
     resp = client.get("/candidates", params={
         "west": -105.4, "south": 39.9, "east": -105.2, "north": 40.1,
         "layers": "natural",
     })
     assert resp.status_code == 200
-    ids = {c["id"] for c in resp.json()["candidates"]}
+    body = resp.json()
+    ids = {c["id"] for c in body["candidates"]}
     assert ids == {"peak1"}  # amenity wasn't in the live layer set
-    # The bbox and live layer set reached the provider unmodified.
-    assert fake.calls[0][1] == frozenset({"natural"})
+    assert body["layers_served"] == ["natural"]
+    assert body["layers_unavailable"] == {}
 
 
-def test_candidates_extract_reports_extraction_failure_honestly(client: TestClient) -> None:
-    class _FailingProvider:
+def test_candidates_extract_serves_good_layers_when_one_layer_fails(client: TestClient) -> None:
+    """SPIKE-D #159 / story N2 — one failing layer no longer 422s the whole
+    request; the response names what it could not serve and returns the rest."""
+    from plotlines_core.curation.providers import BBox, LayerLicence, LayerLoadState, READY
+    from plotlines_core.curation.registry import build_default_registry
+
+    engine = _FakeOsmEngine([
+        RawFeature(id="peak1", coord=(-105.3, 40.0), tags={"natural": "peak"}),
+    ])
+    registry = build_default_registry(osm_engine=engine, discover_plugins=False)
+
+    class _FailingPlugin:
+        licence = LayerLicence(id="CC-BY-4.0", attribution="Test Co-op")
+        taxonomy = ()
+
+        def fetch_candidates(self, bbox: BBox):
+            raise TimeoutError("upstream plugin API timed out")
+
+        def load_state(self):
+            return LayerLoadState(READY)
+
+    registry.register_plugin("plugin_crags", _FailingPlugin())
+    client.app.state.layer_registry = registry
+
+    resp = client.get("/candidates", params={
+        "west": -105.4, "south": 39.9, "east": -105.2, "north": 40.1,
+        "layers": "natural,plugin_crags",
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert {c["id"] for c in body["candidates"]} == {"peak1"}
+    assert body["layers_served"] == ["natural"]
+    assert "plugin_crags" in body["layers_unavailable"]
+    assert "TimeoutError" in body["layers_unavailable"]["plugin_crags"]
+
+
+def test_candidates_extract_reports_a_wholly_failed_extraction_as_empty_not_422(
+    client: TestClient,
+) -> None:
+    class _FailingEngine:
+        licence = "ODbL"
+
         def fetch(self, bbox, layers):
             raise RuntimeError("no network")
 
-    client.app.state.layer_provider = _FailingProvider()
+    _use_fake_engine(client, _FailingEngine())
     resp = client.get("/candidates", params={
         "west": -105.4, "south": 39.9, "east": -105.2, "north": 40.1,
         "layers": "natural",
     })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["candidates"] == []
+    assert body["layers_served"] == []
+    assert "no network" in body["layers_unavailable"]["natural"]
+
+
+def test_candidates_extract_422s_only_on_an_empty_layer_set(client: TestClient) -> None:
+    resp = client.get("/candidates", params={
+        "west": -105.4, "south": 39.9, "east": -105.2, "north": 40.1, "layers": "",
+    })
     assert resp.status_code == 422
-    assert "no network" in resp.json()["detail"]

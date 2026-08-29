@@ -133,12 +133,34 @@ class Capabilities {
     required this.layers,
     required this.routing,
     required this.elevation,
+    this.layersPerLayer = const {},
+    this.layersPerLayerDetail = const {},
   });
 
   final CapabilityStatus tiles;
+
+  /// `layers.ready` is `any`, not `all` (ARCH §8.3, story N2): true once any
+  /// layer is usable, so one slow or failed plugin dataset never blocks the
+  /// workspace. Per-layer state lives in [layersPerLayer].
   final CapabilityStatus layers;
   final RoutingCapability routing;
   final CapabilityStatus elevation;
+
+  /// `/health`'s `capabilities.layers.per_layer` — one state string per
+  /// layer id: `'ready'`, `'loading'`, or `'failed:<reason>'` (story N2).
+  /// The layer picker reads this to show a plugin layer as loading rather
+  /// than blocking the workspace, and to name which layer failed and why.
+  final Map<String, String> layersPerLayer;
+
+  /// The picker's longer form — `{state, builtin, version, progress,
+  /// elapsed_s, reason}` per layer. Progress is observed, never a fixed ETA.
+  final Map<String, dynamic> layersPerLayerDetail;
+
+  /// State of one layer id, or null if `/health` did not report it.
+  String? layerState(String id) => layersPerLayer[id];
+
+  /// True unless this layer is explicitly reported not-ready.
+  bool layerReady(String id) => (layersPerLayer[id] ?? 'ready') == 'ready';
 
   /// Elevation is the only capability here that ever *stays* unsettled
   /// (`routing` per-region view has nothing to poll once no more regions
@@ -146,12 +168,21 @@ class Capabilities {
   /// to gate a background poll on "has everything stopped changing".
   bool get settled => elevation.ready || elevation.failed;
 
-  factory Capabilities.fromJson(Map<String, dynamic> json) => Capabilities(
-        tiles: CapabilityStatus.fromJson(json['tiles'] as Map<String, dynamic>),
-        layers: CapabilityStatus.fromJson(json['layers'] as Map<String, dynamic>),
-        routing: RoutingCapability.fromJson(json['routing'] as Map<String, dynamic>),
-        elevation: CapabilityStatus.fromJson(json['elevation'] as Map<String, dynamic>),
-      );
+  factory Capabilities.fromJson(Map<String, dynamic> json) {
+    final layersJson = json['layers'] as Map<String, dynamic>;
+    return Capabilities(
+      tiles: CapabilityStatus.fromJson(json['tiles'] as Map<String, dynamic>),
+      layers: CapabilityStatus.fromJson(layersJson),
+      routing: RoutingCapability.fromJson(json['routing'] as Map<String, dynamic>),
+      elevation: CapabilityStatus.fromJson(json['elevation'] as Map<String, dynamic>),
+      layersPerLayer: {
+        for (final e in ((layersJson['per_layer'] as Map<String, dynamic>?) ?? {}).entries)
+          e.key: e.value as String,
+      },
+      layersPerLayerDetail:
+          (layersJson['per_layer_detail'] as Map<String, dynamic>?) ?? const {},
+    );
+  }
 }
 
 /// The client's own build version, read from `packaging/version.lock` (ARCH

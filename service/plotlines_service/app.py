@@ -28,7 +28,6 @@ from plotlines_core.curation.defaults import resolve_default_layers
 from plotlines_core.curation.notability import RawFeature, RULESET_VERSION, score_notability
 from plotlines_core.curation.providers import BBox, OsmLayerProvider
 from plotlines_core.curation.registry import build_default_registry
-from plotlines_core.curation.taxonomy import LAYERS
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph import regions as region_lib
 from plotlines_core.multimodal.modes import TRAVERSAL_MODES
@@ -444,34 +443,39 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
     @app.get("/health")
     def health() -> dict:
         """Per-capability readiness (ARCH §8.3, breaking change B1; PRD
-        FR120/FR121; issue #154). No single `ready` flag: `tiles` and
-        `layers` report ready unconditionally (neither has a process-wide
-        startup dependency — the Curation Workspace must be usable
-        immediately). `routing` is **per region** (D41: there is no
-        process-wide "the graph" any more — every trip bbox gets its own),
-        keyed by the region id `POST /regions` returned; empty until an
-        Author has drawn a bbox. `elevation` is a fixed not-ready state for
-        every region (see `ELEVATION_NOT_CONFIGURED`'s docstring) — never
-        blocking routing, which needs only the graph. `per_layer` is
-        `LAYERS` (the built-in OSM taxonomy) reported ready; a future plugin
-        loader (ARCH §14) is where a layer could report `loading`/`failed`
-        here — that mechanism does not exist yet, so every entry is `ready`
-        today.
+        FR120/FR121; issue #154, story N2). No single `ready` flag: `tiles`
+        reports ready unconditionally (no process-wide startup dependency —
+        the Curation Workspace must be usable immediately).
+
+        `layers` is driven by `app.state.layer_registry` (story N2): a real
+        per-layer state machine, not a constant. `layers.ready` is **`any`,
+        not `all`** — the capability is ready once any layer is usable, so
+        one slow or remote plugin dataset never re-imposes the global flag
+        B1 removed. `per_layer` carries `ready` / `loading` /
+        `failed:<reason>` per layer, and `per_layer_detail` adds the
+        picker's longer form (observed progress while loading, never a fixed
+        ETA — acquisition runs ×2.96 slower while the Author works).
+
+        `routing` is **per region** (D41), keyed by the region id
+        `POST /regions` returned; empty until an Author has drawn a bbox.
+        `elevation` is a fixed not-ready state for every region (see
+        `ELEVATION_NOT_CONFIGURED`) — never blocking routing, which needs
+        only the graph. A failing region build never touches `layers`.
 
         Version-mismatch refusal (A8, M12) is unchanged and lives entirely
         client-side in `SidecarManager.start()`, before the sidecar is even
         spawned — `/health` was never part of that check and still isn't.
         """
+        registry = app.state.layer_registry
+        layers_cap = registry.capability()
+        layers_cap["per_layer_detail"] = registry.per_layer_detail()
         return {
             "app_version": VERSION,
             "sidecar_version": VERSION,
             "mode": mode,
             "capabilities": {
                 "tiles": {"ready": True},
-                "layers": {
-                    "ready": True,
-                    "per_layer": {layer: "ready" for layer in sorted(LAYERS)},
-                },
+                "layers": layers_cap,
                 "routing": {"regions": state.routing_capabilities()},
                 "elevation": ELEVATION_NOT_CONFIGURED,
             },
@@ -585,31 +589,40 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         candidates = score_notability(features, live_layers=req.live_layers)
         return _candidates_response(candidates)
 
-    # On `app.state`, not a closure-local, so a test can substitute a fake
-    # provider the same way `app.state.readiness` is substitutable — a live
-    # Overpass call has no place inside a unit test.
+    # Kept for backward compatibility with callers that predate the registry;
+    # `/candidates` itself now goes through `app.state.layer_registry` so a
+    # single failing layer never aborts the whole extraction (story N2).
     app.state.layer_provider = OsmLayerProvider()
 
     @app.get("/candidates")
     def candidates_extract(west: float, south: float, east: float, north: float,
                            layers: str) -> dict:
-        """ARCH §8.2 endpoint surface, FR98/FR99 — extracts a bbox's raw
-        features via the built-in `OsmLayerProvider` (ARCH §14.2) and
-        notability-filters them in one call. `layers` is a comma-separated
-        live-layer set (FR97's Author selection); a live layer this catalog
-        doesn't recognize is simply never asked for.
+        """ARCH §8.2 endpoint surface, FR98/FR99, story N2 — extracts and
+        notability-filters a bbox's features across the requested live
+        layers. `layers` is a comma-separated live-layer set (FR97's Author
+        selection).
+
+        **One failing layer never fails the request** (SPIKE-D #159): the
+        response returns the candidates from every layer that served,
+        `layers_served` naming them, and `layers_unavailable` mapping each
+        layer that did not to its reason (`loading`, `failed:<reason>`,
+        `unknown_layer`). A request with no live layers at all is the only
+        422 — that is a malformed request, not an empty area.
 
         Synchronous for MVP: ARCH §7.2 describes this as a job for a large
-        multi-day bbox, which this endpoint does not yet implement — a
-        future pass can make it async without changing what it returns.
+        multi-day bbox; a future pass can make it async without changing
+        what it returns.
         """
         live = {layer for layer in layers.split(",") if layer}
-        try:
-            features = app.state.layer_provider.fetch(BBox(west, south, east, north), live)
-        except Exception as exc:  # noqa: BLE001 — an honest "no data" beats a 500 (ARCH §7.2)
-            raise HTTPException(422, f"could not extract features for this area: {exc}") from exc
-        candidates = score_notability(features, live_layers=live)
-        return _candidates_response(candidates)
+        if not live:
+            raise HTTPException(422, "no live layers requested")
+        registry = app.state.layer_registry
+        candidates, errors = registry.fetch_candidates_all(
+            BBox(west, south, east, north), live)
+        body = _candidates_response(candidates)
+        body["layers_served"] = sorted(live - set(errors))
+        body["layers_unavailable"] = errors
+        return body
 
     def _resolve_profile(theme: str, weights: dict[str, float] | None) -> WeightProfile:
         if weights:

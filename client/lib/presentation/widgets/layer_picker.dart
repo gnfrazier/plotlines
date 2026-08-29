@@ -22,6 +22,7 @@ class LayerPicker extends StatelessWidget {
     required this.layers,
     required this.live,
     required this.onToggle,
+    this.layerStates = const {},
   });
 
   /// The full catalog (FR97's AC — spans the OSM taxonomy).
@@ -31,19 +32,57 @@ class LayerPicker extends StatelessWidget {
   final Set<String> live;
   final void Function(String layer) onToggle;
 
+  /// `/health`'s `capabilities.layers.per_layer` — `'ready'` / `'loading'` /
+  /// `'failed:<reason>'` per layer id (ARCH §8.3, story N2). A layer not
+  /// present here is treated as ready (every built-in OSM layer). A `loading`
+  /// layer shows a spinner and cannot be toggled yet; a `failed` layer shows
+  /// why and is disabled — one slow or broken plugin dataset never blocks
+  /// the rest of the picker or the workspace.
+  final Map<String, String> layerStates;
+
   @override
   Widget build(BuildContext context) {
     return Wrap(
       spacing: PlotSpacing.s2,
       runSpacing: PlotSpacing.s2,
       children: [
-        for (final layer in layers)
-          FilterChip(
-            label: Text(layerLabels[layer] ?? layer),
-            selected: live.contains(layer),
-            onSelected: (_) => onToggle(layer),
-          ),
+        for (final layer in layers) _chipFor(context, layer),
       ],
+    );
+  }
+
+  Widget _chipFor(BuildContext context, String layer) {
+    final label = layerLabels[layer] ?? layer;
+    final state = layerStates[layer] ?? 'ready';
+    if (state == 'ready') {
+      return FilterChip(
+        label: Text(label),
+        selected: live.contains(layer),
+        onSelected: (_) => onToggle(layer),
+      );
+    }
+    if (state == 'loading') {
+      return FilterChip(
+        avatar: const SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        label: Text('$label — loading'),
+        selected: false,
+        onSelected: null, // disabled until the dataset settles
+      );
+    }
+    // failed:<reason>
+    final reason = state.contains(':') ? state.split(':').sublist(1).join(':') : state;
+    return Tooltip(
+      message: '$label unavailable — $reason',
+      child: FilterChip(
+        avatar: Icon(Icons.error_outline, size: 16, color: Theme.of(context).colorScheme.error),
+        label: Text('$label — unavailable'),
+        selected: false,
+        onSelected: null,
+      ),
     );
   }
 }

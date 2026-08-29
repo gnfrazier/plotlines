@@ -141,4 +141,61 @@ void main() {
       expect(caps.settled, isTrue);
     });
   });
+
+  group('Capabilities per-layer readiness (story N2)', () {
+    Map<String, dynamic> body(Map<String, dynamic> layers) => {
+          'tiles': {'ready': true},
+          'layers': layers,
+          'routing': {'regions': <String, dynamic>{}},
+          'elevation': {'ready': false, 'reason': 'x'},
+        };
+
+    test('per_layer and per_layer_detail are parsed', () {
+      final caps = Capabilities.fromJson(body({
+        'ready': true,
+        'per_layer': {
+          'historic': 'ready',
+          'revwar_battlefields': 'loading',
+          'plugin_manors': 'failed:licence_unsatisfiable',
+        },
+        'per_layer_detail': {
+          'revwar_battlefields': {'state': 'loading', 'progress': 0.4, 'elapsed_s': 2.1},
+        },
+      }));
+      expect(caps.layerState('historic'), 'ready');
+      expect(caps.layerState('revwar_battlefields'), 'loading');
+      expect(caps.layerState('plugin_manors'), 'failed:licence_unsatisfiable');
+      expect(caps.layerState('unknown'), isNull);
+      expect(caps.layersPerLayerDetail['revwar_battlefields'], isNotNull);
+    });
+
+    test('layerReady defaults an unreported layer to ready', () {
+      final caps = Capabilities.fromJson(body({'ready': true, 'per_layer': {'historic': 'ready'}}));
+      expect(caps.layerReady('historic'), isTrue);
+      expect(caps.layerReady('amenity'), isTrue); // unreported -> ready
+    });
+
+    test('layerReady is false for a loading or failed layer', () {
+      final caps = Capabilities.fromJson(body({
+        'ready': true,
+        'per_layer': {'a': 'loading', 'b': 'failed:boom'},
+      }));
+      expect(caps.layerReady('a'), isFalse);
+      expect(caps.layerReady('b'), isFalse);
+    });
+
+    test('layers.ready reads the any-flag: true with a failed plugin present', () {
+      final caps = Capabilities.fromJson(body({
+        'ready': true, // sidecar computes any(), not all()
+        'per_layer': {'historic': 'ready', 'plugin_manors': 'failed:licence_unsatisfiable'},
+      }));
+      expect(caps.layers.ready, isTrue);
+    });
+
+    test('a health body with no per_layer key is tolerated', () {
+      final caps = Capabilities.fromJson(body({'ready': true}));
+      expect(caps.layersPerLayer, isEmpty);
+      expect(caps.layerReady('anything'), isTrue);
+    });
+  });
 }

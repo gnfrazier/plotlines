@@ -68,6 +68,11 @@ class _LayersTabState extends ConsumerState<LayersTab> {
         ref.watch(layerCatalogProvider((modes: layerModesKey(modes), dayType: _dayType)));
     final selection = ref.watch(layerSelectionProvider);
     final bbox = ref.watch(tripBboxProvider);
+    // Per-layer readiness (ARCH §8.3, story N2). Empty for the six built-in
+    // OSM layers; a plugin dataset (N5) reports `loading`/`failed` here and
+    // the picker disables just that chip, never the workspace.
+    final layerStates =
+        ref.watch(sidecarManagerProvider).capabilities?.layersPerLayer ?? const {};
 
     return catalogAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -133,6 +138,7 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                     LayerPicker(
                       layers: catalog.layers,
                       live: selection.tripLive,
+                      layerStates: layerStates,
                       onToggle: (layer) =>
                           ref.read(layerSelectionProvider.notifier).toggleTripLayer(layer),
                     ),
@@ -158,6 +164,7 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                         LayerPicker(
                           layers: catalog.layers,
                           live: live,
+                          layerStates: layerStates,
                           onToggle: (layer) => ref
                               .read(layerSelectionProvider.notifier)
                               .toggleDayLayer(day.id, layer),
