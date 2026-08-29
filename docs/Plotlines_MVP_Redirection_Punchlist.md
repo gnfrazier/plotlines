@@ -366,3 +366,65 @@ Not checkable once; hold across every decision.
 - **A capability with no path back to what it made is not usable.** Every new object type ships with its reachability path named. This is a rule, not a feature — the other three FR142 clauses are things you build; this one is a thing you check forever. *(PRD FR142(b), K12)*
 - **WCAG 2.2 AA is the floor, not the target.** Field surfaces exceed it deliberately for outdoor legibility and gloved operation. At MVP it is a design-review checklist; the formal audit gates surface expansion. *(PRD FR142, FR142a)*
 - **Advisories warn; constraints exclude.** Gauge bands (FR14), vehicle access (FR29a), and difficulty grades are **advisory** — they surface and warn, they never reroute. Routability (FR128) is a **constraint**. Keep the two categories apart; an advisory promoted to a constraint takes a judgment away from the Author, and a constraint demoted to an advisory ships an unridable route.
+
+---
+
+## §3A — MVP issues still in TODO (dependency-ordered build queue)
+
+Generated from the GitHub project board: every issue carrying the **`mvp`** label whose board status is **Todo** (excludes `Dev Complete` / `In Progress` / `Done`). Ordered by dependency and by FR family so that each item's prerequisites land before it. Items on the same tier are independent of each other.
+
+### Stories
+
+```
+[129, 130, 140, 143, 139, 132, 107, 109, 110, 111, 114, 116, 117, 47, 40, 41, 69, 73, 74, 77, 78, 79, 75, 81, 88, 89, 90, 91, 93, 95]
+```
+
+| Order | # | Story | Depends on / rationale |
+|---|---|---|---|
+| 1 | 129 | M1 — Model themes as data | Foundation for M2; no story deps |
+| 2 | 130 | M2 — Resolve weights per edge via a position lookup | M1; unblocks ARCH 2A.4 `WeightProfile` reconciliation |
+| 3 | 140 | M12 — Sidecar lifecycle + paired version | Underpins every desktop session; pairs with M12a (done) |
+| 4 | 143 | M13 — One shared desktop error/empty surface | Cross-cutting; acceptance 4.32 and most M-series scenarios route through it |
+| 5 | 139 | M11 — Serve tiles only through our own service | M12; FR91/FR93/FR94 tile path |
+| 6 | 132 | M4 — Serve web auth same-site | Prereq for guest + web reading (K4, H13-adjacent) |
+| 7 | 107 | K1 — Sign in with a magic link | M4; SPIKE-13 |
+| 8 | 109 | K3 — Sync across my devices | K1 |
+| 9 | 110 | K4 — Use Plotlines as a guest | M4, M5-adjacent |
+| 10 | 111 | K5 — Configure display and measurement preferences | FR79/FR145; must precede itinerary + cue sheet rendering (acceptance 4.21) |
+| 11 | 114 | K8 — Reset planning controls | Planning substrate (A/N/O done) |
+| 12 | 116 | K10 — See required data attribution and app/sidecar version | M12 (version), ARCH §12.2 attribution |
+| 13 | 117 | K11 — Read what Plotlines knows and shares | K10; FR138 privacy statement (acceptance 4.26) |
+| 14 | 47 | C11 — Warn of hazards and cruxes | O5 (done); feeds I5 and the reading surface's hazard display |
+| 15 | 40 | C4 — Offer alternate routes per day | Routing stack A11 (done) |
+| 16 | 41 | C5 — Place waypoints, regroup points, rest stops | O1/O2 (done) |
+| 17 | 69 | F3 — Configure export contents and splitting | F1 (done), reveal gate (done); SPIKE-16 for FIT |
+| 18 | 73 | G2b — Reuse part of a trip | G2a (done); clone-scope rules (acceptance 4.35) |
+| 19 | 74 | H1 — View my itinerary | K5; E3 spine (done) |
+| 20 | 77 | H3 — Inspect multimodal days and transitions | H1; B1–B3 (done) |
+| 21 | 78 | H4 — See regroup points and rest-stop amenities | H1, C5, C11 |
+| 22 | 79 | H5 — Access notes and story highlights | H1, E1 (done), reveal (done) |
+| 23 | 75 | H2 — Hear authored narration as I reach it | H5; SPIKE-06, SPIKE-12 |
+| 24 | 81 | H7 — Download for offline use | H1–H5 content surfaces complete; SPIKE-10 |
+| 25 | 88 | I1 — Glance at a position-aware cue sheet | F1 (done), H1 |
+| 26 | 89 | I2 — Use the auto-updating cue HUD | I1 |
+| 27 | 90 | I2a — Choose stowed or mounted posture | I2 |
+| 28 | 91 | I3 — Get dynamic cue/ETA recalculation | I2; SPIKE-15 isolates |
+| 29 | 93 | I5 — Receive hazard and crux alerts | C11, I2; SPIKE-06 |
+| 30 | 95 | I6a — Preserve battery with adaptive location accuracy | I1–I3; SPIKE-07 |
+
+### Spikes (de-risk before the leg that consumes them — run in parallel with the stories above)
+
+```
+[168, 161, 162, 164, 165, 166, 167, 163]
+```
+
+| # | Spike | Gates |
+|---|---|---|
+| 168 | SPIKE-13 — Magic-link email deliverability | K1 (#107) |
+| 161 | SPIKE-G — Candidate/proposal rendering at bbox scale | curation map surfaces; ARCH Q15 / 2A.5 |
+| 162 | SPIKE-15 — Dart isolates for background processing | I3 (#91), I-series recompute |
+| 164 | SPIKE-06 — Backgrounded GPS-triggered audio on real devices | H2 (#75), I5 (#93) |
+| 165 | SPIKE-12 — Backgrounded audio playback + device-native TTS | H2 (#75) |
+| 166 | SPIKE-07 — Adaptive location-accuracy battery savings | I6a (#95) |
+| 167 | SPIKE-10 — Adventure-package size | H7 (#81) |
+| 163 | SPIKE-16 — Byte-accurate FIT export via the Garmin FIT SDK | F3 (#69) |
