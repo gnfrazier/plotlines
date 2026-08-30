@@ -103,3 +103,55 @@ every phase (ARCH P7) — it is 50 *new bboxes* per 24 h, not 50 route solves. T
 window is persisted to `<cache-dir>/opentopography_calls.json` so it survives a sidecar
 restart; deleting that file re-earns the ceiling and is a licensing act, not a cache
 clear. Attribution (CC BY, FR86) is a separate obligation the key does not discharge.
+
+## Elevation region asset — the shipped home-region raster (FR90)
+
+The **home region** (Buncombe County, NC — the same constant extent the basemap ships
+under, FR96 / ARCH D41) has its elevation raster **shipped**, not fetched. It is
+distributed out of band as a **versioned tarball asset** and installed once by the setup
+step below. This is distinct from a trip bbox, whose DEM is fetched on demand from
+OpenTopography and is gated on FR87 (issue #148) — the home-region raster needs no API
+key and touches no network.
+
+`core/plotlines_core/elevation/region_asset.py` owns the asset's identity (region, bbox,
+version, provider, CC BY licence — FR86), the build step, and the extract/verify checks.
+
+### Building the asset (release step)
+
+With a GeoTIFF DEM clipped to `HOME_REGION_BBOX` (GEDTM30 via OpenTopography, FR85):
+
+```bash
+./packaging/build_elevation_asset.sh path/to/gedtm30_buncombe.tif
+# → packaging/dist/elevation/plotlines-elevation-buncombe-nc-v1.tar.gz
+```
+
+The tarball is **flat** — the raster (named as the `LocalCacheSource` cache stem) plus a
+`*.manifest.json` carrying provider, licence, and version — so the install step needs no
+`--strip-components`. Bump `ELEVATION_ASSET_VERSION` in `region_asset.py` whenever the
+raster's contents change; the version is in the filename and the manifest, so a stale
+install is detectable (`installed_asset_is_current`).
+
+### One-time setup step (install)
+
+Extract the tarball into the sidecar's **elevation cache directory** (the `--cache-dir`
+the client passes, i.e. the OS app-support dir). `LocalCacheSource` then resolves the
+home-region DEM as an ordinary local-cache hit — no code path changes.
+
+**macOS / Linux:**
+
+```bash
+tar -C "<elevation-cache-dir>" -xf plotlines-elevation-buncombe-nc-v1.tar.gz
+```
+
+**Windows** (`tar` / bsdtar ships with Windows 10 1803+ — run from `cmd`, PowerShell, or
+Git Bash):
+
+```bat
+tar -C "<elevation-cache-dir>" -xf plotlines-elevation-buncombe-nc-v1.tar.gz
+```
+
+It is the **same command** on every platform. Extract with `tar -C <dir>` — **never** a
+PowerShell `>` redirection (`... > file.tif`) or `Invoke-WebRequest -OutFile` piped
+through one: PowerShell's `>` reencodes the stream and corrupts the binary raster. The
+programmatic equivalent, used by tests and any installer that wants to do this in-process,
+is `plotlines_core.elevation.region_asset.extract_region_asset(tarball, cache_dir)`.
