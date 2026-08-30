@@ -26,7 +26,10 @@ from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from plotlines_core.curation.attribution import (
-    MissingAttributionError, assert_attribution_complete, attributions_for,
+    MissingAttributionError, attributions_for,
+)
+from plotlines_core.web.about import (
+    about_attributions, assert_about_attribution_complete, build_about_surface,
 )
 from plotlines_core.curation.colocate import (
     DEFAULTS as COLOCATION_DEFAULTS,
@@ -56,7 +59,6 @@ from plotlines_core.scoring.metrics import edge_walk, measure
 from plotlines_core.scoring.profile import THEMES, WeightProfile
 from plotlines_core.tiles.archive import Archive, valid_zxy
 from plotlines_core.tiles.extract import NoTilesInBbox, extract_bbox
-from plotlines_core.tiles.mirror import basemap_attribution
 from plotlines_core.web.session import SessionCookiePolicy
 from plotlines_core.trips.compose import compose_day, split_trip
 from plotlines_core.trips.cues import derive_cue_sheet, route_polyline
@@ -628,20 +630,41 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         `complete` is the release-gate answer: false with `missing` naming
         the offenders means a build failure, not a render-time warning.
 
-        The basemap's ODbL `© OpenStreetMap` line (FR95, story M11) is always
-        present — the basemap always ships — and is a **separate obligation**
-        from elevation's CC BY, carried here so every export/print surface
-        reads one source rather than a hardcoded credit list."""
+        Elevation's CC BY line (FR86) and the basemap's ODbL `© OpenStreetMap`
+        line (FR95, story M11) are always present — both ship with the home
+        region — and are **separate obligations** under different licences,
+        carried here so every export/print surface reads one source rather than
+        a hardcoded credit list."""
         registry = app.state.layer_registry
-        lines = [basemap_attribution()]
-        lines += [a.as_dict() for a in attributions_for(registry)]
+        lines = about_attributions(registry)
         try:
-            assert_attribution_complete(registry)
+            assert_about_attribution_complete(registry)
             complete, missing = True, []
         except MissingAttributionError as exc:
             complete = False
             missing = str(exc).split(": ", 1)[-1].split(", ")
         return {"attributions": lines, "complete": complete, "missing": missing}
+
+    @app.get("/about")
+    def about() -> dict:
+        """K10 + K11 (issues #116/#117; FR86, FR95, FR101, FR138) — the About
+        surface payload in one document: the running app version and (desktop)
+        the sidecar version matching `/health`, every licensed source's
+        attribution (elevation CC BY, basemap ODbL, and a line per loaded
+        plugin layer), and the plain-language privacy statement that must be
+        reachable from About on every platform, including Web guest and the
+        share-token reading view.
+
+        `attribution_complete` is the release-gate answer; a missing credit is
+        a build failure (the build check calls `assert_about_attribution_complete`
+        directly and raises)."""
+        registry = app.state.layer_registry
+        return build_about_surface(
+            registry,
+            app_version=VERSION,
+            sidecar_version=VERSION if mode == "sidecar" else None,
+            mode=mode,
+        ).as_dict()
 
     def _candidates_response(candidates: list) -> dict:
         return {

@@ -61,10 +61,31 @@ ELEVATION_PROVIDER = (
 #: CC BY — a separate obligation from the basemap's ODbL (FR86 vs FR95). Carried
 #: in the manifest so an extracted raster keeps its licensing trail.
 ELEVATION_LICENCE = "CC BY 4.0"
+ELEVATION_LICENCE_ID = "CC-BY-4.0"
 ELEVATION_ATTRIBUTION = (
     "Elevation: GEDTM30 (Global Ensemble Digital Terrain Model, 30 m) "
     "© OpenTopography and contributors — CC BY 4.0"
 )
+ELEVATION_TERMS_URL = "https://creativecommons.org/licenses/by/4.0/"
+
+
+def elevation_attribution() -> dict:
+    """The elevation raster's CC BY credit line, shaped like
+    :func:`plotlines_core.tiles.mirror.basemap_attribution` and
+    :meth:`plotlines_core.curation.attribution.LayerAttribution.as_dict` so the
+    About surface (K10), `/attribution`, exports and printed cue sheets can list
+    it in one list beside the basemap's ODbL line and the per-layer credits.
+
+    It is always present — the home region ships a DEM (FR90), so an elevation
+    obligation is always owed — and is a **separate obligation** from the
+    basemap's ODbL (FR86 vs FR95), under a different licence."""
+    return {
+        "layer": "elevation",
+        "licence": ELEVATION_LICENCE_ID,
+        "attribution": ELEVATION_ATTRIBUTION,
+        "builtin": True,
+        "terms_url": ELEVATION_TERMS_URL,
+    }
 
 #: What the manifest's ``asset`` field always reads, so a reader can tell this
 #: apart from any other tarball that might land in the same directory.

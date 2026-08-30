@@ -12,9 +12,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../data/sidecar_manager.dart';
+import '../../domain/attribution_line.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
+import 'privacy_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -28,7 +30,7 @@ class SettingsScreen extends ConsumerWidget {
         children: const [
           Expanded(child: _DisplayAndMeasurement()),
           VerticalDivider(width: 1),
-          Expanded(child: _AboutPane()),
+          Expanded(child: AboutPane()),
         ],
       ),
     );
@@ -235,63 +237,92 @@ class _DisplayAndMeasurement extends ConsumerWidget {
   }
 }
 
-class _AboutPane extends ConsumerWidget {
-  const _AboutPane();
+/// K10 (FR86, FR95, FR101) + K11 (FR138). Attribution is **derived from the
+/// loaded layer set** (`GET /about`), never hardcoded — the two static credits
+/// (elevation CC BY, basemap ODbL) fall back to [aboutStaticAttribution] only
+/// when no sidecar is reachable, so the obligation is met even on the lightest
+/// surface. `attribution_complete: false` from the service is a build failure;
+/// it is surfaced here rather than hidden. The privacy statement (K11) is one
+/// tap away via `/privacy`, reachable on every platform.
+class AboutPane extends ConsumerWidget {
+  const AboutPane({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
     final client = ref.watch(routingClientProvider);
 
-    return ListView(
-      padding: const EdgeInsets.all(PlotSpacing.s5),
-      children: [
-        Text('ABOUT PLOTLINES', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: PlotSpacing.s3),
-        Text('Plotlines', style: PlotTypography.display(c.textPrimary).copyWith(fontSize: 32)),
-        const SizedBox(height: PlotSpacing.s2),
-        Text('App version ${resolveClientVersion()}', style: PlotTypography.data(c.textSecondary)),
-        const SizedBox(height: PlotSpacing.s1),
-        FutureBuilder<Map<String, dynamic>>(
-          future: client.health(),
-          builder: (context, snapshot) {
-            final version = snapshot.data?['sidecar_version'] as String?;
-            return Text(
-              version == null ? 'Sidecar version: checking…' : 'Sidecar version $version',
+    return FutureBuilder<Map<String, dynamic>>(
+      future: client.about(),
+      builder: (context, snapshot) {
+        final about = snapshot.data;
+        final lines = attributionLinesFrom(about?['attributions']);
+        final sidecarVersion = about?['sidecar_version'] as String?;
+        final attributionComplete = about?['attribution_complete'] as bool? ?? true;
+        final missing = (about?['missing_attribution'] as List?)?.cast<Object?>() ?? const [];
+
+        return ListView(
+          padding: const EdgeInsets.all(PlotSpacing.s5),
+          children: [
+            Text('ABOUT PLOTLINES', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: PlotSpacing.s3),
+            Text('Plotlines', style: PlotTypography.display(c.textPrimary).copyWith(fontSize: 32)),
+            const SizedBox(height: PlotSpacing.s2),
+            Text('App version ${resolveClientVersion()}', style: PlotTypography.data(c.textSecondary)),
+            const SizedBox(height: PlotSpacing.s1),
+            Text(
+              switch (snapshot.connectionState == ConnectionState.done) {
+                false => 'Sidecar version: checking…',
+                true => sidecarVersion == null
+                    ? 'Sidecar version: unavailable'
+                    : 'Sidecar version $sidecarVersion',
+              },
               style: PlotTypography.data(c.textSecondary),
-            );
-          },
-        ),
-        const SizedBox(height: PlotSpacing.s6),
-        Text('DATA & ATTRIBUTION', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: PlotSpacing.s2),
-        const _AttributionCard(
-          source: 'Elevation — GEDTM30',
-          credit: 'GEDTM30 via OpenTopography, CC BY 4.0',
-          detail: 'Global Elevation Digital Terrain Model, 30 m resolution.',
-        ),
-        const SizedBox(height: PlotSpacing.s3),
-        const _AttributionCard(
-          source: 'Basemap — Protomaps Basemap',
-          credit: '© OpenStreetMap contributors, ODbL',
-          detail: 'Vector tiles built from OpenStreetMap data.',
-        ),
-        const SizedBox(height: PlotSpacing.s6),
-        Text(
-          'Plotlines runs entirely on your device. No accounts, no telemetry, '
-          'no hosted service for the desktop app.',
-          style: PlotTypography.small(c.textSecondary),
-        ),
-      ],
+            ),
+            const SizedBox(height: PlotSpacing.s6),
+            Text('DATA & ATTRIBUTION', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: PlotSpacing.s2),
+            if (!attributionComplete)
+              Padding(
+                padding: const EdgeInsets.only(bottom: PlotSpacing.s3),
+                child: PlotCard(
+                  child: Text(
+                    'Attribution incomplete for: ${missing.join(', ')}. '
+                    'This is a build failure — the release is gated on it.',
+                    style: PlotTypography.small(c.danger),
+                  ),
+                ),
+              ),
+            for (final line in lines) ...[
+              _AttributionCard(line: line),
+              const SizedBox(height: PlotSpacing.s3),
+            ],
+            const SizedBox(height: PlotSpacing.s4),
+            PlotListTile(
+              title: 'Privacy & data',
+              subtitle: 'What stays on this device, what reaches the server, '
+                  'and what is never shared.',
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const PrivacyScreen()),
+              ),
+            ),
+            const SizedBox(height: PlotSpacing.s5),
+            Text(
+              'Plotlines runs entirely on your device. No accounts, no telemetry, '
+              'no hosted service for the desktop app.',
+              style: PlotTypography.small(c.textSecondary),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
 class _AttributionCard extends StatelessWidget {
-  const _AttributionCard({required this.source, required this.credit, required this.detail});
-  final String source;
-  final String credit;
-  final String detail;
+  const _AttributionCard({required this.line});
+  final AttributionLine line;
 
   @override
   Widget build(BuildContext context) {
@@ -300,13 +331,20 @@ class _AttributionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(source, style: PlotTypography.body(c.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+          Text(_sourceLabel(line.layer),
+              style: PlotTypography.body(c.textPrimary).copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
-          Text(credit, style: PlotTypography.small(c.textSecondary)),
+          Text(line.attribution, style: PlotTypography.small(c.textSecondary)),
           const SizedBox(height: 2),
-          Text(detail, style: PlotTypography.small(c.textMuted)),
+          Text(line.licence, style: PlotTypography.small(c.textMuted)),
         ],
       ),
     );
   }
+
+  static String _sourceLabel(String layer) => switch (layer) {
+        'elevation' => 'Elevation',
+        'basemap' => 'Basemap',
+        _ => 'Layer — $layer',
+      };
 }
