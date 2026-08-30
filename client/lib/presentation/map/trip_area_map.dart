@@ -205,9 +205,14 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
     return FutureBuilder(
       future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
       builder: (context, snapshot) {
-        final vectorTheme = snapshot.data;
+        final themeResult = snapshot.data;
+        final vectorTheme = themeResult?.theme;
         final provider = SidecarVectorTileProvider(baseUrl);
         final tilesAvailable = vectorTheme != null;
+        // issue #184: a settled result that is not `ok` is a
+        // basemap-style defect, distinct from a legitimate
+        // out-of-coverage viewport.
+        final styleFailed = themeResult != null && !themeResult.ok;
         final outOfCoverage = _mapReady &&
             !tilesLikelyCoverViewport(_mapController.camera.visibleBounds, tripBbox: widget.bbox);
 
@@ -270,6 +275,7 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
                 child: NoBasemapNotice(
                   loading: snapshot.connectionState != ConnectionState.done,
                   outOfCoverage: tilesAvailable && outOfCoverage,
+                  styleFailed: styleFailed,
                 ),
               ),
             if (_mapReady && displayBbox != null && !widget.drawing)

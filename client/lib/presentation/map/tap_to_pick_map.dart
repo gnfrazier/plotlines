@@ -24,6 +24,59 @@ import 'vector_tile_provider.dart';
 
 typedef LatLonPoint = List<double>; // [lon, lat]
 
+/// Why a bundled basemap style failed to resolve. A bare `null` collapsed
+/// these four into one indistinguishable outcome (issue #184, an M13
+/// "never a silent failure" violation) — the caller could not tell a
+/// legitimate "no style shipped for this build" from a defect, and none
+/// of them was logged.
+enum BasemapThemeError {
+  /// No `style_<name>.json` existed at any resolved path.
+  styleNotFound,
+
+  /// A style file was found but could not be read (permissions, I/O).
+  styleUnreadable,
+
+  /// The file was read but is not valid JSON, or not a JSON object.
+  styleMalformed,
+
+  /// The JSON parsed but `ThemeReader` rejected it as a style.
+  themeRejected,
+}
+
+/// The outcome of [MapTileAssets.theme]: either a parsed [theme], or a
+/// [error] with the [cause] and the [pathsSearched] that produced it.
+/// Every failure is also logged once via [debugPrint] at the point it
+/// occurs, including the full path list (issue #184).
+class BasemapThemeResult {
+  const BasemapThemeResult.ready(Theme this.theme)
+      : error = null,
+        cause = null,
+        pathsSearched = const [];
+
+  const BasemapThemeResult.failed(
+    BasemapThemeError this.error,
+    this.cause,
+    this.pathsSearched,
+  ) : theme = null;
+
+  /// The parsed style on success, null on any failure.
+  final Theme? theme;
+
+  /// Which failure mode, or null on success.
+  final BasemapThemeError? error;
+
+  /// The underlying exception for [BasemapThemeError.styleUnreadable],
+  /// [BasemapThemeError.styleMalformed] and [BasemapThemeError.themeRejected];
+  /// null for [BasemapThemeError.styleNotFound] and on success.
+  final Object? cause;
+
+  /// The paths that were checked. For [BasemapThemeError.styleNotFound]
+  /// this is every candidate; otherwise the single file that was opened.
+  final List<String> pathsSearched;
+
+  bool get ok => theme != null;
+}
+
 /// Parses the style JSON once per theme name and reuses it — pure/static
 /// for a given name, and re-parsing a few hundred KB of style rules on
 /// every map widget rebuild would be wasted work (SPIKE-14 timed theme
@@ -35,34 +88,106 @@ typedef LatLonPoint = List<double>; // [lon, lat]
 /// sidecar-backed HTTP client now, cheap to construct fresh against the
 /// current `SidecarManager.baseUrl` each build — caching it would survive
 /// past a sidecar restart's port change.
+///
+/// [theme] returns a [BasemapThemeResult] — never a bare `null` — so a
+/// caller can tell a legitimate "no style for this build" from a defect
+/// and every failure is logged once (issue #184).
 class MapTileAssets {
-  static final Map<String, Future<Theme?>> _themes = {};
+  /// Only *successful* loads stay cached for the life of the run. A
+  /// failure is evicted once its future settles (issue #184) so a
+  /// transient cause (a file briefly unreadable, a sidecar mid-write) is
+  /// retried on the next build rather than pinned forever.
+  static final Map<String, Future<BasemapThemeResult>> _themes = {};
 
-  static Future<Theme?> theme(String name) => _themes.putIfAbsent(name, () async {
-        try {
-          final json = jsonDecode(
-            await File(_stylePath(name)).readAsString(),
-          ) as Map<String, dynamic>;
-          return ThemeReader().read(json);
-        } catch (_) {
-          return null;
-        }
-      });
+  static Future<BasemapThemeResult> theme(String name) {
+    final pending = _themes[name];
+    if (pending != null) return pending;
+    final future = loadBasemapTheme(candidateStylePaths(name));
+    _themes[name] = future;
+    future.then((result) {
+      if (!result.ok) _themes.remove(name);
+    });
+    return future;
+  }
 
-  static String _stylePath(String name) {
+  /// Every path `style_<name>.json` is looked for, in order: the bundled
+  /// `data/flutter_assets/...` beside the executable, then `client/assets`
+  /// and `assets` walking up to six levels from the CWD. Returned in full
+  /// so a not-found failure can report exactly what it tried.
+  @visibleForTesting
+  static List<String> candidateStylePaths(String name) {
+    final paths = <String>[];
     final exeDir = File(Platform.resolvedExecutable).parent;
-    final bundled = File('${exeDir.path}/data/flutter_assets/assets/map_style/style_$name.json');
-    if (bundled.existsSync()) return bundled.path;
+    paths.add('${exeDir.path}/data/flutter_assets/assets/map_style/style_$name.json');
     var dir = Directory.current;
     for (var i = 0; i < 6; i++) {
-      final candidate = File('${dir.path}/client/assets/map_style/style_$name.json');
-      if (candidate.existsSync()) return candidate.path;
-      final fromClient = File('${dir.path}/assets/map_style/style_$name.json');
-      if (fromClient.existsSync()) return fromClient.path;
+      paths.add('${dir.path}/client/assets/map_style/style_$name.json');
+      paths.add('${dir.path}/assets/map_style/style_$name.json');
       if (dir.parent.path == dir.path) break;
       dir = dir.parent;
     }
-    return 'assets/map_style/style_$name.json'; // will fail existence check above and fall through
+    return paths;
+  }
+}
+
+/// Resolves the first existing path in [candidatePaths], reads it, parses
+/// it and hands it to `ThemeReader`, returning a typed [BasemapThemeResult]
+/// that keeps the four failure modes distinct and logs each one once
+/// (issue #184). [exists] and [read] are injectable for tests.
+@visibleForTesting
+Future<BasemapThemeResult> loadBasemapTheme(
+  List<String> candidatePaths, {
+  bool Function(String path)? exists,
+  Future<String> Function(String path)? read,
+}) async {
+  final existsFn = exists ?? (p) => File(p).existsSync();
+  final readFn = read ?? (p) => File(p).readAsString();
+
+  final found = candidatePaths.firstWhere(existsFn, orElse: () => '');
+  if (found.isEmpty) {
+    debugPrint(
+      'basemap: no style file found; searched:\n  ${candidatePaths.join('\n  ')}',
+    );
+    return BasemapThemeResult.failed(
+      BasemapThemeError.styleNotFound,
+      null,
+      List.unmodifiable(candidatePaths),
+    );
+  }
+
+  final String raw;
+  try {
+    raw = await readFn(found);
+  } catch (e) {
+    debugPrint('basemap: style file $found could not be read: $e');
+    return BasemapThemeResult.failed(
+      BasemapThemeError.styleUnreadable,
+      e,
+      List.unmodifiable([found]),
+    );
+  }
+
+  final Map<String, dynamic> json;
+  try {
+    json = jsonDecode(raw) as Map<String, dynamic>;
+  } catch (e) {
+    debugPrint('basemap: style file $found is not a valid JSON object: $e');
+    return BasemapThemeResult.failed(
+      BasemapThemeError.styleMalformed,
+      e,
+      List.unmodifiable([found]),
+    );
+  }
+
+  try {
+    return BasemapThemeResult.ready(ThemeReader().read(json));
+  } catch (e) {
+    debugPrint('basemap: style file $found was rejected by ThemeReader: $e');
+    return BasemapThemeResult.failed(
+      BasemapThemeError.themeRejected,
+      e,
+      List.unmodifiable([found]),
+    );
   }
 }
 
@@ -115,9 +240,14 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
     return FutureBuilder(
       future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
       builder: (context, snapshot) {
-        final vectorTheme = snapshot.data;
+        final themeResult = snapshot.data;
+        final vectorTheme = themeResult?.theme;
         final provider = SidecarVectorTileProvider(baseUrl);
         final tilesAvailable = vectorTheme != null;
+        // issue #184: a settled result that is not `ok` is a
+        // basemap-style defect, distinct from a legitimate
+        // out-of-coverage viewport.
+        final styleFailed = themeResult != null && !themeResult.ok;
         // The live camera bounds (issue #154: viewport-based, not tied to
         // any one fixture region) — `_mapReady` guards the first build,
         // before `FlutterMap` has laid out and `camera` is queryable.
@@ -188,6 +318,7 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                 child: NoBasemapNotice(
                   loading: snapshot.connectionState != ConnectionState.done,
                   outOfCoverage: tilesAvailable && outOfCoverage,
+                  styleFailed: styleFailed,
                 ),
               ),
           ],

@@ -32,7 +32,10 @@ class PlotCard extends StatelessWidget {
         border: Border.all(color: c.border),
         boxShadow: raised ? PlotElevation.soft(PlotColors.ink) : null,
       ),
-      child: child,
+      // A transparent Material sits between the card's decorated container
+      // and any ListTile-family descendant so their ink and selection paint
+      // here rather than on a Material the BoxDecoration would hide (bug #185).
+      child: Material(type: MaterialType.transparency, child: child),
     );
     if (onTap == null) return content;
     return Material(

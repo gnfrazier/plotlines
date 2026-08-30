@@ -84,7 +84,12 @@ class _GraticulePainter extends CustomPainter {
 /// #154 de-duplicates the three former copies). Never names a region —
 /// there is no longer exactly one fixture to name.
 class NoBasemapNotice extends StatelessWidget {
-  const NoBasemapNotice({super.key, required this.loading, this.outOfCoverage = false});
+  const NoBasemapNotice({
+    super.key,
+    required this.loading,
+    this.outOfCoverage = false,
+    this.styleFailed = false,
+  });
 
   /// The tile theme/provider are still being resolved for the first time.
   final bool loading;
@@ -94,15 +99,22 @@ class NoBasemapNotice extends StatelessWidget {
   /// distinct from [loading].
   final bool outOfCoverage;
 
+  /// The basemap *style* itself failed to load (issue #184) — a defect,
+  /// not a coverage answer. Worded so it does not read as "this area has
+  /// no tiles"; the cause and the paths tried are in the logs.
+  final bool styleFailed;
+
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final text = loading
         ? 'Loading basemap…'
-        : outOfCoverage
-            ? 'No basemap tiles here — outside the shipped home region and '
-              'this trip\'s own area'
-            : 'No basemap tiles here';
+        : styleFailed
+            ? 'Basemap unavailable — the map style failed to load (see logs)'
+            : outOfCoverage
+                ? 'No basemap tiles here — outside the shipped home region and '
+                  'this trip\'s own area'
+                : 'No basemap tiles here';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
       decoration: BoxDecoration(

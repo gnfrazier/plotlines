@@ -1,8 +1,11 @@
 // Issue #154 — the honest-empty basemap check: "the notice appears when
 // the current camera has no coverage, not when the tile directory is
 // missing." `tilesLikelyCoverViewport` is the pure predicate every map
-// widget's notice now gates on; these tests exercise it directly rather
+// widget's notice now gates on. Issue #184 adds the style-defect vs.
+// coverage wording split. These exercise the predicate and the notice
+// widget directly rather
 // than through a full map widget.
+import 'package:flutter/material.dart' hide Theme;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart' as ll;
@@ -39,6 +42,50 @@ void main() {
     const tripBbox = TripBbox(minLat: 39.9, minLon: -105.4, maxLat: 40.1, maxLon: -105.1);
     final viewport = _boundsAround(-33.87, 151.21); // Sydney — nowhere near either
     expect(tilesLikelyCoverViewport(viewport, tripBbox: tripBbox), isFalse);
+  });
+
+  group('NoBasemapNotice text distinguishes coverage from a style defect (issue #184)', () {
+    Future<String> noticeText(WidgetTester tester, NoBasemapNotice notice) async {
+      // Mirror production: the notice sits in a `Positioned` inside a
+      // `Stack`, i.e. with unbounded width — never a fixed-width Row.
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Stack(children: [Positioned(left: 0, bottom: 0, child: notice)]),
+        ),
+      ));
+      return tester.widget<Text>(find.byType(Text)).data!;
+    }
+
+    testWidgets('loading wins over every other flag', (tester) async {
+      final text = await noticeText(
+        tester,
+        const NoBasemapNotice(loading: true, outOfCoverage: true, styleFailed: true),
+      );
+      expect(text, 'Loading basemap…');
+    });
+
+    testWidgets('a style failure reads as a defect, not a coverage answer', (tester) async {
+      final text = await noticeText(
+        tester,
+        const NoBasemapNotice(loading: false, styleFailed: true),
+      );
+      expect(text, contains('style failed to load'));
+      expect(text, isNot(contains('No basemap tiles here')));
+    });
+
+    testWidgets('out-of-coverage keeps its own legitimate wording', (tester) async {
+      final text = await noticeText(
+        tester,
+        const NoBasemapNotice(loading: false, outOfCoverage: true),
+      );
+      expect(text, startsWith('No basemap tiles here'));
+      expect(text, contains('outside the shipped home region'));
+    });
+
+    testWidgets('the bare fallback is unchanged', (tester) async {
+      final text = await noticeText(tester, const NoBasemapNotice(loading: false));
+      expect(text, 'No basemap tiles here');
+    });
   });
 
   test('a viewport straddling the home region edge still counts as covered', () {
