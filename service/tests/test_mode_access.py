@@ -30,7 +30,7 @@ from plotlines_core.graph import regions as region_lib
 from plotlines_core.graph.loader import LoadedGraph
 from plotlines_service.app import create_app
 
-_FIXTURE_GRAPH = (Path(__file__).resolve().parents[2] / "spikes" / "SPIKE-00" / "cache"
+_FIXTURE_GRAPH = (Path(__file__).resolve().parents[2] / "spikes" / "SPIKE-00" / "fixtures"
                   / "boulder_bike.graphml")
 _BOULDER_BBOX = [-105.30, 39.99, -105.25, 40.03]  # SPIKE-00's own fixture bbox
 
