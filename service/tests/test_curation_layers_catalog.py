@@ -95,6 +95,19 @@ def test_attribution_endpoint_enumerates_the_loaded_layer_set(client: TestClient
     assert attributions["revwar_battlefields"]["attribution"] == "Revwar GIS"
 
 
+def test_attribution_endpoint_always_carries_the_basemap_odbl_line(client: TestClient):
+    """FR95 / story M11 — the basemap's ODbL `© OpenStreetMap` credit is a
+    separate obligation from elevation's CC BY and ships on every surface a
+    map reaches. It is present with no plugin layers registered at all."""
+    body = client.get("/attribution").json()
+    attributions = {a["layer"]: a for a in body["attributions"]}
+    assert attributions["basemap"]["licence"] == "ODbL-1.0"
+    assert attributions["basemap"]["attribution"] == "© OpenStreetMap contributors"
+    assert attributions["basemap"]["terms_url"].startswith("https://www.openstreetmap.org/")
+    # The basemap line never gates the release check — it is not a layer.
+    assert body["complete"] is True
+
+
 def test_attribution_endpoint_flags_a_missing_attribution_as_incomplete(client: TestClient):
     plugin = _Plugin(LayerLicence(id="X", attribution="present at gate"))
     client._registry.register_plugin("sneaky", plugin)

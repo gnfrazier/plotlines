@@ -32,10 +32,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="directory for per-region graph/tile caches")
     parser.add_argument("--tiles-upstream", default=None,
                         help="PMTiles source a region's on-demand tile cache is "
-                             "extracted from: a local archive path, or (dev-only "
-                             "until #139 stands up a Plotlines-controlled mirror) "
-                             "an http(s):// URL read via ranged GETs. Defaults to "
-                             "the committed home-region archive — no network.")
+                             "extracted from: a local archive path, or the "
+                             "Plotlines-controlled mirror "
+                             "(plotlines_core.tiles.mirror.MIRROR_ARCHIVE_URL) "
+                             "read via ranged GETs. A third-party tile host is "
+                             "refused (FR92/FR95) unless --allow-unmirrored-tiles "
+                             "is also given. Defaults to the committed home-region "
+                             "archive — no network.")
+    parser.add_argument("--allow-unmirrored-tiles", action="store_true",
+                        help="dev only: permit --tiles-upstream to point at an "
+                             "http(s):// host other than the Plotlines mirror. "
+                             "Never the shipped path (FR92/FR95).")
     # Not required alongside --cache-dir: the client runs `--version` to perform the
     # A8 version check *before* it has spawned anything or chosen a cache dir.
     parser.add_argument("--version", action="store_true")
@@ -60,7 +67,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     app = create_app(cache_dir=args.cache_dir, mode=args.mode,
-                     tiles_upstream=args.tiles_upstream)
+                     tiles_upstream=args.tiles_upstream,
+                     allow_unmirrored_tiles=args.allow_unmirrored_tiles)
 
     config = uvicorn.Config(app, host=args.host, port=args.port,
                             log_level="warning", access_log=False)

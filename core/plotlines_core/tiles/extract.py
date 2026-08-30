@@ -1,17 +1,19 @@
-"""Bbox-scoped on-demand tile extraction (FR94; issue #154).
+"""Bbox-scoped on-demand tile extraction (FR94; issue #154, mirror policy
+from story M11 / issue #139).
 
 FR94: "Tiles are generated and cached bbox-scoped and on demand; the same
 pipeline is the origin for live map requests and offline packages." This
 derives a small PMTiles archive covering exactly one trip bbox from a larger
-source archive — the committed home-region archive for MVP, or (per ARCH
-Q9/D-line "configurable upstream", not shipped wired to a live mirror by this
-issue — see #139) a remote Protomaps-format archive served over HTTP range
-requests.
+source archive — the committed home-region archive for MVP, or a remote
+Protomaps-format archive served over HTTP range requests.
 
-**Hotlinking is not the shipped answer.** The default upstream a region is
-built against is the committed local archive; nothing here reaches the
-network unless a caller explicitly configures an `http(s)://` upstream
-(dev-only until #139 stands up a Plotlines-controlled mirror).
+**Hotlinking is not the shipped answer** (FR92/FR95). The default upstream a
+region is built against is the committed local archive; nothing here reaches
+the network unless a caller explicitly configures an `http(s)://` upstream.
+When it does, `mirror.resolve_upstream` refuses any host that is not the
+Plotlines-controlled mirror (`mirror.MIRROR_HOST`) unless the caller passes
+`allow_unmirrored=True` — the dev-only escape hatch behind
+`--allow-unmirrored-tiles`.
 """
 
 from __future__ import annotations
@@ -25,6 +27,8 @@ from urllib.request import Request, urlopen
 from pmtiles.reader import Reader
 from pmtiles.tile import zxy_to_tileid
 from pmtiles.writer import write as pmtiles_write
+
+from .mirror import resolve_upstream
 
 GetBytes = Callable[[int, int], bytes]
 
@@ -63,7 +67,11 @@ def http_range_source(url: str, *, timeout: float = 30.0) -> tuple[GetBytes, Cal
     return get_bytes, close
 
 
-def _open_source(source: str | Path) -> tuple[GetBytes, Callable[[], None]]:
+def _open_source(source: str | Path, *,
+                 allow_unmirrored: bool = False) -> tuple[GetBytes, Callable[[], None]]:
+    # FR92/FR95: a remote upstream must be the Plotlines mirror, never a
+    # third-party tile host — refused here before a single byte is fetched.
+    source = resolve_upstream(source, allow_unmirrored=allow_unmirrored)
     if isinstance(source, str) and source.startswith(("http://", "https://")):
         return http_range_source(source)
     return local_source(Path(source))
@@ -86,18 +94,22 @@ class NoTilesInBbox(ValueError):
 
 def extract_bbox(source: str | Path, bbox: tuple[float, float, float, float],
                  out_path: Path, *, min_zoom: int | None = None,
-                 max_zoom: int | None = None) -> Path:
+                 max_zoom: int | None = None, allow_unmirrored: bool = False) -> Path:
     """Write a new PMTiles archive at `out_path` covering only `bbox` (west,
     south, east, north) within `[min_zoom, max_zoom]`, read from `source` (a
-    local path, or an `http(s)://` URL read via ranged GETs). Zoom bounds
-    default to the source archive's own min/max.
+    local path, the Plotlines mirror, or — with `allow_unmirrored` — any
+    other `http(s)://` URL read via ranged GETs). Zoom bounds default to the
+    source archive's own min/max.
+
+    Raises `mirror.HotlinkRefused` if `source` is a third-party tile host and
+    `allow_unmirrored` is false (FR92/FR95).
 
     Raises `NoTilesInBbox` if the source has no matching tile data — this
     happens when a trip bbox falls entirely outside the committed home
     region and no live mirror is configured (ARCH constraint: hotlinking is
     not the shipped default).
     """
-    get_bytes, close = _open_source(source)
+    get_bytes, close = _open_source(source, allow_unmirrored=allow_unmirrored)
     try:
         reader = Reader(get_bytes)
         header = reader.header()
