@@ -389,12 +389,16 @@ class SidecarManager extends ChangeNotifier {
       '--cache-dir=${cacheDir.path}',
     ]);
     _process!.exitCode.then(_onExit);
-    // Record this child so the next launch can sweep it if we die without
-    // stopping it (ARCH §8.4). Failure to record is not worth blocking the
-    // spawn over.
-    unawaited(_resolveRegistry()
-        .then((r) => r.record(_process!.pid, _port!))
-        .catchError((Object e) => debugPrint('sidecar: could not record for orphan sweep: $e')));
+    // Record this child *before* the health-poll wait, not fire-and-forget
+    // (issue #183): if the client dies during the seconds spent in
+    // `_pollUntilReady`, an already-durable record is what lets the next
+    // launch's sweep find and reap this sidecar. Failure to record is still
+    // not worth blocking the spawn over — it is logged and startup proceeds.
+    try {
+      await (await _resolveRegistry()).record(_process!.pid, _port!);
+    } catch (e) {
+      debugPrint('sidecar: could not record for orphan sweep: $e');
+    }
 
     await _pollUntilReady();
   }

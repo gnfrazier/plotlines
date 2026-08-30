@@ -28,7 +28,25 @@ import 'package:http/http.dart' as http;
 /// recorded loopback port and only terminates the PID if something there
 /// still answers `GET /health` as a Plotlines sidecar. A recycled PID whose
 /// old port is dead or now owned by something else is left alone.
+///
+/// **A sweep only removes an entry it has resolved** (issue #183). An entry
+/// is pruned when its process is confirmed dead, or when this sweep confirmed
+/// it killed. An entry that is still alive but was *not* terminated — the
+/// `/health` probe timed out mid-boot, or [_terminate] threw — is kept so the
+/// next launch can try again, instead of being erased and leaked for the life
+/// of the machine. Provisional retention is bounded by [_maxSweepAttempts]
+/// and [_maxOrphanAge] so a permanently unidentifiable entry does not
+/// accumulate forever.
 class SidecarRegistry {
+  /// After this many consecutive sweeps that could neither identify nor kill
+  /// an entry, stop carrying it — it is almost certainly a recycled PID whose
+  /// old port is now dead or foreign, not our slow-booting sidecar.
+  static const _maxSweepAttempts = 10;
+
+  /// A backstop on [_maxSweepAttempts] for the case where sweeps are rare:
+  /// no app-spawned sidecar we still care about reaping is a week old.
+  static const _maxOrphanAge = Duration(days: 7);
+
   SidecarRegistry(
     this.file, {
     bool Function(int pid)? isProcessAlive,
@@ -67,8 +85,9 @@ class SidecarRegistry {
     if (entries.length != before) await _write(entries);
   }
 
-  /// Terminates any sidecar the previous client left running and clears the
-  /// registry. Returns the PIDs actually killed, for logging and tests.
+  /// Terminates any sidecar the previous client left running and rewrites the
+  /// registry to hold only the entries this sweep could not resolve (issue
+  /// #183). Returns the PIDs actually killed, for logging and tests.
   ///
   /// Safe to call unconditionally at startup: a missing or corrupt file, a
   /// Windows host, or an empty registry all resolve to "nothing to do"
@@ -80,23 +99,53 @@ class SidecarRegistry {
     final entries = await _read();
     if (entries.isEmpty) return const [];
 
+    final now = DateTime.now().toUtc();
     final killed = <int>[];
+    final retained = <_Entry>[];
+
     for (final entry in entries) {
+      // Confirmed dead: the PID owns no process. Prune.
       if (!_isProcessAlive(entry.pid)) continue;
-      if (!await _respondsAsSidecar(entry.port)) continue;
+
+      if (!await _respondsAsSidecar(entry.port)) {
+        // Alive, but nothing on the recorded port identifies as a Plotlines
+        // sidecar within the probe window. Two cases collapse here and we
+        // cannot tell them apart in one pass: a recycled PID whose old port
+        // is dead or foreign (safe to drop), and our own sidecar still
+        // mid-boot — cold start, a large pmtiles archive, a loaded machine —
+        // which must NOT be dropped or it leaks forever. Retain provisionally
+        // and let the attempt/age bound end it.
+        _retainWithinBounds(entry, now, retained);
+        continue;
+      }
+
       try {
         await _terminate(entry.pid);
-        killed.add(entry.pid);
+        killed.add(entry.pid); // confirmed killed — prune
       } catch (error) {
         debugPrint('sidecar: orphan sweep could not terminate ${entry.pid}: $error');
+        _retainWithinBounds(entry, now, retained); // still alive — keep for a retry
       }
     }
 
-    // Whatever the outcome, the previous session's entries are spent — the
-    // fresh sidecar records its own. Clearing here also prunes dead and
-    // unidentifiable entries that were correctly left un-killed above.
-    await _write(const []);
+    await _write(retained);
     return killed;
+  }
+
+  /// Carries [entry] forward to the next launch's sweep with its attempt
+  /// count bumped — unless it has now exhausted [_maxSweepAttempts] or
+  /// [_maxOrphanAge], at which point it is dropped with a log line rather
+  /// than carried indefinitely.
+  void _retainWithinBounds(_Entry entry, DateTime now, List<_Entry> retained) {
+    final attempts = entry.sweepAttempts + 1;
+    final age = now.difference(entry.spawnedAt);
+    if (attempts >= _maxSweepAttempts || age >= _maxOrphanAge) {
+      debugPrint('sidecar: giving up on unresolved orphan ${entry.pid} '
+          '(port ${entry.port}) after $attempts sweeps / ${age.inHours}h — '
+          'dropping from the registry');
+      return;
+    }
+    retained.add(entry.withSweepAttempt(attempts));
   }
 
   Future<List<_Entry>> _read() async {
@@ -154,11 +203,24 @@ class SidecarRegistry {
 }
 
 class _Entry {
-  _Entry({required this.pid, required this.port, required this.spawnedAt});
+  _Entry({
+    required this.pid,
+    required this.port,
+    required this.spawnedAt,
+    this.sweepAttempts = 0,
+  });
 
   final int pid;
   final int port;
   final DateTime spawnedAt;
+
+  /// How many prior sweeps carried this entry forward without resolving it
+  /// (issue #183). Absent in registries written before this field existed —
+  /// [fromJson] defaults it to 0.
+  final int sweepAttempts;
+
+  _Entry withSweepAttempt(int attempts) =>
+      _Entry(pid: pid, port: port, spawnedAt: spawnedAt, sweepAttempts: attempts);
 
   static bool isValid(Map<String, dynamic> json) =>
       json['pid'] is int && json['port'] is int && json['spawned_at'] is String;
@@ -167,11 +229,13 @@ class _Entry {
         pid: json['pid'] as int,
         port: json['port'] as int,
         spawnedAt: DateTime.parse(json['spawned_at'] as String),
+        sweepAttempts: json['sweep_attempts'] is int ? json['sweep_attempts'] as int : 0,
       );
 
   Map<String, dynamic> toJson() => {
         'pid': pid,
         'port': port,
         'spawned_at': spawnedAt.toIso8601String(),
+        'sweep_attempts': sweepAttempts,
       };
 }

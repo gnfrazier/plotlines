@@ -8,11 +8,21 @@
 // its own suite (sidecar_manager_capabilities_test.dart). What is left is the
 // lifecycle logic, exercised here without spawning a real process.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/data/sidecar_registry.dart';
+
+/// The recorded entries left in an orphan-registry file, for asserting what a
+/// sweep retained versus pruned (issue #183).
+List<Map<String, dynamic>> entriesInFile(File file) {
+  if (!file.existsSync()) return const [];
+  final raw = jsonDecode(file.readAsStringSync());
+  if (raw is! Map || raw['entries'] is! List) return const [];
+  return [for (final e in raw['entries'] as List) (e as Map).cast<String, dynamic>()];
+}
 
 void main() {
   group('pickEphemeralPort (M12: "spawn binds an ephemeral port")', () {
@@ -237,6 +247,92 @@ void main() {
       final swept = await r.sweep();
       expect(swept, [2], reason: 'pid 1 threw, pid 2 still handled');
       expect(killed, [2]);
+    });
+
+    // --- issue #183: a sweep only removes what it resolved -----------------
+
+    test('an alive entry that fails the /health probe is kept for the next sweep', () async {
+      await registry().record(900, 53000);
+      final killed = <int>[];
+
+      // Sweep 1: the process is up but still booting — /health times out.
+      final swept1 = await registry(alive: {900}, sidecarPorts: {}, killed: killed).sweep();
+      expect(swept1, isEmpty);
+      expect(killed, isEmpty);
+      expect(entriesInFile(file).single['pid'], 900,
+          reason: 'a provisionally-skipped survivor must not be erased');
+
+      // Sweep 2: boot finished, it answers now — it is still known, so reaped.
+      final swept2 = await registry(alive: {900}, sidecarPorts: {53000}, killed: killed).sweep();
+      expect(swept2, [900]);
+      expect(killed, [900]);
+      expect(entriesInFile(file), isEmpty);
+    });
+
+    test('an entry whose terminate throws is retained for a later retry', () async {
+      await registry().record(901, 53001);
+
+      final failing = SidecarRegistry(
+        file,
+        actOnThisPlatform: true,
+        isProcessAlive: {901}.contains,
+        respondsAsSidecar: (p) async => p == 53001,
+        terminate: (_) async => throw const OSError('kill failed'),
+      );
+      final swept1 = await failing.sweep();
+      expect(swept1, isEmpty);
+      expect(entriesInFile(file).single['pid'], 901,
+          reason: 'a failed kill leaves the entry alive — it must survive the sweep');
+
+      final killed = <int>[];
+      final swept2 = await registry(alive: {901}, sidecarPorts: {53001}, killed: killed).sweep();
+      expect(swept2, [901]);
+      expect(entriesInFile(file), isEmpty);
+    });
+
+    test('a confirmed-dead entry is pruned', () async {
+      await registry().record(902, 53002);
+      await registry(alive: {}, sidecarPorts: {53002}).sweep();
+      expect(entriesInFile(file), isEmpty);
+    });
+
+    test('a confirmed-killed entry is pruned', () async {
+      await registry().record(903, 53003);
+      await registry(alive: {903}, sidecarPorts: {53003}, killed: []).sweep();
+      expect(entriesInFile(file), isEmpty);
+    });
+
+    test('a stuck-unidentifiable entry is dropped once the attempt bound is hit', () async {
+      await registry().record(904, 53004);
+      for (var i = 0; i < 12; i++) {
+        await registry(alive: {904}, sidecarPorts: {}).sweep();
+      }
+      expect(entriesInFile(file), isEmpty,
+          reason: 'bounded retention must not carry a stuck entry forever');
+    });
+
+    test('an unresolved entry older than the age bound is dropped', () async {
+      file.writeAsStringSync('{"entries":[{"pid":905,"port":53005,'
+          '"spawned_at":"2020-01-01T00:00:00.000Z"}]}');
+      await registry(alive: {905}, sidecarPorts: {}).sweep();
+      expect(entriesInFile(file), isEmpty);
+    });
+
+    test('a registry written before sweep_attempts existed still sweeps', () async {
+      file.writeAsStringSync('{"entries":[{"pid":906,"port":53006,'
+          '"spawned_at":"2026-08-30T00:00:00.000Z"}]}');
+      final killed = <int>[];
+      final swept =
+          await registry(alive: {906}, sidecarPorts: {53006}, killed: killed).sweep();
+      expect(swept, [906]);
+    });
+
+    test('a retained entry carries an incremented attempt count', () async {
+      await registry().record(907, 53007);
+      await registry(alive: {907}, sidecarPorts: {}).sweep();
+      expect(entriesInFile(file).single['sweep_attempts'], 1);
+      await registry(alive: {907}, sidecarPorts: {}).sweep();
+      expect(entriesInFile(file).single['sweep_attempts'], 2);
     });
   });
 
