@@ -63,7 +63,10 @@ class ElevationRaster:
 # A fetcher downloads the DEM for `bbox` from `base_url` and writes it to
 # `dest`, returning `dest`. Injected so the network layer is swappable and so
 # tests never hit OpenTopography. `None` (the default) means "no fetch wired" —
-# acquisition is gated on FR87 / issue #148.
+# the local cache is then the only source. The shipped fetcher is
+# `plotlines_core.elevation.keys.OpenTopographyClient.as_fetcher()`, which
+# carries FR87's key tiering and free-tier ceiling (issue #148); its refusals
+# arrive here as a fetch failure, which `HttpElevationSource` reads as a miss.
 Fetcher = Callable[[str, BBox, Path], Path]
 
 

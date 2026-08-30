@@ -52,3 +52,54 @@ ordinary imports, so treat any new dependency as guilty until
 Q4 (freezer) and Q5 (bundle vs. download) were **resolved by SPIKE-00** — see `TODO.md`
 for the calls and their revisit triggers, and `spikes/SPIKE-00/results/RESULTS.md` for the
 measurements behind them.
+
+## Elevation API key (OpenTopography) — FR87
+
+Elevation is GEDTM30 via OpenTopography, the **single** source with no fallback (FR85,
+ARCH D20). The key that reaches it is a **licensing** decision as much as a config one,
+so the terms are enforced in code — `core/plotlines_core/elevation/keys.py`, refusals not
+warnings — rather than written down here and hoped for.
+
+| Tier | Daily ceiling | Commercial distribution |
+|---|---|---|
+| `free-non-academic` (default) | **50 calls / 24 h** | **No** |
+| `enterprise` (paid) | set by the key's own contract | Yes |
+
+**The rule behind that table**, not just the table (punch-list §0): a tier is admissible
+only when *both* of its terms are stated — the daily ceiling and whether it permits
+integration into software that is sold. A tier added with only one stated defaults the
+other to the permissive reading, and the breach is then silent. A key issued under some
+other arrangement supplies its own `TierTerms` rather than being filed under the
+nearest-looking tier.
+
+### The clause that cannot be un-broken
+
+> A paid Enterprise key is required once elevation is integrated into **commercial
+> software**. Plotlines' core app remaining free is what keeps Phase-1 usage within the
+> free tier legally. — FR87, ARCH A13
+
+Exceeding the rate limit gets a request refused; shipping GEDTM30 inside paid software on
+a free key is a licence breach no later retry fixes. So `OpenTopographyClient` refuses to
+be **constructed** at all when the posture is `COMMERCIAL` and the key is not Enterprise —
+a commercial build cannot hold a client it could spend from. **Anything that puts
+elevation behind a payment** — sold builds, a paid tier that unlocks it, a hosted plan
+whose price includes it — flips that posture, and re-licensing elevation is a prerequisite
+of the release, not a follow-up to it.
+
+### Configuring it
+
+```bash
+export PLOTLINES_OPENTOPOGRAPHY_API_KEY=...          # required; acquisition is off without it
+export PLOTLINES_OPENTOPOGRAPHY_KEY_TIER=enterprise  # optional; defaults to free-non-academic
+```
+
+An unset key is not an error state — the local DEM cache and the shipped region tarball
+(FR90) are unaffected, and an unresolvable bbox degrades to flat elevation rather than
+blocking planning (FR88). An **unrecognised** tier *is* an error: defaulting it to the
+free tier would silently claim non-commercial use.
+
+The 50-call ceiling is survivable because `LocalCacheSource` sits ahead of the provider in
+every phase (ARCH P7) — it is 50 *new bboxes* per 24 h, not 50 route solves. The rolling
+window is persisted to `<cache-dir>/opentopography_calls.json` so it survives a sidecar
+restart; deleting that file re-earns the ceiling and is a licensing act, not a cache
+clear. Attribution (CC BY, FR86) is a separate obligation the key does not discharge.
