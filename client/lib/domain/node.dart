@@ -190,6 +190,51 @@ class Node {
   /// FR28 / C12 — a time-bound event pinned to this node.
   final ScheduledWindow? scheduled;
 
+  /// Field-wise copy. Nullable fields take a `clear…` flag rather than
+  /// letting `null` mean "unchanged", matching [Role.copyWith] /
+  /// [Segment.copyWith]. C5 uses it to flag a placed waypoint a regroup
+  /// point (`copyWith(kind: NodeKind.regroup)`) and to revise a rest stop's
+  /// amenity set without rebuilding the node.
+  Node copyWith({
+    NodeKind? kind,
+    Coord? coord,
+    double? distanceAlongM,
+    bool clearDistanceAlongM = false,
+    String? title,
+    bool clearTitle = false,
+    String? note,
+    bool clearNote = false,
+    List<MediaRef>? media,
+    List<String>? amenities,
+    String? poiType,
+    bool clearPoiType = false,
+    String? arcStage,
+    bool clearArcStage = false,
+    Narration? narration,
+    bool clearNarration = false,
+    String? instructions,
+    bool clearInstructions = false,
+    ScheduledWindow? scheduled,
+    bool clearScheduled = false,
+  }) =>
+      Node(
+        id: id,
+        kind: kind ?? this.kind,
+        coord: coord ?? this.coord,
+        distanceAlongM:
+            clearDistanceAlongM ? null : (distanceAlongM ?? this.distanceAlongM),
+        title: clearTitle ? null : (title ?? this.title),
+        note: clearNote ? null : (note ?? this.note),
+        media: media ?? this.media,
+        amenities: amenities ?? this.amenities,
+        poiType: clearPoiType ? null : (poiType ?? this.poiType),
+        arcStage: clearArcStage ? null : (arcStage ?? this.arcStage),
+        narration: clearNarration ? null : (narration ?? this.narration),
+        instructions:
+            clearInstructions ? null : (instructions ?? this.instructions),
+        scheduled: clearScheduled ? null : (scheduled ?? this.scheduled),
+      );
+
   factory Node.fromJson(Map<String, dynamic> json) {
     final f = JsonFields(json, 'node');
     final n = Node(

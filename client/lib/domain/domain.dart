@@ -26,6 +26,7 @@ export 'node.dart';
 export 'passage_sequence.dart';
 export 'point_trigger.dart';
 export 'profile_request.dart';
+export 'provision_node.dart';
 export 'reachability.dart';
 export 'reason_phrase.dart';
 export 'reveal_state.dart';

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/app_database.dart' show TripCardMetrics;
+import '../domain/cluster_proposal.dart';
 import '../domain/domain.dart';
 import '../domain/promote.dart' as domain_promote show promoteAnchor;
 import 'planner_ui_state.dart'
@@ -504,6 +505,24 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         if (s.id == segmentId) s.copyWith(nodes: [...s.nodes, node]) else s,
     ];
     _replaceDay(day.copyWith(segments: segments));
+  }
+
+  /// FR21 / C5 — "N4's provision-cluster proposals feed this directly": drop a
+  /// provision co-location [proposal] onto a passage as one rest-stop [Node],
+  /// its amenity tags already derived from the cluster's provision members, in
+  /// a single action. Returns the placed node, or `null` when the proposal
+  /// carries no provision affinity (nothing for C5 to place). Leaves the
+  /// proposal-review list alone — accepting or rejecting a proposal for review
+  /// is N4a's concern, separate from placing one.
+  Node? addProvisionNodeFromProposal(
+    String dayId,
+    String segmentId,
+    ClusterProposal proposal,
+  ) {
+    final node = provisionNodeFromProposal(proposal, id: _uuid.v4());
+    if (node == null) return null;
+    addNodeToSegment(dayId, segmentId, node);
+    return node;
   }
 
   /// FR99 — an Author promoting a candidate directly off the curation map's

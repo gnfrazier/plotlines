@@ -20,7 +20,8 @@ import '../../state/current_trip_provider.dart';
 
 const _uuid = Uuid();
 const _arcStages = ['exposition', 'rising', 'crux', 'climax', 'resolution'];
-const _amenityChoices = ['water', 'toilets', 'food', 'shelter'];
+// C5's seed set — one source of truth in domain/provision_node.dart.
+const _amenityChoices = kKnownAmenities;
 
 /// Opens the editor for a brand-new node at [coord] on [segmentId], or an
 /// existing [existing] node to revise, as a modal sheet. Still used by the
