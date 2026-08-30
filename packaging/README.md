@@ -133,25 +133,26 @@ install is detectable (`installed_asset_is_current`).
 
 ### One-time setup step (install)
 
-Extract the tarball into the sidecar's **elevation cache directory** (the `--cache-dir`
-the client passes, i.e. the OS app-support dir). `LocalCacheSource` then resolves the
-home-region DEM as an ordinary local-cache hit — no code path changes.
+Extract the tarball into the sidecar's **elevation cache directory** — the `elevation/`
+sub-directory of the `--cache-dir` the client passes (`CacheLayout.elevation_dir`, the
+separate bbox-scoped elevation cache FR94 mandates, a sibling of `tiles/`). `LocalCacheSource`
+then resolves the home-region DEM as an ordinary local-cache hit — no code path changes.
 
 **macOS / Linux:**
 
 ```bash
-tar -C "<elevation-cache-dir>" -xf plotlines-elevation-buncombe-nc-v1.tar.gz
+tar -C "<cache-dir>/elevation" -xf plotlines-elevation-buncombe-nc-v1.tar.gz
 ```
 
 **Windows** (`tar` / bsdtar ships with Windows 10 1803+ — run from `cmd`, PowerShell, or
 Git Bash):
 
 ```bat
-tar -C "<elevation-cache-dir>" -xf plotlines-elevation-buncombe-nc-v1.tar.gz
+tar -C "<cache-dir>/elevation" -xf plotlines-elevation-buncombe-nc-v1.tar.gz
 ```
 
 It is the **same command** on every platform. Extract with `tar -C <dir>` — **never** a
 PowerShell `>` redirection (`... > file.tif`) or `Invoke-WebRequest -OutFile` piped
 through one: PowerShell's `>` reencodes the stream and corrupts the binary raster. The
 programmatic equivalent, used by tests and any installer that wants to do this in-process,
-is `plotlines_core.elevation.region_asset.extract_region_asset(tarball, cache_dir)`.
+is `plotlines_core.elevation.region_asset.extract_region_asset(tarball, CacheLayout(cache_dir).elevation_dir)`.

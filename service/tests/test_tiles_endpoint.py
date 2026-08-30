@@ -92,3 +92,48 @@ def test_a_region_specific_cache_is_served_before_falling_back(tmp_path: Path, m
     resp = client.get("/tiles/3/4/4")
     assert resp.status_code == 200
     assert resp.content == b"only-this-region-has-me"
+
+
+def test_region_tile_cache_lives_in_the_bbox_scoped_cache_layout(tmp_path: Path, monkeypatch) -> None:
+    """FR94 (issue #152): a region's on-demand tile cache is written to and
+    read back from `CacheLayout(cache_dir).tile_archive(bbox)` — the separate,
+    trip-bbox-scoped tile cache, not `regions/<key>/`. Two regions that drew
+    the same box (differing only by network type) share the one archive."""
+    from plotlines_service import app as app_mod
+    from plotlines_service.app import RegionState
+    from plotlines_core.cache_layout import CacheLayout
+
+    bbox = (-1.0, -1.0, 1.0, 1.0)
+    expected = CacheLayout(tmp_path).tile_archive(bbox)
+
+    # Stub the graph half (network-bound) so build() reaches the tile half.
+    monkeypatch.setattr(app_mod.region_lib, "ensure_graph",
+                        lambda region, cache_dir: tmp_path / "graph.graphml")
+    monkeypatch.setattr(app_mod, "load_graphml", lambda path: object())
+
+    seen: list[Path] = []
+
+    def fake_extract(upstream, box, out_path, *, allow_unmirrored=False):
+        seen.append(out_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        build_archive(out_path, {(3, 4, 4): b"region-tile"})
+        return out_path
+
+    monkeypatch.setattr(app_mod, "extract_bbox", fake_extract)
+
+    region = RegionState("k-bike", bbox, "bike")
+    region.build(tmp_path, tiles_upstream="unused", allow_unmirrored=False)
+
+    assert seen == [expected]
+    assert expected.is_file()
+    assert expected.parent == CacheLayout(tmp_path).tiles_dir
+    assert region.tiles_archive is not None
+    assert region.tiles_archive.tile(3, 4, 4) == b"region-tile"
+
+    # A second region for the same bbox, different network type: the archive
+    # already exists, so no re-extraction — one tile cache per trip bbox.
+    seen.clear()
+    region2 = RegionState("k-foot", bbox, "walk")
+    region2.build(tmp_path, tiles_upstream="unused", allow_unmirrored=False)
+    assert seen == []
+    assert region2.tiles_archive is not None
