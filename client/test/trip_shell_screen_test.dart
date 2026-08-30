@@ -103,6 +103,13 @@ void main() {
     await tester.tap(find.byTooltip('Add rest day'));
     await tester.pump();
     expect(tester.takeException(), isNull);
+    // The new day's card is appended below the day list — scroll it into
+    // view (the Logistics tab's own ListView is the scrollable).
+    await tester.scrollUntilVisible(
+      find.text('Day 2'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Day 2'), findsOneWidget);
 
     await _switchTab(tester, 'CONTENT');

@@ -211,6 +211,10 @@ const Map<MessageId, String> baseLocalePatterns = {
   MessageId.roleWithheldUntilArrival: '{role} is revealed on arrival — not shown yet.',
   MessageId.roleVisibleBeforeDeparture: 'Visible to a Character before departure.',
 
+  // Alternates.
+  MessageId.alternateBranchNotAnEffortOption:
+      '{name} is a branch — a choice made on the day, at the fork. It is not offered as an effort option.',
+
   // Counts.
   MessageId.dayCount: '{count, plural, =0{No days yet} one{1 day} other{# days}}',
   MessageId.anchorCount: '{count, plural, =0{Nothing promoted yet} one{1 anchor} other{# anchors}}',

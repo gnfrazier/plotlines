@@ -134,6 +134,11 @@ enum NameSource {
 
   /// A file the user chose or the app wrote.
   fileName,
+
+  /// The Author's label for an alternate route (`Alternate.label`) — the
+  /// alternate's own name, always Character-visible (a fork nobody can see is
+  /// not a choice), never a role's title/note/media.
+  alternateLabel,
 }
 
 /// One value bound to one slot. `sealed`, so the resolver's `switch` is
@@ -418,6 +423,9 @@ enum MessageId {
   roleWithheldUntilArrival,
   roleVisibleBeforeDeparture,
 
+  // ── Alternates (FR20 [AMENDED v2.0] / C4) ──────────────────────────────
+  alternateBranchNotAnEffortOption,
+
   // ── Counts (plural forms from the locale, never an appended "s") ────────
   dayCount,
   anchorCount,
@@ -593,6 +601,13 @@ const Map<MessageId, MessageTemplate> messageTemplates = {
   MessageId.roleVisibleBeforeDeparture: MessageTemplate(
       id: MessageId.roleVisibleBeforeDeparture,
       usage: 'O5 — a released role with no title or note of its own'),
+
+  // Alternates.
+  MessageId.alternateBranchNotAnEffortOption: MessageTemplate(
+      id: MessageId.alternateBranchNotAnEffortOption,
+      slots: [MessageSlot('name', SlotType.name)],
+      usage: 'FR20 [AMENDED v2.0] / C4, Flow 11 §06 — chooseAlternate refuses a '
+          'branch on the H6 effort layer; "name" is Alternate.label'),
 
   // Counts.
   MessageId.dayCount: MessageTemplate(

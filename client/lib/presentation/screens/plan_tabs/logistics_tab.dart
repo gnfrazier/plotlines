@@ -298,8 +298,10 @@ class _DayCard extends ConsumerWidget {
                 ),
               ],
             ),
-            for (final segment in day.segments)
+            for (final segment in day.segments) ...[
               _SegmentTile(day: day, segment: segment, onOpen: () => onOpenSegment(day.id, segment.id)),
+              if (!day.isRest) _AlternatesSection(dayId: day.id, segment: segment),
+            ],
             if (!day.isRest) ...[
               Align(
                 alignment: Alignment.centerLeft,
@@ -354,20 +356,661 @@ class _SegmentTile extends StatelessWidget {
   }
 }
 
-/// FR20 / C4 [AMENDED v2.0] — the segment tile names its nodes and, separately,
-/// its alternates *by intent* so an Author reading the day sees the accommodation
-/// / branch distinction at a glance. An accommodation alternate adjusts effort; a
-/// branch alternate is a story choice carrying its own content. Read-only here —
-/// the alternate editor is a later surface.
+/// The segment tile names its nodes; its alternates get their own section
+/// below ([_AlternatesSection]), grouped by the accommodation / branch intent
+/// (FR20 [AMENDED v2.0] / C4).
 String? _segmentSubtitle(Segment segment) {
-  final parts = <String>[
-    if (segment.nodes.isNotEmpty) '${segment.nodes.length} node(s)',
-  ];
-  final accommodation = segment.alternates.where((a) => !a.isBranch).length;
-  final branch = segment.alternates.where((a) => a.isBranch).length;
-  if (accommodation > 0) parts.add('$accommodation accommodation alt(s)');
-  if (branch > 0) parts.add('$branch branch alt(s)');
-  return parts.isEmpty ? null : parts.join(' · ');
+  if (segment.nodes.isEmpty) return null;
+  return '${segment.nodes.length} node(s)';
+}
+
+/// FR20 [AMENDED v2.0] / C4, Flow 11 — the alternate authoring surface. An
+/// alternate is a second path on a passage, and it is one of two things: an
+/// *accommodation* alternate is the same day at a different effort (the H6
+/// bypass/extension a Character may take on their own copy); a *branch* is a
+/// story choice carrying its own [Alternate.note], [Alternate.anchorIds],
+/// [Alternate.narration], and [Alternate.reveal]. The Author names which one
+/// they are making before they draw it, and this surface never blurs the two
+/// afterwards — the branch fields are absent on an accommodation editor, not
+/// disabled.
+///
+/// Geometry drawing and re-solve are not here: an alternate is created with an
+/// empty line-string ("not drawn yet") and its path is drawn on the Route
+/// tab's map, the same seam every other passage geometry uses.
+class _AlternatesSection extends ConsumerWidget {
+  const _AlternatesSection({required this.dayId, required this.segment});
+  final String dayId;
+  final Segment segment;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = PlotColors.of(context);
+    final accommodation = segment.alternates.where((a) => !a.isBranch).toList();
+    final branch = segment.alternates.where((a) => a.isBranch).toList();
+
+    // Nothing yet — a single inline affordance, no card. The vocabulary
+    // (accommodation vs branch) is chosen in the create dialog, not here.
+    if (segment.alternates.isEmpty) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: PlotButton(
+          label: 'Add alternate',
+          variant: PlotButtonVariant.ghost,
+          icon: Icons.alt_route,
+          onPressed: () => _addAlternate(context, ref),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: PlotSpacing.s2, bottom: PlotSpacing.s2),
+      child: PlotCard(
+        sunk: true,
+        padding: const EdgeInsets.all(PlotSpacing.s3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('ALTERNATES', style: PlotTypography.data(c.textMuted)),
+                const Spacer(),
+                PlotButton(
+                  label: 'Add alternate',
+                  variant: PlotButtonVariant.ghost,
+                  icon: Icons.add,
+                  onPressed: () => _addAlternate(context, ref),
+                ),
+              ],
+            ),
+            if (accommodation.isNotEmpty) ...[
+              const SizedBox(height: PlotSpacing.s2),
+              _IntentGroupHeading(
+                label: 'ACCOMMODATION',
+                caption: 'Same day, different effort',
+              ),
+              for (final a in accommodation)
+                _AlternateRow(dayId: dayId, segment: segment, alternate: a),
+            ],
+            if (branch.isNotEmpty) ...[
+              const SizedBox(height: PlotSpacing.s2),
+              _IntentGroupHeading(
+                label: 'BRANCH',
+                caption: 'Changes what the day contains',
+              ),
+              for (final a in branch)
+                _AlternateRow(dayId: dayId, segment: segment, alternate: a),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addAlternate(BuildContext context, WidgetRef ref) async {
+    final spec = await showDialog<_NewAlternateSpec>(
+      context: context,
+      builder: (_) => const _NewAlternateDialog(),
+    );
+    if (spec == null) return;
+    final alternate = ref.read(currentTripProvider.notifier).addAlternateToSegment(
+          dayId,
+          segment.id,
+          intent: spec.intent,
+          kind: spec.kind,
+          label: spec.label,
+        );
+    if (!context.mounted) return;
+    // Straight into the editor — the create dialog only set the vocabulary.
+    await _openEditor(context, ref, alternate);
+  }
+
+  Future<void> _openEditor(BuildContext context, WidgetRef ref, Alternate alternate) {
+    return showDialog<void>(
+      context: context,
+      builder: (_) => _AlternateEditorDialog(
+        dayId: dayId,
+        segmentId: segment.id,
+        alternateId: alternate.id,
+      ),
+    );
+  }
+}
+
+class _IntentGroupHeading extends StatelessWidget {
+  const _IntentGroupHeading({required this.label, required this.caption});
+  final String label;
+  final String caption;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: PlotSpacing.s2, bottom: PlotSpacing.s1),
+      child: Row(
+        children: [
+          PlotBadge(label,
+              tone: label == 'BRANCH' ? PlotBadgeTone.gold : PlotBadgeTone.slate),
+          const SizedBox(width: PlotSpacing.s2),
+          Text(caption, style: PlotTypography.small(c.textMuted)),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlternateRow extends ConsumerWidget {
+  const _AlternateRow({required this.dayId, required this.segment, required this.alternate});
+  final String dayId;
+  final Segment segment;
+  final Alternate alternate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = PlotColors.of(context);
+    final meta = <String>[
+      alternate.kind.toUpperCase(),
+      if (alternate.isBranch && alternate.anchorIds.isNotEmpty)
+        '${alternate.anchorIds.length} ${alternate.anchorIds.length == 1 ? 'anchor' : 'anchors'}',
+      if (alternate.isBranch && alternate.narration != null) 'narration',
+      if (alternate.isBranch && alternate.reveal != null)
+        alternate.reveal == 'on_arrival' ? 'on arrival' : 'always visible',
+      if (alternate.geometry.coordinates.length < 2) 'not drawn',
+    ];
+    return PlotListTile(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => _AlternateEditorDialog(
+          dayId: dayId,
+          segmentId: segment.id,
+          alternateId: alternate.id,
+        ),
+      ),
+      title: alternate.label ?? 'Untitled alternate',
+      subtitle: meta.join(' · '),
+      trailing: IconButton(
+        tooltip: 'Remove alternate',
+        icon: Icon(Icons.delete_outline, size: 16, color: c.textMuted),
+        onPressed: () => ref
+            .read(currentTripProvider.notifier)
+            .removeAlternateFromSegment(dayId, segment.id, alternate.id),
+      ),
+    );
+  }
+}
+
+/// What [_NewAlternateDialog] returns — the vocabulary moment, said in words
+/// (Flow 11 §02): the intent and the shape, before any geometry.
+class _NewAlternateSpec {
+  const _NewAlternateSpec({required this.intent, required this.kind, required this.label});
+  final String intent;
+  final String kind;
+  final String label;
+}
+
+class _NewAlternateDialog extends StatefulWidget {
+  const _NewAlternateDialog();
+
+  @override
+  State<_NewAlternateDialog> createState() => _NewAlternateDialogState();
+}
+
+class _NewAlternateDialogState extends State<_NewAlternateDialog> {
+  final _name = TextEditingController();
+  String _intent = 'accommodation';
+  String _kind = 'bypass';
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final named = _name.text.trim().isNotEmpty;
+    return AlertDialog(
+      title: Text('New alternate', style: PlotTypography.title(c.textPrimary)),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+            Text('What kind of alternate is this?', style: PlotTypography.body(c.textSecondary)),
+            const SizedBox(height: PlotSpacing.s2),
+            _IntentChoice(
+              selected: _intent == 'accommodation',
+              title: 'Accommodation',
+              body: 'The same day at a different effort. A bypass takes the easiest '
+                  'line; an extension adds work. A Character can take it on their own '
+                  'copy without changing anyone else’s day.',
+              onTap: () => setState(() => _intent = 'accommodation'),
+            ),
+            const SizedBox(height: PlotSpacing.s2),
+            _IntentChoice(
+              selected: _intent == 'branch',
+              title: 'Branch',
+              body: 'A choice that changes what the day contains. The path carries its '
+                  'own plot points, its own narration, and its own reveal — the long '
+                  'way past the mine, or the direct way home.',
+              onTap: () => setState(() => _intent = 'branch'),
+            ),
+            const SizedBox(height: PlotSpacing.s3),
+            Text('SHAPE', style: PlotTypography.data(c.textMuted)),
+            const SizedBox(height: PlotSpacing.s1),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'bypass', label: Text('The direct way')),
+                ButtonSegment(value: 'extension', label: Text('The long way round')),
+              ],
+              selected: {_kind},
+              onSelectionChanged: (s) => setState(() => _kind = s.first),
+            ),
+            const SizedBox(height: PlotSpacing.s3),
+            TextField(
+              controller: _name,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Name this alternate',
+                hintText: 'Toe River road',
+                isDense: true,
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: PlotSpacing.s2),
+            Text('Drawn on the map next — nothing solved yet.',
+                style: PlotTypography.small(c.textMuted)),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        PlotButton(
+          label: 'Cancel',
+          variant: PlotButtonVariant.ghost,
+          onPressed: () => Navigator.pop(context),
+        ),
+        PlotButton(
+          label: _intent == 'branch' ? 'Create branch' : 'Create alternate',
+          onPressed: named
+              ? () => Navigator.pop(
+                    context,
+                    _NewAlternateSpec(
+                      intent: _intent,
+                      kind: _kind,
+                      label: _name.text.trim(),
+                    ),
+                  )
+              : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _IntentChoice extends StatelessWidget {
+  const _IntentChoice({
+    required this.selected,
+    required this.title,
+    required this.body,
+    required this.onTap,
+  });
+  final bool selected;
+  final String title;
+  final String body;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: PlotRadii.controlShape,
+      child: Container(
+        padding: const EdgeInsets.all(PlotSpacing.s3),
+        decoration: BoxDecoration(
+          borderRadius: PlotRadii.controlShape,
+          border: Border.all(
+            color: selected ? c.primary : c.border,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              size: 18,
+              color: selected ? c.primary : c.textMuted,
+            ),
+            const SizedBox(width: PlotSpacing.s2),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: PlotTypography.body(c.textPrimary).copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(body, style: PlotTypography.small(c.textSecondary)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Flow 11 §03/§04 — one editor, longer for a branch. The four branch fields
+/// (note, anchors, narration, reveal) are simply absent while the alternate is
+/// an accommodation: the model has no place to put them.
+class _AlternateEditorDialog extends ConsumerStatefulWidget {
+  const _AlternateEditorDialog({
+    required this.dayId,
+    required this.segmentId,
+    required this.alternateId,
+  });
+  final String dayId;
+  final String segmentId;
+  final String alternateId;
+
+  @override
+  ConsumerState<_AlternateEditorDialog> createState() => _AlternateEditorDialogState();
+}
+
+class _AlternateEditorDialogState extends ConsumerState<_AlternateEditorDialog> {
+  late final TextEditingController _name;
+  late final TextEditingController _note;
+
+  Alternate? _find(Trip trip) {
+    for (final day in trip.days) {
+      if (day.id != widget.dayId) continue;
+      for (final s in day.segments) {
+        if (s.id != widget.segmentId) continue;
+        for (final a in s.alternates) {
+          if (a.id == widget.alternateId) return a;
+        }
+      }
+    }
+    return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final a = _find(ref.read(currentTripProvider));
+    _name = TextEditingController(text: a?.label ?? '');
+    _note = TextEditingController(text: a?.note ?? '');
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  CurrentTripNotifier get _notifier => ref.read(currentTripProvider.notifier);
+
+  void _patch(Alternate Function(Alternate) f) {
+    final current = _find(ref.read(currentTripProvider));
+    if (current == null) return;
+    _notifier.updateAlternateInSegment(widget.dayId, widget.segmentId, f(current));
+  }
+
+  Future<void> _toAccommodation(Alternate a) async {
+    if (a.hasBranchContent) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => _AlternateConvertPrompt(alternate: a),
+      );
+      if (ok != true) return;
+    }
+    _notifier.convertAlternateIntent(
+        widget.dayId, widget.segmentId, a.id, 'accommodation');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final trip = ref.watch(currentTripProvider);
+    final a = _find(trip);
+    if (a == null) {
+      // Deleted underneath the open dialog — nothing to edit.
+      return const SizedBox.shrink();
+    }
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          PlotBadge(a.isBranch ? 'BRANCH' : 'ACCOMMODATION',
+              tone: a.isBranch ? PlotBadgeTone.gold : PlotBadgeTone.slate),
+          const SizedBox(width: PlotSpacing.s2),
+          Flexible(
+            child: Text(a.label ?? 'Untitled alternate',
+                style: PlotTypography.title(c.textPrimary), overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _name,
+                decoration: const InputDecoration(labelText: 'Name', isDense: true),
+                onChanged: (v) => _patch((cur) => v.trim().isEmpty
+                    ? cur.copyWith(clearLabel: true)
+                    : cur.copyWith(label: v.trim())),
+              ),
+              const SizedBox(height: PlotSpacing.s3),
+              Text('SHAPE', style: PlotTypography.data(c.textMuted)),
+              const SizedBox(height: PlotSpacing.s1),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'bypass', label: Text('Bypass')),
+                  ButtonSegment(value: 'extension', label: Text('Extension')),
+                ],
+                selected: {a.kind},
+                onSelectionChanged: (s) => _patch((cur) => cur.copyWith(kind: s.first)),
+              ),
+              if (a.isBranch) ...[
+                const SizedBox(height: PlotSpacing.s3),
+                Text('WHAT IS DIFFERENT ON THIS PATH', style: PlotTypography.data(c.textMuted)),
+                const SizedBox(height: PlotSpacing.s1),
+                TextField(
+                  controller: _note,
+                  minLines: 2,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    hintText: 'Three miles of the old tramway grade, then the portal itself…',
+                    isDense: true,
+                  ),
+                  onChanged: (v) => _patch((cur) => v.trim().isEmpty
+                      ? cur.copyWith(clearNote: true)
+                      : cur.copyWith(note: v)),
+                ),
+                const SizedBox(height: PlotSpacing.s3),
+                _BranchAnchors(
+                  anchors: trip.anchors,
+                  attached: a.anchorIds,
+                  onToggle: (id) => _patch((cur) {
+                    final next = [...cur.anchorIds];
+                    next.contains(id) ? next.remove(id) : next.add(id);
+                    return cur.copyWith(anchorIds: next);
+                  }),
+                ),
+                const SizedBox(height: PlotSpacing.s3),
+                Text('NARRATION ON THE BRANCH', style: PlotTypography.data(c.textMuted)),
+                const SizedBox(height: PlotSpacing.s1),
+                Text(
+                  a.narration == null
+                      ? 'No narration on this branch. Attach it from the narrative editor.'
+                      : 'Narration attached.',
+                  style: PlotTypography.small(c.textMuted),
+                ),
+                const SizedBox(height: PlotSpacing.s3),
+                Text('REVEAL FOR THIS BRANCH', style: PlotTypography.data(c.textMuted)),
+                const SizedBox(height: PlotSpacing.s1),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: '', label: Text('Not set')),
+                    ButtonSegment(value: 'always_visible', label: Text('Always visible')),
+                    ButtonSegment(value: 'on_arrival', label: Text('On arrival')),
+                  ],
+                  selected: {a.reveal ?? ''},
+                  onSelectionChanged: (s) => _patch((cur) => s.first.isEmpty
+                      ? cur.copyWith(clearReveal: true)
+                      : cur.copyWith(reveal: s.first)),
+                ),
+                const SizedBox(height: PlotSpacing.s2),
+                Text(
+                  'The fork stays visible — its content waits. Hazards on this path '
+                  'are shown to everyone before the fork, whatever the reveal says.',
+                  style: PlotTypography.small(c.textMuted),
+                ),
+              ] else ...[
+                const SizedBox(height: PlotSpacing.s3),
+                Text(
+                  'This alternate carries nothing of its own — the same day at a '
+                  'different effort, so there are no plot points, no narration, and no '
+                  'reveal to set. If this path should change what the day contains, it '
+                  'is a branch.',
+                  style: PlotTypography.small(c.textMuted),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        if (a.isBranch)
+          PlotButton(
+            label: 'Make this an accommodation',
+            variant: PlotButtonVariant.ghost,
+            onPressed: () => _toAccommodation(a),
+          )
+        else
+          PlotButton(
+            label: 'Make this a branch',
+            variant: PlotButtonVariant.ghost,
+            onPressed: () => _notifier.convertAlternateIntent(
+                widget.dayId, widget.segmentId, a.id, 'branch'),
+          ),
+        PlotButton(label: 'Done', onPressed: () => Navigator.pop(context)),
+      ],
+    );
+  }
+}
+
+class _BranchAnchors extends StatelessWidget {
+  const _BranchAnchors({
+    required this.anchors,
+    required this.attached,
+    required this.onToggle,
+  });
+  final List<Anchor> anchors;
+  final List<String> attached;
+  final void Function(String anchorId) onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('PLOT POINTS ON THIS BRANCH', style: PlotTypography.data(c.textMuted)),
+        const SizedBox(height: PlotSpacing.s1),
+        if (anchors.isEmpty)
+          Text('No anchors in this trip yet. Promote places first, then attach them here.',
+              style: PlotTypography.small(c.textMuted))
+        else
+          for (final anchor in anchors)
+            CheckboxListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: attached.contains(anchor.id),
+              onChanged: (_) => onToggle(anchor.id),
+              title: Text(anchor.title ?? 'Untitled anchor',
+                  style: PlotTypography.body(c.textSecondary)),
+            ),
+        const SizedBox(height: 2),
+        Text('Attached by reference, never copied — edit one and you have edited '
+            'the trip’s anchor; detach it and it stays in the trip.',
+            style: PlotTypography.small(c.textMuted)),
+      ],
+    );
+  }
+}
+
+/// Flow 11 §06 (middle) — turning a branch into an effort option destroys
+/// authored work, so it asks first and states the scope. Deliberateness is
+/// reserved for destruction (the same shape as [showDayRemovalPrompt]).
+class _AlternateConvertPrompt extends StatelessWidget {
+  const _AlternateConvertPrompt({required this.alternate});
+  final Alternate alternate;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final goes = <String>[
+      if (alternate.note != null) 'the note about what is different on this path',
+      if (alternate.narration != null) 'the narration on the branch',
+      if (alternate.reveal != null) 'the reveal set for this branch',
+    ];
+    final anchors = alternate.anchorIds.length;
+    return AlertDialog(
+      title: Text('Turn this branch into an effort option?',
+          style: PlotTypography.title(c.textPrimary)),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'An accommodation alternate has nowhere to keep what this one is '
+              'holding. This goes: ${_join(goes)}.',
+              style: PlotTypography.body(c.textSecondary),
+            ),
+            if (anchors > 0) ...[
+              const SizedBox(height: PlotSpacing.s2),
+              Text(
+                '$anchors ${anchors == 1 ? 'anchor stays' : 'anchors stay'} in the trip, '
+                'unattached, and stay findable in the anchors view.',
+                style: PlotTypography.small(c.textMuted),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        PlotButton(
+          label: 'Keep it a branch',
+          variant: PlotButtonVariant.ghost,
+          onPressed: () => Navigator.pop(context, false),
+        ),
+        PlotButton(
+          label: 'Give up the content and convert',
+          variant: PlotButtonVariant.danger,
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
+    );
+  }
+
+  static String _join(List<String> parts) {
+    if (parts.isEmpty) return 'nothing';
+    if (parts.length == 1) return parts.single;
+    if (parts.length == 2) return '${parts[0]} and ${parts[1]}';
+    return '${parts.sublist(0, parts.length - 1).join(', ')}, and ${parts.last}';
+  }
 }
 
 /// FR19 / C3 — per-mode distance limits overriding the trip default

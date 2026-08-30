@@ -264,6 +264,13 @@
   "@roleVisibleBeforeDeparture": {
     "description": "O5 — a released role with no title or note of its own"
   },
+  "alternateBranchNotAnEffortOption": "{name} is a branch — a choice made on the day, at the fork. It is not offered as an effort option.",
+  "@alternateBranchNotAnEffortOption": {
+    "description": "FR20 [AMENDED v2.0] / C4, Flow 11 §06 — chooseAlternate refuses a branch on the H6 effort layer; \"name\" is Alternate.label",
+    "placeholders": {
+      "name": {"type": "String", "x-slot-type": "name"}
+    }
+  },
   "dayCount": "{count, plural, =0{No days yet} one{1 day} other{# days}}",
   "@dayCount": {
     "description": "days in a trip",

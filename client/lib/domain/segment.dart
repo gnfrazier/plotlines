@@ -214,6 +214,94 @@ class Alternate {
         'narration': narration?.toJson(),
         'reveal': reveal,
       });
+
+  /// True when this alternate is holding any of the four things only a branch
+  /// may carry. What the branch→accommodation conversion prompt (FR20 [AMENDED
+  /// v2.0] / C4, Flow 11 §06) itemises before it asks.
+  bool get hasBranchContent =>
+      note != null || anchorIds.isNotEmpty || narration != null || reveal != null;
+
+  /// A copy with the given fields replaced. [intent] is deliberately not a
+  /// parameter — moving between the two intents goes through [asBranch] /
+  /// [asAccommodation], which keep the constructor's content invariant.
+  /// `clearX` drops an optional field (a bare `null` argument leaves it
+  /// unchanged); the four branch-content clears are only meaningful while
+  /// [intent] is `branch`.
+  Alternate copyWith({
+    String? kind,
+    LineString? geometry,
+    String? label,
+    bool clearLabel = false,
+    RouteMetrics? metrics,
+    bool clearMetrics = false,
+    Elevation? elevation,
+    bool clearElevation = false,
+    double? divergesAtM,
+    bool clearDivergesAtM = false,
+    double? rejoinsAtM,
+    bool clearRejoinsAtM = false,
+    String? note,
+    bool clearNote = false,
+    List<String>? anchorIds,
+    Narration? narration,
+    bool clearNarration = false,
+    String? reveal,
+    bool clearReveal = false,
+  }) =>
+      Alternate(
+        id: id,
+        intent: intent,
+        kind: kind ?? this.kind,
+        geometry: geometry ?? this.geometry,
+        label: clearLabel ? null : (label ?? this.label),
+        metrics: clearMetrics ? null : (metrics ?? this.metrics),
+        elevation: clearElevation ? null : (elevation ?? this.elevation),
+        divergesAtM: clearDivergesAtM ? null : (divergesAtM ?? this.divergesAtM),
+        rejoinsAtM: clearRejoinsAtM ? null : (rejoinsAtM ?? this.rejoinsAtM),
+        note: clearNote ? null : (note ?? this.note),
+        anchorIds: anchorIds ?? this.anchorIds,
+        narration: clearNarration ? null : (narration ?? this.narration),
+        reveal: clearReveal ? null : (reveal ?? this.reveal),
+      );
+
+  /// This alternate as a `branch` — a story choice that may carry its own
+  /// content. Shape ([kind], [geometry], [label], [metrics]) is kept; the
+  /// branch-content fields start empty, to be authored. A no-op if already a
+  /// branch.
+  Alternate asBranch() {
+    if (isBranch) return this;
+    return Alternate(
+      id: id,
+      intent: 'branch',
+      kind: kind,
+      geometry: geometry,
+      label: label,
+      metrics: metrics,
+      elevation: elevation,
+      divergesAtM: divergesAtM,
+      rejoinsAtM: rejoinsAtM,
+    );
+  }
+
+  /// This alternate as an `accommodation` — an effort option that carries
+  /// nothing of its own. [note], [anchorIds], [narration] and [reveal] are
+  /// dropped (the constructor forbids them on an accommodation alternate); the
+  /// referenced anchors themselves are untouched — they were never copies
+  /// (Flow 11 §06). A no-op if already an accommodation.
+  Alternate asAccommodation() {
+    if (!isBranch) return this;
+    return Alternate(
+      id: id,
+      intent: 'accommodation',
+      kind: kind,
+      geometry: geometry,
+      label: label,
+      metrics: metrics,
+      elevation: elevation,
+      divergesAtM: divergesAtM,
+      rejoinsAtM: rejoinsAtM,
+    );
+  }
 }
 
 /// How this geometry came to exist. Kept per segment, not per trip, because a

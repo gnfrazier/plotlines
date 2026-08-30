@@ -135,4 +135,77 @@ void main() {
       );
     });
   });
+
+  group('Alternate.copyWith / intent conversion (FR20 [AMENDED v2.0], Flow 11 §06)', () {
+    LineString line() => LineString(coordinates: const [
+          [-105.27, 40.02],
+          [-105.24, 40.03],
+        ]);
+
+    Alternate branch() => Alternate(
+          id: 'b1',
+          kind: 'extension',
+          intent: 'branch',
+          label: 'Past the Sugarloaf mine',
+          note: 'Three miles of old tramway grade.',
+          anchorIds: const ['anc-portal', 'anc-cut'],
+          narration: Narration(triggerDistanceM: 100.0, text: 'The portal.'),
+          reveal: 'on_arrival',
+          geometry: line(),
+        );
+
+    test('hasBranchContent is true only while the branch is holding something', () {
+      expect(branch().hasBranchContent, isTrue);
+      expect(
+        Alternate(id: 'b2', kind: 'bypass', intent: 'branch', geometry: line()).hasBranchContent,
+        isFalse,
+      );
+    });
+
+    test('copyWith replaces kind/label without disturbing the branch content', () {
+      final edited = branch().copyWith(kind: 'bypass', label: 'The direct way');
+      expect(edited.kind, 'bypass');
+      expect(edited.label, 'The direct way');
+      expect(edited.note, 'Three miles of old tramway grade.');
+      expect(edited.anchorIds, ['anc-portal', 'anc-cut']);
+    });
+
+    test('copyWith clears the branch fields one at a time via clearX', () {
+      expect(branch().copyWith(clearNote: true).note, isNull);
+      expect(branch().copyWith(clearReveal: true).reveal, isNull);
+      expect(branch().copyWith(clearNarration: true).narration, isNull);
+      expect(branch().copyWith(anchorIds: const []).anchorIds, isEmpty);
+    });
+
+    test('asAccommodation drops every branch-only field and flips the intent', () {
+      final accom = branch().asAccommodation();
+      expect(accom.isBranch, isFalse);
+      expect(accom.intent, 'accommodation');
+      expect(accom.note, isNull);
+      expect(accom.anchorIds, isEmpty);
+      expect(accom.narration, isNull);
+      expect(accom.reveal, isNull);
+      // Shape is kept.
+      expect(accom.kind, 'extension');
+      expect(accom.label, 'Past the Sugarloaf mine');
+      // The result is a legal accommodation alternate (no assertion thrown).
+      expect(accom.toJson()['intent'], 'accommodation');
+    });
+
+    test('asBranch keeps the shape and starts the branch content empty', () {
+      final accom = Alternate(id: 'x', kind: 'bypass', label: 'Toe River road', geometry: line());
+      final asB = accom.asBranch();
+      expect(asB.isBranch, isTrue);
+      expect(asB.kind, 'bypass');
+      expect(asB.label, 'Toe River road');
+      expect(asB.hasBranchContent, isFalse);
+    });
+
+    test('the conversions are a no-op when already in the target intent', () {
+      final b = branch();
+      expect(identical(b.asBranch(), b), isTrue);
+      final a = Alternate(id: 'y', kind: 'bypass', geometry: line());
+      expect(identical(a.asAccommodation(), a), isTrue);
+    });
+  });
 }
