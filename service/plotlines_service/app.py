@@ -7,7 +7,11 @@ Region- and content-scoped surface built out so far: curation (`/layers`,
 `/candidates*`), routing (`/regions`, `/segments/*`), trip composition
 (`/days/compose`, `/trips/split`), `/geocode`, and content (`/tiles/{z}/{x}/{y}`).
 The rest of §8.2's surface (accounts, group relay, reading — all hosted-mode-only)
-is not implemented here.
+is not implemented here. Hosted mode does build M4's seam: a `--web-domain` is
+required and every session `Set-Cookie` is routed through one
+`SessionCookiePolicy` (first-party `HttpOnly; Secure; SameSite=Lax` on the
+shared parent — ARCH §10.3), so the auth endpoints, when built, cannot get it
+wrong.
 """
 
 from __future__ import annotations
@@ -53,6 +57,7 @@ from plotlines_core.scoring.profile import THEMES, WeightProfile
 from plotlines_core.tiles.archive import Archive, valid_zxy
 from plotlines_core.tiles.extract import NoTilesInBbox, extract_bbox
 from plotlines_core.tiles.mirror import basemap_attribution
+from plotlines_core.web.session import SessionCookiePolicy
 from plotlines_core.trips.compose import compose_day, split_trip
 from plotlines_core.trips.cues import derive_cue_sheet, route_polyline
 from plotlines_core.trips.payload import Day as PayloadDay
@@ -493,7 +498,8 @@ class DiagnoseJob:
 
 def create_app(cache_dir: Path, mode: str = "sidecar", *,
                tiles_upstream: str | Path | None = None,
-               allow_unmirrored_tiles: bool = False) -> FastAPI:
+               allow_unmirrored_tiles: bool = False,
+               web_domain: str | None = None) -> FastAPI:
     app = FastAPI(title="plotlines-service", version=VERSION)
     state = Readiness(cache_dir, tiles_upstream or default_home_region_archive(),
                       allow_unmirrored=allow_unmirrored_tiles)
@@ -530,7 +536,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         registry = app.state.layer_registry
         layers_cap = registry.capability()
         layers_cap["per_layer_detail"] = registry.per_layer_detail()
-        return {
+        body = {
             "app_version": VERSION,
             "sidecar_version": VERSION,
             "mode": mode,
@@ -541,6 +547,16 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 "elevation": ELEVATION_NOT_CONFIGURED,
             },
         }
+        # Hosted mode only: the same-site session contract (story M4). A
+        # sidecar has no accounts and no `web` block — the key's absence is
+        # itself the signal that this is loopback.
+        policy = getattr(app.state, "session_cookie", None)
+        if policy is not None:
+            body["web"] = {
+                "parent_domain": policy.parent_domain,
+                "cookie": {"same_site": "Lax", "secure": True, "http_only": True},
+            }
+        return body
 
     @app.post("/regions", status_code=202)
     def regions_ensure(req: RegionRequest) -> dict:
@@ -1121,8 +1137,39 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         return trip.to_dict()
 
     if mode == "hosted":
-        # Auth / sync / share / group-relay live here (§7.1). Not built — and
-        # deliberately absent rather than stubbed, so a sidecar can never expose them.
-        pass
+        # Auth / sync / share / group-relay endpoints live here (§7.1). Still
+        # not built — and deliberately absent rather than stubbed, so a
+        # sidecar can never expose them.
+        #
+        # What *is* built is M4's seam: the same-site session-cookie contract
+        # (ARCH §10.3, D15). Hosted mode has no trust boundary of its own —
+        # unlike a loopback sidecar — so the signed-in session rides a
+        # first-party `HttpOnly; Secure; SameSite=Lax` cookie on the parent
+        # domain that `app.<domain>` and `api.<domain>` share. That only
+        # works on a real registered domain, so hosted mode *requires* one
+        # (the same shape as sidecar mode refusing a non-loopback bind).
+        if not web_domain:
+            raise ValueError(
+                "hosted mode requires --web-domain: the registrable parent that "
+                "app.<domain> and api.<domain> share, so the session cookie is "
+                "first-party and survives Safari/Firefox (ARCH §10.3, story M4). "
+                "A *.onrender.com-style host is refused."
+            )
+        policy = SessionCookiePolicy(parent_domain=web_domain)
+        app.state.session_cookie = policy
+
+        def issue_session(response: Response, token: str, *, max_age: int | None = None) -> None:
+            """The one way an auth endpoint opens a web session — every
+            `Set-Cookie` for the session goes through the M4 policy."""
+            response.headers.append(
+                "set-cookie", policy.set_cookie_header(token, max_age=max_age)
+            )
+
+        def end_session(response: Response) -> None:
+            """The one way an auth endpoint ends a web session."""
+            response.headers.append("set-cookie", policy.clear_cookie_header())
+
+        app.state.issue_session = issue_session
+        app.state.end_session = end_session
 
     return app
