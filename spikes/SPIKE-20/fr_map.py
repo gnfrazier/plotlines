@@ -30,8 +30,11 @@ MAPPING: list[dict] = [
     {"fr": "FR4", "story": "A3", "what": "per-class bipolar surface weight",
      "status": "mapped", "pointer": "/$defs/weight_profile/properties/surface",
      "note": "One 0–5 axis per class (SPIKE-03), not one relative dial."},
-    {"fr": "FR5", "story": "A4", "what": "POI density + Author-set type",
-     "status": "mapped", "pointer": "/$defs/weight_profile/properties/poi"},
+    {"fr": "FR5", "story": "A4", "what": "salience interest bias",
+     "status": "mapped", "pointer": "/$defs/weight_profile/properties/interest",
+     "note": "One unipolar 0–5 scalar (ARCH D46). No POI-type parameter — layer "
+             "selection (FR97) already says what matters — and no `detour_budget`, "
+             "which was a second dial for the one intent this weight expresses."},
     {"fr": "FR6", "story": "A5", "what": "min/max bands on realised attributes",
      "status": "mapped", "pointer": "/$defs/band",
      "note": "`source` distinguishes an envelope-probed default from an Author's own "

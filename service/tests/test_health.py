@@ -129,14 +129,14 @@ def test_routing_endpoint_503s_naming_the_reason_while_not_ready(tmp_path: Path)
 
 
 @pytest.mark.skipif(
-    not (Path(__file__).resolve().parents[2] / "spikes" / "SPIKE-00" / "cache"
+    not (Path(__file__).resolve().parents[2] / "spikes" / "SPIKE-00" / "fixtures"
         / "boulder_bike.graphml").exists(),
     reason="SPIKE-00 fixture graph not present in this checkout",
 )
 def test_a_pre_cached_region_becomes_ready_without_network(tmp_path: Path) -> None:
     import shutil
 
-    fixture = (Path(__file__).resolve().parents[2] / "spikes" / "SPIKE-00" / "cache"
+    fixture = (Path(__file__).resolve().parents[2] / "spikes" / "SPIKE-00" / "fixtures"
               / "boulder_bike.graphml")
     key = region_lib.region_key(tuple(_BBOX), "bike")
     dest = tmp_path / "regions" / key / "graph.graphml"
