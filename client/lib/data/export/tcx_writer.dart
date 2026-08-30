@@ -141,6 +141,15 @@ void _writeCourse(StringBuffer buffer, Trip trip, Day day, ExportOptions options
       }
     }
   }
+  // FR45 — day-scoped nodes (a routed day's regroup points and rest stops
+  // that aren't pinned to one segment) are preserved as course points too,
+  // matching gpx_writer.dart and geojson_writer.dart. Placed at the final
+  // clock, since they carry no segment-relative distance of their own.
+  if (options.includeWaypoints) {
+    for (final node in day.nodes) {
+      buffer.writeln(_coursePoint(node, clock));
+    }
+  }
   buffer.writeln('      </Track>');
   buffer.writeln('    </Course>');
 }

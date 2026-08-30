@@ -206,4 +206,107 @@ void main() {
     final distance = doc.findAllElements('DistanceMeters').first.innerText;
     expect(double.parse(distance), closeTo(1500.0, 0.1));
   });
+
+  // FR45 — exported waypoints / course points preserve the plot-point note
+  // as a native field, where the target format supports one.
+  group('FR45: plot-point notes preserved', () {
+    Trip tripWithNotedNode({String? segmentNote, String? dayNote}) {
+      final segment = Segment(
+        id: 'seg-1',
+        mode: 'cycling',
+        shape: 'point_to_point',
+        geometry: LineString(
+          coordinates: [
+            [-105.2705, 40.0150],
+            [-105.2800, 40.0200],
+          ],
+          source: 'solved',
+        ),
+        metrics: RouteMetrics(distanceM: 1200.0, climbM: 10.0, descentM: 5.0, movingTimeS: 300.0),
+        nodes: [
+          Node(
+            id: 'n1',
+            kind: NodeKind.poi,
+            coord: [-105.2750, 40.0180],
+            title: 'Overlook',
+            note: segmentNote,
+          ),
+        ],
+      );
+      return Trip(
+        id: 'trip-note',
+        title: 'Noted Ride',
+        createdAt: '2026-08-17T00:00:00Z',
+        updatedAt: '2026-08-17T00:00:00Z',
+        days: [
+          Day(
+            id: 'day-1',
+            index: 1,
+            kind: 'route',
+            segments: [segment],
+            nodes: [
+              if (dayNote != null)
+                Node(
+                  id: 'dn1',
+                  kind: NodeKind.regroup,
+                  coord: [-105.2780, 40.0195],
+                  title: 'Regroup at the gate',
+                  note: dayNote,
+                ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    test('GPX: the note becomes a <desc> on the <wpt>, before <type>, still well-formed', () {
+      final gpx = tripToGpx(tripWithNotedNode(segmentNote: 'Loose gravel on the descent'));
+      final doc = xml.XmlDocument.parse(gpx);
+      final wpt = doc.findAllElements('wpt').single;
+      expect(wpt.findElements('desc').single.innerText, 'Loose gravel on the descent');
+      // GPX 1.1 schema orders <desc> before <type> inside <wpt>.
+      final children = wpt.childElements.map((e) => e.name.local).toList();
+      expect(children.indexOf('desc'), lessThan(children.indexOf('type')));
+    });
+
+    test('GPX: a node with no note emits no empty <desc>', () {
+      final gpx = tripToGpx(tripWithNotedNode());
+      final wpt = xml.XmlDocument.parse(gpx).findAllElements('wpt').single;
+      expect(wpt.findElements('desc'), isEmpty);
+    });
+
+    test('TCX: the note becomes <Notes> on the <CoursePoint>', () {
+      final tcx = tripToTcx(tripWithNotedNode(segmentNote: 'Photograph the valley here'));
+      final doc = xml.XmlDocument.parse(tcx);
+      final cp = doc.findAllElements('CoursePoint').single;
+      expect(cp.findElements('Notes').single.innerText, 'Photograph the valley here');
+    });
+
+    test('GeoJSON: the note rides along as a feature property', () {
+      final geojson = tripToGeoJson(tripWithNotedNode(segmentNote: 'Water source, treat before drinking'));
+      final decoded = jsonDecode(geojson) as Map<String, dynamic>;
+      final features = (decoded['features'] as List).cast<Map<String, dynamic>>();
+      final node = features.firstWhere((f) => f['properties']['kind'] == 'node');
+      expect(node['properties']['note'], 'Water source, treat before drinking');
+    });
+
+    test('TCX: a day-scoped regroup node exports as its own CoursePoint (FR45 regroup markers)', () {
+      final tcx = tripToTcx(tripWithNotedNode(dayNote: 'Wait for the whole group'));
+      final doc = xml.XmlDocument.parse(tcx);
+      final points = doc.findAllElements('CoursePoint').toList();
+      // One for the segment node, one for the day-scoped regroup node.
+      expect(points.length, 2);
+      final regroup = points.firstWhere((p) => p.findElements('Name').single.innerText == 'Regroup at the gate');
+      expect(regroup.findElements('Notes').single.innerText, 'Wait for the whole group');
+    });
+
+    test('GPX: a day-scoped regroup node keeps its note as <desc>', () {
+      final gpx = tripToGpx(tripWithNotedNode(dayNote: 'Wait for the whole group'));
+      final doc = xml.XmlDocument.parse(gpx);
+      final wpt = doc
+          .findAllElements('wpt')
+          .firstWhere((w) => w.findElements('name').single.innerText == 'Regroup at the gate');
+      expect(wpt.findElements('desc').single.innerText, 'Wait for the whole group');
+    });
+  });
 }
