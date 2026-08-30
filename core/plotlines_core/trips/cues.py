@@ -669,7 +669,14 @@ def portage_cues(route: Route, portages) -> list[Cue]:
 
 
 def alternate_cues(route: Route, alternates) -> list[Cue]:
-    """FR20 — an alternate is announced where it leaves, not where it is drawn."""
+    """FR20 / C4 — an alternate is announced where it leaves, not where it is drawn.
+
+    Both authoring intents reach the cue sheet (C4's AC: "visible to Characters on
+    map and cue sheet"). An accommodation alternate reads as an effort option
+    ("Bypass available: ..."); a branch alternate reads as a choice the Character
+    makes here ("Branch — ..."), since taking it changes what the day contains,
+    not just how hard it is.
+    """
     label = {"bypass": "Bypass", "extension": "Extension"}
     cues: list[Cue] = []
     for alternate in alternates:
@@ -678,10 +685,13 @@ def alternate_cues(route: Route, alternates) -> list[Cue]:
             along, _ = route.project(alternate.geometry.coordinates[0])
         if along is None:
             continue
-        name = alternate.label or label.get(alternate.kind, "Alternate")
+        is_branch = getattr(alternate, "intent", "accommodation") == "branch"
+        kind_label = label.get(alternate.kind, "Alternate")
+        name = alternate.label or kind_label
+        instruction = (f"Branch — {name}" if is_branch
+                       else f"{kind_label} available: {name}")
         cues.append(Cue(sequence=0, distance_along_m=along, kind="alternate",
-                        instruction=f"{label.get(alternate.kind, 'Alternate')} available: {name}",
-                        ref_id=alternate.id))
+                        instruction=instruction, ref_id=alternate.id))
     return cues
 
 

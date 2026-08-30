@@ -72,7 +72,7 @@ String tripToTcx(Trip trip, {ExportOptions options = const ExportOptions()}) {
 void _writeAlternateCourse(StringBuffer buffer, Trip trip, Day day, Alternate alt) {
   final coords = alt.geometry.coordinates;
   if (coords.isEmpty) return;
-  final name = _esc('${day.title ?? '${trip.title} — Day ${day.index}'} — Alternate: ${alt.label ?? alt.kind}');
+  final name = _esc('${day.title ?? '${trip.title} — Day ${day.index}'} — ${alt.isBranch ? 'Branch' : 'Alternate'}: ${alt.label ?? alt.kind}');
   buffer.writeln('    <Course>');
   buffer.writeln('      <Name>$name</Name>');
   var distance = 0.0;

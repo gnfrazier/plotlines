@@ -137,6 +137,7 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
             'properties': {
               'kind': 'alternate',
               'alternate_kind': alt.kind,
+              'intent': alt.intent,
               'day_index': day.index,
               'segment_id': segment.id,
               if (alt.label != null) 'title': alt.label,

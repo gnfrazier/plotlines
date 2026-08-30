@@ -71,4 +71,68 @@ void main() {
       expect(segment.copyWith(clearNote: true).note, isNull);
     });
   });
+
+  group('Alternate.intent (FR20 / C4 [AMENDED v2.0])', () {
+    LineString line() => LineString(coordinates: const [
+          [-105.27, 40.02],
+          [-105.24, 40.03],
+        ]);
+
+    test('defaults to accommodation and reads back that way from a payload with no intent', () {
+      final a = Alternate(id: 'a1', kind: 'bypass', geometry: line());
+      expect(a.intent, 'accommodation');
+      expect(a.isBranch, isFalse);
+      expect(a.toJson()['intent'], 'accommodation');
+
+      final decoded = Alternate.fromJson({
+        'id': 'a1',
+        'kind': 'bypass',
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': const [
+            [-105.27, 40.02],
+            [-105.24, 40.03],
+          ],
+          'source': 'authored',
+        },
+      });
+      expect(decoded.intent, 'accommodation');
+    });
+
+    test('a branch alternate round-trips its own content', () {
+      final a = Alternate(
+        id: 'a2',
+        kind: 'extension',
+        intent: 'branch',
+        label: 'The long way past the abandoned mine',
+        note: 'Adds 4 km and a 200 m climb.',
+        anchorIds: const ['anc-mine', 'anc-cemetery'],
+        narration: Narration(triggerDistanceM: 150.0, text: 'The mine.'),
+        reveal: 'on_arrival',
+        geometry: line(),
+      );
+      final decoded = Alternate.fromJson(a.toJson());
+      expect(decoded.intent, 'branch');
+      expect(decoded.isBranch, isTrue);
+      expect(decoded.note, 'Adds 4 km and a 200 m climb.');
+      expect(decoded.anchorIds, ['anc-mine', 'anc-cemetery']);
+      expect(decoded.narration!.triggerDistanceM, 150.0);
+      expect(decoded.reveal, 'on_arrival');
+    });
+
+    test('an accommodation alternate omits the branch content keys from JSON', () {
+      final json = Alternate(id: 'a3', kind: 'bypass', geometry: line()).toJson();
+      expect(json.containsKey('note'), isFalse);
+      expect(json.containsKey('anchor_ids'), isFalse);
+      expect(json.containsKey('narration'), isFalse);
+      expect(json.containsKey('reveal'), isFalse);
+    });
+
+    test('an unknown intent is rejected', () {
+      expect(
+        () => Alternate(id: 'a4', kind: 'bypass', intent: 'ladder', geometry: line()),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+  });
 }

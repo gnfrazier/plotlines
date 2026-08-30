@@ -100,20 +100,51 @@ class Portage {
       });
 }
 
-/// FR20 / C4 — a tagged secondary path on a segment, visible on map and cue sheet.
+/// FR20 / C4 [AMENDED v2.0] — a tagged secondary path on a segment, visible to
+/// Characters on map and cue sheet.
+///
+/// Two authoring intents ([intent]). An `accommodation` alternate adjusts effort
+/// only — `bypass` (easiest) / `extension` (challenge) — and is the H6 effort
+/// toggle a Character may take (`character_variant.dart`). A `branch` alternate is
+/// a story-shaped choice that carries its own content on the path: its own
+/// [anchorIds], [narration], [reveal] policy, and [note] prose ("the long way
+/// past the abandoned mine"). A branch is chosen in the field (FR125 / P2), never
+/// as an effort toggle, so `chooseAlternate` rejects one.
+///
+/// [kind] tags the shape either way — for a branch it reads as the direct way
+/// (`bypass`) versus the long way round (`extension`).
 class Alternate {
   Alternate({
     required this.id,
     required this.kind,
     required this.geometry,
+    this.intent = 'accommodation',
     this.label,
     this.metrics,
     this.elevation,
     this.divergesAtM,
     this.rejoinsAtM,
-  });
+    this.note,
+    this.anchorIds = const [],
+    this.narration,
+    this.reveal,
+  })  : assert(
+          intent == 'accommodation' || intent == 'branch',
+          'alternate intent must be accommodation or branch, got "$intent"',
+        ),
+        assert(
+          intent == 'branch' ||
+              (note == null && anchorIds.isEmpty && narration == null && reveal == null),
+          'note / anchorIds / narration / reveal are branch-alternate content; '
+          'an accommodation alternate carries none of them',
+        );
 
   final String id;
+
+  /// One of `accommodation` (effort toggle, the v1.0 ladder) | `branch` (a
+  /// story choice with its own content). Absent on the wire means
+  /// `accommodation`.
+  final String intent;
 
   /// One of `bypass` | `extension`.
   final String kind;
@@ -128,10 +159,30 @@ class Alternate {
   /// Distance along the parent segment where the alternate rejoins it.
   final double? rejoinsAtM;
 
+  /// Branch alternates only — the Author's prose for what is different on this
+  /// path. Null on an accommodation alternate, whose difference is effort.
+  final String? note;
+
+  /// Branch alternates only — trip-scoped anchors on this path, by id (a
+  /// reference, never a copy — the same rule as a segment's via anchors).
+  final List<String> anchorIds;
+
+  /// Branch alternates only — narration attached to the branch itself.
+  final Narration? narration;
+
+  /// Branch alternates only — reveal policy for this branch's own narrative
+  /// content. One of `always_visible` | `on_arrival`; null falls back to each
+  /// referenced anchor's own roles.
+  final String? reveal;
+
+  /// True when this is a branch alternate — a story choice, not an effort toggle.
+  bool get isBranch => intent == 'branch';
+
   factory Alternate.fromJson(Map<String, dynamic> json) {
     final f = JsonFields(json, 'alternate');
     final a = Alternate(
       id: f.takeString('id')!,
+      intent: f.takeString('intent') ?? 'accommodation',
       kind: f.takeString('kind')!,
       label: f.takeString('label'),
       geometry: f.takeObject('geometry', LineString.fromJson)!,
@@ -139,6 +190,10 @@ class Alternate {
       elevation: f.takeObject('elevation', Elevation.fromJson),
       divergesAtM: f.takeNum('diverges_at_m'),
       rejoinsAtM: f.takeNum('rejoins_at_m'),
+      note: f.takeString('note'),
+      anchorIds: f.takeStrings('anchor_ids'),
+      narration: f.takeObject('narration', Narration.fromJson),
+      reveal: f.takeString('reveal'),
     );
     f.done();
     return a;
@@ -146,6 +201,7 @@ class Alternate {
 
   Map<String, dynamic> toJson() => pruneJson({
         'id': id,
+        'intent': intent,
         'kind': kind,
         'label': label,
         'geometry': geometry.toJson(),
@@ -153,6 +209,10 @@ class Alternate {
         'elevation': elevation?.toJson(),
         'diverges_at_m': divergesAtM == null ? null : finite(divergesAtM!, 'alternate.diverges_at_m'),
         'rejoins_at_m': rejoinsAtM == null ? null : finite(rejoinsAtM!, 'alternate.rejoins_at_m'),
+        'note': note,
+        'anchor_ids': anchorIds.isEmpty ? null : anchorIds,
+        'narration': narration?.toJson(),
+        'reveal': reveal,
       });
 }
 

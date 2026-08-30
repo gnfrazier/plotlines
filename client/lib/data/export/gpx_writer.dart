@@ -59,7 +59,7 @@ String tripToGpx(Trip trip, {ExportOptions options = const ExportOptions()}) {
         for (final alt in segment.alternates) {
           if (alt.geometry.coordinates.isEmpty) continue;
           buffer.writeln('  <trk>');
-          buffer.writeln('    <name>${_esc('Alternate: ${alt.label ?? alt.kind}')}</name>');
+          buffer.writeln('    <name>${_esc('${alt.isBranch ? 'Branch' : 'Alternate'}: ${alt.label ?? alt.kind}')}</name>');
           _writeTrkseg(buffer, alt.geometry.coordinates);
           buffer.writeln('  </trk>');
         }

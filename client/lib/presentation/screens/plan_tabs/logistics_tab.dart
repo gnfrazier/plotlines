@@ -347,11 +347,27 @@ class _SegmentTile extends StatelessWidget {
         color: c.textSecondary,
       ),
       title: '${segment.mode} · ${segment.shape.replaceAll('_', ' ')}',
-      subtitle: segment.nodes.isEmpty ? null : '${segment.nodes.length} node(s)',
+      subtitle: _segmentSubtitle(segment),
       trailingMono: km == null ? '—' : '${km.toStringAsFixed(1)} km',
       trailing: stale ? Icon(Icons.sync_problem, size: 16, color: c.warning) : null,
     );
   }
+}
+
+/// FR20 / C4 [AMENDED v2.0] — the segment tile names its nodes and, separately,
+/// its alternates *by intent* so an Author reading the day sees the accommodation
+/// / branch distinction at a glance. An accommodation alternate adjusts effort; a
+/// branch alternate is a story choice carrying its own content. Read-only here —
+/// the alternate editor is a later surface.
+String? _segmentSubtitle(Segment segment) {
+  final parts = <String>[
+    if (segment.nodes.isNotEmpty) '${segment.nodes.length} node(s)',
+  ];
+  final accommodation = segment.alternates.where((a) => !a.isBranch).length;
+  final branch = segment.alternates.where((a) => a.isBranch).length;
+  if (accommodation > 0) parts.add('$accommodation accommodation alt(s)');
+  if (branch > 0) parts.add('$branch branch alt(s)');
+  return parts.isEmpty ? null : parts.join(' · ');
 }
 
 /// FR19 / C3 — per-mode distance limits overriding the trip default

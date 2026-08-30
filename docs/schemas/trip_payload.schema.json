@@ -467,12 +467,17 @@
     },
 
     "alternate": {
-      "description": "FR20 / C4 — a tagged secondary path on a segment, visible to Characters on map and cue sheet.",
+      "description": "FR20 / C4 [AMENDED v2.0] — a tagged secondary path on a segment, visible to Characters on map and cue sheet. Carries two distinct authoring intents (`intent`): an *accommodation* alternate adjusts effort only (bypass/easiest, extension/challenge) and is the H6 effort toggle a Character may take; a *branch* alternate is a story-shaped choice that carries its own content on the path — its own anchors, narration, and reveal policy — and is chosen in the field (FR125 / P2), never as an effort toggle. `kind` still tags an alternate's shape either way: for a branch it reads as the direct way (`bypass`) vs. the long way round (`extension`).",
       "type": "object",
       "required": ["id", "kind", "geometry"],
       "additionalProperties": false,
       "properties": {
         "id": { "$ref": "#/$defs/id" },
+        "intent": {
+          "enum": ["accommodation", "branch"],
+          "default": "accommodation",
+          "description": "Absent means `accommodation` — a v1.0 payload that predates the amendment reads as the fitness ladder it was."
+        },
         "kind": { "enum": ["bypass", "extension"] },
         "label": { "type": "string" },
         "geometry": { "$ref": "#/$defs/line_string" },
@@ -482,8 +487,41 @@
           "$ref": "#/$defs/metres",
           "description": "Distance along the parent segment where the alternate rejoins it."
         },
-        "diverges_at_m": { "$ref": "#/$defs/metres" }
-      }
+        "diverges_at_m": { "$ref": "#/$defs/metres" },
+        "note": {
+          "$ref": "#/$defs/markdown",
+          "description": "Branch alternates only — the Author's prose for what is different on this path (\"the long way past the abandoned mine\"). Absent on an accommodation alternate, whose difference is effort, not story."
+        },
+        "anchor_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "description": "Branch alternates only — the trip-scoped anchors that sit on this path, by id (a routing-layer reference, never a copy — same rule as a segment's via_anchors). These are the plot points a Character meets only if they take this branch."
+        },
+        "narration": {
+          "$ref": "#/$defs/narration",
+          "description": "Branch alternates only — narration attached to the branch itself (FR40/FR41), authoring half only."
+        },
+        "reveal": {
+          "$ref": "#/$defs/reveal_policy",
+          "description": "Branch alternates only — the reveal policy for this branch's own narrative content. Absent falls back to the reveal policy of each referenced anchor's roles; present, it holds the branch's content for arrival at the divergence (the choice itself is always visible, only its payoff waits)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              { "required": ["note"] },
+              { "required": ["anchor_ids"] },
+              { "required": ["narration"] },
+              { "required": ["reveal"] }
+            ]
+          },
+          "then": {
+            "properties": { "intent": { "const": "branch" } },
+            "required": ["intent"]
+          }
+        }
+      ]
     },
 
     "solve_provenance": {

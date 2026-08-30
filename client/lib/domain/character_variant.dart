@@ -196,10 +196,23 @@ CharacterVariant clearAdjustment(CharacterVariant variant, String attribute) {
 
 /// Record the Character taking accommodation alternate [alternateId] (or
 /// passing null to return to the canonical line). Throws [ArgumentError] for
-/// an id that is not one of [segment]'s alternates.
+/// an id that is not one of [segment]'s alternates, or for a *branch*
+/// alternate (FR20 [AMENDED v2.0]) — a branch is a story choice made in the
+/// field (FR125 / P2), not an effort toggle over canon, so it does not belong
+/// on this personalization layer.
 CharacterVariant chooseAlternate(CharacterVariant variant, Segment segment, String? alternateId) {
-  if (alternateId != null && !segment.alternates.any((a) => a.id == alternateId)) {
-    throw ArgumentError.value(alternateId, 'alternateId', 'is not an alternate of this passage');
+  if (alternateId != null) {
+    final chosen = segment.alternates.where((a) => a.id == alternateId).firstOrNull;
+    if (chosen == null) {
+      throw ArgumentError.value(alternateId, 'alternateId', 'is not an alternate of this passage');
+    }
+    if (chosen.isBranch) {
+      throw ArgumentError.value(
+        alternateId,
+        'alternateId',
+        'is a branch alternate — a story choice (FR125 / P2), not an accommodation effort toggle',
+      );
+    }
   }
   return variant.copyWith(chosenAlternateId: alternateId);
 }
