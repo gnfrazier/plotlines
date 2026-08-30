@@ -1,14 +1,14 @@
-# CI — placeholder stage (setup-prompt.md Phase 3).
+# CI — lint gates plus the full test suites.
 #
-# For now this workflow does exactly one meaningful thing: enforce the P1 boundary
-# (ARCH §6.1, §14.5, risk A7) — `plotlines-core` may never import `fastapi`. That's the
-# whole reason the core/service split exists, so the gate goes in on commit one, before
-# there's any code to violate it.
+# The P1 boundary gate (ARCH §6.1, §14.5, risk A7) is the load-bearing one:
+# `plotlines-core` may never import `fastapi`. That's the whole reason the
+# core/service split exists, so it runs on every push and PR, before there's
+# any toolchain to set up.
 #
-# The core/service test jobs below are no-op placeholders ("no tests yet") so the
-# workflow is green. Real test jobs land with the first core work (MVP doc §6, item 3 —
-# first graph fixture + golden-route test) and the service contract/lifecycle tests
-# (ARCH §14.2). Build, freeze, and Flutter jobs are out of scope until later milestones.
+# The reveal-gate and payload-schema gates sit alongside it. The three test
+# jobs below (core / service / client) run the real suites — 652 + 106 + 976
+# tests — as independent jobs so a failure points at one layer. Build, freeze,
+# and Flutter desktop-bundle jobs are still out of scope until later milestones.
 
 name: CI
 
@@ -64,15 +64,51 @@ jobs:
       - run: PYTHONPATH=core python spikes/SPIKE-20/run.py --check-committed
 
   core-tests:
-    name: "core tests (placeholder)"
+    name: "core tests (652)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: echo "no tests yet — lands with the first core work (MVP doc §6, item 3)"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      # Pure-library suite (ARCH §6). The dependency tree is the heavy native
+      # geo stack — osmnx / shapely / rasterio / pyogrio — so the uv cache above
+      # is what keeps this job off the critical path. Python version comes from
+      # core/pyproject.toml (requires-python >=3.11); uv provisions it.
+      - run: uv sync --frozen
+        working-directory: core
+      - run: uv run --frozen pytest
+        working-directory: core
 
   service-tests:
-    name: "service tests (placeholder)"
+    name: "service tests (106)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: echo "no tests yet — lands with service contract/lifecycle tests (ARCH §14.2)"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      # FastAPI wrapper contract + lifecycle (ARCH §14.2). service/uv.lock pulls
+      # plotlines-core as an editable path dep (../core), so the single-repo
+      # checkout above is enough for `uv sync` to resolve it.
+      - run: uv sync --frozen
+        working-directory: service
+      - run: uv run --frozen pytest
+        working-directory: service
+
+  client-tests:
+    name: "client tests (976)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.44.5"
+      # Flutter widget/unit suite. Runs on the Dart VM (no device, no display),
+      # so plain `flutter test` is all that's needed. Version pinned to the
+      # toolchain client/ currently targets (Dart SDK ^3.12.2).
+      - run: flutter pub get
+        working-directory: client
+      - run: flutter test
+        working-directory: client
