@@ -11,6 +11,7 @@ service's `/tiles/{z}/{x}/{y}` endpoint reads through instead.
 
 from __future__ import annotations
 
+import hashlib
 import mmap
 from dataclasses import dataclass
 from pathlib import Path
@@ -54,6 +55,13 @@ class ArchiveInfo:
     #: decompressing, and only decompress if they need the raw bytes.
     content_encoding: str | None
 
+    #: A short, stable content fingerprint of this archive (issue #155). Two
+    #: archives with the same tile payload hash to the same string; replacing
+    #: or re-extracting the archive changes it. The client folds this into
+    #: its raster tile-cache folder so renders derived from a superseded
+    #: archive are abandoned rather than served from disk for 30 days.
+    identity: str
+
     def covers(self, z: int, x: int, y: int) -> bool:
         if not (self.min_zoom <= z <= self.max_zoom):
             return False
@@ -96,7 +104,27 @@ class Archive:
                     h["max_lon_e7"] / 1e7, h["max_lat_e7"] / 1e7),
             tile_content_type=_CONTENT_TYPES.get(h["tile_type"], "application/octet-stream"),
             content_encoding=_COMPRESSION_NAMES.get(h["tile_compression"]),
+            identity=self.identity(),
         )
+
+    def identity(self) -> str:
+        """A short, stable content fingerprint (issue #155) — a hex digest of
+        the header fields that move only when the tile payload itself does
+        (byte length and entry counts of the tile data, zoom range, bounds).
+        Independent of file path or mtime, so a fresh checkout of the same
+        committed archive fingerprints identically."""
+        h = self._header
+        parts = (
+            h["tile_data_length"],
+            h.get("addressed_tiles_count", 0),
+            h.get("tile_entries_count", 0),
+            h.get("tile_contents_count", 0),
+            h["min_zoom"], h["max_zoom"],
+            h["min_lon_e7"], h["min_lat_e7"],
+            h["max_lon_e7"], h["max_lat_e7"],
+        )
+        digest = hashlib.sha256(",".join(str(p) for p in parts).encode()).hexdigest()
+        return digest[:16]
 
     def tile(self, z: int, x: int, y: int) -> bytes | None:
         """Raw tile bytes exactly as stored (see `ArchiveInfo.content_encoding`

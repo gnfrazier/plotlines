@@ -754,7 +754,8 @@ GET /health →
 {
   "app_version": "...", "sidecar_version": "...",
   "capabilities": {
-    "tiles":     {"ready": true},
+    "tiles":     {"ready": true,
+                  "archive": "a1b2c3d4e5f60718"},                  # ← home-region PMTiles fingerprint (issue #155)
     "layers":    {"ready": true,                                   # ← unlocks curation
                   "per_layer": {"osm_historic": "ready",
                                 "osm_amenity":  "ready",
@@ -769,7 +770,7 @@ GET /health →
 }
 ```
 
-Six rules:
+Seven rules:
 
 - **Nothing waits behind anything else** *(amended 2026-08-28 — SPIKE-D)*. Authoring depends only on layer/POI extraction, routing only on the region graph, elevation-dependent metrics only on enrichment — **three independent gates, started together**. **Measured on a real 704 km² trip bbox: extraction 15.8–178.5 s, region graph 36.7 s (116.6 s at 1,799 km²), enrichment 8.8 s** — of which sampling and grade computation are 110 ms. **Prior reading: "startup order is layers-and-POI first, elevation second… a reordering of existing startup work, cheap in the sidecar."** That was pointed at the wrong pair. Elevation is the cheapest of the three and never the half worth hiding; the expensive, *unpredictable* one is extraction, and the one routing actually waits on is the graph. **POI indexing is 2–51 ms, so the entire first phase is network.** See `spikes/SPIKE-D/results/RESULTS.md`.
 - **`layers.ready` is `any`, not `all`.** The capability is ready once any layer is usable. An `all()` would let one slow plugin re-impose exactly the global flag B1 removes.
@@ -778,6 +779,7 @@ Six rules:
   **Not implemented as of 2026-08-28 — SPIKE-D measured the shipped app at 3 of 8 of this contract's clauses.** `capabilities.layers.per_layer` is the constant `{layer: "ready" for layer in sorted(LAYERS)}`, so there is no seam at which a layer could report `loading` or `failed:licence_missing` — the two values the example above prints. Worse, `GET /candidates` wraps one provider call in one `try` and returns **422 for the whole request** when a single layer's provider raises: six built-in layers plus one failing plugin returns zero candidates, which is the exact inverse of this rule. **The cause is a divergence from §14.2, not a gap in it.** That contract already specifies a per-layer `fetch_candidates(bbox)` and a `load_state() -> LayerLoadState`; the shipped `core/plotlines_core/curation/providers.py` collapsed both into one multi-layer `fetch(bbox, layers) -> list[RawFeature]`, leaving per-layer state and per-layer failure with nowhere to live. **Reconciling `providers.py` with §14.2 is story N2**; `spikes/SPIKE-D/plugin_layers.py` is a working sketch of the reconciled shape.
 - **Routing readiness is per region, not one flag** (D57, issue #154). D41's trip bbox is the Author's own authoring extent, so "routing" is never one process-wide state any more — it's keyed by the region id `POST /regions` returned, empty until an Author has drawn a bbox. `elevation` stays a single fixed not-ready entry across every region (gated on FR87/#148, never attempted) rather than settling per region, since no region's elevation ever comes up in this codebase yet.
 - **Version mismatch still refuses to run** (A8, §13.1). Per-capability readiness changes *what is ready*, never *whether the pair is compatible*.
+- **`tiles.archive` is a content fingerprint, not a readiness signal** *(issue #155)*. A short digest of the committed home-region PMTiles archive the sidecar serves basemap tiles from. `vector_map_tiles` renders each vector tile to a PNG and caches it on disk with a 30-day TTL; nothing in that key tied a cached render to the archive that produced it, so replacing or re-extracting the archive kept serving month-old (often blank) tiles. The desktop client folds this digest into its raster tile-cache folder name (`basemapTileCacheFolder`), and a zero-feature tile is refused as retryable rather than frozen as a background-only render — see `client/lib/presentation/map/vector_tile_provider.dart`.
 
 **Unchanged and still important:** the Field Runtime depends on the sidecar not at all — a dead sidecar degrades to "can't generate," never "can't ride."
 

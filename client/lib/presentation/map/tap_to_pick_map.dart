@@ -108,7 +108,9 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
     final isDark = material.Theme.of(context).brightness == Brightness.dark;
     final startCenter =
         widget.center ?? (widget.points.isNotEmpty ? widget.points.first : HomeRegion.center);
-    final baseUrl = ref.watch(sidecarManagerProvider).baseUrl;
+    final sidecar = ref.watch(sidecarManagerProvider);
+    final baseUrl = sidecar.baseUrl;
+    final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
 
     return FutureBuilder(
       future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
@@ -141,6 +143,7 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                     theme: vectorTheme,
                     tileProviders: TileProviders({'protomaps': provider}),
                     maximumZoom: 15,
+                    cacheFolder: basemapCacheFolderCallback(tilesArchiveId),
                   )
                 else
                   MapGraticule(color: c.border),

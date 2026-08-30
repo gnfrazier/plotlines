@@ -58,6 +58,26 @@ def test_archive_info_reports_bounds_and_zoom_range(tmp_path):
         assert info.bounds == (-83.6, 35.2, -81.0, 36.4)
 
 
+def test_identity_is_stable_for_the_same_content_and_path_independent(tmp_path):
+    # Issue #155 — the client namespaces its raster tile cache by this, so a
+    # fresh checkout of the same committed archive must fingerprint the same.
+    tiles = {(1, 0, 0): b"a", (2, 1, 1): b"b"}
+    a = build_archive(tmp_path / "a.pmtiles", tiles, bounds=(-83.6, 35.2, -81.0, 36.4))
+    b = build_archive(tmp_path / "b.pmtiles", tiles, bounds=(-83.6, 35.2, -81.0, 36.4))
+    with Archive(a) as arc_a, Archive(b) as arc_b:
+        assert arc_a.info().identity == arc_b.info().identity
+        assert arc_a.info().identity == arc_a.identity()
+
+
+def test_identity_changes_when_the_tile_payload_changes(tmp_path):
+    # Replacing or extending the archive must invalidate renders derived
+    # from the old one rather than serving them for the 30-day cache TTL.
+    a = build_archive(tmp_path / "a.pmtiles", {(0, 0, 0): b"world-tile"})
+    b = build_archive(tmp_path / "b.pmtiles", {(0, 0, 0): b"a-different-tile"})
+    with Archive(a) as arc_a, Archive(b) as arc_b:
+        assert arc_a.identity() != arc_b.identity()
+
+
 def test_archive_info_reports_no_content_encoding_when_uncompressed(tmp_path):
     path = build_archive(tmp_path / "a.pmtiles", {(0, 0, 0): b"raw"})
     with Archive(path) as archive:

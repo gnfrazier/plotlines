@@ -148,11 +148,23 @@ class Capabilities {
     required this.layers,
     required this.routing,
     required this.elevation,
+    this.tilesArchiveId,
     this.layersPerLayer = const {},
     this.layersPerLayerDetail = const {},
   });
 
   final CapabilityStatus tiles;
+
+  /// `/health`'s `capabilities.tiles.archive` (issue #155) — a short content
+  /// fingerprint of the committed home-region PMTiles archive the sidecar is
+  /// serving basemap tiles from. The map widgets fold this into the raster
+  /// tile-cache folder name (`basemapTileCacheFolder`) so that replacing or
+  /// re-extracting the archive abandons renders derived from the old one
+  /// rather than serving them stale for the 30-day image-cache TTL. Null if
+  /// an older sidecar did not report it — the cache then falls back to a
+  /// single un-versioned folder (still app-namespaced, still honouring the
+  /// zero-feature guard, just without archive-swap invalidation).
+  final String? tilesArchiveId;
 
   /// `layers.ready` is `any`, not `all` (ARCH §8.3, story N2): true once any
   /// layer is usable, so one slow or failed plugin dataset never blocks the
@@ -185,8 +197,10 @@ class Capabilities {
 
   factory Capabilities.fromJson(Map<String, dynamic> json) {
     final layersJson = json['layers'] as Map<String, dynamic>;
+    final tilesJson = json['tiles'] as Map<String, dynamic>;
     return Capabilities(
-      tiles: CapabilityStatus.fromJson(json['tiles'] as Map<String, dynamic>),
+      tiles: CapabilityStatus.fromJson(tilesJson),
+      tilesArchiveId: tilesJson['archive'] as String?,
       layers: CapabilityStatus.fromJson(layersJson),
       routing: RoutingCapability.fromJson(json['routing'] as Map<String, dynamic>),
       elevation: CapabilityStatus.fromJson(json['elevation'] as Map<String, dynamic>),

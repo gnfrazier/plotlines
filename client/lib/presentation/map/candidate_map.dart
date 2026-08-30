@@ -82,7 +82,9 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
     final isDark = material.Theme.of(context).brightness == Brightness.dark;
     final center = widget.bbox?.center ??
         (widget.candidates.isNotEmpty ? widget.candidates.first.coord : HomeRegion.center);
-    final baseUrl = ref.watch(sidecarManagerProvider).baseUrl;
+    final sidecar = ref.watch(sidecarManagerProvider);
+    final baseUrl = sidecar.baseUrl;
+    final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
 
     return FutureBuilder(
       future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
@@ -108,6 +110,7 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
                   theme: vectorTheme,
                   tileProviders: TileProviders({'protomaps': provider}),
                   maximumZoom: 15,
+                  cacheFolder: basemapCacheFolderCallback(tilesArchiveId),
                 )
               else
                 MapGraticule(color: c.border),

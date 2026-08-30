@@ -198,7 +198,9 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
         : null;
     final backdrop = drawPreview ?? displayBbox;
 
-    final baseUrl = ref.watch(sidecarManagerProvider).baseUrl;
+    final sidecar = ref.watch(sidecarManagerProvider);
+    final baseUrl = sidecar.baseUrl;
+    final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
 
     return FutureBuilder(
       future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
@@ -245,6 +247,7 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
                       theme: vectorTheme,
                       tileProviders: TileProviders({'protomaps': provider}),
                       maximumZoom: 15,
+                      cacheFolder: basemapCacheFolderCallback(tilesArchiveId),
                     )
                   else
                     MapGraticule(color: c.border),

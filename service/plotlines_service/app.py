@@ -505,6 +505,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                       allow_unmirrored=allow_unmirrored_tiles)
     app.state.readiness = state
     home_tiles = Archive(default_home_region_archive())
+    home_tiles_identity = home_tiles.info().identity
     diagnose_jobs: dict[str, DiagnoseJob] = {}
 
     @app.get("/health")
@@ -512,7 +513,11 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         """Per-capability readiness (ARCH §8.3, breaking change B1; PRD
         FR120/FR121; issue #154, story N2). No single `ready` flag: `tiles`
         reports ready unconditionally (no process-wide startup dependency —
-        the Curation Workspace must be usable immediately).
+        the Curation Workspace must be usable immediately). `tiles.archive`
+        is a short content fingerprint of the committed home-region PMTiles
+        archive (issue #155): the client folds it into its raster tile-cache
+        folder so renders derived from a superseded archive are dropped
+        rather than served stale for the 30-day cache TTL.
 
         `layers` is driven by `app.state.layer_registry` (story N2): a real
         per-layer state machine, not a constant. `layers.ready` is **`any`,
@@ -541,7 +546,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             "sidecar_version": VERSION,
             "mode": mode,
             "capabilities": {
-                "tiles": {"ready": True},
+                "tiles": {"ready": True, "archive": home_tiles_identity},
                 "layers": layers_cap,
                 "routing": {"regions": state.routing_capabilities()},
                 "elevation": ELEVATION_NOT_CONFIGURED,

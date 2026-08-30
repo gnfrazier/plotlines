@@ -50,7 +50,11 @@ def _wait_for(client: TestClient, predicate, timeout: float = 20.0) -> dict:
 def test_tiles_and_layers_are_ready_immediately(tmp_path: Path) -> None:
     client = TestClient(create_app(tmp_path))
     caps = client.get("/health").json()["capabilities"]
-    assert caps["tiles"] == {"ready": True}
+    assert caps["tiles"]["ready"] is True
+    # Issue #155: a stable content fingerprint of the committed home-region
+    # archive, so the client can namespace its raster tile cache by it.
+    assert isinstance(caps["tiles"]["archive"], str)
+    assert caps["tiles"]["archive"]
     assert caps["layers"]["ready"] is True
     assert caps["layers"]["per_layer"]
     assert all(state == "ready" for state in caps["layers"]["per_layer"].values())

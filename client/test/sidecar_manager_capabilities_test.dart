@@ -129,6 +129,22 @@ void main() {
       expect(caps.routing.forRegion(null), isNull);
     });
 
+    test('tiles.archive is surfaced as tilesArchiveId, null when absent (issue #155)', () {
+      final withArchive = Capabilities.fromJson({
+        'tiles': {'ready': true, 'archive': 'a1b2c3d4e5f60718'},
+        'layers': {'ready': true, 'per_layer': {'historic': 'ready'}},
+        'routing': {'regions': <String, dynamic>{}},
+        'elevation': {'ready': false, 'reason': 'x'},
+      });
+      expect(withArchive.tilesArchiveId, 'a1b2c3d4e5f60718');
+
+      final olderSidecar = Capabilities.fromJson(healthBody(
+        regions: {},
+        elevation: {'ready': false, 'reason': 'x'},
+      ));
+      expect(olderSidecar.tilesArchiveId, isNull);
+    });
+
     test('elevation is settled (stopped trying) even though it never becomes ready', () {
       // Issue #154's explicit scoping note: elevation acquisition is gated
       // on FR87 (#148) and is never attempted for any region.
