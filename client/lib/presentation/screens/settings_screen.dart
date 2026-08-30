@@ -69,6 +69,98 @@ class _DisplayAndMeasurement extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: PlotSpacing.s5),
+        Text('TEMPERATURE', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: PlotSpacing.s2),
+        PlotCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              RadioListTile<TemperatureUnit>(
+                title: const Text('Fahrenheit (°F)'),
+                value: TemperatureUnit.fahrenheit,
+                groupValue: settings.temperatureUnit,
+                onChanged: (v) => v == null ? null : notifier.setTemperatureUnit(v),
+              ),
+              RadioListTile<TemperatureUnit>(
+                title: const Text('Celsius (°C)'),
+                value: TemperatureUnit.celsius,
+                groupValue: settings.temperatureUnit,
+                onChanged: (v) => v == null ? null : notifier.setTemperatureUnit(v),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: PlotSpacing.s5),
+        Text('DATE & TIME', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: PlotSpacing.s2),
+        PlotCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              RadioListTile<ClockPref>(
+                title: const Text('Match device clock'),
+                value: ClockPref.inherit,
+                groupValue: settings.clock,
+                onChanged: (v) => v == null ? null : notifier.setClock(v),
+              ),
+              RadioListTile<ClockPref>(
+                title: const Text('12-hour (3:07 PM)'),
+                value: ClockPref.hour12,
+                groupValue: settings.clock,
+                onChanged: (v) => v == null ? null : notifier.setClock(v),
+              ),
+              RadioListTile<ClockPref>(
+                title: const Text('24-hour (15:07)'),
+                value: ClockPref.hour24,
+                groupValue: settings.clock,
+                onChanged: (v) => v == null ? null : notifier.setClock(v),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: DropdownButton<DateFormatPref>(
+                    value: settings.dateFormat,
+                    isExpanded: true,
+                    underline: const SizedBox.shrink(),
+                    onChanged: (v) => v == null ? null : notifier.setDateFormat(v),
+                    items: const [
+                      DropdownMenuItem(value: DateFormatPref.inherit, child: Text('Match device date format')),
+                      DropdownMenuItem(value: DateFormatPref.iso8601, child: Text('2026-08-20  (ISO 8601)')),
+                      DropdownMenuItem(value: DateFormatPref.us, child: Text('08/20/2026  (US)')),
+                      DropdownMenuItem(value: DateFormatPref.uk, child: Text('20/08/2026  (UK, Europe, India)')),
+                      DropdownMenuItem(value: DateFormatPref.europeanDot, child: Text('20.08.2026  (Germany, Nordics)')),
+                      DropdownMenuItem(value: DateFormatPref.eastAsia, child: Text('2026/08/20  (East Asia)')),
+                      DropdownMenuItem(value: DateFormatPref.dayMonYear, child: Text('20 Aug 2026')),
+                      DropdownMenuItem(value: DateFormatPref.monDayYear, child: Text('Aug 20, 2026')),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Text(
+                  'Stored dates stay ISO 8601 — this only changes how they read.',
+                  style: PlotTypography.small(c.textMuted),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: PlotSpacing.s5),
+        Text('READOUT', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: PlotSpacing.s2),
+        PlotCard(
+          padding: EdgeInsets.zero,
+          child: SwitchListTile(
+            title: const Text('Spoken readout on this device'),
+            subtitle: const Text('H2a — uses the voices installed here; not synced to other devices'),
+            value: settings.ttsReadout,
+            onChanged: notifier.setTtsReadout,
+          ),
+        ),
+        const SizedBox(height: PlotSpacing.s5),
         Text('APPEARANCE', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: PlotSpacing.s2),
         PlotCard(
