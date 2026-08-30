@@ -153,8 +153,7 @@ def _default_weights() -> WeightProfile:
     return WeightProfile(
         name="quiet_scenic", climbing=3.5, traffic=1.0,
         surface={"paved": 3.0, "gravel": 3.5, "singletrack": 1.5},
-        poi_density=2.5, poi_types=["viewpoint", "cafe"],
-        detour_budget=1.6,
+        interest=2.5,
     )
 
 
@@ -277,7 +276,7 @@ def _day_two(bench: Bench, key: str, sampler) -> tuple[list[Segment], list[Trans
         weights=WeightProfile(name="gravel", climbing=4.0, traffic=0.5,
                               surface={"paved": 1.0, "gravel": 5.0,
                                        "singletrack": 3.0},
-                              poi_density=1.0, detour_budget=2.0),
+                              interest=1.0),
         geometry=_geometry(graph, loop.path, loop.walk),
         metrics=_metrics(core_metrics, "cycling"),
         elevation=_elevation(sampler, graph, loop.path),

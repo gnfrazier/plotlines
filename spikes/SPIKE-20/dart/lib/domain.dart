@@ -131,20 +131,20 @@ class WeightProfile {
     this.climbing,
     this.traffic,
     this.surface = const {},
-    this.poiDensity,
-    this.poiTypes = const [],
+    this.interest,
     this.terrainTechnicality,
-    this.detourBudget,
   });
 
   final String name;
   final double? climbing;
   final double? traffic;
   final Map<String, double> surface;
-  final double? poiDensity;
-  final List<String> poiTypes;
+
+  /// FR5 (Story A4) / ARCH D46 — a single 0.0–5.0 salience bias. No POI-type
+  /// parameter (layer selection already says what matters) and no
+  /// `detour_budget`, which was a second dial for this one intent.
+  final double? interest;
   final double? terrainTechnicality;
-  final double? detourBudget;
 
   factory WeightProfile.fromJson(Map<String, dynamic> json) {
     final f = _Fields(json, 'weight_profile');
@@ -152,27 +152,16 @@ class WeightProfile {
     final climbing = f.takeNum('climbing');
     final traffic = f.takeNum('traffic');
     final surface = f.takeWeights('surface');
-    double? density;
-    var types = <String>[];
-    final poi = f.take('poi');
-    if (poi != null) {
-      final p = _Fields(Map<String, dynamic>.from(poi as Map), 'weight_profile.poi');
-      density = p.takeNum('density');
-      types = p.takeStrings('types');
-      p.done();
-    }
+    final interest = f.takeNum('interest');
     final technicality = f.takeNum('terrain_technicality');
-    final detour = f.takeNum('detour_budget');
     f.done();
     return WeightProfile(
       name: name,
       climbing: climbing,
       traffic: traffic,
       surface: surface,
-      poiDensity: density,
-      poiTypes: types,
+      interest: interest,
       terrainTechnicality: technicality,
-      detourBudget: detour,
     );
   }
 
@@ -181,12 +170,8 @@ class WeightProfile {
         'climbing': climbing,
         'traffic': traffic,
         'surface': surface.isEmpty ? null : surface,
-        'poi': prune({
-          'density': poiDensity,
-          'types': poiTypes.isEmpty ? null : poiTypes,
-        }),
+        'interest': interest,
         'terrain_technicality': terrainTechnicality,
-        'detour_budget': detourBudget,
       });
 
   WeightProfile withSurface(String surfaceClass, double value) => WeightProfile(
@@ -194,10 +179,8 @@ class WeightProfile {
         climbing: climbing,
         traffic: traffic,
         surface: {...surface, surfaceClass: value},
-        poiDensity: poiDensity,
-        poiTypes: poiTypes,
+        interest: interest,
         terrainTechnicality: terrainTechnicality,
-        detourBudget: detourBudget,
       );
 }
 
