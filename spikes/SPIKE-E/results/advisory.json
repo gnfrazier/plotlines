@@ -1,0 +1,849 @@
+{
+  "approaches": {
+    "boulder": {
+      "name": "Gregory Canyon Trailhead, Boulder CO",
+      "remote": false,
+      "route_unchanged_by_assessment": true,
+      "by_declaration": {
+        "2WD": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds 2WD, read on 91% of its 3.0 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 3.05,
+          "signal_pct": 91.3,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        },
+        "AWD": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds AWD, read on 91% of its 3.0 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 3.05,
+          "signal_pct": 91.3,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        },
+        "high-clearance": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds high-clearance, read on 91% of its 3.0 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 3.05,
+          "signal_pct": 91.3,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        },
+        "4WD": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds 4WD, read on 91% of its 3.0 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 3.05,
+          "signal_pct": 91.3,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        }
+      },
+      "floor_sensitivity": {
+        "opportunistic_20": {
+          "state": "no_contrary_signal",
+          "signal_pct": 91.3
+        },
+        "read_70": {
+          "state": "no_contrary_signal",
+          "signal_pct": 91.3
+        }
+      },
+      "degrade": {
+        "opportunistic_20": {
+          "applicable": false,
+          "reason": "baseline state is no_contrary_signal"
+        },
+        "read_70": {
+          "applicable": false,
+          "reason": "baseline state is no_contrary_signal"
+        }
+      }
+    },
+    "viroqua": {
+      "name": "Sidie Hollow landing, Viroqua WI",
+      "remote": false,
+      "route_unchanged_by_assessment": true,
+      "by_declaration": {
+        "2WD": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds 2WD, read on 35% of its 7.6 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 7.64,
+          "signal_pct": 35.2,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        },
+        "AWD": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds AWD, read on 35% of its 7.6 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 7.64,
+          "signal_pct": 35.2,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        },
+        "high-clearance": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds high-clearance, read on 35% of its 7.6 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 7.64,
+          "signal_pct": 35.2,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        },
+        "4WD": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds 4WD, read on 35% of its 7.6 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 7.64,
+          "signal_pct": 35.2,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        }
+      },
+      "floor_sensitivity": {
+        "opportunistic_20": {
+          "state": "no_contrary_signal",
+          "signal_pct": 35.2
+        },
+        "read_70": {
+          "state": "insufficient_signal",
+          "signal_pct": 35.2
+        }
+      },
+      "degrade": {
+        "opportunistic_20": {
+          "applicable": false,
+          "reason": "baseline state is no_contrary_signal"
+        },
+        "read_70": {
+          "applicable": false,
+          "reason": "baseline state is insufficient_signal"
+        }
+      }
+    },
+    "bigsandy": {
+      "name": "Big Sandy Trailhead, Bridger-Teton NF, WY",
+      "remote": true,
+      "route_unchanged_by_assessment": true,
+      "by_declaration": {
+        "2WD": {
+          "state": "flagged",
+          "summary": "1 section(s), 42.6 of 71.8 km, exceed the declared 2WD \u2014 up to AWD. Read on 85% of this leg's kilometres; the rest is unsurveyed.",
+          "flags": [
+            {
+              "km": [
+                29.13,
+                71.77
+              ],
+              "length_km": 42.64,
+              "requires": "AWD",
+              "signal": "surface=unpaved, smoothness=bad, highway=track",
+              "note": "surface=unpaved; smoothness=bad (robust wheels); highway=track, no surface or grade tagged",
+              "way": "Big Sandy Elkhorn Road / Lander Cutoff Road / Big Sandy Opening Road"
+            }
+          ],
+          "access_notes": [],
+          "route_km": 71.77,
+          "signal_pct": 85.1,
+          "flagged_km": 42.64,
+          "sections": 1,
+          "raw_sections": 65,
+          "cues": [
+            {
+              "kind": "advisory",
+              "distance_along_m": 29133.4,
+              "instruction": "surface=unpaved; smoothness=bad (robust wheels); highway=track, no surface or grade tagged for 42.6 km on Big Sandy Elkhorn Road / Lander Cutoff Road / Big Sandy Opening Road \u2014 needs AWD, you declared 2WD"
+            }
+          ]
+        },
+        "AWD": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds AWD, read on 85% of its 71.8 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 71.77,
+          "signal_pct": 85.1,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        },
+        "high-clearance": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds high-clearance, read on 85% of its 71.8 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 71.77,
+          "signal_pct": 85.1,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        },
+        "4WD": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds 4WD, read on 85% of its 71.8 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 71.77,
+          "signal_pct": 85.1,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        }
+      },
+      "floor_sensitivity": {
+        "opportunistic_20": {
+          "state": "flagged",
+          "signal_pct": 85.1
+        },
+        "read_70": {
+          "state": "flagged",
+          "signal_pct": 85.1
+        }
+      },
+      "degrade": {
+        "opportunistic_20": {
+          "applicable": true,
+          "floor_pct": null,
+          "baseline_flags": 1,
+          "baseline_signal_pct": 85.1,
+          "rows": [
+            {
+              "retention_pct": 5.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 10.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 15.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 20.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 25.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 30.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 35.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 40.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 45.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 50.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 55.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 60.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 65.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 70.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 75.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 80.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 85.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 90.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 95.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 100.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            }
+          ],
+          "worst_false_clear_pct": 0.0,
+          "false_clear_ceiling_pct": 10.0,
+          "highest_retention_breaching_ceiling_pct": null
+        },
+        "read_70": {
+          "applicable": true,
+          "floor_pct": null,
+          "baseline_flags": 1,
+          "baseline_signal_pct": 85.1,
+          "rows": [
+            {
+              "retention_pct": 5.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 10.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 15.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 20.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 25.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 30.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 35.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 40.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 45.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 50.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 55.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 60.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 65.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 70.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 75.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 80.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 85.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 90.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 95.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 100.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            }
+          ],
+          "worst_false_clear_pct": 0.0,
+          "false_clear_ceiling_pct": 10.0,
+          "highest_retention_breaching_ceiling_pct": null
+        }
+      }
+    },
+    "middlefork": {
+      "name": "Boundary Creek put-in, Salmon-Challis NF, ID",
+      "remote": true,
+      "route_unchanged_by_assessment": true,
+      "by_declaration": {
+        "2WD": {
+          "state": "flagged",
+          "summary": "1 section(s), 0.2 of 66.7 km, exceed the declared 2WD \u2014 up to AWD. Read on 51% of this leg's kilometres; the rest is unsurveyed.",
+          "flags": [
+            {
+              "km": [
+                0.0,
+                0.17
+              ],
+              "length_km": 0.17,
+              "requires": "AWD",
+              "signal": "surface=unpaved",
+              "note": "surface=unpaved",
+              "way": "Ace of Diamonds Street / Wall Street"
+            }
+          ],
+          "access_notes": [],
+          "route_km": 66.73,
+          "signal_pct": 51.3,
+          "flagged_km": 0.17,
+          "sections": 1,
+          "raw_sections": 3,
+          "cues": [
+            {
+              "kind": "advisory",
+              "distance_along_m": 0.0,
+              "instruction": "surface=unpaved for 0.2 km on Ace of Diamonds Street / Wall Street \u2014 needs AWD, you declared 2WD"
+            }
+          ]
+        },
+        "AWD": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds AWD, read on 51% of its 66.7 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 66.73,
+          "signal_pct": 51.3,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        },
+        "high-clearance": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds high-clearance, read on 51% of its 66.7 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 66.73,
+          "signal_pct": 51.3,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        },
+        "4WD": {
+          "state": "no_contrary_signal",
+          "summary": "No signal on this route exceeds 4WD, read on 51% of its 66.7 km. That is no contrary signal found, not a road confirmed passable.",
+          "flags": [],
+          "access_notes": [],
+          "route_km": 66.73,
+          "signal_pct": 51.3,
+          "flagged_km": 0.0,
+          "sections": 0,
+          "raw_sections": 0,
+          "cues": []
+        }
+      },
+      "floor_sensitivity": {
+        "opportunistic_20": {
+          "state": "flagged",
+          "signal_pct": 51.3
+        },
+        "read_70": {
+          "state": "flagged",
+          "signal_pct": 51.3
+        }
+      },
+      "degrade": {
+        "opportunistic_20": {
+          "applicable": true,
+          "floor_pct": 60.0,
+          "baseline_flags": 1,
+          "baseline_signal_pct": 51.3,
+          "rows": [
+            {
+              "retention_pct": 5.0,
+              "flagged": 9.2,
+              "no_contrary_signal": 0.8,
+              "insufficient_signal": 90.0
+            },
+            {
+              "retention_pct": 10.0,
+              "flagged": 17.8,
+              "no_contrary_signal": 4.5,
+              "insufficient_signal": 77.8
+            },
+            {
+              "retention_pct": 15.0,
+              "flagged": 25.0,
+              "no_contrary_signal": 8.0,
+              "insufficient_signal": 67.0
+            },
+            {
+              "retention_pct": 20.0,
+              "flagged": 37.8,
+              "no_contrary_signal": 7.5,
+              "insufficient_signal": 54.8
+            },
+            {
+              "retention_pct": 25.0,
+              "flagged": 46.5,
+              "no_contrary_signal": 9.8,
+              "insufficient_signal": 43.8
+            },
+            {
+              "retention_pct": 30.0,
+              "flagged": 51.8,
+              "no_contrary_signal": 14.0,
+              "insufficient_signal": 34.2
+            },
+            {
+              "retention_pct": 35.0,
+              "flagged": 54.8,
+              "no_contrary_signal": 18.8,
+              "insufficient_signal": 26.5
+            },
+            {
+              "retention_pct": 40.0,
+              "flagged": 62.2,
+              "no_contrary_signal": 18.8,
+              "insufficient_signal": 19.0
+            },
+            {
+              "retention_pct": 45.0,
+              "flagged": 72.5,
+              "no_contrary_signal": 14.5,
+              "insufficient_signal": 13.0
+            },
+            {
+              "retention_pct": 50.0,
+              "flagged": 73.2,
+              "no_contrary_signal": 17.8,
+              "insufficient_signal": 9.0
+            },
+            {
+              "retention_pct": 55.0,
+              "flagged": 79.8,
+              "no_contrary_signal": 13.8,
+              "insufficient_signal": 6.5
+            },
+            {
+              "retention_pct": 60.0,
+              "flagged": 85.0,
+              "no_contrary_signal": 13.0,
+              "insufficient_signal": 2.0
+            },
+            {
+              "retention_pct": 65.0,
+              "flagged": 88.2,
+              "no_contrary_signal": 9.2,
+              "insufficient_signal": 2.5
+            },
+            {
+              "retention_pct": 70.0,
+              "flagged": 91.5,
+              "no_contrary_signal": 8.5,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 75.0,
+              "flagged": 93.5,
+              "no_contrary_signal": 6.0,
+              "insufficient_signal": 0.5
+            },
+            {
+              "retention_pct": 80.0,
+              "flagged": 97.0,
+              "no_contrary_signal": 3.0,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 85.0,
+              "flagged": 98.5,
+              "no_contrary_signal": 1.5,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 90.0,
+              "flagged": 99.2,
+              "no_contrary_signal": 0.8,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 95.0,
+              "flagged": 99.5,
+              "no_contrary_signal": 0.5,
+              "insufficient_signal": 0.0
+            },
+            {
+              "retention_pct": 100.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            }
+          ],
+          "worst_false_clear_pct": 18.8,
+          "false_clear_ceiling_pct": 10.0,
+          "highest_retention_breaching_ceiling_pct": 60.0
+        },
+        "read_70": {
+          "applicable": true,
+          "floor_pct": null,
+          "baseline_flags": 1,
+          "baseline_signal_pct": 51.3,
+          "rows": [
+            {
+              "retention_pct": 5.0,
+              "flagged": 9.2,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 90.8
+            },
+            {
+              "retention_pct": 10.0,
+              "flagged": 17.8,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 82.2
+            },
+            {
+              "retention_pct": 15.0,
+              "flagged": 25.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 75.0
+            },
+            {
+              "retention_pct": 20.0,
+              "flagged": 37.8,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 62.2
+            },
+            {
+              "retention_pct": 25.0,
+              "flagged": 46.5,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 53.5
+            },
+            {
+              "retention_pct": 30.0,
+              "flagged": 51.8,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 48.2
+            },
+            {
+              "retention_pct": 35.0,
+              "flagged": 54.8,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 45.2
+            },
+            {
+              "retention_pct": 40.0,
+              "flagged": 62.2,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 37.8
+            },
+            {
+              "retention_pct": 45.0,
+              "flagged": 72.5,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 27.5
+            },
+            {
+              "retention_pct": 50.0,
+              "flagged": 73.2,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 26.8
+            },
+            {
+              "retention_pct": 55.0,
+              "flagged": 79.8,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 20.2
+            },
+            {
+              "retention_pct": 60.0,
+              "flagged": 85.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 15.0
+            },
+            {
+              "retention_pct": 65.0,
+              "flagged": 88.2,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 11.8
+            },
+            {
+              "retention_pct": 70.0,
+              "flagged": 91.5,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 8.5
+            },
+            {
+              "retention_pct": 75.0,
+              "flagged": 93.5,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 6.5
+            },
+            {
+              "retention_pct": 80.0,
+              "flagged": 97.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 3.0
+            },
+            {
+              "retention_pct": 85.0,
+              "flagged": 98.5,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 1.5
+            },
+            {
+              "retention_pct": 90.0,
+              "flagged": 99.2,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.8
+            },
+            {
+              "retention_pct": 95.0,
+              "flagged": 99.5,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.5
+            },
+            {
+              "retention_pct": 100.0,
+              "flagged": 100.0,
+              "no_contrary_signal": 0.0,
+              "insufficient_signal": 0.0
+            }
+          ],
+          "worst_false_clear_pct": 0.0,
+          "false_clear_ceiling_pct": 10.0,
+          "highest_retention_breaching_ceiling_pct": null
+        }
+      }
+    }
+  },
+  "ceiling_pct": 10.0
+}
