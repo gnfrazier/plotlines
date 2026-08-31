@@ -55,6 +55,13 @@ class _FakeRoutingClient extends RoutingClient {
     required String title,
     Map<String, DayLimit>? limits,
     WeightProfile? defaultWeights,
+    // FR16 time-model inputs (issue #213). `composeAuthoritative` doesn't pass
+    // them, so the fake only has to match the signature to be a valid override.
+    String? activeSegmentId,
+    Map<String, double>? speeds,
+    Map<String, double>? dayHoldS,
+    Map<String, String>? dayStartAt,
+    String? tripStartAt,
   }) async {
     assembleTripCallCount++;
     // split_trip mutates in place: same ids, `metrics.limitBreaches` added.
