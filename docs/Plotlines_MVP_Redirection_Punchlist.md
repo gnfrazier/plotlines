@@ -332,7 +332,7 @@ Both are cheap, and both enforce a principle that a code review will not reliabl
 
 ☑ **6A.1 — No Presentation-layer access to `Role.content` outside `RevealResolver`.** *(Landed with M14/FR145 — `tools/ci/reveal_gate_lint.sh`, gate 1, wired into CI as the `reveal-gate-lint` job; verified against violating fixtures by `client/test/reveal_gate_lint_test.dart`.)* ARCH §15.3/§15.5 makes this the highest-value client test in v2.0. The violating path will be a print preview, an export corner, **or the TTS readout** — surfaces nobody exercises with unrevealed content present — and **a spoiled trip cannot be un-spoiled** (ARCH A22). Same enforcement shape as the existing `plotlines-core may not import fastapi` lint.
 
-☐ **6A.2 — Byte-level assertions on reveal-aware export.** For every export format — GPX, TCX, FIT, GeoJSON, and any plugin `pushTrip` — assert that an unrevealed plot point's content **does not appear in the output bytes**. Assert on the bytes, not the code path. **The TTS path needs the equivalent assertion on the string handed to the speech engine.**
+☐ **6A.2 — Byte-level assertions on reveal-aware export.** For every export format — GPX, TCX, FIT, GeoJSON, and any plugin `pushTrip` — assert that an unrevealed plot point's content **does not appear in the output bytes**. Assert on the bytes, not the code path. **The TTS path needs the equivalent assertion on the string handed to the speech engine.** *(First exercised for FIT by SPIKE-16 2026-08-30 — `course.py` applies reveal before writing a byte, canary string asserted absent, hazard point still exported per §1.5. The permanent cross-format CI gate is still unbuilt; F3 carries the GPX/TCX/GeoJSON assertions.)*
 
 ---
 
@@ -397,7 +397,7 @@ Generated from the GitHub project board: every issue carrying the **`mvp`** labe
 | 14 | 47 | C11 — Warn of hazards and cruxes | O5 (done); feeds I5 and the reading surface's hazard display |
 | 15 | 40 | C4 — Offer alternate routes per day | Routing stack A11 (done) |
 | 16 | 41 | C5 — Place waypoints, regroup points, rest stops | O1/O2 (done) |
-| 17 | 69 | F3 — Configure export contents and splitting | F1 (done), reveal gate (done); SPIKE-16 for FIT |
+| 17 | 69 | F3 — Configure export contents and splitting | F1 (done), reveal gate (done); SPIKE-16 for FIT (offline arm resolved 2026-08-30 — Python-in-core writer; device arm in HARNESS.md) |
 | 18 | 73 | G2b — Reuse part of a trip | G2a (done); clone-scope rules (acceptance 4.35) |
 | 19 | 74 | H1 — View my itinerary | K5; E3 spine (done) |
 | 20 | 77 | H3 — Inspect multimodal days and transitions | H1; B1–B3 (done) |
@@ -415,7 +415,7 @@ Generated from the GitHub project board: every issue carrying the **`mvp`** labe
 ### Spikes (de-risk before the leg that consumes them — run in parallel with the stories above)
 
 ```
-[168, 161, 162, 164, 165, 166, 167, 163]
+[168, 161, 162, 164, 165, 166, 167, 163*]   (* 163 offline arm resolved 2026-08-30; device arm in HARNESS.md)
 ```
 
 | # | Spike | Gates |
@@ -427,4 +427,4 @@ Generated from the GitHub project board: every issue carrying the **`mvp`** labe
 | 165 | SPIKE-12 — Backgrounded audio playback + device-native TTS | H2 (#75) |
 | 166 | SPIKE-07 — Adaptive location-accuracy battery savings | I6a (#95) |
 | 167 | SPIKE-10 — Adventure-package size | H7 (#81) |
-| 163 | SPIKE-16 — Byte-accurate FIT export via the Garmin FIT SDK | F3 (#69) |
+| 163 | ~~SPIKE-16 — Byte-accurate FIT export~~ | F3 (#69) — **offline arm resolved 2026-08-30.** F3 ships the FIT writer in `plotlines-core` (dependency-free Python, ~90 LOC); CRC + framing validated 10/10 against real Garmin files, course round-trips to the byte. **Dart-FFI-against-SDK rejected** — no fidelity gain, costs a native per-platform dep (A5) + SDK redistribution + a core-boundary fork; **P1 boundary stays intact.** Reveal applied before the first byte (§6A.2 first exercise). FR45's "where supported" for FIT = all marker types at the format level; per-device draw is the `HARNESS.md` table (needs hardware). F3 tasks: word-boundary `course_point.name` truncation at the measured device floor; area anchors (FR108) GPX/GeoJSON-only. See `spikes/SPIKE-16/results/RESULTS.md`; device run (both arms, 2 vendors, FR45 per-type table) in `spikes/SPIKE-16/HARNESS.md` |
