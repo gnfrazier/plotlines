@@ -6,7 +6,7 @@
 # any toolchain to set up.
 #
 # The reveal-gate and payload-schema gates sit alongside it. The three test
-# jobs below (core / service / client) run the real suites — 684 + 106 + 976
+# jobs below (core / service / client) run the real suites — 867 + 123 + 1154
 # tests — as independent jobs so a failure points at one layer. Build, freeze,
 # and Flutter desktop-bundle jobs are still out of scope until later milestones.
 
@@ -64,7 +64,7 @@ jobs:
       - run: PYTHONPATH=core python spikes/SPIKE-20/run.py --check-committed
 
   core-tests:
-    name: "core tests (684)"
+    name: "core tests (867)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +81,7 @@ jobs:
         working-directory: core
 
   service-tests:
-    name: "service tests (106)"
+    name: "service tests (123)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -97,7 +97,7 @@ jobs:
         working-directory: service
 
   client-tests:
-    name: "client tests (976)"
+    name: "client tests (1154)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
