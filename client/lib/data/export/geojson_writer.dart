@@ -112,6 +112,8 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
               'kind': 'node',
               'node_kind': node.kind.wireValue,
               if (node.title != null) 'title': node.title,
+              // FR45 — the plot-point note travels with the exported point.
+              if (node.note != null) 'note': node.note,
               if (node.poiType != null) 'poi_type': node.poiType,
               if (node.arcStage != null) 'arc_stage': node.arcStage,
             },
@@ -173,6 +175,8 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
             'node_kind': node.kind.wireValue,
             'day_index': day.index,
             if (node.title != null) 'title': node.title,
+            // FR45 — the plot-point note travels with the exported point.
+            if (node.note != null) 'note': node.note,
           },
         ));
       }

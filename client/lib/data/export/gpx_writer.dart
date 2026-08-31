@@ -82,8 +82,15 @@ void _writeTrkseg(StringBuffer buffer, List<Coord> coords) {
 
 String _waypoint(Node node) {
   final name = node.title ?? node.kind.wireValue;
+  // FR45 — a curated node's plot-point note is preserved as the waypoint's
+  // native `<desc>` (GPX 1.1 supports it, and it must precede `<type>` in the
+  // element sequence to stay schema-valid). TCX carries the same text in
+  // `<CoursePoint><Notes>`; GPX has no CoursePoint, so the note rides on the
+  // `<wpt>` every GPX consumer already renders.
+  final note = node.note;
   return '  <wpt lat="${node.coord[1]}" lon="${node.coord[0]}">'
       '<name>${_esc(name)}</name>'
+      '${note != null && note.isNotEmpty ? '<desc>${_esc(note)}</desc>' : ''}'
       '<type>${_esc(node.kind.wireValue)}</type>'
       '</wpt>';
 }
