@@ -88,6 +88,27 @@ void main() {
     expect(find.text('PROVISION'), findsNothing);
   });
 
+  testWidgets('a segment surfaced constraint shows as an ON ROUTE cue line (FR128 / A11, issue #209)',
+      (tester) async {
+    final day = Day(id: 'day-1', index: 1, segments: [
+      Segment(
+        id: 'seg-1',
+        mode: 'cycling',
+        shape: 'point_to_point',
+        metrics: RouteMetrics(distanceM: 12000),
+        surfacedConstraints: [
+          SurfacedConstraint(from: 10, to: 11, flags: const ['bicycle=dismount']),
+          SurfacedConstraint(from: 40, to: 41, flags: const ['barrier=gate', 'ford=yes']),
+        ],
+      ),
+    ]);
+    await _pump(tester, day);
+
+    expect(find.text('bicycle dismount'), findsOneWidget);
+    expect(find.text('barrier gate, ford yes'), findsOneWidget);
+    expect(find.text('ON ROUTE'), findsNWidgets(2));
+  });
+
   testWidgets('the day cue section offers a print preview showing the same entries', (tester) async {
     final day = Day(id: 'day-1', index: 1, segments: [
       Segment(

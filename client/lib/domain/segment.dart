@@ -374,6 +374,44 @@ class SolveProvenance {
       );
 }
 
+/// FR128 / A11 — a mode-legal but noteworthy edge the resolved route rolls
+/// over: `bicycle=dismount`, `barrier=gate`, `ford=yes`, and the like. The
+/// routing engine keeps the edge (hard exclusions are dropped server-side so
+/// the route stays legal — `routing/access.py`) and tags it so the response
+/// can name it rather than silently routing through it. [from] and [to] are
+/// the graph node ids of the hop; [flags] are the raw OSM-shaped `key=value`
+/// tag values, in the engine's path order. Filled by the sidecar on every
+/// `/segments/generate` shape; the Author never edits one, so there is no
+/// `copyWith`.
+class SurfacedConstraint {
+  SurfacedConstraint({
+    required this.from,
+    required this.to,
+    this.flags = const [],
+  });
+
+  final int from;
+  final int to;
+  final List<String> flags;
+
+  factory SurfacedConstraint.fromJson(Map<String, dynamic> json) {
+    final f = JsonFields(json, 'surfaced_constraint');
+    final s = SurfacedConstraint(
+      from: f.takeInt('from')!,
+      to: f.takeInt('to')!,
+      flags: f.takeStrings('flags'),
+    );
+    f.done();
+    return s;
+  }
+
+  Map<String, dynamic> toJson() => {
+        'from': from,
+        'to': to,
+        'flags': flags,
+      };
+}
+
 /// FR10 / B1 — one routed (or Author-drawn) leg with a start, an end, and a primary
 /// mode. `shape == point_to_point` requires [end] (schema `allOf`); loop and
 /// out_and_back do not. This is the "passage" FR38/O6 names: [arcStage] is this
@@ -400,6 +438,7 @@ class Segment {
     this.alternates = const [],
     this.hazards = const [],
     this.portages = const [],
+    this.surfacedConstraints = const [],
     this.solve,
     this.arcStage,
     this.note,
@@ -433,6 +472,19 @@ class Segment {
   final List<Alternate> alternates;
   final List<Hazard> hazards;
   final List<Portage> portages;
+
+  /// FR128 / A11 — the mode-legal but noteworthy edges this passage's solved
+  /// geometry rolls over (dismount sections, gates, fords), as reported by the
+  /// `/segments/generate` response.
+  ///
+  /// **Session-only, not persisted** — there is no `trip_payload.schema.json`
+  /// home for it yet (`additionalProperties: false` on `$defs/segment`, and
+  /// adding one is a schema version bump, ARCH D28), the same accepted
+  /// limitation `trip_bbox_provider.dart` documents. It survives a re-solve
+  /// (the fresh solve refills it) but not a trip save/reload, which drops it
+  /// until the next solve — the same as `violations` before a solve. Empty for
+  /// an Author-drawn leg or a leg solved before the engine surfaced them.
+  final List<SurfacedConstraint> surfacedConstraints;
   final SolveProvenance? solve;
 
   /// FR38 / O6 — one of `exposition` | `rising` | `crux` | `climax` |
@@ -469,6 +521,8 @@ class Segment {
       alternates: f.takeList('alternates', Alternate.fromJson),
       hazards: f.takeList('hazards', Hazard.fromJson),
       portages: f.takeList('portages', Portage.fromJson),
+      // `surfacedConstraints` is session-only (see its field doc) — never read
+      // from or written to the persisted payload.
       solve: f.takeObject('solve', SolveProvenance.fromJson),
       arcStage: f.takeString('arc_stage'),
       note: f.takeString('note'),
@@ -521,6 +575,7 @@ class Segment {
     List<Alternate>? alternates,
     List<Hazard>? hazards,
     List<Portage>? portages,
+    List<SurfacedConstraint>? surfacedConstraints,
     SolveProvenance? solve,
     String? arcStage,
     bool clearArcStage = false,
@@ -547,6 +602,7 @@ class Segment {
         alternates: alternates ?? this.alternates,
         hazards: hazards ?? this.hazards,
         portages: portages ?? this.portages,
+        surfacedConstraints: surfacedConstraints ?? this.surfacedConstraints,
         solve: solve ?? this.solve,
         arcStage: clearArcStage ? null : (arcStage ?? this.arcStage),
         note: clearNote ? null : (note ?? this.note),

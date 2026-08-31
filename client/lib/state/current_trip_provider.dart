@@ -1022,6 +1022,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         alternates: s.alternates,
         hazards: s.hazards,
         portages: s.portages,
+        surfacedConstraints: s.surfacedConstraints,
         solve: s.solve,
       );
 
@@ -1187,6 +1188,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       alternates: merged.alternates,
       hazards: merged.hazards,
       portages: merged.portages,
+      // Derived by the just-completed solve, like `geometry`/`metrics` — take
+      // the fresh list, never the pre-solve one (issue #209).
+      surfacedConstraints: merged.surfacedConstraints,
       solve: merged.solve,
     );
     final segments = [for (final s in day.segments) if (s.id == segmentId) replaced else s];

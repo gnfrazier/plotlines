@@ -208,4 +208,51 @@ void main() {
       expect(identical(a.asAccommodation(), a), isTrue);
     });
   });
+
+  group('Segment.surfacedConstraints (FR128 / A11, issue #209)', () {
+    test('defaults to empty', () {
+      final segment = Segment(id: 's1', mode: 'cycling', shape: 'loop');
+      expect(segment.surfacedConstraints, isEmpty);
+    });
+
+    test('is session-only — toJson never emits it, so a save stays schema-clean', () {
+      final segment = Segment(
+        id: 's1',
+        mode: 'cycling',
+        shape: 'loop',
+        surfacedConstraints: [
+          SurfacedConstraint(from: 1, to: 2, flags: const ['bicycle=dismount']),
+        ],
+      );
+      // No schema home yet (`$defs/segment` is `additionalProperties: false`),
+      // so `toJson` must not emit it — the domain layer's strict `done()` would
+      // reject the key on the next read.
+      expect(segment.toJson().containsKey('surfaced_constraints'), isFalse);
+      // A round trip through the payload drops it, as documented.
+      expect(Segment.fromJson(segment.toJson()).surfacedConstraints, isEmpty);
+    });
+
+    test('copyWith preserves it by default and replaces it when given', () {
+      final segment = Segment(
+        id: 's1',
+        mode: 'cycling',
+        shape: 'loop',
+        surfacedConstraints: [SurfacedConstraint(from: 1, to: 2, flags: const ['ford=yes'])],
+      );
+      expect(segment.copyWith(title: 'x').surfacedConstraints.single.flags, ['ford=yes']);
+      final replaced = segment.copyWith(surfacedConstraints: const []);
+      expect(replaced.surfacedConstraints, isEmpty);
+    });
+
+    test('SurfacedConstraint.fromJson reads from/to/flags', () {
+      final sc = SurfacedConstraint.fromJson({
+        'from': 101,
+        'to': 102,
+        'flags': ['barrier=gate', 'ford=yes'],
+      });
+      expect(sc.from, 101);
+      expect(sc.to, 102);
+      expect(sc.flags, ['barrier=gate', 'ford=yes']);
+    });
+  });
 }
