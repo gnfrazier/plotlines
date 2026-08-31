@@ -17,6 +17,7 @@ export 'diagnosis.dart';
 export 'edit_scope.dart';
 export 'empty_state.dart';
 export 'hazard.dart';
+export 'hazard_rollup.dart';
 export 'itinerary.dart';
 export 'json_utils.dart'
     show Coord, DayLimit, JsonFields, Ring, checkCoord, checkPolygonRings, checkRing, finite, pruneJson;

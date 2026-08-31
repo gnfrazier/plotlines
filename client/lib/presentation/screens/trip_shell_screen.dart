@@ -37,6 +37,11 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
   String? _activeDayId;
   int _activeTabIndex = 0;
 
+  /// The trip whose sync-alert interrupt has already been raised this session,
+  /// so opening the shell doesn't re-interrupt on every rebuild (C11 / FR27 /
+  /// issue #210).
+  String? _syncAlertsRaisedForTripId;
+
   void _handleTabChange() {
     if (_tabController.index != _activeTabIndex) {
       setState(() => _activeTabIndex = _tabController.index);
@@ -64,6 +69,7 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
     final c = PlotColors.of(context);
     final trip = ref.watch(currentTripProvider);
     _syncActiveDay(trip);
+    _maybeRaiseSyncAlerts(trip);
 
     return Scaffold(
       appBar: AppBar(
@@ -139,6 +145,26 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
     );
   }
 
+  /// C11 / FR27 (issue #210) — the trip-open interrupt: the worst-first set of
+  /// high-severity hazards a Character should see *before* they are standing on
+  /// one. Raised once per trip per session; a trip with only `caution` hazards
+  /// (or none) never interrupts. `HazardRollup.fromTrip` is the client mirror of
+  /// `plotlines_core.trips.hazards` — the same one traversal every hazard
+  /// surface reads.
+  void _maybeRaiseSyncAlerts(Trip trip) {
+    if (_syncAlertsRaisedForTripId == trip.id) return;
+    final rollup = HazardRollup.fromTrip(trip);
+    if (!rollup.hasSyncAlerts) return;
+    _syncAlertsRaisedForTripId = trip.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showDialog<void>(
+        context: context,
+        builder: (context) => _SyncAlertsDialog(rollup: rollup),
+      );
+    });
+  }
+
   Future<void> _renameTrip(BuildContext context, String current) async {
     final controller = TextEditingController(text: current);
     try {
@@ -180,4 +206,97 @@ class _LazyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => active ? builder(context) : const SizedBox.shrink();
+}
+
+/// C11 / FR27 (issue #210) — the sync-open interrupt. Lists the worst-first
+/// [SyncAlert] set as structured fields (severity, where it sits, the Author's
+/// safety note, required gear), never as a composed sentence. Hazards are never
+/// reveal-gated (FR115), so nothing here is filtered.
+class _SyncAlertsDialog extends StatelessWidget {
+  const _SyncAlertsDialog({required this.rollup});
+
+  final HazardRollup rollup;
+
+  static const _severityLabel = {
+    'mandatory_reroute': 'MANDATORY RE-ROUTE',
+    'high': 'HIGH',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final alerts = rollup.syncAlerts;
+    final lowerCount = rollup.hazards.length - alerts.length;
+
+    return AlertDialog(
+      title: Text('Hazards on this trip', style: PlotTypography.h2(c.textPrimary).copyWith(fontSize: 20)),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${alerts.length} need${alerts.length == 1 ? 's' : ''} your attention before you set out.',
+                style: PlotTypography.body(c.textSecondary),
+              ),
+              const SizedBox(height: PlotSpacing.s3),
+              for (final a in alerts) ...[
+                _AlertRow(alert: a),
+                const SizedBox(height: PlotSpacing.s3),
+              ],
+              if (lowerCount > 0)
+                Text(
+                  '$lowerCount more lower-severity hazard${lowerCount == 1 ? '' : 's'} '
+                  'on the route — see the cue sheet.',
+                  style: PlotTypography.small(c.textSecondary),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it')),
+      ],
+    );
+  }
+}
+
+class _AlertRow extends StatelessWidget {
+  const _AlertRow({required this.alert});
+
+  final SyncAlert alert;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final place = [
+      'Day ${alert.dayIndex}',
+      if (alert.anchorTitle != null) alert.anchorTitle!,
+    ].join(' · ');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              _SyncAlertsDialog._severityLabel[alert.severity] ?? alert.severity.toUpperCase(),
+              style: PlotTypography.small(c.danger).copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(width: PlotSpacing.s2),
+            Text(place, style: PlotTypography.small(c.textSecondary)),
+          ],
+        ),
+        if (alert.title != null)
+          Text(alert.title!, style: PlotTypography.body(c.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+        if (alert.safetyNote != null)
+          Text(alert.safetyNote!, style: PlotTypography.body(c.textSecondary)),
+        if (alert.requiredGear.isNotEmpty)
+          Text('Required: ${alert.requiredGear.join(', ')}',
+              style: PlotTypography.small(c.textSecondary)),
+      ],
+    );
+  }
 }

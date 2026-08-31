@@ -63,6 +63,7 @@ from plotlines_core.tiles.extract import NoTilesInBbox, extract_bbox
 from plotlines_core.web.session import SessionCookiePolicy
 from plotlines_core.trips.compose import compose_day, split_trip
 from plotlines_core.trips.cues import derive_cue_sheet, route_polyline
+from plotlines_core.trips.hazards import hazard_rollup
 from plotlines_core.trips.payload import Day as PayloadDay
 from plotlines_core.trips.payload import Segment as PayloadSegment
 from plotlines_core.trips.payload import Transition as PayloadTransition
@@ -1174,7 +1175,15 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                               default_weights=default_weights)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
-        return trip.to_dict()
+        result = trip.to_dict()
+        # C11 / FR27 / FR115 — the trip-wide hazard roll-up and the worst-first
+        # sync-alert set ride *alongside* the payload, not inside it: the payload
+        # schema is closed and these are derived (like `metrics`), one traversal
+        # of every hazard the assembled trip carries. `hazard_rollup` is the one
+        # producer this and hosted-mode assembly both call, so the two can never
+        # hand the client a different list (issue #210).
+        result["hazard_rollup"] = hazard_rollup(trip)
+        return result
 
     if mode == "hosted":
         # Auth / sync / share / group-relay endpoints live here (§7.1). Still
