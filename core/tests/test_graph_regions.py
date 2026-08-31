@@ -66,6 +66,7 @@ def test_region_centre_is_the_bbox_midpoint():
 
 def test_ensure_graph_builds_and_caches(tmp_path, monkeypatch):
     monkeypatch.setattr(ox, "graph_from_bbox", _fake_graph)
+    monkeypatch.setattr(ox, "simplify_graph", lambda g, **_: g)
     monkeypatch.setattr(ox.truncate, "largest_component", lambda g, **_: g)
 
     region = regions.region_for(_BBOX, "bike")
@@ -85,6 +86,7 @@ def test_ensure_graph_reuses_the_cache_without_hitting_the_network(tmp_path, mon
         return _fake_graph(*args, **kwargs)
 
     monkeypatch.setattr(ox, "graph_from_bbox", counting_fake_graph)
+    monkeypatch.setattr(ox, "simplify_graph", lambda g, **_: g)
     monkeypatch.setattr(ox.truncate, "largest_component", lambda g, **_: g)
 
     region = regions.region_for(_BBOX, "bike")
@@ -102,6 +104,7 @@ def test_ensure_graph_force_rebuilds(tmp_path, monkeypatch):
         return _fake_graph(*args, **kwargs)
 
     monkeypatch.setattr(ox, "graph_from_bbox", counting_fake_graph)
+    monkeypatch.setattr(ox, "simplify_graph", lambda g, **_: g)
     monkeypatch.setattr(ox.truncate, "largest_component", lambda g, **_: g)
 
     region = regions.region_for(_BBOX, "bike")
@@ -116,6 +119,94 @@ def test_useful_tags_way_carries_the_surface_extension():
     # effect — spikes/shared/regions.py:47-56's finding).
     for tag in ("surface", "tracktype", "smoothness", "maxspeed", "lanes", "bicycle"):
         assert tag in ox.settings.useful_tags_way
+
+
+def test_useful_tags_way_carries_the_access_and_ford_tags():
+    # Issue #206: driving's legality row is keyed on `motor_vehicle`, and both
+    # driving and cycling hard-exclude a ford — neither is recoverable if the
+    # tag was never downloaded.
+    for tag in ("motor_vehicle", "motorcar", "4wd_only", "ford"):
+        assert tag in ox.settings.useful_tags_way
+
+
+def test_every_tag_the_legality_and_scoring_models_read_is_downloaded():
+    """Issue #206: a rule keyed on a tag the builder never requests goes
+    silently inert on every real graph. This is the guard that turns that into
+    a test failure the moment a new rule reaches for a new tag."""
+    from plotlines_core.routing import access
+    from plotlines_core.scoring import profile
+
+    way_tags = set(ox.settings.useful_tags_way)
+    node_tags = set(ox.settings.useful_tags_node)
+
+    assert access.WAY_ACCESS_KEYS <= way_tags
+    assert profile.WAY_SCORING_KEYS <= way_tags
+    assert access.NODE_ACCESS_KEYS <= node_tags
+
+
+def test_ruleset_version_bumped_for_the_new_tag_set():
+    # The download tag set is part of the cache key's meaning; every graph
+    # cached before issue #206 predates these tags.
+    assert regions.GRAPH_RULESET_VERSION >= 2
+
+
+def test_fold_node_barriers_moves_the_gate_onto_incident_edges():
+    g = nx.MultiDiGraph()
+    for n in (1, 2, 3):
+        g.add_node(n, y=40.0 + n * 0.01, x=-105.28)
+    g.add_edge(1, 2, length=100.0)
+    g.add_edge(2, 1, length=100.0)
+    g.add_edge(2, 3, length=100.0)
+    g.nodes[2]["barrier"] = "gate"
+
+    folded = regions.fold_node_barriers(g)
+
+    assert folded == 1
+    assert g[1][2][0]["barrier"] == "gate"
+    assert g[2][1][0]["barrier"] == "gate"
+    assert g[2][3][0]["barrier"] == "gate"
+
+
+def test_ensure_graph_folds_barriers_and_keeps_the_ford_tag(tmp_path, monkeypatch):
+    """Issue #206 acceptance: ford exclusion and barrier surfacing are exercised
+    on a graph that has been through `ensure_graph` (build -> simplify -> fold ->
+    graphml round-trip), not only on hand-built edge dicts."""
+    from plotlines_core.routing.access import evaluate_edge
+
+    def fake_graph(*_a, **_k):
+        g = nx.MultiDiGraph()
+        for n in (1, 2, 3):
+            g.add_node(n, y=40.0 + n * 0.01, x=-105.28)
+        g.add_edge(1, 2, length=100.0, highway="service")
+        g.add_edge(2, 1, length=100.0, highway="service")
+        g.add_edge(2, 3, length=100.0, highway="service", ford="yes")
+        g.add_edge(3, 2, length=100.0, highway="service", ford="yes")
+        g.nodes[2]["barrier"] = "gate"
+        g.graph["crs"] = "epsg:4326"
+        return g
+
+    monkeypatch.setattr(ox, "graph_from_bbox", fake_graph)
+    monkeypatch.setattr(ox, "simplify_graph", lambda g, **_: g)
+    monkeypatch.setattr(ox.truncate, "largest_component", lambda g, **_: g)
+
+    region = regions.region_for(_BBOX, "drive")
+    path = regions.ensure_graph(region, tmp_path)
+    reloaded = ox.io.load_graphml(path)
+
+    edges = [data for *_uv, data in reloaded.edges(data=True)]
+    ford_free_gate = [d for d in edges if d.get("barrier") and not d.get("ford")]
+    forded = [d for d in edges if d.get("ford")]
+
+    assert ford_free_gate, "the gate node's tag was not folded onto an edge"
+    for data in ford_free_gate:
+        assert "gate" in str(data.get("barrier"))
+        assert evaluate_edge(data, "driving").flags == frozenset({"barrier=gate"})
+
+    assert forded
+    for data in forded:
+        verdict = evaluate_edge(data, "driving")
+        assert not verdict.passable
+        assert verdict.reason == "ford=yes"
 
 
 def test_configure_overpass_cache_points_at_the_given_dir(tmp_path):

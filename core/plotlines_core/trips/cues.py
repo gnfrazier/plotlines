@@ -266,11 +266,17 @@ def route_polyline(graph, walk) -> Route:
         else:
             points = [start, end]
 
-        start_index = len(coords)
         if not coords:
             coords.append(coord_from_latlon(points[0][1], points[0][0]))
             cumulative.append(0.0)
             start_index = 0
+        else:
+            # coords[-1] is the previous edge's last point, which is this edge's
+            # first point (points[0]); the points[1:] loop below never re-appends
+            # it. Anchoring start_index here -- not at len(coords) -- makes each
+            # edge's span begin where the previous edge's span ended, so the
+            # spans tile the polyline (issue #205).
+            start_index = len(coords) - 1
         for lon, lat in points[1:]:
             point = coord_from_latlon(lat, lon)
             if point == coords[-1]:
