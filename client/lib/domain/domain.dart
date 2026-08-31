@@ -39,5 +39,6 @@ export 'teaching.dart';
 export 'transition.dart';
 export 'travel_mode.dart';
 export 'trip.dart';
+export 'trip_dashboard.dart';
 export 'undo_stack.dart';
 export 'weight_profile.dart';
