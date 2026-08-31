@@ -1,0 +1,218 @@
+{
+  "issue": 175,
+  "spike": "SPIKE-F",
+  "strand1_token_carrier": {
+    "share_token": "pl_S3cr3tShareTokenDoNotLog_0000000000",
+    "carriers": {
+      "path": {
+        "carrier": "path",
+        "requests": 2,
+        "token_in_request_path": true,
+        "token_in_query_string": false,
+        "token_in_referer_header": true,
+        "access_log_lines": [
+          "GET /read/pl_S3cr3tShareTokenDoNotLog_0000000000 referer=\"\" cookie=\"\"",
+          "GET /app.js referer=\"http://reader.example/read/pl_S3cr3tShareTokenDoNotLog_0000000000\" cookie=\"\""
+        ]
+      },
+      "query": {
+        "carrier": "query",
+        "requests": 2,
+        "token_in_request_path": false,
+        "token_in_query_string": true,
+        "token_in_referer_header": true,
+        "access_log_lines": [
+          "GET /read?t=pl_S3cr3tShareTokenDoNotLog_0000000000 referer=\"\" cookie=\"\"",
+          "GET /app.js referer=\"http://reader.example/read?t=pl_S3cr3tShareTokenDoNotLog_0000000000\" cookie=\"\""
+        ]
+      },
+      "fragment": {
+        "carrier": "fragment",
+        "requests": 2,
+        "token_in_request_path": false,
+        "token_in_query_string": false,
+        "token_in_referer_header": false,
+        "access_log_lines": [
+          "GET /read referer=\"\" cookie=\"\"",
+          "GET /app.js referer=\"http://reader.example/read\" cookie=\"\""
+        ],
+        "residual_exposure": [
+          "browser_history",
+          "clipboard_when_copied"
+        ]
+      },
+      "exchange": {
+        "carrier": "exchange",
+        "requests": 3,
+        "token_in_request_path": true,
+        "token_in_query_string": false,
+        "token_in_referer_header": false,
+        "access_log_lines": [
+          "GET /read/pl_S3cr3tShareTokenDoNotLog_0000000000 referer=\"\" cookie=\"\"",
+          "GET /j/abc referer=\"\" cookie=\"__Host-pl_read=c7b030865d12d08038410405\"",
+          "GET /app.js referer=\"http://reader.example/j/abc\" cookie=\"__Host-pl_read=c7b030865d12d08038410405\""
+        ],
+        "set_cookie": "__Host-pl_read=c7b030865d12d08038410405; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=1800",
+        "cookie_httponly": true,
+        "cookie_samesite": true,
+        "cookie_is_token": false,
+        "token_hits_in_log": 1
+      }
+    }
+  },
+  "strand2_log_retention": {
+    "raw": {
+      "ts": "2026-08-30T12:00:00+00:00",
+      "method": "GET",
+      "path": "/read/pl_S3cr3tShareTokenDoNotLog_0000000000",
+      "query": "",
+      "referer": "https://app.example.org/read/pl_S3cr3tShareTokenDoNotLog_0000000000",
+      "cookie": "__Host-pl_read=deadbeefdeadbeefdeadbeef",
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) Firefox/128.0",
+      "client_ip": "203.0.113.47",
+      "status": 200,
+      "bytes": 5123,
+      "cache_status": "HIT"
+    },
+    "redacted": {
+      "_dropped_fields": [
+        "cookie",
+        "path",
+        "query",
+        "referer",
+        "user_agent"
+      ],
+      "ts": "2026-08-30T12:00:00+00:00",
+      "method": "GET",
+      "route": "/read/{share_token}",
+      "status": 200,
+      "bytes": 5123,
+      "cache_status": "HIT",
+      "ua_family": "firefox",
+      "client_ip": "203.0.113.0/24",
+      "retain_until": "2026-09-29T12:00:00+00:00"
+    },
+    "token_leaks": false,
+    "edge_retention_hours": 72,
+    "app_retention_days": 30,
+    "route_template_example": "/read/{share_token}"
+  },
+  "strand3_anonymous_reveal": {
+    "view": {
+      "schema_version": "2.0.0",
+      "name": "The Drowned Valley",
+      "bbox": [
+        -82.75,
+        35.5,
+        -81.65,
+        36.3
+      ],
+      "reader": "anonymous",
+      "days": [
+        {
+          "index": 1,
+          "title": "Up the tailwater",
+          "anchors": [
+            {
+              "id": "a-spring",
+              "coord": [
+                -82.51,
+                35.61
+              ],
+              "roles": [
+                {
+                  "kind": "provision",
+                  "reveal": "always_visible",
+                  "note": "Piped spring, runs year round. Last reliable water for 18 km \u2014 fill here.",
+                  "_visibility": "visible"
+                }
+              ]
+            },
+            {
+              "id": "a-mill",
+              "coord": [
+                -82.48,
+                35.63
+              ],
+              "roles": [
+                {
+                  "kind": "narrative",
+                  "reveal": "always_visible",
+                  "arc": "exposition",
+                  "note": "The old grist mill. Wheel's gone but the race is intact; this is where the valley road used to start.",
+                  "_visibility": "visible"
+                }
+              ]
+            },
+            {
+              "id": "a-overlook",
+              "coord": [
+                -82.4,
+                35.7
+              ],
+              "roles": [
+                {
+                  "kind": "narrative",
+                  "arc": "crux",
+                  "_visibility": "withheld",
+                  "withheld": true,
+                  "note": "A plot point is held here until you arrive. Open the trip in the Plotlines app with an account to read it in the field."
+                },
+                {
+                  "kind": "narrative",
+                  "reveal": "always_visible",
+                  "hazard": true,
+                  "arc": null,
+                  "note": "Overlook edge is undercut and unfenced. 20 m drop. Keep back from the lip.",
+                  "_visibility": "hazard"
+                }
+              ]
+            }
+          ],
+          "segments": [
+            {
+              "id": "s-1",
+              "from": "a-spring",
+              "to": "a-overlook",
+              "arc": "rising_action",
+              "hazards": [
+                {
+                  "kind": "technical",
+                  "note": "Two unbridged fords below the mill; impassable above ~40 cm gauge.",
+                  "_visibility": "hazard"
+                }
+              ]
+            }
+          ],
+          "hazards": []
+        }
+      ]
+    },
+    "secret_plot_point_leaks": false,
+    "hazard_content_present": true,
+    "provision_content_present": true,
+    "arc_shape": [
+      "exposition",
+      "crux",
+      "rising_action"
+    ],
+    "roles_by_visibility": {
+      "visible": 2,
+      "withheld": 1,
+      "hazard": 1
+    },
+    "deterministic": true,
+    "withheld_message": "A plot point is held here until you arrive. Open the trip in the Plotlines app with an account to read it in the field."
+  },
+  "verdict": {
+    "path_carrier_leaks_token": true,
+    "query_carrier_leaks_token": true,
+    "fragment_keeps_token_off_wire": true,
+    "exchange_token_in_log_once": true,
+    "exchange_cookie_not_token": true,
+    "redacted_log_no_token": true,
+    "anon_view_no_spoiler": true,
+    "anon_view_keeps_hazards": true,
+    "anon_view_keeps_arc_shape": true
+  }
+}
