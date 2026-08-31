@@ -7,6 +7,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'presentation/screens/new_route_screen.dart';
+import 'presentation/screens/privacy_screen.dart';
 import 'presentation/screens/settings_screen.dart';
 import 'presentation/screens/trip_area_screen.dart';
 import 'presentation/screens/trip_library_screen.dart';
@@ -77,6 +78,9 @@ final _router = GoRouter(
     GoRoute(path: '/plan', builder: (context, state) => const TripShellScreen()),
     // Wireframe screen 06 — Preferences & About merged into one screen.
     GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
+    // K11 (FR138) — the privacy statement, reachable from the About pane on
+    // every platform including Web guest and the share-token reading view.
+    GoRoute(path: '/privacy', builder: (context, state) => const PrivacyScreen()),
   ],
 );
 

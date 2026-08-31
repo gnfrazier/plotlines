@@ -28,6 +28,19 @@ class RoutingClient {
     return jsonDecode(resp.body) as Map<String, dynamic>;
   }
 
+  /// K10/K11 (FR86, FR95, FR101, FR138) — the About surface payload: every
+  /// licensed source's attribution (elevation CC BY, basemap ODbL, and a line
+  /// per loaded plugin layer), the app and sidecar versions, and the
+  /// plain-language privacy statement. The two static credits and the privacy
+  /// text also exist as local constants (`aboutStaticAttribution`,
+  /// `privacyStatement`) so the lightest surfaces still satisfy the licence
+  /// obligation when no sidecar is reachable.
+  Future<Map<String, dynamic>> about() async {
+    final resp = await http.get(_uri('/about'));
+    _checkOk(resp);
+    return jsonDecode(resp.body) as Map<String, dynamic>;
+  }
+
   /// FR120/D41, issue #154 — ensures a routable graph exists for [bboxWsen]
   /// (`[west, south, east, north]`), returning the region key every
   /// `/segments/*` call must now carry. Idempotent and cheap to call again
