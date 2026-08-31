@@ -1,0 +1,298 @@
+{
+  "trip": {
+    "title": "French Broad Greenway \u2014 Depot Run",
+    "sport": "cycling"
+  },
+  "start_unix": 1726000000,
+  "nominal_speed_mps": 4.4,
+  "polyline": [
+    {
+      "lat": 35.58522,
+      "lon": -82.57687,
+      "ele_m": 632.0
+    },
+    {
+      "lat": 35.585859,
+      "lon": -82.576642,
+      "ele_m": 632.4
+    },
+    {
+      "lat": 35.586509,
+      "lon": -82.576422,
+      "ele_m": 632.8
+    },
+    {
+      "lat": 35.587155,
+      "lon": -82.57621,
+      "ele_m": 633.2
+    },
+    {
+      "lat": 35.587785,
+      "lon": -82.576009,
+      "ele_m": 633.6
+    },
+    {
+      "lat": 35.588394,
+      "lon": -82.575815,
+      "ele_m": 634.0
+    },
+    {
+      "lat": 35.588988,
+      "lon": -82.575624,
+      "ele_m": 634.4
+    },
+    {
+      "lat": 35.589579,
+      "lon": -82.575433,
+      "ele_m": 634.8
+    },
+    {
+      "lat": 35.59018,
+      "lon": -82.575236,
+      "ele_m": 635.2
+    },
+    {
+      "lat": 35.5908,
+      "lon": -82.57503,
+      "ele_m": 635.6
+    },
+    {
+      "lat": 35.59144,
+      "lon": -82.574815,
+      "ele_m": 636.0
+    },
+    {
+      "lat": 35.59209,
+      "lon": -82.574591,
+      "ele_m": 636.4
+    },
+    {
+      "lat": 35.592735,
+      "lon": -82.574361,
+      "ele_m": 636.8
+    },
+    {
+      "lat": 35.592915,
+      "lon": -82.573851,
+      "ele_m": 637.2
+    },
+    {
+      "lat": 35.593111,
+      "lon": -82.573347,
+      "ele_m": 637.9
+    },
+    {
+      "lat": 35.59331,
+      "lon": -82.572856,
+      "ele_m": 638.6
+    },
+    {
+      "lat": 35.593499,
+      "lon": -82.572383,
+      "ele_m": 639.3
+    },
+    {
+      "lat": 35.59367,
+      "lon": -82.571925,
+      "ele_m": 640.0
+    },
+    {
+      "lat": 35.593831,
+      "lon": -82.571474,
+      "ele_m": 640.7
+    },
+    {
+      "lat": 35.593995,
+      "lon": -82.571021,
+      "ele_m": 641.4
+    },
+    {
+      "lat": 35.594175,
+      "lon": -82.570556,
+      "ele_m": 642.1
+    },
+    {
+      "lat": 35.594371,
+      "lon": -82.570073,
+      "ele_m": 642.8
+    },
+    {
+      "lat": 35.594571,
+      "lon": -82.569574,
+      "ele_m": 643.5
+    },
+    {
+      "lat": 35.594759,
+      "lon": -82.569065,
+      "ele_m": 644.2
+    },
+    {
+      "lat": 35.59493,
+      "lon": -82.568557,
+      "ele_m": 644.9
+    },
+    {
+      "lat": 35.59509,
+      "lon": -82.568059,
+      "ele_m": 645.6
+    },
+    {
+      "lat": 35.595255,
+      "lon": -82.567577,
+      "ele_m": 646.3
+    },
+    {
+      "lat": 35.595436,
+      "lon": -82.567113,
+      "ele_m": 647.0
+    },
+    {
+      "lat": 35.595632,
+      "lon": -82.56666,
+      "ele_m": 647.7
+    },
+    {
+      "lat": 35.595831,
+      "lon": -82.56621,
+      "ele_m": 648.4
+    },
+    {
+      "lat": 35.596019,
+      "lon": -82.565751,
+      "ele_m": 649.1
+    },
+    {
+      "lat": 35.596189,
+      "lon": -82.565277,
+      "ele_m": 649.8
+    },
+    {
+      "lat": 35.59635,
+      "lon": -82.564785,
+      "ele_m": 650.5
+    }
+  ],
+  "plot_points": [
+    {
+      "id": "pp-junction",
+      "role": "narrative",
+      "reveal": "always",
+      "hazard": false,
+      "cp_type": "left",
+      "name": "Bear left at the greenway split",
+      "note": "Stay river-side; the right fork climbs to the road.",
+      "lat": 35.59091421681599,
+      "lon": -82.57499163028838,
+      "distance_m": 655.5793344812683,
+      "offset_from": null
+    },
+    {
+      "id": "pp-spring",
+      "role": "provision",
+      "reveal": "always",
+      "hazard": false,
+      "cp_type": "water",
+      "name": "Riverside spring tap",
+      "note": "Potable; last water before the depot.",
+      "lat": 35.588381725714406,
+      "lon": -82.57581891003515,
+      "distance_m": 364.21074137848245,
+      "offset_from": null
+    },
+    {
+      "id": "pp-depot-cafe",
+      "role": "provision",
+      "reveal": "always",
+      "hazard": false,
+      "cp_type": "food",
+      "name": "Depot cafe",
+      "note": "Opens 07:00. Cash only.",
+      "lat": 35.59596046035311,
+      "lon": -82.5658939239251,
+      "distance_m": 1711.7904844788673,
+      "offset_from": null
+    },
+    {
+      "id": "pp-washout",
+      "role": "provision",
+      "reveal": "always",
+      "hazard": true,
+      "cp_type": "danger",
+      "name": "Washout \u2014 dismount",
+      "note": "Trail edge undercut after high water. Walk it.",
+      "lat": 35.59346823976042,
+      "lon": -82.57245998197526,
+      "distance_m": 1056.2111499975988,
+      "offset_from": null
+    },
+    {
+      "id": "pp-overlook",
+      "role": "narrative",
+      "reveal": "always",
+      "hazard": false,
+      "cp_type": "generic",
+      "name": "River overlook",
+      "note": "Worth the stop.",
+      "lat": 35.592648392484826,
+      "lon": -82.57439188329998,
+      "distance_m": 855.8952422394336,
+      "offset_from": null
+    },
+    {
+      "id": "pp-still-site",
+      "role": "narrative",
+      "reveal": "on_arrival",
+      "hazard": false,
+      "cp_type": "generic",
+      "name": "Old still site",
+      "note": "CANARY-6A2 the mash tuns are under the collapsed springhouse floor",
+      "lat": 35.59515355475924,
+      "lon": -82.56787334306694,
+      "distance_m": 1511.4745767207019,
+      "offset_from": null
+    },
+    {
+      "id": "pp-shuttle-pickup",
+      "role": "station",
+      "reveal": "always",
+      "hazard": false,
+      "cp_type": "generic",
+      "name": "Shuttle pickup (offset)",
+      "note": "Pin sits ~40 m off-trail at the lot.",
+      "lat": 35.59479742493766,
+      "lon": -82.56946369629374,
+      "distance_m": 1311.1586689625367,
+      "offset_from": "pp-depot-cafe"
+    }
+  ],
+  "area_anchors": [
+    {
+      "id": "area-rail-district",
+      "name": "Depot rail district",
+      "polygon": [
+        {
+          "lat": 35.59725,
+          "lon": -82.565885
+        },
+        {
+          "lat": 35.59765,
+          "lon": -82.564185
+        },
+        {
+          "lat": 35.59615,
+          "lon": -82.563385
+        },
+        {
+          "lat": 35.59525,
+          "lon": -82.564685
+        },
+        {
+          "lat": 35.59595,
+          "lon": -82.565985
+        }
+      ]
+    }
+  ],
+  "reveal_canary": "CANARY-6A2 the mash tuns are under the collapsed springhouse floor",
+  "note": "The reveal_canary MUST NOT appear in any exported byte stream."
+}
