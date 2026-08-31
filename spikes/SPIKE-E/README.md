@@ -77,5 +77,6 @@ Same discipline as SPIKE-A / SPIKE-C / SPIKE-D / SPIKE-G / SPIKE-H: nothing here
 `plotlines-core` or `plotlines-service`. This spike found **one shipped defect**
 (`trips/cues.py`'s `route_polyline` edge spans do not tile the route) and **one shipped
 gap** (`graph/regions.py` never downloads `4wd_only`, `motor_vehicle`, `ford`, and
-cannot carry `barrier` at all); both are written up in `results/RESULTS.md` for the
-story that owns them rather than patched here.
+cannot carry `barrier` at all); both are written up in `results/RESULTS.md` and filed as
+[#205](https://github.com/gnfrazier/plotlines/issues/205) and
+[#206](https://github.com/gnfrazier/plotlines/issues/206) rather than patched here.

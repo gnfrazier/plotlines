@@ -132,7 +132,7 @@ both, and it is worst on the drive whose length is the reason the requirement ex
 
 ### 1.5 Two shipped defects this spike walked into
 
-**(a) `trips/cues.py:route_polyline` — edge spans do not tile the route.**
+**(a) `trips/cues.py:route_polyline` — edge spans do not tile the route.** *(Filed as [#205](https://github.com/gnfrazier/plotlines/issues/205).)*
 `start_index = len(coords)` is taken *before* the edge's own points are appended, so
 every edge after the first reports `start_m` at its **second** geometry vertex and its
 first sub-segment belongs to no edge at all. Measured on the four solved approaches:
@@ -150,7 +150,7 @@ run lengths from `edge.start_m`/`end_m` and suppresses runs below
 and every surface cue is placed one sub-segment late. No test asserts the current
 behaviour. The correction is `start_index = max(0, len(coords) - 1)`.
 
-**(b) `graph/regions.py` cannot download half of what `routing/access.py` reads.**
+**(b) `graph/regions.py` cannot download half of what `routing/access.py` reads.** *(Filed as [#206](https://github.com/gnfrazier/plotlines/issues/206).)*
 The product extends osmnx's `useful_tags_way` with `surface`, `tracktype`, `smoothness`,
 `maxspeed`, `lanes`, `bicycle` — and stops. Not requested: **`4wd_only`,
 `motor_vehicle`, `motorcar`, `ford`**. And `barrier` is worse than unrequested — OSM
