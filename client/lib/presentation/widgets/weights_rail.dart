@@ -382,6 +382,34 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                               style: PlotTypography.small(c.danger),
                             ),
                           ],
+                          // FR81 / K8 — the single, always-visible reset:
+                          // reverts this passage's shape, start, destination,
+                          // distance and weights to defaults and clears the
+                          // generated route. It never touches promoted
+                          // anchors, roles or reveal settings
+                          // (`resetSegmentPlanning`); discarding those is K8's
+                          // separate, confirmed action. Sits inside the
+                          // scrolling controls section, not the pinned
+                          // Diagnose/Regenerate footer.
+                          const SizedBox(height: PlotSpacing.s3),
+                          PlotButton(
+                            label: 'Reset planning controls',
+                            variant: PlotButtonVariant.ghost,
+                            expand: true,
+                            onPressed: segmentHasResettablePlanning(segment)
+                                ? () => ref
+                                    .read(currentTripProvider.notifier)
+                                    .resetSegmentPlanning(widget.dayId, segment.id)
+                                : null,
+                          ),
+                          if (mode == PlanningMode.compose)
+                            Padding(
+                              padding: const EdgeInsets.only(top: PlotSpacing.s2),
+                              child: Text(
+                                'Your promoted anchors, roles and reveal settings are kept.',
+                                style: PlotTypography.small(c.textMuted),
+                              ),
+                            ),
                         ],
                       ),
                     ),

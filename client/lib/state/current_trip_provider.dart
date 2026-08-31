@@ -13,6 +13,7 @@ import 'planner_ui_state.dart'
         bandViolations,
         composeAwareTargetM,
         hasTargetDistanceControl,
+        resetSegmentPlanningControls,
         targetDistanceForViaCount,
         viaAnchorsMakeDistanceAdvisory;
 import 'current_roster_provider.dart';
@@ -374,6 +375,33 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       segments: day.segments.where((s) => s.id != segmentId).toList(),
       nodes: [...day.nodes, ...removed.nodes],
     ));
+  }
+
+  /// FR81 / K8 — the single reset action: revert a passage's planning
+  /// controls (shape, start, destination, distance, weights) to defaults and
+  /// clear its generated route. Delegates the "keep vs. clear" rule to
+  /// `resetSegmentPlanningControls` (`planner_ui_state.dart`), which spares
+  /// everything the Author authored on the passage.
+  ///
+  /// K8's hard clause — "in compose mode it does not discard promoted
+  /// anchors, roles, or reveal settings" — holds by construction: promoted
+  /// anchors are `state.anchors`, never reached here, and this method
+  /// touches only the one segment. Discarding the anchors themselves is
+  /// K8's "separate, confirmed action" — `removeAnchor` behind FR139's
+  /// orphan prompt, not this call.
+  ///
+  /// A no-op (the segment is already at defaults with nothing solved) still
+  /// re-emits state harmlessly, so the always-visible control (K8) never
+  /// needs to be disabled — `segmentHasResettablePlanning`
+  /// (`planner_ui_state.dart`) is only for the caller to soften the
+  /// affordance when there is nothing to undo.
+  void resetSegmentPlanning(String dayId, String segmentId) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId) resetSegmentPlanningControls(s) else s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
   }
 
   /// FR11 / B2 — "reorderable to set transition sequence". [newIndex] follows
