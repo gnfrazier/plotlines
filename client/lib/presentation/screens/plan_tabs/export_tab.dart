@@ -23,6 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../../data/export/export_options.dart';
+import '../../../data/export/fit_writer.dart';
 import '../../../data/export/geojson_writer.dart';
 import '../../../data/export/gpx_writer.dart';
 import '../../../data/export/itinerary_writer.dart';
@@ -672,17 +673,15 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
                       ChoiceChip(
                         label: Text(f.name.toUpperCase()),
                         selected: _format == f,
-                        onSelected: f == _ExportFormat.fit
-                            ? null
-                            : (_) => setState(() => _format = f),
+                        onSelected: (_) => setState(() => _format = f),
                       ),
                   ],
                 ),
                 if (_format == _ExportFormat.fit) ...[
                   const SizedBox(height: PlotSpacing.s2),
                   Text(
-                    'FIT waits on SPIKE-16 (unresolved — also decides whether FIT runs '
-                    'in the core or on-device via the Garmin FIT SDK).',
+                    'FIT course file for Garmin head units. Plot-point notes '
+                    'ride in the cue name, trimmed to the device cue-list window.',
                     style: PlotTypography.small(c.textMuted),
                   ),
                 ],
@@ -767,10 +766,7 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
                 ? 'Exporting…'
                 : 'Export ${_perDay ? '$dayCount ${_format.name.toUpperCase()} files' : '${_format.name.toUpperCase()} file'}',
             expand: true,
-            onPressed:
-                (_exporting || _format == _ExportFormat.fit || dayCount == 0)
-                ? null
-                : _export,
+            onPressed: (_exporting || dayCount == 0) ? null : _export,
           ),
         ),
       ],
@@ -844,11 +840,21 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
     return result;
   }
 
+  /// FIT is the one binary format — it writes bytes, not a string. The three
+  /// text writers still go through [_write]; [_exportSingle] / [_exportPerDay]
+  /// pick the path off this flag.
+  bool get _isBinary => _format == _ExportFormat.fit;
+
   String _write(Trip trip, ExportOptions options) => switch (_format) {
     _ExportFormat.gpx => tripToGpx(trip, options: options),
     _ExportFormat.tcx => tripToTcx(trip, options: options),
     _ExportFormat.geojson => tripToGeoJson(trip, options: options),
-    _ExportFormat.fit => throw StateError('FIT is disabled'),
+    _ExportFormat.fit => throw StateError('FIT writes bytes — use _writeBytes'),
+  };
+
+  List<int> _writeBytes(Trip trip, ExportOptions options) => switch (_format) {
+    _ExportFormat.fit => tripToFit(trip, options: options),
+    _ => throw StateError('${_format.name} writes a string — use _write'),
   };
 
   String get _extension => switch (_format) {
@@ -862,13 +868,16 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
       s.replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '').trim();
 
   Future<void> _exportSingle(ExportOptions options) async {
-    final content = _write(widget.trip, options);
     final safeName = _safeName(widget.trip.title);
     final location = await getSaveLocation(
       suggestedName: '${safeName.isEmpty ? 'plotline' : safeName}.$_extension',
     );
     if (location == null) return; // Author cancelled — not a failure.
-    await File(location.path).writeAsString(content);
+    if (_isBinary) {
+      await File(location.path).writeAsBytes(_writeBytes(widget.trip, options));
+    } else {
+      await File(location.path).writeAsString(_write(widget.trip, options));
+    }
     if (mounted) {
       ScaffoldMessenger.of(
         context,
@@ -884,10 +893,13 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
     for (final day in widget.trip.days) {
       if (day.segments.isEmpty) continue;
       final dayTrip = widget.trip.copyWith(days: [day]);
-      final content = _write(dayTrip, options);
       final base = safeName.isEmpty ? 'plotline' : safeName;
       final file = File('$dirPath/${base}_day${day.index}.$_extension');
-      await file.writeAsString(content);
+      if (_isBinary) {
+        await file.writeAsBytes(_writeBytes(dayTrip, options));
+      } else {
+        await file.writeAsString(_write(dayTrip, options));
+      }
       count++;
     }
     if (mounted) {
