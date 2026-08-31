@@ -123,7 +123,10 @@ void main() {
       ),
     );
 
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.close).first);
+    final removeBtn = find.widgetWithIcon(IconButton, Icons.close).first;
+    await tester.ensureVisible(removeBtn);
+    await tester.pump();
+    await tester.tap(removeBtn);
     await tester.pump();
 
     final limits = container.read(currentTripProvider).days.single.limits;

@@ -465,20 +465,49 @@ class Portage:
         }
 
 
+#: FR20 / C4 [AMENDED v2.0] — the two authoring intents an alternate can carry.
+#: ``accommodation`` adjusts effort only (the v1.0 fitness ladder); ``branch`` is a
+#: story-shaped choice that carries its own content on the path. Absent on the wire
+#: means ``accommodation`` so a pre-amendment payload keeps its meaning.
+ALTERNATE_INTENTS = ("accommodation", "branch")
+
+
 @dataclass
 class Alternate:
     kind: str
     geometry: LineString
     id: str = field(default_factory=new_id)
+    intent: str = "accommodation"
     label: str | None = None
     metrics: RouteMetrics | None = None
     elevation: Elevation | None = None
     diverges_at_m: float | None = None
     rejoins_at_m: float | None = None
+    #: Branch alternates only — the Author's prose for what is different on this path.
+    note: str | None = None
+    #: Branch alternates only — trip-scoped anchors on this path, by id (a reference,
+    #: never a copy; the same rule as a segment's via_anchors).
+    anchor_ids: list[str] = field(default_factory=list)
+    #: Branch alternates only — narration attached to the branch itself.
+    narration: Narration | None = None
+    #: Branch alternates only — reveal policy for this branch's own narrative content.
+    reveal: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.intent not in ALTERNATE_INTENTS:
+            raise ValueError(
+                f"alternate intent {self.intent!r} is not one of {ALTERNATE_INTENTS}"
+            )
+        branch_only = (self.note, self.anchor_ids, self.narration, self.reveal)
+        if self.intent != "branch" and any(branch_only):
+            raise ValueError(
+                "note / anchor_ids / narration / reveal are branch-alternate content; "
+                "an accommodation alternate carries none of them"
+            )
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id, "kind": self.kind, "label": self.label,
+            "id": self.id, "intent": self.intent, "kind": self.kind, "label": self.label,
             "geometry": self.geometry.to_dict(),
             "metrics": self.metrics.to_dict() if self.metrics else None,
             "elevation": self.elevation.to_dict() if self.elevation else None,
@@ -486,6 +515,10 @@ class Alternate:
                               else round(f(self.diverges_at_m), 1)),
             "rejoins_at_m": (None if self.rejoins_at_m is None
                              else round(f(self.rejoins_at_m), 1)),
+            "note": self.note,
+            "anchor_ids": list(self.anchor_ids) or None,
+            "narration": self.narration.to_dict() if self.narration else None,
+            "reveal": self.reveal,
         }
 
 

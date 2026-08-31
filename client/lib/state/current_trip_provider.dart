@@ -507,6 +507,89 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     _replaceDay(day.copyWith(segments: segments));
   }
 
+  /// FR20 [AMENDED v2.0] / C4, Flow 11 — mint an [Alternate] on a passage. The
+  /// intent (`accommodation` | `branch`) is set here, at creation, and is not
+  /// something a later edit toggles blindly: converting between the two goes
+  /// through [convertAlternateIntent], which is where the branch-content prompt
+  /// lives. [geometry] is whatever the Author has drawn so far — an empty
+  /// line-string is "not drawn yet", not an error.
+  Alternate addAlternateToSegment(
+    String dayId,
+    String segmentId, {
+    required String intent,
+    required String kind,
+    String? label,
+    LineString? geometry,
+  }) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final alternate = Alternate(
+      id: _uuid.v4(),
+      intent: intent,
+      kind: kind,
+      label: (label ?? '').trim().isEmpty ? null : label!.trim(),
+      geometry: geometry ?? LineString(coordinates: const [], source: 'authored'),
+    );
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId) s.copyWith(alternates: [...s.alternates, alternate]) else s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+    return alternate;
+  }
+
+  /// Replace one alternate in place, matched by id. The caller has already
+  /// built the new [alternate] (renamed, re-typed its `kind`, edited its
+  /// branch content); this just swaps it into the passage.
+  void updateAlternateInSegment(String dayId, String segmentId, Alternate alternate) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId)
+          s.copyWith(alternates: [
+            for (final a in s.alternates) if (a.id == alternate.id) alternate else a,
+          ])
+        else
+          s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+  }
+
+  /// Flow 11 §06 — move an alternate between intents. `accommodation` → `branch`
+  /// keeps the shape and opens the branch-content fields; `branch` →
+  /// `accommodation` drops [Alternate.note] / [Alternate.narration] /
+  /// [Alternate.reveal] and detaches its [Alternate.anchorIds] (the anchors
+  /// stay in the trip, unattached). The caller is responsible for having asked
+  /// first when [Alternate.hasBranchContent] was true.
+  void convertAlternateIntent(String dayId, String segmentId, String alternateId, String toIntent) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId)
+          s.copyWith(alternates: [
+            for (final a in s.alternates)
+              if (a.id == alternateId)
+                (toIntent == 'branch' ? a.asBranch() : a.asAccommodation())
+              else
+                a,
+          ])
+        else
+          s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+  }
+
+  void removeAlternateFromSegment(String dayId, String segmentId, String alternateId) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId)
+          s.copyWith(alternates: [for (final a in s.alternates) if (a.id != alternateId) a])
+        else
+          s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+  }
+
   /// FR21 / C5 — "N4's provision-cluster proposals feed this directly": drop a
   /// provision co-location [proposal] onto a passage as one rest-stop [Node],
   /// its amenity tags already derived from the cluster's provision members, in

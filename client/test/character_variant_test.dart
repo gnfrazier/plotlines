@@ -187,6 +187,82 @@ void main() {
     });
   });
 
+  // FR20 / C4 [AMENDED v2.0] — a branch alternate is a story choice made in the
+  // field (FR125 / P2), not an effort toggle over canon, so it is not offered on
+  // this personalization layer.
+  group('branch alternates are not an H6 effort choice', () {
+    Segment withBranch() => Segment(
+          id: 'seg-b',
+          mode: 'hiking',
+          shape: 'point_to_point',
+          start: const [-105.27, 40.02],
+          end: const [-105.20, 40.06],
+          metrics: RouteMetrics(distanceM: 12000.0, climbM: 400.0, descentM: 400.0),
+          alternates: [
+            Alternate(
+              id: 'alt-accom',
+              kind: 'bypass',
+              label: 'Skip the scramble',
+              geometry: LineString(coordinates: const [
+                [-105.27, 40.02],
+                [-105.24, 40.03],
+              ]),
+              metrics: RouteMetrics(distanceM: 10000.0, climbM: 200.0, descentM: 200.0),
+            ),
+            Alternate(
+              id: 'alt-branch',
+              kind: 'extension',
+              intent: 'branch',
+              label: 'The long way past the abandoned mine',
+              note: 'Adds 3 km; passes the headframe and the miners\' cemetery.',
+              anchorIds: const ['anc-mine', 'anc-cemetery'],
+              reveal: 'on_arrival',
+              geometry: LineString(coordinates: const [
+                [-105.27, 40.02],
+                [-105.19, 40.07],
+              ]),
+              metrics: RouteMetrics(distanceM: 15000.0, climbM: 700.0, descentM: 700.0),
+            ),
+          ],
+        );
+
+    test('isBranch tells the two intents apart', () {
+      final s = withBranch();
+      expect(s.alternates.firstWhere((a) => a.id == 'alt-accom').isBranch, isFalse);
+      expect(s.alternates.firstWhere((a) => a.id == 'alt-branch').isBranch, isTrue);
+    });
+
+    test('chooseAlternate takes an accommodation alternate as before', () {
+      final s = withBranch();
+      final v = chooseAlternate(CharacterVariant(segmentId: s.id), s, 'alt-accom');
+      expect(v.chosenAlternateId, 'alt-accom');
+      expect(variantMetrics(s, v)!.distanceM, 10000.0);
+    });
+
+    test('chooseAlternate rejects a branch alternate', () {
+      final s = withBranch();
+      expect(
+        () => chooseAlternate(CharacterVariant(segmentId: s.id), s, 'alt-branch'),
+        throwsArgumentError,
+      );
+    });
+
+    test('constructing an accommodation alternate with branch content throws', () {
+      expect(
+        () => Alternate(
+          id: 'x',
+          kind: 'bypass',
+          geometry: LineString(coordinates: const [
+            [-105.27, 40.02],
+            [-105.24, 40.03],
+          ]),
+          note: 'a story beat on an effort toggle',
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+  });
+
   group('variantDayDistanceClimb — the day re-rolls with the Character\'s choice', () {
     test('sums canonical metrics when no variant is chosen', () {
       final a = authoredSegment();

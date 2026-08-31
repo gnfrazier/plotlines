@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#DB5A28;text-decoration:none}
+a:hover{color:#9A3412;text-decoration:underline}
+</style>
+</helmet>
+<div style="--app:#F4EFE4;--card:#FBF9F3;--sunk:#EBE3D4;--ink:#221F1A;--ink2:#544D42;--ink3:#8C8476;--line:#D9D0BE;--primary:#DB5A28;--success:#2C4A3B;--info:#3D6577;--warning:#B5852B;--danger:#9A3412;--serif:'Instrument Serif',Georgia,serif;--sans:'Archivo',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;font-family:var(--sans);background:#E6DFD0;color:var(--ink);padding:56px 64px 96px;min-height:100vh;">
+
+  <div style="max-width:1280px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--primary);">Plotlines · Author Flows (MVP) · Windows desktop</div>
+    <div style="font-family:var(--serif);font-size:56px;line-height:1;margin-top:10px;">Flow 11 — Alternates: accommodation and branch</div>
+    <p style="font-size:16px;line-height:1.65;color:var(--ink2);max-width:74ch;margin:18px 0 0;text-wrap:pretty;">An alternate is a second path on a passage, and it is one of two things. An <strong>accommodation</strong> alternate is the same day at a different effort — a bypass or an extension a Character may take on their own copy. A <strong>branch</strong> is a story choice: the path carries its own anchors, its own narration, and its own reveal, so taking it changes what the day contains. The Author names which one they are making before they draw it, and the interface never blurs the two afterwards.</p>
+  </div>
+
+  <!-- 01 -->
+  <div style="margin-top:56px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">01</span>
+      <span style="font-size:19px;font-weight:700;">Alternates on a passage</span>
+      <span style="font-size:14px;color:var(--ink3);">Grouped by intent, because the two kinds are not variations of one list.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Blue Ridge, late September</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:34px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:2px;padding:0 8px;">
+        <span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Trip</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Edit</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">View</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Layers</span><span style="font-size:12.5px;color:var(--ink2);padding:5px 10px;">Help</span><div style="flex:1;"></div>
+      </div>
+      <div style="height:640px;display:flex;">
+        <div style="width:186px;border-right:1px solid var(--line);background:var(--app);padding:12px 0;">
+          <div style="padding:6px 16px 12px;font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Workspace</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Curate</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Days</div>
+          <div style="padding:10px 16px;background:var(--card);border-left:3px solid var(--primary);font-size:13.5px;font-weight:700;">Routing</div>
+          <div style="padding:4px 16px 10px 22px;font-size:12.5px;color:var(--ink2);">Passages</div>
+          <div style="padding:4px 16px 10px 22px;font-size:12.5px;font-weight:700;color:var(--primary);">Alternates</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Narrative</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Outputs</div>
+          <div style="padding:10px 16px;border-left:3px solid transparent;font-size:13.5px;color:var(--ink2);">Roster</div>
+        </div>
+        <div style="width:640px;border-right:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 26px 16px;border-bottom:1px solid var(--line);display:flex;align-items:flex-end;gap:18px;">
+            <div style="flex:1;">
+              <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Day 5 · Saturday · passage 2 of 3</div>
+              <div style="font-family:var(--serif);font-size:28px;line-height:1.1;margin-top:5px;">Burnsville to Micaville</div>
+              <div style="font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:8px;letter-spacing:0.04em;">RIDE · 24.8 MI · &#8593; 2,140 FT · CANON</div>
+            </div>
+            <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;min-height:38px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;gap:8px;">
+              <svg width="13" height="13" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#221F1A" stroke-width="2" stroke-linecap="round"></path></svg>Add alternate</span>
+          </div>
+
+          <div style="padding:14px 26px 8px;display:flex;align-items:center;gap:10px;">
+            <span style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink3);">ACCOMMODATION</span>
+            <span style="font-size:12.5px;color:var(--ink3);">Same day, different effort</span>
+            <div style="flex:1;height:1px;background:var(--line);"></div>
+            <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">1</span>
+          </div>
+          <div style="margin:0 26px;border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;">
+              <svg width="26" height="26" viewBox="0 0 28 28" style="flex:none;"><path d="M3 20h6c4 0 5-12 9-12h7" fill="none" stroke="#8C8476" stroke-width="2" stroke-linecap="round"></path><path d="M3 20h6c4 0 3-6 9-6h7" fill="none" stroke="#3D6577" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round"></path></svg>
+              <div style="flex:1;">
+                <div style="font-size:14.5px;font-weight:700;">Toe River road</div>
+                <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:3px;">21.3 MI · &#8593; 980 FT · &#8722;3.5 MI &#8722;1,160 FT</div>
+              </div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;border:1px solid var(--info);color:var(--info);padding:2px 7px;border-radius:3px;">BYPASS</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 15px;background:var(--sunk);border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:0.06em;">
+              <span>LEAVES MI 6.2</span><span>REJOINS MI 18.4</span><div style="flex:1;"></div><span>OFFERED AS AN EFFORT OPTION</span>
+            </div>
+          </div>
+
+          <div style="padding:20px 26px 8px;display:flex;align-items:center;gap:10px;">
+            <span style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--primary);">BRANCH</span>
+            <span style="font-size:12.5px;color:var(--ink3);">Changes what the day contains</span>
+            <div style="flex:1;height:1px;background:var(--line);"></div>
+            <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);">1</span>
+          </div>
+          <div style="margin:0 26px;border:1.5px solid var(--primary);border-radius:6px;overflow:hidden;background:rgba(219,90,40,.04);">
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;">
+              <svg width="26" height="26" viewBox="0 0 28 28" style="flex:none;"><path d="M3 20h6c4 0 5 0 9 0h7" fill="none" stroke="#8C8476" stroke-width="2" stroke-linecap="round"></path><path d="M9 20c4 0 4-12 9-12h7" fill="none" stroke="#DB5A28" stroke-width="2.2" stroke-dasharray="4 3" stroke-linecap="round"></path><rect x="6.4" y="17.4" width="5.2" height="5.2" fill="#FBF9F3" stroke="#221F1A" stroke-width="1.6"></rect><path d="M9 18.4v3.2M7.6 20h2.8" stroke="#221F1A" stroke-width="1.2"></path></svg>
+              <div style="flex:1;">
+                <div style="font-size:14.5px;font-weight:700;">Past the Sugarloaf mine</div>
+                <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:3px;">29.6 MI · &#8593; 3,050 FT · +4.8 MI +910 FT</div>
+              </div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--primary);color:#fff;padding:3px 7px;border-radius:3px;">EXTENSION</span>
+            </div>
+            <div style="padding:0 15px 12px;font-size:13px;color:var(--ink2);line-height:1.6;">Three miles of the old tramway grade, then the portal itself. Rejoins the river road above the bridge.</div>
+            <div style="display:flex;align-items:center;gap:14px;padding:9px 15px;background:rgba(219,90,40,.07);border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;color:var(--ink2);letter-spacing:0.06em;">
+              <span>LEAVES MI 11.0</span><span>REJOINS MI 22.7</span><span>2 ANCHORS</span><span>NARRATION 1:48</span><div style="flex:1;"></div><span style="font-weight:700;">ON ARRIVAL</span>
+            </div>
+          </div>
+
+          <div style="flex:1;"></div>
+          <div style="padding:16px 26px;border-top:1px solid var(--line);">
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>
+              <div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Every alternate is here on its passage and again under Routing &#8594; Alternates, which lists them for the whole trip. Nothing you make here can end up somewhere you cannot find it.</div>
+              <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;background:var(--app);padding:22px 24px;display:flex;flex-direction:column;">
+          <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Passage and its alternates</div>
+          <div style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:6px;margin-top:12px;overflow:hidden;position:relative;">
+            <svg viewBox="0 0 420 430" style="width:100%;height:100%;display:block;">
+              <rect x="0" y="0" width="420" height="430" fill="#F1ECE0"></rect>
+              <path d="M-10 300C60 300 90 340 150 350S300 380 430 350" fill="none" stroke="#C9D8DE" stroke-width="7"></path>
+              <path d="M40 40h340M40 110h340M40 180h340M40 250h340" stroke="#E2D9C6" stroke-width="1"></path>
+              <path d="M30 390C70 360 96 330 120 300S160 230 200 210" fill="none" stroke="#221F1A" stroke-width="3.4" stroke-linecap="round"></path>
+              <path d="M200 210C240 190 250 150 300 130S370 90 400 60" fill="none" stroke="#221F1A" stroke-width="3.4" stroke-linecap="round"></path>
+              <path d="M120 300C150 320 210 316 250 290S276 236 300 214" fill="none" stroke="#8C8476" stroke-width="2.6" stroke-dasharray="6 5" stroke-linecap="round"></path>
+              <path d="M200 210C196 160 214 120 250 96S318 76 344 100" fill="none" stroke="#DB5A28" stroke-width="3" stroke-dasharray="7 5" stroke-linecap="round"></path>
+              <path d="M344 100C356 112 352 122 348 128" fill="none" stroke="#DB5A28" stroke-width="3" stroke-dasharray="7 5" stroke-linecap="round"></path>
+              <rect x="113" y="293" width="14" height="14" fill="#FBF9F3" stroke="#221F1A" stroke-width="2"></rect>
+              <path d="M120 296v8M116 300h8" stroke="#221F1A" stroke-width="1.6"></path>
+              <rect x="193" y="203" width="14" height="14" fill="#FBF9F3" stroke="#221F1A" stroke-width="2"></rect>
+              <path d="M200 206v8M196 210h8" stroke="#221F1A" stroke-width="1.6"></path>
+              <circle cx="300" cy="214" r="7.5" fill="#FBF9F3" stroke="#221F1A" stroke-width="2"></circle>
+              <path d="M296 214h8" stroke="#221F1A" stroke-width="1.6"></path>
+              <circle cx="348" cy="128" r="7.5" fill="#FBF9F3" stroke="#221F1A" stroke-width="2"></circle>
+              <path d="M344 128h8" stroke="#221F1A" stroke-width="1.6"></path>
+              <path d="M262 96l7 12h-14z" fill="#FBF9F3" stroke="#DB5A28" stroke-width="2" stroke-linejoin="round"></path>
+              <path d="M306 84l7 12h-14z" fill="#FBF9F3" stroke="#DB5A28" stroke-width="2" stroke-linejoin="round"></path>
+              <circle cx="30" cy="390" r="6" fill="#221F1A"></circle>
+              <circle cx="400" cy="60" r="6" fill="none" stroke="#221F1A" stroke-width="2.5"></circle>
+              <circle cx="400" cy="60" r="2.2" fill="#221F1A"></circle>
+            </svg>
+          </div>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px;">
+            <div style="display:flex;align-items:center;gap:9px;"><svg width="30" height="8"><path d="M1 4h28" stroke="#221F1A" stroke-width="3.4" stroke-linecap="round"></path></svg><span style="font-family:var(--mono);font-size:10px;color:var(--ink2);letter-spacing:0.06em;">CANON</span></div>
+            <div style="display:flex;align-items:center;gap:9px;"><svg width="30" height="8"><path d="M1 4h28" stroke="#8C8476" stroke-width="2.6" stroke-dasharray="6 5" stroke-linecap="round"></path></svg><span style="font-family:var(--mono);font-size:10px;color:var(--ink2);letter-spacing:0.06em;">ACCOMMODATION</span></div>
+            <div style="display:flex;align-items:center;gap:9px;"><svg width="30" height="8"><path d="M1 4h28" stroke="#DB5A28" stroke-width="3" stroke-dasharray="7 5" stroke-linecap="round"></path></svg><span style="font-family:var(--mono);font-size:10px;color:var(--ink2);letter-spacing:0.06em;">BRANCH · 2 ANCHORS</span></div>
+            <div style="display:flex;align-items:center;gap:9px;margin-top:2px;">
+              <svg width="30" height="14" viewBox="0 0 30 14"><rect x="8" y="0" width="13" height="13" fill="#FBF9F3" stroke="#221F1A" stroke-width="2"></rect><path d="M14.5 3v7M11 6.5h7" stroke="#221F1A" stroke-width="1.5"></path></svg>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--ink2);letter-spacing:0.06em;">LEAVES</span>
+              <svg width="26" height="14" viewBox="0 0 26 14"><circle cx="13" cy="7" r="6.5" fill="#FBF9F3" stroke="#221F1A" stroke-width="2"></circle><path d="M9.5 7h7" stroke="#221F1A" stroke-width="1.5"></path></svg>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--ink2);letter-spacing:0.06em;">REJOINS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>1 ACCOMMODATION · 1 BRANCH</span><span style="color:var(--ink3);">BOTH VISIBLE ON MAP AND CUE SHEET</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 16:04</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">02</span>
+      <span style="font-size:19px;font-weight:700;">Naming the intent before drawing</span>
+      <span style="font-size:14px;color:var(--ink3);">The vocabulary moment. Effort, or a different day — said in words, not inferred from what gets filled in.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — New alternate on Burnsville to Micaville</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:640px;background:var(--app);position:relative;display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;inset:0;background:rgba(34,31,26,.30);"></div>
+        <div style="position:relative;width:860px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 26px 60px rgba(34,31,26,.30);overflow:hidden;">
+          <div style="padding:22px 28px 18px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">New alternate · day 5 · Burnsville to Micaville</div>
+            <div style="font-family:var(--serif);font-size:30px;line-height:1.1;margin-top:6px;">What kind of alternate is this?</div>
+          </div>
+
+          <div style="display:flex;gap:14px;padding:20px 28px 4px;">
+            <div style="flex:1;border:1px solid var(--line);border-radius:6px;padding:16px 17px;background:var(--card);">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <svg width="24" height="24" viewBox="0 0 28 28"><path d="M3 20h6c4 0 5-12 9-12h7" fill="none" stroke="#8C8476" stroke-width="2" stroke-linecap="round"></path><path d="M3 20h6c4 0 3-6 9-6h7" fill="none" stroke="#3D6577" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round"></path></svg>
+                <div style="font-size:16px;font-weight:700;">Accommodation</div>
+              </div>
+              <div style="font-size:13.5px;color:var(--ink2);line-height:1.65;margin-top:10px;">The same day at a different effort. A bypass takes the easiest line; an extension adds work. A Character can take it on their own copy without changing anyone else's day.</div>
+              <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:11px;font-family:var(--mono);font-size:9.5px;line-height:1.9;color:var(--ink3);letter-spacing:0.06em;">CARRIES<br>SHAPE · LABEL · GEOMETRY · METRICS</div>
+            </div>
+            <div style="flex:1;border:2px solid var(--primary);border-radius:6px;padding:15px 16px;background:rgba(219,90,40,.05);">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <svg width="24" height="24" viewBox="0 0 28 28"><path d="M3 20h6c4 0 5 0 9 0h7" fill="none" stroke="#8C8476" stroke-width="2" stroke-linecap="round"></path><path d="M9 20c4 0 4-12 9-12h7" fill="none" stroke="#DB5A28" stroke-width="2.2" stroke-dasharray="4 3" stroke-linecap="round"></path></svg>
+                <div style="font-size:16px;font-weight:700;">Branch</div>
+                <div style="flex:1;"></div>
+                <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M8 12.2l2.6 2.6L16 9.4" fill="none" stroke="#FBF9F3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              </div>
+              <div style="font-size:13.5px;color:var(--ink2);line-height:1.65;margin-top:10px;">A choice that changes what the day contains. The path carries its own plot points, its own narration, and its own reveal — the long way past the mine, or the direct way home.</div>
+              <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:11px;font-family:var(--mono);font-size:9.5px;line-height:1.9;color:var(--ink2);letter-spacing:0.06em;">CARRIES<br>ALL OF THAT · ANCHORS · NARRATION · REVEAL</div>
+            </div>
+          </div>
+
+          <div style="padding:18px 28px 4px;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink3);">SHAPE</div>
+            <div style="display:flex;gap:10px;margin-top:9px;">
+              <div style="flex:1;border:1px solid var(--line);border-radius:5px;padding:11px 13px;">
+                <div style="font-size:13.5px;font-weight:600;">The direct way</div>
+                <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);margin-top:3px;letter-spacing:0.06em;">BYPASS</div>
+              </div>
+              <div style="flex:1;border:1.5px solid var(--ink);border-radius:5px;padding:10.5px 12.5px;background:var(--sunk);">
+                <div style="font-size:13.5px;font-weight:700;">The long way round</div>
+                <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink2);margin-top:3px;letter-spacing:0.06em;">EXTENSION</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:18px 28px 0;">
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>
+              <div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">You can change this later. Turning a branch back into an accommodation gives up the anchors, narration, and reveal it is holding, and asks before it does.</div>
+              <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;padding:20px 28px 24px;">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:0.06em;">DRAWN ON THE MAP NEXT · NOTHING SOLVED YET</span>
+            <div style="flex:1;"></div>
+            <span style="font-weight:600;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;padding:0 16px;">Cancel</span>
+            <span style="font-weight:700;font-size:16px;background:var(--primary);color:#FBF9F3;min-height:44px;display:inline-flex;align-items:center;padding:0 22px;border-radius:4px;">Draw the branch</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>INTENT SET AT CREATION</span><span style="color:var(--ink3);">ABSENT ON AN OLDER TRIP READS AS ACCOMMODATION</span><div style="flex:1;"></div><span style="color:var(--ink3);">NOTHING APPLIED YET</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">03</span>
+      <span style="font-size:19px;font-weight:700;">Authoring a branch</span>
+      <span style="font-size:14px;color:var(--ink3);">Prose, plot points, narration, reveal. The four things an accommodation alternate does not have.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Branch: Past the Sugarloaf mine</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:760px;display:flex;">
+        <div style="width:780px;border-right:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 26px 16px;border-bottom:1px solid var(--line);display:flex;align-items:flex-end;gap:14px;">
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--primary);color:#FBF9F3;padding:3px 7px;border-radius:3px;">BRANCH</span>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;border:1px solid var(--line);color:var(--ink2);padding:2px 7px;border-radius:3px;">EXTENSION · THE LONG WAY ROUND</span>
+              </div>
+              <div style="font-family:var(--serif);font-size:29px;line-height:1.1;margin-top:8px;">Past the Sugarloaf mine</div>
+            </div>
+            <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;min-height:38px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Rename</span>
+          </div>
+
+          <div style="padding:18px 26px 0;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink3);">WHAT IS DIFFERENT ON THIS PATH</div>
+            <div style="border:1px solid var(--line);border-radius:5px;padding:13px 15px;margin-top:8px;background:var(--app);font-size:14px;line-height:1.7;color:var(--ink);">Three miles of the old tramway grade, washed to bedrock in places, then the portal itself &#8212; gated, but you can stand in the cold air coming out of it. It rejoins the river road above the bridge.<span style="color:var(--ink3);">|</span></div>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:7px;">
+              <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);letter-spacing:0.06em;">MARKDOWN · SHOWN AT THE FORK</span>
+              <div style="flex:1;"></div>
+              <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);">248 CHARACTERS</span>
+            </div>
+          </div>
+
+          <div style="padding:20px 26px 0;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink3);">PLOT POINTS ON THIS BRANCH</span>
+              <div style="flex:1;height:1px;background:var(--line);"></div>
+              <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:12.5px;min-height:34px;padding:0 12px;border-radius:4px;display:inline-flex;align-items:center;gap:7px;">
+                <svg width="12" height="12" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#221F1A" stroke-width="2.2" stroke-linecap="round"></path></svg>Attach an anchor</span>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:6px;margin-top:9px;overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line);">
+                <svg width="20" height="20" viewBox="0 0 24 24" style="flex:none;"><path d="M12 3.5l8 5v11h-16v-11z" fill="#FBF9F3" stroke="#221F1A" stroke-width="1.8" stroke-linejoin="round"></path><path d="M12 9.5v6M9 12.5h6" stroke="#221F1A" stroke-width="1.6" stroke-linecap="round"></path></svg>
+                <div style="flex:1;"><div style="font-size:14px;font-weight:600;">Sugarloaf mine portal</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:2px;letter-spacing:0.06em;">NARRATIVE · CRUX</div></div>
+                <span style="font-family:var(--mono);font-size:9.5px;border:1px solid var(--line);color:var(--ink3);padding:2px 7px;border-radius:3px;">REFERENCE</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:11px;padding:12px 14px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" style="flex:none;"><path d="M12 3.5l8 5v11h-16v-11z" fill="#FBF9F3" stroke="#221F1A" stroke-width="1.8" stroke-linejoin="round"></path><path d="M12 9.5v6M9 12.5h6" stroke="#221F1A" stroke-width="1.6" stroke-linecap="round"></path></svg>
+                <div style="flex:1;"><div style="font-size:14px;font-weight:600;">Tramway cut above the creek</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:2px;letter-spacing:0.06em;">NARRATIVE · RISING</div></div>
+                <span style="font-family:var(--mono);font-size:9.5px;border:1px solid var(--line);color:var(--ink3);padding:2px 7px;border-radius:3px;">REFERENCE</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:20px 26px 0;display:flex;gap:14px;">
+            <div style="flex:1;">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink3);">NARRATION ON THE BRANCH</div>
+              <div style="border:1px solid var(--line);border-radius:5px;padding:11px 13px;margin-top:8px;display:flex;align-items:center;gap:11px;">
+                <svg width="19" height="19" viewBox="0 0 24 24" style="flex:none;"><path d="M4 14v-4h3.5l4.5-3.5v11L7.5 14z" fill="none" stroke="#221F1A" stroke-width="1.8" stroke-linejoin="round"></path><path d="M15.5 9.2a4 4 0 010 5.6" fill="none" stroke="#221F1A" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:600;">sugarloaf-portal.m4a</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:2px;">1:48</div></div>
+                <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);">REPLACE</span>
+              </div>
+            </div>
+            <div style="flex:1;">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink3);">REVEAL FOR THIS BRANCH</div>
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <span style="flex:1;text-align:center;font-size:13px;font-weight:600;padding:11px 0;border:1px solid var(--line);border-radius:4px;color:var(--ink2);">Always visible</span>
+                <span style="flex:1;text-align:center;font-size:13px;font-weight:700;padding:11px 0;background:var(--ink);color:var(--app);border-radius:4px;">On arrival</span>
+              </div>
+              <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);margin-top:7px;letter-spacing:0.06em;">THE FORK STAYS VISIBLE · ITS CONTENT WAITS</div>
+            </div>
+          </div>
+
+          <div style="flex:1;"></div>
+          <div style="padding:16px 26px;border-top:1px solid var(--line);">
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>
+              <div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">Anchors are attached here by reference, never copied. Edit one and you have edited the trip's anchor; detach it and it stays in the trip, findable in the anchors view. Hazards on this path are shown to everyone before the fork, whatever the reveal says.</div>
+              <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;background:var(--app);display:flex;flex-direction:column;">
+          <div style="padding:20px 24px 14px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Where it leaves and rejoins</div>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+              <div style="flex:1;border:1px solid var(--line);border-radius:5px;padding:10px 12px;background:var(--card);">
+                <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);letter-spacing:0.06em;">LEAVES</div>
+                <div style="font-family:var(--mono);font-size:15px;margin-top:3px;">MI 11.0</div>
+              </div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:5px;padding:10px 12px;background:var(--card);">
+                <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);letter-spacing:0.06em;">REJOINS</div>
+                <div style="font-family:var(--mono);font-size:15px;margin-top:3px;">MI 22.7</div>
+              </div>
+            </div>
+            <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:12.5px;min-height:34px;padding:0 12px;border-radius:4px;display:inline-flex;align-items:center;margin-top:10px;">Move on the map</span>
+          </div>
+          <div style="flex:1;padding:16px 24px;">
+            <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;height:250px;">
+              <svg viewBox="0 0 420 250" style="width:100%;height:100%;display:block;">
+                <rect x="0" y="0" width="420" height="250" fill="#F1ECE0"></rect>
+                <path d="M-10 190C60 186 96 200 150 196S300 176 430 186" fill="none" stroke="#C9D8DE" stroke-width="6"></path>
+                <path d="M20 210C80 200 120 176 170 160S250 140 300 150S390 176 410 170" fill="none" stroke="#221F1A" stroke-width="3.2" stroke-linecap="round"></path>
+                <path d="M170 160C168 112 196 74 240 62S330 66 344 108S330 142 300 150" fill="none" stroke="#DB5A28" stroke-width="3" stroke-dasharray="7 5" stroke-linecap="round"></path>
+                <rect x="163" y="153" width="14" height="14" fill="#FBF9F3" stroke="#221F1A" stroke-width="2"></rect>
+                <path d="M170 156v8M166 160h8" stroke="#221F1A" stroke-width="1.6"></path>
+                <circle cx="300" cy="150" r="7.5" fill="#FBF9F3" stroke="#221F1A" stroke-width="2"></circle>
+                <path d="M296 150h8" stroke="#221F1A" stroke-width="1.6"></path>
+                <path d="M244 58l8 13h-16z" fill="#FBF9F3" stroke="#DB5A28" stroke-width="2" stroke-linejoin="round"></path>
+                <path d="M318 74l8 13h-16z" fill="#FBF9F3" stroke="#DB5A28" stroke-width="2" stroke-linejoin="round"></path>
+                <path d="M282 96l9 15h-18z" fill="#FBF9F3" stroke="#9A3412" stroke-width="2" stroke-linejoin="round"></path>
+                <path d="M282 101v5" stroke="#9A3412" stroke-width="1.6" stroke-linecap="round"></path>
+              </svg>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:14px;">
+              <div style="flex:1;border:1px solid var(--line);border-radius:5px;padding:11px 13px;background:var(--card);">
+                <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);letter-spacing:0.06em;">THIS BRANCH</div>
+                <div style="font-family:var(--mono);font-size:12.5px;line-height:1.8;margin-top:4px;">29.6 MI<br>&#8593; 3,050 FT</div>
+              </div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:5px;padding:11px 13px;background:var(--card);">
+                <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);letter-spacing:0.06em;">AGAINST CANON</div>
+                <div style="font-family:var(--mono);font-size:12.5px;line-height:1.8;margin-top:4px;">+4.8 MI<br>+910 FT</div>
+              </div>
+            </div>
+            <div style="border:1px solid var(--warning);border-radius:5px;padding:12px 14px;margin-top:14px;background:var(--card);">
+              <div style="display:flex;align-items:center;gap:9px;">
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--warning);"></span>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.12em;color:var(--warning);">GEOMETRY STALE</span>
+              </div>
+              <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;margin-top:7px;">The fork moved after this was last solved. The distances above are the ones it was solved with.</div>
+              <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:12.5px;min-height:34px;padding:0 12px;border-radius:4px;display:inline-flex;align-items:center;margin-top:10px;">Re-solve this branch</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>BRANCH · 2 ANCHORS REFERENCED · 1 NARRATION · ON ARRIVAL</span><span style="color:var(--warning);">&#9679; 1 STALE</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 16:12</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">04</span>
+      <span style="font-size:19px;font-weight:700;">Authoring an accommodation alternate</span>
+      <span style="font-size:14px;color:var(--ink3);">The same editor, shorter. The branch fields are absent, not disabled &#8212; the model has no place to put them.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Alternate: Toe River road</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:620px;display:flex;">
+        <div style="width:780px;border-right:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:20px 26px 16px;border-bottom:1px solid var(--line);display:flex;align-items:flex-end;gap:14px;">
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--info);color:#fff;padding:3px 7px;border-radius:3px;">ACCOMMODATION</span>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;border:1px solid var(--line);color:var(--ink2);padding:2px 7px;border-radius:3px;">BYPASS · THE EASIEST LINE</span>
+              </div>
+              <div style="font-family:var(--serif);font-size:29px;line-height:1.1;margin-top:8px;">Toe River road</div>
+            </div>
+            <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;min-height:38px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Rename</span>
+          </div>
+
+          <div style="padding:18px 26px 0;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink3);">SHAPE</div>
+            <div style="display:flex;gap:10px;margin-top:9px;">
+              <div style="flex:1;border:1.5px solid var(--ink);border-radius:5px;padding:11px 13px;background:var(--sunk);">
+                <div style="font-size:13.5px;font-weight:700;">Bypass</div>
+                <div style="font-size:12.5px;color:var(--ink2);line-height:1.5;margin-top:3px;">Takes the easiest line between the two points.</div>
+              </div>
+              <div style="flex:1;border:1px solid var(--line);border-radius:5px;padding:11px 13px;">
+                <div style="font-size:13.5px;font-weight:600;">Extension</div>
+                <div style="font-size:12.5px;color:var(--ink2);line-height:1.5;margin-top:3px;">Adds distance or climb for whoever wants it.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:20px 26px 0;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink3);">EFFORT AGAINST CANON</div>
+            <div style="border:1px solid var(--line);border-radius:6px;margin-top:9px;overflow:hidden;">
+              <div style="display:flex;padding:9px 15px;background:var(--sunk);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;color:var(--ink3);">
+                <span style="flex:1;">PATH</span><span style="width:110px;">DISTANCE</span><span style="width:110px;">CLIMB</span><span style="width:120px;">MOVING TIME</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:12px 15px;border-bottom:1px solid var(--line);">
+                <span style="flex:1;font-size:13.5px;font-weight:600;">Canon</span>
+                <span style="width:110px;font-family:var(--mono);font-size:12.5px;">24.8 MI</span>
+                <span style="width:110px;font-family:var(--mono);font-size:12.5px;">2,140 FT</span>
+                <span style="width:120px;font-family:var(--mono);font-size:12.5px;">2H 41M</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:12px 15px;border-bottom:1px solid var(--line);background:rgba(61,101,119,.05);">
+                <span style="flex:1;font-size:13.5px;font-weight:700;">Toe River road</span>
+                <span style="width:110px;font-family:var(--mono);font-size:12.5px;">21.3 MI</span>
+                <span style="width:110px;font-family:var(--mono);font-size:12.5px;">980 FT</span>
+                <span style="width:120px;font-family:var(--mono);font-size:12.5px;">2H 04M</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:12px 15px;">
+                <span style="flex:1;font-family:var(--mono);font-size:10px;letter-spacing:0.08em;color:var(--ink3);">DIFFERENCE</span>
+                <span style="width:110px;font-family:var(--mono);font-size:12.5px;color:var(--success);">&#8722;3.5 MI</span>
+                <span style="width:110px;font-family:var(--mono);font-size:12.5px;color:var(--success);">&#8722;1,160 FT</span>
+                <span style="width:120px;font-family:var(--mono);font-size:12.5px;color:var(--success);">&#8722;37M</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;margin-top:11px;font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:0.06em;">
+              <span>LEAVES MI 6.2</span><span>REJOINS MI 18.4</span>
+              <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:12.5px;min-height:34px;padding:0 12px;border-radius:4px;display:inline-flex;align-items:center;font-family:var(--sans);letter-spacing:0;">Move on the map</span>
+            </div>
+          </div>
+
+          <div style="padding:20px 26px 0;">
+            <div style="border:1px dashed var(--line);border-radius:6px;padding:15px 17px;background:var(--app);">
+              <div style="font-size:14.5px;font-weight:700;">This alternate carries nothing of its own</div>
+              <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:6px;max-width:62ch;">The same day at a lower effort, so there are no plot points to attach, no narration, and no reveal to set. If this path should change what the day contains, it is a branch.</div>
+              <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;min-height:38px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;margin-top:12px;">Make this a branch</span>
+            </div>
+          </div>
+
+          <div style="flex:1;"></div>
+        </div>
+
+        <div style="flex:1;background:var(--app);padding:20px 24px;display:flex;flex-direction:column;">
+          <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Effort options on this passage</div>
+          <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;margin-top:12px;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:11px;padding:13px 15px;border-bottom:1px solid var(--line);">
+              <span style="width:9px;height:9px;border:2px solid var(--ink3);border-radius:50%;flex:none;"></span>
+              <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;color:var(--ink3);">No extension yet</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:2px;">&#8212;</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:13px 15px;border-bottom:1px solid var(--line);">
+              <span style="width:9px;height:9px;background:var(--ink);border-radius:50%;flex:none;"></span>
+              <div style="flex:1;"><div style="font-size:13.5px;font-weight:700;">Canon</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink2);margin-top:2px;">24.8 MI · &#8593; 2,140 FT</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:13px 15px;background:rgba(61,101,119,.06);">
+              <span style="width:9px;height:9px;background:var(--info);border-radius:50%;flex:none;"></span>
+              <div style="flex:1;"><div style="font-size:13.5px;font-weight:700;">Toe River road</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink2);margin-top:2px;">21.3 MI · &#8593; 980 FT</div></div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;border:1px solid var(--info);color:var(--info);padding:2px 7px;border-radius:3px;">BYPASS</span>
+            </div>
+          </div>
+          <span style="border:1.5px dashed var(--line);color:var(--ink2);font-weight:600;font-size:13px;min-height:42px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;">
+            <svg width="14" height="14" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#544D42" stroke-width="2" stroke-linecap="round"></path></svg>Add an extension</span>
+          <div style="flex:1;"></div>
+          <div style="display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:5px;padding:11px 13px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>
+            <div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">A Character can take an effort option on their own copy of the trip. It changes their day, not the trip, and not anyone else's.</div>
+            <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>ACCOMMODATION · NO CONTENT OF ITS OWN</span><span style="color:var(--ink3);">OFFERED AS AN EFFORT OPTION</span><div style="flex:1;"></div><span style="color:var(--ink3);">SAVED LOCALLY · 16:18</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 05 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">05</span>
+      <span style="font-size:19px;font-weight:700;">What a Character sees</span>
+      <span style="font-size:14px;color:var(--ink3);">Author preview. An effort option reads as an option; a branch reads as a choice with something on the other side of it.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Preview as a Character · day 5 cue sheet</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:660px;display:flex;">
+        <div style="width:560px;border-right:1px solid var(--line);background:var(--app);padding:20px 22px;display:flex;flex-direction:column;">
+          <div style="display:flex;gap:8px;">
+            <span style="flex:1;text-align:center;font-size:13px;font-weight:700;padding:9px 0;background:var(--ink);color:var(--app);border-radius:4px;">Before the fork</span>
+            <span style="flex:1;text-align:center;font-size:13px;font-weight:600;padding:9px 0;border:1px solid var(--line);border-radius:4px;color:var(--ink2);">After arrival</span>
+          </div>
+          <div style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:6px;margin-top:14px;overflow:hidden;">
+            <svg viewBox="0 0 516 500" style="width:100%;height:100%;display:block;">
+              <rect x="0" y="0" width="516" height="500" fill="#F1ECE0"></rect>
+              <path d="M-10 360C80 356 130 380 200 372S360 336 530 352" fill="none" stroke="#C9D8DE" stroke-width="8"></path>
+              <path d="M40 60h440M40 140h440M40 220h440M40 300h440M40 380h440" stroke="#E2D9C6" stroke-width="1"></path>
+              <path d="M40 450C90 430 120 400 150 372S200 330 240 316" fill="none" stroke="#221F1A" stroke-width="3.6" stroke-linecap="round"></path>
+              <path d="M240 316C290 300 300 268 350 258S430 240 470 200" fill="none" stroke="#221F1A" stroke-width="3.6" stroke-linecap="round"></path>
+              <path d="M150 372C196 392 260 380 300 344S326 292 350 258" fill="none" stroke="#8C8476" stroke-width="2.8" stroke-dasharray="7 6" stroke-linecap="round"></path>
+              <path d="M240 316C232 240 260 176 316 150S420 148 436 200S404 250 350 258" fill="none" stroke="#DB5A28" stroke-width="3.2" stroke-dasharray="8 6" stroke-linecap="round"></path>
+              <rect x="142" y="364" width="16" height="16" fill="#FBF9F3" stroke="#221F1A" stroke-width="2.2"></rect>
+              <path d="M150 367v10M145 372h10" stroke="#221F1A" stroke-width="1.7"></path>
+              <rect x="232" y="308" width="16" height="16" fill="#FBF9F3" stroke="#DB5A28" stroke-width="2.4"></rect>
+              <path d="M240 311v10M235 316h10" stroke="#DB5A28" stroke-width="1.7"></path>
+              <circle cx="350" cy="258" r="8.5" fill="#FBF9F3" stroke="#221F1A" stroke-width="2.2"></circle>
+              <path d="M345.5 258h9" stroke="#221F1A" stroke-width="1.7"></path>
+              <path d="M316 144l9 15h-18z" fill="#EBE3D4" stroke="#8C8476" stroke-width="2" stroke-linejoin="round"></path>
+              <path d="M400 158l9 15h-18z" fill="#EBE3D4" stroke="#8C8476" stroke-width="2" stroke-linejoin="round"></path>
+              <path d="M356 186l10 17h-20z" fill="#FBF9F3" stroke="#9A3412" stroke-width="2.2" stroke-linejoin="round"></path>
+              <path d="M356 192v6" stroke="#9A3412" stroke-width="1.8" stroke-linecap="round"></path>
+              <circle cx="356" cy="200.5" r="1.1" fill="#9A3412"></circle>
+              <circle cx="40" cy="450" r="7" fill="#221F1A"></circle>
+              <circle cx="470" cy="200" r="7" fill="none" stroke="#221F1A" stroke-width="2.6"></circle>
+              <circle cx="470" cy="200" r="2.4" fill="#221F1A"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:13px;">
+            <div style="display:flex;align-items:center;gap:8px;"><svg width="26" height="8"><path d="M1 4h24" stroke="#221F1A" stroke-width="3.4" stroke-linecap="round"></path></svg><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink2);letter-spacing:0.06em;">THE DAY</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><svg width="26" height="8"><path d="M1 4h24" stroke="#8C8476" stroke-width="2.8" stroke-dasharray="7 6" stroke-linecap="round"></path></svg><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink2);letter-spacing:0.06em;">EASIER OPTION</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><svg width="26" height="8"><path d="M1 4h24" stroke="#DB5A28" stroke-width="3.2" stroke-dasharray="8 6" stroke-linecap="round"></path></svg><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink2);letter-spacing:0.06em;">A CHOICE</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><svg width="20" height="14" viewBox="0 0 20 14"><path d="M10 1l9 15H1z" fill="#EBE3D4" stroke="#8C8476" stroke-width="2" stroke-linejoin="round" transform="scale(0.82) translate(2 0)"></path></svg><span style="font-family:var(--mono);font-size:9.5px;color:var(--ink2);letter-spacing:0.06em;">SOMETHING WAITING</span></div>
+          </div>
+        </div>
+
+        <div style="flex:1;background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:18px 24px 14px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">Day 5 · cue sheet</div>
+            <div style="font-family:var(--serif);font-size:27px;line-height:1.1;margin-top:4px;">Burnsville to Micaville</div>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line);">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);width:62px;flex:none;padding-top:2px;">MI 6.2</span>
+              <div style="flex:1;">
+                <div style="font-size:14px;font-weight:600;">Bypass available: Toe River road</div>
+                <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:4px;">&#8722;3.5 MI · &#8722;1,160 FT · REJOINS MI 18.4</div>
+              </div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;border:1px solid var(--info);color:var(--info);padding:2px 7px;border-radius:3px;align-self:flex-start;">OPTION</span>
+            </div>
+
+            <div style="display:flex;gap:14px;padding:16px 24px;border-bottom:1px solid var(--line);background:rgba(219,90,40,.05);">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);width:62px;flex:none;padding-top:2px;">MI 11.0</span>
+              <div style="flex:1;">
+                <div style="font-size:15px;font-weight:700;">Branch &#8212; Past the Sugarloaf mine</div>
+                <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:5px;">Two ways from here. The long way is three miles of old tramway grade and rejoins above the bridge.</div>
+                <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink2);margin-top:6px;">+4.8 MI · +910 FT · REJOINS MI 22.7</div>
+                <div style="display:flex;gap:10px;align-items:flex-start;background:var(--sunk);border:1px solid var(--line);border-radius:5px;padding:11px 12px;margin-top:11px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" style="flex:none;margin-top:1px;"><rect x="5" y="11" width="14" height="9" rx="1.6" fill="none" stroke="#8C8476" stroke-width="1.9"></rect><path d="M8.5 11V8a3.5 3.5 0 017 0v3" fill="none" stroke="#8C8476" stroke-width="1.9"></path></svg>
+                  <div style="font-size:12.5px;color:var(--ink2);line-height:1.6;">Something on the long way. <span style="color:var(--ink3);">You will find out if you take it.</span></div>
+                </div>
+              </div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--primary);color:#FBF9F3;padding:3px 7px;border-radius:3px;align-self:flex-start;">CHOICE</span>
+            </div>
+
+            <div style="display:flex;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line);">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);width:62px;flex:none;padding-top:2px;">MI 13.1</span>
+              <div style="flex:1;display:flex;gap:11px;align-items:flex-start;">
+                <svg width="17" height="17" viewBox="0 0 24 24" style="flex:none;margin-top:1px;"><path d="M12 4l8.5 15H3.5z" fill="none" stroke="#9A3412" stroke-width="1.9" stroke-linejoin="round"></path><path d="M12 10v4" stroke="#9A3412" stroke-width="1.9" stroke-linecap="round"></path><circle cx="12" cy="16.4" r="1" fill="#9A3412"></circle></svg>
+                <div style="flex:1;font-size:13px;line-height:1.6;"><strong style="color:var(--danger);">On the long way &#8212; washed-out tramway grade.</strong> <span style="color:var(--ink2);">Loose fill above the creek for about 400 yards. Walk the wet sections.</span></div>
+              </div>
+              <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--danger);color:#fff;padding:3px 7px;border-radius:3px;align-self:flex-start;">SHOWN</span>
+            </div>
+
+            <div style="display:flex;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line);">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);width:62px;flex:none;padding-top:2px;">MI 18.4</span>
+              <div style="flex:1;"><div style="font-size:14px;color:var(--ink2);">Toe River road rejoins from the left</div></div>
+            </div>
+            <div style="display:flex;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line);">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);width:62px;flex:none;padding-top:2px;">MI 22.7</span>
+              <div style="flex:1;"><div style="font-size:14px;color:var(--ink2);">The mine road rejoins above the bridge</div></div>
+            </div>
+            <div style="display:flex;gap:14px;padding:14px 24px;">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--ink3);width:62px;flex:none;padding-top:2px;">MI 24.8</span>
+              <div style="flex:1;"><div style="font-size:14px;font-weight:600;">Micaville &#8212; end of the day</div></div>
+            </div>
+          </div>
+          <div style="padding:16px 24px;border-top:1px solid var(--line);">
+            <div style="display:flex;gap:10px;align-items:flex-start;background:var(--app);border:1px solid var(--line);border-radius:5px;padding:11px 13px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="9" fill="none" stroke="#3D6577" stroke-width="1.7"></circle><path d="M12 11v6" stroke="#3D6577" stroke-width="1.7" stroke-linecap="round"></path><circle cx="12" cy="7.8" r="1" fill="#3D6577"></circle></svg>
+              <div style="flex:1;font-size:12.5px;color:var(--ink2);line-height:1.6;">The fork is always visible &#8212; a choice nobody can see is not a choice. Only what waits on the path is held back, and hazards on it never are.</div>
+              <span style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);flex:none;">GOT IT</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>PRINT · WEB · OFFLINE SHOW THE SAME</span><span style="color:var(--danger);">1 HAZARD ON A WITHHELD BRANCH · SHOWN</span><div style="flex:1;"></div><span style="color:var(--ink3);">CUES REGENERATE WITH THE ROUTE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 06 -->
+  <div style="margin-top:64px;display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;align-items:baseline;gap:14px;">
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--primary);">06</span>
+      <span style="font-size:19px;font-weight:700;">Refused, asked, and quietly marked</span>
+      <span style="font-size:14px;color:var(--ink3);">One thing the model will not do, one that destroys authored work and asks, one that only needs solving again.</span>
+    </div>
+    <div style="width:1280px;background:var(--card);border:1px solid #C6BCA6;border-radius:8px;box-shadow:0 20px 44px rgba(34,31,26,.16);overflow:hidden;">
+      <div style="height:32px;background:#E4DCC9;border-bottom:1px solid var(--line);display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:9px;padding-left:12px;flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#DB5A28"></circle><path d="M12 7.4l1.5 3.1 3.4.4-2.5 2.3.7 3.4-3.1-1.7-3.1 1.7.7-3.4-2.5-2.3 3.4-.4z" fill="#FBF9F3"></path></svg>
+          <span style="font-size:12px;color:var(--ink2);">Plotlines — Alternates: the three outcomes</span>
+        </div>
+        <div style="display:flex;">
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:1px;background:var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><div style="width:9px;height:9px;border:1px solid var(--ink);"></div></div>
+          <div style="width:46px;height:32px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 10M10 0L0 10" stroke="#221F1A" stroke-width="1"></path></svg></div>
+        </div>
+      </div>
+      <div style="height:680px;display:flex;">
+
+        <div style="width:426px;border-right:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:18px 22px 14px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--danger);">REFUSED BY THE MODEL</div>
+            <div style="font-family:var(--serif);font-size:24px;line-height:1.15;margin-top:6px;">A branch is not an effort setting</div>
+            <div style="font-size:13px;color:var(--ink2);line-height:1.6;margin-top:8px;">A Character's copy of day 5, where they set how hard they want the day to be.</div>
+          </div>
+          <div style="padding:16px 22px;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink3);">EFFORT ON THIS PASSAGE</div>
+            <div style="border:1px solid var(--line);border-radius:6px;margin-top:9px;overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);">
+                <span style="width:9px;height:9px;background:var(--ink);border-radius:50%;flex:none;"></span>
+                <div style="flex:1;"><div style="font-size:13.5px;font-weight:700;">The day as written</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink2);margin-top:2px;">24.8 MI · &#8593; 2,140 FT</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;">
+                <span style="width:9px;height:9px;border:2px solid var(--info);border-radius:50%;flex:none;"></span>
+                <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;">Toe River road</div><div style="font-family:var(--mono);font-size:10px;color:var(--ink2);margin-top:2px;">21.3 MI · &#8593; 980 FT</div></div>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;border:1px solid var(--info);color:var(--info);padding:2px 7px;border-radius:3px;">BYPASS</span>
+              </div>
+            </div>
+            <div style="border:1px solid var(--line);border-left:none;border-radius:0;margin-top:0;"></div>
+            <div style="border:1px solid var(--line);border-radius:6px;margin-top:12px;padding:13px 14px;background:var(--sunk);">
+              <div style="display:flex;align-items:center;gap:9px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" style="flex:none;"><circle cx="12" cy="12" r="9" fill="none" stroke="#9A3412" stroke-width="1.9"></circle><path d="M6.5 17.5l11-11" stroke="#9A3412" stroke-width="1.9" stroke-linecap="round"></path></svg>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.12em;color:var(--danger);">NOT AN EFFORT OPTION</span>
+              </div>
+              <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:9px;">Past the Sugarloaf mine is a branch. It is chosen on the day, at the fork, and it is not offered here.</div>
+            </div>
+            <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);line-height:1.9;margin-top:13px;letter-spacing:0.04em;">TEMPLATE<br>alternateBranchNotAnEffortOption<br>SLOTS: NAME(ALTERNATE)</div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="padding:14px 22px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink2);line-height:1.6;">The refusal is in the model, so every path lands here &#8212; the toggle, an import, a shared copy.</div>
+        </div>
+
+        <div style="width:426px;border-right:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;">
+          <div style="padding:18px 22px 14px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--warning);">ASKS FIRST</div>
+            <div style="font-family:var(--serif);font-size:24px;line-height:1.15;margin-top:6px;">Turning a branch into an effort option</div>
+            <div style="font-size:13px;color:var(--ink2);line-height:1.6;margin-top:8px;">An accommodation alternate has nowhere to keep what this one is holding.</div>
+          </div>
+          <div style="padding:16px 22px;">
+            <div style="border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+              <div style="padding:13px 15px;border-bottom:1px solid var(--line);background:var(--sunk);">
+                <div style="font-size:14.5px;font-weight:700;">This is what goes</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:11px 15px;border-bottom:1px solid var(--line);">
+                <svg width="16" height="16" viewBox="0 0 24 24" style="flex:none;"><path d="M4 14v-4h3.5l4.5-3.5v11L7.5 14z" fill="none" stroke="#544D42" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+                <div style="flex:1;font-size:13px;">Narration &#8212; sugarloaf-portal.m4a</div>
+                <span style="font-family:var(--mono);font-size:9.5px;color:var(--danger);">GOES</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:11px 15px;border-bottom:1px solid var(--line);">
+                <svg width="16" height="16" viewBox="0 0 24 24" style="flex:none;"><rect x="5" y="11" width="14" height="9" rx="1.6" fill="none" stroke="#544D42" stroke-width="1.8"></rect><path d="M8.5 11V8a3.5 3.5 0 017 0v3" fill="none" stroke="#544D42" stroke-width="1.8"></path></svg>
+                <div style="flex:1;font-size:13px;">Reveal &#8212; on arrival</div>
+                <span style="font-family:var(--mono);font-size:9.5px;color:var(--danger);">GOES</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:11px 15px;border-bottom:1px solid var(--line);">
+                <svg width="16" height="16" viewBox="0 0 24 24" style="flex:none;"><path d="M12 4.5l7 4.5v10H5V9z" fill="none" stroke="#544D42" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+                <div style="flex:1;font-size:13px;">The note about the tramway grade</div>
+                <span style="font-family:var(--mono);font-size:9.5px;color:var(--danger);">GOES</span>
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 15px;background:rgba(44,74,59,.05);">
+                <svg width="16" height="16" viewBox="0 0 24 24" style="flex:none;margin-top:1px;"><path d="M12 3.5l8 5v11h-16v-11z" fill="none" stroke="#2C4A3B" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+                <div style="flex:1;font-size:13px;line-height:1.55;">Both anchors stay in the trip, unattached, and stay findable in the anchors view.</div>
+                <span style="font-family:var(--mono);font-size:9.5px;color:var(--success);">STAYS</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px;margin-top:14px;">
+              <span style="font-weight:700;font-size:14px;color:var(--ink);min-height:44px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:4px;">Keep it a branch</span>
+              <span style="font-weight:700;font-size:16px;background:var(--primary);color:#FBF9F3;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;">Give up the content and convert</span>
+            </div>
+            <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);margin-top:12px;letter-spacing:0.06em;">UNDO COVERS THIS FOR THE REST OF THE SESSION</div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="padding:14px 22px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink2);line-height:1.6;">Deliberateness is reserved for destruction. This one destroys authored work, so it asks and states the scope.</div>
+        </div>
+
+        <div style="flex:1;background:var(--app);display:flex;flex-direction:column;">
+          <div style="padding:18px 22px 14px;border-bottom:1px solid var(--line);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--ink3);">NEITHER &#8212; JUST STALE</div>
+            <div style="font-family:var(--serif);font-size:24px;line-height:1.15;margin-top:6px;">Moving where the branch leaves</div>
+            <div style="font-size:13px;color:var(--ink2);line-height:1.6;margin-top:8px;">Nothing authored was lost, so nothing is confirmed and nothing re-solves on its own.</div>
+          </div>
+          <div style="padding:16px 22px;">
+            <div style="background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:11px;padding:12px 15px;border-bottom:1px solid var(--line);">
+                <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);width:38px;">16:31</span>
+                <span style="flex:1;font-size:13px;">Fork moved to MI 11.4</span>
+                <span style="width:7px;height:7px;border-radius:50%;background:var(--warning);"></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:11px;padding:12px 15px;">
+                <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink3);width:38px;">16:28</span>
+                <span style="flex:1;font-size:13px;color:var(--ink2);">Renamed the branch</span>
+              </div>
+            </div>
+            <div style="border:1px solid var(--warning);border-radius:6px;padding:13px 15px;margin-top:14px;background:var(--card);">
+              <div style="display:flex;align-items:center;gap:9px;">
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--warning);"></span>
+                <span style="font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:0.12em;color:var(--warning);">1 STALE</span>
+              </div>
+              <div style="font-size:13px;color:var(--ink2);line-height:1.65;margin-top:8px;">The branch geometry describes a fork that has moved. Its distances are the ones it was solved with, and they say so wherever they appear.</div>
+              <div style="display:flex;gap:9px;margin-top:12px;">
+                <span style="border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:12.5px;min-height:38px;padding:0 13px;border-radius:4px;display:inline-flex;align-items:center;background:var(--card);">Re-solve this branch</span>
+                <span style="font-weight:700;font-size:13px;background:var(--ink);color:var(--app);min-height:38px;padding:0 14px;border-radius:4px;display:inline-flex;align-items:center;">Re-solve all</span>
+              </div>
+            </div>
+            <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink3);line-height:1.9;margin-top:14px;letter-spacing:0.06em;">NO CONFIRMATION &#8212; NOTHING WAS DESTROYED<br>NOT AN ERROR SURFACE<br>EXPORT PAUSES UNTIL IT IS SOLVED</div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="padding:14px 22px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink2);line-height:1.6;">Editing a branch is ordinary work. Only the export gate notices, and it points at the stale list rather than an error.</div>
+        </div>
+      </div>
+      <div style="height:28px;background:var(--sunk);border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 12px;font-family:var(--mono);font-size:10.5px;color:var(--ink2);">
+        <span>1 REFUSAL · 1 ORPHAN PROMPT · 1 STALE MARKER</span><div style="flex:1;"></div><span style="color:var(--ink3);">NOTHING APPLIED YET</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

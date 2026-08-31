@@ -245,7 +245,7 @@ class RoutingClient {
               'distance_m': p.distanceM,
             }).toList(),
         'alternates': segment.alternates.map((a) => {
-              'id': a.id, 'kind': a.kind,
+              'id': a.id, 'intent': a.intent, 'kind': a.kind,
               'geometry': {'coordinates': a.geometry.coordinates},
               'label': a.label, 'diverges_at_m': a.divergesAtM,
             }).toList(),
