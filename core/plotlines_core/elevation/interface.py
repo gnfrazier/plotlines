@@ -23,11 +23,12 @@ handed an already-resolved :class:`~plotlines_core.elevation.sampler.ElevationSa
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Protocol, runtime_checkable
 
+from plotlines_core.cache_layout import CacheLayout
+from plotlines_core.cache_layout import trip_bbox_key as _trip_bbox_key
 from plotlines_core.elevation.sampler import ElevationSampler
 
 BBox = tuple[float, float, float, float]  # (min_lon, min_lat, max_lon, max_lat)
@@ -45,10 +46,15 @@ class ElevationUnavailable(RuntimeError):
 
 
 def bbox_key(bbox: BBox) -> str:
-    """Stable filename stem for a bbox-scoped DEM (same shape as the tile and
-    candidate caches, ARCH §4.2)."""
-    rounded = ",".join(f"{c:.5f}" for c in bbox)
-    return hashlib.sha1(rounded.encode()).hexdigest()[:16]
+    """Stable filename stem for a bbox-scoped DEM.
+
+    A thin alias for :func:`plotlines_core.cache_layout.trip_bbox_key` — the
+    tile, elevation and candidate caches share **one** key function (FR94,
+    ARCH §8.1), and this name is kept only so existing call sites and the
+    FR90 region asset need no edit. Byte-identical output to the previous
+    local implementation, so nothing on disk migrates.
+    """
+    return _trip_bbox_key(bbox)
 
 
 @dataclass(frozen=True)
@@ -202,6 +208,16 @@ def phase1_resolver(cache_dir: str | Path, *, fetch: Fetcher | None = None) -> E
     return ElevationResolver(
         [cache, DirectProviderSource(fetch=fetch, write_back=cache)]
     )
+
+
+def phase1_resolver_for_layout(
+    layout: CacheLayout, *, fetch: Fetcher | None = None
+) -> ElevationResolver:
+    """:func:`phase1_resolver` rooted at ``layout.elevation_dir`` — the
+    separate, bbox-scoped elevation cache FR94 calls for, a sibling of the
+    tile cache under one cache root. The shipped FR90 home-region raster and
+    an on-demand OpenTopography fetch both land here."""
+    return phase1_resolver(layout.elevation_dir, fetch=fetch)
 
 
 def phase2_resolver(

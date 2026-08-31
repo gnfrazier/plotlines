@@ -41,6 +41,7 @@ from plotlines_core.elevation.interface import (
     HttpElevationSource,
     LocalCacheSource,
     phase1_resolver,
+    phase1_resolver_for_layout,
     phase2_resolver,
 )
 from plotlines_core.elevation.keys import (
@@ -136,6 +137,7 @@ __all__ = [
     "installed_asset_is_current",
     "is_region_asset_installed",
     "phase1_resolver",
+    "phase1_resolver_for_layout",
     "phase2_resolver",
     "read_installed_manifest",
     "resolve_voids",

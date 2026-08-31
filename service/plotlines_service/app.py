@@ -25,6 +25,7 @@ import osmnx as ox
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
+from plotlines_core.cache_layout import CacheLayout
 from plotlines_core.curation.attribution import (
     MissingAttributionError, assert_attribution_complete, attributions_for,
 )
@@ -84,6 +85,11 @@ GRAPH_ESTIMATED_S = 8.0
 # second elevation source, which D20 forbids. So `elevation` reports this
 # fixed, honest not-ready state for every region rather than ever loading —
 # never blocking routing, which needs only the graph (FR121).
+#
+# When acquisition does land (#148), its cache is already located: the
+# separate, bbox-scoped elevation cache at `CacheLayout(cache_dir).elevation_dir`
+# (FR94), a sibling of the tile cache, read via
+# `plotlines_core.elevation.phase1_resolver_for_layout`.
 ELEVATION_NOT_CONFIGURED: dict = {
     "ready": False,
     "reason": "elevation_source_not_configured:tracked_in_148",
@@ -204,8 +210,14 @@ class RegionState:
         # capability's failure never blocks another) — a bbox outside the
         # configured tile source's coverage leaves `/tiles` to answer
         # honestly per-request (404) rather than wedging region build.
+        #
+        # The tile cache is the bbox-scoped, on-demand cache FR94 mandates:
+        # keyed by the trip bbox alone (`CacheLayout.tile_archive`), a
+        # sibling of the elevation cache under one root, and — unlike the
+        # graph, which is `regions/<key>/` because it legitimately varies by
+        # network type — shared across two trips that drew the same box.
         try:
-            tiles_path = cache_dir / "regions" / self.key / "tiles.pmtiles"
+            tiles_path = CacheLayout(cache_dir).tile_archive(self.bbox)
             if not tiles_path.exists():
                 extract_bbox(tiles_upstream, self.bbox, tiles_path,
                              allow_unmirrored=allow_unmirrored)
