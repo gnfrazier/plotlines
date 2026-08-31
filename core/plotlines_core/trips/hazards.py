@@ -210,3 +210,28 @@ def has_sync_alerts(trip: Trip) -> bool:
         for day in trip.days
         for h in (*day.hazards, *(hz for s in day.segments for hz in s.hazards))
     )
+
+
+def hazard_rollup(trip: Trip) -> dict:
+    """The trip-wide hazard payload every trip-assembly surface returns, so a
+    sidecar and a hosted server hand the client the *same* list (P1, issue #210).
+
+    All three parts come off the one `collect_hazards` traversal:
+
+      * ``hazards`` — every hazard on the trip in reading order, each tagged with
+        where it sits (`LocatedHazard.to_dict`);
+      * ``sync_alerts`` — the `ALERTING_SEVERITIES` subset, flattened and ordered
+        worst-first, as the distinct interrupt the client raises when a Character
+        opens or syncs the trip, *before* they are standing on the hazard (FR27);
+      * ``has_sync_alerts`` — the cheap boolean a caller checks before it builds
+        the interrupt surface at all.
+
+    Nothing here is reveal-gated (FR115): a `Hazard` carries no reveal field, so
+    this consults no policy and no Author setting can shrink the list.
+    """
+    alerts = sync_alerts(trip)
+    return {
+        "has_sync_alerts": bool(alerts),
+        "sync_alerts": [a.to_dict() for a in alerts],
+        "hazards": [lh.to_dict() for lh in collect_hazards(trip)],
+    }

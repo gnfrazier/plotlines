@@ -301,7 +301,13 @@ class RoutingClient {
   /// C3 — assemble days into a trip and apply per-mode day limits
   /// (`split_trip`; see that function's docstring for why "split" is the
   /// ARCH-inherited name for an assemble operation).
-  Future<Trip> assembleTrip({
+  ///
+  /// The response carries `hazard_rollup` alongside the payload (C11 / FR27 /
+  /// issue #210): the one traversal of every hazard the assembled trip holds,
+  /// plus the worst-first sync-alert subset. It rides beside the [Trip] rather
+  /// than on it — the payload schema is closed and this is derived, like
+  /// `metrics` — so callers get both.
+  Future<AssembledTrip> assembleTrip({
     required List<Day> days,
     required String title,
     Map<String, DayLimit>? limits,
@@ -318,7 +324,16 @@ class RoutingClient {
       }),
     );
     _checkOk(resp);
-    return Trip.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
+    final raw = jsonDecode(resp.body) as Map<String, dynamic>;
+    // `hazard_rollup` rides beside the payload, not in it — lift it out before
+    // `Trip.fromJson`, whose `JsonFields.done()` rejects any key it did not read.
+    final rollup = raw.remove('hazard_rollup');
+    return AssembledTrip(
+      trip: Trip.fromJson(raw),
+      hazardRollup: rollup == null
+          ? const HazardRollup.empty()
+          : HazardRollup.fromJson(Map<String, dynamic>.from(rollup as Map)),
+    );
   }
 
   /// A10 / New Route's location search — Nominatim via OSMnx (ARCH §7.2).
@@ -336,6 +351,16 @@ class RoutingClient {
       throw RoutingException(resp.statusCode, resp.body);
     }
   }
+}
+
+/// What `/trips/split` hands back: the assembled [Trip] and the trip-wide
+/// [HazardRollup] the same response carries (C11 / FR27 / issue #210). The
+/// roll-up is [HazardRollup.empty] when an older sidecar omits the field.
+class AssembledTrip {
+  const AssembledTrip({required this.trip, required this.hazardRollup});
+
+  final Trip trip;
+  final HazardRollup hazardRollup;
 }
 
 class GeocodeResult {

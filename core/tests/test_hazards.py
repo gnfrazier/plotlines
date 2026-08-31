@@ -23,6 +23,7 @@ from plotlines_core.trips.hazards import (
     ALERTING_SEVERITIES,
     HAZARD_SEVERITIES,
     collect_hazards,
+    hazard_rollup,
     has_sync_alerts,
     sync_alerts,
 )
@@ -233,3 +234,59 @@ def test_a_trip_with_no_hazards_has_no_alerts():
     assert collect_hazards(trip) == []
     assert sync_alerts(trip) == []
     assert not has_sync_alerts(trip)
+
+
+# --- hazard_rollup: the one payload both sidecar and hosted assembly return ---
+
+
+def test_hazard_rollup_bundles_the_full_list_the_alerts_and_the_precheck():
+    trip = _trip([
+        Day(index=1, hazards=[Hazard(severity="caution", title="Loose gravel")],
+            segments=[
+                _segment("s1", hazards=[Hazard(severity="high", title="Cattle guard")]),
+            ]),
+        Day(index=2, segments=[_segment("s2", hazards=[
+            Hazard(severity="mandatory_reroute", title="Bridge out"),
+        ])]),
+    ])
+    rollup = hazard_rollup(trip)
+
+    assert rollup["has_sync_alerts"] is True
+    # `hazards` is the whole `collect_hazards` traversal, reading order.
+    assert [h["hazard"]["title"] for h in rollup["hazards"]] == [
+        "Loose gravel", "Cattle guard", "Bridge out",
+    ]
+    # `sync_alerts` is the alerting subset, worst-first.
+    assert [a["title"] for a in rollup["sync_alerts"]] == ["Bridge out", "Cattle guard"]
+
+
+def test_hazard_rollup_matches_the_functions_it_composes():
+    trip = _trip([Day(index=1, segments=[_segment("s1", hazards=[
+        Hazard(severity="high", title="Ice", id="h-ice"),
+        Hazard(severity="caution", title="Mud", id="h-mud"),
+    ])])])
+    rollup = hazard_rollup(trip)
+    assert rollup["hazards"] == [lh.to_dict() for lh in collect_hazards(trip)]
+    assert rollup["sync_alerts"] == [a.to_dict() for a in sync_alerts(trip)]
+    assert rollup["has_sync_alerts"] == has_sync_alerts(trip)
+
+
+def test_hazard_rollup_on_a_quiet_trip_is_empty_lists_not_null():
+    trip = _trip([Day(index=1, segments=[_segment("s1", hazards=[
+        Hazard(severity="caution", title="Puddle"),
+    ])])])
+    rollup = hazard_rollup(trip)
+    assert rollup["has_sync_alerts"] is False
+    assert rollup["sync_alerts"] == []
+    # a caution hazard interrupts nothing, but still appears everywhere hazards do
+    assert [h["hazard"]["title"] for h in rollup["hazards"]] == ["Puddle"]
+
+
+def test_hazard_rollup_is_not_reveal_gated_fr115():
+    """FR115 — no argument, no policy, no way to shrink the list: a hazard on
+    the trip is in the roll-up, full stop."""
+    trip = _trip([Day(index=1, segments=[_segment("s1", hazards=[
+        Hazard(severity="high", title="Rockfall"),
+    ])])])
+    assert len(hazard_rollup(trip)["hazards"]) == 1
+    assert len(hazard_rollup(trip)["sync_alerts"]) == 1
