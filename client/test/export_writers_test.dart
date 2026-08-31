@@ -4,10 +4,13 @@
 // call — worth a real check rather than trusting a build-clean run.
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart' as xml;
 
+import 'package:plotlines_client/data/export/export_options.dart';
+import 'package:plotlines_client/data/export/fit_writer.dart';
 import 'package:plotlines_client/data/export/geojson_writer.dart';
 import 'package:plotlines_client/data/export/gpx_writer.dart';
 import 'package:plotlines_client/data/export/tcx_writer.dart';
@@ -205,6 +208,94 @@ void main() {
     expect(doc.findAllElements('CoursePoint').length, 1);
     final distance = doc.findAllElements('DistanceMeters').first.innerText;
     expect(double.parse(distance), closeTo(1500.0, 0.1));
+  });
+
+  group('FIT (issue #211 — core ships fit.py, client ports it)', () {
+    int u16le(Uint8List b, int at) => b[at] | (b[at + 1] << 8);
+    int u32le(Uint8List b, int at) =>
+        b[at] | (b[at + 1] << 8) | (b[at + 2] << 16) | (b[at + 3] << 24);
+
+    test('CRC-16/ARC matches the canonical check value', () {
+      expect(fitCrc16(ascii.encode('123456789')), 0xBB3D);
+    });
+
+    test('produces a structurally valid FIT file: header, .FIT tag, both CRCs', () {
+      final fit = tripToFit(trip);
+
+      expect(fit[0], 14, reason: 'header size byte');
+      expect(fit[1], 0x20, reason: 'FIT protocol 2.0');
+      expect(String.fromCharCodes(fit.sublist(8, 12)), '.FIT');
+
+      final dataSize = u32le(fit, 4);
+      expect(fit.length, 14 + dataSize + 2,
+          reason: 'header + body + trailing file CRC');
+
+      // Header CRC covers the first 12 bytes; file CRC covers everything
+      // before the trailing 2 bytes — the check a real head unit runs.
+      expect(u16le(fit, 12), fitCrc16(fit.sublist(0, 12)));
+      expect(u16le(fit, fit.length - 2),
+          fitCrc16(fit.sublist(0, fit.length - 2)));
+    });
+
+    test('omitting waypoints drops the course_point messages (smaller file)', () {
+      final withPoints = tripToFit(trip);
+      final withoutPoints =
+          tripToFit(trip, options: const ExportOptions(includeWaypoints: false));
+      expect(withoutPoints.length, lessThan(withPoints.length));
+    });
+
+    test('a trip with no routed geometry throws rather than emitting a bad file', () {
+      final empty = Trip(
+        id: 'trip-empty',
+        title: 'Nothing Routed',
+        createdAt: '2026-08-17T00:00:00Z',
+        updatedAt: '2026-08-17T00:00:00Z',
+        days: [Day(id: 'd1', index: 1, kind: 'route')],
+      );
+      expect(() => tripToFit(empty), throwsStateError);
+    });
+
+    test('FR45: a long plot-point note is carried in the cue name, word-clipped', () {
+      final noted = Trip(
+        id: 'trip-fit-note',
+        title: 'Noted Ride',
+        createdAt: '2026-08-17T00:00:00Z',
+        updatedAt: '2026-08-17T00:00:00Z',
+        days: [
+          Day(id: 'day-1', index: 1, kind: 'route', segments: [
+            Segment(
+              id: 'seg-1',
+              mode: 'cycling',
+              shape: 'point_to_point',
+              geometry: LineString(
+                coordinates: [
+                  [-105.2705, 40.0150],
+                  [-105.2800, 40.0200],
+                ],
+                source: 'solved',
+              ),
+              metrics: RouteMetrics(distanceM: 1200, movingTimeS: 300),
+              nodes: [
+                Node(
+                  id: 'n1',
+                  kind: NodeKind.poi,
+                  coord: [-105.2750, 40.0180],
+                  title: 'Overlook',
+                  note:
+                      'Loose gravel across the whole descent, take it slow here',
+                ),
+              ],
+            ),
+          ]),
+        ],
+      );
+      final fit = tripToFit(noted);
+      // The course_point.name string is UTF-8 + NUL somewhere in the body.
+      final text = utf8.decode(fit, allowMalformed: true);
+      expect(text, contains('Overlook — Loose'));
+      // Clipped well under the raw note length, and not mid-word.
+      expect(text, isNot(contains('Loose gravel across the whole descent')));
+    });
   });
 
   // FR45 — exported waypoints / course points preserve the plot-point note
