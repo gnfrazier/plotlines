@@ -65,6 +65,15 @@ class MetricsRail extends StatelessWidget {
       selectedSegment?.elevation?.samples ?? const <double>[],
     );
 
+    // D1 / FR31 / FR16 (issue #213) — the FR16 moving-time model over the trip
+    // as it stands. `build_dashboard` on `/trips/split` is authoritative; this
+    // client mirror keeps the panel populated between saves, the same role
+    // `rollUpTrip` fills for the plain distance sums. ETA needs a start time the
+    // trip payload does not carry yet, so `TripDashboard.fromTrip` never sets
+    // it — the row renders only when the server path supplied one.
+    final dashboard = TripDashboard.fromTrip(trip);
+    final tripMovingS = dashboard.tripTotal.total?.movingTimeS;
+
     return Container(
       width: 308,
       decoration: BoxDecoration(
@@ -159,6 +168,39 @@ class MetricsRail extends StatelessWidget {
                         color: c.success,
                       ),
                   ],
+                  if (tripMovingS != null) ...[
+                    const SizedBox(height: PlotSpacing.s4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _StatCard(
+                            label: 'MOVING TIME',
+                            value: _formatDuration(tripMovingS),
+                          ),
+                        ),
+                        const SizedBox(width: PlotSpacing.s2),
+                        Expanded(
+                          child: _StatCard(
+                            label: 'EST. ARRIVAL',
+                            value: dashboard.tripEta == null
+                                ? '—'
+                                : _formatEta(dashboard.tripEta!),
+                            muted: dashboard.tripEta == null,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: PlotSpacing.s2),
+                      child: Text(
+                        dashboard.paceSource == paceCustom
+                            ? 'Pace: custom'
+                            : 'Pace: system default',
+                        style: PlotTypography.small(c.textMuted),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: PlotSpacing.s4),
                   Text(
                     'ELEVATION',
@@ -226,6 +268,26 @@ class MetricsRail extends StatelessWidget {
     final range = (maxV - minV).abs() < 1e-9 ? 1.0 : (maxV - minV);
     return samples.map((v) => (v - minV) / range).toList();
   }
+}
+
+/// FR16 moving/elapsed time as `4h 20m` / `45m` / `0m` — never a fudged number,
+/// so it rounds to the whole minute the pace model can actually stand behind.
+String _formatDuration(double seconds) {
+  final totalMinutes = (seconds / 60).round();
+  final h = totalMinutes ~/ 60;
+  final m = totalMinutes % 60;
+  return h == 0 ? '${m}m' : '${h}h ${m}m';
+}
+
+/// An ETA stamp (`2026-09-01T14:30:00Z` from `build_dashboard`) as `14:30`.
+/// Falls back to the raw stamp if it is not the shape the model emits.
+String _formatEta(String iso) {
+  final parsed = DateTime.tryParse(iso);
+  if (parsed == null) return iso;
+  final t = parsed.toUtc();
+  final hh = t.hour.toString().padLeft(2, '0');
+  final mm = t.minute.toString().padLeft(2, '0');
+  return '$hh:$mm';
 }
 
 /// A9/FR8a — the via-anchor AC an Author cannot see just by looking at the

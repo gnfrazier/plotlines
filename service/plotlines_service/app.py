@@ -63,6 +63,7 @@ from plotlines_core.tiles.extract import NoTilesInBbox, extract_bbox
 from plotlines_core.web.session import SessionCookiePolicy
 from plotlines_core.trips.compose import compose_day, split_trip
 from plotlines_core.trips.cues import derive_cue_sheet, route_polyline
+from plotlines_core.trips.dashboard import build_dashboard
 from plotlines_core.trips.hazards import hazard_rollup
 from plotlines_core.trips.payload import Day as PayloadDay
 from plotlines_core.trips.payload import Segment as PayloadSegment
@@ -407,6 +408,17 @@ class TripSplitRequest(BaseModel):
     title: str = "Untitled plotline"
     limits: dict[str, dict[str, float]] | None = None
     default_weights: dict | None = None
+
+    # D1 / FR31 / FR16 (issue #213) — the planning dashboard's time-model
+    # inputs. All optional: with none of them the `dashboard` block the
+    # response also carries is the distance/elevation panel D1's first AC
+    # line requires, and the moving-time / elapsed-time / ETA fields stay
+    # unset. `build_dashboard` owns what each one means.
+    active_segment_id: str | None = None
+    speeds: dict[str, float] | None = None
+    day_hold_s: dict[str, float] | None = None
+    day_start_at: dict[str, str] | None = None
+    trip_start_at: str | None = None
 
 
 class EnvelopeRequest(BaseModel):
@@ -1183,6 +1195,27 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         # producer this and hosted-mode assembly both call, so the two can never
         # hand the client a different list (issue #210).
         result["hazard_rollup"] = hazard_rollup(trip)
+        # D1 / FR31 / FR16 (issue #213) — the live planning dashboard rides
+        # alongside the payload for the same reason `hazard_rollup` does: it is
+        # derived, not stored, and `build_dashboard` is the one place the FR16
+        # moving-time / elapsed-time / ETA model is computed, so a sidecar and
+        # (future) hosted assembly hand the client the identical numbers rather
+        # than each rolling their own. With no time-model inputs on the request
+        # it is the distance/elevation panel; the inputs fill in the rest.
+        try:
+            dashboard = build_dashboard(
+                trip,
+                active_segment_id=req.active_segment_id,
+                speeds=req.speeds,
+                day_hold_s=req.day_hold_s,
+                day_start_at=req.day_start_at,
+                trip_start_at=req.trip_start_at,
+            )
+        except ValueError as exc:
+            # `active_segment_id` naming a segment the assembled trip does not
+            # carry is the only ValueError `build_dashboard` raises.
+            raise HTTPException(422, str(exc)) from exc
+        result["dashboard"] = dashboard.to_dict()
         return result
 
     if mode == "hosted":

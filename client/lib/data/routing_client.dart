@@ -302,16 +302,26 @@ class RoutingClient {
   /// (`split_trip`; see that function's docstring for why "split" is the
   /// ARCH-inherited name for an assemble operation).
   ///
-  /// The response carries `hazard_rollup` alongside the payload (C11 / FR27 /
-  /// issue #210): the one traversal of every hazard the assembled trip holds,
-  /// plus the worst-first sync-alert subset. It rides beside the [Trip] rather
-  /// than on it — the payload schema is closed and this is derived, like
-  /// `metrics` — so callers get both.
+  /// The response carries two derived blocks alongside the payload, riding
+  /// beside the [Trip] rather than on it — the payload schema is closed and
+  /// both are derived, like `metrics`:
+  ///
+  ///  * `hazard_rollup` (C11 / FR27 / issue #210): the one traversal of every
+  ///    hazard the assembled trip holds, plus the worst-first sync-alert subset;
+  ///  * `dashboard` (D1 / FR31 / FR16 / issue #213): the live planning panel —
+  ///    the three roll-up scopes plus the FR16 moving-time / elapsed-time / ETA
+  ///    model, computed once server-side. Pass the time-model inputs to fill in
+  ///    more than the distance/elevation panel.
   Future<AssembledTrip> assembleTrip({
     required List<Day> days,
     required String title,
     Map<String, DayLimit>? limits,
     WeightProfile? defaultWeights,
+    String? activeSegmentId,
+    Map<String, double>? speeds,
+    Map<String, double>? dayHoldS,
+    Map<String, String>? dayStartAt,
+    String? tripStartAt,
   }) async {
     final resp = await http.post(
       _uri('/trips/split'),
@@ -321,18 +331,31 @@ class RoutingClient {
         'title': title,
         if (limits != null) 'limits': dayLimitsToJson(limits),
         if (defaultWeights != null) 'default_weights': defaultWeights.toJson(),
+        // D1 / FR31 / FR16 (issue #213) — the dashboard's time-model inputs.
+        // Omitted entirely when unset: the `dashboard` block is then the
+        // distance/elevation panel, with no moving-time/ETA fields.
+        'active_segment_id': ?activeSegmentId,
+        'speeds': ?speeds,
+        'day_hold_s': ?dayHoldS,
+        'day_start_at': ?dayStartAt,
+        'trip_start_at': ?tripStartAt,
       }),
     );
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
-    // `hazard_rollup` rides beside the payload, not in it — lift it out before
-    // `Trip.fromJson`, whose `JsonFields.done()` rejects any key it did not read.
+    // `hazard_rollup` and `dashboard` ride beside the payload, not in it — lift
+    // them out before `Trip.fromJson`, whose `JsonFields.done()` rejects any key
+    // it did not read.
     final rollup = raw.remove('hazard_rollup');
+    final dashboard = raw.remove('dashboard');
     return AssembledTrip(
       trip: Trip.fromJson(raw),
       hazardRollup: rollup == null
           ? const HazardRollup.empty()
           : HazardRollup.fromJson(Map<String, dynamic>.from(rollup as Map)),
+      dashboard: dashboard == null
+          ? null
+          : TripDashboard.fromJson(Map<String, dynamic>.from(dashboard as Map)),
     );
   }
 
@@ -353,14 +376,21 @@ class RoutingClient {
   }
 }
 
-/// What `/trips/split` hands back: the assembled [Trip] and the trip-wide
-/// [HazardRollup] the same response carries (C11 / FR27 / issue #210). The
-/// roll-up is [HazardRollup.empty] when an older sidecar omits the field.
+/// What `/trips/split` hands back: the assembled [Trip] plus the two derived
+/// blocks the same response carries — the trip-wide [HazardRollup] (C11 / FR27 /
+/// issue #210) and the live planning [TripDashboard] (D1 / FR31 / FR16 /
+/// issue #213). The roll-up is [HazardRollup.empty] and [dashboard] is null when
+/// an older sidecar omits the field.
 class AssembledTrip {
-  const AssembledTrip({required this.trip, required this.hazardRollup});
+  const AssembledTrip({
+    required this.trip,
+    required this.hazardRollup,
+    this.dashboard,
+  });
 
   final Trip trip;
   final HazardRollup hazardRollup;
+  final TripDashboard? dashboard;
 }
 
 class GeocodeResult {
