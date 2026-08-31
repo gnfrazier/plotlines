@@ -1,0 +1,1108 @@
+{
+  "constraints": {
+    "access_key": "motor_vehicle",
+    "excluded_values": [
+      "destination",
+      "no",
+      "permit",
+      "private"
+    ],
+    "generic_excluded_values": [
+      "no",
+      "private"
+    ],
+    "ford_passable": false
+  },
+  "approaches": {
+    "boulder": {
+      "name": "Gregory Canyon Trailhead, Boulder CO",
+      "remote": false,
+      "shared_fixture": true,
+      "pull": {
+        "key": "boulder",
+        "name": "Gregory Canyon Trailhead, Boulder CO",
+        "bbox": [
+          -105.3,
+          39.98,
+          -105.23,
+          40.04
+        ],
+        "fetched_at": "2026-08-31T11:14:09+00:00",
+        "osmnx": "2.1.1",
+        "filter": "[\"highway\"][\"area\"!~\"yes\"][\"highway\"!~\"abandoned|bridleway|bus_guideway|construction|corridor|cycleway|elevator|escalator|footway|no|path|pedestrian|planned|platform|proposed|raceway|razed|rest_area|services|steps\"][\"motor_vehicle\"!~\"no\"][\"motorcar\"!~\"no\"][\"service\"!~\"emergency_access|parking|parking_aisle|private\"]",
+        "fetch_seconds": 68.04,
+        "fetch_attempts": 1,
+        "nodes": 5655,
+        "edges": 13447,
+        "origin": [
+          40.0176,
+          -105.2797
+        ],
+        "destination": [
+          39.99751,
+          -105.29271
+        ],
+        "destination_osm": "way/417243786"
+      },
+      "variants": {
+        "drive": {
+          "variant": "drive",
+          "ok": true,
+          "reason": "",
+          "nodes": 3774,
+          "edges": 8451,
+          "nodes_truncated": 3680,
+          "edges_truncated": 8292,
+          "legal_edges": 8285,
+          "excluded": {
+            "motor_vehicle=private": 4,
+            "access=no": 3
+          },
+          "origin_snap_m": 26.28150998776063,
+          "dest_snap_m": 265.35690895112265,
+          "dest_outside_guard": false,
+          "distance_m": 2780.9,
+          "solve_ms": 7.9,
+          "solve_ms_warm": 3.2,
+          "arrival_gap_m": 265.4,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 2.78,
+            "paved_pct": 100.0,
+            "unknown_pct": 0.0
+          },
+          "surface_km": {
+            "paved": 2.78
+          },
+          "highway_km": {
+            "primary": 0.516,
+            "tertiary": 0.783,
+            "residential": 1.481
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 2.8,
+          "time_surface_aware_min": 2.7
+        },
+        "drive_service": {
+          "variant": "drive_service",
+          "ok": true,
+          "reason": "",
+          "nodes": 5520,
+          "edges": 13115,
+          "nodes_truncated": 5218,
+          "edges_truncated": 12705,
+          "legal_edges": 12680,
+          "excluded": {
+            "access=no": 15,
+            "motor_vehicle=destination": 6,
+            "motor_vehicle=private": 4
+          },
+          "origin_snap_m": 26.28150998776063,
+          "dest_snap_m": 11.190370018811691,
+          "dest_outside_guard": false,
+          "distance_m": 3045.5,
+          "solve_ms": 11.5,
+          "solve_ms_warm": 4.6,
+          "arrival_gap_m": 11.2,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 3.04,
+            "paved_pct": 91.3,
+            "unknown_pct": 8.7
+          },
+          "surface_km": {
+            "paved": 2.78,
+            "unknown": 0.265
+          },
+          "highway_km": {
+            "primary": 0.516,
+            "tertiary": 0.783,
+            "residential": 1.481,
+            "service": 0.265
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 3.0,
+          "time_surface_aware_min": 3.0
+        },
+        "drive_track": {
+          "variant": "drive_track",
+          "ok": true,
+          "reason": "",
+          "nodes": 5534,
+          "edges": 13141,
+          "nodes_truncated": 5228,
+          "edges_truncated": 12727,
+          "legal_edges": 12700,
+          "excluded": {
+            "access=no": 17,
+            "motor_vehicle=destination": 6,
+            "motor_vehicle=private": 4
+          },
+          "origin_snap_m": 26.28150998776063,
+          "dest_snap_m": 11.190370018811691,
+          "dest_outside_guard": false,
+          "distance_m": 3045.5,
+          "solve_ms": 12.5,
+          "solve_ms_warm": 4.5,
+          "arrival_gap_m": 11.2,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 3.04,
+            "paved_pct": 91.3,
+            "unknown_pct": 8.7
+          },
+          "surface_km": {
+            "paved": 2.78,
+            "unknown": 0.265
+          },
+          "highway_km": {
+            "primary": 0.516,
+            "tertiary": 0.783,
+            "residential": 1.481,
+            "service": 0.265
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 3.0,
+          "time_surface_aware_min": 3.0
+        },
+        "drive_track_private": {
+          "variant": "drive_track_private",
+          "ok": true,
+          "reason": "",
+          "nodes": 5655,
+          "edges": 13447,
+          "nodes_truncated": 5370,
+          "edges_truncated": 13060,
+          "legal_edges": 12702,
+          "excluded": {
+            "access=private": 265,
+            "motor_vehicle=private": 68,
+            "access=no": 19,
+            "motor_vehicle=destination": 6
+          },
+          "origin_snap_m": 26.28150998776063,
+          "dest_snap_m": 11.190370018811691,
+          "dest_outside_guard": false,
+          "distance_m": 3045.5,
+          "solve_ms": 12.6,
+          "solve_ms_warm": 4.5,
+          "arrival_gap_m": 11.2,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 3.04,
+            "paved_pct": 91.3,
+            "unknown_pct": 8.7
+          },
+          "surface_km": {
+            "paved": 2.78,
+            "unknown": 0.265
+          },
+          "highway_km": {
+            "primary": 0.516,
+            "tertiary": 0.783,
+            "residential": 1.481,
+            "service": 0.265
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 3.0,
+          "time_surface_aware_min": 3.0
+        }
+      },
+      "corridor_km": {
+        "drive": 700.46,
+        "drive_service": 978.96,
+        "drive_track": 982.28,
+        "drive_track_private": 982.8
+      },
+      "corridor_kept_by_shipped_pct": 71.3,
+      "weight_sweep": [
+        {
+          "case": "shipped",
+          "ok": true,
+          "km": 3.05,
+          "paved_pct": 91.3,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "surface_paved=-1",
+          "ok": true,
+          "km": 3.05,
+          "paved_pct": 91.3,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "surface_paved=0",
+          "ok": true,
+          "km": 3.05,
+          "paved_pct": 91.3,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "surface_paved=+1",
+          "ok": true,
+          "km": 3.05,
+          "paved_pct": 91.3,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "directness=0.5",
+          "ok": true,
+          "km": 3.05,
+          "paved_pct": 91.3,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "directness=0.5,surface_paved=+1",
+          "ok": true,
+          "km": 3.05,
+          "paved_pct": 91.3,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "directness=0.0,surface_paved=+1",
+          "ok": true,
+          "km": 3.31,
+          "paved_pct": 92.0,
+          "identical_to_shipped": false,
+          "edge_overlap_pct": 24.2
+        }
+      ]
+    },
+    "viroqua": {
+      "name": "Sidie Hollow landing, Viroqua WI",
+      "remote": false,
+      "shared_fixture": true,
+      "pull": {
+        "key": "viroqua",
+        "name": "Sidie Hollow landing, Viroqua WI",
+        "bbox": [
+          -91.0,
+          43.48,
+          -90.8,
+          43.62
+        ],
+        "fetched_at": "2026-08-31T11:13:43+00:00",
+        "osmnx": "2.1.1",
+        "filter": "[\"highway\"][\"area\"!~\"yes\"][\"highway\"!~\"abandoned|bridleway|bus_guideway|construction|corridor|cycleway|elevator|escalator|footway|no|path|pedestrian|planned|platform|proposed|raceway|razed|rest_area|services|steps\"][\"motor_vehicle\"!~\"no\"][\"motorcar\"!~\"no\"][\"service\"!~\"emergency_access|parking|parking_aisle|private\"]",
+        "fetch_seconds": 10.05,
+        "fetch_attempts": 1,
+        "nodes": 2200,
+        "edges": 5160,
+        "origin": [
+          43.5566,
+          -90.8879
+        ],
+        "destination": [
+          43.53792,
+          -90.95289
+        ],
+        "destination_osm": "node/2618977896 (leisure=slipway)"
+      },
+      "variants": {
+        "drive": {
+          "variant": "drive",
+          "ok": true,
+          "reason": "",
+          "nodes": 1502,
+          "edges": 3356,
+          "nodes_truncated": 1488,
+          "edges_truncated": 3338,
+          "legal_edges": 3338,
+          "excluded": {},
+          "origin_snap_m": 17.753329346858163,
+          "dest_snap_m": 1.2580239742461345,
+          "dest_outside_guard": false,
+          "distance_m": 7636.0,
+          "solve_ms": 3.8,
+          "solve_ms_warm": 1.8,
+          "arrival_gap_m": 1.3,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 7.63,
+            "paved_pct": 35.2,
+            "unknown_pct": 64.8
+          },
+          "surface_km": {
+            "unknown": 4.947,
+            "paved": 2.688
+          },
+          "highway_km": {
+            "residential": 5.584,
+            "tertiary": 2.051
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 7.6,
+          "time_surface_aware_min": 7.6
+        },
+        "drive_service": {
+          "variant": "drive_service",
+          "ok": true,
+          "reason": "",
+          "nodes": 2113,
+          "edges": 4938,
+          "nodes_truncated": 2074,
+          "edges_truncated": 4882,
+          "legal_edges": 4882,
+          "excluded": {},
+          "origin_snap_m": 17.753329346858163,
+          "dest_snap_m": 1.2580239742461345,
+          "dest_outside_guard": false,
+          "distance_m": 7636.0,
+          "solve_ms": 4.8,
+          "solve_ms_warm": 2.0,
+          "arrival_gap_m": 1.3,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 7.63,
+            "paved_pct": 35.2,
+            "unknown_pct": 64.8
+          },
+          "surface_km": {
+            "unknown": 4.947,
+            "paved": 2.688
+          },
+          "highway_km": {
+            "residential": 5.584,
+            "tertiary": 2.051
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 7.6,
+          "time_surface_aware_min": 7.6
+        },
+        "drive_track": {
+          "variant": "drive_track",
+          "ok": true,
+          "reason": "",
+          "nodes": 2118,
+          "edges": 4950,
+          "nodes_truncated": 2079,
+          "edges_truncated": 4894,
+          "legal_edges": 4894,
+          "excluded": {},
+          "origin_snap_m": 17.753329346858163,
+          "dest_snap_m": 1.2580239742461345,
+          "dest_outside_guard": false,
+          "distance_m": 7636.0,
+          "solve_ms": 6.2,
+          "solve_ms_warm": 2.2,
+          "arrival_gap_m": 1.3,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 7.63,
+            "paved_pct": 35.2,
+            "unknown_pct": 64.8
+          },
+          "surface_km": {
+            "unknown": 4.947,
+            "paved": 2.688
+          },
+          "highway_km": {
+            "residential": 5.584,
+            "tertiary": 2.051
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 7.6,
+          "time_surface_aware_min": 7.6
+        },
+        "drive_track_private": {
+          "variant": "drive_track_private",
+          "ok": true,
+          "reason": "",
+          "nodes": 2200,
+          "edges": 5160,
+          "nodes_truncated": 2175,
+          "edges_truncated": 5121,
+          "legal_edges": 4917,
+          "excluded": {
+            "access=private": 202,
+            "motor_vehicle=private": 2
+          },
+          "origin_snap_m": 17.753329346858163,
+          "dest_snap_m": 1.2580239742461345,
+          "dest_outside_guard": false,
+          "distance_m": 7636.0,
+          "solve_ms": 4.9,
+          "solve_ms_warm": 2.3,
+          "arrival_gap_m": 1.3,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 7.63,
+            "paved_pct": 35.2,
+            "unknown_pct": 64.8
+          },
+          "surface_km": {
+            "unknown": 4.947,
+            "paved": 2.688
+          },
+          "highway_km": {
+            "residential": 5.584,
+            "tertiary": 2.051
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 7.6,
+          "time_surface_aware_min": 7.6
+        }
+      },
+      "corridor_km": {
+        "drive": 556.11,
+        "drive_service": 717.64,
+        "drive_track": 721.48,
+        "drive_track_private": 723.26
+      },
+      "corridor_kept_by_shipped_pct": 77.1,
+      "weight_sweep": [
+        {
+          "case": "shipped",
+          "ok": true,
+          "km": 7.64,
+          "paved_pct": 35.2,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "surface_paved=-1",
+          "ok": true,
+          "km": 7.64,
+          "paved_pct": 31.3,
+          "identical_to_shipped": false,
+          "edge_overlap_pct": 86.2
+        },
+        {
+          "case": "surface_paved=0",
+          "ok": true,
+          "km": 7.63,
+          "paved_pct": 33.9,
+          "identical_to_shipped": false,
+          "edge_overlap_pct": 93.1
+        },
+        {
+          "case": "surface_paved=+1",
+          "ok": true,
+          "km": 7.64,
+          "paved_pct": 35.2,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "directness=0.5",
+          "ok": true,
+          "km": 7.64,
+          "paved_pct": 38.0,
+          "identical_to_shipped": false,
+          "edge_overlap_pct": 93.1
+        },
+        {
+          "case": "directness=0.5,surface_paved=+1",
+          "ok": true,
+          "km": 7.64,
+          "paved_pct": 38.0,
+          "identical_to_shipped": false,
+          "edge_overlap_pct": 93.1
+        },
+        {
+          "case": "directness=0.0,surface_paved=+1",
+          "ok": true,
+          "km": 7.68,
+          "paved_pct": 39.1,
+          "identical_to_shipped": false,
+          "edge_overlap_pct": 82.8
+        }
+      ]
+    },
+    "bigsandy": {
+      "name": "Big Sandy Trailhead, Bridger-Teton NF, WY",
+      "remote": true,
+      "shared_fixture": false,
+      "pull": {
+        "key": "bigsandy",
+        "name": "Big Sandy Trailhead, Bridger-Teton NF, WY",
+        "bbox": [
+          -109.78,
+          42.54,
+          -109.2,
+          42.8
+        ],
+        "fetched_at": "2026-08-31T11:13:50+00:00",
+        "osmnx": "2.1.1",
+        "filter": "[\"highway\"][\"area\"!~\"yes\"][\"highway\"!~\"abandoned|bridleway|bus_guideway|construction|corridor|cycleway|elevator|escalator|footway|no|path|pedestrian|planned|platform|proposed|raceway|razed|rest_area|services|steps\"][\"motor_vehicle\"!~\"no\"][\"motorcar\"!~\"no\"][\"service\"!~\"emergency_access|parking|parking_aisle|private\"]",
+        "fetch_seconds": 6.1,
+        "fetch_attempts": 1,
+        "nodes": 1169,
+        "edges": 2882,
+        "origin": [
+          42.7433,
+          -109.7166
+        ],
+        "destination": [
+          42.68837,
+          -109.27079
+        ],
+        "destination_osm": "node/1042137527 (highway=trailhead)"
+      },
+      "variants": {
+        "drive": {
+          "variant": "drive",
+          "ok": true,
+          "reason": "",
+          "nodes": 340,
+          "edges": 744,
+          "nodes_truncated": 340,
+          "edges_truncated": 744,
+          "legal_edges": 744,
+          "excluded": {},
+          "origin_snap_m": 138.96228947225117,
+          "dest_snap_m": 98.38262690250852,
+          "dest_outside_guard": false,
+          "distance_m": 72331.3,
+          "solve_ms": 3.2,
+          "solve_ms_warm": 1.7,
+          "arrival_gap_m": 98.4,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 72.33,
+            "paved_pct": 25.5,
+            "unknown_pct": 14.7
+          },
+          "surface_km": {
+            "unknown": 10.66,
+            "paved": 18.472,
+            "gravel": 43.195
+          },
+          "highway_km": {
+            "unclassified": 47.965,
+            "secondary": 9.791,
+            "tertiary": 14.571
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 72.3,
+          "time_surface_aware_min": 129.5
+        },
+        "drive_service": {
+          "variant": "drive_service",
+          "ok": true,
+          "reason": "",
+          "nodes": 561,
+          "edges": 1260,
+          "nodes_truncated": 541,
+          "edges_truncated": 1220,
+          "legal_edges": 1220,
+          "excluded": {},
+          "origin_snap_m": 138.96228947225117,
+          "dest_snap_m": 98.38262690250852,
+          "dest_outside_guard": false,
+          "distance_m": 72331.3,
+          "solve_ms": 3.6,
+          "solve_ms_warm": 2.2,
+          "arrival_gap_m": 98.4,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 72.33,
+            "paved_pct": 25.5,
+            "unknown_pct": 14.7
+          },
+          "surface_km": {
+            "unknown": 10.66,
+            "paved": 18.472,
+            "gravel": 43.195
+          },
+          "highway_km": {
+            "unclassified": 47.965,
+            "secondary": 9.791,
+            "tertiary": 14.571
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 72.3,
+          "time_surface_aware_min": 129.5
+        },
+        "drive_track": {
+          "variant": "drive_track",
+          "ok": true,
+          "reason": "",
+          "nodes": 949,
+          "edges": 2068,
+          "nodes_truncated": 782,
+          "edges_truncated": 1818,
+          "legal_edges": 1816,
+          "excluded": {
+            "ford=yes": 2
+          },
+          "origin_snap_m": 138.96228947225117,
+          "dest_snap_m": 98.38262690250852,
+          "dest_outside_guard": false,
+          "distance_m": 71773.8,
+          "solve_ms": 5.9,
+          "solve_ms_warm": 3.4,
+          "arrival_gap_m": 98.4,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 71.77,
+            "paved_pct": 25.7,
+            "unknown_pct": 18.1
+          },
+          "surface_km": {
+            "unknown": 13.008,
+            "paved": 18.472,
+            "gravel": 40.291
+          },
+          "highway_km": {
+            "unclassified": 45.061,
+            "secondary": 9.791,
+            "tertiary": 14.571,
+            "track": 2.348
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 71.8,
+          "time_surface_aware_min": 129.6
+        },
+        "drive_track_private": {
+          "variant": "drive_track_private",
+          "ok": true,
+          "reason": "",
+          "nodes": 1169,
+          "edges": 2882,
+          "nodes_truncated": 1142,
+          "edges_truncated": 2844,
+          "legal_edges": 2048,
+          "excluded": {
+            "access=private": 794,
+            "ford=yes": 2
+          },
+          "origin_snap_m": 138.96228947225117,
+          "dest_snap_m": 98.38262690250852,
+          "dest_outside_guard": false,
+          "distance_m": 71773.8,
+          "solve_ms": 6.7,
+          "solve_ms_warm": 3.6,
+          "arrival_gap_m": 98.4,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 71.77,
+            "paved_pct": 25.7,
+            "unknown_pct": 18.1
+          },
+          "surface_km": {
+            "unknown": 13.008,
+            "paved": 18.472,
+            "gravel": 40.291
+          },
+          "highway_km": {
+            "unclassified": 45.061,
+            "secondary": 9.791,
+            "tertiary": 14.571,
+            "track": 2.348
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 71.8,
+          "time_surface_aware_min": 129.6
+        }
+      },
+      "corridor_km": {
+        "drive": 32.49,
+        "drive_service": 33.26,
+        "drive_track": 76.34,
+        "drive_track_private": 76.65
+      },
+      "corridor_kept_by_shipped_pct": 42.6,
+      "weight_sweep": [
+        {
+          "case": "shipped",
+          "ok": true,
+          "km": 71.77,
+          "paved_pct": 25.7,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "surface_paved=-1",
+          "ok": true,
+          "km": 71.77,
+          "paved_pct": 25.7,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "surface_paved=0",
+          "ok": true,
+          "km": 71.77,
+          "paved_pct": 25.7,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "surface_paved=+1",
+          "ok": true,
+          "km": 71.77,
+          "paved_pct": 25.7,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "directness=0.5",
+          "ok": true,
+          "km": 71.77,
+          "paved_pct": 25.7,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "directness=0.5,surface_paved=+1",
+          "ok": true,
+          "km": 71.77,
+          "paved_pct": 25.7,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "directness=0.0,surface_paved=+1",
+          "ok": true,
+          "km": 71.77,
+          "paved_pct": 25.7,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        }
+      ]
+    },
+    "middlefork": {
+      "name": "Boundary Creek put-in, Salmon-Challis NF, ID",
+      "remote": true,
+      "shared_fixture": false,
+      "pull": {
+        "key": "middlefork",
+        "name": "Boundary Creek put-in, Salmon-Challis NF, ID",
+        "bbox": [
+          -115.38,
+          44.19,
+          -114.88,
+          44.58
+        ],
+        "fetched_at": "2026-08-31T11:13:57+00:00",
+        "osmnx": "2.1.1",
+        "filter": "[\"highway\"][\"area\"!~\"yes\"][\"highway\"!~\"abandoned|bridleway|bus_guideway|construction|corridor|cycleway|elevator|escalator|footway|no|path|pedestrian|planned|platform|proposed|raceway|razed|rest_area|services|steps\"][\"motor_vehicle\"!~\"no\"][\"motorcar\"!~\"no\"][\"service\"!~\"emergency_access|parking|parking_aisle|private\"]",
+        "fetch_seconds": 6.6,
+        "fetch_attempts": 1,
+        "nodes": 997,
+        "edges": 2367,
+        "origin": [
+          44.2166,
+          -114.9366
+        ],
+        "destination": [
+          44.5295,
+          -115.29354
+        ],
+        "destination_osm": "way/13983172 (NFSR 549, highway=service, surface=gravel)"
+      },
+      "variants": {
+        "drive": {
+          "variant": "drive",
+          "ok": true,
+          "reason": "",
+          "nodes": 351,
+          "edges": 730,
+          "nodes_truncated": 346,
+          "edges_truncated": 724,
+          "legal_edges": 722,
+          "excluded": {
+            "ford=yes": 2
+          },
+          "origin_snap_m": 44.35800520141819,
+          "dest_snap_m": 97.71179501782143,
+          "dest_outside_guard": false,
+          "distance_m": 66649.1,
+          "solve_ms": 3.5,
+          "solve_ms_warm": 1.9,
+          "arrival_gap_m": 97.7,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 66.65,
+            "paved_pct": 51.0,
+            "unknown_pct": 48.7
+          },
+          "surface_km": {
+            "gravel": 0.166,
+            "paved": 34.008,
+            "unknown": 32.473
+          },
+          "highway_km": {
+            "residential": 0.166,
+            "primary": 34.008,
+            "tertiary": 15.23,
+            "unclassified": 17.242
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 66.6,
+          "time_surface_aware_min": 55.5
+        },
+        "drive_service": {
+          "variant": "drive_service",
+          "ok": true,
+          "reason": "",
+          "nodes": 597,
+          "edges": 1355,
+          "nodes_truncated": 580,
+          "edges_truncated": 1333,
+          "legal_edges": 1331,
+          "excluded": {
+            "ford=yes": 2
+          },
+          "origin_snap_m": 44.35800520141819,
+          "dest_snap_m": 55.82032510928711,
+          "dest_outside_guard": false,
+          "distance_m": 66735.0,
+          "solve_ms": 5.9,
+          "solve_ms_warm": 2.9,
+          "arrival_gap_m": 55.8,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 66.73,
+            "paved_pct": 51.0,
+            "unknown_pct": 48.7
+          },
+          "surface_km": {
+            "gravel": 0.222,
+            "paved": 34.008,
+            "unknown": 32.503
+          },
+          "highway_km": {
+            "residential": 0.166,
+            "primary": 34.008,
+            "tertiary": 15.23,
+            "unclassified": 17.272,
+            "service": 0.056
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 66.7,
+          "time_surface_aware_min": 55.7
+        },
+        "drive_track": {
+          "variant": "drive_track",
+          "ok": true,
+          "reason": "",
+          "nodes": 917,
+          "edges": 2147,
+          "nodes_truncated": 881,
+          "edges_truncated": 2099,
+          "legal_edges": 2091,
+          "excluded": {
+            "access=no": 6,
+            "ford=yes": 2
+          },
+          "origin_snap_m": 44.35800520141819,
+          "dest_snap_m": 55.82032510928711,
+          "dest_outside_guard": false,
+          "distance_m": 66735.0,
+          "solve_ms": 7.8,
+          "solve_ms_warm": 4.1,
+          "arrival_gap_m": 55.8,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 66.73,
+            "paved_pct": 51.0,
+            "unknown_pct": 48.7
+          },
+          "surface_km": {
+            "gravel": 0.222,
+            "paved": 34.008,
+            "unknown": 32.503
+          },
+          "highway_km": {
+            "residential": 0.166,
+            "primary": 34.008,
+            "tertiary": 15.23,
+            "unclassified": 17.272,
+            "service": 0.056
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 66.7,
+          "time_surface_aware_min": 55.7
+        },
+        "drive_track_private": {
+          "variant": "drive_track_private",
+          "ok": true,
+          "reason": "",
+          "nodes": 997,
+          "edges": 2367,
+          "nodes_truncated": 981,
+          "edges_truncated": 2349,
+          "legal_edges": 2121,
+          "excluded": {
+            "access=private": 220,
+            "access=no": 6,
+            "ford=yes": 2
+          },
+          "origin_snap_m": 44.35800520141819,
+          "dest_snap_m": 55.82032510928711,
+          "dest_outside_guard": false,
+          "distance_m": 66735.0,
+          "solve_ms": 7.8,
+          "solve_ms_warm": 4.1,
+          "arrival_gap_m": 55.8,
+          "detour_ratio": 0.0,
+          "composition": {
+            "km": 66.73,
+            "paved_pct": 51.0,
+            "unknown_pct": 48.7
+          },
+          "surface_km": {
+            "gravel": 0.222,
+            "paved": 34.008,
+            "unknown": 32.503
+          },
+          "highway_km": {
+            "residential": 0.166,
+            "primary": 34.008,
+            "tertiary": 15.23,
+            "unclassified": 17.272,
+            "service": 0.056
+          },
+          "surfaced_constraints": [],
+          "time_flat_min": 66.7,
+          "time_surface_aware_min": 55.7
+        }
+      },
+      "corridor_km": {
+        "drive": 32.95,
+        "drive_service": 34.2,
+        "drive_track": 34.2,
+        "drive_track_private": 34.2
+      },
+      "corridor_kept_by_shipped_pct": 96.3,
+      "weight_sweep": [
+        {
+          "case": "shipped",
+          "ok": true,
+          "km": 66.73,
+          "paved_pct": 51.0,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "surface_paved=-1",
+          "ok": true,
+          "km": 66.73,
+          "paved_pct": 51.0,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "surface_paved=0",
+          "ok": true,
+          "km": 66.73,
+          "paved_pct": 51.0,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "surface_paved=+1",
+          "ok": true,
+          "km": 66.73,
+          "paved_pct": 51.0,
+          "identical_to_shipped": true,
+          "edge_overlap_pct": 100.0
+        },
+        {
+          "case": "directness=0.5",
+          "ok": true,
+          "km": 66.74,
+          "paved_pct": 51.0,
+          "identical_to_shipped": false,
+          "edge_overlap_pct": 97.8
+        },
+        {
+          "case": "directness=0.5,surface_paved=+1",
+          "ok": true,
+          "km": 66.74,
+          "paved_pct": 51.0,
+          "identical_to_shipped": false,
+          "edge_overlap_pct": 97.8
+        },
+        {
+          "case": "directness=0.0,surface_paved=+1",
+          "ok": true,
+          "km": 66.74,
+          "paved_pct": 51.0,
+          "identical_to_shipped": false,
+          "edge_overlap_pct": 97.8
+        }
+      ]
+    }
+  },
+  "filter_control": {
+    "live_pull": {
+      "key": "boulder-drive-control",
+      "bbox": [
+        -105.3,
+        39.98,
+        -105.23,
+        40.04
+      ],
+      "fetched_at": "2026-08-31T11:14:33+00:00",
+      "osmnx": "2.1.1",
+      "network_type": "drive",
+      "fetch_seconds": 25.14,
+      "fetch_attempts": 1,
+      "nodes": 2253,
+      "edges": 5699
+    },
+    "live_ways": 3098,
+    "rebuilt_ways": 3088,
+    "agree_ways": 3086,
+    "agreement_pct": 99.61,
+    "only_live": [
+      17018163,
+      17022041,
+      17024349,
+      34267258,
+      134014532,
+      230780925,
+      230780933,
+      385509346,
+      385509347,
+      397727301,
+      817017839,
+      1221514484
+    ],
+    "only_live_count": 12,
+    "only_rebuilt": [
+      45979929,
+      521098522
+    ],
+    "only_rebuilt_count": 2
+  },
+  "cue_span_defect": {
+    "boulder": {
+      "polyline_m": 3045.6,
+      "covered_by_spans_m": 2240.1,
+      "unattributed_m": 805.5,
+      "unattributed_pct": 26.4,
+      "edges": 33
+    },
+    "viroqua": {
+      "polyline_m": 7636.1,
+      "covered_by_spans_m": 6199.5,
+      "unattributed_m": 1436.6,
+      "unattributed_pct": 18.8,
+      "edges": 29
+    },
+    "bigsandy": {
+      "polyline_m": 71774.0,
+      "covered_by_spans_m": 55634.7,
+      "unattributed_m": 16139.3,
+      "unattributed_pct": 22.5,
+      "edges": 92
+    },
+    "middlefork": {
+      "polyline_m": 66734.8,
+      "covered_by_spans_m": 57458.1,
+      "unattributed_m": 9276.7,
+      "unattributed_pct": 13.9,
+      "edges": 93
+    }
+  }
+}
