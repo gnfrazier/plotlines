@@ -329,7 +329,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       throw StateError(
           'no trip bbox — draw the trip area (FR120) before generating a route');
     }
-    final region = await client.ensureRegion(bbox.bboxWsen);
+    final region = await client.ensureRegion(bbox.bboxWsen, networkType: networkTypeForMode(mode));
     final resolved = await client.generateSegment(
       region: region,
       start: start,
@@ -1089,7 +1089,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       throw StateError(
           'no trip bbox — draw the trip area (FR120) before re-solving a route');
     }
-    final region = await client.ensureRegion(bbox.bboxWsen);
+    final region = await client.ensureRegion(bbox.bboxWsen, networkType: networkTypeForMode(old.mode));
     final weights = old.weights;
     // Author-facing 0.0-5.0 -> solver-internal 0.0-1.0 (bipolar -1..1 for
     // peaks and each surface_<class>), per scoring/profile.py's documented

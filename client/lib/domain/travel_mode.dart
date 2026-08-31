@@ -69,3 +69,31 @@ String travelModeLabel(String mode) => switch (mode) {
       'transit' => 'Transit',
       _ => mode,
     };
+
+/// FR120/D41, issue #208 — the OSMnx `network_type` a segment in [mode] must
+/// route against. Mirrors `network_type_for` in
+/// `core/plotlines_core/multimodal/modes.py` (and each `TraversalMode
+/// .network_type` row): cycling and mountain biking share the `bike` graph,
+/// hiking takes `walk`, driving takes `drive`, and the water/snow modes take
+/// OSMnx's widest `all` network (their real routing graph is a later Leg;
+/// `all` is the honest placeholder the registry already uses).
+///
+/// This matters because `RoutingClient.ensureRegion` builds the graph for
+/// exactly the `network_type` it is handed — `region_key` is
+/// `(bbox, network_type, ruleset)` — so a `driving` passage ensured against
+/// the default `bike` graph routes a car down singletrack and never sees the
+/// `drive` graph's dropped `track`/`service` ways (SPIKE-E, issue #171).
+///
+/// An unknown or note mode (`transit`, or a plugin mode this build has never
+/// heard of) falls through to `bike`, exactly as `network_type_for` does.
+String networkTypeForMode(String mode) => switch (mode) {
+      'cycling' || 'mountain_biking' => 'bike',
+      'hiking' => 'walk',
+      'driving' => 'drive',
+      'paddling' ||
+      'cross_country_skiing' ||
+      'packrafting' ||
+      'riverboarding' =>
+        'all',
+      _ => 'bike',
+    };

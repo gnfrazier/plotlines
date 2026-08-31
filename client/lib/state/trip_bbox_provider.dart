@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/travel_mode.dart';
 import '../domain/trip_bbox.dart';
 import '../domain/trip_bbox_revision.dart';
 import 'current_trip_provider.dart';
@@ -42,11 +43,29 @@ final tripBboxProvider =
 /// before any bbox has been drawn. Screens gate routing controls on
 /// `sidecarManagerProvider`'s `capabilities.routing.forRegion(key)` using
 /// the key this resolves to, per FR121's disabled-with-a-reason house style.
+///
+/// Issue #208 — the graph is per travel mode (`network_type`), so this also
+/// kicks off a build for every *declared* mode's `network_type` (a hiking
+/// trip's `walk` graph, a driving leg's `drive` graph) rather than only
+/// `bike`. The returned key is still the `bike` region — it is the stable
+/// gate/warm-up anchor every existing caller expects — and the per-segment
+/// solve/cue/diagnose calls each ensure their own mode's region regardless.
 final tripRegionKeyProvider = FutureProvider<String?>((ref) async {
   final bbox = ref.watch(tripBboxProvider);
   if (bbox == null) return null;
   final client = ref.watch(routingClientProvider);
-  return client.ensureRegion(bbox.bboxWsen);
+  final declaredModes = ref.watch(currentTripProvider).declaredModes;
+  final networkTypes = {
+    'bike',
+    for (final mode in declaredModes)
+      if (isRoutedMode(mode)) networkTypeForMode(mode),
+  };
+  final keys = <String, String>{};
+  for (final networkType in networkTypes) {
+    keys[networkType] =
+        await client.ensureRegion(bbox.bboxWsen, networkType: networkType);
+  }
+  return keys['bike'];
 });
 
 /// Anchors currently promoted into the open trip, which a bbox shrink must

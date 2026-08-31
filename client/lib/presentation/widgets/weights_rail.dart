@@ -517,7 +517,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         final client = ref.read(routingClientProvider);
         final bbox = ref.read(tripBboxProvider);
         if (bbox != null) {
-          final region = await client.ensureRegion(bbox.bboxWsen);
+          final region = await client.ensureRegion(bbox.bboxWsen, networkType: networkTypeForMode(segment.mode));
           final envelope = await client.envelope(
             region: region,
             start: segment.start!,
@@ -561,7 +561,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
       if (bbox == null) {
         throw StateError('no trip bbox — draw the trip area (FR120) before diagnosing bands');
       }
-      final region = await client.ensureRegion(bbox.bboxWsen);
+      final region = await client.ensureRegion(bbox.bboxWsen, networkType: networkTypeForMode(segment.mode));
       final jobId = await client.submitDiagnose(
         region: region,
         start: segment.start!,
