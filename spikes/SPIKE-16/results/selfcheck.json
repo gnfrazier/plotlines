@@ -1,0 +1,145 @@
+{
+  "spike": "SPIKE-16",
+  "generated_bytes": 1558,
+  "records": 33,
+  "course_points": 6,
+  "course_point_types": [
+    0,
+    3,
+    4,
+    5,
+    6
+  ],
+  "withheld_plot_points": [
+    "pp-still-site"
+  ],
+  "checks_passed": 25,
+  "checks_total": 25,
+  "checks": [
+    {
+      "check": "crc16 check value 0xBB3D",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "file CRC matches all reference files",
+      "pass": true,
+      "detail": "10/10"
+    },
+    {
+      "check": "header CRC matches all reference files",
+      "pass": true,
+      "detail": "10/10"
+    },
+    {
+      "check": ".FIT signature present",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "14-byte header",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "header CRC valid",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "file CRC valid",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "data_size header field correct",
+      "pass": true,
+      "detail": "declared 1542, actual 1542"
+    },
+    {
+      "check": "decoder re-reads own output",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "message order (file_id..event start / ..event stop)",
+      "pass": true,
+      "detail": "file_id -> file_creator -> course -> event -> record -> course_point -> lap"
+    },
+    {
+      "check": "record count == polyline vertex count",
+      "pass": true,
+      "detail": "33 == 33"
+    },
+    {
+      "check": "first record lat/lon survives semicircle round-trip",
+      "pass": true,
+      "detail": "(35.58522, -82.57687)"
+    },
+    {
+      "check": "altitude survives (m+500)*5 round-trip",
+      "pass": true,
+      "detail": "636.0 m vs 636.0 m"
+    },
+    {
+      "check": "course_point type 'left' present (enum 6)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "course_point type 'water' present (enum 3)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "course_point type 'food' present (enum 4)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "course_point type 'danger' present (enum 5)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "course_point type 'generic' present (enum 0)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "message_index is contiguous from 0",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "revealed note text present in a course_point name",
+      "pass": true,
+      "detail": "Riverside spring tap \u2014 Potable; last water before the depot."
+    },
+    {
+      "check": "reveal canary string ABSENT from output bytes",
+      "pass": true,
+      "detail": "withheld: ['pp-still-site']"
+    },
+    {
+      "check": "the withheld point produced no course_point",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "positive control \u2014 canary IS in the fixture",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "offset role exported at its offset position, not the anchor's",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "area anchor (FR108) has no native FIT slot \u2014 recorded, not emitted",
+      "pass": true,
+      "detail": "areas need a course-point centroid convention or GPX-only; see RESULTS.md"
+    }
+  ]
+}
