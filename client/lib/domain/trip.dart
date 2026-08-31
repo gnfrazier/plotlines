@@ -15,8 +15,11 @@ import 'weight_profile.dart';
 // behaves exactly as a single point (O2's AC). Bumped to 1.4.0 by FR37
 // (Story E1), which added `segment.note`/`segment.media` and `day.media`
 // (`day.note` already existed) — additive again: a segment or day with
-// neither still parses.
-const String tripSchemaVersion = '1.4.0';
+// neither still parses. Bumped to 1.5.0 by FR38 (Story O6), which added
+// `role.arc`/`segment.arc_stage`, and to 1.6.0 by FR27 (Story C11), which
+// added `hazard.anchor_id` so a hazard/technical-crux marker can be pinned
+// to a promoted anchor — additive each time: an absent field still parses.
+const String tripSchemaVersion = '1.6.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {

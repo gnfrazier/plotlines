@@ -359,10 +359,14 @@
     },
 
     "hazard": {
-      "description": "FR27 / C11 — attachable to a segment, a node, or a point along a route. Severity is an enum and not a number: \"mandatory re-route\" is a different kind of thing from \"caution\", and an ordinal invites arithmetic on it.",
+      "description": "FR27, FR115 / C11 — a hazard or technical-crux warning, attachable to a segment (a route or a transit leg), a day, a node, a promoted anchor, or a bare point along a route. Severity is an enum and not a number: \"mandatory re-route\" is a different kind of thing from \"caution\", and an ordinal invites arithmetic on it. A hazard carries no reveal field and is never subject to reveal policy (FR115): it is always visible, and no Author setting can hide one.",
       "type": "object",
       "required": ["id", "severity"],
       "additionalProperties": false,
+      "not": {
+        "description": "FR115 / C11 — node_id and anchor_id are mutually exclusive: a hazard is pinned to one thing, not both.",
+        "required": ["node_id", "anchor_id"]
+      },
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "severity": { "enum": ["caution", "high", "mandatory_reroute"] },
@@ -371,7 +375,8 @@
         "required_gear": { "type": "array", "items": { "type": "string" } },
         "coord": { "$ref": "#/$defs/coord" },
         "distance_along_m": { "$ref": "#/$defs/metres" },
-        "node_id": { "$ref": "#/$defs/id", "description": "Set when the hazard is anchored to a node rather than a point." }
+        "node_id": { "$ref": "#/$defs/id", "description": "Set when the hazard is anchored to a node rather than a point." },
+        "anchor_id": { "$ref": "#/$defs/id", "description": "FR27 / C11 — set when the hazard is pinned to a promoted anchor rather than a node or a point. Mutually exclusive with node_id." }
       }
     },
 

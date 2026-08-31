@@ -14,7 +14,7 @@ E3's AC, taken in order:
 import pytest
 
 from plotlines_core.content.anchor import Anchor, Role
-from plotlines_core.trips.payload import RouteMetrics, Segment, TargetDistance
+from plotlines_core.trips.payload import Hazard, RouteMetrics, Segment, TargetDistance
 from plotlines_core.trips.spine import (
     COMPOSE,
     DISPOSITIONS,
@@ -239,6 +239,23 @@ def test_the_leg_records_its_mode_arc_and_planning_posture():
     assert (itin.legs[0].mode, itin.legs[0].arc_stage) == ("hiking", "rising")
     assert itin.legs[0].planning_mode == "compose"
     assert itin.legs[1].planning_mode == "explore"   # that passage carries a band
+
+
+def test_a_leg_carries_its_passage_hazards_fr27():
+    """C11 — a hazard on a passage is highlighted on the itinerary alongside
+    the map, elevation profile and cue sheet. Never reveal-gated (FR115)."""
+    anchors, _ = _spine_of_three()
+    hazard = Hazard(severity="high", title="Cattle guard", required_gear=["gloves"])
+    segments = [
+        Segment(mode="hiking", shape="point_to_point", start=[0.0, 0.0], end=[0.1, 0.1],
+                metrics=RouteMetrics(distance_m=4_000.0), hazards=[hazard]),
+        _segment(6_000.0),
+    ]
+    itin = compose_itinerary(anchors, segments)
+    assert itin.legs[0].hazards == [hazard.to_dict()]
+    assert itin.legs[1].hazards == []
+    assert itin.to_dict()["legs"][0]["hazards"][0]["severity"] == "high"
+    assert itin.to_dict()["legs"][1]["hazards"] is None
 
 
 def test_the_itinerary_carries_its_distance_outcome():
