@@ -1197,12 +1197,72 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     _replaceDay(day.copyWith(segments: segments));
   }
 
-  /// D1 — best-effort local roll-up for immediate dashboard feedback.
-  /// Authoritative composition is `plotlines_core.trips.compose.compose_day`
-  /// (ARCH §6.1); that endpoint is not exposed by the sidecar yet (open
-  /// question), so this recomputes the same sums client-side rather than
-  /// leaving the dashboard blank. It does not replicate compose_day's
-  /// transition-gap warnings or C3 limit-breach detection.
+  /// B2/D1/C3 (issue #212) — the authoritative composition pass:
+  /// `RoutingClient.composeDay` (`plotlines_core.trips.compose.compose_day`)
+  /// for every day with segments, then `RoutingClient.assembleTrip`
+  /// (`trips.compose.split_trip`) for the trip as a whole. [resequencePassages]
+  /// (run on every edit via [_replaceDay]) and [rollUpTrip] are the same math
+  /// mirrored client-side for instant feedback while the Author is still
+  /// dragging things around — this is what actually calls the core functions
+  /// they mirror, so what ends up saved carries the sidecar's own numbers,
+  /// not just an approximation of them. Neither core function needs a
+  /// region/graph, so this runs with no trip bbox drawn.
+  ///
+  /// `compose_day`'s response is a bare `Day` built fresh from `index`/`kind`/
+  /// `segments`/`transitions` alone (`trips/compose.py`) — no id, title,
+  /// note, limits, weights, hazards or nodes — so only its two derived
+  /// fields (`transitions`, `metrics`) are taken; every other field on the
+  /// local [Day] is authored state `compose_day` never saw. `split_trip` is
+  /// the opposite shape: it mutates the [Day]s it's handed in place, so the
+  /// assembled trip's `days` keep every authored field and only gain
+  /// reordered `index` and `metrics.limitBreaches`; the [Trip] wrapper it
+  /// builds is discarded except for its own trip-wide `metrics` roll-up,
+  /// since it carries none of this trip's id/anchors/roster/provenance.
+  ///
+  /// Not best-effort itself — a sidecar with no port yet, or a shape
+  /// `compose_day`/`split_trip` reject, surfaces as a thrown
+  /// [RoutingException] like every other [RoutingClient] call. [TripPersistence.save],
+  /// the one caller today, is what treats that as non-blocking (FR65's
+  /// "offline is quiet" — a local save must never wait on a reachable
+  /// sidecar), by catching around this call rather than this method
+  /// swallowing its own failures.
+  Future<void> composeAuthoritative() async {
+    final client = _ref.read(routingClientProvider);
+    final composedDays = <Day>[];
+    for (final day in state.days) {
+      if (day.segments.isEmpty) {
+        // Rest days, and a route day with nothing on it yet — `compose_day`
+        // rejects the former outright (FR18/C2) and has nothing to measure
+        // for the latter, so there is no round trip worth making.
+        composedDays.add(day);
+        continue;
+      }
+      final composed = await client.composeDay(
+        segments: day.segments,
+        transitions: day.transitions,
+        index: day.index,
+        kind: day.kind,
+      );
+      composedDays.add(day.copyWith(transitions: composed.transitions, metrics: composed.metrics));
+    }
+    final assembled = await client.assembleTrip(
+      days: composedDays,
+      title: state.title,
+      limits: state.dayLimits,
+      defaultWeights: state.defaultWeights,
+    );
+    state = state.copyWith(days: assembled.trip.days, metrics: assembled.trip.metrics);
+  }
+
+  /// D1 — client-side mirror for immediate dashboard feedback between saves.
+  /// `plotlines_core.trips.compose.compose_day`/`split_trip` are authoritative
+  /// and now actually called (`RoutingClient.composeDay`/`assembleTrip`, via
+  /// [composeAuthoritative] on [TripPersistence.save] — issue #212); this
+  /// keeps recomputing the same sums client-side so the dashboard has
+  /// something to show between saves, or when the sidecar isn't reachable.
+  /// It does not replicate compose_day's transition-gap warnings or C3's
+  /// limit-breach detection — those live on `day.transitions`/`day.metrics`
+  /// once a save has run one authoritative pass.
   RouteMetrics rollUpTrip() {
     double distance = 0, climb = 0, descent = 0;
     for (final day in state.days) {
@@ -1247,6 +1307,20 @@ class TripPersistence {
   final Ref _ref;
 
   Future<void> save() async {
+    // B2/D1/C3 (issue #212) — run the authoritative composition pass before
+    // persisting, so what's on disk carries `compose_day`'s transition-gap
+    // warnings and `split_trip`'s day-limit breaches rather than only the
+    // interactive-editing mirrors. Best-effort here specifically: a sidecar
+    // with no port yet (cold start, never launched) or genuinely offline
+    // must never block a local save (FR65 — offline is quiet), so failure
+    // is swallowed and the trip saves with whatever the local mirrors
+    // already computed for it.
+    try {
+      await _ref.read(currentTripProvider.notifier).composeAuthoritative();
+    } catch (_) {
+      // Connection refused/timed out, or compose_day/split_trip reject the
+      // current shape (RoutingException) — either way, save what's local.
+    }
     final trip = _ref.read(currentTripProvider);
     final roster = _ref.read(currentRosterProvider);
     final db = _ref.read(appDatabaseProvider);
