@@ -451,12 +451,21 @@ class _DayCueSectionState extends ConsumerState<_DayCueSection> {
       return _entriesFromAuthoredContent(widget.day);
     }
     final client = ref.read(routingClientProvider);
-    // FR120/D41, issue #154 — cues re-solve against the region-scoped graph.
+    // FR120/D41, issue #154 — cues re-solve against the region-scoped graph;
+    // issue #208 — that graph is per travel mode, so a day mixing a ride and
+    // a drive to the trailhead ensures one region per distinct `network_type`
+    // and each segment's cues come off its own mode's graph.
     final bbox = ref.read(tripBboxProvider);
     if (bbox == null) return _entriesFromAuthoredContent(widget.day);
-    final region = await client.ensureRegion(bbox.bboxWsen);
+    final regionByNetworkType = <String, String>{};
+    for (final networkType
+        in widget.day.segments.map((s) => networkTypeForMode(s.mode)).toSet()) {
+      regionByNetworkType[networkType] =
+          await client.ensureRegion(bbox.bboxWsen, networkType: networkType);
+    }
     final sheets = await Future.wait(
-      widget.day.segments.map((s) => client.cuesFor(s, region: region)),
+      widget.day.segments.map((s) => client.cuesFor(s,
+          region: regionByNetworkType[networkTypeForMode(s.mode)]!)),
     );
     return _entriesFromCueSheets(widget.day, sheets);
   }
@@ -780,12 +789,23 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
     // failing the whole export.
     final bbox = ref.read(tripBboxProvider);
     if (bbox == null) return result;
-    final region = await client.ensureRegion(bbox.bboxWsen);
+    // Issue #208 — one region per distinct travel-mode `network_type` across
+    // the trip, so a driving passage's cues come off the `drive` graph rather
+    // than the `bike` default (SPIKE-E, #171).
+    final regionByNetworkType = <String, String>{};
+    for (final networkType in {
+      for (final day in trip.days)
+        for (final segment in day.segments) networkTypeForMode(segment.mode),
+    }) {
+      regionByNetworkType[networkType] =
+          await client.ensureRegion(bbox.bboxWsen, networkType: networkType);
+    }
     for (final day in trip.days) {
       for (final segment in day.segments) {
         if (segment.start == null) continue;
         try {
-          result[segment.id] = await client.cuesFor(segment, region: region);
+          result[segment.id] = await client.cuesFor(segment,
+              region: regionByNetworkType[networkTypeForMode(segment.mode)]!);
         } catch (_) {
           // Honest degrade (MVP doc §4): a segment whose cues fail to derive
           // just exports without cue points rather than failing the whole export.
