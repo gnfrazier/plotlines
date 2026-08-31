@@ -15,9 +15,12 @@ This module is the pure-data half of that — no graph, no I/O, no service types
 treats `target_distance is None` as a first-class input, ARCH §7.7 / `scoring.bands`).
 It owns three things E3's AC names:
 
-  1. `spine_waypoints` — split an ordered anchor spine into the `(start, [via…], end)`
-     the solver's `generate_segment` / `search_bands` take, so the engine reaches the
-     places.
+  1. `spine_waypoints` / `spine_solver_profile` — split an ordered anchor spine into
+     the `(start, [via…], end)` the solver's `generate_segment` / `search_bands` take,
+     and carry the Author's stored weights through `solver_profile_from_author` into
+     that same call, so the engine both *reaches* the places (waypoints) and
+     *flavours* the connections between them by the Author's dials (issue #202,
+     ARCH §7.3 glossary). Distance stays an output (FR118) — no band is added.
   2. `compose_itinerary` — assemble the day as **places first**: an ordered list of
      `ItineraryStop`s (the anchors) with the `ItineraryLeg`s (the passages) *between*
      them, plus the compose-mode `DistanceOutcome`. This is the structure the
@@ -34,7 +37,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from plotlines_core.content.anchor import ARC_STAGES, ROLE_KINDS, Anchor
-from plotlines_core.trips.payload import Cue, Segment, f
+from plotlines_core.scoring.profile import WeightProfile as SolverWeightProfile
+from plotlines_core.trips.compose import solver_profile_for_day
+from plotlines_core.trips.payload import (
+    Cue, Segment, WeightProfile as AuthorWeightProfile, f,
+)
 
 #: FR117 — the two planning postures, one per day, switchable either way with no
 #: work lost (FR119).
@@ -319,6 +326,42 @@ def spine_waypoints(
         raise ValueError("a spine needs at least two places (FR39)")
     points = [(a.coord[1], a.coord[0]) for a in anchors]
     return points[0], points[1:-1], points[-1]
+
+
+def spine_solver_profile(
+    *,
+    segment_weights: AuthorWeightProfile | None = None,
+    day_weights: AuthorWeightProfile | None = None,
+    trip_default_weights: AuthorWeightProfile | None = None,
+) -> SolverWeightProfile:
+    """The solver `WeightProfile` a composed passage is *flavoured* by — the
+    companion to `spine_waypoints` (issue #202).
+
+    A caller wires compose mode end to end with the pair::
+
+        start, via, end = spine_waypoints(anchors)
+        profile = spine_solver_profile(
+            day_weights=day.weights, trip_default_weights=trip.default_weights
+        )
+        generate_segment(graph, start, end, profile, via=via, mode=mode)
+
+    Precedence (segment → day → trip) and the Author→solver conversion both live in
+    `trips.compose.solver_profile_for_day`, so explore and compose share exactly one
+    conversion site (`scoring.profile.solver_profile_from_author`).
+
+    Compose keeps distance an *output* (FR118): this adds no band, no
+    `target_distance`, and never routes a deviation through `/segments/diagnose` or
+    M13 (§7.7). It only changes *how* the fixed anchors are connected — traffic
+    tolerance, surface, climbing. The salience bias stays inactive in compose
+    whatever is stored (§7.7): a scalar competing with an explicit editorial choice
+    is incoherent, so `interest` is forced back to its neutral default here.
+    """
+    profile = solver_profile_for_day(
+        segment=segment_weights, day=day_weights, trip_default=trip_default_weights
+    )
+    if profile.interest:
+        profile = profile.replace(interest=0.0)
+    return profile
 
 
 @dataclass

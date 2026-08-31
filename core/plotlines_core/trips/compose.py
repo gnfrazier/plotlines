@@ -18,12 +18,61 @@ from __future__ import annotations
 
 import math
 
+from plotlines_core.scoring.profile import (
+    WeightProfile as SolverWeightProfile,
+    solver_profile_from_author,
+)
 from plotlines_core.trips.payload import (
     Day, DEFAULT_GAP_WARN_M, LimitBreach, RollUp, RouteMetrics, Segment,
     Transition, Trip, WeightProfile,
 )
 
 _EARTH_R_M = 6_371_000.0
+
+
+# ---------------------------------------------------- Author → solver weights (#202)
+
+
+def resolve_author_weights(
+    *,
+    segment: WeightProfile | None = None,
+    day: WeightProfile | None = None,
+    trip_default: WeightProfile | None = None,
+) -> WeightProfile | None:
+    """The Author-facing `payload.WeightProfile` that governs a passage, resolved
+    most-specific-wins (issue #202): a ``Segment.weights`` overrides its
+    ``Day.weights``, which overrides the ``Trip.default_weights``. An unset level
+    falls through to the next; all three unset yields ``None`` — which the solver
+    reads as its own balanced default.
+
+    Resolution is whole-profile, not field-by-field. "Most specific wins" is a
+    choice *between* the profiles the Author actually set; a half-merged profile
+    is one no Author ever inspected, and the payload has no field-level "unset vs.
+    zero" for the composite to lean on.
+    """
+    for level in (segment, day, trip_default):
+        if level is not None:
+            return level
+    return None
+
+
+def solver_profile_for_day(
+    *,
+    segment: WeightProfile | None = None,
+    day: WeightProfile | None = None,
+    trip_default: WeightProfile | None = None,
+) -> SolverWeightProfile:
+    """Resolve the effective Author-facing weights (`resolve_author_weights`) and
+    convert them to the solver profile in one step — the single Author→solver
+    conversion site on the compose path (ARCH §7.3; risk A18 / issue #200; #202).
+
+    `compose.py` stays pure data (P1): this returns the solver `WeightProfile` a
+    caller hands to `routing.solve.generate_segment` at the seam where the compose
+    flow already crosses into `routing/`. It never imports a graph or solves.
+    """
+    return solver_profile_from_author(
+        resolve_author_weights(segment=segment, day=day, trip_default=trip_default)
+    )
 
 
 def haversine_m(a: list[float], b: list[float]) -> float:
