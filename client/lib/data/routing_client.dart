@@ -65,8 +65,9 @@ class RoutingClient {
   /// envelope target when no `end` is given (FR8/A8).
   ///
   /// Adapts the sidecar's flat response (mode/theme/distance_m/coordinates/
-  /// elevation/solve_ms, plus `shape`/`closed`/`hit_via`/`target_m` for the
-  /// two loop-family shapes) onto the domain [Segment] (the
+  /// elevation/solve_ms/`surfaced_constraints`, plus `shape`/`closed`/
+  /// `hit_via`/`target_m` for the two loop-family shapes) onto the domain
+  /// [Segment] (the
   /// `trip_payload.schema.json` shape); the two are deliberately different
   /// documents (see `weight_profile.dart`'s doc comment) and this is the one
   /// place that bridges them.
@@ -152,6 +153,12 @@ class RoutingClient {
         closed: raw['closed'] as bool?,
         hitVia: raw['hit_via'] as bool?,
       ),
+      // FR128/A11 — the mode-legal but noteworthy edges (dismount, gate, ford)
+      // the solved path rolls over. Every `/segments/generate` shape carries
+      // this list; the client used to drop it (issue #209).
+      surfacedConstraints: ((raw['surfaced_constraints'] as List?) ?? const [])
+          .map((c) => SurfacedConstraint.fromJson(Map<String, dynamic>.from(c as Map)))
+          .toList(),
     );
   }
 

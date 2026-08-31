@@ -332,6 +332,19 @@ List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
   for (var i = 0; i < day.segments.length; i++) {
     final change = modeChanges[day.segments[i].id];
     if (change != null) entries.add(_modeChangeEntry(change, distanceAlongM: offset));
+    // FR128 / A11 — the dismount/gate/ford edges this passage rolls over. The
+    // engine reports them in path order without a distance-along, so they land
+    // at the passage's start (this list is built in reading order, not sorted).
+    for (final sc in day.segments[i].surfacedConstraints) {
+      entries.add(
+        _CueEntry(
+          distanceAlongM: offset,
+          label: _surfacedConstraintLabel(sc.flags),
+          glyph: '⚑',
+          tag: 'ON ROUTE',
+        ),
+      );
+    }
     final sheet = sheets[i];
     for (final cue in sheet.cues) {
       final glyph = switch (cue.kind) {
@@ -361,6 +374,12 @@ List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
   }
   return entries;
 }
+
+/// FR128 / A11 — the raw OSM-shaped `key=value` flags as a Character reads
+/// them in the sheet: `bicycle=dismount` → `bicycle dismount`. The value is
+/// shown as sent, not mapped through a lookup that could silently drop one.
+String _surfacedConstraintLabel(List<String> flags) =>
+    flags.map((f) => f.replaceFirst('=', ' ')).join(', ');
 
 /// The pre-F1 proxy: authored stops only, no derived turns. Used when the
 /// real cue derivation call fails.
@@ -418,6 +437,16 @@ List<_CueEntry> _entriesFromAuthoredContent(Day day) {
           label: 'Portage',
           glyph: '▲',
           tag: portage.mandatory == true ? 'MANDATORY' : null,
+        ),
+      );
+    }
+    for (final sc in segment.surfacedConstraints) {
+      entries.add(
+        _CueEntry(
+          distanceAlongM: 0,
+          label: _surfacedConstraintLabel(sc.flags),
+          glyph: '⚑',
+          tag: 'ON ROUTE',
         ),
       );
     }
