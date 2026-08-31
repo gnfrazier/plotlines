@@ -67,16 +67,19 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   // is never a constraint), but the one preselected here is the trip's own
   // declared mode rather than a hardcoded 'cycling' — canonical-order first
   // match, since a `Set`'s own iteration order isn't something to build a
-  // default on.
-  late String _mode = kTraversalModes.firstWhere(
-    ref.read(currentTripProvider).declaredModes.contains,
-    orElse: () => 'cycling',
-  );
+  // default on. Held as a getter so K8's `_resetControls` returns `_mode`
+  // to exactly this value, not a stale literal.
+  String get _defaultMode => kTraversalModes.firstWhere(
+        ref.read(currentTripProvider).declaredModes.contains,
+        orElse: () => 'cycling',
+      );
+
+  late String _mode = _defaultMode;
   // FR7/A7 — the AC-stated default shape (`planner_ui_state.dart`'s single
   // source of truth for it): loop needs only a start, no destination,
   // unlike point_to_point.
   String _shape = defaultSegmentShape;
-  String _theme = 'balanced';
+  String _theme = defaultRouteTheme;
   List<double>? _start;
   List<double>? _end;
   final List<List<double>> _via = [];
@@ -125,6 +128,41 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
         hasTargetM: _targetM != null,
       );
 
+  /// FR81 / K8 — whether any planning control has moved off its default, so
+  /// the always-visible Reset can read as inert when there is nothing to
+  /// back out of rather than implying an action that would do nothing.
+  bool get _controlsAtDefault =>
+      _mode == _defaultMode &&
+      _shape == defaultSegmentShape &&
+      _theme == defaultRouteTheme &&
+      _start == null &&
+      _end == null &&
+      _via.isEmpty &&
+      _targetKmController.text.isEmpty &&
+      _startMethod == _StartMethod.theme;
+
+  /// FR81 / K8 — the single reset: reverts theme, shape, mode, start,
+  /// destination and distance to their defaults. It touches only this
+  /// screen's draft planning controls; nothing here has been written to the
+  /// trip yet, so there is no generated route or promoted anchor for it to
+  /// reach. Once a route exists, `WeightsRail`'s "Reset planning controls"
+  /// (`CurrentTripNotifier.resetSegmentPlanning`) is the counterpart that
+  /// also clears the solved route while sparing the curation.
+  void _resetControls() {
+    setState(() {
+      _mode = _defaultMode;
+      _shape = defaultSegmentShape;
+      _theme = defaultRouteTheme;
+      _start = null;
+      _end = null;
+      _via.clear();
+      _targetKmController.clear();
+      _startMethod = _StartMethod.theme;
+      _error = null;
+      _searchResults = const [];
+    });
+  }
+
   /// ARCH §8.3 / PRD FR121 (M12a), FR120/D41 (issue #154) — routing is
   /// per-region now: this reads the capability for the trip's *own* bbox
   /// (`tripRegionKeyProvider`), not a process-wide flag. No trip bbox yet,
@@ -153,7 +191,17 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('New route')),
+      appBar: AppBar(
+        title: const Text('New route'),
+        actions: [
+          // FR81 / K8 — always-visible reset for the planning controls.
+          TextButton(
+            onPressed: _controlsAtDefault ? null : _resetControls,
+            child: const Text('Reset'),
+          ),
+          const SizedBox(width: PlotSpacing.s2),
+        ],
+      ),
       body: Row(
         children: [
           Expanded(

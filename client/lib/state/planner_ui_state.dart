@@ -299,3 +299,74 @@ bool isDeviationAccepted({
     acceptedAtDistanceM != null &&
     realizedDistanceM != null &&
     (acceptedAtDistanceM - realizedDistanceM).abs() < 1.0;
+
+/// FR81 / K8 — the theme a fresh route starts on in the New Route flow, until
+/// the Author picks otherwise. Kept here beside [defaultSegmentShape] so the
+/// New Route screen's control defaults and K8's reset read the same source of
+/// truth rather than a screen-local literal.
+const defaultRouteTheme = 'balanced';
+
+/// FR81 / K8 — revert a segment's *planning controls* to defaults and drop
+/// its *generated route*, without touching anything the Author authored.
+///
+/// K8's hard clause is that a reset in compose mode "does not discard promoted
+/// anchors, roles, or reveal settings" — losing an afternoon of curation to a
+/// single reset would be unrecoverable. Promoted anchors live on `Trip.anchors`
+/// (never on the segment), so this function cannot reach them by construction;
+/// what it must also spare is everything the Author attached to the passage
+/// itself. It therefore **keeps** [Segment.id] (so transitions and node
+/// ownership still resolve), [Segment.title], [Segment.mode], and the authored
+/// payload — [Segment.nodes], [Segment.alternates], [Segment.hazards]
+/// (hazards are never reveal-gated and never silently dropped, FR115),
+/// [Segment.portages], [Segment.arcStage], [Segment.note], [Segment.media] —
+/// and **resets** the rest: shape to [defaultSegmentShape]; start, end, via,
+/// target distance, generic bands, weights, and every derived field (geometry,
+/// metrics, elevation, violations, solve provenance) back to empty.
+///
+/// This is derived-work territory, not authored-work territory, so per ARCH
+/// D-O it needs no confirmation — unlike discarding the anchors themselves,
+/// which K8 says is "a separate, confirmed action" (the existing
+/// `removeAnchor` + FR139 orphan prompt).
+Segment resetSegmentPlanningControls(Segment segment) => Segment(
+      id: segment.id,
+      title: segment.title,
+      mode: segment.mode,
+      shape: defaultSegmentShape,
+      start: null,
+      end: null,
+      via: const [],
+      targetDistance: null,
+      bands: const [],
+      violations: const [],
+      weights: null,
+      geometry: null,
+      metrics: null,
+      elevation: null,
+      nodes: segment.nodes,
+      alternates: segment.alternates,
+      hazards: segment.hazards,
+      portages: segment.portages,
+      solve: null,
+      arcStage: segment.arcStage,
+      note: segment.note,
+      media: segment.media,
+    );
+
+/// FR81 / K8 — does [segment] carry any planning control or generated route
+/// that [resetSegmentPlanningControls] would actually change? The reset is
+/// always visible and a no-op reset is harmless, so this is not a disable
+/// gate — it only lets a surface show the control as inert (nothing to back
+/// out of) rather than implying an action that would do nothing.
+bool segmentHasResettablePlanning(Segment segment) =>
+    segment.shape != defaultSegmentShape ||
+    segment.start != null ||
+    segment.end != null ||
+    segment.via.isNotEmpty ||
+    segment.targetDistance != null ||
+    segment.bands.isNotEmpty ||
+    segment.violations.isNotEmpty ||
+    segment.weights != null ||
+    segment.geometry != null ||
+    segment.metrics != null ||
+    segment.elevation != null ||
+    segment.solve != null;
