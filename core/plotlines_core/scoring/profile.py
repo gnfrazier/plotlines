@@ -16,6 +16,11 @@ the Author-facing scale is a *tolerance* (0 avoid cars .. 5 seek directness), wh
 `quiet` below is an *aversion* strength, so the client-side conversion inverts rather
 than scales directly (`weight_profile.dart`'s `quietFromTraffic`).
 
+`solver_profile_from_author` is the Python side of that conversion — the one function
+that turns a `trips.payload.WeightProfile` (Author-facing, stored) into the internal
+profile here (ARCH §7.3; risk A18; punch list §2A.4). It mirrors `weight_profile.dart`
+field for field so both sides derive the same route from one stored payload.
+
 FR3 / ARCH D33 / SPIKE-03 §5: traffic stress is not simply read off `highway=*`
 below — see `_TRAFFIC_STRESS`'s doc.
 
@@ -42,6 +47,10 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from plotlines_core.trips.payload import WeightProfile as AuthorWeightProfile
 
 # Surface desirability, 0.0 (avoid) .. 1.0 (ideal), for a general "bike" profile.
 # Feeds `unpaved_frac` reporting (metrics.py) only — FR4's per-class *weighting*
@@ -216,6 +225,80 @@ class WeightProfile:
     def replace(self, **changes) -> WeightProfile:
         """A copy with some weights changed — what a band search walks over."""
         return dataclasses.replace(self, **changes)
+
+
+#: FR4's closed set of surface classes (SPIKE-03) — the only legal keys of the
+#: Author-facing `surface` map, and the `surface_<class>` solver field each feeds.
+_AUTHOR_SURFACE_CLASSES: tuple[str, ...] = ("paved", "gravel", "singletrack")
+
+
+def _author_scale(value: float, field_name: str) -> float:
+    """Reject an Author-facing weight outside 0.0..5.0 with a message that names the
+    Author field, not the derived solver one `__post_init__` would complain about."""
+    if not 0.0 <= value <= 5.0:
+        raise ValueError(
+            f"Author-facing weight {field_name}={value} outside 0.0..5.0"
+        )
+    return float(value)
+
+
+def solver_profile_from_author(author: AuthorWeightProfile | None) -> WeightProfile:
+    """The one Author-facing → solver `WeightProfile` mapping (ARCH §7.3; A18; punch
+    list §2A.4).
+
+    Two `WeightProfile`s exist on purpose. `trips.payload.WeightProfile` is what an
+    Author sets and a UI redraws — 0.0–5.0 per FR2–FR5, bipolar for
+    climbing/traffic/surface, unipolar for interest — and it is the only one stored in
+    `trip.payload` (D29). This function derives the solver's internal 0.0–1.0 /
+    −1..1 profile from it; the two are never persisted side by side, because two
+    representations of one preference disagree the first time one is edited alone.
+
+    Field for field it mirrors `client/lib/domain/weight_profile.dart`
+    (`peaksFromClimbing` / `quietFromTraffic` / `surfaceWeightsFromAuthor` /
+    `interestFromAuthor`) so a route solved from a payload here and one solved after a
+    Dart client expanded the same payload into a `weights` map agree:
+
+      * ``climbing → peaks``    : ``(ui - 2.5) / 2.5`` — bipolar; 2.5 (indifferent) is
+        the identity weight 0.0
+      * ``traffic → quiet``     : ``(5.0 - ui) / 5.0`` — an *inversion*, not a scaling:
+        `traffic` is a tolerance for cars, `quiet` is the solver's aversion strength
+        (`edge_cost` only ever penalises stress), so low tolerance must become high
+        aversion (FR3 / D33 / SPIKE-03 §5); 2.5 lands on `quiet`'s own 0.5 default
+      * ``surface[c] → surface_<c>`` : ``(ui - 2.5) / 2.5`` per class, same shape and
+        reason as peaks (a unipolar dial can only tolerate a class, never seek it)
+      * ``interest → interest`` : ``ui / 5.0`` — unipolar; no "avoid good places" case,
+        so no indifference point to re-centre on
+
+    An unset Author field (`None`, or a class absent from `surface`) falls through to
+    the solver default rather than an invented 0.0 — the omit-rather-than-invent rule
+    the Dart side also keeps. `terrain_technicality` is an Author declaration read per
+    way and never aggregated into a solver weight (§7.3), so it is not mapped.
+    `scenic` and `directness` have no dial in the Author-facing form and stay at their
+    defaults.
+    """
+    if author is None:
+        return WeightProfile()
+
+    changes: dict[str, float | str] = {"name": author.name}
+
+    if author.climbing is not None:
+        changes["peaks"] = (_author_scale(author.climbing, "climbing") - 2.5) / 2.5
+    if author.traffic is not None:
+        changes["quiet"] = (5.0 - _author_scale(author.traffic, "traffic")) / 5.0
+    if author.interest is not None:
+        changes["interest"] = _author_scale(author.interest, "interest") / 5.0
+
+    for cls, value in (author.surface or {}).items():
+        if cls not in _AUTHOR_SURFACE_CLASSES:
+            raise ValueError(
+                f"unknown surface class {cls!r}; FR4's classes are "
+                f"{', '.join(_AUTHOR_SURFACE_CLASSES)}"
+            )
+        changes[f"surface_{cls}"] = (
+            _author_scale(value, f"surface[{cls}]") - 2.5
+        ) / 2.5
+
+    return WeightProfile(**changes)
 
 
 @dataclass(frozen=True)

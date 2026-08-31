@@ -485,19 +485,43 @@ plotlines-core/
 
 Every theme is a `WeightProfile` instance fed to **one** multi-factor scoring function (PRD M1). Adding a theme is a config entry.
 
+**There are two `WeightProfile` shapes and they are not the same object (A18, closed).** The **solver profile** is what `edge_cost` consumes; the **Author-facing profile** is what an Author sets, what a UI redraws, and the only one stored in `trip.payload` (D29). The solver form is *derived* from the Author form by one function — `scoring.profile.solver_profile_from_author` — and the two are never persisted side by side, because two representations of one preference disagree the first time one is edited alone. The client mirrors that function field for field in `client/lib/domain/weight_profile.dart`.
+
 ```python
+# scoring/profile.py — the solver profile, what edge_cost actually reads.
+# All weights 0.0–1.0 except the bipolar dials, which are −1.0..1.0.
+@dataclass(frozen=True)
+class WeightProfile:
+    name: str = "balanced"
+    quiet: float = 0.5              # FR3 — aversion to traffic stress
+    scenic: float = 0.5            # green/park/water-adjacent bias
+    directness: float = 0.5        # pull every penalty back toward pure distance
+    peaks: float = 0.0            # FR2 — bipolar: −1 avoid climbing .. +1 seek
+    surface_paved: float = 0.0   # FR4 — one bipolar dial per class (SPIKE-03):
+    surface_gravel: float = 0.0  #   −1 avoid that class .. 0 indifferent .. +1 seek
+    surface_singletrack: float = 0.0
+    interest: float = 0.0        # FR5 — salience bias, unipolar, explore mode only.
+                                  #   A SCALAR, not a per-type dict: layer
+                                  #   selection supplies the *what* (§7.7)
+    extras: dict[str, float] = field(default_factory=dict)
+    # detour_budget: RETIRED in v2.0 — see D46
+
+# trips/payload.py — the Author-facing profile, what trip.payload stores.
+# 0.0–5.0 throughout (FR2–FR5); None means "no dial set", never a value.
 @dataclass
 class WeightProfile:
-    climbing: float                    # FR2 ("peaks")
-    traffic: float                     # FR3 ("cars")
-    surface_pref: dict[str, float]     # FR4 — per class, 0.0 avoid – 5.0 seek,
-                                        #   bipolar per class (SPIKE-03)
-    interest: float                    # FR5 — salience bias, explore mode only.
-                                        #   A SCALAR, not a per-type dict: layer
-                                        #   selection supplies the *what* (§7.7)
-    terrain_technicality: float = 0.0  # FR14 — land exposure/scramble
-    # detour_budget: RETIRED in v2.0 — see D46
+    name: str = "balanced"
+    climbing: float | None = None            # FR2 → peaks:   (ui − 2.5) / 2.5
+    traffic: float | None = None             # FR3 → quiet:   (5.0 − ui) / 5.0  (inverts:
+                                              #   traffic is a tolerance, quiet an aversion)
+    surface: dict[str, float] = {}           # FR4 → surface_<class>: (ui − 2.5) / 2.5 per
+                                              #   class; keys paved|gravel|singletrack only
+    interest: float | None = None            # FR5 → interest: ui / 5.0  (unipolar)
+    terrain_technicality: float | None = None  # FR14 — Author declaration, read per way and
+                                                #   never aggregated; NOT a solver weight
 ```
+
+`solver_profile_from_author` leaves any unset Author dial at the solver default rather than an invented `0.0`, drops `terrain_technicality` (it never reaches the scorer), and leaves `scenic`/`directness` at their defaults — the Author-facing form has no dial for either.
 
 **`water_type` and `max_water_class` are gone (D19)** — no per-edge class rating exists in any usable source.
 
@@ -513,7 +537,7 @@ class WeightProfile:
 
 **It is explore-mode-only** (§7.7). In compose the promoted anchors are the spine and the weight is inactive — a scalar competing with an explicit editorial decision is incoherent. The useful consequence is that the two modes stop being *curated vs. uncurated* and become **salience judged by the machine vs. salience judged by the Author**: same data, same notion of good, different level of Author involvement. That also makes D-G's mode switching natural, since an explore route generated on salience is one whose good places are already worth promoting.
 
-**Carried risk, now more urgent:** `WeightProfile` still names three different structures across the PRD, this document, and `scoring/profile.py` (A18). D29 fixed what the *payload* stores; the conversion function still does not exist. **v2.0 raises the priority** because compose mode gives weights a second, different job (flavouring rather than searching), and a second job over an ambiguous structure is how the ambiguity ships.
+**A18 closed (2026-08-31, issue #200).** The conversion function now exists — `scoring.profile.solver_profile_from_author`, one function, mirrored field for field by `weight_profile.dart` — and the field list above describes the implemented solver profile plus the Author-facing form it derives from. The two `WeightProfile` shapes remain distinct by design (stored vs. consumed); what was the risk — an *unwritten* conversion and a field list matching neither the PRD nor the code — is resolved.
 
 ### 7.4 Multimodal routing (FR10–FR16) and its data dependency
 
@@ -1401,7 +1425,7 @@ Carried risks are abbreviated where unchanged; **v2.0 additions are A20–A25.**
 | A15 | ~~No basemap labels render~~ — **resolved (SPIKE-14, D24)** | Low | Plotlines-authored theme generated from the mirrored Protomaps theme. Two limits carried: `["get","name"]` is local-name-only; the `pois` layer's per-feature zoom threshold needs a static `minzoom` call. |
 | A16 | **Desktop memory ~1 GB with a basemap on screen** | Medium | Budget near 1 GB; re-measure on a release build. Lever: tile-cache bounds. **Re-measured with candidates on screen (SPIKE-G, 2026-08-29): ~1.15 GB** — SPIKE-14's ~1 GB basemap client + ~3 MB for the salience-gated candidate layer at its ~2,800-candidate display ceiling + ~150 MB tile/transient headroom. **The candidate layer is not a material memory cost** under the recommended render strategy (bounded widget count + flat dot/vertex arrays); the ~1 GB basemap figure is still the number to re-measure on a release build, and **tile-cache bounds remain the lever**. |
 | A17 | ~~Traffic-stress model overstates rural traffic~~ — **resolved (D33)** | Low | Rural/low-signal roads are the zero baseline; `maxspeed`/`lanes` raise stress above it. |
-| A18 | **`WeightProfile` names three different structures** across PRD, this document, and `scoring/profile.py` | Medium **→ raised in v2.0** | D29 fixed what the payload stores. The conversion function still does not exist, and **compose mode now gives weights a second job** (flavouring rather than searching), so the ambiguity has two consumers instead of one. Write the mapping as one function in `scoring/` and correct §7.3's field list. |
+| A18 | ~~**`WeightProfile` names three different structures** across PRD, this document, and `scoring/profile.py`~~ — **resolved (issue #200, 2026-08-31)** | Medium **→ raised in v2.0 → closed** | D29 settled what the payload stores. `scoring.profile.solver_profile_from_author` is now the one function deriving the solver profile from the Author-facing one (mirrored in `weight_profile.dart`), and §7.3's field list describes both shapes. The two profiles stay distinct by design — stored vs. consumed — which is not the risk; the *unwritten* conversion was. |
 | A19 | **Cue sheets promise surface shifts OSM tagging often cannot supply** — six across 132 km; Davis (34.4% tagged) produced none | Medium | State the limit in F1's AC; show tag coverage beside the sheet; longer term allow Author annotation. **FR4's `singletrack` class has no `surface` source at all.** |
 | **A20** ★ | **Notability ruleset is unvalidated, and cluster quality depends entirely on it.** Over-filtering hides the castle; under-filtering floods the map and makes proposals noise | ~~HIGH~~ **MITIGATED** | **SPIKE-A ran 2026-08-27 (#158)** and calibrated the ruleset against NC/WI/SoCal extracts — the under-filtering failure was real (4,149 street trees in one bbox) and is fixed. Golden candidate sets (`core/tests/test_curation_golden.py`) now make a regression visible. Residual: fine salience ordering among mid-band types is a SPIKE-B tuning question. |
 | ~~**A21** ★~~ | ~~**Co-location analysis cost is unmeasured** over a realistic multi-day bbox with many layers live~~ | ~~Medium~~ **MEASURED / MITIGATED** | **SPIKE-B, 2026-08-27 (#169).** ~150 ms / 1.5 MB for a real 8,800 km2 six-layer multi-day bbox; ~4 s / 16 MB for a 30k-candidate synthetic stress. Grid pre-pass (near-linear) + bounded complete-linkage. Affordable outright — the cacheable endpoint (§8.2) is headroom, not a crutch. `core/tests/test_curation_colocate.py` locks the behaviour; residual is the *salience* signal feeding the rank (flat in mountain terrain — SPIKE-A's deferred `natural=peak` prominence sub-scaling), not the cost. |
