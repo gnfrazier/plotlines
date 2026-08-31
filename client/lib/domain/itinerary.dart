@@ -137,7 +137,11 @@ List<String> _routeDayAccount(Day day) {
     paragraphs.add('Along the way: ${places.join(', ')}.');
   }
 
+  // FR27 / C11 — day-level and passage-level hazards both surface here; a
+  // hazard is never reveal-gated (FR115), so it is woven into the account
+  // unconditionally.
   final hazards = [
+    ...day.hazards,
     for (final segment in day.segments) ...segment.hazards,
   ];
   if (hazards.isNotEmpty) {

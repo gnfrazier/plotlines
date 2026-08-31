@@ -173,7 +173,12 @@ class ItineraryStop:
 
 @dataclass
 class ItineraryLeg:
-    """The passage *between* two stops — subordinate to the places it joins."""
+    """The passage *between* two stops — subordinate to the places it joins.
+
+    `hazards` (FR27 / C11) are this passage's own hazard/technical-crux markers,
+    carried through so the itinerary highlights them alongside the map, the
+    elevation profile and the cue sheet. They are never reveal-gated (FR115).
+    """
 
     order: int  # sits between stop `order` and stop `order + 1`
     segment_id: str
@@ -181,6 +186,7 @@ class ItineraryLeg:
     distance_m: float | None
     arc_stage: str | None
     planning_mode: str
+    hazards: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -190,6 +196,7 @@ class ItineraryLeg:
             "distance_m": self.distance_m,
             "arc_stage": self.arc_stage,
             "planning_mode": self.planning_mode,
+            "hazards": list(self.hazards) or None,
         }
 
 
@@ -284,6 +291,7 @@ def compose_itinerary(
                         if segment.metrics is not None else None),
             arc_stage=segment.arc_stage,
             planning_mode=planning_mode_of(segment),
+            hazards=[h.to_dict() for h in segment.hazards],
         )
         for i, segment in enumerate(segments)
     ]

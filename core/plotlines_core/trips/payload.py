@@ -56,8 +56,12 @@ from plotlines_core.content.anchor import Anchor
 #: `segment.arc_stage` — arc now attaches to anchors (via their roles) and to
 #: passages, not just to point `node`s (v1.0's reading). Additive again: an
 #: absent `arc`/`arc_stage` still parses, and a role/segment with neither
-#: carries no arc beat, same as today.
-SCHEMA_VERSION = "1.5.0"
+#: carries no arc beat, same as today. Bumped to 1.6.0 by FR27 (Story C11),
+#: which added `hazard.anchor_id` so a hazard/technical-crux marker can be
+#: pinned to a promoted anchor, not only to a segment/day node or a bare
+#: point. Additive: an absent `anchor_id` still parses, and every hazard
+#: written before this bump behaves exactly as before.
+SCHEMA_VERSION = "1.6.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -408,8 +412,38 @@ class Node:
         }
 
 
+#: FR27 / C11 — the severity ladder, worst last. This is a closed enum, not a
+#: seed set: a hazard's severity drives a fixed set of downstream behaviours
+#: (cue-sheet lead word, whether it raises a sync alert) and a value outside
+#: this tuple would silently get none of them. Severity is an enum and never a
+#: number — "mandatory re-route" is a different *kind* of thing from "caution",
+#: and an ordinal invites arithmetic that has no meaning here.
+HAZARD_SEVERITIES = ("caution", "high", "mandatory_reroute")
+
+#: FR27 / C11 — the severities that raise a distinct Character alert when the
+#: trip is synced (`trips.hazards.sync_alerts`). The rule: a hazard the
+#: Character must know about *before* they are standing on it — everything at
+#: `high` or above. `caution` still renders everywhere a hazard renders (map,
+#: elevation, itinerary, cue sheet); it just does not interrupt on sync.
+ALERTING_SEVERITIES = ("high", "mandatory_reroute")
+
+
 @dataclass
 class Hazard:
+    """FR27, FR115 / C11 — a hazard or technical-crux warning the Author places
+    on a route, a transit leg (both are `Segment`s), a day, or an anchor.
+
+    `severity` is one of `HAZARD_SEVERITIES`, validated here in the model — not
+    left to the schema alone — because C11's acceptance criteria turn on it.
+    `anchor_id` and `node_id` are mutually exclusive: a hazard is pinned to a
+    promoted anchor, to a day/segment node, or to a bare point (`coord` /
+    `distance_along_m`), not to more than one at once.
+
+    A `Hazard` carries no reveal field and is never routed through
+    `RevealResolver`: per FR115 a hazard is always visible, and the way the
+    model enforces that here is by giving an Author no place to say otherwise.
+    """
+
     severity: str
     id: str = field(default_factory=new_id)
     title: str | None = None
@@ -418,6 +452,23 @@ class Hazard:
     coord: Coord | None = None
     distance_along_m: float | None = None
     node_id: str | None = None
+    anchor_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.severity not in HAZARD_SEVERITIES:
+            raise ValueError(
+                f"hazard severity {self.severity!r} is not one of {HAZARD_SEVERITIES}"
+            )
+        if self.node_id is not None and self.anchor_id is not None:
+            raise ValueError(
+                f"hazard {self.id}: node_id and anchor_id are mutually exclusive — "
+                "a hazard is anchored to one thing, not both"
+            )
+
+    @property
+    def is_alerting(self) -> bool:
+        """FR27 — whether this hazard raises a distinct Character alert on sync."""
+        return self.severity in ALERTING_SEVERITIES
 
     def to_dict(self) -> dict:
         return {
@@ -428,6 +479,7 @@ class Hazard:
             "distance_along_m": (None if self.distance_along_m is None
                                  else round(f(self.distance_along_m), 1)),
             "node_id": self.node_id,
+            "anchor_id": self.anchor_id,
         }
 
 
