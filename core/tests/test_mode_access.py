@@ -102,6 +102,55 @@ def test_a_merged_way_list_tag_is_checked_across_every_value_not_just_the_first(
 
 
 # ---------------------------------------------------------------------------
+# evaluate_edge — driving's access hierarchy (issue #206: the legality row is
+# keyed on `motor_vehicle`, a tag the graph builder now actually downloads;
+# before, it was never present and the hierarchy silently never applied).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("value", ["no", "private", "permit"])
+def test_driving_hard_excludes_the_listed_motor_vehicle_values(value):
+    verdict = evaluate_edge({"highway": "track", "motor_vehicle": value}, "driving")
+    assert verdict.passable is False
+    assert verdict.reason == f"motor_vehicle={value}"
+
+
+def test_driving_motor_vehicle_yes_overrides_a_restrictive_generic_access_tag():
+    # The documented hierarchy: `access=private` + `motor_vehicle=yes` on a
+    # forest road is open to a car outright. This never fired before #206 —
+    # `motor_vehicle` was not in the download tag set, so the mode-specific key
+    # was always silent and the generic `access` tag always won.
+    verdict = evaluate_edge(
+        {"highway": "service", "access": "private", "motor_vehicle": "yes"}, "driving"
+    )
+    assert verdict.passable is True
+    assert verdict.flags == frozenset()
+
+
+def test_driving_motor_vehicle_no_excludes_even_when_generic_access_permits():
+    verdict = evaluate_edge(
+        {"highway": "service", "access": "yes", "motor_vehicle": "no"}, "driving"
+    )
+    assert verdict.passable is False
+    assert verdict.reason == "motor_vehicle=no"
+
+
+@pytest.mark.parametrize("value", ["yes", "stepping_stones"])
+def test_a_ford_hard_excludes_driving(value):
+    verdict = evaluate_edge({"highway": "track", "ford": value}, "driving")
+    assert verdict.passable is False
+    assert verdict.reason == f"ford={value}"
+
+
+def test_a_gate_across_a_forest_road_is_surfaced_for_driving_not_deleted():
+    # ARCH §7.4: "a bollard or gate across a forest road is the whole reason
+    # FR29's driving leg exists as a route rather than a note."
+    verdict = evaluate_edge({"highway": "track", "barrier": "gate"}, "driving")
+    assert verdict.passable is True
+    assert "barrier=gate" in verdict.flags
+
+
+# ---------------------------------------------------------------------------
 # evaluate_edge — surfaced constraint (AC: "bicycle=dismount sections
 # surfaced explicitly rather than silently routed through")
 # ---------------------------------------------------------------------------

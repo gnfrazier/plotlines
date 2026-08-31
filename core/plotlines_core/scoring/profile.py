@@ -382,6 +382,16 @@ TUNABLE: dict[str, tuple[float, float]] = {
 _GRADE_SATURATION = 0.12
 
 
+#: Every OSM way-level tag key the scoring model reads off an edge dict. The
+#: graph builder (`graph/regions.py`) must download all of these; a weight keyed
+#: on a tag that was never requested is inert on every real graph (issue #206).
+#: `grade_abs`/`interest_salience`/`length` are pipeline-computed, not OSM tags,
+#: so they are deliberately absent.
+WAY_SCORING_KEYS: frozenset[str] = frozenset({
+    "surface", "highway", "maxspeed", "lanes", "name",
+})
+
+
 def features(data: dict) -> tuple[float, float, float, bool, float, str | None]:
     """Static per-edge features: (length_m, stress, surface_quality, scenic, grade,
     surface_bucket).

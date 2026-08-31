@@ -209,6 +209,21 @@ MODE_CONSTRAINTS: dict[str, ModeConstraints] = {
 }
 
 
+#: Every OSM way-level key `evaluate_edge` reads off an edge dict. The graph
+#: builder (`graph/regions.py`) must download all of these or the rule keyed on
+#: a missing one goes silently inert on every real graph (issue #206);
+#: `test_graph_regions.py` pins the subset relationship.
+WAY_ACCESS_KEYS: frozenset[str] = frozenset(
+    {c.access_key for c in MODE_CONSTRAINTS.values() if c.access_key}
+    | {"access", "ford", "waterway", "oneway:bicycle", "climbing:access"}
+)
+
+#: Keys `evaluate_edge` reads that OSM tags on the *node*, not the way. The
+#: graph builder folds these onto incident edges at build time
+#: (`fold_node_barriers`); they belong in `useful_tags_node`, not way.
+NODE_ACCESS_KEYS: frozenset[str] = frozenset({"barrier"})
+
+
 def constraints_for(mode: str) -> ModeConstraints | None:
     """The legality row governing `mode`, following the traversal-mode
     registry's `access_mode` alias (FR130).
