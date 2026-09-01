@@ -48,13 +48,13 @@ The planning docs live in `/docs` and are the source of truth:
 plotlines/
 ├── core/            # plotlines-core — pure Python routing library (P1: no fastapi import)
 ├── service/         # plotlines-service — FastAPI wrapper (sidecar now, hosted later)
-├── client/          # Flutter app (desktop first) — domain/data/state/presentation built
+├── client/          # Flutter app (desktop first) — domain/data/state/presentation layers
 │   ├── lib/         #   Author Desktop: trip library, new route, planner, cue sheet/export,
 │   │                #   settings, about — see client/lib/domain/README.md for the payload layer
 │   ├── design/      #   imported Claude Design reference — wireframes, brand guide,
 │   │                #   UI gallery, CSS tokens, specimen cards
 │   └── packages/    #   plotlines_ui — the design system as a Flutter package
-│                    #   (a path dependency; compiles clean, fonts vendored offline)
+│                    #   (a path dependency; fonts vendored offline)
 ├── packaging/        # frozen-binary build, installers, signing; version.lock is the
 │                     # single source of truth both client and sidecar stamp themselves with
 ├── docs/             # PRD, architecture, MVP scope, research spikes
@@ -87,8 +87,8 @@ trip bbox, drawn at trip initiation (FR120), is what gets built into a routable 
 graph is a **test fixture** now (pre-seeded into a region's cache path in
 `service/tests/test_regions.py` to test the cross-region-422 case without a network call), not
 something the app loads at startup or falls back to. `client` is a Flutter app; **Running the
-desktop app** below is Linux-first (there's no `client/windows` platform scaffold yet), and
-the sidecar's own Windows process-control gap is tracked in `packaging/TODO.md`.
+desktop app** below is Linux-first — the `client/linux` platform scaffold is the one that
+exists.
 
 ## Running the desktop app
 
@@ -104,7 +104,7 @@ Windows on purpose (see `packaging/README.md`), and it isn't a PowerShell/cmd sc
 uv venv .venv
 source .venv/bin/activate                 # .venv/Scripts/activate on Windows
 uv pip install -e ./core -e ./service
-uv pip install pyinstaller                # not a declared dependency yet — see packaging/README.md
+uv pip install pyinstaller                # build-only tool — see packaging/README.md
 
 ./packaging/build_sidecar.sh pyinstaller-onedir
 ```
@@ -113,8 +113,7 @@ This produces `packaging/dist/pyinstaller-onedir/plotlines-sidecar/plotlines-sid
 `SidecarManager` (`client/lib/data/sidecar_manager.dart`) finds automatically via a
 repo-relative dev fallback — no environment variable or flag needed. `--cache-dir` points at a
 real OS app-support directory (`path_provider`'s `getApplicationSupportDirectory()`), where
-per-region graph and tile caches build up as trips get their own bboxes (`regions/{key}/...`)
-— there is no fixture fallback here any more.
+per-region graph and tile caches build up as trips get their own bboxes (`regions/{key}/...`).
 
 Rebuild the binary any time `core/` or `service/` change — it's a frozen snapshot, not a live
 reload.
@@ -153,9 +152,8 @@ client asset — styling, not tile data) are generated from the mirrored Protoma
 `packaging/build_basemap_theme.py`; rerun that script if
 `spikes/SPIKE-14/harness/assets/style_*.json` ever changes upstream.
 
-`flutter test` runs clean from `client/`. `flutter analyze` currently surfaces a handful of
-lint-level `info`s in real client code plus a few `error`s inside `client/design` — the
-imported design reference has its own `pubspec.yaml` and isn't `flutter pub get`'d, so its
-`google_fonts` import doesn't resolve. Both are worth running before a PR; neither is a
-regression to chase down as part of a docs change.
+Run `flutter test` and `flutter analyze` from `client/` before a PR. `flutter analyze` reports
+`error`s inside `client/design` — the imported design reference has its own `pubspec.yaml` and
+isn't `flutter pub get`'d, so its `google_fonts` import doesn't resolve; that is expected and
+separate from the client app itself.
 

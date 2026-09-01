@@ -40,6 +40,7 @@ from plotlines_core.curation.colocate import (
     mark_new_against,
     reviewable_cap,
 )
+from plotlines_core.content.anchor import Anchor
 from plotlines_core.curation.defaults import resolve_default_layers
 from plotlines_core.curation.notability import RawFeature, RULESET_VERSION, score_notability
 from plotlines_core.curation.providers import BBox, OsmLayerProvider
@@ -65,6 +66,13 @@ from plotlines_core.trips.compose import compose_day, split_trip
 from plotlines_core.trips.cues import derive_cue_sheet, route_polyline
 from plotlines_core.trips.dashboard import build_dashboard
 from plotlines_core.trips.hazards import hazard_rollup
+from plotlines_core.trips.spine import (
+    compose_itinerary,
+    distance_outcome,
+    recap_spine,
+    spine_cues,
+    spine_legs_from_polyline,
+)
 from plotlines_core.trips.payload import Day as PayloadDay
 from plotlines_core.trips.payload import Segment as PayloadSegment
 from plotlines_core.trips.payload import Transition as PayloadTransition
@@ -397,6 +405,16 @@ class DayComposeRequest(BaseModel):
     transitions: list[dict] = Field(default_factory=list)
     index: int = 1
     kind: str = "route"
+
+    # E3 / FR39 / FR117 / FR118 (issue #214) — compose mode's places-first
+    # derived views. `anchors` is the day's spine in the Author's chosen
+    # order (the promoted anchors the single compose passage's `via` points
+    # stand for); `target_m` is what the Author had in mind, if anything, so
+    # A0a's `DistanceOutcome` can quantify the miss. With fewer than two
+    # anchors the response carries no `itinerary`/`recap`/`cues` block —
+    # there is no spine to organise the day around yet.
+    anchors: list[dict] = Field(default_factory=list)
+    target_m: float | None = None
 
 
 class TripSplitRequest(BaseModel):
@@ -1173,7 +1191,47 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             day = compose_day(segments, transitions, index=req.index, kind=req.kind)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
-        return day.to_dict()
+        result = day.to_dict()
+
+        # E3 / FR39 / FR117 / FR118 (issue #214) — the compose-mode
+        # places-first views ride alongside the `Day` for the same reason
+        # `/trips/split`'s `hazard_rollup` / `dashboard` do: they are derived,
+        # not stored, and `plotlines_core.trips.spine` is the one place the
+        # itinerary / recap / cue-sheet-of-places are computed, so a sidecar
+        # and a future hosted assembly hand the client identical structure.
+        # Only built when the request names a spine of two or more anchors.
+        if len(req.anchors) >= 2:
+            try:
+                anchors = [parse_dataclass(Anchor, a) for a in req.anchors]
+                if len(day.segments) == len(anchors) - 1:
+                    # Already the one-passage-per-anchor-pair shape.
+                    legs = day.segments
+                    realised = None
+                elif len(day.segments) == 1:
+                    # The client's single-passage-through-via-points shape:
+                    # split the solved polyline back into per-pair legs, but
+                    # keep the real solved length as the reported outcome.
+                    seg = day.segments[0]
+                    legs = spine_legs_from_polyline(
+                        anchors,
+                        seg.geometry.coordinates if seg.geometry else None,
+                        mode=seg.mode,
+                    )
+                    realised = distance_outcome(day.segments, target_m=req.target_m)
+                else:
+                    legs = None
+                    realised = None
+                if legs is not None:
+                    itinerary = compose_itinerary(anchors, legs, target_m=req.target_m)
+                    if realised is not None:
+                        itinerary.distance = realised
+                    result["itinerary"] = itinerary.to_dict()
+                    result["recap"] = [e.to_dict() for e in recap_spine(itinerary)]
+                    result["cues"] = [c.to_dict() for c in spine_cues(itinerary)]
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from exc
+
+        return result
 
     @app.post("/trips/split")
     def trips_split(req: TripSplitRequest) -> dict:

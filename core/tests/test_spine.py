@@ -27,6 +27,7 @@ from plotlines_core.trips.spine import (
     planning_mode_of,
     recap_spine,
     spine_cues,
+    spine_legs_from_polyline,
     spine_waypoints,
 )
 
@@ -363,3 +364,74 @@ def test_spine_cues_serialize_through_the_payload_cue():
     assert cue["kind"] == "node"
     assert cue["distance_along_m"] == 4_000.0
     assert cue["ref_id"] == anchors[1].id
+
+
+# --- client day -> spine legs: spine_legs_from_polyline -----------------
+
+
+# A straight three-point spine along the 40th parallel; at lat 40, 0.05 deg
+# of longitude is ~4.26 km.
+_PL_A = [-105.30, 40.00]
+_PL_B = [-105.25, 40.00]
+_PL_C = [-105.20, 40.00]
+
+
+def _pl_anchors() -> list[Anchor]:
+    return [
+        _anchor(_PL_A[0], _PL_A[1], title="A"),
+        _anchor(_PL_B[0], _PL_B[1], title="B"),
+        _anchor(_PL_C[0], _PL_C[1], title="C"),
+    ]
+
+
+def test_one_leg_per_consecutive_anchor_pair():
+    legs = spine_legs_from_polyline(_pl_anchors(), [_PL_A, _PL_B, _PL_C], mode="hiking")
+    assert len(legs) == 2
+    assert all(leg.mode == "hiking" and leg.shape == "point_to_point" for leg in legs)
+    assert legs[0].start == _PL_A and legs[0].end == _PL_B
+    assert legs[1].start == _PL_B and legs[1].end == _PL_C
+
+
+def test_leg_distance_is_the_polyline_span_between_the_two_anchors():
+    legs = spine_legs_from_polyline(_pl_anchors(), [_PL_A, _PL_B, _PL_C], mode="hiking")
+    assert legs[0].metrics is not None
+    assert legs[0].metrics.distance_m == pytest.approx(4_260, abs=40)
+    assert legs[1].metrics.distance_m == pytest.approx(4_260, abs=40)
+
+
+def test_the_legs_feed_compose_itinerary_directly():
+    anchors = _pl_anchors()
+    legs = spine_legs_from_polyline(anchors, [_PL_A, _PL_B, _PL_C], mode="hiking")
+    itin = compose_itinerary(anchors, legs)
+    assert itin.spine == [a.id for a in anchors]
+    assert itin.stops[-1].distance_along_m == pytest.approx(8_520, abs=80)
+
+
+def test_no_polyline_yields_metric_less_legs():
+    legs = spine_legs_from_polyline(_pl_anchors(), None, mode="cycling")
+    assert [leg.metrics for leg in legs] == [None, None]
+    # and the itinerary then degrades to "unmeasured, never zero"
+    itin = compose_itinerary(_pl_anchors(), legs)
+    assert [s.distance_along_m for s in itin.stops] == [0.0, None, None]
+
+
+def test_a_one_or_zero_point_polyline_is_treated_as_no_polyline():
+    legs = spine_legs_from_polyline(_pl_anchors(), [_PL_A], mode="hiking")
+    assert [leg.metrics for leg in legs] == [None, None]
+
+
+def test_spine_legs_needs_at_least_two_places():
+    with pytest.raises(ValueError, match="at least two places"):
+        spine_legs_from_polyline([_anchor(-105.0, 40.0, title="lonely")], None, mode="hiking")
+
+
+def test_anchors_out_of_polyline_order_never_produce_a_negative_leg():
+    # C then A along the polyline, but the spine lists A -> C: the span clamps
+    # to zero rather than going negative.
+    legs = spine_legs_from_polyline(
+        [_anchor(_PL_C[0], _PL_C[1], title="C"), _anchor(_PL_A[0], _PL_A[1], title="A")],
+        [_PL_A, _PL_B, _PL_C],
+        mode="hiking",
+    )
+    assert legs[0].metrics is not None
+    assert legs[0].metrics.distance_m >= 0.0

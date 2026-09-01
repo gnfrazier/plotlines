@@ -36,12 +36,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import math
+
 from plotlines_core.content.anchor import ARC_STAGES, ROLE_KINDS, Anchor
 from plotlines_core.scoring.profile import WeightProfile as SolverWeightProfile
-from plotlines_core.trips.compose import solver_profile_for_day
+from plotlines_core.trips.compose import haversine_m, solver_profile_for_day
 from plotlines_core.trips.payload import (
-    Cue, Segment, WeightProfile as AuthorWeightProfile, f,
+    Cue, RouteMetrics, Segment, WeightProfile as AuthorWeightProfile, f,
 )
+
+_EARTH_R_M = 6_371_000.0
 
 #: FR117 — the two planning postures, one per day, switchable either way with no
 #: work lost (FR119).
@@ -309,6 +313,94 @@ def compose_itinerary(
         legs=legs,
         distance=distance_outcome(segments, target_m=target_m),
     )
+
+
+# ----------------------------------------------------- client day -> spine legs
+
+def _cumulative_m(coords: list[list[float]]) -> list[float]:
+    """Running great-circle distance along a `[lon, lat]` polyline, one entry
+    per vertex, starting at `0.0`."""
+    out = [0.0]
+    for a, b in zip(coords, coords[1:]):
+        out.append(out[-1] + haversine_m(tuple(a), tuple(b)))
+    return out
+
+
+def _project_along(
+    coords: list[list[float]], cumulative: list[float], point: list[float]
+) -> float:
+    """Distance along `coords` of the polyline point nearest `point`.
+
+    Equirectangular projection about the query point — the compose spines here
+    are tens of kilometres, where the error is centimetres, and it keeps this
+    module dependency-free (same trick as `trips.cues.Route.project`).
+    """
+    lat0 = math.radians(point[1])
+    kx = math.cos(lat0) * math.pi * _EARTH_R_M / 180.0
+    ky = math.pi * _EARTH_R_M / 180.0
+    px, py = point[0] * kx, point[1] * ky
+
+    best_along, best_offset = 0.0, math.inf
+    for i in range(len(coords) - 1):
+        ax, ay = coords[i][0] * kx, coords[i][1] * ky
+        bx, by = coords[i + 1][0] * kx, coords[i + 1][1] * ky
+        dx, dy = bx - ax, by - ay
+        span = dx * dx + dy * dy
+        t = 0.0 if span == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / span))
+        cx, cy = ax + dx * t, ay + dy * t
+        offset = math.hypot(px - cx, py - cy)
+        if offset < best_offset:
+            best_along = cumulative[i] + math.hypot(cx - ax, cy - ay)
+            best_offset = offset
+    return best_along
+
+
+def spine_legs_from_polyline(
+    anchors: list[Anchor],
+    polyline: list[list[float]] | None,
+    *,
+    mode: str,
+) -> list[Segment]:
+    """Turn a client compose day into the `(anchors, segments)` pair
+    `compose_itinerary` reads.
+
+    The client models a compose day as a *single* passage through an ordered
+    set of via-points (`Segment.via`), not the one-passage-per-anchor-pair
+    shape E3 was written against. This is the seam that recovers that shape —
+    without a second solver (ARCH §7.7): one `Segment` per consecutive anchor
+    pair, its `RouteMetrics.distance_m` the polyline distance between where the
+    two anchors project onto the solved geometry. Distance stays an *outcome*
+    (FR118): this measures the geometry the solve already produced, it never
+    targets one.
+
+    With no polyline yet — an unrouted spine — every leg comes back
+    metric-less, and `compose_itinerary` degrades each stop past the first to
+    `distance_along_m = None` ("unmeasured, never zero").
+    """
+    if len(anchors) < 2:
+        raise ValueError("a spine needs at least two places (FR39)")
+    coords = list(polyline or [])
+    if len(coords) >= 2:
+        cumulative = _cumulative_m(coords)
+        alongs = [_project_along(coords, cumulative, list(a.coord)) for a in anchors]
+    else:
+        alongs: list[float | None] = [None] * len(anchors)
+
+    legs: list[Segment] = []
+    for i in range(len(anchors) - 1):
+        lo, hi = alongs[i], alongs[i + 1]
+        metrics = (
+            None if lo is None or hi is None
+            else RouteMetrics(distance_m=round(max(hi - lo, 0.0), 1))
+        )
+        legs.append(Segment(
+            mode=mode,
+            shape="point_to_point",
+            start=list(anchors[i].coord),
+            end=list(anchors[i + 1].coord),
+            metrics=metrics,
+        ))
+    return legs
 
 
 # ------------------------------------------------------------------- consumers
