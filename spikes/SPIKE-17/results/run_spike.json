@@ -1,0 +1,638 @@
+{
+ "spike": "SPIKE-17",
+ "issue": 176,
+ "started_utc": "2026-09-01T13:52:10.172743+00:00",
+ "named_source": {
+  "legacy_url": "https://eapps.ncdot.gov/services/traffic-prod/v1/incidents",
+  "replacement_url": "https://www.drivenc.gov/api/v2/get/event",
+  "legacy_status": 200,
+  "legacy_body": "{\"message\":\"As of May 27, 2026, information about API data can be found at https://drivenc.gov/help/endpoint/event\"}",
+  "replacement_status": 400,
+  "replacement_body": "<Error><Message>Invalid Key</Message></Error>",
+  "verdict": "keyless when the spike was written (2026-08-27); relocated and keyed by the time it ran (2026-09-01)"
+ },
+ "conformance": {
+  "wzdx_is_edge_data_provider": true,
+  "nws_is_edge_data_provider": true,
+  "core_files_changed": 0,
+  "protocol_members_used": [
+   "annotate_edges"
+  ],
+  "members_the_protocol_does_not_declare_but_a_real_provider_needed": [
+   "licence",
+   "load_state()",
+   "fetch()",
+   "stats"
+  ]
+ },
+ "licence_gate": {
+  "registrations": [
+   {
+    "source_id": "wzdx-wi",
+    "loaded": true,
+    "reason": "",
+    "licence_id": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "attribution": "Work zone data: Work Zone Manager",
+    "satisfiable": true
+   },
+   {
+    "source_id": "wzdx-ny",
+    "loaded": false,
+    "reason": "licence unsatisfiable (feed_info carries no `license` field)",
+    "licence_id": "",
+    "attribution": "",
+    "satisfiable": false
+   },
+   {
+    "source_id": "nws-alerts-wi",
+    "loaded": true,
+    "reason": "",
+    "licence_id": "US-Gov-Public-Domain",
+    "attribution": "Weather alerts: NOAA / National Weather Service",
+    "satisfiable": true
+   }
+  ],
+  "attributions_owed": [
+   "Weather alerts: NOAA / National Weather Service",
+   "Work zone data: Work Zone Manager"
+  ],
+  "loaded": [
+   "wzdx-wi",
+   "nws-alerts-wi"
+  ]
+ },
+ "feed_shapes": {
+  "wzdx-wi": {
+   "url": "https://511wi.gov/api/wzdx",
+   "spec_version": "4.2",
+   "publisher": "Work Zone Manager",
+   "declares_licence": true,
+   "declared_update_frequency_s": 60,
+   "events": 4424,
+   "active_now": 1068,
+   "active_now_pct": 24.1,
+   "geometry_kinds": {
+    "line": 4424
+   },
+   "locatable": 4424,
+   "locatable_pct": 100.0,
+   "with_road_names": 4424,
+   "with_end_date": 4424,
+   "kinds": {
+    "work-zone": 4176,
+    "detour": 248
+   },
+   "impacts": {
+    "some-lanes-closed": 2910,
+    "flagging": 825,
+    "all-lanes-closed": 401,
+    "temporary-traffic-signal": 38,
+    "alternating-one-way": 2,
+    "unknown": 248
+   },
+   "raw_bytes": null,
+   "fetch_ms": null
+  },
+  "wzdx-ny": {
+   "url": "https://511ny.org/api/wzdx",
+   "spec_version": "4.1",
+   "publisher": "Arcadis",
+   "declares_licence": false,
+   "declared_update_frequency_s": null,
+   "events": 5857,
+   "active_now": 696,
+   "active_now_pct": 11.9,
+   "geometry_kinds": {
+    "point": 5857
+   },
+   "locatable": 5857,
+   "locatable_pct": 100.0,
+   "with_road_names": 5857,
+   "with_end_date": 5857,
+   "kinds": {
+    "work-zone": 5857
+   },
+   "impacts": {
+    "unknown": 5857
+   },
+   "raw_bytes": null,
+   "fetch_ms": null
+  },
+  "nws-alerts-wi": {
+   "url": "https://api.weather.gov/alerts/active?area=WI",
+   "spec_version": "n/a (not a WZDx feed)",
+   "publisher": "",
+   "declares_licence": false,
+   "declared_update_frequency_s": null,
+   "events": 5,
+   "active_now": 4,
+   "active_now_pct": 80.0,
+   "geometry_kinds": {
+    "none": 5
+   },
+   "locatable": 0,
+   "locatable_pct": 0.0,
+   "with_road_names": 0,
+   "with_end_date": 5,
+   "kinds": {
+    "weather-advisory": 5
+   },
+   "impacts": {
+    "unknown": 5
+   },
+   "raw_bytes": null,
+   "fetch_ms": null,
+   "zone_refs_to_resolve": 62,
+   "distinct_zone_refs": 62
+  }
+ },
+ "annotating_sources": [
+  "nws-alerts-wi",
+  "wzdx-wi"
+ ],
+ "annotation": {
+  "driftless-lacrosse": {
+   "region": {
+    "name": "driftless-lacrosse",
+    "bbox": [
+     -91.35,
+     43.7,
+     -91.0,
+     43.95
+    ],
+    "network_type": "bike",
+    "nodes": 16456,
+    "edges": 42450,
+    "cold_build": true,
+    "overpass_cache_warm": false,
+    "build_seconds": 17.33,
+    "load_seconds": 1.43,
+    "graphml_bytes": 22446730
+   },
+   "edge_index_seconds": 0.646,
+   "per_source": {
+    "wzdx-wi": {
+     "annotate_seconds": 0.669,
+     "match": {
+      "events_in": 1068,
+      "events_locatable": 1068,
+      "events_in_bbox": 21,
+      "events_matched": 19,
+      "edges_annotated": 535,
+      "match_rate": 0.9048,
+      "name_agreement_rate": 0.4922,
+      "name_comparisons": 449,
+      "by_geometry_kind": {
+       "line": {
+        "events_in_bbox": 21,
+        "matched": 19,
+        "edges": 693
+       }
+      }
+     }
+    },
+    "nws-alerts-wi": {
+     "annotate_seconds": 0.546,
+     "match": {
+      "events_in": 4,
+      "events_locatable": 0,
+      "events_in_bbox": 0,
+      "events_matched": 0,
+      "edges_annotated": 0,
+      "match_rate": 0.0,
+      "name_agreement_rate": 0.0,
+      "name_comparisons": 0,
+      "by_geometry_kind": {}
+     }
+    }
+   },
+   "edges_with_advisory": 535,
+   "edges_with_advisory_pct": 1.26,
+   "p6_core_edge_keys_mutated": [],
+   "p6_holds": true,
+   "sample_annotations": [
+    {
+     "edge": "231361213->12466153763/0",
+     "name": "Great River Road",
+     "highway": "primary",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "work-zone",
+     "advisory:impact": "some-lanes-closed",
+     "advisory:event_id": "ef341ff3-fd7b-3650-9da6-5beacbebef83",
+     "advisory:event_count": 2,
+     "advisory:observed_at": "2026-03-05T20:58:24.537000+00:00",
+     "advisory:stale_after": "2026-09-01T14:07:28.863433+00:00",
+     "advisory:event_ends_at": "2026-10-30T21:00:00+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+     "edge": "231363141->231401799/0",
+     "name": "4th Street South",
+     "highway": "trunk",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "detour",
+     "advisory:impact": "unknown",
+     "advisory:event_id": "22f4e32d-8d11-1f18-8653-87c1c1f79053",
+     "advisory:event_count": 1,
+     "advisory:observed_at": "2026-07-20T05:11:02.737000+00:00",
+     "advisory:stale_after": "2026-09-01T14:07:28.863433+00:00",
+     "advisory:event_ends_at": "2026-09-11T22:00:00+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+     "edge": "231363646->4573521748/0",
+     "name": "4th Street South",
+     "highway": "trunk",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "detour",
+     "advisory:impact": "unknown",
+     "advisory:event_id": "22f4e32d-8d11-1f18-8653-87c1c1f79053",
+     "advisory:event_count": 1,
+     "advisory:observed_at": "2026-07-20T05:11:02.737000+00:00",
+     "advisory:stale_after": "2026-09-01T14:07:28.863433+00:00",
+     "advisory:event_ends_at": "2026-09-11T22:00:00+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+     "edge": "231363900->231370001/0",
+     "name": "7th Street North",
+     "highway": "unclassified",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "detour",
+     "advisory:impact": "unknown",
+     "advisory:event_id": "22f4e32d-8d11-1f18-8653-87c1c1f79053",
+     "advisory:event_count": 1,
+     "advisory:observed_at": "2026-07-20T05:11:02.737000+00:00",
+     "advisory:stale_after": "2026-09-01T14:07:28.863433+00:00",
+     "advisory:event_ends_at": "2026-09-11T22:00:00+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+     "edge": "231363900->4573684714/0",
+     "name": "7th Street North",
+     "highway": "secondary",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "detour",
+     "advisory:impact": "unknown",
+     "advisory:event_id": "22f4e32d-8d11-1f18-8653-87c1c1f79053",
+     "advisory:event_count": 1,
+     "advisory:observed_at": "2026-07-20T05:11:02.737000+00:00",
+     "advisory:stale_after": "2026-09-01T14:07:28.863433+00:00",
+     "advisory:event_ends_at": "2026-09-11T22:00:00+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+     "edge": "231363904->231387108/0",
+     "name": "8th Place",
+     "highway": "residential",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "detour",
+     "advisory:impact": "unknown",
+     "advisory:event_id": "22f4e32d-8d11-1f18-8653-87c1c1f79053",
+     "advisory:event_count": 1,
+     "advisory:observed_at": "2026-07-20T05:11:02.737000+00:00",
+     "advisory:stale_after": "2026-09-01T14:07:28.863433+00:00",
+     "advisory:event_ends_at": "2026-09-11T22:00:00+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    }
+   ],
+   "staleness_projection": {
+    "total": 535,
+    "information_fresh_at_plus_5min": 535,
+    "subject_valid_at_plus_5min": 535,
+    "information_fresh_at_plus_15min": 0,
+    "subject_valid_at_plus_15min": 535,
+    "information_fresh_at_plus_60min": 0,
+    "subject_valid_at_plus_60min": 535,
+    "information_fresh_at_plus_240min": 0,
+    "subject_valid_at_plus_240min": 535,
+    "information_fresh_at_plus_1440min": 0,
+    "subject_valid_at_plus_1440min": 525
+   }
+  },
+  "milwaukee": {
+   "region": {
+    "name": "milwaukee",
+    "bbox": [
+     -88.05,
+     42.95,
+     -87.85,
+     43.1
+    ],
+    "network_type": "bike",
+    "nodes": 51790,
+    "edges": 138979,
+    "cold_build": true,
+    "overpass_cache_warm": true,
+    "build_seconds": 51.48,
+    "load_seconds": 4.14,
+    "graphml_bytes": 68314799
+   },
+   "edge_index_seconds": 1.899,
+   "per_source": {
+    "wzdx-wi": {
+     "annotate_seconds": 2.252,
+     "match": {
+      "events_in": 1068,
+      "events_locatable": 1068,
+      "events_in_bbox": 101,
+      "events_matched": 87,
+      "edges_annotated": 3340,
+      "match_rate": 0.8614,
+      "name_agreement_rate": 0.1647,
+      "name_comparisons": 3710,
+      "by_geometry_kind": {
+       "line": {
+        "events_in_bbox": 101,
+        "matched": 87,
+        "edges": 5785
+       }
+      }
+     }
+    },
+    "nws-alerts-wi": {
+     "annotate_seconds": 2.162,
+     "match": {
+      "events_in": 4,
+      "events_locatable": 0,
+      "events_in_bbox": 0,
+      "events_matched": 0,
+      "edges_annotated": 0,
+      "match_rate": 0.0,
+      "name_agreement_rate": 0.0,
+      "name_comparisons": 0,
+      "by_geometry_kind": {}
+     }
+    }
+   },
+   "edges_with_advisory": 3340,
+   "edges_with_advisory_pct": 2.403,
+   "p6_core_edge_keys_mutated": [],
+   "p6_holds": true,
+   "sample_annotations": [
+    {
+     "edge": "196618914->1333897175/0",
+     "name": "West Hawthorne Avenue",
+     "highway": "residential",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "detour",
+     "advisory:impact": "unknown",
+     "advisory:event_id": "533b3174-3c75-1155-ab1e-2dfa9249b66e",
+     "advisory:event_count": 2,
+     "advisory:observed_at": "2026-03-05T20:58:24.537000+00:00",
+     "advisory:stale_after": "2026-09-01T14:08:24.739530+00:00",
+     "advisory:event_ends_at": "2027-11-15T10:30:00+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+     "edge": "196618914->3199570821/0",
+     "name": "West Hawthorne Avenue",
+     "highway": "residential",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "detour",
+     "advisory:impact": "unknown",
+     "advisory:event_id": "533b3174-3c75-1155-ab1e-2dfa9249b66e",
+     "advisory:event_count": 2,
+     "advisory:observed_at": "2026-03-05T20:58:24.537000+00:00",
+     "advisory:stale_after": "2026-09-01T14:08:24.739530+00:00",
+     "advisory:event_ends_at": "2027-11-15T10:30:00+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+     "edge": "196619542->5586961713/0",
+     "name": "East Clybourn Street",
+     "highway": "secondary",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "detour",
+     "advisory:impact": "unknown",
+     "advisory:event_id": "5d15227b-4758-1c4e-b002-088c8496ad22",
+     "advisory:event_count": 1,
+     "advisory:observed_at": "2026-08-25T14:16:07.107000+00:00",
+     "advisory:stale_after": "2026-09-01T14:08:24.739530+00:00",
+     "advisory:event_ends_at": "2026-10-01T04:59:59+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+     "edge": "196620465->196622993/0",
+     "name": "West Becher Street",
+     "highway": "secondary",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "work-zone",
+     "advisory:impact": "all-lanes-closed",
+     "advisory:event_id": "f3f70cbb-4303-e658-92c1-06078a01be50",
+     "advisory:event_count": 2,
+     "advisory:observed_at": "2026-04-07T05:11:45.103000+00:00",
+     "advisory:stale_after": "2026-09-01T14:08:24.739530+00:00",
+     "advisory:event_ends_at": "2026-11-26T05:59:59+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+     "edge": "196621035->1195128824/0",
+     "name": "West Park Hill Avenue",
+     "highway": "residential",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "detour",
+     "advisory:impact": "unknown",
+     "advisory:event_id": "3aedfa07-963b-1f5d-b143-33d1e2e9801a",
+     "advisory:event_count": 1,
+     "advisory:observed_at": "2026-07-01T15:44:14.313000+00:00",
+     "advisory:stale_after": "2026-09-01T14:08:24.739530+00:00",
+     "advisory:event_ends_at": "2026-11-21T05:59:59+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+     "edge": "196621043->196625665/0",
+     "name": "South 35th Street",
+     "highway": "secondary",
+     "advisory:source": "wzdx-wi",
+     "advisory:kind": "work-zone",
+     "advisory:impact": "some-lanes-closed",
+     "advisory:event_id": "8d109418-ecdd-8d56-9d59-d86d75bd4aad",
+     "advisory:event_count": 6,
+     "advisory:observed_at": "2026-04-02T18:11:08.173000+00:00",
+     "advisory:stale_after": "2026-09-01T14:08:24.739530+00:00",
+     "advisory:event_ends_at": "2026-09-14T12:00:00+00:00",
+     "advisory:licence": "https://creativecommons.org/publicdomain/zero/1.0/"
+    }
+   ],
+   "staleness_projection": {
+    "total": 3340,
+    "information_fresh_at_plus_5min": 3340,
+    "subject_valid_at_plus_5min": 3340,
+    "information_fresh_at_plus_15min": 0,
+    "subject_valid_at_plus_15min": 3340,
+    "information_fresh_at_plus_60min": 0,
+    "subject_valid_at_plus_60min": 3340,
+    "information_fresh_at_plus_240min": 0,
+    "subject_valid_at_plus_240min": 3340,
+    "information_fresh_at_plus_1440min": 0,
+    "subject_valid_at_plus_1440min": 3325
+   }
+  }
+ },
+ "point_vs_line": {
+  "region": "driftless-lacrosse",
+  "events_compared": 21,
+  "as_line": {
+   "events_in": 21,
+   "events_locatable": 21,
+   "events_in_bbox": 21,
+   "events_matched": 19,
+   "edges_annotated": 535,
+   "match_rate": 0.9048,
+   "name_agreement_rate": 0.4922,
+   "name_comparisons": 449,
+   "by_geometry_kind": {
+    "line": {
+     "events_in_bbox": 21,
+     "matched": 19,
+     "edges": 693
+    }
+   }
+  },
+  "as_point": {
+   "events_in": 21,
+   "events_locatable": 21,
+   "events_in_bbox": 21,
+   "events_matched": 17,
+   "edges_annotated": 129,
+   "match_rate": 0.8095,
+   "name_agreement_rate": 0.5047,
+   "name_comparisons": 107,
+   "by_geometry_kind": {
+    "point": {
+     "events_in_bbox": 21,
+     "matched": 17,
+     "edges": 135
+    }
+   }
+  },
+  "edges_line_only": 466,
+  "edges_point_only": 60,
+  "edges_agreed": 69,
+  "point_recall_of_line_edges": 0.129,
+  "point_false_add_rate": 0.4651
+ },
+ "nws_zone_resolution": {
+  "alerts_in_feed": 5,
+  "distinct_zone_urls": 62,
+  "requests_to_place_the_feed": 62,
+  "zone_fetch_seconds_total": 11.32,
+  "zone_fetch_seconds_each": 0.183,
+  "zone_fetch_errors": 0,
+  "zone_fetch_timing_from_cache": false,
+  "zone_polygons_resolved": 62,
+  "alert_zone_pairs_located": 62,
+  "match_against_region": "driftless-lacrosse",
+  "match": {
+   "events_in": 62,
+   "events_locatable": 62,
+   "events_in_bbox": 4,
+   "events_matched": 4,
+   "edges_annotated": 42450,
+   "match_rate": 1.0,
+   "name_agreement_rate": 0.0,
+   "name_comparisons": 0,
+   "by_geometry_kind": {
+    "polygon": {
+     "events_in_bbox": 4,
+     "matched": 4,
+     "edges": 42518
+    }
+   }
+  },
+  "note": "the timing is the cold cost \u2014 what a first-run Author pays \u2014 and it is stored inside raw/nws-zones.json.gz so a warm re-run reports what was paid rather than the cache read"
+ },
+ "cacheability": {
+  "wzdx-wi": {
+   "status": 200,
+   "etag": "\"fc5475bb-ca3d-46db-a79c-7c489b8d135f\"",
+   "last_modified": null,
+   "cache_control": "private",
+   "content_encoding": null,
+   "content_length": "10157481",
+   "conditional_get_status": 200,
+   "conditional_get_saves_body": false
+  },
+  "wzdx-ny": {
+   "status": 200,
+   "etag": "W/\"8aed1bc1-7d5c-4ecc-acae-a13ffa25cc8a\"",
+   "last_modified": null,
+   "cache_control": "private",
+   "content_encoding": "gzip",
+   "content_length": null,
+   "conditional_get_status": 200,
+   "conditional_get_saves_body": false
+  },
+  "nws-alerts-wi": {
+   "status": 200,
+   "etag": "W/\"f52584b6285e62127fafe5e38681342a\"",
+   "last_modified": null,
+   "cache_control": "public, max-age=5, s-maxage=5",
+   "content_encoding": "gzip",
+   "content_length": "3481",
+   "conditional_get_status": 200,
+   "conditional_get_saves_body": false
+  }
+ },
+ "volatility": {
+  "declared_update_frequency_s": 60,
+  "baseline_events": 4424,
+  "baseline_fetch_ms": 772.9,
+  "baseline_bytes": 10157481,
+  "event_age_hours": {
+   "p10": 117.19,
+   "p50": 426.67,
+   "p90": 2517.9,
+   "max": 4312.92,
+   "n": 4424
+  },
+  "polls": [
+   {
+    "poll": 1,
+    "interval_s": 60.0,
+    "fetch_ms": 876.6,
+    "bytes": 10157481,
+    "events": 4424,
+    "added": 0,
+    "removed": 0,
+    "changed": 0,
+    "churn_pct": 0.0,
+    "feed_update_date_moved": true
+   },
+   {
+    "poll": 2,
+    "interval_s": 60.0,
+    "fetch_ms": 951.6,
+    "bytes": 10157481,
+    "events": 4424,
+    "added": 0,
+    "removed": 0,
+    "changed": 0,
+    "churn_pct": 0.0,
+    "feed_update_date_moved": false
+   },
+   {
+    "poll": 3,
+    "interval_s": 60.0,
+    "fetch_ms": 876.5,
+    "bytes": 10157480,
+    "events": 4424,
+    "added": 0,
+    "removed": 0,
+    "changed": 0,
+    "churn_pct": 0.0,
+    "feed_update_date_moved": true
+   }
+  ]
+ },
+ "normalisation_cost": {
+  "shared_helpers_loc": 42,
+  "wzdx_adapter_loc": 27,
+  "nws_adapter_loc": 33,
+  "matcher_loc": 90,
+  "note": "the matcher is shared by every source and is the largest part; the per-source adapters are the part a proxy would host"
+ },
+ "finished_utc": "2026-09-01T13:56:36.779338+00:00",
+ "wall_seconds": 266.6
+}
