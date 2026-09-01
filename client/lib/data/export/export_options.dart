@@ -10,6 +10,27 @@ library;
 
 import '../../domain/domain.dart';
 
+/// The four file formats FR44 names. Public because it is also the currency
+/// of the **output** plugin seam (ARCH §14.3): an `OutputIntegration` declares
+/// which formats it accepts and asks a `TripPayloadWriter` for the bytes — it
+/// never encodes its own (D58 keeps all four writers on one code path).
+///
+/// `presentation/screens/plan_tabs/export_tab.dart` still carries a private
+/// `_ExportFormat` that predates this one; the two collapse together when F3's
+/// writers move to the core `export_trip` path.
+enum ExportFormat {
+  gpx,
+  tcx,
+  geojson,
+  fit;
+
+  /// The file extension, which is also the wire name in the core's
+  /// `POST /trips/{id}/export`.
+  String get extension => name;
+
+  bool get isBinary => this == ExportFormat.fit;
+}
+
 class ExportOptions {
   const ExportOptions({
     this.includeWaypoints = true,
