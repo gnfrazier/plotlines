@@ -19,6 +19,8 @@ from __future__ import annotations
 import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import osmnx as ox
@@ -89,6 +91,18 @@ from .version import VERSION
 # elapsed time. A bbox-scoped Overpass fetch + graph build is typically a few
 # seconds for an MVP-sized trip area.
 GRAPH_ESTIMATED_S = 8.0
+
+# How many region graph builds may run at once. Each build is a full-region
+# OSMnx acquisition — Overpass download, `MultiDiGraph` construction,
+# `simplify_graph`, and a strong-connectivity prune — which for a county-sized
+# bbox is minutes of CPU and ~1.5 GB of memory. Left unbounded, one client that
+# ensured several regions at once (e.g. a trip declaring bike + hike + drive, a
+# distinct `network_type` graph each) would run them all in parallel, saturate
+# every core, and starve the event loop so `GET /health` timed out — at which
+# point M12 restarted the sidecar mid-build and the restart re-queued the same
+# work. Serialising builds keeps `/health` responsive; a queued build just
+# waits its turn. Raise this only with a matching memory budget in mind.
+REGION_BUILD_CONCURRENCY = 1
 
 # Elevation acquisition is explicitly out of scope for this region-build path
 # (issue #154's scoping note): D20/FR85 pin the source to GEDTM30 via
@@ -261,22 +275,37 @@ class Readiness:
         self.regions: dict[str, RegionState] = {}
         self._lock = threading.Lock()
         self.started_at = time.perf_counter()
+        # Serialise region builds (REGION_BUILD_CONCURRENCY) so a burst of
+        # `ensure_region` calls can no longer peg every core at once and
+        # starve `/health`. A queued build simply waits its turn.
+        self._build_pool = ThreadPoolExecutor(
+            max_workers=REGION_BUILD_CONCURRENCY,
+            thread_name_prefix="region-build",
+        )
+
+    def shutdown(self) -> None:
+        """Stop accepting builds and abandon any still queued. In-flight
+        builds are left to finish (or be killed with the process); this
+        only exists so a test / hosted-mode reload does not leak the pool."""
+        self._build_pool.shutdown(wait=False, cancel_futures=True)
 
     def ensure_region(self, bbox: tuple[float, float, float, float],
                       network_type: str = "bike") -> str:
         """Idempotent: a second call with the same (bbox, network_type)
-        returns the same key without starting a second build."""
+        returns the same key without starting a second build. Builds are
+        queued onto a bounded pool (REGION_BUILD_CONCURRENCY), so a second
+        *distinct* region ensured while one is still building waits rather
+        than competing for CPU."""
         key = region_lib.region_key(bbox, network_type)
         with self._lock:
             region = self.regions.get(key)
             if region is None:
                 region = RegionState(key, bbox, network_type)
                 self.regions[key] = region
-                threading.Thread(
-                    target=region.build,
-                    args=(self.cache_dir, self.tiles_upstream, self.allow_unmirrored),
-                    daemon=True,
-                ).start()
+                self._build_pool.submit(
+                    region.build,
+                    self.cache_dir, self.tiles_upstream, self.allow_unmirrored,
+                )
         return key
 
     def region(self, key: str) -> RegionState | None:
@@ -545,10 +574,20 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                tiles_upstream: str | Path | None = None,
                allow_unmirrored_tiles: bool = False,
                web_domain: str | None = None) -> FastAPI:
-    app = FastAPI(title="plotlines-service", version=VERSION)
     state = Readiness(cache_dir, tiles_upstream or default_home_region_archive(),
                       allow_unmirrored=allow_unmirrored_tiles)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        yield
+        # Abandon any region builds still queued so the pool's worker thread
+        # can't outlive the app (matters for a test / hosted-mode reload; the
+        # sidecar itself is signal-killed).
+        state.shutdown()
+
+    app = FastAPI(title="plotlines-service", version=VERSION, lifespan=lifespan)
     app.state.readiness = state
+
     home_tiles = Archive(default_home_region_archive())
     home_tiles_identity = home_tiles.info().identity
     diagnose_jobs: dict[str, DiagnoseJob] = {}

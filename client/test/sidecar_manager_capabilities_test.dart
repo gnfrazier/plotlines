@@ -158,6 +158,50 @@ void main() {
     });
   });
 
+  group('SidecarManager.healthPollTimeout (Buncombe County incident)', () {
+    Capabilities caps(Map<String, dynamic> regions) => Capabilities.fromJson({
+          'tiles': {'ready': true},
+          'layers': {'ready': true},
+          'routing': {'regions': regions},
+          'elevation': {'ready': false, 'reason': 'x'},
+        });
+
+    test('baseline 2s when nothing is building', () {
+      expect(SidecarManager.healthPollTimeout(null), const Duration(seconds: 2));
+      expect(SidecarManager.healthPollTimeout(caps({})), const Duration(seconds: 2));
+      expect(
+        SidecarManager.healthPollTimeout(caps({'a': {'ready': true}})),
+        const Duration(seconds: 2),
+      );
+    });
+
+    test('widens to 8s while a region graph is still building', () {
+      // A CPU-bound OSMnx build in the sidecar process can starve the
+      // trivial `/health` handler of the GIL for a second or two; a poll
+      // that spuriously times out during a legitimate build used to leave
+      // the UI on a stale snapshot.
+      final building = caps({
+        'a': {'ready': false, 'reason': 'graph_loading', 'progress': 0.3, 'eta_s': 40},
+      });
+      expect(SidecarManager.healthPollTimeout(building), const Duration(seconds: 8));
+    });
+
+    test('a failed region (no progress) does not widen the timeout', () {
+      final failed = caps({
+        'a': {'ready': false, 'reason': 'failed:Overpass 504'},
+      });
+      expect(SidecarManager.healthPollTimeout(failed), const Duration(seconds: 2));
+    });
+
+    test('one building region among several ready ones is enough to widen', () {
+      final mixed = caps({
+        'a': {'ready': true},
+        'b': {'ready': false, 'reason': 'graph_loading', 'progress': 0.9, 'eta_s': 5},
+      });
+      expect(SidecarManager.healthPollTimeout(mixed), const Duration(seconds: 8));
+    });
+  });
+
   group('Capabilities per-layer readiness (story N2)', () {
     Map<String, dynamic> body(Map<String, dynamic> layers) => {
           'tiles': {'ready': true},

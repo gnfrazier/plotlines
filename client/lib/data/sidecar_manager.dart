@@ -275,6 +275,7 @@ class SidecarManager extends ChangeNotifier {
   bool _stoppingDeliberately = false;
   Capabilities? _capabilities;
   Timer? _capabilityPollTimer;
+  bool _healthPollInFlight = false;
   SidecarRegistry? _registry;
 
   SidecarStatus get status => _status;
@@ -294,6 +295,34 @@ class SidecarManager extends ChangeNotifier {
   /// so a screen like New Route can show routing/elevation loading in real
   /// time without the app being blocked on it (B1's whole point).
   Capabilities? get capabilities => _capabilities;
+
+  /// Baseline `/health` request timeout. The handler only reads in-memory
+  /// state, so a healthy sidecar answers in milliseconds.
+  static const Duration _healthTimeout = Duration(seconds: 2);
+
+  /// Widened timeout used while a region graph build is in flight. A
+  /// CPU-bound OSMnx build (Overpass parse, `MultiDiGraph` construction, the
+  /// strong-connectivity prune) runs in the sidecar's own process and can
+  /// starve even the trivial `/health` handler of the GIL for a second or
+  /// two. Before this, a poll that timed out during a legitimate build read
+  /// as "sidecar unresponsive" and left the UI on a stale snapshot; the
+  /// Buncombe County incident was several such builds at once. Builds are
+  /// serialised sidecar-side now (`REGION_BUILD_CONCURRENCY`), but one
+  /// county-scale build is still enough to blow the 2s baseline.
+  static const Duration _healthTimeoutDuringBuild = Duration(seconds: 8);
+
+  /// [_healthTimeoutDuringBuild] when [caps] shows any region still building
+  /// (not ready, but reporting progress — i.e. loading rather than failed),
+  /// else [_healthTimeout]. A settled or absent snapshot gets the baseline.
+  @visibleForTesting
+  static Duration healthPollTimeout(Capabilities? caps) {
+    final regions = caps?.routing.regions.values;
+    final building =
+        regions?.any((c) => !c.ready && c.progress != null) ?? false;
+    return building ? _healthTimeoutDuringBuild : _healthTimeout;
+  }
+
+  Duration get _pollTimeout => healthPollTimeout(_capabilities);
 
   void _set(SidecarState state, {String detail = ''}) {
     _status = SidecarStatus(state, detail: detail, port: _port);
@@ -423,7 +452,7 @@ class SidecarManager extends ChangeNotifier {
       try {
         final resp = await http
             .get(Uri.parse('$baseUrl/health'))
-            .timeout(const Duration(seconds: 2));
+            .timeout(_pollTimeout);
         if (resp.statusCode == 200) {
           final body = jsonDecode(resp.body) as Map<String, dynamic>;
           final caps = Capabilities.fromJson(body['capabilities'] as Map<String, dynamic>);
@@ -455,10 +484,14 @@ class SidecarManager extends ChangeNotifier {
   void _watchCapabilities() {
     _capabilityPollTimer?.cancel();
     _capabilityPollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      // A slow `/health` during a build can outlast the 2s tick — don't stack
+      // overlapping polls waiting on the same busy sidecar.
+      if (_healthPollInFlight) return;
+      _healthPollInFlight = true;
       try {
         final resp = await http
             .get(Uri.parse('$baseUrl/health'))
-            .timeout(const Duration(seconds: 2));
+            .timeout(_pollTimeout);
         if (resp.statusCode != 200) return;
         final body = jsonDecode(resp.body) as Map<String, dynamic>;
         _capabilities = Capabilities.fromJson(body['capabilities'] as Map<String, dynamic>);
@@ -466,6 +499,8 @@ class SidecarManager extends ChangeNotifier {
       } catch (_) {
         // Sidecar may have died mid-poll — `_onExit` handles that
         // transition; this loop just stops making noise until it's stopped.
+      } finally {
+        _healthPollInFlight = false;
       }
     });
   }
