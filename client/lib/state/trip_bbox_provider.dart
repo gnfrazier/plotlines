@@ -13,7 +13,6 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/travel_mode.dart';
 import '../domain/trip_bbox.dart';
 import '../domain/trip_bbox_revision.dart';
 import 'current_trip_provider.dart';
@@ -44,28 +43,24 @@ final tripBboxProvider =
 /// `sidecarManagerProvider`'s `capabilities.routing.forRegion(key)` using
 /// the key this resolves to, per FR121's disabled-with-a-reason house style.
 ///
-/// Issue #208 — the graph is per travel mode (`network_type`), so this also
-/// kicks off a build for every *declared* mode's `network_type` (a hiking
-/// trip's `walk` graph, a driving leg's `drive` graph) rather than only
-/// `bike`. The returned key is still the `bike` region — it is the stable
-/// gate/warm-up anchor every existing caller expects — and the per-segment
-/// solve/cue/diagnose calls each ensure their own mode's region regardless.
+/// Issue #208 — the graph is per travel mode (`network_type`). This warms
+/// **only** the `bike` region: it is the stable gate/warm-up anchor every
+/// existing caller expects, and the one graph an Author is guaranteed to
+/// need. The other declared modes' graphs (`walk`, `drive`, `all`) are each
+/// a full-region OSMnx build in their own right — fanning all of them out
+/// here, the moment a bbox is accepted, put three-plus county-scale builds
+/// on the sidecar at once. That saturated it badly enough that `/health`
+/// timed out, M12 restarted it mid-build, and the restart re-triggered the
+/// same fan-out (see the Buncombe County incident). The per-segment
+/// solve/cue/diagnose paths (`current_trip_provider`, `weights_rail`)
+/// already `ensureRegion` for their own mode's `network_type` on demand, so
+/// a `walk`/`drive` graph is still built before anything routes against it —
+/// just when a segment of that mode actually exists, not speculatively.
 final tripRegionKeyProvider = FutureProvider<String?>((ref) async {
   final bbox = ref.watch(tripBboxProvider);
   if (bbox == null) return null;
   final client = ref.watch(routingClientProvider);
-  final declaredModes = ref.watch(currentTripProvider).declaredModes;
-  final networkTypes = {
-    'bike',
-    for (final mode in declaredModes)
-      if (isRoutedMode(mode)) networkTypeForMode(mode),
-  };
-  final keys = <String, String>{};
-  for (final networkType in networkTypes) {
-    keys[networkType] =
-        await client.ensureRegion(bbox.bboxWsen, networkType: networkType);
-  }
-  return keys['bike'];
+  return client.ensureRegion(bbox.bboxWsen);
 });
 
 /// Anchors currently promoted into the open trip, which a bbox shrink must

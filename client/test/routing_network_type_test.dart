@@ -89,6 +89,26 @@ void main() {
     });
   });
 
+  test('tripRegionKeyProvider warms only the bike region, whatever modes are declared', () async {
+    // Regression for the Buncombe County incident: this provider used to
+    // `ensureRegion` for every declared mode's `network_type` at once, so a
+    // trip declaring bike + hike + drive kicked off three county-scale OSMnx
+    // builds in parallel the moment a bbox was accepted. The per-segment
+    // solve/cue/diagnose paths still ensure their own mode's graph on demand
+    // (the two tests below); this one only warms the stable `bike` anchor.
+    final h = _harness();
+    addTearDown(h.container.dispose);
+
+    h.container
+        .read(currentTripProvider.notifier)
+        .setDeclaredModes({'cycling', 'hiking', 'driving'});
+
+    final key = await h.container.read(tripRegionKeyProvider.future);
+
+    expect(key, 'region-bike');
+    expect(h.client.ensuredNetworkTypes, ['bike']);
+  });
+
   test('generateSegment ensures the region for the segment\'s mode', () async {
     final h = _harness();
     addTearDown(h.container.dispose);
