@@ -46,6 +46,15 @@ class _RouteTabState extends ConsumerState<RouteTab> {
     final selectedSegment = resolveSelectedSegment(widget.trip, selected)?.$2;
     final railDayId = selected?.$1 ?? widget.activeDayId ?? '';
 
+    // E3 / FR39 / FR117 / FR118 (issue #214) — the compose-mode places-first
+    // itinerary for the day the rail is showing, when that day is in compose
+    // mode. `composeAuthoritative` fills the provider on save; it stays null in
+    // explore mode and until the first authoritative pass.
+    final composeItinerary =
+        ref.watch(dayPlanningModeProvider(railDayId)) == PlanningMode.compose
+            ? ref.watch(composeItineraryProvider(railDayId))
+            : null;
+
     return Row(
       children: [
         WeightsRail(dayId: railDayId, segment: selectedSegment),
@@ -104,6 +113,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
           trip: widget.trip,
           selectedSegment: selectedSegment,
           elevationCapability: _elevationCapability,
+          composeItinerary: composeItinerary,
         ),
       ],
     );
