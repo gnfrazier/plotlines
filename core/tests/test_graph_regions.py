@@ -305,6 +305,26 @@ def test_ensure_graph_backs_off_between_attempts(tmp_path, monkeypatch):
     assert slept == [1.0, 2.0]
 
 
+def test_ensure_graph_logs_endpoint_failures_and_exhaustion(tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(
+        regions, "_download_region_graph",
+        lambda _r: (_ for _ in ()).throw(
+            requests.exceptions.ConnectionError("refused")
+        ),
+    )
+    region = regions.region_for(_BBOX, "bike")
+    with caplog.at_level("INFO", logger="plotlines.regions"):
+        with pytest.raises(regions.OverpassUnavailable):
+            regions.ensure_graph(
+                region, tmp_path,
+                endpoints=("https://a.example/api", "https://b.example/api"),
+                sleep=lambda _s: None,
+            )
+    assert "cache=miss" in caplog.text
+    assert "https://a.example/api attempt=1" in caplog.text
+    assert "EXHAUSTED all 2 endpoints" in caplog.text
+
+
 def test_ensure_graph_restores_global_overpass_settings_after_failover(
     tmp_path, monkeypatch,
 ):

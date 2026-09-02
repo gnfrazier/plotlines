@@ -13,7 +13,10 @@ from pathlib import Path
 
 import uvicorn
 
+import logging
+
 from .app import create_app
+from .logging_setup import configure_logging, default_log_file
 from .version import VERSION
 
 
@@ -51,6 +54,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "Safari/Firefox (ARCH §10.3, story M4). Required in "
                              "hosted mode; a *.onrender.com-style public-suffix "
                              "host is refused.")
+    # Diagnostics (issue #232). `--log-file` defaults to
+    # `<cache-dir>/logs/sidecar.log` — the same app-support tree the client
+    # already knows. `--log-level` also drives uvicorn's own level.
+    parser.add_argument("--log-file", type=Path, default=None,
+                        help="rotating log file (default <cache-dir>/logs/sidecar.log; "
+                             "pass '-' to log to stderr only)")
+    parser.add_argument("--log-level", default="info",
+                        choices=("debug", "info", "warning", "error"),
+                        help="sidecar + uvicorn log level (default info)")
     # Not required alongside --cache-dir: the client runs `--version` to perform the
     # A8 version check *before* it has spawned anything or chosen a cache dir.
     parser.add_argument("--version", action="store_true")
@@ -79,6 +91,15 @@ def main(argv: list[str] | None = None) -> int:
               "session cookie (ARCH §10.3, story M4)", file=sys.stderr)
         return 2
 
+    if args.log_file is not None and str(args.log_file) == "-":
+        log_target = None
+    else:
+        log_target = args.log_file or default_log_file(args.cache_dir)
+    resolved_log = configure_logging(log_target, args.log_level)
+    logging.getLogger("plotlines.sidecar").info(
+        "sidecar starting version=%s port=%s host=%s mode=%s cache_dir=%s log=%s",
+        VERSION, args.port, args.host, args.mode, args.cache_dir, resolved_log)
+
     try:
         app = create_app(cache_dir=args.cache_dir, mode=args.mode,
                          tiles_upstream=args.tiles_upstream,
@@ -89,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     config = uvicorn.Config(app, host=args.host, port=args.port,
-                            log_level="warning", access_log=False)
+                            log_level=args.log_level, access_log=False)
     server = uvicorn.Server(config)
 
     # SIGTERM → graceful shutdown (§7.3: SIGTERM → SIGKILL after grace).

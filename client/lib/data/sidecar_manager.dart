@@ -501,6 +501,7 @@ class SidecarManager extends ChangeNotifier {
         if (resp.statusCode != 200) return;
         final body = jsonDecode(resp.body) as Map<String, dynamic>;
         _capabilities = Capabilities.fromJson(body['capabilities'] as Map<String, dynamic>);
+        unawaited(_dumpHealthPoll(resp.body));
         notifyListeners();
       } catch (_) {
         // Sidecar may have died mid-poll — `_onExit` handles that
@@ -509,6 +510,30 @@ class SidecarManager extends ChangeNotifier {
         _healthPollInFlight = false;
       }
     });
+  }
+
+  /// Issue #232 — append each `/health` poll to
+  /// `<cache-dir>/logs/health-poll.jsonl` so a `routing` capability that
+  /// flickers between states every 2s can be read back from a file instead
+  /// of off the screen. Best-effort and off by default: enabled in a debug
+  /// build, or with `PLOTLINES_DEBUG_HEALTH_LOG=1` in any build.
+  static bool get _healthDumpEnabled =>
+      kDebugMode || Platform.environment['PLOTLINES_DEBUG_HEALTH_LOG'] == '1';
+
+  Future<void> _dumpHealthPoll(String body) async {
+    if (!_healthDumpEnabled) return;
+    try {
+      final dir = await _resolveCacheDir();
+      final file = File('${dir.path}/logs/health-poll.jsonl');
+      await file.parent.create(recursive: true);
+      final line = jsonEncode({
+        'ts': DateTime.now().toUtc().toIso8601String(),
+        'body': jsonDecode(body),
+      });
+      await file.writeAsString('$line\n', mode: FileMode.append, flush: true);
+    } catch (_) {
+      // Diagnostic only — never let it disturb the poll loop.
+    }
   }
 
   void _onExit(int code) {
