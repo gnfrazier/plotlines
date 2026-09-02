@@ -139,6 +139,19 @@ enum PlanningMode { explore, compose }
 final dayPlanningModeProvider =
     StateProvider.family<PlanningMode, String>((ref, dayId) => PlanningMode.explore);
 
+/// E3 / FR39 / FR117 / FR118 (issue #214) — the compose-mode places-first
+/// itinerary `/days/compose` returns for a day: the ordered promoted anchors
+/// as stops with the passages between them, the recap (plot points only), the
+/// cue sheet of places, and A0a's [ComposeDistanceOutcome]. Captured by
+/// [CurrentTripNotifier.composeAuthoritative] on each save and rendered by
+/// `MetricsRail`'s compose panel — distinct from the explore-mode route
+/// readout. Ephemeral like [dayPlanningModeProvider]: null until a save has
+/// run one authoritative pass for a compose-mode day whose spine points all
+/// resolve to promoted anchors, and cleared again when a day leaves compose
+/// mode or loses its spine.
+final composeItineraryProvider =
+    StateProvider.family<ComposeItinerary?, String>((ref, dayId) => null);
+
 /// ARCH §7.7 — the one difference the solve request itself carries between
 /// the two postures: explore sends whatever target distance the Author
 /// authored as a constraint, compose sends none so the engine reports

@@ -12,6 +12,8 @@ import 'planner_ui_state.dart'
         PlanningMode,
         bandViolations,
         composeAwareTargetM,
+        composeItineraryProvider,
+        dayPlanningModeProvider,
         hasTargetDistanceControl,
         resetSegmentPlanningControls,
         targetDistanceForViaCount,
@@ -1235,15 +1237,34 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         // rejects the former outright (FR18/C2) and has nothing to measure
         // for the latter, so there is no round trip worth making.
         composedDays.add(day);
+        _setComposeItinerary(day.id, null);
         continue;
       }
+      // E3 / FR39 / FR117 / FR118 (issue #214) — for a compose-mode day whose
+      // spine points all resolve to promoted anchors, ask `/days/compose` for
+      // the places-first itinerary alongside the `Day`. The solve request
+      // still sends no distance constraint (FR118, `composeAwareTargetM` in
+      // `regenerateSegment`); `target_m` here is only "what the Author had in
+      // mind" — the authored target value carried over from an explore session
+      // (FR119) — so A0a's `DistanceOutcome` can quantify the miss without it
+      // ever being a constraint or a conflict.
+      final mode = _ref.read(dayPlanningModeProvider(day.id));
+      final spineAnchors =
+          mode == PlanningMode.compose ? _spineAnchorsForDay(day) : const <Anchor>[];
+      final targetM = mode == PlanningMode.compose
+          ? day.segments.first.targetDistance?.valueM
+          : null;
       final composed = await client.composeDay(
         segments: day.segments,
         transitions: day.transitions,
         index: day.index,
         kind: day.kind,
+        anchors: spineAnchors,
+        targetM: targetM,
       );
-      composedDays.add(day.copyWith(transitions: composed.transitions, metrics: composed.metrics));
+      composedDays.add(
+        day.copyWith(transitions: composed.day.transitions, metrics: composed.day.metrics));
+      _setComposeItinerary(day.id, composed.itinerary);
     }
     final assembled = await client.assembleTrip(
       days: composedDays,
@@ -1252,6 +1273,47 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       defaultWeights: state.defaultWeights,
     );
     state = state.copyWith(days: assembled.trip.days, metrics: assembled.trip.metrics);
+  }
+
+  /// E3 / FR39 (issue #214) — the ordered promoted anchors a compose-mode
+  /// day's single passage stands for: its spine coords `[start, …via, end]`,
+  /// each resolved to the `Trip.anchor` sitting exactly on that point (the
+  /// same coord identity `moveViaToDay` uses — the spine editor sets `via`
+  /// straight from anchor coords, so an exact match is the right test).
+  ///
+  /// Returns an empty list — no itinerary asked for — unless the day is a
+  /// single passage, every spine point resolves to an anchor, and there are
+  /// at least two: `compose_itinerary` needs a spine of two or more and would
+  /// 422 on a coord it cannot tie to a role-bearing anchor.
+  List<Anchor> _spineAnchorsForDay(Day day) {
+    if (day.segments.length != 1) return const [];
+    final seg = day.segments.single;
+    final points = <Coord>[
+      if (seg.start != null) seg.start!,
+      ...seg.via,
+      if (seg.end != null) seg.end!,
+    ];
+    final resolved = <Anchor>[];
+    for (final p in points) {
+      Anchor? hit;
+      for (final a in state.anchors) {
+        if (_sameCoord(a.coord, p)) {
+          hit = a;
+          break;
+        }
+      }
+      if (hit == null) return const [];
+      resolved.add(hit);
+    }
+    return resolved.length >= 2 ? resolved : const [];
+  }
+
+  /// Push a day's compose itinerary (or `null` to clear it) into the ephemeral
+  /// [composeItineraryProvider] the compose panel reads. Kept off [state],
+  /// which is the trip payload — this is derived server output, like the
+  /// dashboard, not authored data (issue #214).
+  void _setComposeItinerary(String dayId, ComposeItinerary? itinerary) {
+    _ref.read(composeItineraryProvider(dayId).notifier).state = itinerary;
   }
 
   /// D1 — client-side mirror for immediate dashboard feedback between saves.

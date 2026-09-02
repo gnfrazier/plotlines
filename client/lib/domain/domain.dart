@@ -9,6 +9,7 @@ export 'area_trigger.dart';
 export 'band.dart';
 export 'character_variant.dart';
 export 'clone.dart';
+export 'compose_itinerary.dart';
 export 'cue.dart';
 export 'day.dart';
 export 'day_timeline.dart';

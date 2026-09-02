@@ -278,11 +278,24 @@ class RoutingClient {
 
   /// B2/D1/C3 — the only supported way to build a day's derived half
   /// (transition gap warnings, roll-up): `trips/compose.py`'s `compose_day`.
-  Future<Day> composeDay({
+  ///
+  /// E3 / FR39 / FR117 / FR118 (issue #214) — when [anchors] names the day's
+  /// spine (its promoted anchors, in the Author's chosen order), the response
+  /// also carries the compose-mode places-first views alongside the `Day`, the
+  /// same way `/trips/split` rides `hazard_rollup` / `dashboard`: an ordered
+  /// itinerary of stops with the legs between them, the recap (plot points
+  /// only), the cue sheet of places, and A0a's [ComposeDistanceOutcome].
+  /// [targetM] is what the Author had in mind, if anything, so the outcome can
+  /// quantify the miss — compose never *sends* it as a constraint (FR118).
+  /// [ComposedDay.itinerary] is null for a spine of fewer than two, or for an
+  /// older sidecar that omits the block.
+  Future<ComposedDay> composeDay({
     required List<Segment> segments,
     List<Transition> transitions = const [],
     int index = 1,
     String kind = 'route',
+    List<Anchor> anchors = const [],
+    double? targetM,
   }) async {
     final resp = await http.post(
       _uri('/days/compose'),
@@ -292,10 +305,20 @@ class RoutingClient {
         'transitions': transitions.map((t) => t.toJson()).toList(),
         'index': index,
         'kind': kind,
+        if (anchors.isNotEmpty) 'anchors': anchors.map((a) => a.toJson()).toList(),
+        'target_m': ?targetM,
       }),
     );
     _checkOk(resp);
-    return Day.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
+    final raw = jsonDecode(resp.body) as Map<String, dynamic>;
+    // `itinerary` / `recap` / `cues` ride beside the payload, not in it — read
+    // them out, then strip them before `Day.fromJson`, whose `JsonFields.done()`
+    // rejects any key it did not read (same lift `/trips/split` does).
+    final itinerary = ComposeItinerary.fromResponse(raw);
+    raw.remove('itinerary');
+    raw.remove('recap');
+    raw.remove('cues');
+    return ComposedDay(day: Day.fromJson(raw), itinerary: itinerary);
   }
 
   /// C3 — assemble days into a trip and apply per-mode day limits
@@ -374,6 +397,19 @@ class RoutingClient {
       throw RoutingException(resp.statusCode, resp.body);
     }
   }
+}
+
+/// What `/days/compose` hands back: the composed [Day] plus the compose-mode
+/// places-first [ComposeItinerary] the same response carries (E3 / FR39 /
+/// FR117 / FR118 / issue #214), riding beside the `Day` rather than on it —
+/// the payload schema is closed and the itinerary is derived, like `metrics`.
+/// [itinerary] is null unless the request named a spine of two or more
+/// anchors (or for an older sidecar that omits the block).
+class ComposedDay {
+  const ComposedDay({required this.day, this.itinerary});
+
+  final Day day;
+  final ComposeItinerary? itinerary;
 }
 
 /// What `/trips/split` hands back: the assembled [Trip] plus the two derived

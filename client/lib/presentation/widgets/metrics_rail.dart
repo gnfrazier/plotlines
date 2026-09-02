@@ -20,9 +20,17 @@ class MetricsRail extends StatelessWidget {
     required this.trip,
     required this.selectedSegment,
     required this.elevationCapability,
+    this.composeItinerary,
   });
   final Trip trip;
   final Segment? selectedSegment;
+
+  /// E3 / FR39 / FR117 / FR118 (issue #214) — the active day's compose-mode
+  /// places-first itinerary (`/days/compose`, captured by
+  /// `composeAuthoritative` into `composeItineraryProvider`), when that day is
+  /// in compose mode and its spine resolved. Rendered as its own section,
+  /// distinct from the explore-mode by-day / elevation readout above.
+  final ComposeItinerary? composeItinerary;
 
   /// FR121/N2 — `climb`/the elevation profile below are both derived from
   /// node elevation the graph never carries until this capability is ready
@@ -201,6 +209,10 @@ class MetricsRail extends StatelessWidget {
                       ),
                     ),
                   ],
+                  if (composeItinerary != null) ...[
+                    const SizedBox(height: PlotSpacing.s4),
+                    _ComposeItinerarySection(itinerary: composeItinerary!),
+                  ],
                   const SizedBox(height: PlotSpacing.s4),
                   Text(
                     'ELEVATION',
@@ -327,6 +339,153 @@ class _ViaAnchorSummary extends StatelessWidget {
             child: Text(row, style: PlotTypography.small(c.textSecondary)),
           ),
       ],
+    );
+  }
+}
+
+/// E3 / FR39 / FR117 / FR118 (issue #214) — the compose-mode planning readout:
+/// the curated places *are* the route, so this leads with the ordered stops and
+/// the passages between them, and reports the day's length as an outcome
+/// (A0a: never a constraint, never a conflict). Deliberately its own section,
+/// not folded into the explore-mode by-day bars above — a composed day is
+/// organised around its places, not a target distance.
+class _ComposeItinerarySection extends StatelessWidget {
+  const _ComposeItinerarySection({required this.itinerary});
+  final ComposeItinerary itinerary;
+
+  static String _km(double? m) =>
+      m == null ? '—' : '${(m / 1000).toStringAsFixed(1)} km';
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final distance = itinerary.distance;
+    final dev = distance.deviationM;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'COMPOSE ITINERARY',
+          style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: PlotSpacing.s2),
+        _StatCard(label: 'DAY DISTANCE', value: _km(distance.realisedM)),
+        if (distance.hasTarget && dev != null) ...[
+          const SizedBox(height: PlotSpacing.s2),
+          Text(
+            dev.abs() < 1
+                ? 'On the ${_km(distance.targetM)} you had in mind.'
+                : '${_km(dev.abs())} ${dev > 0 ? 'over' : 'under'} the '
+                    '${_km(distance.targetM)} you had in mind.',
+            style: PlotTypography.small(c.textSecondary),
+          ),
+          if (distance.dispositions.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'Options: ${distance.dispositions.join(' · ')}',
+                style: PlotTypography.small(c.textMuted),
+              ),
+            ),
+        ],
+        const SizedBox(height: PlotSpacing.s3),
+        for (var i = 0; i < itinerary.stops.length; i++) ...[
+          _ComposeStopRow(stop: itinerary.stops[i]),
+          if (i < itinerary.legs.length)
+            _ComposeLegRow(leg: itinerary.legs[i]),
+        ],
+      ],
+    );
+  }
+}
+
+class _ComposeStopRow extends StatelessWidget {
+  const _ComposeStopRow({required this.stop});
+  final ComposeStop stop;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 18,
+            child: Text(
+              '${stop.order + 1}',
+              style: PlotTypography.data(c.textMuted),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        stop.title ?? 'Untitled place',
+                        style: PlotTypography.small(c.textPrimary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (stop.hazard) ...[
+                      const SizedBox(width: 4),
+                      Icon(Icons.warning_amber_rounded, size: 13, color: c.warning),
+                    ],
+                    if (stop.hasUnrevealedNarrative) ...[
+                      const SizedBox(width: 4),
+                      Icon(Icons.lock_outline, size: 12, color: c.textMuted),
+                    ],
+                  ],
+                ),
+                if (stop.roles.isNotEmpty)
+                  Text(
+                    stop.roles.map((r) => r.toUpperCase()).join(' · '),
+                    style: PlotTypography.small(c.textMuted).copyWith(fontSize: 9),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: PlotSpacing.s2),
+          Text(
+            _ComposeItinerarySection._km(stop.distanceAlongM),
+            style: PlotTypography.data(c.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComposeLegRow extends StatelessWidget {
+  const _ComposeLegRow({required this.leg});
+  final ComposeLeg leg;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 18, bottom: 2, top: 1),
+      child: Row(
+        children: [
+          Icon(Icons.more_vert, size: 12, color: c.textMuted),
+          const SizedBox(width: 2),
+          Expanded(
+            child: Text(
+              leg.mode,
+              style: PlotTypography.small(c.textMuted),
+            ),
+          ),
+          Text(
+            _ComposeItinerarySection._km(leg.distanceM),
+            style: PlotTypography.data(c.textMuted),
+          ),
+        ],
+      ),
     );
   }
 }

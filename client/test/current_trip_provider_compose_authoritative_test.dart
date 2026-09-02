@@ -13,6 +13,7 @@ import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/data/routing_client.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'package:plotlines_client/state/providers.dart';
 
 /// Mirrors what the real endpoints actually do (`compose.py`): `composeDay`
@@ -28,24 +29,37 @@ class _FakeRoutingClient extends RoutingClient {
   var assembleTripCallCount = 0;
   RoutingException? composeDayFailure;
 
+  // issue #214 — the last two args are the compose spine + A0a readout target;
+  // recorded so a test can assert what `composeAuthoritative` resolved.
+  final composeDayAnchors = <List<String>>[];
+  final composeDayTargets = <double?>[];
+  ComposeItinerary? composeItinerary;
+
   @override
-  Future<Day> composeDay({
+  Future<ComposedDay> composeDay({
     required List<Segment> segments,
     List<Transition> transitions = const [],
     int index = 1,
     String kind = 'route',
+    List<Anchor> anchors = const [],
+    double? targetM,
   }) async {
     if (composeDayFailure != null) throw composeDayFailure!;
     composeDayCalls.add('$kind:$index');
-    return Day(
-      id: 'server-assigned-$index', // compose_day never learns the real id.
-      index: index,
-      kind: kind,
-      segments: segments,
-      transitions: [
-        for (final t in transitions) t.copyWith(gapM: 9999, gapWarning: true),
-      ],
-      metrics: RollUp(total: RouteMetrics(distanceM: 12345)),
+    composeDayAnchors.add([for (final a in anchors) a.id]);
+    composeDayTargets.add(targetM);
+    return ComposedDay(
+      day: Day(
+        id: 'server-assigned-$index', // compose_day never learns the real id.
+        index: index,
+        kind: kind,
+        segments: segments,
+        transitions: [
+          for (final t in transitions) t.copyWith(gapM: 9999, gapWarning: true),
+        ],
+        metrics: RollUp(total: RouteMetrics(distanceM: 12345)),
+      ),
+      itinerary: anchors.length >= 2 ? composeItinerary : null,
     );
   }
 
@@ -115,7 +129,90 @@ Trip _tripWith(List<Day> days) => Trip(
       ],
     );
 
+/// A three-place compose spine: `start` + one `via` + `end`, each coord sitting
+/// exactly on a promoted anchor (the spine editor sets `via` straight from
+/// anchor coords, so `composeAuthoritative` resolves them by exact match).
+Trip _composeTripWith(Segment spine) => Trip(
+      id: 't1',
+      title: 'A trip',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+      days: [Day(id: 'd1', index: 1, segments: [spine])],
+      anchors: [
+        for (final (id, coord) in const [
+          ('anc-a', [-105.30, 40.0]),
+          ('anc-b', [-105.25, 40.0]),
+          ('anc-c', [-105.20, 40.0]),
+        ])
+          Anchor(
+            id: id,
+            title: id,
+            coord: coord,
+            roles: [Role(id: 'r-$id', kind: RoleKind.narrative, reveal: RevealPolicy.alwaysVisible)],
+          ),
+      ],
+    );
+
 void main() {
+  test('a compose-mode day resolves its spine anchors and captures the itinerary '
+      '(issue #214)', () async {
+    final client = _FakeRoutingClient()
+      ..composeItinerary = ComposeItinerary(
+        planningMode: 'compose',
+        spine: const ['anc-a', 'anc-b', 'anc-c'],
+        stops: const [],
+        legs: const [],
+        distance: ComposeDistanceOutcome(realisedM: 8520),
+      );
+    final container = _container(client);
+    addTearDown(container.dispose);
+
+    final spine = Segment(
+      id: 's1',
+      mode: 'hiking',
+      shape: 'point_to_point',
+      start: const [-105.30, 40.0],
+      via: const [[-105.25, 40.0]],
+      end: const [-105.20, 40.0],
+      targetDistance: TargetDistance(valueM: 10000, minM: 9000, maxM: 11000),
+    );
+    container.read(currentTripProvider.notifier).open(_composeTripWith(spine));
+    container.read(dayPlanningModeProvider('d1').notifier).state = PlanningMode.compose;
+
+    await container.read(currentTripProvider.notifier).composeAuthoritative();
+
+    // the spine's [start, ...via, end] coords each resolved to their anchor
+    expect(client.composeDayAnchors.single, ['anc-a', 'anc-b', 'anc-c']);
+    // "what the Author had in mind" rode along as a readout target (never a solve
+    // constraint) so A0a's DistanceOutcome can quantify the miss
+    expect(client.composeDayTargets.single, 10000);
+    // and the returned itinerary landed on the ephemeral provider
+    expect(container.read(composeItineraryProvider('d1'))!.distance.realisedM, 8520);
+  });
+
+  test('an explore-mode day sends no spine and clears any stale itinerary', () async {
+    final client = _FakeRoutingClient();
+    final container = _container(client);
+    addTearDown(container.dispose);
+
+    final spine = Segment(
+      id: 's1',
+      mode: 'hiking',
+      shape: 'point_to_point',
+      start: const [-105.30, 40.0],
+      via: const [[-105.25, 40.0]],
+      end: const [-105.20, 40.0],
+    );
+    container.read(currentTripProvider.notifier).open(_composeTripWith(spine));
+    // left at the default (explore)
+
+    await container.read(currentTripProvider.notifier).composeAuthoritative();
+
+    expect(client.composeDayAnchors.single, isEmpty);
+    expect(client.composeDayTargets.single, isNull);
+    expect(container.read(composeItineraryProvider('d1')), isNull);
+  });
+
   test('composeAuthoritative merges compose_day/split_trip\'s derived fields, '
       'preserving every authored field they never round-trip', () async {
     final client = _FakeRoutingClient();
