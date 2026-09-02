@@ -35,6 +35,20 @@ def _no_network_overpass(monkeypatch):
     monkeypatch.setattr(ox, "graph_from_bbox", _refuse)
 
 
+def _settle_builds(client: TestClient) -> None:
+    """Join every region build this client queued.
+
+    `POST /regions` is 202-and-queue by design, so a test that only asserts the
+    response leaves a build running on the pool. Pytest then reverts
+    `_no_network_overpass` out from under it and the build calls the *real*
+    `ox.graph_from_bbox` — a live Overpass fetch, whose eventual failure logs
+    into a `tmp_path` handler that is already gone ("--- Logging error ---" in a
+    full-suite run). Joining here keeps the suite network-free and deterministic
+    (#235 C).
+    """
+    client.app.state.readiness._build_pool.shutdown(wait=True)
+
+
 def _wait_for(client: TestClient, predicate, timeout: float = 20.0) -> dict:
     """Poll `/health` until `predicate(capabilities)` is true or time out."""
     deadline = time.perf_counter() + timeout
@@ -81,6 +95,7 @@ def test_post_regions_returns_202_and_a_key(tmp_path: Path) -> None:
     assert resp.status_code == 202
     key = resp.json()["region"]
     assert key == region_lib.region_key(tuple(_MISSING_BBOX), "bike")
+    _settle_builds(client)
 
 
 def test_post_regions_is_idempotent_for_the_same_bbox(tmp_path: Path) -> None:
@@ -88,6 +103,7 @@ def test_post_regions_is_idempotent_for_the_same_bbox(tmp_path: Path) -> None:
     first = client.post("/regions", json={"bbox": _MISSING_BBOX}).json()["region"]
     second = client.post("/regions", json={"bbox": _MISSING_BBOX}).json()["region"]
     assert first == second
+    _settle_builds(client)
 
 
 def test_a_region_with_no_cache_and_no_network_settles_to_failed(tmp_path: Path) -> None:

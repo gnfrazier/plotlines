@@ -98,15 +98,21 @@ class ProposalCard extends StatelessWidget {
               const SizedBox(height: PlotSpacing.s1),
               for (final m in p.members) _MemberRow(member: m),
               const SizedBox(height: PlotSpacing.s3),
-              Row(
+              // The three one-gesture actions. Wrapped rather than fixed in a
+              // Row: inside the 420 px proposals panel the natural widths add
+              // up to just over the line (an overflow of 0.8 px with "Deferred"
+              // showing), and a card that stripes yellow-and-black the moment
+              // someone defers is not a state to ship.
+              Wrap(
+                spacing: PlotSpacing.s2,
+                runSpacing: PlotSpacing.s2,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   PlotButton(label: 'Promote', onPressed: onPromote),
-                  const SizedBox(width: PlotSpacing.s2),
                   TextButton(
                     onPressed: onReject,
                     child: const Text('Reject'),
                   ),
-                  const Spacer(),
                   TextButton(
                     onPressed: onDefer,
                     child: Text(deferred ? 'Deferred' : 'Defer'),

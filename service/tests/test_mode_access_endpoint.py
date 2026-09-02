@@ -1,6 +1,12 @@
 """Story A11 (issue #29) — mode-legal routability (FR128), exercised over
 `/segments/generate`'s real HTTP surface.
 
+Named `..._endpoint` rather than matching its core counterpart's basename:
+neither test directory carries an `__init__.py`, so two `test_mode_access.py`
+files make a combined `pytest core/tests service/tests` run die at collection
+with an import-file mismatch. The suites run separately in CI, but a developer
+pointing pytest at both should not hit that (#235 C).
+
 `core/tests/test_mode_access.py` covers `routing/access.py` and the
 `generate_loop`/`generate_segment` entry points directly; what only the
 service layer can catch is whether `mode` on the request actually reaches

@@ -124,19 +124,33 @@ class _Toolbar extends ConsumerWidget {
               children: [
                 Text('SORT', style: PlotTypography.small(c.textMuted)),
                 const SizedBox(width: PlotSpacing.s2),
-                DropdownButton<ProposalSort>(
-                  value: state.sort,
-                  isDense: true,
-                  underline: const SizedBox.shrink(),
-                  onChanged: (v) => v == null ? null : notifier.setSort(v),
-                  items: const [
-                    DropdownMenuItem(value: ProposalSort.rank, child: Text('Salience × tightness')),
-                    DropdownMenuItem(
-                        value: ProposalSort.distanceFromRoute, child: Text('Distance from route')),
-                    DropdownMenuItem(value: ProposalSort.layer, child: Text('Layer')),
-                  ],
+                // `isExpanded` + `Expanded`: the panel is a fixed 420 px, and
+                // "Salience × tightness" beside the label and the bulk-reject
+                // button does not fit at its natural width — it overflowed the
+                // row by 61 px at every window size. The dropdown takes the
+                // slack and ellipsises rather than pushing the menu off the
+                // edge.
+                Expanded(
+                  child: DropdownButton<ProposalSort>(
+                    value: state.sort,
+                    isDense: true,
+                    isExpanded: true,
+                    underline: const SizedBox.shrink(),
+                    onChanged: (v) => v == null ? null : notifier.setSort(v),
+                    items: const [
+                      DropdownMenuItem(
+                          value: ProposalSort.rank,
+                          child: Text('Salience × tightness',
+                              overflow: TextOverflow.ellipsis)),
+                      DropdownMenuItem(
+                          value: ProposalSort.distanceFromRoute,
+                          child: Text('Distance from route',
+                              overflow: TextOverflow.ellipsis)),
+                      DropdownMenuItem(
+                          value: ProposalSort.layer, child: Text('Layer')),
+                    ],
+                  ),
                 ),
-                const Spacer(),
                 _BulkRejectMenu(),
               ],
             ),
