@@ -198,10 +198,21 @@ class ProviderUnreachableBanner extends StatelessWidget {
 /// has settled failed (no `eta_s`, a `failed:` reason) reads as an honest
 /// failure rather than a wait.
 class CapabilityWarmingNotice extends StatelessWidget {
-  const CapabilityWarmingNotice({super.key, required this.capabilityLabel, required this.status});
+  const CapabilityWarmingNotice({
+    super.key,
+    required this.capabilityLabel,
+    required this.status,
+    this.onRetry,
+  });
 
   final String capabilityLabel;
   final CapabilityStatus status;
+
+  /// Shown as a "Try again" affordance only when [status] has settled failed
+  /// (issue #229) — a settled Overpass failure is retryable without the
+  /// Author redrawing the trip area. Null elsewhere: a still-loading
+  /// capability has nothing to retry.
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -216,6 +227,19 @@ class CapabilityWarmingNotice extends StatelessWidget {
         Flexible(
           child: Text(status.describe(capabilityLabel), style: PlotTypography.small(c.textSecondary)),
         ),
+        if (failed && onRetry != null) ...[
+          const SizedBox(width: PlotSpacing.s2),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              foregroundColor: c.primary,
+            ),
+            child: Text('Try again', style: PlotTypography.small(c.primary)),
+          ),
+        ],
       ],
     );
   }

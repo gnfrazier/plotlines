@@ -81,8 +81,23 @@ void main() {
       const status = CapabilityStatus(ready: false, reason: 'failed:disk full');
       final text = status.describe('Elevation');
       expect(text, contains('unavailable'));
-      expect(text, contains('failed:disk full'));
+      expect(text, contains('disk full'));
       expect(text, isNot(contains('available in')));
+    });
+
+    test('the sidecar\'s "failed:" reason prefix is stripped for display (issue #229)', () {
+      const status = CapabilityStatus(
+        ready: false,
+        reason: 'failed:Couldn\'t reach the map-data service to prepare routing '
+            'for this area.',
+      );
+      final text = status.describe('Routing');
+      expect(text, isNot(contains('failed:')));
+      expect(
+        text,
+        'Routing unavailable — Couldn\'t reach the map-data service to prepare '
+        'routing for this area.',
+      );
     });
   });
 

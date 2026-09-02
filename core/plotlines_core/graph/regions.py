@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 import osmnx as ox
+import requests
 
 #: Current cache-key ruleset. Bump to invalidate every cached graph on disk —
 #: the key is `(bbox, network_type, GRAPH_RULESET_VERSION)`, so a bump alone
@@ -32,6 +35,47 @@ import osmnx as ox
 #: meaning, and every graph cached under version 1 predates the access/legality
 #: tags below (`motor_vehicle`, `ford`, node `barrier`, ...).
 GRAPH_RULESET_VERSION = 2
+
+#: Overpass endpoints `ensure_graph` will try in order, most-canonical first
+#: (issue #229). Before this, a graph build called the single public
+#: `overpass-api.de` with no retry and no alternative: when that host was
+#: down, rate-limiting, or unreachable from the network, the whole `routing`
+#: capability for the bbox failed with a raw `requests.ConnectionError` repr
+#: surfaced verbatim in the client. `PLOTLINES_OVERPASS_ENDPOINTS` (a
+#: comma-separated list) overrides this wholesale — a private mirror, or a
+#: single pinned endpoint for an offline/test context.
+DEFAULT_OVERPASS_ENDPOINTS: tuple[str, ...] = (
+    "https://overpass-api.de/api",
+    "https://overpass.kumi.systems/api",
+    "https://overpass.private.coffee/api",
+)
+
+#: Per-endpoint retry budget and exponential-backoff base (seconds) for a
+#: transient transport error. Kept small: a refused connection is instant, so
+#: the failover cost is dominated by osmnx's own status-endpoint pause, which
+#: `ensure_graph` disables once it is past the first (polite) attempt.
+OVERPASS_ATTEMPTS_PER_ENDPOINT = 2
+OVERPASS_BACKOFF_BASE_S = 2.0
+
+
+class OverpassUnavailable(RuntimeError):
+    """Every configured Overpass endpoint refused or timed out while building a
+    region graph. Unlike a bare `requests.ConnectionError`, its `str()` is a
+    finished, user-facing sentence: the sidecar surfaces it verbatim as the
+    `routing` capability's reason (`service/plotlines_service/app.py`), so it
+    must read as something an Author can act on, never an exception repr."""
+
+
+def overpass_endpoints() -> tuple[str, ...]:
+    """The ordered Overpass endpoints `ensure_graph` tries. Env override
+    `PLOTLINES_OVERPASS_ENDPOINTS` (comma-separated) replaces the built-in
+    list entirely; blank/absent falls back to `DEFAULT_OVERPASS_ENDPOINTS`."""
+    raw = os.environ.get("PLOTLINES_OVERPASS_ENDPOINTS", "").strip()
+    if raw:
+        picked = tuple(e.strip().rstrip("/") for e in raw.split(",") if e.strip())
+        if picked:
+            return picked
+    return DEFAULT_OVERPASS_ENDPOINTS
 
 # osmnx's default `useful_tags_way` does NOT include `surface`. Carried over
 # from spikes/shared/regions.py:53-56 — without it FR4's surface weight and
@@ -151,18 +195,11 @@ def fold_node_barriers(graph) -> int:
     return folded
 
 
-def ensure_graph(region: Region, cache_dir: Path, *, force: bool = False) -> Path:
-    """Return the on-disk path to `region`'s graph, building it via Overpass
-    if it is not already cached. A live network call unless `force=False` and
-    the cache already has this exact `(bbox, network_type, ruleset)` key —
-    callers that must not touch the network (unit tests) should pre-seed the
-    cache path instead of calling this directly.
-    """
-    out_path = region.graph_path(cache_dir)
-    if out_path.exists() and not force:
-        return out_path
-
-    configure_overpass_cache(cache_dir)
+def _download_region_graph(region: Region):
+    """The live half of `ensure_graph`: one Overpass acquisition against
+    whatever `ox.settings.overpass_url` currently points at, plus the
+    simplify / barrier-fold / strong-connectivity prune. Split out so
+    `ensure_graph` can drive it once per endpoint with backoff (issue #229)."""
     # Simplify by hand rather than letting `graph_from_bbox` do it: osmnx 2.x
     # gives no way to pass `node_attrs_include` through that call, and a barrier
     # node that is not also a junction would be collapsed into edge geometry —
@@ -179,8 +216,75 @@ def ensure_graph(region: Region, cache_dir: Path, *, force: bool = False) -> Pat
     # reachable *from* it. Strong connectivity means any anchor can reach any
     # other, which every routing shape (loop/out-and-back/point-to-point) here
     # depends on.
-    graph = ox.truncate.largest_component(graph, strongly=True)
+    return ox.truncate.largest_component(graph, strongly=True)
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    ox.io.save_graphml(graph, out_path)
-    return out_path
+
+def ensure_graph(
+    region: Region,
+    cache_dir: Path,
+    *,
+    force: bool = False,
+    endpoints: tuple[str, ...] | None = None,
+    attempts_per_endpoint: int = OVERPASS_ATTEMPTS_PER_ENDPOINT,
+    backoff_base_s: float = OVERPASS_BACKOFF_BASE_S,
+    sleep=time.sleep,
+) -> Path:
+    """Return the on-disk path to `region`'s graph, building it via Overpass
+    if it is not already cached. A live network call unless `force=False` and
+    the cache already has this exact `(bbox, network_type, ruleset)` key —
+    callers that must not touch the network (unit tests) should pre-seed the
+    cache path instead of calling this directly.
+
+    Overpass is treated as a soft dependency (issue #229): each endpoint in
+    `endpoints` (default `overpass_endpoints()`) is tried up to
+    `attempts_per_endpoint` times with exponential backoff on a transient
+    transport error, then the next endpoint. If every endpoint fails,
+    `OverpassUnavailable` is raised with a user-facing message rather than a
+    raw `requests` exception leaking to the client.
+    """
+    out_path = region.graph_path(cache_dir)
+    if out_path.exists() and not force:
+        return out_path
+
+    configure_overpass_cache(cache_dir)
+    endpoints = tuple(endpoints) if endpoints is not None else overpass_endpoints()
+
+    # `overpass_url` and the rate-limit flag are process-global osmnx settings
+    # shared with curation's own Overpass calls — drive them per endpoint here,
+    # but leave them exactly as found.
+    saved_url = ox.settings.overpass_url
+    saved_rate_limit = ox.settings.overpass_rate_limit
+    failures: list[str] = []
+    try:
+        for endpoint_index, endpoint in enumerate(endpoints):
+            ox.settings.overpass_url = endpoint
+            for attempt in range(1, attempts_per_endpoint + 1):
+                # Honour the server's advertised slot pause on the very first
+                # try (stay polite); once we are failing over we are only
+                # probing alternates, so skip the 60 s status-pause osmnx
+                # falls back to when a status endpoint is itself unreachable.
+                ox.settings.overpass_rate_limit = (
+                    saved_rate_limit
+                    if (endpoint_index == 0 and attempt == 1)
+                    else False
+                )
+                try:
+                    graph = _download_region_graph(region)
+                except requests.exceptions.RequestException as exc:
+                    failures.append(f"{endpoint} ({type(exc).__name__})")
+                    if attempt < attempts_per_endpoint:
+                        sleep(backoff_base_s * 2 ** (attempt - 1))
+                    continue
+                out_path.parent.mkdir(parents=True, exist_ok=True)
+                ox.io.save_graphml(graph, out_path)
+                return out_path
+    finally:
+        ox.settings.overpass_url = saved_url
+        ox.settings.overpass_rate_limit = saved_rate_limit
+
+    tried = ", ".join(failures) if failures else ", ".join(endpoints)
+    raise OverpassUnavailable(
+        "Couldn't reach the map-data service to prepare routing for this area. "
+        "This is almost always temporary — check your connection and try again "
+        f"in a few minutes. (tried: {tried})"
+    )

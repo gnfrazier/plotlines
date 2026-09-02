@@ -212,3 +212,119 @@ def test_ensure_graph_folds_barriers_and_keeps_the_ford_tag(tmp_path, monkeypatc
 def test_configure_overpass_cache_points_at_the_given_dir(tmp_path):
     regions.configure_overpass_cache(tmp_path)
     assert ox.settings.cache_folder == str(tmp_path / "overpass")
+
+
+# --- Overpass endpoint failover (issue #229) ---------------------------------
+
+import requests  # noqa: E402 — grouped with the failover tests it belongs to
+
+
+def test_overpass_endpoints_defaults_when_env_unset(monkeypatch):
+    monkeypatch.delenv("PLOTLINES_OVERPASS_ENDPOINTS", raising=False)
+    assert regions.overpass_endpoints() == regions.DEFAULT_OVERPASS_ENDPOINTS
+
+
+def test_overpass_endpoints_env_override_wins(monkeypatch):
+    monkeypatch.setenv(
+        "PLOTLINES_OVERPASS_ENDPOINTS",
+        " https://mirror.example/api/ , https://other.example/api ",
+    )
+    assert regions.overpass_endpoints() == (
+        "https://mirror.example/api",
+        "https://other.example/api",
+    )
+
+
+def test_ensure_graph_fails_over_to_the_next_endpoint(tmp_path, monkeypatch):
+    """First endpoint refuses the connection; `ensure_graph` retries the next
+    and succeeds, leaving a cached graph."""
+    seen: list[str] = []
+
+    def flaky_download(_region):
+        seen.append(ox.settings.overpass_url)
+        if ox.settings.overpass_url == "https://a.example/api":
+            raise requests.exceptions.ConnectionError("connection refused")
+        return _fake_graph()
+
+    monkeypatch.setattr(regions, "_download_region_graph", flaky_download)
+
+    region = regions.region_for(_BBOX, "bike")
+    path = regions.ensure_graph(
+        region, tmp_path,
+        endpoints=("https://a.example/api", "https://b.example/api"),
+        sleep=lambda _s: None,
+    )
+
+    assert path.exists()
+    assert seen == ["https://a.example/api", "https://a.example/api",
+                    "https://b.example/api"]  # 2 attempts on a, then b
+
+
+def test_ensure_graph_raises_overpass_unavailable_when_every_endpoint_fails(
+    tmp_path, monkeypatch,
+):
+    def always_refuse(_region):
+        raise requests.exceptions.ConnectionError("connection refused")
+
+    monkeypatch.setattr(regions, "_download_region_graph", always_refuse)
+
+    region = regions.region_for(_BBOX, "bike")
+    with pytest.raises(regions.OverpassUnavailable) as excinfo:
+        regions.ensure_graph(
+            region, tmp_path,
+            endpoints=("https://a.example/api", "https://b.example/api"),
+            sleep=lambda _s: None,
+        )
+
+    msg = str(excinfo.value)
+    assert "map-data service" in msg           # a sentence, not an exception repr
+    assert "ConnectionError" not in msg or "tried:" in msg
+    assert not region.graph_path(tmp_path).exists()
+
+
+def test_ensure_graph_backs_off_between_attempts(tmp_path, monkeypatch):
+    slept: list[float] = []
+
+    def always_refuse(_region):
+        raise requests.exceptions.ConnectionError("connection refused")
+
+    monkeypatch.setattr(regions, "_download_region_graph", always_refuse)
+
+    region = regions.region_for(_BBOX, "bike")
+    with pytest.raises(regions.OverpassUnavailable):
+        regions.ensure_graph(
+            region, tmp_path,
+            endpoints=("https://a.example/api",),
+            attempts_per_endpoint=3,
+            backoff_base_s=1.0,
+            sleep=slept.append,
+        )
+
+    # One sleep between each of the 3 attempts except the last -> 2 sleeps,
+    # exponential: 1.0, 2.0.
+    assert slept == [1.0, 2.0]
+
+
+def test_ensure_graph_restores_global_overpass_settings_after_failover(
+    tmp_path, monkeypatch,
+):
+    original_url = ox.settings.overpass_url
+    original_rate_limit = ox.settings.overpass_rate_limit
+
+    monkeypatch.setattr(
+        regions, "_download_region_graph",
+        lambda _r: (_ for _ in ()).throw(
+            requests.exceptions.ConnectionError("refused")
+        ),
+    )
+
+    region = regions.region_for(_BBOX, "bike")
+    with pytest.raises(regions.OverpassUnavailable):
+        regions.ensure_graph(
+            region, tmp_path,
+            endpoints=("https://a.example/api", "https://b.example/api"),
+            sleep=lambda _s: None,
+        )
+
+    assert ox.settings.overpass_url == original_url
+    assert ox.settings.overpass_rate_limit == original_rate_limit

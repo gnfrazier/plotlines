@@ -73,3 +73,40 @@ def test_same_key_ensured_twice_still_builds_once(tmp_path, monkeypatch):
 
     assert k1 == k2
     assert builds == 1
+
+
+def test_ensure_region_requeues_a_settled_failed_region(tmp_path, monkeypatch):
+    """issue #229 — a `POST /regions` for a bbox whose build has settled
+    `failed` (Overpass unreachable) resets the capability and re-queues the
+    build, so the client's "Try again" is a real retry, not a no-op."""
+    attempts = 0
+    lock = threading.Lock()
+
+    def fake_build(self, cache_dir, tiles_upstream, allow_unmirrored=False):
+        nonlocal attempts
+        with lock:
+            attempts += 1
+            n = attempts
+        if n == 1:
+            self.graph_state.fail("Couldn't reach the map-data service ...")
+        else:
+            self.graph_state.succeed("graph ready")
+
+    monkeypatch.setattr("plotlines_service.app.RegionState.build", fake_build)
+
+    state = Readiness(tmp_path, tmp_path / "home.pmtiles")
+    bbox = (-105.0, 40.0, -104.9, 40.1)
+
+    k1 = state.ensure_region(bbox, "bike")
+    state._build_pool.shutdown(wait=True)
+    assert state.regions[k1].graph_state.status == "failed"
+
+    # A fresh pool for the retry submission (the first shutdown closed it).
+    from concurrent.futures import ThreadPoolExecutor
+    state._build_pool = ThreadPoolExecutor(max_workers=1)
+    k2 = state.ensure_region(bbox, "bike")
+    state._build_pool.shutdown(wait=True)
+
+    assert k1 == k2
+    assert attempts == 2
+    assert state.regions[k1].routing_ready

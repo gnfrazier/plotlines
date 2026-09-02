@@ -15,6 +15,10 @@ dependencies = [
     # issue #154). Pure Python, no native extension — confirmed to survive
     # the PyInstaller freeze in packaging/build_sidecar.sh.
     "pmtiles>=3.7,<4",
+    # Already present transitively via osmnx; declared directly because
+    # `graph/regions.py` catches `requests.exceptions.RequestException` to
+    # drive Overpass endpoint failover (issue #229).
+    "requests>=2.28",
 ]
 
 [build-system]
