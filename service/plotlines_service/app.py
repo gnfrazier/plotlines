@@ -16,8 +16,10 @@ wrong.
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
+import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -83,6 +85,8 @@ from plotlines_core.trips.payload import WeightProfile as PayloadWeightProfile
 from .payload_io import parse_dataclass
 from .tiles_paths import default_home_region_archive
 from .version import VERSION
+
+log = logging.getLogger("plotlines.sidecar")
 
 # Heuristic wall-clock estimate for the progress/eta a still-building region
 # reports (ARCH §8.3's "terrain data loading — routing available in about 3
@@ -211,32 +215,95 @@ class RegionState:
         self.graph: LoadedGraph | None = None
         self.sampler: ElevationSampler | None = None  # never populated (see module docstring)
         self.tiles_archive: Archive | None = None
+        # Build telemetry (issue #232) — every attempt this session, the last
+        # failure's full traceback, and per-phase wall-clock. Surfaced by
+        # `GET /regions/{key}/diagnostics` and the sidecar log so a build that
+        # keeps failing can be root-caused without reading the client UI.
+        self.build_attempts = 0
+        self.last_error: str | None = None
+        self.last_traceback: str | None = None
+        self.timings: dict[str, float] = {}
+        self.last_attempt_started_at: float | None = None
+        self.last_attempt_finished_at: float | None = None
 
     @property
     def routing_ready(self) -> bool:
         return self.graph_state.ready
 
     def routing_capability(self) -> dict:
-        return self.graph_state.to_dict()
+        d = self.graph_state.to_dict()
+        # Additive and only while not ready (a ready region's entry stays
+        # byte-identical) — `CapabilityStatus.fromJson` ignores it, but a
+        # value that climbs on every `/health` poll is the visible signature
+        # of a requeue storm (issue #232).
+        if not self.graph_state.ready:
+            d["attempts"] = self.build_attempts
+        return d
+
+    def diagnostics(self) -> dict:
+        """Everything known about this region's build history (issue #232).
+        Capturable with a single `curl .../regions/<key>/diagnostics`, so the
+        flickering client notice never has to be read off the screen."""
+        return {
+            "key": self.key,
+            "bbox": list(self.bbox),
+            "network_type": self.network_type,
+            "state": self.graph_state.status,
+            "reason": self.graph_state.detail,
+            "attempts": self.build_attempts,
+            "timings_s": {k: round(v, 2) for k, v in self.timings.items()},
+            "last_attempt_started_at": self.last_attempt_started_at,
+            "last_attempt_finished_at": self.last_attempt_finished_at,
+            "last_error": self.last_error,
+            "last_traceback": self.last_traceback,
+        }
 
     def build(self, cache_dir: Path, tiles_upstream: str | Path,
               allow_unmirrored: bool = False) -> None:
+        self.build_attempts += 1
+        attempt = self.build_attempts
+        self.last_attempt_started_at = time.time()
+        t0 = time.monotonic()
         self.graph_state.start("building graph")
+        log.info("region build START key=%s attempt=%d bbox=%s nt=%s",
+                 self.key, attempt, self.bbox, self.network_type)
         try:
             region = region_lib.Region(key=self.key, bbox=self.bbox,
                                        network_type=self.network_type)
+            t_acq = time.monotonic()
             path = region_lib.ensure_graph(region, cache_dir)
+            self.timings["ensure_graph"] = time.monotonic() - t_acq
+            t_load = time.monotonic()
             self.graph = load_graphml(path)
+            self.timings["load_graphml"] = time.monotonic() - t_load
+            self.timings["total"] = time.monotonic() - t0
+            self.last_error = None
+            self.last_traceback = None
             self.graph_state.succeed("graph ready")
+            log.info("region build OK key=%s attempt=%d timings=%s",
+                     self.key, attempt, self.timings)
         except region_lib.OverpassUnavailable as exc:
             # Already a finished, user-facing sentence (issue #229) — surface it
             # verbatim, without the `type(exc).__name__` prefix the generic
             # branch adds. The client renders this reason directly.
+            self.timings["total"] = time.monotonic() - t0
+            self.last_error = str(exc)
+            self.last_traceback = traceback.format_exc()
+            self.last_attempt_finished_at = time.time()
             self.graph_state.fail(str(exc))
+            log.warning("region build FAILED key=%s attempt=%d (overpass): %s",
+                        self.key, attempt, exc)
             return
         except Exception as exc:  # noqa: BLE001 — surface honestly, never hang (A6)
+            self.timings["total"] = time.monotonic() - t0
+            self.last_error = f"{type(exc).__name__}: {exc}"
+            self.last_traceback = traceback.format_exc()
+            self.last_attempt_finished_at = time.time()
             self.graph_state.fail(f"{type(exc).__name__}: {exc}")
+            log.error("region build FAILED key=%s attempt=%d: %s\n%s",
+                      self.key, attempt, self.last_error, self.last_traceback)
             return  # no graph, no point extracting tiles for this region
+        self.last_attempt_finished_at = time.time()
 
         # Tiles are best-effort and independent of routing (B1: one
         # capability's failure never blocks another) — a bbox outside the
@@ -309,7 +376,12 @@ class Readiness:
                 region = RegionState(key, bbox, network_type)
                 self.regions[key] = region
                 self._queue_build(region)
+                log.info("ensure_region key=%s bbox=%s nt=%s decision=NEW_BUILD",
+                         key, bbox, network_type)
             elif region.graph_state.status == "failed":
+                log.info("ensure_region key=%s nt=%s decision=REQUEUE_AFTER_FAILURE "
+                         "(prior attempts=%d, last_error=%r)", key, network_type,
+                         region.build_attempts, region.last_error)
                 # A settled failure (typically Overpass unreachable, issue
                 # #229) is retryable: a fresh `POST /regions` for the same
                 # bbox resets the capability and re-queues the build rather
@@ -678,6 +750,18 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         bbox = tuple(req.bbox)
         key = state.ensure_region(bbox, req.network_type)
         return {"region": key}
+
+    @app.get("/regions/{key}/diagnostics")
+    def region_diagnostics(key: str) -> dict:
+        """Issue #232 — the full build history for one region: attempt count,
+        per-phase timings, and the last failure's complete traceback (which
+        `/health` deliberately does not carry). Read this to root-cause a
+        region that keeps failing or never settles, without reading the
+        client's disabled-control notice off the screen."""
+        region = state.region(key)
+        if region is None:
+            raise HTTPException(status_code=404, detail=f"no region {key!r}")
+        return region.diagnostics()
 
     # The layer registry (ARCH §8.3 / §14.2, stories N2/N5). Holds the six
     # built-in OSM layers and every plugin layer discovered via the

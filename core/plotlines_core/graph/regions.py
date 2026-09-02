@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import time
 from dataclasses import dataclass
@@ -26,6 +27,8 @@ from pathlib import Path
 
 import osmnx as ox
 import requests
+
+log = logging.getLogger("plotlines.regions")
 
 #: Current cache-key ruleset. Bump to invalidate every cached graph on disk —
 #: the key is `(bbox, network_type, GRAPH_RULESET_VERSION)`, so a bump alone
@@ -244,10 +247,15 @@ def ensure_graph(
     """
     out_path = region.graph_path(cache_dir)
     if out_path.exists() and not force:
+        log.info("ensure_graph key=%s bbox=%s nt=%s cache=hit", region.key,
+                 region.bbox, region.network_type)
         return out_path
 
     configure_overpass_cache(cache_dir)
     endpoints = tuple(endpoints) if endpoints is not None else overpass_endpoints()
+    log.info("ensure_graph key=%s bbox=%s nt=%s cache=miss endpoints=%s force=%s",
+             region.key, region.bbox, region.network_type, list(endpoints), force)
+    started = time.monotonic()
 
     # `overpass_url` and the rate-limit flag are process-global osmnx settings
     # shared with curation's own Overpass calls — drive them per endpoint here,
@@ -268,21 +276,37 @@ def ensure_graph(
                     if (endpoint_index == 0 and attempt == 1)
                     else False
                 )
+                attempt_started = time.monotonic()
                 try:
                     graph = _download_region_graph(region)
                 except requests.exceptions.RequestException as exc:
+                    elapsed = time.monotonic() - attempt_started
                     failures.append(f"{endpoint} ({type(exc).__name__})")
+                    log.warning(
+                        "ensure_graph key=%s endpoint=%s attempt=%d/%d FAILED "
+                        "after %.1fs: %s: %s", region.key, endpoint, attempt,
+                        attempts_per_endpoint, elapsed, type(exc).__name__, exc)
                     if attempt < attempts_per_endpoint:
-                        sleep(backoff_base_s * 2 ** (attempt - 1))
+                        backoff = backoff_base_s * 2 ** (attempt - 1)
+                        log.info("ensure_graph key=%s backing off %.1fs before retry",
+                                 region.key, backoff)
+                        sleep(backoff)
                     continue
                 out_path.parent.mkdir(parents=True, exist_ok=True)
                 ox.io.save_graphml(graph, out_path)
+                log.info(
+                    "ensure_graph key=%s endpoint=%s attempt=%d OK: %d nodes, "
+                    "%d edges, %.1fs total", region.key, endpoint, attempt,
+                    graph.number_of_nodes(), graph.number_of_edges(),
+                    time.monotonic() - started)
                 return out_path
     finally:
         ox.settings.overpass_url = saved_url
         ox.settings.overpass_rate_limit = saved_rate_limit
 
     tried = ", ".join(failures) if failures else ", ".join(endpoints)
+    log.error("ensure_graph key=%s EXHAUSTED all %d endpoints after %.1fs: %s",
+              region.key, len(endpoints), time.monotonic() - started, tried)
     raise OverpassUnavailable(
         "Couldn't reach the map-data service to prepare routing for this area. "
         "This is almost always temporary — check your connection and try again "
