@@ -21,6 +21,7 @@ import threading
 import time
 import traceback
 import uuid
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -225,6 +226,9 @@ class RegionState:
         self.timings: dict[str, float] = {}
         self.last_attempt_started_at: float | None = None
         self.last_attempt_finished_at: float | None = None
+        #: Why the (best-effort, never region-failing) tile extraction did not
+        #: produce an archive. `None` means it worked or was never reached.
+        self.tiles_error: str | None = None
 
     @property
     def routing_ready(self) -> bool:
@@ -256,6 +260,7 @@ class RegionState:
             "last_attempt_finished_at": self.last_attempt_finished_at,
             "last_error": self.last_error,
             "last_traceback": self.last_traceback,
+            "tiles_error": self.tiles_error,
         }
 
     def build(self, cache_dir: Path, tiles_upstream: str | Path,
@@ -263,6 +268,7 @@ class RegionState:
         self.build_attempts += 1
         attempt = self.build_attempts
         self.last_attempt_started_at = time.time()
+        self.tiles_error = None  # a retry re-attempts tiles too
         t0 = time.monotonic()
         self.graph_state.start("building graph")
         log.info("region build START key=%s attempt=%d bbox=%s nt=%s",
@@ -322,9 +328,16 @@ class RegionState:
                              allow_unmirrored=allow_unmirrored)
             self.tiles_archive = Archive(tiles_path)
         except NoTilesInBbox:
-            pass
-        except Exception:  # noqa: BLE001 — tiles are best-effort; never fail the region for this
-            pass
+            # Expected: the bbox is outside the tile source's coverage. `/tiles`
+            # answers 404 per-request; nothing to report.
+            log.info("region tiles: no coverage key=%s bbox=%s", self.key, self.bbox)
+        except Exception as exc:  # noqa: BLE001 — tiles are best-effort; never fail the region for this
+            # Best-effort, but not silent (issue #232): this was the one branch
+            # in `build` that swallowed a failure without a trace, so a region
+            # that routed fine but showed no basemap had nothing to explain it.
+            self.tiles_error = f"{type(exc).__name__}: {exc}"
+            log.warning("region tiles FAILED key=%s bbox=%s: %s\n%s",
+                        self.key, self.bbox, self.tiles_error, traceback.format_exc())
 
 
 class Readiness:
@@ -401,12 +414,33 @@ class Readiness:
         )
 
     def region(self, key: str) -> RegionState | None:
-        return self.regions.get(key)
+        with self._lock:
+            return self.regions.get(key)
+
+    def snapshot(self) -> list[tuple[str, "RegionState"]]:
+        """A point-in-time `(key, region)` list, taken under the lock.
+
+        Every reader outside `ensure_region` goes through this. `ensure_region`
+        inserts under `_lock` but FastAPI runs sync endpoints on a threadpool,
+        so an unlocked `.items()` / `.values()` walk elsewhere really does race
+        a concurrent `POST /regions` and raises `RuntimeError: dictionary
+        changed size during iteration`. That lands on `GET /health` — the one
+        endpoint M12's `sidecar_manager` polls and restarts the sidecar over —
+        which is the same restart loop #224 and #232 closed from the other
+        side. Serialising builds kept `/health` responsive; this keeps it from
+        failing outright.
+
+        A shallow copy is enough: `RegionState` mutates its own fields in
+        place, and reading a half-updated capability is a stale answer, never
+        a crash.
+        """
+        with self._lock:
+            return list(self.regions.items())
 
     def routing_capabilities(self) -> dict:
         """§8.3's per-region `routing` breakdown — empty until an Author has
         drawn a trip bbox and the client has called `POST /regions`."""
-        return {key: region.routing_capability() for key, region in self.regions.items()}
+        return {key: region.routing_capability() for key, region in self.snapshot()}
 
 
 class Coordinate(BaseModel):
@@ -656,10 +690,96 @@ class ClustersAnalyzeRequest(BaseModel):
 
 
 class DiagnoseJob:
-    def __init__(self) -> None:
+    def __init__(self, created_at: float) -> None:
         self.done = False
         self.result: dict | None = None
         self.error: str | None = None
+        self.created_at = created_at
+
+
+# How many diagnoses may run at once, and how many finished results are kept
+# for the client to poll.
+#
+# Same reasoning as REGION_BUILD_CONCURRENCY, one endpoint over: SPIKE-02
+# measured diagnose at 1.3-15.0s of CPU against 27-218ms to solve, so an
+# unbounded thread per request lets a retry loop saturate every core and starve
+# `/health` — the Buncombe failure mode, reached by a different door. Two at a
+# time keeps a second Author-initiated diagnosis from queueing behind a slow
+# one without putting the box under load.
+#
+# The registry is bounded too. It used to be a plain dict that was written on
+# every request and never pruned, so each diagnosis retained a full result dict
+# for the life of the process. `DIAGNOSE_JOB_TTL_S` is the window a client has
+# to collect its result (the client polls every ~500ms, so this is generous);
+# `DIAGNOSE_JOB_CAP` is the hard backstop that bounds memory regardless of TTL.
+DIAGNOSE_CONCURRENCY = 2
+DIAGNOSE_JOB_TTL_S = 300.0
+DIAGNOSE_JOB_CAP = 64
+
+
+class DiagnoseRegistry:
+    """Bounded, self-pruning store for `/segments/diagnose` jobs.
+
+    Eviction runs on submit, never on a timer: a sidecar that is not being
+    asked to diagnose does not need to be doing anything. Finished jobs older
+    than the TTL go first; if that still leaves more than the cap, the oldest
+    are dropped regardless of age — a client that never polls cannot pin
+    memory. An in-flight job is never evicted by age, only by the cap, and
+    only once it is the oldest thing there is.
+    """
+
+    def __init__(self, ttl_s: float = DIAGNOSE_JOB_TTL_S,
+                 cap: int = DIAGNOSE_JOB_CAP) -> None:
+        self._jobs: dict[str, DiagnoseJob] = {}
+        self._lock = threading.Lock()
+        self._ttl_s = ttl_s
+        self._cap = cap
+        self._pool = ThreadPoolExecutor(
+            max_workers=DIAGNOSE_CONCURRENCY, thread_name_prefix="diagnose",
+        )
+
+    def submit(self, run: "Callable[[DiagnoseJob], None]", *, now: float | None = None) -> str:
+        now = time.monotonic() if now is None else now
+        job_id = str(uuid.uuid4())
+        job = DiagnoseJob(created_at=now)
+        with self._lock:
+            self._jobs[job_id] = job
+            self._evict(now)
+
+        def settle() -> None:
+            # `done` is the registry's guarantee, not the caller's: the poll
+            # endpoint answers "pending" until it flips, so a worker that died
+            # on a path its own `finally` didn't cover would leave the client
+            # polling forever.
+            try:
+                run(job)
+            finally:
+                job.done = True
+
+        self._pool.submit(settle)
+        return job_id
+
+    def get(self, job_id: str) -> DiagnoseJob | None:
+        with self._lock:
+            return self._jobs.get(job_id)
+
+    def _evict(self, now: float) -> None:
+        # Caller holds the lock.
+        for key, job in list(self._jobs.items()):
+            if job.done and now - job.created_at > self._ttl_s:
+                del self._jobs[key]
+        if len(self._jobs) <= self._cap:
+            return
+        oldest = sorted(self._jobs.items(), key=lambda kv: kv[1].created_at)
+        for key, _job in oldest[: len(self._jobs) - self._cap]:
+            del self._jobs[key]
+
+    def shutdown(self) -> None:
+        self._pool.shutdown(wait=False, cancel_futures=True)
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._jobs)
 
 
 def create_app(cache_dir: Path, mode: str = "sidecar", *,
@@ -674,15 +794,16 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         yield
         # Abandon any region builds still queued so the pool's worker thread
         # can't outlive the app (matters for a test / hosted-mode reload; the
-        # sidecar itself is signal-killed).
+        # sidecar itself is signal-killed). Same for queued diagnoses.
         state.shutdown()
+        diagnose_jobs.shutdown()
 
     app = FastAPI(title="plotlines-service", version=VERSION, lifespan=lifespan)
     app.state.readiness = state
 
     home_tiles = Archive(default_home_region_archive())
     home_tiles_identity = home_tiles.info().identity
-    diagnose_jobs: dict[str, DiagnoseJob] = {}
+    diagnose_jobs = DiagnoseRegistry()
 
     @app.get("/health")
     def health() -> dict:
@@ -1223,12 +1344,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 
-        job_id = str(uuid.uuid4())
-        job = DiagnoseJob()
-        diagnose_jobs[job_id] = job
         graph = region.graph.graph
 
-        def run() -> None:
+        def run(job: DiagnoseJob) -> None:
             try:
                 result = diagnose(
                     graph,
@@ -1241,13 +1359,14 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 job.result = result.to_dict()
             except Exception as exc:  # noqa: BLE001 — surface honestly (A6)
                 job.error = str(exc)
-            finally:
-                job.done = True
+            # `job.done` is set by the registry once this returns, however it
+            # returns.
 
         # SPIKE-02: 1.3-15.0s to diagnose vs 27-218ms to solve — this cannot sit
-        # inside a request the Author is waiting on (ARCH §7.2).
-        threading.Thread(target=run, daemon=True).start()
-        return {"id": job_id}
+        # inside a request the Author is waiting on (ARCH §7.2). The registry
+        # runs it on a bounded pool and prunes finished jobs; see
+        # `DiagnoseRegistry`.
+        return {"id": diagnose_jobs.submit(run)}
 
     @app.get("/segments/diagnose/{job_id}")
     def segments_diagnose_poll(job_id: str) -> dict:
@@ -1309,7 +1428,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         if not valid_zxy(z, x, y):
             raise HTTPException(422, f"invalid tile address z={z} x={x} y={y}")
 
-        for region in state.regions.values():
+        for _key, region in state.snapshot():
             if region.tiles_archive is None:
                 continue
             data = region.tiles_archive.tile(z, x, y)
