@@ -804,6 +804,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
     home_tiles = Archive(default_home_region_archive())
     home_tiles_identity = home_tiles.info().identity
     diagnose_jobs = DiagnoseRegistry()
+    # Both worker pools hang off `app.state`, like `readiness` above, so a
+    # hosted reload can shut them down without reaching into the closure.
+    app.state.diagnose_jobs = diagnose_jobs
 
     @app.get("/health")
     def health() -> dict:

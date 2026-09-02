@@ -6,9 +6,15 @@
 # any toolchain to set up.
 #
 # The reveal-gate and payload-schema gates sit alongside it. The three test
-# jobs below (core / service / client) run the real suites — 867 + 123 + 1154
-# tests — as independent jobs so a failure points at one layer. Build, freeze,
-# and Flutter desktop-bundle jobs are still out of scope until later milestones.
+# jobs below (core / service / client) run the real suites as independent jobs
+# so a failure points at one layer. Build, freeze, and Flutter desktop-bundle
+# jobs are still out of scope until later milestones.
+#
+# The job names used to carry test counts. They are gone deliberately (#235 C):
+# nobody updates a number in a job name, so it drifts within a PR or two and
+# then reads as an assertion the repo is quietly failing — the labels claimed
+# 867 / 123 / 1154 against actual counts of 890 / 147 / 1234. The suites report
+# their own totals in the log, which cannot go stale.
 
 name: CI
 
@@ -64,7 +70,7 @@ jobs:
       - run: PYTHONPATH=core python spikes/SPIKE-20/run.py --check-committed
 
   core-tests:
-    name: "core tests (867)"
+    name: "core tests"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +87,7 @@ jobs:
         working-directory: core
 
   service-tests:
-    name: "service tests (123)"
+    name: "service tests"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -97,7 +103,7 @@ jobs:
         working-directory: service
 
   client-tests:
-    name: "client tests (1154)"
+    name: "client tests"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
