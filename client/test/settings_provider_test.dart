@@ -100,6 +100,7 @@ void main() {
         contrast: ContrastMode.indoor,
         dateFormat: DateFormatPref.us,
         clock: ClockPref.hour12,
+        textSize: TextSizePref.larger,
         ttsReadout: true,
       );
       expect(s.syncedPreferences, {
@@ -109,6 +110,10 @@ void main() {
         'contrast': 'indoor',
         'date_format': 'us',
         'clock_format': 'hour12',
+        // Issue #230 A2 — the text-size preference travels with the user
+        // like every other display choice; only the per-device TTS toggle
+        // is excluded.
+        'text_size': 'larger',
       });
     });
 

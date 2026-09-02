@@ -20,6 +20,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart' show VectorTileReader;
 
+/// The deepest zoom the basemap archive is built to. Held here rather than
+/// repeated as a literal on every `VectorTileLayer`, so the provider and
+/// the layers that read from it can never drift apart (issue #230 A3: past
+/// this zoom the layer over-zooms already-rasterised content, which is
+/// exactly where someone is trying to read a street name).
+const int basemapMaximumZoom = 15;
+
 /// Reads tiles from the sidecar rather than local disk. `baseUrl` is the
 /// same `SidecarManager.baseUrl` every other client (`RoutingClient`,
 /// `CurationClient`) talks to — constructed fresh per build rather than
@@ -27,7 +34,8 @@ import 'package:vector_tile_renderer/vector_tile_renderer.dart' show VectorTileR
 /// (`SidecarManager._onExit`'s restart-once) and this class holds no state
 /// expensive enough to be worth caching around that.
 class SidecarVectorTileProvider extends VectorTileProvider {
-  SidecarVectorTileProvider(this.baseUrl, {this.minimumZoom = 0, this.maximumZoom = 15});
+  SidecarVectorTileProvider(this.baseUrl,
+      {this.minimumZoom = 0, this.maximumZoom = basemapMaximumZoom});
 
   final String baseUrl;
 
@@ -40,8 +48,20 @@ class SidecarVectorTileProvider extends VectorTileProvider {
   @override
   TileProviderType get type => TileProviderType.vector;
 
+  /// Issue #230 A3 — the reason every map label rendered at about half the
+  /// size its style asks for.
+  ///
+  /// The archive's tiles and the Protomaps/OpenMapTiles styles in
+  /// `assets/map_style/` are authored against a **512 px** tile, which is
+  /// `TileOffset.mapbox` (`zoomOffset: -1`) in `vector_map_tiles`. This was
+  /// `TileOffset.DEFAULT` (`zoomOffset: 0`), which packs each tile's
+  /// content into a 256-logical-px square — so every styled `text-size`
+  /// landed at roughly half its designed size, and because the squeeze is
+  /// per tile, zooming in re-rendered the labels just as small one level
+  /// down. City names, street names and waterway labels were all affected
+  /// on both map surfaces at once, since they share this provider.
   @override
-  TileOffset get tileOffset => TileOffset.DEFAULT;
+  TileOffset get tileOffset => TileOffset.mapbox;
 
   @override
   Future<Uint8List> provide(TileIdentity tile) async {

@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/domain/trip_bbox.dart';
+import 'package:plotlines_client/presentation/map/map_attribution.dart';
 import 'package:plotlines_client/presentation/screens/trip_area_screen.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/trip_bbox_provider.dart';
@@ -95,7 +96,16 @@ void main() {
     await tester.dragFrom(const Offset(200, 150), const Offset(120, 90));
     await _settleMap(tester);
 
-    expect(find.text('NORTH'), findsOneWidget); // extent readout appeared
+    // Issue #230 C1 — the readout leads with the area (the number a human
+    // decides on); the raw decimal degrees moved behind an "Exact bounds"
+    // disclosure rather than sitting above it at the same size and weight.
+    expect(find.text('AREA'), findsOneWidget); // extent readout appeared
+    expect(find.text('NORTH'), findsNothing); // collapsed until asked for
+    await tester.ensureVisible(find.text('Exact bounds'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Exact bounds'));
+    await tester.pumpAndSettle();
+    expect(find.text('NORTH'), findsOneWidget);
 
     final useExtent = tester.widget<ElevatedButton>(
       find.ancestor(of: find.text('Use this extent'), matching: find.byType(ElevatedButton)),
@@ -148,6 +158,13 @@ void main() {
     await tester.pump();
     await _settleMap(tester);
 
+    // Issue #230 C1 — the coordinates live under the "Exact bounds"
+    // disclosure now; the area is what leads.
+    expect(find.text('AREA'), findsOneWidget);
+    await tester.ensureVisible(find.text('Exact bounds'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Exact bounds'));
+    await tester.pumpAndSettle();
     expect(find.text('40.1000'), findsOneWidget); // NORTH reads back the existing bbox
 
     await tester.tap(find.text('Use this extent'));
@@ -156,5 +173,64 @@ void main() {
     // Popped back to the shell, not pushed on to New Route a second time.
     expect(find.text('open'), findsOneWidget);
     expect(reachedNew, isFalse);
+  });
+
+  testWidgets('the basemap credit is on the map, not only in Preferences',
+      (tester) async {
+    // K10 / FR95 (issue #230 C1) — ODbL wants the notice with the produced
+    // work. It lived in Preferences → DATA & ATTRIBUTION, so a screenshot of
+    // the map carried no credit at all.
+    final router = _routerFor(
+      (context, state) => const TripAreaScreen(isCreation: true),
+      onReachedNewRoute: (_) {},
+    );
+    await tester.pumpWidget(_harness(_containerFor(), router: router));
+    await _settleMap(tester);
+
+    expect(find.byType(MapAttribution), findsOneWidget);
+    expect(find.text(MapAttribution.line), findsOneWidget);
+    expect(MapAttribution.line, contains('OpenStreetMap'));
+    expect(MapAttribution.line, contains('ODbL'));
+  });
+
+  testWidgets('a disabled "Use this extent" says why it will not act', (tester) async {
+    // Flow 8's pattern is "disabled and says so"; this was light tan on tan
+    // with nothing stating the reason (issue #230 C1).
+    final container = _containerFor();
+    final router = _routerFor(
+      (context, state) => const TripAreaScreen(isCreation: true),
+      onReachedNewRoute: (_) {},
+    );
+    await tester.pumpWidget(_harness(container, router: router));
+    await _settleMap(tester);
+
+    expect(find.textContaining('Drag a rectangle on the map'), findsOneWidget);
+
+    await tester.dragFrom(const Offset(200, 150), const Offset(120, 90));
+    await _settleMap(tester);
+
+    // Once there is something to use, the reason goes away.
+    expect(find.textContaining('Drag a rectangle on the map'), findsNothing);
+  });
+
+  testWidgets('trip creation says which step of it this is', (tester) async {
+    // Issue #230 B1 — the mockups carry `NEW TRIP · STEP n OF m`; the
+    // shipped screen gave no sense of position in the flow. A later revision
+    // of an existing extent is not part of a numbered flow and shows none.
+    final creation = _routerFor(
+      (context, state) => const TripAreaScreen(isCreation: true),
+      onReachedNewRoute: (_) {},
+    );
+    await tester.pumpWidget(_harness(_containerFor(), router: creation));
+    await _settleMap(tester);
+    expect(find.textContaining('STEP 2 OF 3'), findsOneWidget);
+
+    final revision = _routerFor(
+      (context, state) => const TripAreaScreen(isCreation: false),
+      onReachedNewRoute: (_) {},
+    );
+    await tester.pumpWidget(_harness(_containerFor(), router: revision));
+    await _settleMap(tester);
+    expect(find.textContaining('STEP'), findsNothing);
   });
 }

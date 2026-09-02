@@ -49,7 +49,7 @@ class _DisplayAndMeasurement extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(PlotSpacing.s5),
       children: [
-        Text('UNITS', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        Text('UNITS', style: PlotTypography.eyebrow(c.textMuted)),
         const SizedBox(height: PlotSpacing.s2),
         PlotCard(
           padding: EdgeInsets.zero,
@@ -71,7 +71,7 @@ class _DisplayAndMeasurement extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: PlotSpacing.s5),
-        Text('TEMPERATURE', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        Text('TEMPERATURE', style: PlotTypography.eyebrow(c.textMuted)),
         const SizedBox(height: PlotSpacing.s2),
         PlotCard(
           padding: EdgeInsets.zero,
@@ -93,7 +93,7 @@ class _DisplayAndMeasurement extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: PlotSpacing.s5),
-        Text('DATE & TIME', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        Text('DATE & TIME', style: PlotTypography.eyebrow(c.textMuted)),
         const SizedBox(height: PlotSpacing.s2),
         PlotCard(
           padding: EdgeInsets.zero,
@@ -151,7 +151,7 @@ class _DisplayAndMeasurement extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: PlotSpacing.s5),
-        Text('READOUT', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        Text('READOUT', style: PlotTypography.eyebrow(c.textMuted)),
         const SizedBox(height: PlotSpacing.s2),
         PlotCard(
           padding: EdgeInsets.zero,
@@ -163,7 +163,7 @@ class _DisplayAndMeasurement extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: PlotSpacing.s5),
-        Text('APPEARANCE', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        Text('APPEARANCE', style: PlotTypography.eyebrow(c.textMuted)),
         const SizedBox(height: PlotSpacing.s2),
         PlotCard(
           padding: EdgeInsets.zero,
@@ -184,7 +184,40 @@ class _DisplayAndMeasurement extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: PlotSpacing.s5),
-        Text('CONTRAST', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        // Issue #230 A2 / WCAG 1.4.4 — a text-size control beside CONTRAST.
+        // It multiplies whatever the OS already reports (see `_TextScale` in
+        // `main.dart`), so this is "more than my desktop already gives me",
+        // not a second, competing source of truth for scale.
+        Text('TEXT SIZE',
+            style: PlotTypography.eyebrow(c.textMuted)),
+        const SizedBox(height: PlotSpacing.s2),
+        PlotCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (final pref in TextSizePref.values)
+                RadioListTile<TextSizePref>(
+                  title: Text(pref.label),
+                  value: pref,
+                  groupValue: settings.textSize,
+                  onChanged: (v) => v == null ? null : notifier.setTextSize(v),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Applied on top of your operating system\'s own text scaling, '
+                    'not instead of it.',
+                    style: PlotTypography.small(c.textMuted),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: PlotSpacing.s5),
+        Text('CONTRAST', style: PlotTypography.eyebrow(c.textMuted)),
         const SizedBox(height: PlotSpacing.s2),
         PlotCard(
           padding: EdgeInsets.zero,
@@ -207,7 +240,7 @@ class _DisplayAndMeasurement extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: PlotSpacing.s5),
-        Text('PLANNING', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        Text('PLANNING', style: PlotTypography.eyebrow(c.textMuted)),
         const SizedBox(height: PlotSpacing.s2),
         PlotCard(
           child: Row(
@@ -264,7 +297,7 @@ class AboutPane extends ConsumerWidget {
         return ListView(
           padding: const EdgeInsets.all(PlotSpacing.s5),
           children: [
-            Text('ABOUT PLOTLINES', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+            Text('ABOUT PLOTLINES', style: PlotTypography.eyebrow(c.textMuted)),
             const SizedBox(height: PlotSpacing.s3),
             Text('Plotlines', style: PlotTypography.display(c.textPrimary).copyWith(fontSize: 32)),
             const SizedBox(height: PlotSpacing.s2),
@@ -280,7 +313,7 @@ class AboutPane extends ConsumerWidget {
               style: PlotTypography.data(c.textSecondary),
             ),
             const SizedBox(height: PlotSpacing.s6),
-            Text('DATA & ATTRIBUTION', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+            Text('DATA & ATTRIBUTION', style: PlotTypography.eyebrow(c.textMuted)),
             const SizedBox(height: PlotSpacing.s2),
             if (!attributionComplete)
               Padding(

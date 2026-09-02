@@ -15,6 +15,58 @@ enum DistanceUnit { miles, km }
 
 enum ContrastMode { indoor, outdoor, highContrast }
 
+/// K5 / WCAG 1.4.4 (issue #230 A2) — how much the Author wants text scaled
+/// on top of whatever the OS already asks for.
+///
+/// The desktop embedder is not a reliable source of this on its own: under
+/// WSLg the Linux embedder reports `devicePixelRatio` 1.0 and no text scale
+/// at all, so 12 logical px renders as 12 device px on a 1080p panel and the
+/// same build reads very differently from one at 150% Windows scaling.
+/// [system] keeps the platform's own answer; the rest multiply it, so a user
+/// who has already scaled their desktop is scaled *further*, never reset.
+enum TextSizePref {
+  /// Whatever the operating system reports, unmodified.
+  system,
+
+  /// +15%.
+  large,
+
+  /// +30%.
+  larger,
+
+  /// +50% — the WCAG 1.4.4 "up to 200%" range, met together with whatever
+  /// the OS is already applying.
+  largest;
+
+  /// The multiplier applied *on top of* the platform's own text scale.
+  double get factor => switch (this) {
+        TextSizePref.system => 1.0,
+        TextSizePref.large => 1.15,
+        TextSizePref.larger => 1.3,
+        TextSizePref.largest => 1.5,
+      };
+
+  String get label => switch (this) {
+        TextSizePref.system => 'Match system',
+        TextSizePref.large => 'Large (115%)',
+        TextSizePref.larger => 'Larger (130%)',
+        TextSizePref.largest => 'Largest (150%)',
+      };
+}
+
+/// The text scale the app actually renders at, given what the platform
+/// reports and what the Author chose (issue #230 A2). Pure, so the rule is
+/// verifiable without a window: `main.dart`'s `MediaQuery` wrapper is the
+/// only caller.
+///
+/// The preference *multiplies* the platform scale rather than replacing it,
+/// so someone already at 150% Windows scaling is scaled further rather than
+/// reset. The floor is 1.0 — nothing here should ever render text smaller
+/// than the platform asked for — and the ceiling keeps a fixed-height
+/// desktop chrome from overflowing at an extreme OS scale.
+double resolveTextScale(double platformScale, TextSizePref pref) =>
+    (platformScale * pref.factor).clamp(1.0, 2.0);
+
 /// K5 / FR79 — the OS-derived starting point for every display preference.
 ///
 /// FR79: "The initial value of every display preference is read from the
@@ -83,6 +135,7 @@ class DisplaySettings {
     this.contrast = ContrastMode.indoor,
     this.dateFormat = DateFormatPref.inherit,
     this.clock = ClockPref.inherit,
+    this.textSize = TextSizePref.system,
     this.ttsReadout = false,
   });
 
@@ -97,6 +150,11 @@ class DisplaySettings {
   /// Stored clock preference: `inherit`, `hour12`, or `hour24`.
   final ClockPref clock;
 
+  /// FR79 / WCAG 1.4.4 (issue #230 A2) — an in-app text-size control
+  /// alongside CONTRAST, multiplying the platform's own scale rather than
+  /// replacing it. Applied once, in `main.dart`'s `MediaQuery` wrapper.
+  final TextSizePref textSize;
+
   /// H2a / FR40a device-TTS readout toggle. **Per-device, never synced** — it
   /// depends on which voices are installed on the machine in front of the
   /// Character, so it is excluded from [syncedPreferences].
@@ -109,6 +167,7 @@ class DisplaySettings {
     ContrastMode? contrast,
     DateFormatPref? dateFormat,
     ClockPref? clock,
+    TextSizePref? textSize,
     bool? ttsReadout,
   }) =>
       DisplaySettings(
@@ -118,6 +177,7 @@ class DisplaySettings {
         contrast: contrast ?? this.contrast,
         dateFormat: dateFormat ?? this.dateFormat,
         clock: clock ?? this.clock,
+        textSize: textSize ?? this.textSize,
         ttsReadout: ttsReadout ?? this.ttsReadout,
       );
 
@@ -131,6 +191,7 @@ class DisplaySettings {
         'contrast': contrast.name,
         'date_format': dateFormat.name,
         'clock_format': clock.name,
+        'text_size': textSize.name,
       };
 
   /// Build the render-time [DisplayFormat] for this set of preferences.
@@ -158,11 +219,12 @@ class DisplaySettings {
       other.contrast == contrast &&
       other.dateFormat == dateFormat &&
       other.clock == clock &&
+      other.textSize == textSize &&
       other.ttsReadout == ttsReadout;
 
   @override
   int get hashCode => Object.hash(unit, temperatureUnit, themeMode, contrast,
-      dateFormat, clock, ttsReadout);
+      dateFormat, clock, textSize, ttsReadout);
 }
 
 class SettingsNotifier extends StateNotifier<DisplaySettings> {
@@ -198,6 +260,7 @@ class SettingsNotifier extends StateNotifier<DisplaySettings> {
     final contrast = await db.getSetting('contrast');
     final dateFormat = await db.getSetting('date_format');
     final clock = await db.getSetting('clock_format');
+    final textSize = await db.getSetting('text_size');
     final tts = await db.getSetting('tts_readout');
     state = DisplaySettings(
       // A stored value is an explicit choice; its absence falls back to the
@@ -227,6 +290,10 @@ class SettingsNotifier extends StateNotifier<DisplaySettings> {
       clock: ClockPref.values.firstWhere(
         (c) => c.name == clock,
         orElse: () => ClockPref.inherit,
+      ),
+      textSize: TextSizePref.values.firstWhere(
+        (t) => t.name == textSize,
+        orElse: () => TextSizePref.system,
       ),
       ttsReadout: tts == 'true',
     );
@@ -262,6 +329,11 @@ class SettingsNotifier extends StateNotifier<DisplaySettings> {
   Future<void> setClock(ClockPref pref) async {
     state = state.copyWith(clock: pref);
     await _ref.read(appDatabaseProvider).setSetting('clock_format', pref.name);
+  }
+
+  Future<void> setTextSize(TextSizePref pref) async {
+    state = state.copyWith(textSize: pref);
+    await _ref.read(appDatabaseProvider).setSetting('text_size', pref.name);
   }
 
   /// Per-device only — persisted locally, excluded from the synced payload.

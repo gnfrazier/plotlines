@@ -143,9 +143,42 @@ class _PlotlinesAppState extends ConsumerState<PlotlinesApp> {
           : PlotTheme.dark(),
       themeMode: settings.themeMode,
       routerConfig: _router,
-      builder: (context, child) => DesktopWindowFrame(
-        child: SidecarGate(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => _TextScale(
+        pref: settings.textSize,
+        child: DesktopWindowFrame(
+          child: SidecarGate(child: child ?? const SizedBox.shrink()),
+        ),
       ),
+    );
+  }
+}
+
+
+/// K5 / WCAG 1.4.4 (issue #230 A2) — the one place text scaling is applied.
+///
+/// Before this, nothing in the client ever touched `textScaler`: the app
+/// took whatever the embedder reported and offered no way to change it.
+/// Under WSLg the Linux embedder reports a 1.0 scale, so 12 logical px is
+/// 12 device px on a 1080p panel and the densest surfaces (the New Route
+/// panel, the coordinate readout) are unreadable for anyone who would
+/// normally scale their desktop.
+///
+/// The combination rule itself is [resolveTextScale], kept pure in
+/// `settings_provider.dart` so it is testable without a window.
+class _TextScale extends StatelessWidget {
+  const _TextScale({required this.pref, required this.child});
+
+  final TextSizePref pref;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final platform = media.textScaler.scale(100) / 100;
+    final combined = resolveTextScale(platform, pref);
+    return MediaQuery(
+      data: media.copyWith(textScaler: TextScaler.linear(combined)),
+      child: child,
     );
   }
 }

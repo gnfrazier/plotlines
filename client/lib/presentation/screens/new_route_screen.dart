@@ -40,14 +40,21 @@ import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
 import '../../state/providers.dart';
+import '../../state/settings_provider.dart';
 import '../../state/trip_authoring_meta_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import '../map/tap_to_pick_map.dart';
 import '../widgets/error_states.dart';
+import '../widgets/plot_date_range_picker.dart';
 import '../widgets/plot_toggle_chip.dart';
 import '../widgets/travel_mode_icons.dart';
 
-enum _StartMethod { blank, theme, import }
+// Issue #230 B6 — `import` (GPX) was a third value here, rendered as a
+// permanently-disabled radio option in the primary path. It is gone rather
+// than greyed: Flow 8 reserves disabled-with-a-reason for a capability that
+// is coming back, and a GPX parser has not been started. It returns as a
+// value here when one exists.
+enum _StartMethod { blank, theme }
 
 class NewRouteScreen extends ConsumerStatefulWidget {
   const NewRouteScreen({super.key, this.initialCenter});
@@ -83,12 +90,16 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   List<double>? _start;
   List<double>? _end;
   final List<List<double>> _via = [];
-  final _targetKmController = TextEditingController();
+  final _targetDistanceController = TextEditingController();
   final _searchController = TextEditingController();
   bool _generating = false;
   bool _searching = false;
   String? _error;
   List<GeocodeResult> _searchResults = const [];
+
+  /// Issue #230 B5 — whether the trip-mode overflow is expanded inline.
+  /// Replaces a `PopupMenuButton` whose menu covered the form beneath it.
+  bool _showAllTripModes = false;
 
   _StartMethod _startMethod = _StartMethod.theme;
   late final _tripNameController =
@@ -108,7 +119,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
 
   @override
   void dispose() {
-    _targetKmController.dispose();
+    _targetDistanceController.dispose();
     _searchController.dispose();
     _tripNameController.dispose();
     _startDateController.dispose();
@@ -116,9 +127,18 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     super.dispose();
   }
 
+  /// Issue #230 C1/C3 — the field said `(km)` on a screen whose extent
+  /// readout said `MI` and whose scale bar said `KM`. It reads the UNITS
+  /// preference now, like every other distance the app shows; the value on
+  /// the wire is metres either way, so nothing downstream changes.
+  DistanceUnit get _distanceUnit => ref.read(settingsProvider).unit;
+
+  static const double _metresPerMile = 1609.344;
+
   double? get _targetM {
-    final km = double.tryParse(_targetKmController.text);
-    return km == null ? null : km * 1000;
+    final typed = double.tryParse(_targetDistanceController.text);
+    if (typed == null) return null;
+    return _distanceUnit == DistanceUnit.miles ? typed * _metresPerMile : typed * 1000;
   }
 
   bool get _canGenerate => canGenerateShape(
@@ -138,7 +158,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
       _start == null &&
       _end == null &&
       _via.isEmpty &&
-      _targetKmController.text.isEmpty &&
+      _targetDistanceController.text.isEmpty &&
       _startMethod == _StartMethod.theme;
 
   /// FR81 / K8 — the single reset: reverts theme, shape, mode, start,
@@ -156,7 +176,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
       _start = null;
       _end = null;
       _via.clear();
-      _targetKmController.clear();
+      _targetDistanceController.clear();
       _startMethod = _StartMethod.theme;
       _error = null;
       _searchResults = const [];
@@ -183,23 +203,46 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
       },
       loading: () =>
           const CapabilityStatus(ready: false, reason: 'ensuring the routing region'),
-      error: (e, _) => CapabilityStatus(ready: false, reason: 'failed:$e'),
+      // Issue #230 B3 — this used to interpolate the exception straight into
+      // the reason slot, which is how a six-line Python traceback reached the
+      // panel at 13 px. The failure to *ensure the region at all* is one
+      // typed cause with one fixed phrase; the exception is logged, not
+      // rendered.
+      error: (e, _) {
+        debugPrint('routing region could not be ensured: $e');
+        return const CapabilityStatus(
+          ready: false,
+          reason: 'failed:the trip area could not be prepared for routing',
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
+    final unit = ref.watch(settingsProvider).unit;
     return Scaffold(
       appBar: AppBar(
         title: const Text('New route'),
         actions: [
-          // FR81 / K8 — always-visible reset for the planning controls.
-          TextButton(
-            onPressed: _controlsAtDefault ? null : _resetControls,
-            child: const Text('Reset'),
+          // Issue #230 B1 — where in trip creation this is.
+          Center(
+            child: Text('NEW TRIP · STEP 3 OF 3',
+                style: PlotTypography.eyebrow(c.textMuted)),
           ),
-          const SizedBox(width: PlotSpacing.s2),
+          const SizedBox(width: PlotSpacing.s4),
+          // FR81 / K8 — always-visible reset for the planning controls.
+          // Issue #230 C3: as a bare `TextButton` on the tan app bar this
+          // read as disabled text whether it was live or not. A bordered
+          // secondary control looks like the control it is, and genuinely
+          // greys out when there is nothing to back out of.
+          PlotButton(
+            label: 'Reset',
+            variant: PlotButtonVariant.secondary,
+            onPressed: _controlsAtDefault ? null : _resetControls,
+          ),
+          const SizedBox(width: PlotSpacing.s4),
         ],
       ),
       body: Row(
@@ -214,8 +257,11 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                 ),
                 Positioned(
                   left: PlotSpacing.s4,
-                  bottom: PlotSpacing.s4,
-                  width: 360,
+                  // Issue #230 C3 — the hint truncated mid-word ("Search a
+                  // town, or click the map t…") in a field narrower than its
+                  // own placeholder. The map has the room.
+                  bottom: PlotSpacing.s4 + 26,
+                  width: 460,
                   child: _LocationSearchBar(
                     controller: _searchController,
                     searching: _searching,
@@ -233,7 +279,11 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
           ),
           VerticalDivider(width: 1, color: c.border),
           SizedBox(
-            width: 360,
+            // Issue #230 C3 — 360 px carried every control in the flow and
+            // wrapped most of its labels to two or three lines while ~1550 px
+            // of mostly-empty map sat beside it. On a 1918 px window the panel
+            // can afford this and the map still has ~1470 px.
+            width: 440,
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(PlotSpacing.s5),
               child: Column(
@@ -253,50 +303,81 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                   // `showTripModePrompt`, `trip_library_screen.dart`), not
                   // the old session-only `tripAuthoringMetaProvider` field:
                   // "modes are editable for the life of the trip."
-                  _SectionLabel('PRIMARY MODES · pick any'),
+                  // Issue #230 B5 — this and the MODE picker further down are
+                  // two different decisions that used the same nine words and
+                  // said nothing about how they differ. Both are now named
+                  // for their scope and carry one line saying what they do.
+                  _SectionLabel('TRIP MODES'),
+                  Text(
+                    'How this trip travels overall. It decides which map layers switch on; '
+                    'it never limits what a passage can be.',
+                    style: PlotTypography.small(c.textSecondary),
+                  ),
+                  const SizedBox(height: PlotSpacing.s2),
                   Builder(builder: (context) {
                     final selected = ref.watch(currentTripProvider).declaredModes;
                     final extra = _primaryModeChoices
                         .where((m) => !_basePrimaryModes.contains(m))
                         .toList();
                     final shownExtra = extra.where(selected.contains);
-                    final addable = extra.where((m) => !selected.contains(m)).toList();
-                    return Wrap(
-                      spacing: PlotSpacing.s2,
-                      runSpacing: PlotSpacing.s2,
+                    final hidden = extra.where((m) => !selected.contains(m)).toList();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        for (final m in _basePrimaryModes)
-                          PlotToggleChip(
-                            label: travelModeLabel(m),
-                            icon: travelModeIcon(m),
-                            selected: selected.contains(m),
-                            onTap: () =>
-                                ref.read(currentTripProvider.notifier).toggleDeclaredMode(m),
-                          ),
-                        for (final m in shownExtra)
-                          PlotToggleChip(
-                            label: travelModeLabel(m),
-                            icon: travelModeIcon(m),
-                            selected: true,
-                            onTap: () =>
-                                ref.read(currentTripProvider.notifier).toggleDeclaredMode(m),
-                          ),
-                        if (addable.isNotEmpty)
-                          PopupMenuButton<String>(
-                            tooltip: 'Add a mode',
-                            onSelected: (m) =>
-                                ref.read(currentTripProvider.notifier).toggleDeclaredMode(m),
-                            itemBuilder: (context) => [
-                              for (final m in addable)
-                                PopupMenuItem(value: m, child: Text(travelModeLabel(m))),
+                        Wrap(
+                          spacing: PlotSpacing.s2,
+                          runSpacing: PlotSpacing.s2,
+                          children: [
+                            for (final m in _basePrimaryModes)
+                              PlotToggleChip(
+                                label: travelModeLabel(m),
+                                icon: travelModeIcon(m),
+                                selected: selected.contains(m),
+                                onTap: () =>
+                                    ref.read(currentTripProvider.notifier).toggleDeclaredMode(m),
+                              ),
+                            for (final m in shownExtra)
+                              PlotToggleChip(
+                                label: travelModeLabel(m),
+                                icon: travelModeIcon(m),
+                                selected: true,
+                                onTap: () =>
+                                    ref.read(currentTripProvider.notifier).toggleDeclaredMode(m),
+                              ),
+                            // Issue #230 B5 — the "+ Add" overflow was a
+                            // `PopupMenuButton`, and in a 440 px panel its
+                            // menu sat *on top of* the days and party-size
+                            // fields beneath it, hiding their labels while
+                            // open. An inline disclosure pushes the form
+                            // down instead of covering it, and needs no
+                            // second interaction model to dismiss.
+                            if (hidden.isNotEmpty && !_showAllTripModes)
+                              PlotToggleChip(
+                                label: 'More modes',
+                                icon: Icons.add,
+                                selected: false,
+                                onTap: () => setState(() => _showAllTripModes = true),
+                              ),
+                          ],
+                        ),
+                        if (_showAllTripModes && hidden.isNotEmpty) ...[
+                          const SizedBox(height: PlotSpacing.s2),
+                          Wrap(
+                            spacing: PlotSpacing.s2,
+                            runSpacing: PlotSpacing.s2,
+                            children: [
+                              for (final m in hidden)
+                                PlotToggleChip(
+                                  label: travelModeLabel(m),
+                                  icon: travelModeIcon(m),
+                                  selected: false,
+                                  onTap: () => ref
+                                      .read(currentTripProvider.notifier)
+                                      .toggleDeclaredMode(m),
+                                ),
                             ],
-                            child: PlotToggleChip(
-                              label: 'Add',
-                              icon: Icons.add,
-                              selected: false,
-                              onTap: null,
-                            ),
                           ),
+                        ],
                       ],
                     );
                   }),
@@ -374,16 +455,25 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     selected: _startMethod == _StartMethod.theme,
                     onTap: () => setState(() => _startMethod = _StartMethod.theme),
                   ),
-                  _StartMethodOption(
-                    title: 'Import a GPX track',
-                    detail: 'Not built yet — bring an existing route, then layer story on top',
-                    selected: _startMethod == _StartMethod.import,
-                    disabled: true,
-                    onTap: () => setState(() => _startMethod = _StartMethod.import),
-                  ),
+                  // Issue #230 B6 — "Import a GPX track · Not built yet" is
+                  // gone from the primary path. Flow 8 reserves disabled-with
+                  // -a-reason for a capability that is *coming back* (routing
+                  // warming, the engine starting); a greyed radio option for
+                  // work that has not started spends the Author's attention
+                  // on something they cannot have. `_StartMethod.import`
+                  // stays in the enum so the option has a place to return to
+                  // when a GPX parser exists.
                   const SizedBox(height: PlotSpacing.s5),
                   if (_startMethod == _StartMethod.theme) ...[
-                    _SectionLabel('MODE'),
+                    // Issue #230 B5 — named for its scope: this is the mode
+                    // *this first route* is solved for, not the trip's.
+                    _SectionLabel('MODE FOR THIS ROUTE'),
+                    Text(
+                      'Which mode this first route is solved for. Later passages pick their '
+                      'own.',
+                      style: PlotTypography.small(c.textSecondary),
+                    ),
+                    const SizedBox(height: PlotSpacing.s2),
                     Wrap(
                       spacing: PlotSpacing.s2,
                       runSpacing: PlotSpacing.s2,
@@ -444,13 +534,22 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     ),
                     if (_shape == 'loop' || _shape == 'out_and_back') ...[
                       const SizedBox(height: PlotSpacing.s3),
+                      // Issue #230 C3 — the requirement was a text suffix
+                      // inside the floating label ("Target distance (km) —
+                      // required"), which is non-standard and easy to miss.
+                      // The label names the field, the unit is a suffix on
+                      // the field itself, and whether it is required is a
+                      // helper line that says what happens without it.
                       TextField(
-                        controller: _targetKmController,
+                        controller: _targetDistanceController,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
-                          labelText: _shape == 'loop'
-                              ? 'Target distance (km) — required'
-                              : 'Target distance (km) — or tap a turnaround',
+                          labelText: 'Target distance',
+                          suffixText: unit == DistanceUnit.miles ? 'mi' : 'km',
+                          helperText: _shape == 'loop'
+                              ? 'Required — a loop has no destination to aim at.'
+                              : 'Optional — or tap a turnaround on the map.',
+                          helperMaxLines: 2,
                           border: const OutlineInputBorder(),
                           isDense: true,
                         ),
@@ -459,8 +558,12 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: PlotSpacing.s2),
                         child: Text(
+                          // FR8 — the target distance is honoured as an
+                          // envelope, not a hard constraint. The requirement
+                          // id belongs in this comment, not in the sentence
+                          // the Author reads (issue #230 B4).
                           _shape == 'loop'
-                              ? 'Honoured as an envelope (FR8) — the closest achievable loop, not exact.'
+                              ? 'Honoured as an envelope — the closest achievable loop, not exact.'
                               : 'The return leg re-solves back to start; it retraces the outbound '
                                   'road except where a one-way forces a different way back.',
                           style: PlotTypography.small(c.textMuted),
@@ -499,11 +602,28 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                       const SizedBox(height: PlotSpacing.s3),
                       NoDataBanner(onChooseAnotherArea: () => Navigator.pop(context)),
                     ],
+                    // Issue #230 B3 — this used to sit directly under the
+                    // START / END / VIA readout with no separation, so a
+                    // surface-level routing failure read as a validation
+                    // error on that field. It is its own labelled block,
+                    // immediately above the control it explains.
                     if (!_routingCapability.ready) ...[
-                      const SizedBox(height: PlotSpacing.s3),
+                      const SizedBox(height: PlotSpacing.s5),
+                      _SectionLabel('ROUTING'),
                       CapabilityWarmingNotice(
                         capabilityLabel: 'Routing',
                         status: _routingCapability,
+                        // Flow 8 §02's third question. These are true of
+                        // every routing outage: the bbox, the trip, the
+                        // layers and the curation are all local work that a
+                        // routing region failure does not touch.
+                        whatStillWorks: _routingCapability.failed
+                            ? const [
+                                'Naming the trip, its dates, its party and its modes',
+                                'Everything already saved on this device',
+                                'Starting from a blank canvas and placing nodes yourself',
+                              ]
+                            : const [],
                         // issue #229 — re-runs `ensureRegion`, which re-POSTs
                         // `/regions`; the sidecar resets a settled-failed
                         // region and re-queues the build. No bbox redraw.
@@ -511,6 +631,21 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                       ),
                     ],
                     const SizedBox(height: PlotSpacing.s5),
+                    // Issue #230 C1/B3 — a disabled primary action says why.
+                    if (!_canGenerate && _routingCapability.ready) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline, size: 15, color: c.textMuted),
+                          const SizedBox(width: PlotSpacing.s2),
+                          Expanded(
+                            child: Text(_whyCannotGenerate(),
+                                style: PlotTypography.small(c.textSecondary)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: PlotSpacing.s3),
+                    ],
                     PlotButton(
                       label: _generating ? 'Generating…' : 'Generate route',
                       expand: true,
@@ -533,13 +668,27 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     );
   }
 
+  // A9 — one or two via-nodes are supported. The requirement id stays in
+  // this comment; issue #230 B4 took "(A9)" and "(FR8)" out of the strings,
+  // where they read as error codes to anyone outside the project.
   String _tapHint() => switch (_shape) {
-        'loop' => 'Tap the map to place start, then up to two via-nodes (A9).',
+        'loop' => 'Tap the map to place start, then up to two via-nodes.',
         'out_and_back' => 'Tap to place start, then optionally a turnaround '
             '(or leave it to the target distance above), then up to two via-nodes.',
         _ => 'Tap the map to place points. First tap sets start, second sets '
-            'end; further taps add via-nodes (A9 — 1–2 supported).',
+            'end; further taps add up to two via-nodes.',
       };
+
+  /// Which requirement of the chosen shape is not met yet (issue #230 C1's
+  /// "disabled and says so", applied to the screen's primary action). Only
+  /// reached while [_canGenerate] is false.
+  String _whyCannotGenerate() {
+    if (_start == null) return 'Tap the map or search a town to place a start point.';
+    if (_shape == 'point_to_point' && _end == null) {
+      return 'Point-to-point needs an end point — tap the map again.';
+    }
+    return 'Set a target distance, or tap a turnaround on the map.';
+  }
 
   void _handleTap(List<double> point) {
     if (_start == null) {
@@ -571,11 +720,15 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     final initialStart = DateTime.tryParse(_startDateController.text) ?? now;
     final initialEnd = DateTime.tryParse(_endDateController.text) ??
         initialStart.add(const Duration(days: 3));
-    final range = await showDateRangePicker(
-      context: context,
+    // Issue #230 C2 — Material's `showDateRangePicker` is a full-screen
+    // mobile picker: one scrolling column of months in a 1918 px window.
+    // `showPlotDateRangePicker` is the desktop equivalent (two months side
+    // by side, a continuous range band, today distinct from the selection).
+    final range = await showPlotDateRangePicker(
+      context,
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 3),
-      initialDateRange: DateTimeRange(
+      initialRange: DateTimeRange(
         start: initialStart,
         end: initialEnd.isBefore(initialStart) ? initialStart : initialEnd,
       ),
@@ -666,12 +819,10 @@ class _StartMethodOption extends StatelessWidget {
     required this.detail,
     required this.selected,
     required this.onTap,
-    this.disabled = false,
   });
   final String title;
   final String detail;
   final bool selected;
-  final bool disabled;
   final VoidCallback onTap;
 
   @override
@@ -680,21 +831,20 @@ class _StartMethodOption extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
       child: InkWell(
-        onTap: disabled ? null : onTap,
+        onTap: onTap,
         borderRadius: PlotRadii.controlShape,
         child: Container(
           padding: const EdgeInsets.all(PlotSpacing.s3),
           decoration: BoxDecoration(
             border: Border.all(color: selected ? c.primary : c.border, width: selected ? 1.5 : 1),
             borderRadius: PlotRadii.controlShape,
-            color: disabled ? c.surfaceSunk : null,
           ),
           child: Row(
             children: [
               Icon(
                 selected ? Icons.radio_button_checked : Icons.radio_button_off,
                 size: 18,
-                color: disabled ? c.textMuted : (selected ? c.primary : c.textSecondary),
+                color: selected ? c.primary : c.textSecondary,
               ),
               const SizedBox(width: PlotSpacing.s3),
               Expanded(
@@ -702,9 +852,9 @@ class _StartMethodOption extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title,
-                        style: PlotTypography.body(disabled ? c.textMuted : c.textPrimary)
+                        style: PlotTypography.body(c.textPrimary)
                             .copyWith(fontWeight: FontWeight.w600)),
-                    Text(detail, style: PlotTypography.small(c.textMuted)),
+                    Text(detail, style: PlotTypography.small(c.textSecondary)),
                   ],
                 ),
               ),
@@ -724,7 +874,7 @@ class _SectionLabel extends StatelessWidget {
     final c = PlotColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
-      child: Text(text, style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+      child: Text(text, style: PlotTypography.eyebrow(c.textMuted)),
     );
   }
 }
@@ -740,23 +890,43 @@ class _PointList extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     String fmt(List<double> p) => '${p[1].toStringAsFixed(4)}, ${p[0].toStringAsFixed(4)}';
-    return PlotCard(
-      sunk: true,
-      padding: const EdgeInsets.all(PlotSpacing.s3),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Start: ${start == null ? '—' : fmt(start!)}', style: PlotTypography.data(c.textPrimary)),
-          Text('End/turnaround: ${end == null ? '—' : fmt(end!)}', style: PlotTypography.data(c.textPrimary)),
-          for (var i = 0; i < via.length; i++)
-            Text('Via ${i + 1}: ${fmt(via[i])}', style: PlotTypography.data(c.textPrimary)),
-          if (start != null)
-            Align(
-              alignment: Alignment.centerRight,
-              child: PlotButton(label: 'Clear points', variant: PlotButtonVariant.ghost, onPressed: onClear),
-            ),
-        ],
-      ),
+    // Issue #230 C3 — this was mono text in a filled sunk box, which is
+    // exactly the app's disabled-input treatment: a readout that looked like
+    // a field the Author had been locked out of. It is a labelled list now.
+    // The coordinates stay mono (they are data), the labels do not, and an
+    // unset point reads as "not placed yet" rather than an em dash.
+    Widget line(String label, List<double>? point) => Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              SizedBox(
+                width: 116,
+                child: Text(label, style: PlotTypography.small(c.textMuted)),
+              ),
+              Expanded(
+                child: point == null
+                    ? Text('Not placed yet', style: PlotTypography.small(c.textMuted))
+                    : Text(fmt(point), style: PlotTypography.data(c.textPrimary)),
+              ),
+            ],
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        line('Start', start),
+        line('End / turnaround', end),
+        for (var i = 0; i < via.length; i++) line('Via ${i + 1}', via[i]),
+        if (start != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: PlotButton(
+                label: 'Clear points', variant: PlotButtonVariant.ghost, onPressed: onClear),
+          ),
+      ],
     );
   }
 }

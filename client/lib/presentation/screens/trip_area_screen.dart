@@ -139,8 +139,29 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
+        // Issue #230 C1 — one dismiss idiom across the flow. This screen
+        // used a `×` while New Route, one step later in the same flow, used
+        // a `←`; both are a step back through trip creation, so both are a
+        // back arrow, and both name what they do.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: widget.isCreation ? 'Back to the location prompt' : 'Back to the trip',
+          onPressed: () => context.pop(),
+        ),
         title: Text(widget.isCreation ? 'New trip · trip extent' : 'Trip extent'),
+        actions: [
+          // Issue #230 B1 — the mockups carry a step indicator on every
+          // multi-step flow (`NEW TRIP · STEP 2 OF 2`); the shipped screen
+          // gave no sense of where in trip creation the Author was.
+          if (widget.isCreation)
+            Padding(
+              padding: const EdgeInsets.only(right: PlotSpacing.s4),
+              child: Center(
+                child: Text('NEW TRIP · STEP 2 OF 3',
+                    style: PlotTypography.eyebrow(c.textMuted)),
+              ),
+            ),
+        ],
       ),
       body: Row(
         children: [
@@ -165,9 +186,7 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('TRIP EXTENT',
-                            style: PlotTypography.data(c.textMuted)
-                                .copyWith(fontWeight: FontWeight.w700)),
+                        Text('TRIP EXTENT', style: PlotTypography.eyebrow(c.textMuted)),
                         const SizedBox(height: PlotSpacing.s2),
                         Text('Draw the bounding box', style: PlotTypography.title(c.textPrimary)),
                         const SizedBox(height: PlotSpacing.s2),
@@ -178,29 +197,26 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
                           style: PlotTypography.body(c.textSecondary),
                         ),
                         const SizedBox(height: PlotSpacing.s4),
+                        // Issue #230 C1 — this was two near-identically
+                        // styled tip cards, the second re-reassuring what the
+                        // first already said ("generous beats tight; drawing
+                        // it does not commit you" / "you are not locked in").
+                        // One block, both facts, before the first control.
                         PlotCard(
                           sunk: true,
                           child: Text(
                             'This rectangle is the only area Plotlines looks at — for places, '
-                            'for maps, and for terrain. Generous beats tight; drawing it does '
-                            'not commit you to riding all of it.',
-                            style: PlotTypography.small(c.textSecondary),
+                            'for maps, and for terrain. Generous beats tight, and you are not '
+                            'locked in: drag it wider later and only the new strip gets '
+                            'fetched; pull it in and you are shown any anchors that would fall '
+                            'outside before anything changes.',
+                            style: PlotTypography.body(c.textSecondary),
                           ),
                         ),
-                        const SizedBox(height: PlotSpacing.s5),
                         if (bbox != null) ...[
-                          _ExtentReadout(bbox: bbox, unit: unit),
                           const SizedBox(height: PlotSpacing.s5),
+                          _ExtentReadout(bbox: bbox, unit: unit),
                         ],
-                        PlotCard(
-                          sunk: true,
-                          child: Text(
-                            'You are not locked in. Drag it wider later and only the new strip '
-                            'gets fetched; pull it in and you are shown any anchors that would '
-                            'fall outside before anything changes.',
-                            style: PlotTypography.small(c.textSecondary),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -208,22 +224,47 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
                 Container(
                   padding: const EdgeInsets.all(PlotSpacing.s5),
                   decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (bbox != null) ...[
-                        PlotButton(
-                          label: 'Redraw',
-                          variant: PlotButtonVariant.secondary,
-                          onPressed: () => setState(() => _drawing = true),
+                      // Issue #230 C1 — Flow 8's pattern is "disabled and
+                      // says so". "Use this extent" was a light-tan-on-tan
+                      // control with nothing stating why it would not act.
+                      if (bbox == null) ...[
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.crop_free, size: 15, color: c.textMuted),
+                            const SizedBox(width: PlotSpacing.s2),
+                            Expanded(
+                              child: Text(
+                                'Drag a rectangle on the map to set the extent — nothing to '
+                                'use yet.',
+                                style: PlotTypography.small(c.textSecondary),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: PlotSpacing.s3),
+                        const SizedBox(height: PlotSpacing.s3),
                       ],
-                      Expanded(
-                        child: PlotButton(
-                          label: 'Use this extent',
-                          expand: true,
-                          onPressed: bbox == null ? null : _confirm,
-                        ),
+                      Row(
+                        children: [
+                          if (bbox != null) ...[
+                            PlotButton(
+                              label: 'Redraw',
+                              variant: PlotButtonVariant.secondary,
+                              onPressed: () => setState(() => _drawing = true),
+                            ),
+                            const SizedBox(width: PlotSpacing.s3),
+                          ],
+                          Expanded(
+                            child: PlotButton(
+                              label: 'Use this extent',
+                              expand: true,
+                              onPressed: bbox == null ? null : _confirm,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -256,20 +297,48 @@ class _ExtentReadout extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(label, style: PlotTypography.data(c.textMuted)),
-              Text(value, style: PlotTypography.data(c.textPrimary)),
+              Text(value, style: PlotTypography.data(c.textSecondary)),
             ],
           ),
         );
 
+    // Issue #230 C1 — the area is the number a human decides on; four
+    // 4-decimal-place coordinates set at the same size and weight as their
+    // own labels buried it. Area leads, at a size that reads across the
+    // room; the raw decimal degrees stay (they are the real declared
+    // extent) but sit under a collapsed "exact bounds" disclosure, in the
+    // secondary tone, where a developer or a careful Author can open them.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        row('NORTH', bbox.maxLat.toStringAsFixed(4)),
-        row('SOUTH', bbox.minLat.toStringAsFixed(4)),
-        row('WEST', bbox.minLon.toStringAsFixed(4)),
-        row('EAST', bbox.maxLon.toStringAsFixed(4)),
-        Divider(color: c.border, height: PlotSpacing.s4),
-        row('AREA', '${w.toStringAsFixed(1)} × ${h.toStringAsFixed(1)} $suffix'),
+        Text('AREA', style: PlotTypography.eyebrow(c.textMuted)),
+        const SizedBox(height: 2),
+        Text(
+          '${w.toStringAsFixed(1)} × ${h.toStringAsFixed(1)} $suffix',
+          style: PlotTypography.h2(c.textPrimary).copyWith(fontSize: 24, height: 1.15),
+        ),
+        const SizedBox(height: PlotSpacing.s2),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: c.border),
+            borderRadius: PlotRadii.controlShape,
+          ),
+          child: ExpansionTile(
+            dense: true,
+            tilePadding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3),
+            childrenPadding: const EdgeInsets.fromLTRB(
+                PlotSpacing.s3, 0, PlotSpacing.s3, PlotSpacing.s3),
+            shape: const Border(),
+            collapsedShape: const Border(),
+            title: Text('Exact bounds', style: PlotTypography.small(c.textSecondary)),
+            children: [
+              row('NORTH', bbox.maxLat.toStringAsFixed(4)),
+              row('SOUTH', bbox.minLat.toStringAsFixed(4)),
+              row('WEST', bbox.minLon.toStringAsFixed(4)),
+              row('EAST', bbox.maxLon.toStringAsFixed(4)),
+            ],
+          ),
+        ),
       ],
     );
   }

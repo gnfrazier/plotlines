@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'sidecar_process.dart';
 import 'sidecar_registry.dart';
+import '../domain/reason_phrase.dart' show looksLikeRawDiagnostic;
 
 /// M12 — spawn, health-poll to readiness, restart-once, graceful stop, orphan
 /// sweep, paired-version refusal (ARCH §7.3, §12.1; PRD M12).
@@ -118,6 +119,11 @@ class CapabilityStatus {
     // finished user-facing sentence for the case that matters (Overpass
     // unreachable, issue #229), never a raw exception repr.
     if (r.startsWith('failed:')) r = r.substring('failed:'.length);
+    // Issue #230 B3 — never put a raw exception on screen. The sidecar's own
+    // settled-failure reasons are finished sentences and pass through; a
+    // traceback, a host:port, an errno or an exception repr is replaced by a
+    // fixed phrase and left in the log where it belongs.
+    if (looksLikeRawDiagnostic(r)) r = 'something went wrong preparing it';
     if (etaS == null) return '$capabilityLabel unavailable — $r';
     final mins = (etaS! / 60).ceil();
     final wait = mins <= 1 ? 'about a minute' : 'about $mins minutes';
