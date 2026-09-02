@@ -501,7 +501,14 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     ],
                     if (!_routingCapability.ready) ...[
                       const SizedBox(height: PlotSpacing.s3),
-                      CapabilityWarmingNotice(capabilityLabel: 'Routing', status: _routingCapability),
+                      CapabilityWarmingNotice(
+                        capabilityLabel: 'Routing',
+                        status: _routingCapability,
+                        // issue #229 — re-runs `ensureRegion`, which re-POSTs
+                        // `/regions`; the sidecar resets a settled-failed
+                        // region and re-queues the build. No bbox redraw.
+                        onRetry: () => ref.invalidate(tripRegionKeyProvider),
+                      ),
                     ],
                     const SizedBox(height: PlotSpacing.s5),
                     PlotButton(

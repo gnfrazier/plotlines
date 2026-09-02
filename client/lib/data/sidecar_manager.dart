@@ -111,7 +111,13 @@ class CapabilityStatus {
   /// about 3 minutes").
   String describe(String capabilityLabel) {
     if (ready) return '$capabilityLabel ready';
-    final r = reason ?? 'not ready';
+    var r = reason ?? 'not ready';
+    // The sidecar tags a settled failure `failed:<detail>` (CapabilityState
+    // .to_dict). `failed` is derived from `progress == null` now (issue
+    // #154), so the prefix is display noise — and the detail behind it is a
+    // finished user-facing sentence for the case that matters (Overpass
+    // unreachable, issue #229), never a raw exception repr.
+    if (r.startsWith('failed:')) r = r.substring('failed:'.length);
     if (etaS == null) return '$capabilityLabel unavailable — $r';
     final mins = (etaS! / 60).ceil();
     final wait = mins <= 1 ? 'about a minute' : 'about $mins minutes';

@@ -228,6 +228,12 @@ class RegionState:
             path = region_lib.ensure_graph(region, cache_dir)
             self.graph = load_graphml(path)
             self.graph_state.succeed("graph ready")
+        except region_lib.OverpassUnavailable as exc:
+            # Already a finished, user-facing sentence (issue #229) — surface it
+            # verbatim, without the `type(exc).__name__` prefix the generic
+            # branch adds. The client renders this reason directly.
+            self.graph_state.fail(str(exc))
+            return
         except Exception as exc:  # noqa: BLE001 — surface honestly, never hang (A6)
             self.graph_state.fail(f"{type(exc).__name__}: {exc}")
             return  # no graph, no point extracting tiles for this region
@@ -302,11 +308,25 @@ class Readiness:
             if region is None:
                 region = RegionState(key, bbox, network_type)
                 self.regions[key] = region
-                self._build_pool.submit(
-                    region.build,
-                    self.cache_dir, self.tiles_upstream, self.allow_unmirrored,
-                )
+                self._queue_build(region)
+            elif region.graph_state.status == "failed":
+                # A settled failure (typically Overpass unreachable, issue
+                # #229) is retryable: a fresh `POST /regions` for the same
+                # bbox resets the capability and re-queues the build rather
+                # than returning the stale failure for the rest of the
+                # session. This is what the client's "Try again" affordance
+                # (FR121) drives. A build already re-queued reads as
+                # "pending"/"loading", not "failed", so a rapid double call
+                # won't stack two builds.
+                region.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
+                self._queue_build(region)
         return key
+
+    def _queue_build(self, region: "RegionState") -> None:
+        self._build_pool.submit(
+            region.build,
+            self.cache_dir, self.tiles_upstream, self.allow_unmirrored,
+        )
 
     def region(self, key: str) -> RegionState | None:
         return self.regions.get(key)
