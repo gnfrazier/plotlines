@@ -21,6 +21,7 @@ import '../../domain/cluster_proposal.dart';
 import '../../domain/home_region.dart';
 import '../../domain/trip_bbox.dart';
 import '../../state/providers.dart';
+import 'map_attribution.dart';
 import 'no_basemap_notice.dart';
 import 'tap_to_pick_map.dart' show MapTileAssets;
 import 'vector_tile_provider.dart';
@@ -110,15 +111,15 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
               onMapReady: () => setState(() => _mapReady = true),
             ),
             children: [
+              // Issue #230 C1 — ground under the tiles, not a fallback.
+              MapGraticule(color: c.border),
               if (tilesAvailable)
                 VectorTileLayer(
                   theme: vectorTheme,
                   tileProviders: TileProviders({'protomaps': provider}),
-                  maximumZoom: 15,
+                  maximumZoom: basemapMaximumZoom.toDouble(),
                   cacheFolder: basemapCacheFolderCallback(tilesArchiveId),
-                )
-              else
-                MapGraticule(color: c.border),
+                ),
               if (widget.bbox != null)
                 PolygonLayer(polygons: [
                   Polygon(
@@ -203,13 +204,19 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
           if (!tilesAvailable || outOfCoverage)
             Positioned(
               left: PlotSpacing.s3,
-              bottom: PlotSpacing.s3,
+              bottom: PlotSpacing.s3 + 26,
               child: NoBasemapNotice(
                 loading: snapshot.connectionState != ConnectionState.done,
                 outOfCoverage: tilesAvailable && outOfCoverage,
                 styleFailed: styleFailed,
               ),
             ),
+          // K10/FR95 (issue #230 C1) — every map surface carries the credit.
+          const Positioned(
+            left: PlotSpacing.s3,
+            bottom: PlotSpacing.s3,
+            child: MapAttribution(),
+          ),
         ]);
       },
     );

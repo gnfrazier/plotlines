@@ -65,8 +65,7 @@ class ConflictBanner extends StatelessWidget {
           ],
           if (relaxations.isNotEmpty) ...[
             const SizedBox(height: PlotSpacing.s3),
-            Text('NEAREST RELAXATIONS',
-                style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+            Text('NEAREST RELAXATIONS', style: PlotTypography.eyebrow(c.textMuted)),
             const SizedBox(height: PlotSpacing.s2),
             for (final r in relaxations)
               Padding(
@@ -203,6 +202,7 @@ class CapabilityWarmingNotice extends StatelessWidget {
     required this.capabilityLabel,
     required this.status,
     this.onRetry,
+    this.whatStillWorks = const [],
   });
 
   final String capabilityLabel;
@@ -214,33 +214,84 @@ class CapabilityWarmingNotice extends StatelessWidget {
   /// capability has nothing to retry.
   final VoidCallback? onRetry;
 
+  /// What is still usable while this capability is not — Flow 8 §02's third
+  /// question ("what still works"), which a settled failure must answer and
+  /// a wait does not need to. Already-resolved lines; nothing is composed
+  /// here (FR145).
+  final List<String> whatStillWorks;
+
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final failed = status.failed;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(failed ? Icons.error_outline : Icons.hourglass_top,
-            size: 15, color: failed ? c.danger : c.textMuted),
-        const SizedBox(width: PlotSpacing.s2),
-        Flexible(
-          child: Text(status.describe(capabilityLabel), style: PlotTypography.small(c.textSecondary)),
-        ),
-        if (failed && onRetry != null) ...[
+    // A capability still warming is the quiet one-line notice it always was:
+    // nothing has gone wrong and nothing needs deciding (FR121).
+    if (!failed) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.hourglass_top, size: 15, color: c.textMuted),
           const SizedBox(width: PlotSpacing.s2),
-          TextButton(
-            onPressed: onRetry,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s2),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              foregroundColor: c.primary,
-            ),
-            child: Text('Try again', style: PlotTypography.small(c.primary)),
+          Flexible(
+            child: Text(status.describe(capabilityLabel),
+                style: PlotTypography.small(c.textSecondary)),
           ),
         ],
-      ],
+      );
+    }
+    // A *settled failure* is a failure, and Flow 8 §02 gives every failure
+    // the same shape whatever failed: what, why, what still works, what to
+    // do (issue #230 B3). It shipped as one line of whatever string arrived
+    // — in the routing case, six lines of a Python traceback — with no
+    // statement of what still worked and, until #229, nothing to do.
+    return PlotCard(
+      padding: const EdgeInsets.all(PlotSpacing.s4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.error_outline, size: 18, color: c.danger),
+              const SizedBox(width: PlotSpacing.s2),
+              Expanded(
+                child: Text('$capabilityLabel is unavailable',
+                    style: PlotTypography.title(c.textPrimary).copyWith(fontSize: 15)),
+              ),
+            ],
+          ),
+          const SizedBox(height: PlotSpacing.s2),
+          Text(status.describe(capabilityLabel), style: PlotTypography.body(c.textSecondary)),
+          if (whatStillWorks.isNotEmpty) ...[
+            const SizedBox(height: PlotSpacing.s3),
+            Text('WHAT STILL WORKS', style: PlotTypography.eyebrow(c.textMuted)),
+            const SizedBox(height: PlotSpacing.s1),
+            for (final line in whatStillWorks)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.check, size: 14, color: c.textMuted),
+                    const SizedBox(width: PlotSpacing.s2),
+                    Expanded(
+                        child: Text(line, style: PlotTypography.small(c.textSecondary))),
+                  ],
+                ),
+              ),
+          ],
+          if (onRetry != null) ...[
+            const SizedBox(height: PlotSpacing.s3),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: PlotButton(
+                label: 'Try again',
+                variant: PlotButtonVariant.secondary,
+                onPressed: onRetry,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

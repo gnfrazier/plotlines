@@ -28,6 +28,8 @@ import 'package:vector_map_tiles/vector_map_tiles.dart';
 import '../../domain/home_region.dart' hide LatLon;
 import '../../domain/trip_bbox.dart';
 import '../../state/providers.dart';
+import '../../state/settings_provider.dart';
+import 'map_attribution.dart';
 import 'no_basemap_notice.dart';
 import 'tap_to_pick_map.dart' show MapTileAssets;
 import 'vector_tile_provider.dart';
@@ -201,6 +203,9 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
     final sidecar = ref.watch(sidecarManagerProvider);
     final baseUrl = sidecar.baseUrl;
     final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
+    // Issue #230 C1 — the scale bar reads the same UNITS preference the
+    // extent readout beside it does, rather than always saying KM.
+    final unit = ref.watch(settingsProvider).unit;
 
     return FutureBuilder(
       future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
@@ -247,15 +252,19 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
                   onMapReady: () => setState(() => _mapReady = true),
                 ),
                 children: [
+                  // Issue #230 C1 — the graticule is the map's *ground*, not
+                  // a tiles-missing fallback. Drawn under the tiles always,
+                  // it shows through wherever coverage stops, so a bbox-sized
+                  // island of tiles reads as the edge of the extent rather
+                  // than as a failed render on a flat grey canvas.
+                  MapGraticule(color: c.border),
                   if (tilesAvailable)
                     VectorTileLayer(
                       theme: vectorTheme,
                       tileProviders: TileProviders({'protomaps': provider}),
-                      maximumZoom: 15,
+                      maximumZoom: basemapMaximumZoom.toDouble(),
                       cacheFolder: basemapCacheFolderCallback(tilesArchiveId),
-                    )
-                  else
-                    MapGraticule(color: c.border),
+                    ),
                   if (backdrop != null)
                     PolygonLayer(polygons: [
                       Polygon(
@@ -271,7 +280,7 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
             if (!tilesAvailable || outOfCoverage)
               Positioned(
                 left: PlotSpacing.s3,
-                bottom: PlotSpacing.s3,
+                bottom: PlotSpacing.s3 + 26,
                 child: NoBasemapNotice(
                   loading: snapshot.connectionState != ConnectionState.done,
                   outOfCoverage: tilesAvailable && outOfCoverage,
@@ -282,7 +291,16 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
               for (final corner in _Corner.values) _cornerHandle(context, corner, displayBbox),
             if (_mapReady)
               Positioned(
-                  right: PlotSpacing.s3, bottom: PlotSpacing.s3, child: _ScaleBar(_mapController)),
+                right: PlotSpacing.s3,
+                bottom: PlotSpacing.s3,
+                child: _ScaleBar(_mapController, unit: unit),
+              ),
+            // K10/FR95 (issue #230 C1) — ODbL credit on the map itself.
+            const Positioned(
+              left: PlotSpacing.s3,
+              bottom: PlotSpacing.s3,
+              child: MapAttribution(),
+            ),
             Positioned(
               right: PlotSpacing.s3,
               top: PlotSpacing.s3,
@@ -303,7 +321,11 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
       _Corner.sw => [box.minLon, box.minLat],
     };
     final offset = _latLonToOffset(point);
-    const size = 18.0;
+    // WCAG 2.2 AA 2.5.8 sets a 24×24 floor for a pointer target; these were
+    // 14–18 px squares (issue #230 C1). The visible mark stays small so it
+    // does not swallow the corner it marks — the hit area is what grows.
+    const size = 24.0;
+    const markSize = 14.0;
     return Positioned(
       left: offset.dx - size / 2,
       top: offset.dy - size / 2,
@@ -314,13 +336,19 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
         onPointerCancel: _onCornerPointerUp,
         child: MouseRegion(
           cursor: SystemMouseCursors.resizeUpLeftDownRight,
-          child: Container(
+          child: SizedBox(
             width: size,
             height: size,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: c.primary, width: 2),
-              shape: BoxShape.rectangle,
+            child: Center(
+              child: Container(
+                width: markSize,
+                height: markSize,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: c.primary, width: 2),
+                  shape: BoxShape.rectangle,
+                ),
+              ),
             ),
           ),
         ),
@@ -334,13 +362,23 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
 /// distance near a target pixel width, then draws the bar at the pixel
 /// width that distance actually occupies at the current zoom/latitude.
 class _ScaleBar extends StatelessWidget {
-  const _ScaleBar(this.controller);
+  const _ScaleBar(this.controller, {required this.unit});
   final MapController controller;
+
+  /// Issue #230 C1 — the scale bar read `20 KM` on a screen whose panel read
+  /// `36.0 × 39.2 MI`, because it never consulted the UNITS preference K5
+  /// already stores. One screen, one system of units.
+  final DistanceUnit unit;
 
   static const _niceKm = [
     0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000,
   ];
+  static const _niceMiles = [
+    0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000,
+  ];
   static const _targetPx = 90.0;
+  static const _kmPerMile = 1.609344;
+  static const _feetPerMile = 5280.0;
 
   @override
   Widget build(BuildContext context) {
@@ -349,12 +387,18 @@ class _ScaleBar extends StatelessWidget {
     // Web Mercator meters-per-pixel at this zoom/latitude.
     final metersPerPixel =
         156543.03392 * math.cos(camera.center.latitudeInRad) / math.pow(2, camera.zoom);
-    final targetKm = metersPerPixel * _targetPx / 1000;
-    final niceKm = _niceKm.reduce(
-      (a, b) => (a - targetKm).abs() < (b - targetKm).abs() ? a : b,
+    final miles = unit == DistanceUnit.miles;
+    final unitsPerPixel = miles ? metersPerPixel / 1000 / _kmPerMile : metersPerPixel / 1000;
+    final target = unitsPerPixel * _targetPx;
+    final nice = (miles ? _niceMiles : _niceKm).reduce(
+      (a, b) => (a - target).abs() < (b - target).abs() ? a : b,
     );
-    final widthPx = niceKm * 1000 / metersPerPixel;
-    final label = niceKm >= 1 ? '${niceKm.toStringAsFixed(niceKm >= 10 ? 0 : 1)} KM' : '${(niceKm * 1000).round()} M';
+    final widthPx = nice / unitsPerPixel;
+    final label = nice >= 1
+        ? '${nice.toStringAsFixed(nice >= 10 ? 0 : 1)} ${miles ? 'MI' : 'KM'}'
+        : miles
+            ? '${(nice * _feetPerMile).round()} FT'
+            : '${(nice * 1000).round()} M';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -57,7 +57,7 @@ Widget _harness(AppDatabase db, {GoRouter? router}) {
 /// location prompt; every scenario below that reaches the location prompt
 /// has to clear it first.
 Future<void> _declareModes(WidgetTester tester, {List<String> labels = const ['Ride']}) async {
-  expect(find.text('How are we travelling?'), findsOneWidget);
+  expect(find.text('How will you travel?'), findsOneWidget);
   for (final label in labels) {
     await tester.tap(find.text(label));
     await tester.pump();
@@ -75,6 +75,46 @@ void main() {
     expect(find.text('No trips yet'), findsOneWidget);
     expect(find.byType(TapToPickMap), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('the empty library names the next action instead of explaining itself',
+      (tester) async {
+    // FR142(c) / K12 and Flow 8 §04 (issue #230 B2). The shipped copy
+    // explained why the map behind it is not blank — a fact about how
+    // Plotlines is built, not a thing to do — and offered nothing to press.
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    await tester.pumpWidget(_harness(db));
+    await _settleMap(tester);
+
+    // The action is there, exactly once: the FAB stands down while the
+    // empty state carries its own button, rather than putting two controls
+    // with the same label on the same screen.
+    expect(find.text('New trip'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.textContaining('so the map is never'), findsOneWidget);
+    expect(find.textContaining('start a new trip to draw its own area'), findsNothing);
+
+    // And it starts the real flow.
+    await tester.tap(find.text('New trip'));
+    await tester.pump();
+    expect(find.text('How will you travel?'), findsOneWidget);
+  });
+
+  testWidgets('the New trip control returns once there is a library to sit over',
+      (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    await db.saveTrip(
+      id: 'existing',
+      title: 'Blue Ridge, late September',
+      modes: const ['cycling'],
+      declaredModes: const ['cycling'],
+      payloadJson: '{}',
+      updatedAt: DateTime.utc(2026, 8, 27),
+    );
+    await tester.pumpWidget(_harness(db));
+    await _settleMap(tester);
+
+    expect(find.byType(FloatingActionButton), findsOneWidget);
   });
 
   testWidgets('New trip declares travel modes, then prompts for a location, prefilled with the last-used value',
@@ -102,7 +142,7 @@ void main() {
     await tester.tap(find.text('New trip'));
     await tester.pump();
 
-    expect(find.text('How are we travelling?'), findsOneWidget);
+    expect(find.text('How will you travel?'), findsOneWidget);
     var continueButton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Continue'));
     expect(continueButton.onPressed, isNull);
 
@@ -136,7 +176,7 @@ void main() {
 
     await tester.tap(find.text('New trip'));
     await tester.pump();
-    expect(find.text('How are we travelling?'), findsOneWidget);
+    expect(find.text('How will you travel?'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pump();
 

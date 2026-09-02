@@ -159,3 +159,49 @@ List<ReasonCode> reasonCodesWronglyInsideM13() => [
       for (final code in reasonCodesOutsideM13)
         if (m13States.contains(code.name) || reasonPhrases[code]?.reasonClass == ReasonClass.failure) code,
     ];
+
+/// Issue #230 B3 — the guard that keeps a raw exception out of user copy.
+///
+/// FR145's rule is that a cause is a [ReasonCode] and its phrase comes from
+/// [reasonPhrases]: nothing composes prose at runtime. One place could not
+/// honour that, because the string does not originate here — a capability's
+/// `reason` arrives over `/health` from the sidecar, and a client-side
+/// failure to even reach it used to be interpolated straight into the same
+/// slot. The New Route panel therefore rendered six lines of a Python
+/// traceback (`ConnectionError: HTTPSConnectionPool(host='overpass-api.de'
+/// …[Errno 111] Connection refused`) at 13 px in a 330 px column.
+///
+/// The sidecar's *intended* reasons are finished user-facing sentences and
+/// pass through untouched. This recognises the shapes that are not: a Python
+/// or Dart exception repr, a stack trace, a URL or host:port, an errno, or a
+/// string simply too long to be a cause phrase. A caller that gets `true`
+/// shows a fixed phrase and leaves the detail in the log.
+bool looksLikeRawDiagnostic(String reason) {
+  final r = reason.trim();
+  if (r.isEmpty) return true;
+  // A cause phrase is one short clause. Anything this long is a payload.
+  if (r.length > 160) return true;
+  const markers = [
+    'Traceback',
+    'Exception',
+    'Error:',
+    'error:',
+    'Errno',
+    'errno',
+    'ConnectionPool',
+    'urllib3',
+    'http://',
+    'https://',
+    'Max retries',
+    '<',
+    'at /',
+    '#0 ',
+  ];
+  for (final marker in markers) {
+    if (r.contains(marker)) return true;
+  }
+  // `host='x', port=443` / `SomeError(...)` — an object repr, not a sentence.
+  if (RegExp(r"[A-Za-z_]+\s*=\s*'").hasMatch(r)) return true;
+  if (RegExp(r'^[A-Z][A-Za-z]*(Error|Exception)\b').hasMatch(r)) return true;
+  return false;
+}

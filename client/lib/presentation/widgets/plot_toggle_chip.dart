@@ -26,29 +26,45 @@ class PlotToggleChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: PlotRadii.controlShape,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
-        decoration: BoxDecoration(
-          color: selected ? c.primary.withValues(alpha: 0.1) : c.surfaceCard,
-          border: Border.all(color: selected ? c.primary : c.border, width: selected ? 1.5 : 1),
-          borderRadius: PlotRadii.controlShape,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 16, color: selected ? c.primary : c.textSecondary),
-              const SizedBox(width: PlotSpacing.s2),
+    // Issue #230 B5 — selected/unselected differed by hue alone (orange
+    // border, text and icon against neutral), which is WCAG 1.4.1. A
+    // selected chip now also carries a filled ground and a leading check,
+    // so the state survives being read without colour.
+    return Semantics(
+      selected: selected,
+      button: onTap != null,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: PlotRadii.controlShape,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 34),
+          padding: const EdgeInsets.symmetric(
+              horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
+          decoration: BoxDecoration(
+            color: selected ? c.primary.withValues(alpha: 0.14) : c.surfaceCard,
+            border: Border.all(color: selected ? c.primary : c.border, width: selected ? 1.5 : 1),
+            borderRadius: PlotRadii.controlShape,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                Icon(Icons.check, size: 15, color: c.primary),
+                const SizedBox(width: PlotSpacing.s1),
+              ],
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: selected ? c.primary : c.textSecondary),
+                const SizedBox(width: PlotSpacing.s2),
+              ],
+              // Issue #230 A1 — a chip label is an interactive control
+              // label, not data: sans, not mono with 0.12em tracking.
+              Text(
+                label,
+                style: PlotTypography.label(selected ? c.primary : c.textPrimary)
+                    .copyWith(fontWeight: selected ? FontWeight.w700 : FontWeight.w600),
+              ),
             ],
-            Text(
-              label,
-              style: PlotTypography.data(selected ? c.primary : c.textPrimary)
-                  .copyWith(fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
-            ),
-          ],
+          ),
         ),
       ),
     );

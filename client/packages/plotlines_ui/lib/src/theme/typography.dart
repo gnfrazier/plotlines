@@ -34,6 +34,29 @@ class PlotTypography {
   static TextStyle small(Color c) =>
       _sans.copyWith(fontSize: 13, height: 1.6, fontWeight: FontWeight.w500, color: c);
 
+  /// Interactive **control** labels — chips, toggles, segment pickers.
+  ///
+  /// Issue #230 A1: these were set in [data], which is mono at 12px with
+  /// 0.12em tracking. That tracking is right for a short uppercase unit
+  /// (`NORTH`, `36 MI`) and actively harmful for a word someone reads and
+  /// clicks (`Paddle`, `quiet scenic`). Mono + tracking is specified for
+  /// data and coordinates; a control label is neither, so it is sans, at
+  /// the step above [small] because a control is the thing being aimed at.
+  static TextStyle label(Color c) =>
+      _sans.copyWith(fontSize: 14, height: 1.3, fontWeight: FontWeight.w600, color: c);
+
+  /// Section eyebrows — `TRIP EXTENT`, `MODE`, `THEME`. Mono uppercase, as
+  /// the mockups set them, but at the tracking the mockups actually use
+  /// (0.1em against [data]'s 0.12em) so a two- or three-word header stays
+  /// one phrase rather than a row of spaced letters (issue #230 A1).
+  static TextStyle eyebrow(Color c) => _mono.copyWith(
+        fontSize: 12,
+        height: 1.4,
+        letterSpacing: 0.1 * 12,
+        fontWeight: FontWeight.w700,
+        color: c,
+      );
+
   /// Data / mono — numbers, units, coordinates. Often UPPERCASE + tracked.
   static TextStyle data(Color c) => _mono.copyWith(
         fontSize: 12,

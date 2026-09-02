@@ -31,7 +31,20 @@ void main() {
   testWidgets('every real mode is offered, and none is preselected by default', (tester) async {
     await _open(tester);
 
-    for (final label in ['Ride', 'Hike', 'Paddle', 'Transit']) {
+    // Issue #230 B5 — the dialog leads with Flow 1 §02's four common modes
+    // plus "More…", instead of all nine flat in a ragged wrap. Every real
+    // mode is still offered; the rest are one disclosure away.
+    for (final label in ['Ride', 'Paddle', 'Hike', 'Drive']) {
+      expect(find.text(label), findsOneWidget);
+      final chip = tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, label));
+      expect(chip.selected, isFalse);
+    }
+    expect(find.text('Transit'), findsNothing);
+
+    await tester.tap(find.text('More…'));
+    await tester.pumpAndSettle();
+
+    for (final label in ['Ride', 'Paddle', 'Hike', 'Drive', 'Transit']) {
       expect(find.text(label), findsOneWidget);
       final chip = tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, label));
       expect(chip.selected, isFalse);
@@ -40,6 +53,15 @@ void main() {
     for (final label in ['Climbing', 'Canyoneering', 'Jumaring']) {
       expect(find.text(label), findsNothing);
     }
+  });
+
+  testWidgets('an already-declared uncommon mode is visible without opening More…',
+      (tester) async {
+    // A preselected chip must never hide behind a disclosure.
+    await _open(tester, initialModes: const {'transit'});
+    expect(find.text('More…'), findsNothing);
+    final chip = tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, 'Transit'));
+    expect(chip.selected, isTrue);
   });
 
   testWidgets('Continue is disabled until at least one mode is selected', (tester) async {

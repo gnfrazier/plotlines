@@ -24,6 +24,7 @@ import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/day_removal_prompt.dart';
+import '../../widgets/plot_date_range_picker.dart';
 
 class LogisticsTab extends ConsumerWidget {
   const LogisticsTab({super.key, required this.trip, required this.onOpenSegment});
@@ -139,11 +140,12 @@ class _TripDurationCardState extends ConsumerState<_TripDurationCard> {
         (duration?.startDate == null ? null : DateTime.tryParse(duration!.startDate!)) ?? now;
     final initialEnd = (duration?.endDate == null ? null : DateTime.tryParse(duration!.endDate!)) ??
         initialStart.add(const Duration(days: 3));
-    final range = await showDateRangePicker(
-      context: context,
+    // Issue #230 C2 — one date picker for the app, and it is the desktop one.
+    final range = await showPlotDateRangePicker(
+      context,
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 3),
-      initialDateRange: DateTimeRange(
+      initialRange: DateTimeRange(
         start: initialStart,
         end: initialEnd.isBefore(initialStart) ? initialStart : initialEnd,
       ),

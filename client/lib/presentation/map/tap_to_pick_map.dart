@@ -19,6 +19,7 @@ import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
 import '../../domain/home_region.dart';
 import '../../state/providers.dart';
+import 'map_attribution.dart';
 import 'no_basemap_notice.dart';
 import 'vector_tile_provider.dart';
 
@@ -268,15 +269,17 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                 onMapReady: () => setState(() => _mapReady = true),
               ),
               children: [
+                // Issue #230 C1 — the grid is the ground under the tiles,
+                // not a fallback for their absence: past the edge of
+                // coverage the map reads as a map, not as a failed render.
+                MapGraticule(color: c.border),
                 if (tilesAvailable)
                   VectorTileLayer(
                     theme: vectorTheme,
                     tileProviders: TileProviders({'protomaps': provider}),
-                    maximumZoom: 15,
+                    maximumZoom: basemapMaximumZoom.toDouble(),
                     cacheFolder: basemapCacheFolderCallback(tilesArchiveId),
-                  )
-                else
-                  MapGraticule(color: c.border),
+                  ),
                 if (widget.outline != null && widget.outline!.length >= 3)
                   PolygonLayer(polygons: [
                     Polygon(
@@ -314,13 +317,20 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
             if (!tilesAvailable || outOfCoverage)
               Positioned(
                 left: PlotSpacing.s3,
-                bottom: PlotSpacing.s3,
+                bottom: PlotSpacing.s3 + 26,
                 child: NoBasemapNotice(
                   loading: snapshot.connectionState != ConnectionState.done,
                   outOfCoverage: tilesAvailable && outOfCoverage,
                   styleFailed: styleFailed,
                 ),
               ),
+            // K10/FR95 (issue #230 C1) — ODbL credit on the map itself, not
+            // only in Preferences.
+            const Positioned(
+              left: PlotSpacing.s3,
+              bottom: PlotSpacing.s3,
+              child: MapAttribution(),
+            ),
           ],
         );
       },

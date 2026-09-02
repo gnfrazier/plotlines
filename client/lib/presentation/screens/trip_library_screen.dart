@@ -118,11 +118,20 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
           const SizedBox(width: PlotSpacing.s2),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _startNewTrip(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('New trip'),
-      ),
+      // Issue #230 B2 — the empty state carries the action itself (Flow 1
+      // §01 puts the trip-starting actions inline in the empty library), so
+      // the FAB would be a second control with the same label on the same
+      // screen. It comes back the moment there is a library to sit over.
+      floatingActionButton: tripsAsync.maybeWhen(
+        data: (trips) => trips.isEmpty,
+        orElse: () => false,
+      )
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _startNewTrip(context, ref),
+              icon: const Icon(Icons.add),
+              label: const Text('New trip'),
+            ),
       body: tripsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
@@ -130,7 +139,9 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
               style: PlotTypography.body(c.danger)),
         ),
         data: (trips) => trips.isEmpty
-            ? const _EmptyLibrary()
+            ? _EmptyLibrary(
+                onNewTrip: () => _startNewTrip(context, ref),
+              )
             : Column(
                 children: [
                   Padding(
@@ -266,43 +277,77 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
+/// FR142(c) / K12 and Flow 8 §04 (issue #230 B2) — an empty view names the
+/// next action rather than explaining the implementation.
+///
+/// The shipped copy ("Buncombe County, NC ships with the app so the map is
+/// never blank — start a new trip to draw its own area") described why the
+/// map behind it is not empty, which is a fact about how Plotlines is built,
+/// not a thing to do. Flow 1 §01's own empty library states the absence, says
+/// what planning costs (nothing — no account, no network), and offers the
+/// action. `New trip` is the one path that exists from here; cloning is
+/// offered per card in a populated library and has nothing to clone yet.
 class _EmptyLibrary extends StatelessWidget {
-  const _EmptyLibrary();
+  const _EmptyLibrary({required this.onNewTrip});
+
+  final VoidCallback onNewTrip;
 
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
-    return Center(
+    return LayoutBuilder(builder: (context, constraints) {
+      // The empty state now carries an action and a caption as well as the
+      // map, so it has to survive a short window (and a raised text scale —
+      // issue #230 A2) rather than assuming 260 px of map always fits.
+      final mapHeight = (constraints.maxHeight * 0.42).clamp(120.0, 260.0);
+      final mapWidth = (constraints.maxWidth - 64).clamp(200.0, 420.0);
+      return SingleChildScrollView(
+      child: Center(
       child: Padding(
         padding: const EdgeInsets.all(PlotSpacing.s6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: PlotRadii.controlShape,
-              child: SizedBox(
-                width: 420,
-                height: 260,
-                child: TapToPickMap(
-                  center: HomeRegion.center,
-                  initialZoom: HomeRegion.previewZoom,
-                  outline: HomeRegion.outline,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: PlotRadii.controlShape,
+                child: SizedBox(
+                  width: mapWidth,
+                  height: mapHeight,
+                  child: TapToPickMap(
+                    center: HomeRegion.center,
+                    initialZoom: HomeRegion.previewZoom,
+                    outline: HomeRegion.outline,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: PlotSpacing.s4),
-            Text('No trips yet', style: PlotTypography.title(c.textPrimary)),
-            const SizedBox(height: PlotSpacing.s2),
-            Text(
-              '${HomeRegion.label} ships with the app so the map is never '
-              'blank — start a new trip to draw its own area.',
-              textAlign: TextAlign.center,
-              style: PlotTypography.body(c.textSecondary),
-            ),
-          ],
+              const SizedBox(height: PlotSpacing.s4),
+              Text('No trips yet', style: PlotTypography.title(c.textPrimary)),
+              const SizedBox(height: PlotSpacing.s2),
+              Text(
+                'Start a new trip and draw the area it covers. Planning works with '
+                'no account and no network — signing in only adds sync.',
+                textAlign: TextAlign.center,
+                style: PlotTypography.body(c.textSecondary),
+              ),
+              const SizedBox(height: PlotSpacing.s4),
+              PlotButton(label: 'New trip', icon: Icons.add, onPressed: onNewTrip),
+              const SizedBox(height: PlotSpacing.s4),
+              // The home region is a caption on the map it explains, not the
+              // headline of the empty state.
+              Text(
+                '${HomeRegion.label} ships with the app, so the map is never blank.',
+                textAlign: TextAlign.center,
+                style: PlotTypography.small(c.textMuted),
+              ),
+            ],
+          ),
         ),
       ),
-    );
+      ),
+      );
+    });
   }
 }
 
