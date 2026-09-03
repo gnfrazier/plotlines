@@ -8,6 +8,10 @@
 # Windows odd files
 *Zone.Identifier
 
+# Local developer utilities (e.g. utils/clear_tile_cache.py for issue #155) —
+# scratch tooling kept out of origin by request.
+utils/
+
 # ----------------------------------------------------------------------------
 # Flutter / Dart client (Tier 3 — §9)
 # See https://www.dartlang.org/guides/libraries/private-files
