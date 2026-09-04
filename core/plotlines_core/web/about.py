@@ -121,7 +121,7 @@ PRIVACY_STATEMENT: tuple[PrivacyPoint, ...] = (
         body=(
             "Your trips, routes, notes, and the maps and elevation you have "
             "downloaded all live on this device. Planning works with nothing "
-            "signed in and nothing sent anywhere."
+            "signed in."
         ),
     ),
     PrivacyPoint(
@@ -130,8 +130,24 @@ PRIVACY_STATEMENT: tuple[PrivacyPoint, ...] = (
         body=(
             "Only things that need other people: signing in, syncing your own "
             "trips between your devices, and sharing a trip or an arrival with "
-            "someone you have chosen. If you never do those, nothing about your "
-            "planning leaves this device."
+            "someone you have chosen. Drawing an area or looking up a place is "
+            "different — see the next point."
+        ),
+    ),
+    # Phase 0.12 / addendum P1 (issue #252): today this names Overpass and
+    # Nominatim because that is what actually runs. Phase 1 (#264) moves map
+    # data to a Plotlines-operated mirror — revisit this wording, and its
+    # recipient, when that migration lands.
+    PrivacyPoint(
+        id="planning_requests",
+        title="What planning sends, even signed out",
+        body=(
+            "Drawing an area to plan in sends that area to Overpass, a "
+            "volunteer-run map-data lookup — today hosted in Germany or "
+            "Lithuania — so we can show you what is nearby. Typing a place "
+            "to search for it sends that text to Nominatim, the "
+            "OpenStreetMap Foundation's place-name lookup. Neither request "
+            "carries your account, your name, or any other identity."
         ),
     ),
     PrivacyPoint(

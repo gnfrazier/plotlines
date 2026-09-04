@@ -146,11 +146,29 @@ def test_privacy_statement_covers_every_clause_fr138_names():
     assert ids == {
         "on_device",
         "to_server",
+        "planning_requests",
         "reveal",
         "arrival_sharing",
         "author_notes",
         "guest_sessions",
     }
+
+
+def test_privacy_statement_does_not_claim_planning_sends_nothing_anywhere():
+    # Phase 0.12 / addendum P1 (issue #252): planning sends the drawn bbox to
+    # Overpass and typed place names to Nominatim. No sentence may say
+    # otherwise, in either direction.
+    for point in PRIVACY_STATEMENT:
+        body = point.body.lower()
+        assert "nothing sent anywhere" not in body
+        assert "nothing about your planning leaves this device" not in body
+
+
+def test_privacy_statement_names_planning_requests_recipients_and_no_identity():
+    body = next(p.body for p in PRIVACY_STATEMENT if p.id == "planning_requests")
+    assert "Overpass" in body
+    assert "Nominatim" in body
+    assert "identity" in body.lower()
 
 
 def test_privacy_statement_says_reveal_is_not_a_security_boundary():
