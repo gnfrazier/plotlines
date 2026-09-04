@@ -137,6 +137,14 @@ rather than the whole trip store. `Provenance` / `Attribution` in `trips/payload
 is the right place for the hook and it already exists. Retrofitting this after Authors have
 data is the expensive version.
 
+**Correction — `docs/Plotlines_Licensing_Position.md` §3 (2026-09-04):** this move was already
+made, on 2026-08-24, before this addendum was written. `content/anchor.py`'s
+`AnchorProvenance.layer` is exactly this discriminator, stamped on every promoted anchor —
+this paragraph was written against the day-scoped `Node` shape in `trips/payload.py`, which
+indeed has no such field, but the *current* promoted-place model is the trip-scoped
+`Trip.anchors` (ARCH D36), where the discriminator already lives. Nothing here reads it to
+produce an OSM-layer export yet — that gap is filed as **#301**.
+
 ### L4 — The mirror itself has no licence artifacts, and one of its files may not be ODbL
 
 §6.3's layout is data only:
@@ -642,7 +650,7 @@ did not need.
 |---|---|---|
 | **L1** — `osmium extract` is GPL-3, `pyosmium` is BSD-2 | #262 (pyosmium API only), #266 (acceptance criterion), #267 (asserted against an inventory) | 1, 2 |
 | **L2** — ODbL triggers on *public use*, not distribution | #253 (the position), #282 (bound to the hosted surface) | 0, 4 |
-| **L3** — Derivative vs Collective; the separable-layer decision | #253 — which files its own implementation issue if the answer is yes | 0 |
+| **L3** — Derivative vs Collective; the separable-layer decision | #253 (decided **yes** — and found already shipped as `AnchorProvenance`, 2026-08-24, against the current `Trip.anchors` model rather than the `Node` shape this addendum read); #301 (the one real gap: nothing yet reads it to offer the OSM layer separately) | 0, 1 |
 | **L4** — mirror has no licence artifacts; `index-v1.json` unverified | #256, #259 | 1 |
 | **L5** — no third-party dependency licence inventory | #267 | 2 |
 | **L6** — the attribution gate does not cover the routing graph | #269 | 0 *(pulled forward)* |
