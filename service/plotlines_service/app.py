@@ -795,6 +795,17 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
     # build version.
     apply_osm_http_identity(VERSION)
 
+    # Issue #242 — point osmnx's Overpass/Nominatim response cache inside the
+    # Plotlines cache root here, at the app factory, rather than only inside
+    # `ensure_graph` past its warm-cache early return. `/candidates` and
+    # `/geocode` never call `ensure_graph`, so before this they ran with
+    # `ox.settings.cache_folder` at its CWD-relative `./cache` default and
+    # littered stray responses (issue #154) where nothing would read them
+    # back — including the geocode results the Nominatim policy asks us to
+    # cache. One call covers all three osmnx-mediated transports, like the
+    # UA setup above.
+    region_lib.configure_overpass_cache(cache_dir)
+
     state = Readiness(cache_dir, tiles_upstream or default_home_region_archive(),
                       allow_unmirrored=allow_unmirrored_tiles)
 

@@ -70,3 +70,24 @@ def test_create_app_stamps_a_contactable_nominatim_user_agent(tmp_path: Path) ->
     assert ox.settings.http_user_agent == osm_user_agent(VERSION)
     assert ox.settings.http_referer == osm_user_agent(VERSION)
     assert VERSION in ox.settings.http_user_agent
+
+
+def test_create_app_points_the_osm_response_cache_inside_the_cache_root(
+    tmp_path: Path,
+) -> None:
+    """Issue #242: `configure_overpass_cache` was only reached inside
+    `ensure_graph`, past its warm-cache early return — so `/candidates` and
+    `/geocode`, which never call `ensure_graph`, ran with
+    `ox.settings.cache_folder` at its CWD-relative `./cache` default and
+    littered stray responses there (issue #154). `create_app` now configures
+    it at the factory, before any endpoint runs and without `ensure_graph`
+    in the process at all.
+    """
+    ox.settings.cache_folder = "./cache"
+    ox.settings.use_cache = False
+
+    create_app(tmp_path)
+
+    assert ox.settings.cache_folder == str(tmp_path / "overpass")
+    assert Path(ox.settings.cache_folder).is_absolute()
+    assert ox.settings.use_cache is True

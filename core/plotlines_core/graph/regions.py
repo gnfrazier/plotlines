@@ -377,13 +377,22 @@ def ensure_graph(
     is raised with a user-facing message rather than a raw exception leaking to
     the client.
     """
+    # Point osmnx's response cache inside `cache_dir` *before* the early
+    # return can skip it (issue #242). This used to sit past the warm-cache
+    # check, so a direct caller that hit the cache left `ox.settings`
+    # untouched — and `/candidates` / `/geocode`, which never reach this
+    # function at all, ran with the CWD-relative `./cache` default. A real
+    # entrypoint (`create_app`, `diagnose_region`) now configures this at
+    # startup too; this call stays as the floor for a direct `ensure_graph`
+    # caller.
+    configure_overpass_cache(cache_dir)
+
     out_path = region.graph_path(cache_dir)
     if out_path.exists() and not force:
         log.info("ensure_graph key=%s bbox=%s nt=%s cache=hit", region.key,
                  region.bbox, region.network_type)
         return out_path
 
-    configure_overpass_cache(cache_dir)
     endpoints = tuple(endpoints) if endpoints is not None else overpass_endpoints()
     endpoints = dedupe_endpoints(endpoints)
     log.info("ensure_graph key=%s bbox=%s nt=%s cache=miss endpoints=%s force=%s",
