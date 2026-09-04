@@ -23,6 +23,7 @@ import logging
 import os
 import socket
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -91,11 +92,20 @@ DEFAULT_OVERPASS_ENDPOINTS: tuple[str, ...] = (
 )
 
 #: Per-endpoint retry budget and exponential-backoff base (seconds) for a
-#: transient transport error. Kept small: a refused connection is instant, so
-#: the failover cost is dominated by osmnx's own status-endpoint pause, which
-#: `ensure_graph` disables once it is past the first (polite) attempt.
+#: transient transport error. Kept small: the expensive failure mode — a host
+#: whose socket will not open, which otherwise costs 60 s inside osmnx's
+#: status-endpoint slot-pause fallback — is now short-circuited by the connect
+#: probe below (`probe_endpoint`, issue #245) before osmnx is ever called, so
+#: a wide retry budget here buys nothing but load on a struggling upstream.
 OVERPASS_ATTEMPTS_PER_ENDPOINT = 2
 OVERPASS_BACKOFF_BASE_S = 2.0
+
+#: Timeout for `ensure_graph`'s pre-flight connect probe (issue #245). Short
+#: by design: issue #240 measured a refused Overpass connection returning in
+#: ~300 ms, so a few seconds is ample headroom for a healthy host on a slow
+#: link while still turning an unreachable host's 60 s osmnx slot-pause into a
+#: sub-second failover.
+OVERPASS_PROBE_TIMEOUT_S = 3.0
 
 #: What `ensure_graph` treats as "this endpoint is having a bad time" — retry
 #: it, then fail over to the next one. Two distinct families:
@@ -207,6 +217,49 @@ def dedupe_endpoints(
         seen_hosts.add(host)
         seen_addresses |= addresses
     return tuple(kept)
+
+
+def probe_endpoint(
+    endpoint: str, *, timeout_s: float = OVERPASS_PROBE_TIMEOUT_S,
+) -> str | None:
+    """Open and immediately close a TCP connection to `endpoint`'s host.
+
+    Returns `None` if the socket opened within `timeout_s`; otherwise a short
+    reason string. `ensure_graph` calls this before every osmnx attempt so a
+    host it cannot reach fails over in well under a second instead of after
+    the fixed 60 s pause osmnx takes when it cannot read that host's
+    `/api/status` endpoint (issue #240; osmnx
+    `_overpass._get_overpass_pause`'s `default_pause`, reached whenever the
+    status GET raises `ConnectionError` — which a refused or black-holed host
+    does). #240 measured the refusal itself returning in ~300 ms; the other
+    ~60 s was pure waiting.
+
+    **This covers exactly one failure class: refused / unreachable / unknown
+    host.** A `None` result means the TCP handshake completed and nothing
+    more. An endpoint that accepts the connection and then answers `502 Bad
+    Gateway` from an overloaded reverse proxy — issue #232's actual failure —
+    passes this probe unchanged; that case is still caught, one full attempt
+    later, by the `ox._errors.ResponseStatusCodeError` arm of
+    `TRANSIENT_OVERPASS_ERRORS`. The probe is a latency optimisation for the
+    common refused case, **not** the thing that makes keeping
+    `overpass_rate_limit` on affordable in general — some failing builds are
+    still slow, and that is the accepted trade (OSM acquisition review §5.4,
+    licensing addendum G4).
+    """
+    parsed = urlparse(endpoint)
+    host = parsed.hostname
+    if not host:
+        return None  # nothing to probe — let osmnx deal with the odd value
+    port = parsed.port or (80 if parsed.scheme == "http" else 443)
+    try:
+        with socket.create_connection((host, port), timeout=timeout_s):
+            return None
+    except socket.gaierror as exc:
+        return f"name resolution failed ({exc})"
+    except TimeoutError as exc:
+        return f"timed out after {timeout_s:g}s ({exc})"
+    except OSError as exc:
+        return f"connect failed ({exc})"
 
 
 # osmnx's default `useful_tags_way` does NOT include `surface`. Carried over
@@ -360,6 +413,7 @@ def ensure_graph(
     attempts_per_endpoint: int = OVERPASS_ATTEMPTS_PER_ENDPOINT,
     backoff_base_s: float = OVERPASS_BACKOFF_BASE_S,
     sleep=time.sleep,
+    probe: Callable[[str], str | None] | None = None,
 ) -> Path:
     """Return the on-disk path to `region`'s graph, building it via Overpass
     if it is not already cached. A live network call unless `force=False` and
@@ -376,7 +430,19 @@ def ensure_graph(
     is the number of real tries. If every endpoint fails, `OverpassUnavailable`
     is raised with a user-facing message rather than a raw exception leaking to
     the client.
+
+    Before each osmnx attempt `probe` (default `probe_endpoint`) opens a
+    short-timeout socket to the endpoint; a host that refuses or does not
+    resolve is failed over immediately rather than after the 60 s osmnx spends
+    in its status-endpoint slot-pause fallback for an unreachable host (issue
+    #245, closes #240). The probe does not cover an endpoint that accepts the
+    socket and then returns an error status — that is still a full attempt
+    (addendum G4). The server's advertised rate-limit pause
+    (`overpass_rate_limit`) is left at its configured value for every endpoint
+    and every attempt: politeness is not traded for failover latency (#238
+    mechanism 3).
     """
+    probe = probe if probe is not None else probe_endpoint
     # Point osmnx's response cache inside `cache_dir` *before* the early
     # return can skip it (issue #242). This used to sit past the warm-cache
     # check, so a direct caller that hit the cache left `ox.settings`
@@ -405,40 +471,61 @@ def ensure_graph(
     # loop drove them in the open: `/regions` and `/candidates` are both sync
     # `def` FastAPI endpoints, so a `/candidates` request the framework
     # scheduled on a threadpool sibling during a failover hop inherited this
-    # endpoint and `overpass_rate_limit = False` — an upstream and an
-    # impoliteness it never chose (licensing addendum G1). `overpass_settings`
-    # holds `OSM_SETTINGS_LOCK` around each attempt and restores both values
+    # endpoint — and, pre-#245, `overpass_rate_limit = False` — an upstream and
+    # an impoliteness it never chose (licensing addendum G1). `overpass_settings`
+    # holds `OSM_SETTINGS_LOCK` around each attempt and restores `overpass_url`
     # on the way out, so no concurrent osmnx caller can observe a hop's
-    # globals. The cost is that a candidate fetch blocks for the length of an
+    # endpoint. The cost is that a candidate fetch blocks for the length of an
     # attempt (option (b) in #244); Phase 1's mirror removes the shared
     # endpoint and with it the contention.
     failures: list[str] = []
-    for endpoint_index, endpoint in enumerate(endpoints):
+
+    def _failed(endpoint: str, attempt: int, started_at: float,
+                label: str, detail: str, *, backoff: bool = True) -> None:
+        """Record one failed attempt — append to `failures` for the eventual
+        `OverpassUnavailable` message and log it. Unless `backoff=False` (a
+        probe failure, where nothing on the far end was actually contacted),
+        sleep before the next attempt against this same endpoint."""
+        failures.append(f"{endpoint} ({label})")
+        log.warning(
+            "ensure_graph key=%s endpoint=%s attempt=%d/%d FAILED after "
+            "%.1fs: %s", region.key, endpoint, attempt, attempts_per_endpoint,
+            time.monotonic() - started_at, detail)
+        if backoff and attempt < attempts_per_endpoint:
+            pause = backoff_base_s * 2 ** (attempt - 1)
+            log.info("ensure_graph key=%s backing off %.1fs before retry",
+                     region.key, pause)
+            sleep(pause)
+
+    for endpoint in endpoints:
         for attempt in range(1, attempts_per_endpoint + 1):
-            # Honour the server's advertised slot pause on the very first try
-            # (stay polite); once we are failing over we are only probing
-            # alternates, so skip the 60 s status-pause osmnx falls back to
-            # when a status endpoint is itself unreachable. `rate_limit=None`
-            # leaves the configured (polite) value in place.
-            polite = endpoint_index == 0 and attempt == 1
             attempt_started = time.monotonic()
+
+            # Cheap connect probe before committing to osmnx (issue #245,
+            # closes #240). A host that refuses the socket or does not resolve
+            # otherwise costs a fixed 60 s inside osmnx's status-endpoint
+            # slot-pause fallback before its first error; the probe fails it
+            # over in well under a second. It does NOT catch a host that
+            # accepts the socket and then 502s (issue #232) — that stays a
+            # full attempt, which is the accepted trade (addendum G4).
+            unreachable = probe(endpoint)
+            if unreachable is not None:
+                _failed(endpoint, attempt, attempt_started, "unreachable",
+                        f"connect probe: {unreachable}", backoff=False)
+                continue
+
+            # `overpass_rate_limit` is left at its configured value here — no
+            # `rate_limit=` argument. The pre-#245 loop set it `False` on
+            # every attempt past the first to skip the slot pause on failover;
+            # that dropped politeness exactly when we retry hardest (#238
+            # mechanism 3), and the connect probe above now removes that
+            # latency for the case it actually mattered for.
             try:
-                with overpass_settings(
-                    url=endpoint, rate_limit=None if polite else False,
-                ):
+                with overpass_settings(url=endpoint):
                     graph = _download_region_graph(region)
             except TRANSIENT_OVERPASS_ERRORS as exc:
-                elapsed = time.monotonic() - attempt_started
-                failures.append(f"{endpoint} ({type(exc).__name__})")
-                log.warning(
-                    "ensure_graph key=%s endpoint=%s attempt=%d/%d FAILED "
-                    "after %.1fs: %s: %s", region.key, endpoint, attempt,
-                    attempts_per_endpoint, elapsed, type(exc).__name__, exc)
-                if attempt < attempts_per_endpoint:
-                    backoff = backoff_base_s * 2 ** (attempt - 1)
-                    log.info("ensure_graph key=%s backing off %.1fs before retry",
-                             region.key, backoff)
-                    sleep(backoff)
+                _failed(endpoint, attempt, attempt_started,
+                        type(exc).__name__, f"{type(exc).__name__}: {exc}")
                 continue
             out_path.parent.mkdir(parents=True, exist_ok=True)
             ox.io.save_graphml(graph, out_path)
