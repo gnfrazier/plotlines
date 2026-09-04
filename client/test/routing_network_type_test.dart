@@ -66,6 +66,11 @@ class _RecordingRoutingClient extends RoutingClient {
     tripBboxProvider.overrideWith((ref) => TripBboxNotifier()
       ..set(const TripBbox(
           minLat: 40.0, minLon: -105.3, maxLat: 40.1, maxLon: -105.2))),
+    // Issue #246 — the settle window is 10 s in production; a test that only
+    // needs to see which network_type is ensured shortens it so it does not
+    // have to wait one out.
+    tripRegionKeyProvider.overrideWith((ref) =>
+        TripRegionKeyNotifier(ref, settleWindow: const Duration(milliseconds: 10))),
   ]);
   return (container: container, client: client);
 }
@@ -103,9 +108,12 @@ void main() {
         .read(currentTripProvider.notifier)
         .setDeclaredModes({'cycling', 'hiking', 'driving'});
 
-    final key = await h.container.read(tripRegionKeyProvider.future);
+    h.container.read(tripRegionKeyProvider); // create the notifier (bbox already set)
+    await Future<void>.delayed(const Duration(milliseconds: 60));
 
-    expect(key, 'region-bike');
+    final state = h.container.read(tripRegionKeyProvider);
+    expect(state, isA<TripRegionResolved>());
+    expect((state as TripRegionResolved).key, 'region-bike');
     expect(h.client.ensuredNetworkTypes, ['bike']);
   });
 

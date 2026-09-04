@@ -11,8 +11,11 @@
 // Reopening a saved trip starts bbox selection over, same as party size.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/sidecar_manager.dart' show CapabilityStatus;
 import '../domain/trip_bbox.dart';
 import '../domain/trip_bbox_revision.dart';
 import 'current_trip_provider.dart';
@@ -34,14 +37,71 @@ class TripBboxNotifier extends StateNotifier<TripBbox?> {
 final tripBboxProvider =
     StateNotifierProvider<TripBboxNotifier, TripBbox?>((ref) => TripBboxNotifier());
 
-/// FR120/D41, issue #154 — the region key for the trip's own bbox, ensuring
-/// a routable graph exists for exactly that area rather than routing
-/// silently against whatever region happened to be loaded. Recomputes (and
-/// re-POSTs `/regions`, idempotently and cheaply — a dict lookup
-/// server-side once already built) whenever [tripBboxProvider] changes; null
-/// before any bbox has been drawn. Screens gate routing controls on
-/// `sidecarManagerProvider`'s `capabilities.routing.forRegion(key)` using
-/// the key this resolves to, per FR121's disabled-with-a-reason house style.
+/// Issue #246 (OSM acquisition Phase 0, review §5.5 · addendum P3) — how long
+/// the accepted bbox must hold still before a `/regions` POST goes out.
+///
+/// The settle window lives on the **accepted-bbox → `ensureRegion` edge**,
+/// not on pointer events (the map already proposes only on pointer-up —
+/// `trip_area_map.dart` `_onPointerUp` / `_onCornerPointerUp` — so there is
+/// nothing mid-drag to debounce). #238 measured five *completed* corner-drag
+/// gestures accepted in ~30 s (07:39:59 → 07:40:29), each one POSTing
+/// `/regions` immediately and each POST fanning into one Overpass query per
+/// sub-polygon above `max_query_area_size`. Ten seconds comfortably spans
+/// that burst's inter-gesture gaps (~6–8 s) so a flurry of refinements
+/// collapses to a single build for the box the Author actually settled on,
+/// and it is a small fraction of the 37–117 s graph build that follows — a
+/// wait the FR121 surface names honestly ("waiting for the trip area to
+/// settle") rather than hiding.
+const tripRegionSettleWindow = Duration(seconds: 10);
+
+/// The lifecycle of the trip bbox's routing region, as the FR121 capability
+/// surface needs to see it. A plain `AsyncValue<String?>` cannot say
+/// "waiting for the accepted bbox to stop changing" — a real, on-screen wait
+/// (issue #246) that is neither a failure nor a POST in flight yet — so the
+/// states are named explicitly.
+sealed class TripRegionKeyState {
+  const TripRegionKeyState();
+}
+
+/// No bbox drawn yet — routing has nothing to prepare a region for.
+class TripRegionNoBbox extends TripRegionKeyState {
+  const TripRegionNoBbox();
+}
+
+/// A bbox is accepted but still being revised; the settle window is running.
+/// No `/regions` POST has been sent. [pending] is the box that will be
+/// ensured once it holds still for [tripRegionSettleWindow].
+class TripRegionSettling extends TripRegionKeyState {
+  const TripRegionSettling(this.pending);
+  final TripBbox pending;
+}
+
+/// The settled bbox's `POST /regions` is in flight.
+class TripRegionEnsuring extends TripRegionKeyState {
+  const TripRegionEnsuring(this.bbox);
+  final TripBbox bbox;
+}
+
+/// `/regions` returned a region key for the settled bbox. Screens gate
+/// routing controls on `sidecarManagerProvider`'s
+/// `capabilities.routing.forRegion(key)` using this key.
+class TripRegionResolved extends TripRegionKeyState {
+  const TripRegionResolved(this.key);
+  final String key;
+}
+
+/// `/regions` could not be reached or errored for the settled bbox. The
+/// error is carried for logging only — never rendered (issue #230 B3).
+class TripRegionFailed extends TripRegionKeyState {
+  const TripRegionFailed(this.error);
+  final Object error;
+}
+
+/// FR120/D41 (issue #154), settle window + supersede-in-flight (issue #246) —
+/// owns the trip bbox's routable-graph region: waits for the accepted bbox to
+/// stop changing, then POSTs `/regions` once for the box the Author settled
+/// on, and drops any region whose bbox was superseded before its build could
+/// be observed.
 ///
 /// Issue #208 — the graph is per travel mode (`network_type`). This warms
 /// **only** the `bike` region: it is the stable gate/warm-up anchor every
@@ -56,12 +116,132 @@ final tripBboxProvider =
 /// already `ensureRegion` for their own mode's `network_type` on demand, so
 /// a `walk`/`drive` graph is still built before anything routes against it —
 /// just when a segment of that mode actually exists, not speculatively.
-final tripRegionKeyProvider = FutureProvider<String?>((ref) async {
-  final bbox = ref.watch(tripBboxProvider);
-  if (bbox == null) return null;
-  final client = ref.watch(routingClientProvider);
-  return client.ensureRegion(bbox.bboxWsen);
-});
+class TripRegionKeyNotifier extends StateNotifier<TripRegionKeyState> {
+  TripRegionKeyNotifier(this._ref, {Duration? settleWindow})
+      : _settleWindow = settleWindow ?? tripRegionSettleWindow,
+        super(const TripRegionNoBbox()) {
+    _ref.listen<TripBbox?>(
+      tripBboxProvider,
+      (_, next) => _onBboxAccepted(next),
+      fireImmediately: true,
+    );
+  }
+
+  final Ref _ref;
+  final Duration _settleWindow;
+
+  Timer? _settleTimer;
+
+  /// Bumped on every accepted bbox and every [retry]. Any settle-timer
+  /// callback or in-flight `ensureRegion` whose generation is stale by the
+  /// time it resumes is a superseded region and is dropped — it never
+  /// reaches [state].
+  int _generation = 0;
+
+  /// The last bbox accepted from [tripBboxProvider]; the box [retry] re-POSTs.
+  TripBbox? _lastAccepted;
+
+  void _onBboxAccepted(TripBbox? bbox) {
+    // Re-setting the identical box (an idempotent re-watch, a screen
+    // remount) is not a revision and must not restart the settle clock.
+    if (bbox == _lastAccepted) return;
+    _lastAccepted = bbox;
+    _settleTimer?.cancel();
+    final generation = ++_generation;
+
+    if (bbox == null) {
+      state = const TripRegionNoBbox();
+      return;
+    }
+
+    state = TripRegionSettling(bbox);
+    _settleTimer = Timer(_settleWindow, () => _ensure(generation, bbox));
+  }
+
+  Future<void> _ensure(int generation, TripBbox bbox) async {
+    if (generation != _generation) return; // superseded during the settle window
+    state = TripRegionEnsuring(bbox);
+    try {
+      final client = _ref.read(routingClientProvider);
+      final key = await client.ensureRegion(bbox.bboxWsen);
+      // A stale generation is a superseded region; `!mounted` is the screen
+      // torn down mid-POST. Either way the result is dropped.
+      if (!mounted || generation != _generation) return;
+      state = TripRegionResolved(key);
+    } catch (e) {
+      if (!mounted || generation != _generation) return;
+      state = TripRegionFailed(e);
+    }
+  }
+
+  /// FR121 "Try again" (issue #229) — re-POST `/regions` for the current
+  /// settled bbox without the Author redrawing the trip area. The sidecar
+  /// resets a settled-failed region and re-queues its build. No-op with no
+  /// bbox; skips straight past the settle window since the Author is asking
+  /// to build the box as it stands now.
+  void retry() {
+    final bbox = _lastAccepted;
+    if (bbox == null) return;
+    _settleTimer?.cancel();
+    _ensure(++_generation, bbox);
+  }
+
+  @override
+  void dispose() {
+    _settleTimer?.cancel();
+    super.dispose();
+  }
+}
+
+/// FR120/D41 (issue #154) — the trip bbox's routing region, settle-windowed
+/// (issue #246) so a burst of bbox revisions produces one `/regions` POST for
+/// the box the Author settled on rather than one per accepted revision.
+final tripRegionKeyProvider =
+    StateNotifierProvider<TripRegionKeyNotifier, TripRegionKeyState>(
+  (ref) => TripRegionKeyNotifier(ref),
+);
+
+/// Maps a [TripRegionKeyState] onto the FR121 [CapabilityStatus] a routing
+/// control shows while it is disabled. [sidecarRegionStatus] is the sidecar's
+/// own per-region `/health` entry (`capabilities.routing.forRegion(key)`),
+/// which only exists once the key has resolved.
+///
+/// Pure and exported so each phase's reading is directly testable — in
+/// particular that the settle window (issue #246) reads as an honest wait:
+/// `CapabilityStatus.failed` stays false for [TripRegionSettling] (a non-null
+/// `progress` sees to that), so the FR121 surface shows the quiet one-line
+/// warming notice, never the failure card and never nothing at all.
+CapabilityStatus routingCapabilityForRegion(
+  TripRegionKeyState region,
+  CapabilityStatus? sidecarRegionStatus,
+) {
+  switch (region) {
+    case TripRegionNoBbox():
+      return const CapabilityStatus(
+        ready: false,
+        reason: 'draw the trip area before routing is available',
+      );
+    case TripRegionSettling():
+      return const CapabilityStatus(
+        ready: false,
+        reason: 'waiting for the trip area to settle',
+        progress: 0,
+      );
+    case TripRegionEnsuring():
+      return const CapabilityStatus(
+        ready: false,
+        reason: 'ensuring the routing region',
+      );
+    case TripRegionResolved():
+      return sidecarRegionStatus ??
+          const CapabilityStatus(ready: false, reason: 'ensuring the routing region');
+    case TripRegionFailed():
+      return const CapabilityStatus(
+        ready: false,
+        reason: 'failed:the trip area could not be prepared for routing',
+      );
+  }
+}
 
 /// Anchors currently promoted into the open trip, which a bbox shrink must
 /// never silently drop. Two sources feed this, both counted: `layers_tab

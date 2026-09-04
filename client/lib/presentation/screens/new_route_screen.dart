@@ -186,36 +186,23 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   /// ARCH §8.3 / PRD FR121 (M12a), FR120/D41 (issue #154) — routing is
   /// per-region now: this reads the capability for the trip's *own* bbox
   /// (`tripRegionKeyProvider`), not a process-wide flag. No trip bbox yet,
-  /// or the region still being ensured, both read as an honest not-ready
-  /// with a stated reason (FR121: never a silent disabled control).
+  /// the settle window still running (issue #246), or the region still being
+  /// ensured all read as an honest not-ready with a stated reason (FR121:
+  /// never a silent disabled control). The phase → status mapping is
+  /// `routingCapabilityForRegion`, kept pure so each reading is testable.
   CapabilityStatus get _routingCapability {
-    final regionAsync = ref.watch(tripRegionKeyProvider);
-    return regionAsync.when(
-      data: (key) {
-        if (key == null) {
-          return const CapabilityStatus(
-            ready: false,
-            reason: 'draw the trip area before routing is available',
-          );
-        }
-        return ref.watch(sidecarManagerProvider).capabilities?.routing.forRegion(key) ??
-            const CapabilityStatus(ready: false, reason: 'ensuring the routing region');
-      },
-      loading: () =>
-          const CapabilityStatus(ready: false, reason: 'ensuring the routing region'),
-      // Issue #230 B3 — this used to interpolate the exception straight into
-      // the reason slot, which is how a six-line Python traceback reached the
-      // panel at 13 px. The failure to *ensure the region at all* is one
-      // typed cause with one fixed phrase; the exception is logged, not
-      // rendered.
-      error: (e, _) {
-        debugPrint('routing region could not be ensured: $e');
-        return const CapabilityStatus(
-          ready: false,
-          reason: 'failed:the trip area could not be prepared for routing',
-        );
-      },
-    );
+    final region = ref.watch(tripRegionKeyProvider);
+    // Issue #230 B3 — the exception is logged, never rendered: the failure to
+    // ensure the region at all is one typed cause with one fixed phrase.
+    if (region case TripRegionFailed(:final error)) {
+      debugPrint('routing region could not be ensured: $error');
+    }
+    final sidecarStatus = switch (region) {
+      TripRegionResolved(:final key) =>
+        ref.watch(sidecarManagerProvider).capabilities?.routing.forRegion(key),
+      _ => null,
+    };
+    return routingCapabilityForRegion(region, sidecarStatus);
   }
 
   @override
@@ -627,7 +614,10 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                         // issue #229 — re-runs `ensureRegion`, which re-POSTs
                         // `/regions`; the sidecar resets a settled-failed
                         // region and re-queues the build. No bbox redraw.
-                        onRetry: () => ref.invalidate(tripRegionKeyProvider),
+                        // Issue #246 — `.retry()` re-POSTs the settled bbox
+                        // directly and skips the settle window (the Author is
+                        // asking to build the box as it stands).
+                        onRetry: () => ref.read(tripRegionKeyProvider.notifier).retry(),
                       ),
                     ],
                     const SizedBox(height: PlotSpacing.s5),

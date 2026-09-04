@@ -50,6 +50,7 @@ void main() {
         "Couldn't reach the map-data service to prepare routing for this area.",
         'building the routing graph',
         'ensuring the routing region',
+        'waiting for the trip area to settle',
         'draw the trip area before routing is available',
         'the trip area could not be prepared for routing',
         'waiting on elevation',

@@ -131,10 +131,10 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
     final unit = ref.watch(settingsProvider).unit;
     // FR120/D41, issue #154 — "the client sends the extent: tripBboxProvider
     // is read at trip initiation to ensure the region." Watching here (not
-    // just at New Route, which needs the result) starts the graph/tile
-    // build as soon as the Author accepts a bbox, not only once they reach
-    // the next screen. `ensureRegion` is idempotent and cheap to call again
-    // for a bbox already ensured, so this never duplicates work.
+    // just at New Route, which needs the result) starts the settle window on
+    // the accepted bbox as soon as the Author accepts it, not only once they
+    // reach the next screen — so a burst of revisions on this screen still
+    // collapses to a single `/regions` POST (issue #246).
     ref.watch(tripRegionKeyProvider);
 
     return Scaffold(
