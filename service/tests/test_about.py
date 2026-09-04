@@ -96,8 +96,8 @@ def test_about_carries_the_privacy_statement_with_every_fr138_clause(client: Tes
     body = client.get("/about").json()
     ids = {p["id"] for p in body["privacy"]}
     assert ids == {
-        "on_device", "to_server", "reveal", "arrival_sharing",
-        "author_notes", "guest_sessions",
+        "on_device", "to_server", "planning_requests", "reveal",
+        "arrival_sharing", "author_notes", "guest_sessions",
     }
     reveal = next(p for p in body["privacy"] if p["id"] == "reveal")
     assert "not a security boundary" in reveal["body"]

@@ -15,6 +15,7 @@ void main() {
       expect(ids, {
         'on_device',
         'to_server',
+        'planning_requests',
         'reveal',
         'arrival_sharing',
         'author_notes',
@@ -24,6 +25,22 @@ void main() {
 
     PrivacyPoint point(String id) =>
         privacyStatement.firstWhere((p) => p.id == id);
+
+    test('does not claim planning sends nothing anywhere', () {
+      for (final p in privacyStatement) {
+        expect(p.body.toLowerCase(), isNot(contains('nothing sent anywhere')));
+        expect(p.body.toLowerCase(),
+            isNot(contains('nothing about your planning leaves this device')));
+      }
+    });
+
+    test('names what planning sends off-device, to whom, and that it carries no identity', () {
+      final body = point('planning_requests').body;
+      expect(body, contains('Overpass'));
+      expect(body, contains('Nominatim'));
+      expect(body.toLowerCase(), contains('carries your'));
+      expect(body.toLowerCase(), contains('identity'));
+    });
 
     test('says reveal is a product guarantee, not a security boundary', () {
       expect(point('reveal').body, contains('not a security boundary'));
