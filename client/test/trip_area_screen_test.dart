@@ -11,11 +11,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:plotlines_client/data/app_database.dart';
+import 'package:plotlines_client/data/routing_client.dart';
 import 'package:plotlines_client/domain/trip_bbox.dart';
 import 'package:plotlines_client/presentation/map/map_attribution.dart';
 import 'package:plotlines_client/presentation/screens/trip_area_screen.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/trip_bbox_provider.dart';
+
+/// This screen watches `tripRegionKeyProvider` to start the routing region
+/// warm-up as the bbox is accepted. These tests are about the "Use this
+/// extent" button, not the settle window (issue #246), so the region notifier
+/// runs with a zero window against a stub client — otherwise every test that
+/// draws a bbox leaks the real 10 s settle `Timer` into `FakeAsync`.
+class _StubRoutingClient extends RoutingClient {
+  _StubRoutingClient() : super('http://stub');
+  @override
+  Future<String> ensureRegion(List<double> bboxWsen, {String networkType = 'bike'}) async =>
+      'region-stub';
+}
 
 Future<void> _settleMap(WidgetTester tester) async {
   for (var i = 0; i < 5; i++) {
@@ -26,6 +39,9 @@ Future<void> _settleMap(WidgetTester tester) async {
 ProviderContainer _containerFor({List<Override> overrides = const []}) => ProviderContainer(
       overrides: [
         appDatabaseProvider.overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
+        routingClientProvider.overrideWithValue(_StubRoutingClient()),
+        tripRegionKeyProvider.overrideWith(
+            (ref) => TripRegionKeyNotifier(ref, settleWindow: Duration.zero)),
         ...overrides,
       ],
     );

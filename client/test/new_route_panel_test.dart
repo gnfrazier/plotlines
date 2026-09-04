@@ -18,7 +18,6 @@ import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/presentation/screens/new_route_screen.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/settings_provider.dart';
-import 'package:plotlines_client/state/trip_bbox_provider.dart';
 
 class _FakeSidecarManager extends SidecarManager {
   @override
@@ -35,10 +34,7 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-Future<void> _pumpPanel(
-  WidgetTester tester, {
-  AsyncValue<String?>? region,
-}) async {
+Future<void> _pumpPanel(WidgetTester tester) async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
   final router = GoRouter(
     initialLocation: '/new',
@@ -51,9 +47,8 @@ Future<void> _pumpPanel(
     overrides: [
       appDatabaseProvider.overrideWithValue(db),
       sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
-      // No bbox: `tripRegionKeyProvider` resolves to null, which is the
-      // honest "draw the trip area first" not-ready, not a failure.
-      if (region != null) tripRegionKeyProvider.overrideWith((ref) => region.value),
+      // No bbox drawn: `tripRegionKeyProvider` sits at `TripRegionNoBbox`,
+      // the honest "draw the trip area first" not-ready, not a failure.
     ],
     child: MaterialApp.router(routerConfig: router),
   ));
