@@ -31,7 +31,8 @@ class _FakeRoutingClient extends RoutingClient {
   double? lastTargetM;
 
   @override
-  Future<String> ensureRegion(List<double> bboxWsen, {String networkType = 'bike'}) async =>
+  Future<String> ensureRegion(List<double> bboxWsen,
+          {String networkType = 'bike', bool retry = false}) async =>
       'region-1';
 
   @override

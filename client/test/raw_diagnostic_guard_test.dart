@@ -54,6 +54,10 @@ void main() {
         'draw the trip area before routing is available',
         'the trip area could not be prepared for routing',
         'waiting on elevation',
+        // Issue #247 — the sidecar's requeue cooldown / cap reasons.
+        "Couldn't prepare routing for this area. Retrying automatically in 42 s.",
+        "Couldn't prepare routing for this area after 3 attempts. Automatic "
+            'retries have stopped; use Try again to retry.',
       ]) {
         expect(looksLikeRawDiagnostic(phrase), isFalse, reason: phrase);
       }

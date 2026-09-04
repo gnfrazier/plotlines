@@ -27,13 +27,16 @@ class _GatedRoutingClient extends RoutingClient {
 
   final bool autoComplete;
   final List<List<double>> ensureCalls = [];
+  final List<bool> retryFlags = [];
   final List<Completer<String>> gates = [];
 
   int get callCount => ensureCalls.length;
 
   @override
-  Future<String> ensureRegion(List<double> bboxWsen, {String networkType = 'bike'}) {
+  Future<String> ensureRegion(List<double> bboxWsen,
+      {String networkType = 'bike', bool retry = false}) {
     ensureCalls.add(bboxWsen);
+    retryFlags.add(retry);
     if (autoComplete) return Future.value('region-${ensureCalls.length}');
     final c = Completer<String>();
     gates.add(c);
@@ -181,6 +184,11 @@ void main() {
     expect(h.client.callCount, 2);
     expect(h.client.ensureCalls[1], _boxA.bboxWsen);
     expect(h.container.read(tripRegionKeyProvider), isA<TripRegionEnsuring>());
+
+    // Issue #247 — the settle-window POST is automatic (`retry: false`); only
+    // the Author's explicit "Try again" carries `retry: true`, which is what
+    // earns the sidecar's one in-window cooldown bypass.
+    expect(h.client.retryFlags, [false, true]);
   });
 
   test('the settled failure carries the error for logging but the surface phrase is fixed',

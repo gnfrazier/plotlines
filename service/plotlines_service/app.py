@@ -17,6 +17,7 @@ wrong.
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
 import traceback
@@ -24,6 +25,7 @@ import uuid
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 import osmnx as ox
@@ -109,6 +111,30 @@ GRAPH_ESTIMATED_S = 8.0
 # work. Serialising builds keeps `/health` responsive; a queued build just
 # waits its turn. Raise this only with a matching memory budget in mind.
 REGION_BUILD_CONCURRENCY = 1
+
+# Minimum wall-clock gap between a settled region-build failure and the next
+# *accepted* requeue for the same region key (issue #247; OSM acquisition
+# review §5.6, closing #238's second mechanism). Before this, `ensure_region`'s
+# `REQUEUE_AFTER_FAILURE` branch had no floor: the client's 2 s `/health` poll
+# (and, pre-#246, its per-revision `POST /regions`) could re-run a build the
+# instant the last one settled `failed`, so an unreachable Overpass endpoint
+# was retried tens of times a minute — the load profile that earns an IP-level
+# block (#238's measurements: 22 attempts / 44 requests in 40 minutes). 60 s is
+# a small fraction of the 37–117 s graph build it gates and long enough that a
+# genuinely-down upstream is not hammered.
+REGION_REQUEUE_COOLDOWN_S = 60.0
+
+# Hard ceiling on *automatic* requeues after a settled failure for one region
+# key in a session (issue #247). Past this, the `/health`-driven path stops on
+# its own and the surfaced reason says so — a dead endpoint is not retried
+# forever. The Author's explicit FR121 "Try again" is user-initiated and not
+# subject to this cap (acquisition addendum P4: "a user-initiated action that
+# fails is re-initiated by the user or not at all"), but it is still cooled by
+# REGION_REQUEUE_COOLDOWN_S, with a single bypass per cooldown window so a
+# stuck client cannot hold the loop open through it. 3 automatic tries spans a
+# transient blip (~3 min at the cooldown) without approaching #238's volume;
+# Phase 5 (#284) removes automatic retry mechanically.
+REGION_AUTOMATIC_REQUEUE_CAP = 3
 
 # Elevation acquisition is explicitly out of scope for this region-build path
 # (issue #154's scoping note): D20/FR85 pin the source to GEDTM30 via
@@ -196,6 +222,23 @@ class CapabilityState:
         return {"ready": False, "reason": "pending"}
 
 
+@dataclass(frozen=True)
+class RequeueDecision:
+    """`RegionState.plan_requeue_after_failure`'s verdict (issue #247).
+
+    `accepted` -> a build is (re)queued now. `reason` is the finished,
+    user-facing sentence to hang on the `routing` capability when it is *not*
+    (`""` when accepted) — legible on `/health` so an Author who pressed "Try
+    again" and saw nothing learns why, rather than pressing it again.
+    `bypassed_cooldown` records that this acceptance spent the one manual
+    cooldown bypass for the current window.
+    """
+
+    accepted: bool
+    reason: str = ""
+    bypassed_cooldown: bool = False
+
+
 class RegionState:
     """One Author-declared trip bbox's readiness lifecycle (ARCH §8.3, D41;
     PRD FR120/FR121; issue #154). Replaces the pre-#154 single committed
@@ -230,6 +273,16 @@ class RegionState:
         #: Why the (best-effort, never region-failing) tile extraction did not
         #: produce an archive. `None` means it worked or was never reached.
         self.tiles_error: str | None = None
+        # Requeue cooldown/cap bookkeeping (issue #247). `failed_at` is the
+        # `time.monotonic()` of the last settled failure; the cooldown is
+        # measured from it. `automatic_requeues` counts accepted `/health`-
+        # driven requeues since this region was created or last built ok — the
+        # cap acts on it. `cooldown_bypassed_at` is when a manual "Try again"
+        # last spent its one-per-window cooldown bypass. All three reset on a
+        # successful build.
+        self.failed_at: float | None = None
+        self.automatic_requeues = 0
+        self.cooldown_bypassed_at: float | None = None
 
     @property
     def routing_ready(self) -> bool:
@@ -244,6 +297,50 @@ class RegionState:
         if not self.graph_state.ready:
             d["attempts"] = self.build_attempts
         return d
+
+    def requeue_cooldown_remaining(self, now: float) -> float:
+        """Seconds left on the post-failure cooldown (issue #247), 0.0 when it
+        has elapsed or no failure is on record. `now` is a `time.monotonic()`
+        reading, the same clock `build()` stamps `failed_at` with."""
+        if self.failed_at is None:
+            return 0.0
+        return max(0.0, REGION_REQUEUE_COOLDOWN_S - (now - self.failed_at))
+
+    def plan_requeue_after_failure(self, *, manual: bool, now: float) -> RequeueDecision:
+        """Decide whether a `POST /regions` for this settled-`failed` region
+        may re-queue a build now (issue #247, review §5.6).
+
+        `manual` is set only by the Author's explicit FR121 "Try again"
+        (`RegionRequest.retry`); the automatic `/health`-poll path leaves it
+        false. The automatic path is hard-capped and always waits out the
+        cooldown; the manual path is uncapped (addendum P4) but still cooled,
+        with one bypass per cooldown window so it cannot itself become the
+        loop.
+        """
+        if not manual and self.automatic_requeues >= REGION_AUTOMATIC_REQUEUE_CAP:
+            return RequeueDecision(
+                accepted=False,
+                reason=(
+                    f"Couldn't prepare routing for this area after "
+                    f"{REGION_AUTOMATIC_REQUEUE_CAP} attempts. Automatic retries "
+                    f"have stopped; use Try again to retry."
+                ),
+            )
+        remaining = self.requeue_cooldown_remaining(now)
+        if remaining <= 0:
+            return RequeueDecision(accepted=True)
+        if manual and (
+            self.cooldown_bypassed_at is None
+            or now - self.cooldown_bypassed_at >= REGION_REQUEUE_COOLDOWN_S
+        ):
+            return RequeueDecision(accepted=True, bypassed_cooldown=True)
+        return RequeueDecision(
+            accepted=False,
+            reason=(
+                f"Couldn't prepare routing for this area. Retrying "
+                f"automatically in {math.ceil(remaining)} s."
+            ),
+        )
 
     def diagnostics(self) -> dict:
         """Everything known about this region's build history (issue #232).
@@ -286,6 +383,12 @@ class RegionState:
             self.timings["total"] = time.monotonic() - t0
             self.last_error = None
             self.last_traceback = None
+            # A clean build clears the requeue cooldown/cap ledger (issue
+            # #247): the next failure, if any, starts a fresh window and a
+            # fresh count.
+            self.failed_at = None
+            self.automatic_requeues = 0
+            self.cooldown_bypassed_at = None
             self.graph_state.succeed("graph ready")
             log.info("region build OK key=%s attempt=%d timings=%s",
                      self.key, attempt, self.timings)
@@ -297,6 +400,7 @@ class RegionState:
             self.last_error = str(exc)
             self.last_traceback = traceback.format_exc()
             self.last_attempt_finished_at = time.time()
+            self.failed_at = time.monotonic()  # starts the requeue cooldown (#247)
             self.graph_state.fail(str(exc))
             log.warning("region build FAILED key=%s attempt=%d (overpass): %s",
                         self.key, attempt, exc)
@@ -306,6 +410,7 @@ class RegionState:
             self.last_error = f"{type(exc).__name__}: {exc}"
             self.last_traceback = traceback.format_exc()
             self.last_attempt_finished_at = time.time()
+            self.failed_at = time.monotonic()  # starts the requeue cooldown (#247)
             self.graph_state.fail(f"{type(exc).__name__}: {exc}")
             log.error("region build FAILED key=%s attempt=%d: %s\n%s",
                       self.key, attempt, self.last_error, self.last_traceback)
@@ -377,12 +482,17 @@ class Readiness:
         self._build_pool.shutdown(wait=False, cancel_futures=True)
 
     def ensure_region(self, bbox: tuple[float, float, float, float],
-                      network_type: str = "bike") -> str:
+                      network_type: str = "bike", *, manual: bool = False) -> str:
         """Idempotent: a second call with the same (bbox, network_type)
         returns the same key without starting a second build. Builds are
         queued onto a bounded pool (REGION_BUILD_CONCURRENCY), so a second
         *distinct* region ensured while one is still building waits rather
-        than competing for CPU."""
+        than competing for CPU.
+
+        `manual=True` marks the Author's explicit FR121 "Try again"
+        (`RegionRequest.retry`), which the automatic `/health`-poll path never
+        sets. It is what earns the one-per-window cooldown bypass and is not
+        subject to the automatic-requeue cap (issue #247)."""
         key = region_lib.region_key(bbox, network_type)
         with self._lock:
             region = self.regions.get(key)
@@ -393,19 +503,38 @@ class Readiness:
                 log.info("ensure_region key=%s bbox=%s nt=%s decision=NEW_BUILD",
                          key, bbox, network_type)
             elif region.graph_state.status == "failed":
-                log.info("ensure_region key=%s nt=%s decision=REQUEUE_AFTER_FAILURE "
-                         "(prior attempts=%d, last_error=%r)", key, network_type,
-                         region.build_attempts, region.last_error)
                 # A settled failure (typically Overpass unreachable, issue
-                # #229) is retryable: a fresh `POST /regions` for the same
-                # bbox resets the capability and re-queues the build rather
-                # than returning the stale failure for the rest of the
-                # session. This is what the client's "Try again" affordance
-                # (FR121) drives. A build already re-queued reads as
-                # "pending"/"loading", not "failed", so a rapid double call
-                # won't stack two builds.
-                region.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
-                self._queue_build(region)
+                # #229) is retryable, but not without limit (issue #247): a
+                # cooldown floors the interval between a failure and the next
+                # accepted requeue, and a cap stops the automatic path once a
+                # dead endpoint has been retried enough. A build already
+                # re-queued reads as "pending"/"loading", not "failed", so a
+                # rapid double call won't stack two builds.
+                decision = region.plan_requeue_after_failure(
+                    manual=manual, now=time.monotonic())
+                if decision.accepted:
+                    if not manual:
+                        region.automatic_requeues += 1
+                    elif decision.bypassed_cooldown:
+                        region.cooldown_bypassed_at = time.monotonic()
+                    log.info(
+                        "ensure_region key=%s nt=%s decision=REQUEUE_AFTER_FAILURE "
+                        "(prior attempts=%d, manual=%s, bypass=%s, auto_requeues=%d, "
+                        "last_error=%r)", key, network_type, region.build_attempts,
+                        manual, decision.bypassed_cooldown, region.automatic_requeues,
+                        region.last_error)
+                    region.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
+                    self._queue_build(region)
+                else:
+                    # Leave the region `failed`, but make the wait legible on
+                    # `/health` (FR121's "stated reason") — an Author who
+                    # pressed "Try again" and saw nothing must not be left
+                    # guessing, or they press it again.
+                    region.graph_state.fail(decision.reason)
+                    log.info(
+                        "ensure_region key=%s nt=%s decision=REQUEUE_REFUSED "
+                        "(manual=%s, auto_requeues=%d) %s", key, network_type,
+                        manual, region.automatic_requeues, decision.reason)
         return key
 
     def _queue_build(self, region: "RegionState") -> None:
@@ -456,6 +585,11 @@ class RegionRequest(BaseModel):
 
     bbox: list[float] = Field(min_length=4, max_length=4)
     network_type: str = "bike"
+    #: Issue #247 — set only by the Author's explicit FR121 "Try again". Grants
+    #: a settled-`failed` region one cooldown bypass per window and exempts the
+    #: request from the automatic-requeue cap. The automatic settle-window /
+    #: `/health`-poll path leaves it false and always waits the cooldown out.
+    retry: bool = False
 
 
 class SegmentRequest(BaseModel):
@@ -892,7 +1026,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         `GET /health`'s `capabilities.routing.regions[key]` for progress.
         """
         bbox = tuple(req.bbox)
-        key = state.ensure_region(bbox, req.network_type)
+        key = state.ensure_region(bbox, req.network_type, manual=req.retry)
         return {"region": key}
 
     @app.get("/regions/{key}/diagnostics")

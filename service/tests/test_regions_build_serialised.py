@@ -78,7 +78,12 @@ def test_same_key_ensured_twice_still_builds_once(tmp_path, monkeypatch):
 def test_ensure_region_requeues_a_settled_failed_region(tmp_path, monkeypatch):
     """issue #229 — a `POST /regions` for a bbox whose build has settled
     `failed` (Overpass unreachable) resets the capability and re-queues the
-    build, so the client's "Try again" is a real retry, not a no-op."""
+    build, so the client's "Try again" is a real retry, not a no-op.
+
+    Issue #247 adds a post-failure cooldown, so the immediate retry now has to
+    come in as `manual=True` (the Author's explicit "Try again") to be
+    accepted inside the window — which is exactly the affordance this test is
+    about."""
     attempts = 0
     lock = threading.Lock()
 
@@ -88,6 +93,7 @@ def test_ensure_region_requeues_a_settled_failed_region(tmp_path, monkeypatch):
             attempts += 1
             n = attempts
         if n == 1:
+            self.failed_at = time.monotonic()  # the real build stamps this too
             self.graph_state.fail("Couldn't reach the map-data service ...")
         else:
             self.graph_state.succeed("graph ready")
@@ -104,7 +110,7 @@ def test_ensure_region_requeues_a_settled_failed_region(tmp_path, monkeypatch):
     # A fresh pool for the retry submission (the first shutdown closed it).
     from concurrent.futures import ThreadPoolExecutor
     state._build_pool = ThreadPoolExecutor(max_workers=1)
-    k2 = state.ensure_region(bbox, "bike")
+    k2 = state.ensure_region(bbox, "bike", manual=True)
     state._build_pool.shutdown(wait=True)
 
     assert k1 == k2

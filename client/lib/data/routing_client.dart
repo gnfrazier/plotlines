@@ -46,11 +46,20 @@ class RoutingClient {
   /// `/segments/*` call must now carry. Idempotent and cheap to call again
   /// for a bbox already ensured (a dict lookup server-side, no rebuild) —
   /// callers are not expected to cache the result themselves.
-  Future<String> ensureRegion(List<double> bboxWsen, {String networkType = 'bike'}) async {
+  ///
+  /// [retry] is the Author's explicit FR121 "Try again" (issue #247): it lets
+  /// a settled-failed region's build re-queue inside its post-failure cooldown
+  /// once per window, and is not counted against the sidecar's automatic
+  /// requeue cap. Every other caller — the settle-window path included — leaves
+  /// it false so the sidecar always waits the cooldown out.
+  Future<String> ensureRegion(List<double> bboxWsen,
+      {String networkType = 'bike', bool retry = false}) async {
+    final body = <String, dynamic>{'bbox': bboxWsen, 'network_type': networkType};
+    if (retry) body['retry'] = true;
     final resp = await http.post(
       _uri('/regions'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'bbox': bboxWsen, 'network_type': networkType}),
+      body: jsonEncode(body),
     );
     _checkOk(resp);
     return (jsonDecode(resp.body) as Map<String, dynamic>)['region'] as String;

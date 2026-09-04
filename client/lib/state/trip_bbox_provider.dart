@@ -158,12 +158,15 @@ class TripRegionKeyNotifier extends StateNotifier<TripRegionKeyState> {
     _settleTimer = Timer(_settleWindow, () => _ensure(generation, bbox));
   }
 
-  Future<void> _ensure(int generation, TripBbox bbox) async {
+  Future<void> _ensure(int generation, TripBbox bbox, {bool manual = false}) async {
     if (generation != _generation) return; // superseded during the settle window
     state = TripRegionEnsuring(bbox);
     try {
       final client = _ref.read(routingClientProvider);
-      final key = await client.ensureRegion(bbox.bboxWsen);
+      // `manual` is the Author's explicit "Try again" (issue #247) — the only
+      // path that may re-queue a settled-failed build inside the sidecar's
+      // post-failure cooldown. The settle-window path leaves it false.
+      final key = await client.ensureRegion(bbox.bboxWsen, retry: manual);
       // A stale generation is a superseded region; `!mounted` is the screen
       // torn down mid-POST. Either way the result is dropped.
       if (!mounted || generation != _generation) return;
@@ -179,11 +182,16 @@ class TripRegionKeyNotifier extends StateNotifier<TripRegionKeyState> {
   /// resets a settled-failed region and re-queues its build. No-op with no
   /// bbox; skips straight past the settle window since the Author is asking
   /// to build the box as it stands now.
+  ///
+  /// Sent as `retry: true` (issue #247), which is what lets it re-queue inside
+  /// the sidecar's post-failure cooldown — once per cooldown window; a second
+  /// press before the window elapses is refused with the remaining wait shown
+  /// on the routing capability, not silently swallowed.
   void retry() {
     final bbox = _lastAccepted;
     if (bbox == null) return;
     _settleTimer?.cancel();
-    _ensure(++_generation, bbox);
+    _ensure(++_generation, bbox, manual: true);
   }
 
   @override
