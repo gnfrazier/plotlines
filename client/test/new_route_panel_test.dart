@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:plotlines_client/data/app_database.dart';
+import 'package:plotlines_client/data/routing_client.dart';
 import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/presentation/screens/new_route_screen.dart';
 import 'package:plotlines_client/state/providers.dart';
@@ -34,7 +35,7 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-Future<void> _pumpPanel(WidgetTester tester) async {
+Future<void> _pumpPanel(WidgetTester tester, {List<Override> extraOverrides = const []}) async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
   final router = GoRouter(
     initialLocation: '/new',
@@ -49,10 +50,26 @@ Future<void> _pumpPanel(WidgetTester tester) async {
       sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
       // No bbox drawn: `tripRegionKeyProvider` sits at `TripRegionNoBbox`,
       // the honest "draw the trip area first" not-ready, not a failure.
+      ...extraOverrides,
     ],
     child: MaterialApp.router(routerConfig: router),
   ));
   await _settle(tester);
+}
+
+/// Issue #249 — counts `/geocode` calls without hitting the network, so a
+/// test can assert on when the New Route search field actually dispatches
+/// one.
+class _CountingRoutingClient extends RoutingClient {
+  _CountingRoutingClient() : super('http://127.0.0.1:0');
+
+  int geocodeCalls = 0;
+
+  @override
+  Future<List<GeocodeResult>> geocode(String query) async {
+    geocodeCalls++;
+    return const [];
+  }
 }
 
 void main() {
@@ -137,6 +154,30 @@ void main() {
     expect(find.text('ROUTING'), findsOneWidget);
     expect(find.textContaining('draw the trip area before routing is available'),
         findsOneWidget);
+  });
+
+  testWidgets(
+      'typing in the location search box never geocodes — only submitting or '
+      'the arrow button does (issue #249: Nominatim usage policy forbids '
+      'per-keystroke autocomplete)', (tester) async {
+    final client = _CountingRoutingClient();
+    await _pumpPanel(tester, extraOverrides: [
+      routingClientProvider.overrideWithValue(client),
+    ]);
+
+    final field = find.byWidgetPredicate((w) =>
+        w is TextField &&
+        w.decoration?.hintText == 'Search a town, or click the map to drop a start');
+    expect(field, findsOneWidget);
+
+    await tester.enterText(field, 'B');
+    await tester.pump();
+    await tester.enterText(field, 'Bo');
+    await tester.pump();
+    await tester.enterText(field, 'Boulder, CO');
+    await tester.pump();
+
+    expect(client.geocodeCalls, 0);
   });
 
   testWidgets('a disabled Generate is never silent, and never gives two reasons at once',

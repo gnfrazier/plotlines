@@ -31,8 +31,9 @@ because all three read the same two settings.
 from __future__ import annotations
 
 import threading
+import time
 from contextlib import contextmanager
-from typing import Iterator
+from typing import Callable, Iterator
 
 PRODUCT_NAME = "Plotlines"
 
@@ -134,3 +135,74 @@ def overpass_settings(
         finally:
             ox.settings.overpass_url = saved_url
             ox.settings.overpass_rate_limit = saved_rate_limit
+
+
+#: Nominatim's usage policy states "an absolute maximum of 1 request per
+#: second" (issue #249; review §5.8; addendum P2, table row *Nominatim*).
+#: `osmnx/_nominatim.py::_nominatim_request` already sleeps this long before
+#: every request — but it does so *inside* whichever thread is calling it,
+#: with no shared state across threads. So the pacing this process gets today
+#: is accidental: the client calls `/geocode` on submit rather than per
+#: keystroke, which keeps a single-threaded caller at roughly ≤1 rps, but two
+#: threads (FastAPI runs a sync `def` endpoint like `/geocode` on a threadpool
+#: sibling) that both enter `_nominatim_request` within the same instant each
+#: independently sleep ~1s and then fire together — exceeding the policy with
+#: no error and no warning. `NOMINATIM_MIN_INTERVAL_S` and
+#: `nominatim_rate_limit()` below convert that accident into an asserted,
+#: testable invariant.
+NOMINATIM_MIN_INTERVAL_S = 1.0
+
+_NOMINATIM_LOCK = threading.Lock()
+_last_nominatim_call_finished: float | None = None
+
+
+@contextmanager
+def nominatim_rate_limit(
+    *,
+    sleep: Callable[[float], None] = time.sleep,
+    monotonic: Callable[[], float] = time.monotonic,
+) -> Iterator[None]:
+    """Hold a process-wide lock for the block, first waiting out whatever is
+    left of `NOMINATIM_MIN_INTERVAL_S` since the previous holder's block
+    finished. Only one Nominatim call is ever in flight in this process while
+    this is held, and no two blocks can start less than the interval apart —
+    which also happens to satisfy the policy's "no bulk" clause, since
+    nothing in Plotlines ever has a second Nominatim call outstanding while
+    the first is still running.
+
+    `/geocode` (`service/plotlines_service/app.py`) is the one call site
+    today; wrap the `ox.geocode_to_gdf` call in this rather than relying on
+    osmnx's own per-call, per-thread `pause = 1` — that pause cannot see a
+    concurrent caller in the *same* process, which this lock can.
+
+    This is process-wide, not service-wide: a second OS process (two
+    sidecars, or a horizontally-scaled hosted deployment running more than
+    one worker) has its own lock and its own last-call timestamp, and the two
+    are not coordinated. As built today the sidecar and hosted entrypoints
+    both run a single `uvicorn.Server` with no `workers=` argument
+    (`service/plotlines_service/__main__.py`), so "process-wide" and
+    "service-wide" coincide for what actually exists; a future
+    horizontally-scaled hosted deployment would need a shared external
+    limiter instead of this one, which is a hosted-mode deployment concern
+    (Phase 4, #279) and not built here.
+
+    `sleep`/`monotonic` are injectable so a test can shrink
+    `NOMINATIM_MIN_INTERVAL_S`'s effect to milliseconds while still asserting
+    the real enforcement logic ran — the same pattern `ensure_graph`'s
+    `sleep=time.sleep` parameter uses in `graph/regions.py`.
+
+    Not reentrant, like `overpass_settings`: nothing in plotlines-core nests
+    one `nominatim_rate_limit` block inside another.
+    """
+    global _last_nominatim_call_finished
+    with _NOMINATIM_LOCK:
+        if _last_nominatim_call_finished is not None:
+            remaining = NOMINATIM_MIN_INTERVAL_S - (
+                monotonic() - _last_nominatim_call_finished
+            )
+            if remaining > 0:
+                sleep(remaining)
+        try:
+            yield
+        finally:
+            _last_nominatim_call_finished = monotonic()
