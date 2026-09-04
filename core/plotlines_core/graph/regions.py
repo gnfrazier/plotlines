@@ -128,7 +128,9 @@ OVERPASS_PROBE_TIMEOUT_S = 3.0
 #: 200 response carrying no elements — which for a bbox with no routable ways
 #: is a true answer about the area, not an outage. Retrying it across every
 #: endpoint and then reporting "couldn't reach the map-data service" would
-#: blame the network for an empty box.
+#: blame the network for an empty box. `ensure_graph` gives it its own branch
+#: below, translating it to `NoRoutableWaysError` on the first attempt rather
+#: than looping it through this tuple (issue #248).
 TRANSIENT_OVERPASS_ERRORS: tuple[type[Exception], ...] = (
     requests.exceptions.RequestException,
     ox._errors.ResponseStatusCodeError,
@@ -141,6 +143,18 @@ class OverpassUnavailable(RuntimeError):
     finished, user-facing sentence: the sidecar surfaces it verbatim as the
     `routing` capability's reason (`service/plotlines_service/app.py`), so it
     must read as something an Author can act on, never an exception repr."""
+
+
+class NoRoutableWaysError(RuntimeError):
+    """Overpass answered `200 OK` for this bbox/mode with zero elements
+    (issue #248) — a true answer about the area (open water, desert, or
+    nothing routable for the selected mode), not an outage. `ensure_graph`
+    raises this in place of letting osmnx's `InsufficientResponseError`
+    propagate, so its `str()` is a finished, user-facing sentence the same
+    way `OverpassUnavailable`'s is: the sidecar surfaces it verbatim as the
+    `routing` capability's reason, never retried and never failed over to
+    another endpoint — retrying an honest empty answer would just relabel it
+    as a network outage it isn't."""
 
 
 def overpass_endpoints() -> tuple[str, ...]:
@@ -431,6 +445,11 @@ def ensure_graph(
     is raised with a user-facing message rather than a raw exception leaking to
     the client.
 
+    A `200 OK` carrying zero elements is a different thing entirely — a true
+    answer about the bbox/mode, not an outage — so it is never retried or
+    failed over to the next endpoint: it raises `NoRoutableWaysError` on the
+    first attempt (issue #248), also with a finished, user-facing message.
+
     Before each osmnx attempt `probe` (default `probe_endpoint`) opens a
     short-timeout socket to the endpoint; a host that refuses or does not
     resolve is failed over immediately rather than after the 60 s osmnx spends
@@ -523,6 +542,20 @@ def ensure_graph(
             try:
                 with overpass_settings(url=endpoint):
                     graph = _download_region_graph(region)
+            except ox._errors.InsufficientResponseError as exc:
+                # A true answer about this bbox/mode (issue #248), not an
+                # outage: no backoff, no retry, no failover to the next
+                # endpoint, and no generic `except Exception` prefix once
+                # this reaches `RegionState.build` — raise the finished
+                # sentence directly.
+                log.info(
+                    "ensure_graph key=%s endpoint=%s attempt=%d: empty "
+                    "response (%s) — answer about the bbox, not retried",
+                    region.key, endpoint, attempt, exc)
+                raise NoRoutableWaysError(
+                    "The drawn area has no routable ways for this mode. Try "
+                    "a larger area or a different mode."
+                ) from exc
             except TRANSIENT_OVERPASS_ERRORS as exc:
                 _failed(endpoint, attempt, attempt_started,
                         type(exc).__name__, f"{type(exc).__name__}: {exc}")

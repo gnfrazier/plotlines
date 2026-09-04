@@ -480,7 +480,9 @@ def test_ensure_graph_does_not_retry_an_empty_overpass_response(tmp_path, monkey
     """`InsufficientResponseError` is a true answer about the bbox (no routable
     ways there), not an outage — it must propagate on the first attempt rather
     than being retried across every endpoint and reported as "couldn't reach
-    the map-data service"."""
+    the map-data service". Issue #248: `ensure_graph` translates it to the
+    dedicated `NoRoutableWaysError` rather than letting the raw osmnx type
+    escape."""
     attempts: list[str] = []
 
     def empty_response(_region):
@@ -490,7 +492,7 @@ def test_ensure_graph_does_not_retry_an_empty_overpass_response(tmp_path, monkey
     monkeypatch.setattr(regions, "_download_region_graph", empty_response)
 
     region = regions.region_for(_BBOX, "bike")
-    with pytest.raises(ox._errors.InsufficientResponseError):
+    with pytest.raises(regions.NoRoutableWaysError):
         regions.ensure_graph(
             region, tmp_path,
             endpoints=("https://a.example/api", "https://b.example/api"),
@@ -498,6 +500,31 @@ def test_ensure_graph_does_not_retry_an_empty_overpass_response(tmp_path, monkey
         )
 
     assert attempts == ["https://a.example/api"]
+
+
+def test_ensure_graph_empty_response_message_is_a_finished_sentence(tmp_path, monkeypatch):
+    """Message-contract test (issue #248): the empty-response error's `str()`
+    must read as something an Author can act on — no `InsufficientResponseError`
+    repr, no bare type name, and no osmnx wording leaking through."""
+
+    def empty_response(_region):
+        raise ox._errors.InsufficientResponseError("no elements in response")
+
+    monkeypatch.setattr(regions, "_download_region_graph", empty_response)
+
+    region = regions.region_for(_BBOX, "bike")
+    with pytest.raises(regions.NoRoutableWaysError) as excinfo:
+        regions.ensure_graph(
+            region, tmp_path,
+            endpoints=("https://a.example/api",),
+            sleep=lambda _s: None,
+        )
+
+    message = str(excinfo.value)
+    assert "InsufficientResponseError" not in message
+    assert "no elements in response" not in message
+    assert message.endswith((".", "!", "?"))
+    assert "routable ways" in message
 
 
 # --- issue #232: a failover list must be distinct machines ------------------
