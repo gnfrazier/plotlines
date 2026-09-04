@@ -14,6 +14,7 @@ from plotlines_core.curation.providers import (
     LOADING,
     READY,
     BBox,
+    CandidateFetchUnavailable,
     LayerLicence,
     LayerLoadState,
 )
@@ -218,6 +219,24 @@ def test_a_layer_that_raises_at_fetch_is_marked_failed_afterwards():
         raise_on_fetch=TimeoutError("down")))
     reg.fetch_candidates_all(_BBOX, {"battlefields"})
     assert reg.per_layer()["battlefields"].startswith("failed:TimeoutError")
+
+
+def test_candidate_fetch_unavailable_surfaces_a_finished_sentence_not_a_repr():
+    """Issue #250: the candidate path's accepted single-endpoint Overpass
+    posture still owes an honest error surface — a `CandidateFetchUnavailable`
+    must read like #248's `OverpassUnavailable` on the routing path, not the
+    generic `f"{type(exc).__name__}: {exc}"` raw-repr fallback every other
+    provider exception gets."""
+    message = "the map-data service didn't answer for this layer — try again."
+    reg = _registry_with_builtins()
+    reg.register_plugin("battlefields", FakePlugin(
+        raise_on_fetch=CandidateFetchUnavailable(message)))
+
+    cands, errors = reg.fetch_candidates_all(_BBOX, {"battlefields"})
+
+    assert errors["battlefields"] == f"{FAILED}:{message}"
+    assert "CandidateFetchUnavailable" not in errors["battlefields"]
+    assert reg.per_layer()["battlefields"] == f"{FAILED}:{message}"
 
 
 def test_fetch_names_an_unknown_layer_without_aborting():

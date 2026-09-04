@@ -7,10 +7,13 @@ testable from the disk/network read that feeds it.
 """
 
 import osmnx as ox
+import pytest
+import requests
 from shapely.geometry import Point, Polygon
 
 from plotlines_core.curation.providers import (
-    BBox, OsmLayerProvider, feature_from_geometry, osm_tags_for,
+    BBox, CandidateFetchUnavailable, OsmLayerProvider, feature_from_geometry,
+    osm_tags_for,
 )
 
 
@@ -92,3 +95,53 @@ def test_fetch_stamps_the_plotlines_user_agent_before_querying(monkeypatch):
 
     assert seen["ua"].startswith("Plotlines/")
     assert "gboeing" not in seen["ua"]
+
+
+# --------------------------------------------------------------------------- #
+# Issue #250 / Phase 0.10 — the candidate path's accepted single-endpoint,
+# no-failover Overpass posture still owes an honest error surface.
+# --------------------------------------------------------------------------- #
+
+def test_fetch_returns_no_candidates_on_a_true_empty_response(monkeypatch):
+    """A `200 OK` with zero elements is a true answer about this bbox/layer —
+    no such feature here — not an outage, mirroring #248's
+    `NoRoutableWaysError` distinction on the graph path. `fetch` must return
+    an empty list, not raise."""
+    def fake_features_from_bbox(*_args, **_kwargs):
+        raise ox._errors.InsufficientResponseError("Overpass returned no results")
+
+    monkeypatch.setattr(ox, "features_from_bbox", fake_features_from_bbox)
+
+    assert OsmLayerProvider().fetch(BBox(0.0, 0.0, 0.01, 0.01), {"historic"}) == []
+
+
+def test_fetch_raises_candidate_fetch_unavailable_on_a_transport_failure(monkeypatch):
+    """A refused/reset/timed-out connection must not leak a raw
+    `requests.exceptions.ConnectionError` repr — the pre-#250 behaviour this
+    guards against — but come back as a finished, user-facing sentence."""
+    def fake_features_from_bbox(*_args, **_kwargs):
+        raise requests.exceptions.ConnectionError("Connection refused")
+
+    monkeypatch.setattr(ox, "features_from_bbox", fake_features_from_bbox)
+
+    with pytest.raises(CandidateFetchUnavailable) as excinfo:
+        OsmLayerProvider().fetch(BBox(0.0, 0.0, 0.01, 0.01), {"historic"})
+    assert "Connection refused" not in str(excinfo.value)
+    assert str(excinfo.value)  # a real sentence, not an empty/blank message
+
+
+def test_fetch_raises_candidate_fetch_unavailable_on_a_bad_response_status(monkeypatch):
+    """`ox._errors.ResponseStatusCodeError` (a mirror answering e.g. `502` with
+    an unparseable body) is the failure #232 found escaping the graph path's
+    retry/failover loop because it subclasses `ValueError`, not
+    `RequestException`. The candidate path must not let it through as a raw
+    repr either."""
+    def fake_features_from_bbox(*_args, **_kwargs):
+        raise ox._errors.ResponseStatusCodeError("502 Bad Gateway")
+
+    monkeypatch.setattr(ox, "features_from_bbox", fake_features_from_bbox)
+
+    with pytest.raises(CandidateFetchUnavailable) as excinfo:
+        OsmLayerProvider().fetch(BBox(0.0, 0.0, 0.01, 0.01), {"historic"})
+    assert "502 Bad Gateway" not in str(excinfo.value)
+    assert str(excinfo.value)

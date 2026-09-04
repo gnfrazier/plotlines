@@ -196,6 +196,22 @@ OSM_LICENCE = LayerLicence(
 )
 
 
+class CandidateFetchUnavailable(RuntimeError):
+    """Overpass refused, errored, or was unreachable while `OsmLayerProvider`
+    fetched this layer's candidates. Unlike `graph.regions.OverpassUnavailable`
+    (issue #229), this is not backed by an endpoint list, retries, or
+    failover — issue #250 / Phase 0.10 (Addendum G2, checklist 0d) decided
+    the candidate path keeps single-endpoint, no-retry behaviour rather than
+    duplicating `ensure_graph`'s failover loop onto a transport Phase 3
+    (#272) deletes outright. What that decision still owes is an honest
+    surface: like `OverpassUnavailable` and `NoRoutableWaysError`, this
+    exception's `str()` is a finished, user-facing sentence, and
+    `LayerRegistry.fetch_candidates_all` surfaces it verbatim rather than the
+    generic `f"{type(exc).__name__}: {exc}"` raw-repr fallback it uses for
+    every other provider exception — the same standard issue #248 set for
+    the routing path."""
+
+
 class OsmLayerProvider:
     """The batched Overpass extraction engine for the six built-in OSM
     layers. One network call answers every layer asked for in the same
@@ -212,6 +228,7 @@ class OsmLayerProvider:
 
     def fetch(self, bbox: BBox, layers: set[str]) -> list[RawFeature]:
         import osmnx as ox
+        import requests
 
         from ..osm_identity import apply_osm_http_identity, overpass_settings
 
@@ -231,9 +248,35 @@ class OsmLayerProvider:
         # it runs on the configured default endpoint and posture) rather than
         # racing a concurrent build's mutated globals on a FastAPI threadpool
         # sibling.
+        #
+        # Issue #250 / Phase 0.10 — decided **accepted, not fixed**: this call
+        # stays single-endpoint with no retry and no failover, unlike
+        # `graph.regions.ensure_graph`'s endpoint-list loop (#229/#232/#245).
+        # The review's own consumer table already named this gap; building a
+        # second failover implementation onto a transport the extract
+        # migration (Phase 3, #272) removes entirely is effort spent on a
+        # path with no future, and one implementation living in
+        # `graph/regions.py` is worth more than two half-maintained copies.
+        # Expiry condition: the day this module no longer imports `osmnx` (the
+        # transport swap lands), this comment and `CandidateFetchUnavailable`
+        # both go with it. Until then the honest half of the decision still
+        # applies below — an Overpass failure here must read as a finished
+        # sentence, never a raw exception repr (issue #248's standard).
         with overpass_settings():
-            gdf = ox.features_from_bbox(
-                (bbox.west, bbox.south, bbox.east, bbox.north), tags)
+            try:
+                gdf = ox.features_from_bbox(
+                    (bbox.west, bbox.south, bbox.east, bbox.north), tags)
+            except ox._errors.InsufficientResponseError:
+                # A 200 with zero elements is a true answer about this
+                # bbox/layer — no such feature here — not an outage (mirrors
+                # #248's NoRoutableWaysError distinction on the graph path).
+                return []
+            except (requests.exceptions.RequestException,
+                    ox._errors.ResponseStatusCodeError) as exc:
+                raise CandidateFetchUnavailable(
+                    "the map-data service didn't answer for this layer — "
+                    "try again in a moment, or narrow the trip area."
+                ) from exc
         return [f for f in self._features_from_gdf(gdf) if f is not None]
 
     @staticmethod
