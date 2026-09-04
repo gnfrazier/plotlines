@@ -157,6 +157,53 @@ class NoRoutableWaysError(RuntimeError):
     as a network outage it isn't."""
 
 
+#: The routing graph's ODbL credit (issue #269, addendum L6, ARCH §8.1's "one
+#: policy, three payloads" extended to a fourth). The graph is built from the
+#: same OSM data as the basemap and every OSM layer, but it is neither a
+#: `LayerProvider` (so `attributions_for` never enumerates it) nor named in
+#: `web.about._STATIC_ATTRIBUTIONS` before this — it got its credit only by
+#: sitting under the basemap's line by accident, which stops the moment a
+#: non-OSM basemap is ever offered or the graph starts coming from the
+#: Plotlines mirror's own `.osm.pbf` extract (Phase 3) instead. The graph
+#: always ships (routing is one of the three capability gates, ARCH B1), so
+#: like elevation and the basemap this is a *static* obligation, not a
+#: per-layer one — asserted independently in
+#: `web.about.assert_about_attribution_complete`.
+GRAPH_LICENCE_ID = "ODbL-1.0"
+#: Distinct wording from `tiles.mirror.BASEMAP_ATTRIBUTION`, deliberately —
+#: see `graph_attribution` for why the two lines are not identical text.
+GRAPH_ATTRIBUTION = "Routing data: © OpenStreetMap contributors"
+GRAPH_TERMS_URL = "https://www.openstreetmap.org/copyright"
+
+
+def graph_attribution() -> dict:
+    """The routing graph's ODbL credit line, shaped exactly like
+    `tiles.mirror.basemap_attribution()` and
+    `elevation.region_asset.elevation_attribution()` so it drops into the
+    same `web.about.about_attributions()` list with no special-casing.
+
+    **Presentation decision (issue #269, addendum L6):** the graph's line
+    uses distinct text — "Routing data: …" rather than repeating the
+    basemap's bare "© OpenStreetMap contributors" verbatim — even though both
+    are ODbL credit for the same upstream. Three payloads (basemap, graph,
+    and any OSM-sourced layer) can share a screen; a screen that says
+    "© OpenStreetMap contributors" three times identically is worse than one
+    that says it once per distinguishable *use* and means all three. Each
+    obligation still gets its own list entry — `assert_about_attribution_complete`
+    stays a simple per-layer presence check — but a renderer is free to
+    de-duplicate identical attribution *strings* for display without
+    dropping any obligation, because each remains a distinct dict a test can
+    still assert on.
+    """
+    return {
+        "layer": "graph",
+        "licence": GRAPH_LICENCE_ID,
+        "attribution": GRAPH_ATTRIBUTION,
+        "builtin": True,
+        "terms_url": GRAPH_TERMS_URL,
+    }
+
+
 def overpass_endpoints() -> tuple[str, ...]:
     """The ordered Overpass endpoints `ensure_graph` tries. Env override
     `PLOTLINES_OVERPASS_ENDPOINTS` (comma-separated) replaces the built-in

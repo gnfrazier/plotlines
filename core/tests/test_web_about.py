@@ -17,6 +17,7 @@ from plotlines_core.elevation.region_asset import (
     ELEVATION_ATTRIBUTION,
     elevation_attribution,
 )
+from plotlines_core.graph.regions import GRAPH_ATTRIBUTION, graph_attribution
 from plotlines_core.web.about import (
     PRIVACY_STATEMENT,
     about_attributions,
@@ -74,12 +75,27 @@ def test_elevation_and_basemap_are_shown_together_as_separate_obligations():
     assert by_layer["elevation"]["licence"] != by_layer["basemap"]["licence"]
 
 
-def test_elevation_and_basemap_lead_the_list_before_plugin_credits():
+def test_graph_carries_its_own_odbl_credit_distinct_from_the_basemaps():
+    # Issue #269: the routing graph is built from the same OSM data as the
+    # basemap, but it is a separate obligation, not a free ride under the
+    # basemap's line — so it gets its own entry, and (the presentation
+    # decision the issue asks for) distinct text rather than a byte-for-byte
+    # repeat of the basemap's credit string.
+    lines = about_attributions(_registry())
+    by_layer = {line["layer"]: line for line in lines}
+
+    assert by_layer["graph"]["licence"] == "ODbL-1.0"
+    assert by_layer["graph"]["attribution"] == GRAPH_ATTRIBUTION
+    assert by_layer["graph"]["attribution"] != by_layer["basemap"]["attribution"]
+    assert by_layer["graph"]["licence"] == by_layer["basemap"]["licence"]
+
+
+def test_elevation_basemap_and_graph_lead_the_list_before_plugin_credits():
     reg = _registry()
     reg.register_plugin("battlefields", _Plugin(
         LayerLicence(id="CC-BY-4.0", attribution="Revwar GIS Project")))
     layers = [line["layer"] for line in about_attributions(reg)]
-    assert layers[:2] == ["elevation", "basemap"]
+    assert layers[:3] == ["elevation", "basemap", "graph"]
     assert "battlefields" in layers
 
 
@@ -97,10 +113,31 @@ def test_elevation_attribution_helper_matches_the_line_on_the_surface():
     assert elevation_attribution() in about_attributions(_registry())
 
 
+def test_graph_attribution_helper_matches_the_line_on_the_surface():
+    assert graph_attribution() in about_attributions(_registry())
+
+
 def test_release_gate_passes_when_every_credit_is_present():
     lines = assert_about_attribution_complete(_registry())
     layers = {line["layer"] for line in lines}
-    assert {"elevation", "basemap"} <= layers
+    assert {"elevation", "basemap", "graph"} <= layers
+
+
+def test_release_gate_is_a_build_failure_when_the_graph_credit_is_removed():
+    # Issue #269's "done when": removing the graph's credit line fails a
+    # test rather than a review. Simulate the constant going missing the
+    # same way the existing plugin-drift test simulates an emptied string.
+    import plotlines_core.web.about as about_module
+
+    reg = _registry()
+    original = about_module.graph_attribution
+    about_module.graph_attribution = lambda: {**original(), "attribution": ""}
+    try:
+        with pytest.raises(MissingAttributionError) as excinfo:
+            assert_about_attribution_complete(reg)
+        assert "graph" in str(excinfo.value)
+    finally:
+        about_module.graph_attribution = original
 
 
 def test_release_gate_is_a_build_failure_when_a_plugin_credit_is_blank():
