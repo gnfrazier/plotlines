@@ -46,8 +46,11 @@ def main(argv: list[str] | None = None) -> int:
     configure_logging(None, args.log_level)  # stderr only
 
     # This bypasses `create_app`, so it must stamp the Plotlines identity
-    # itself before `ensure_graph` reaches Overpass (issue #241).
+    # itself before `ensure_graph` reaches Overpass (issue #241), and point
+    # osmnx's response cache inside `--cache-dir` rather than at the
+    # CWD-relative `./cache` default (issue #242).
     user_agent = apply_osm_http_identity(VERSION)
+    region_lib.configure_overpass_cache(args.cache_dir)
 
     region = region_lib.region_for(tuple(args.bbox), args.network_type)
     print(f"region key={region.key} bbox={region.bbox} nt={region.network_type}")

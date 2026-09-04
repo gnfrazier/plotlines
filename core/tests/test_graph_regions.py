@@ -212,6 +212,33 @@ def test_ensure_graph_folds_barriers_and_keeps_the_ford_tag(tmp_path, monkeypatc
 def test_configure_overpass_cache_points_at_the_given_dir(tmp_path):
     regions.configure_overpass_cache(tmp_path)
     assert ox.settings.cache_folder == str(tmp_path / "overpass")
+    assert ox.settings.use_cache is True
+
+
+def test_ensure_graph_configures_the_cache_even_on_a_warm_cache_hit(tmp_path, monkeypatch):
+    """Issue #242: `configure_overpass_cache` used to sit *past* the
+    warm-cache early return, so a direct `ensure_graph` caller that hit the
+    cache left `ox.settings.cache_folder` at whatever it was — the
+    CWD-relative `./cache` default for a process that never got further.
+    Pre-seed the graph so the early return fires, and assert the cache was
+    still pointed inside `cache_dir` with no network call.
+    """
+    ox.settings.cache_folder = "./cache"  # the stray default this issue kills
+
+    region = regions.region_for(_BBOX, "bike")
+    seeded = region.graph_path(tmp_path)
+    seeded.parent.mkdir(parents=True, exist_ok=True)
+    seeded.write_bytes(b"<graphml/>")  # contents irrelevant — only .exists() matters
+
+    def fail_if_called(_region):
+        raise AssertionError("warm-cache hit must not touch the network")
+
+    monkeypatch.setattr(regions, "_download_region_graph", fail_if_called)
+
+    path = regions.ensure_graph(region, tmp_path)
+
+    assert path == seeded
+    assert ox.settings.cache_folder == str(tmp_path / "overpass")
 
 
 def test_importing_this_module_sets_a_non_default_osm_user_agent():
