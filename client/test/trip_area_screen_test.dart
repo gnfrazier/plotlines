@@ -26,7 +26,8 @@ import 'package:plotlines_client/state/trip_bbox_provider.dart';
 class _StubRoutingClient extends RoutingClient {
   _StubRoutingClient() : super('http://stub');
   @override
-  Future<String> ensureRegion(List<double> bboxWsen, {String networkType = 'bike'}) async =>
+  Future<String> ensureRegion(List<double> bboxWsen,
+          {String networkType = 'bike', bool retry = false}) async =>
       'region-stub';
 }
 

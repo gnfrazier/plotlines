@@ -25,7 +25,7 @@ class _RecordingRoutingClient extends RoutingClient {
 
   @override
   Future<String> ensureRegion(List<double> bboxWsen,
-      {String networkType = 'bike'}) async {
+      {String networkType = 'bike', bool retry = false}) async {
     ensuredNetworkTypes.add(networkType);
     return 'region-$networkType';
   }
