@@ -348,3 +348,155 @@ def test_ensure_graph_restores_global_overpass_settings_after_failover(
 
     assert ox.settings.overpass_url == original_url
     assert ox.settings.overpass_rate_limit == original_rate_limit
+
+
+# --- issue #232: an error HTTP status is a transient endpoint failure --------
+#
+# osmnx raises `ResponseStatusCodeError` when a mirror answers with an error
+# status and a body it cannot parse as JSON — an HTML `502 Bad Gateway` from a
+# reverse proxy, say. That class subclasses `ValueError`, *not*
+# `requests.exceptions.RequestException`, so before #232 it escaped
+# `ensure_graph`'s per-endpoint `except` completely: no retry, no failover to
+# the next endpoint, no `OverpassUnavailable`, and the raw exception repr
+# surfaced in the client as the `routing` capability's reason.
+
+
+def _status_error(host: str = "mirror.example", status: str = "502 Bad Gateway"):
+    return ox._errors.ResponseStatusCodeError(f"{host!r} responded: {status} ")
+
+
+def test_ensure_graph_fails_over_when_an_endpoint_returns_an_error_status(
+    tmp_path, monkeypatch,
+):
+    seen: list[str] = []
+
+    def flaky_download(_region):
+        seen.append(ox.settings.overpass_url)
+        if ox.settings.overpass_url == "https://a.example/api":
+            raise _status_error("a.example")
+        return _fake_graph()
+
+    monkeypatch.setattr(regions, "_download_region_graph", flaky_download)
+
+    region = regions.region_for(_BBOX, "bike")
+    path = regions.ensure_graph(
+        region, tmp_path,
+        endpoints=("https://a.example/api", "https://b.example/api"),
+        sleep=lambda _s: None,
+    )
+
+    assert path.exists()
+    # 2 attempts on the 502-ing endpoint, then the healthy one — identical to
+    # the ConnectionError path. Before #232 this list was ["https://a.example/api"]
+    # and the call raised ResponseStatusCodeError.
+    assert seen == ["https://a.example/api", "https://a.example/api",
+                    "https://b.example/api"]
+
+
+def test_ensure_graph_raises_overpass_unavailable_when_every_endpoint_errors_status(
+    tmp_path, monkeypatch,
+):
+    monkeypatch.setattr(
+        regions, "_download_region_graph",
+        lambda _r: (_ for _ in ()).throw(_status_error()),
+    )
+
+    region = regions.region_for(_BBOX, "bike")
+    with pytest.raises(regions.OverpassUnavailable) as excinfo:
+        regions.ensure_graph(
+            region, tmp_path,
+            endpoints=("https://a.example/api", "https://b.example/api"),
+            sleep=lambda _s: None,
+        )
+
+    # The #229 contract holds for a status failure too: a finished sentence,
+    # never an exception repr leaking to the client.
+    assert "map-data service" in str(excinfo.value)
+    assert not region.graph_path(tmp_path).exists()
+
+
+def test_ensure_graph_does_not_retry_an_empty_overpass_response(tmp_path, monkeypatch):
+    """`InsufficientResponseError` is a true answer about the bbox (no routable
+    ways there), not an outage — it must propagate on the first attempt rather
+    than being retried across every endpoint and reported as "couldn't reach
+    the map-data service"."""
+    attempts: list[str] = []
+
+    def empty_response(_region):
+        attempts.append(ox.settings.overpass_url)
+        raise ox._errors.InsufficientResponseError("no elements in response")
+
+    monkeypatch.setattr(regions, "_download_region_graph", empty_response)
+
+    region = regions.region_for(_BBOX, "bike")
+    with pytest.raises(ox._errors.InsufficientResponseError):
+        regions.ensure_graph(
+            region, tmp_path,
+            endpoints=("https://a.example/api", "https://b.example/api"),
+            sleep=lambda _s: None,
+        )
+
+    assert attempts == ["https://a.example/api"]
+
+
+# --- issue #232: a failover list must be distinct machines ------------------
+
+
+def test_dedupe_endpoints_drops_an_alias_of_an_earlier_host():
+    addresses = {
+        "https://a.example/api": frozenset({"192.0.2.1"}),
+        "https://alias.example/api": frozenset({"192.0.2.1"}),  # same machine
+        "https://b.example/api": frozenset({"198.51.100.9"}),
+    }
+    kept = regions.dedupe_endpoints(
+        tuple(addresses), resolve=addresses.__getitem__,
+    )
+    assert kept == ("https://a.example/api", "https://b.example/api")
+
+
+def test_dedupe_endpoints_keeps_hosts_that_do_not_resolve():
+    endpoints = ("https://a.example/api", "https://b.example/api")
+    kept = regions.dedupe_endpoints(
+        endpoints, resolve=lambda _e: frozenset(),
+    )
+    assert kept == endpoints  # unresolvable means unknown, never "duplicate"
+
+
+def test_dedupe_endpoints_drops_a_repeated_hostname_without_resolving():
+    kept = regions.dedupe_endpoints(
+        ("https://a.example/api", "https://a.example/api/interpreter"),
+        resolve=lambda _e: frozenset(),
+    )
+    assert kept == ("https://a.example/api",)
+
+
+def test_default_overpass_endpoints_are_distinct_hosts():
+    from urllib.parse import urlparse
+    hosts = [urlparse(e).hostname for e in regions.DEFAULT_OVERPASS_ENDPOINTS]
+    assert len(hosts) == len(set(hosts))
+
+
+def test_ensure_graph_dedupes_endpoints_before_trying_them(tmp_path, monkeypatch):
+    """The real #232 shape: two of the configured endpoints are names for one
+    machine, so the second is not a failover at all."""
+    monkeypatch.setattr(
+        regions, "resolve_endpoint_addresses",
+        lambda endpoint: frozenset({"192.0.2.1"}),  # everything is one host
+    )
+    tried: list[str] = []
+
+    def always_502(_region):
+        tried.append(ox.settings.overpass_url)
+        raise _status_error()
+
+    monkeypatch.setattr(regions, "_download_region_graph", always_502)
+
+    region = regions.region_for(_BBOX, "bike")
+    with pytest.raises(regions.OverpassUnavailable):
+        regions.ensure_graph(
+            region, tmp_path,
+            endpoints=("https://a.example/api", "https://alias.example/api"),
+            sleep=lambda _s: None,
+        )
+
+    assert set(tried) == {"https://a.example/api"}  # the alias is never tried

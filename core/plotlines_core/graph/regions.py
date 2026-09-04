@@ -21,9 +21,12 @@ import hashlib
 import json
 import logging
 import os
+import socket
 import time
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
 import osmnx as ox
 import requests
@@ -47,10 +50,34 @@ GRAPH_RULESET_VERSION = 2
 #: surfaced verbatim in the client. `PLOTLINES_OVERPASS_ENDPOINTS` (a
 #: comma-separated list) overrides this wholesale — a private mirror, or a
 #: single pinned endpoint for an offline/test context.
+#:
+#: `overpass.private.coffee` was dropped in issue #232: it and
+#: `overpass.kumi.systems` resolve to the same machine (193.219.97.30 /
+#: `2a0d:f302:126:78ea::1`), so the list read as three endpoints but offered
+#: only two distinct upstreams — and when that shared host was returning 502s
+#: the "failover" hop landed straight back on it. `dedupe_endpoints` now
+#: enforces at build time what this list could only assert by inspection.
+#:
+#: It was NOT replaced with a third public instance. Every region build here is
+#: a multi-thousand-km² extract, and #232's own logs show 22 build attempts
+#: against 6 bboxes in 40 minutes — a drag of the bbox handle commits a fresh
+#: full-area query, and a settled failure requeues with no cooldown. Adding
+#: mirrors spreads that load onto another volunteer operator instead of fixing
+#: it; the durable answer is a self-hosted or paid instance via
+#: `PLOTLINES_OVERPASS_ENDPOINTS`.
+#:
+#: Vetting a candidate, if one is ever added — through `ox.graph_from_bbox`,
+#: never through `curl`, and never on its status code alone. Two live failures
+#: that a status check calls healthy:
+#:
+#: * `overpass.osm.ch` answers `200 OK` with **zero elements** outside
+#:   Switzerland — "this area has no roads", not "wrong endpoint". Check an
+#:   out-of-region `out count`.
+#: * `overpass.openstreetmap.fr` answers `403 Forbidden — only available to
+#:   white-listed usages` to osmnx's user-agent while serving `curl` fine.
 DEFAULT_OVERPASS_ENDPOINTS: tuple[str, ...] = (
     "https://overpass-api.de/api",
     "https://overpass.kumi.systems/api",
-    "https://overpass.private.coffee/api",
 )
 
 #: Per-endpoint retry budget and exponential-backoff base (seconds) for a
@@ -59,6 +86,33 @@ DEFAULT_OVERPASS_ENDPOINTS: tuple[str, ...] = (
 #: `ensure_graph` disables once it is past the first (polite) attempt.
 OVERPASS_ATTEMPTS_PER_ENDPOINT = 2
 OVERPASS_BACKOFF_BASE_S = 2.0
+
+#: What `ensure_graph` treats as "this endpoint is having a bad time" — retry
+#: it, then fail over to the next one. Two distinct families:
+#:
+#: * `requests.exceptions.RequestException` — the transport never delivered a
+#:   response (refused, reset, DNS, timeout).
+#: * `ox._errors.ResponseStatusCodeError` — a response arrived, but with an
+#:   error status and a body osmnx could not parse as JSON (an HTML 502/500
+#:   from an overloaded mirror or its reverse proxy).
+#:
+#: The second was missing until issue #232, and its absence was the whole bug:
+#: `ResponseStatusCodeError` subclasses `ValueError`, not `RequestException`,
+#: so a mirror answering `502 Bad Gateway` escaped the retry/failover loop
+#: entirely — no retry, no next endpoint, no `OverpassUnavailable`. The raw
+#: exception repr surfaced as the `routing` capability's reason and the region
+#: settled `failed` while a healthy endpoint further down the list was never
+#: tried.
+#:
+#: `InsufficientResponseError` is deliberately NOT here. osmnx raises it for a
+#: 200 response carrying no elements — which for a bbox with no routable ways
+#: is a true answer about the area, not an outage. Retrying it across every
+#: endpoint and then reporting "couldn't reach the map-data service" would
+#: blame the network for an empty box.
+TRANSIENT_OVERPASS_ERRORS: tuple[type[Exception], ...] = (
+    requests.exceptions.RequestException,
+    ox._errors.ResponseStatusCodeError,
+)
 
 
 class OverpassUnavailable(RuntimeError):
@@ -79,6 +133,71 @@ def overpass_endpoints() -> tuple[str, ...]:
         if picked:
             return picked
     return DEFAULT_OVERPASS_ENDPOINTS
+
+
+@lru_cache(maxsize=64)
+def _host_addresses(host: str) -> frozenset[str]:
+    """`host`'s current addresses, memoised for the life of the process.
+
+    Only ever used to decide whether two endpoint URLs name the same machine,
+    so a stale answer costs at most one wasted failover hop — cheaper than a
+    DNS round trip on every region build, and it keeps a synthetic endpoint
+    list (tests, offline) to one lookup per host for the whole suite.
+    """
+    try:
+        infos = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
+    except OSError:
+        return frozenset()
+    return frozenset(info[4][0] for info in infos)
+
+
+def resolve_endpoint_addresses(endpoint: str) -> frozenset[str]:
+    """The IP addresses `endpoint`'s host currently resolves to, or an empty
+    set if it does not resolve. Empty means "unknown", never "same as another"
+    — an unresolvable host (a test's `a.example`, or a transient DNS failure)
+    must never be deduped away."""
+    host = urlparse(endpoint).hostname
+    if not host:
+        return frozenset()
+    return _host_addresses(host)
+
+
+def dedupe_endpoints(
+    endpoints: tuple[str, ...],
+    *,
+    resolve=None,
+) -> tuple[str, ...]:
+    """`endpoints` with any entry that points at an already-listed machine
+    removed, keeping the first occurrence and the original order.
+
+    Failing over to a second URL for the *same* server buys nothing: whatever
+    made the first attempt fail — an overloaded box returning 502s, a host
+    that refuses connections — is waiting at the other name too. Issue #232
+    shipped exactly that: two of three configured endpoints were aliases of
+    one machine, so a three-endpoint list gave two real tries.
+
+    Two endpoints are the same machine if their URLs match, if their hostnames
+    match, or if their resolved address sets intersect. A host that does not
+    resolve is compared by name only, so an offline or synthetic endpoint list
+    survives intact.
+    """
+    resolve = resolve or resolve_endpoint_addresses
+    kept: list[str] = []
+    seen_hosts: set[str] = set()
+    seen_addresses: set[str] = set()
+    for endpoint in endpoints:
+        host = (urlparse(endpoint).hostname or endpoint).lower()
+        addresses = resolve(endpoint)
+        if host in seen_hosts or (addresses & seen_addresses):
+            log.info("dedupe_endpoints dropping %s — same host as an earlier "
+                     "endpoint (host=%s addresses=%s)", endpoint, host,
+                     sorted(addresses))
+            continue
+        kept.append(endpoint)
+        seen_hosts.add(host)
+        seen_addresses |= addresses
+    return tuple(kept)
+
 
 # osmnx's default `useful_tags_way` does NOT include `surface`. Carried over
 # from spikes/shared/regions.py:53-56 — without it FR4's surface weight and
@@ -241,9 +360,12 @@ def ensure_graph(
     Overpass is treated as a soft dependency (issue #229): each endpoint in
     `endpoints` (default `overpass_endpoints()`) is tried up to
     `attempts_per_endpoint` times with exponential backoff on a transient
-    transport error, then the next endpoint. If every endpoint fails,
-    `OverpassUnavailable` is raised with a user-facing message rather than a
-    raw `requests` exception leaking to the client.
+    failure (`TRANSIENT_OVERPASS_ERRORS` — a failed transport *or* an error
+    HTTP status), then the next endpoint. Endpoints that resolve to a machine
+    already tried are dropped first (`dedupe_endpoints`), so the list's length
+    is the number of real tries. If every endpoint fails, `OverpassUnavailable`
+    is raised with a user-facing message rather than a raw exception leaking to
+    the client.
     """
     out_path = region.graph_path(cache_dir)
     if out_path.exists() and not force:
@@ -253,6 +375,7 @@ def ensure_graph(
 
     configure_overpass_cache(cache_dir)
     endpoints = tuple(endpoints) if endpoints is not None else overpass_endpoints()
+    endpoints = dedupe_endpoints(endpoints)
     log.info("ensure_graph key=%s bbox=%s nt=%s cache=miss endpoints=%s force=%s",
              region.key, region.bbox, region.network_type, list(endpoints), force)
     started = time.monotonic()
@@ -279,7 +402,7 @@ def ensure_graph(
                 attempt_started = time.monotonic()
                 try:
                     graph = _download_region_graph(region)
-                except requests.exceptions.RequestException as exc:
+                except TRANSIENT_OVERPASS_ERRORS as exc:
                     elapsed = time.monotonic() - attempt_started
                     failures.append(f"{endpoint} ({type(exc).__name__})")
                     log.warning(
