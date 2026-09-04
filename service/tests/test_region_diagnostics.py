@@ -57,7 +57,13 @@ def test_diagnostics_carries_the_full_traceback_of_a_failed_build(tmp_path, monk
 def test_health_attempts_counter_climbs_on_every_requeue(tmp_path, monkeypatch):
     """A `POST /regions` for a settled-failed bbox re-queues the build (issue
     #229). The `attempts` field on the `/health` routing entry makes a
-    runaway requeue loop visible: it climbs by one each time."""
+    runaway requeue loop visible: it climbs by one each time.
+
+    The post-failure cooldown (issue #247) is zeroed here so this stays a test
+    of the counter, not of the interval — the cooldown itself is covered in
+    `test_regions_build_serialised.py`."""
+    monkeypatch.setattr("plotlines_service.app.REGION_REQUEUE_COOLDOWN_S", 0.0)
+
     def boom(*_a, **_k):
         raise RuntimeError("nope")
 
@@ -76,6 +82,8 @@ def test_health_attempts_counter_climbs_on_every_requeue(tmp_path, monkeypatch):
 
 
 def test_ensure_region_logs_its_decision(tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr("plotlines_service.app.REGION_REQUEUE_COOLDOWN_S", 0.0)
+
     def boom(*_a, **_k):
         raise RuntimeError("nope")
 
