@@ -65,3 +65,25 @@ def test_overpass_unavailable_exits_three(tmp_path, monkeypatch, capsys):
 def test_bad_bbox_is_rejected(tmp_path):
     with pytest.raises(SystemExit):
         diagnose_region.main(["--cache-dir", str(tmp_path), "--bbox", "1,2,3"])
+
+
+def test_cli_stamps_the_plotlines_user_agent(tmp_path, monkeypatch, capsys):
+    """Issue #241 — `diagnose_region` bypasses `create_app`, so it must set
+    the contactable UA itself before `ensure_graph` reaches Overpass."""
+    import osmnx as ox
+
+    from plotlines_core.osm_identity import osm_user_agent
+    from plotlines_service.version import VERSION
+
+    ox.settings.http_user_agent = "OSMnx Python package (https://github.com/gboeing/osmnx)"
+    monkeypatch.setattr(region_lib, "ensure_graph",
+                        lambda *a, **k: tmp_path / "graph.graphml")
+    monkeypatch.setattr(diagnose_region, "load_graphml", _fake_loaded)
+
+    rc = diagnose_region.main(
+        ["--cache-dir", str(tmp_path), "--bbox", "-82.83", "35.36", "-82.14", "35.79"])
+
+    assert rc == 0
+    assert ox.settings.http_user_agent == osm_user_agent(VERSION)
+    assert ox.settings.http_referer == osm_user_agent(VERSION)
+    assert f"user-agent: {osm_user_agent(VERSION)}" in capsys.readouterr().out

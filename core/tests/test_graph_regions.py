@@ -214,6 +214,22 @@ def test_configure_overpass_cache_points_at_the_given_dir(tmp_path):
     assert ox.settings.cache_folder == str(tmp_path / "overpass")
 
 
+def test_importing_this_module_sets_a_non_default_osm_user_agent():
+    """Politeness policy (issue #241 / #251, review §3.4, addendum P2): a
+    graph build must reach Overpass as a named, contactable client — never
+    osmnx's stock UA, which points an operator at an unrelated library and
+    already draws a 403 from `overpass.openstreetmap.fr` (see this module's
+    `DEFAULT_OVERPASS_ENDPOINTS` neighbourhood). Importing `regions` applies
+    it as a floor; a real entrypoint re-stamps the build version. Removing
+    the module-level `apply_osm_http_identity()` call fails this test.
+    """
+    ua = ox.settings.http_user_agent
+    assert ua == ox.settings.http_referer
+    assert ua.startswith("Plotlines/")
+    assert "github.com/gnfrazier/plotlines" in ua
+    assert "OSMnx" not in ua and "gboeing" not in ua
+
+
 # --- Overpass endpoint failover (issue #229) ---------------------------------
 
 import requests  # noqa: E402 — grouped with the failover tests it belongs to
