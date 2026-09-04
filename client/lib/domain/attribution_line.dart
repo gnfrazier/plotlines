@@ -4,11 +4,15 @@
 //
 // The service derives the full list from the loaded layer set at
 // `GET /about` / `GET /attribution` (attribution is never hardcoded — ARCH
-// §12.2). But elevation and the basemap always ship with the home region, so
-// their two credits also exist here as a constant: a surface with no sidecar
-// reachable (a fresh Web guest, a reading view) must still meet the licence
-// obligation. `test_web_about.py` pins the canonical strings on the Python
-// side; `settings_about_test.dart` pins that the fallback renders them.
+// §12.2). But elevation, the basemap, and the routing graph always ship with
+// the home region, so their three credits also exist here as a constant: a
+// surface with no sidecar reachable (a fresh Web guest, a reading view) must
+// still meet the licence obligation. The graph's credit (issue #269) is a
+// separate ODbL obligation from the basemap's, not a free ride under its
+// line — hence the distinct "Routing data: …" text rather than a repeat of
+// the basemap's bare credit string. `test_web_about.py` pins the canonical
+// strings on the Python side; `attribution_line_test.dart` pins them here,
+// and `settings_about_test.dart` pins that the fallback renders them.
 library;
 
 /// One line of credit: which source, under which licence, with the exact
@@ -37,10 +41,11 @@ class AttributionLine {
       );
 }
 
-/// Elevation's CC BY (FR86) and the basemap's ODbL (FR95) — **separate
-/// obligations under different licences**, always owed because both ship with
-/// the home region. The offline/lightest-surface fallback for the dynamic
-/// list from `GET /about`.
+/// Elevation's CC BY (FR86), the basemap's ODbL (FR95), and the routing
+/// graph's own ODbL (issue #269) — **separate obligations**, always owed
+/// because all three ship with the home region (the graph is one of the
+/// three capability gates that always starts, ARCH B1). The
+/// offline/lightest-surface fallback for the dynamic list from `GET /about`.
 const List<AttributionLine> aboutStaticAttribution = [
   AttributionLine(
     layer: 'elevation',
@@ -54,6 +59,13 @@ const List<AttributionLine> aboutStaticAttribution = [
     layer: 'basemap',
     licence: 'ODbL-1.0',
     attribution: '© OpenStreetMap contributors',
+    termsUrl: 'https://www.openstreetmap.org/copyright',
+    builtin: true,
+  ),
+  AttributionLine(
+    layer: 'graph',
+    licence: 'ODbL-1.0',
+    attribution: 'Routing data: © OpenStreetMap contributors',
     termsUrl: 'https://www.openstreetmap.org/copyright',
     builtin: true,
   ),

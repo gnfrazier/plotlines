@@ -61,6 +61,12 @@ Map<String, dynamic> _fullAbout({bool complete = true}) => {
           'builtin': true,
         },
         {
+          'layer': 'graph',
+          'licence': 'ODbL-1.0',
+          'attribution': 'Routing data: © OpenStreetMap contributors',
+          'builtin': true,
+        },
+        {
           'layer': 'revwar_battlefields',
           'licence': 'CC-BY-4.0',
           'attribution': 'Revolutionary War GIS Project',
@@ -81,8 +87,20 @@ void main() {
     expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
     expect(find.text('Revolutionary War GIS Project'), findsOneWidget);
     expect(find.textContaining('CC-BY-4.0'), findsWidgets);
-    expect(find.textContaining('ODbL-1.0'), findsOneWidget);
+    expect(find.textContaining('ODbL-1.0'), findsWidgets);
     expect(find.textContaining('Sidecar version 0.0.1'), findsOneWidget);
+  });
+
+  testWidgets('shows the routing graph as its own credit, distinct from the basemap',
+      (tester) async {
+    // Issue #269: the graph is a separate ODbL obligation from the
+    // basemap's, labelled as its own source rather than falling into the
+    // generic "Layer — <name>" plugin bucket.
+    await _pump(tester, _FakeRoutingClient(_fullAbout));
+
+    expect(find.text('Routing graph'), findsOneWidget);
+    expect(find.text('Routing data: © OpenStreetMap contributors'), findsOneWidget);
+    expect(find.text('Layer — graph'), findsNothing);
   });
 
   testWidgets('surfaces a build-failure warning when attribution is incomplete',

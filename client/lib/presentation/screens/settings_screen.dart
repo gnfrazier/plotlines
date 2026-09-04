@@ -378,6 +378,7 @@ class _AttributionCard extends StatelessWidget {
   static String _sourceLabel(String layer) => switch (layer) {
         'elevation' => 'Elevation',
         'basemap' => 'Basemap',
+        'graph' => 'Routing graph',
         _ => 'Layer — $layer',
       };
 }
