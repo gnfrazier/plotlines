@@ -9,6 +9,9 @@ maintainer's GitHub repo and leaves them no lever but an IP block (#232).
 
 from __future__ import annotations
 
+import threading
+import time
+
 import osmnx as ox
 import pytest
 
@@ -77,3 +80,111 @@ def test_apply_reaches_the_outbound_overpass_and_nominatim_headers():
     assert headers["User-Agent"] == osm_identity.osm_user_agent("2.0.0")
     assert headers["referer"] == osm_identity.osm_user_agent("2.0.0")
     assert "gboeing" not in headers["User-Agent"]
+
+
+# ── Issue #249 — `nominatim_rate_limit` ────────────────────────────────────
+#
+# Nominatim's usage policy: "an absolute maximum of 1 request per second".
+# osmnx's own `pause = 1` (`osmnx/_nominatim.py`) sleeps inside whichever
+# thread calls it and shares no state across threads, so it cannot enforce
+# the policy across concurrent callers in one process. `nominatim_rate_limit`
+# is the process-wide lock plus last-call timestamp that can.
+
+
+@pytest.fixture(autouse=True)
+def _reset_nominatim_rate_limit_state():
+    """`_last_nominatim_call_finished` is process-global by design (that is
+    the point of the lock) — reset it around every test in this block so one
+    test's recorded timestamp can't make the next test's "no prior call"
+    assumption false."""
+    saved = osm_identity._last_nominatim_call_finished
+    saved_interval = osm_identity.NOMINATIM_MIN_INTERVAL_S
+    osm_identity._last_nominatim_call_finished = None
+    yield
+    osm_identity._last_nominatim_call_finished = saved
+    osm_identity.NOMINATIM_MIN_INTERVAL_S = saved_interval
+
+
+def test_first_call_never_waits():
+    """No prior call recorded -> the block runs immediately."""
+    slept: list[float] = []
+    with osm_identity.nominatim_rate_limit(sleep=slept.append, monotonic=lambda: 100.0):
+        pass
+    assert slept == []
+
+
+def test_a_second_call_waits_out_the_remainder_of_the_interval():
+    """`monotonic` is only consulted on entry (to check the gap) and on exit
+    (to record when the block finished) — never on a first call's entry,
+    since there's no prior timestamp to compare against yet."""
+    slept: list[float] = []
+    # 1st block: no prior timestamp, so entry draws nothing; exit -> t=0.0.
+    # 2nd block: entry -> t=0.4 (0.4s have elapsed); exit -> t=0.9.
+    clock = iter([0.0, 0.4, 0.9])
+    with osm_identity.nominatim_rate_limit(sleep=slept.append, monotonic=lambda: next(clock)):
+        pass
+    with osm_identity.nominatim_rate_limit(sleep=slept.append, monotonic=lambda: next(clock)):
+        pass
+    assert slept == pytest.approx([osm_identity.NOMINATIM_MIN_INTERVAL_S - 0.4])
+
+
+def test_no_wait_once_the_interval_has_already_elapsed():
+    slept: list[float] = []
+    # 1st block exit -> t=0.0. 2nd block entry -> t=5.0 (well past the
+    # interval); exit -> t=5.1.
+    clock = iter([0.0, 5.0, 5.1])
+    with osm_identity.nominatim_rate_limit(sleep=slept.append, monotonic=lambda: next(clock)):
+        pass
+    with osm_identity.nominatim_rate_limit(sleep=slept.append, monotonic=lambda: next(clock)):
+        pass
+    assert slept == []
+
+
+def test_restores_after_an_exception_and_still_records_the_finish_time():
+    slept: list[float] = []
+    clock = iter([0.0])  # no prior timestamp yet -> only the exit is drawn
+    with pytest.raises(RuntimeError):
+        with osm_identity.nominatim_rate_limit(sleep=slept.append, monotonic=lambda: next(clock)):
+            raise RuntimeError("boom")
+
+    clock2 = iter([0.05, 0.1])  # entry -> t=0.05; exit -> t=0.1
+    with osm_identity.nominatim_rate_limit(sleep=slept.append, monotonic=lambda: next(clock2)):
+        pass
+    # The failed block still counted as "finished" at t=0.0, so the next
+    # block at t=0.05 waits out the rest of the interval rather than running
+    # free — a raising caller must not let the next one skip the pacing.
+    assert slept == pytest.approx([osm_identity.NOMINATIM_MIN_INTERVAL_S - 0.05])
+
+
+def test_serialises_two_threads_and_neither_ever_overlaps():
+    """The real invariant end to end, with the real clock: two threads that
+    both want to call at once are forced apart by at least the interval, and
+    the tracked in-flight count never exceeds 1."""
+    lock = threading.Lock()
+    in_flight = 0
+    max_in_flight = 0
+    starts: list[float] = []
+    interval = 0.15
+
+    def call():
+        nonlocal in_flight, max_in_flight
+        with osm_identity.nominatim_rate_limit():
+            with lock:
+                in_flight += 1
+                max_in_flight = max(max_in_flight, in_flight)
+                starts.append(time.monotonic())
+            time.sleep(0.02)
+            with lock:
+                in_flight -= 1
+
+    osm_identity.NOMINATIM_MIN_INTERVAL_S = interval
+    threads = [threading.Thread(target=call) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert max_in_flight == 1
+    starts.sort()
+    gaps = [b - a for a, b in zip(starts, starts[1:])]
+    assert all(gap >= interval - 0.02 for gap in gaps), gaps
