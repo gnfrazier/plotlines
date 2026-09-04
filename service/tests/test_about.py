@@ -66,6 +66,17 @@ def test_about_lists_elevation_cc_by_and_basemap_odbl_together(client: TestClien
     assert by_layer["basemap"]["attribution"] == "© OpenStreetMap contributors"
 
 
+def test_about_lists_the_routing_graphs_own_odbl_credit(client: TestClient):
+    # Issue #269: the graph is a separate obligation from the basemap, not a
+    # free ride under its line, and gets distinct credit text.
+    body = client.get("/about").json()
+    by_layer = {a["layer"]: a for a in body["attributions"]}
+
+    assert by_layer["graph"]["licence"] == "ODbL-1.0"
+    assert by_layer["graph"]["attribution"] != by_layer["basemap"]["attribution"]
+    assert "OpenStreetMap" in by_layer["graph"]["attribution"]
+
+
 def test_about_carries_matched_app_and_sidecar_versions(client: TestClient):
     body = client.get("/about").json()
     assert body["app_version"] == VERSION
@@ -108,6 +119,7 @@ def test_attribution_endpoint_now_also_carries_the_elevation_cc_by_line(client: 
     by_layer = {a["layer"]: a for a in body["attributions"]}
     assert by_layer["elevation"]["licence"] == "CC-BY-4.0"
     assert by_layer["basemap"]["licence"] == "ODbL-1.0"
+    assert by_layer["graph"]["licence"] == "ODbL-1.0"
     assert body["complete"] is True
 
 
