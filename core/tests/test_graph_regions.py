@@ -275,6 +275,58 @@ def test_importing_this_module_sets_a_non_default_osm_user_agent():
     assert "OSMnx" not in ua and "gboeing" not in ua
 
 
+def test_overpass_request_leaves_with_the_plotlines_user_agent(monkeypatch):
+    """Phase 0.11 (issue #251, review §3.4/§10, addendum P6-0c): the natural
+    regression test for #241, pulled forward from Phase 5. The test above
+    only reads `ox.settings.http_user_agent` back — it would stay green even
+    if a future osmnx upgrade stopped building request headers from that
+    setting, or a call site assembled its own headers dict and forgot it.
+    This one exercises the code path that actually matters: osmnx's own
+    `_overpass_request`, the function every Overpass call `ensure_graph`
+    makes eventually reaches, and inspects the headers `requests.post` was
+    actually called with. Reverting #241's module-level
+    `apply_osm_http_identity()` call fails this test — the captured header
+    would read osmnx's own `OSMnx Python package
+    (https://github.com/gboeing/osmnx)` UA instead.
+    """
+    from collections import OrderedDict
+
+    from osmnx import _overpass
+
+    captured: dict = {}
+
+    class _FakeResponse:
+        status_code = 200
+        ok = True
+        text = ""
+        url = "https://overpass-api.de/api/interpreter"
+        content = b"{}"
+
+        def json(self):
+            return {"elements": []}
+
+    def fake_post(url, **kwargs):
+        captured["headers"] = kwargs.get("headers")
+        return _FakeResponse()
+
+    # Isolate the one thing this test is about — the header on the outgoing
+    # POST — from the status-endpoint GET (`overpass_rate_limit=False` skips
+    # it), real DNS resolution, and a stray on-disk cache write.
+    monkeypatch.setattr(ox.settings, "overpass_rate_limit", False)
+    monkeypatch.setattr(ox.settings, "use_cache", False)
+    monkeypatch.setattr(_overpass._http, "_config_dns", lambda _url: None)
+    monkeypatch.setattr(_overpass.requests, "post", fake_post)
+
+    _overpass._overpass_request(OrderedDict(data="[out:json];out;"))
+
+    headers = captured.get("headers")
+    assert headers is not None, "no request was captured — the request path changed"
+    assert headers["User-Agent"] == ox.settings.http_user_agent
+    assert headers["User-Agent"].startswith("Plotlines/")
+    assert "OSMnx" not in headers["User-Agent"]
+    assert "gboeing" not in headers["User-Agent"]
+
+
 # --- Overpass endpoint failover (issue #229) ---------------------------------
 
 import requests  # noqa: E402 — grouped with the failover tests it belongs to
@@ -562,6 +614,30 @@ def test_default_overpass_endpoints_are_distinct_hosts():
     from urllib.parse import urlparse
     hosts = [urlparse(e).hostname for e in regions.DEFAULT_OVERPASS_ENDPOINTS]
     assert len(hosts) == len(set(hosts))
+
+
+def test_default_overpass_endpoints_list_is_pinned():
+    """Phase 0.11 (issue #251, review §4/§10, addendum P6-0c): the shipped
+    default list cannot regrow silently. Asserted on *content*, not merely
+    length, so a new public host — however well-intentioned — has to be a
+    deliberate, reviewed edit to this line as well as to
+    `DEFAULT_OVERPASS_ENDPOINTS` and its docstring, not a drive-by addition
+    made under the pressure of an outage.
+
+    Growing this list is the wrong fix. `overpass.private.coffee` was
+    dropped in #232 precisely because it doubled up an existing host rather
+    than adding real capacity, and #232's own logs show 22 build attempts
+    against 6 bboxes in 40 minutes: this module is not a light user of
+    Overpass. Adding a third public mirror spreads that same load onto
+    another volunteer operator instead of fixing it (review §4) — the
+    durable answer is a self-hosted or paid instance via
+    `PLOTLINES_OVERPASS_ENDPOINTS`, or, longer-term, Phase 1's mirror taking
+    Overpass out of the hot path entirely (#264).
+    """
+    assert regions.DEFAULT_OVERPASS_ENDPOINTS == (
+        "https://overpass-api.de/api",
+        "https://overpass.kumi.systems/api",
+    )
 
 
 def test_ensure_graph_dedupes_endpoints_before_trying_them(tmp_path, monkeypatch):
