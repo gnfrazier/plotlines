@@ -25,7 +25,19 @@ from __future__ import annotations
 
 import pytest
 
+from plotlines_core.graph import regions as region_lib
 from plotlines_service.app import DiagnoseRegistry, Readiness
+
+
+@pytest.fixture(autouse=True)
+def _stub_overpass_connect_probe(monkeypatch):
+    """`ensure_graph` (issue #245) opens a real socket to each Overpass
+    endpoint before it calls osmnx. This suite is never meant to touch the
+    network, so report every endpoint reachable — a test that patches
+    `graph_from_bbox` / `ensure_graph` is unaffected, and behaviour past the
+    probe is exactly what it was before #245.
+    """
+    monkeypatch.setattr(region_lib, "probe_endpoint", lambda *_a, **_kw: None)
 
 
 @pytest.fixture(autouse=True)

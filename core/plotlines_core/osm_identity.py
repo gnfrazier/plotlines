@@ -89,10 +89,10 @@ def apply_osm_http_identity(version: str | None = None) -> str:
 #: both sync `def` FastAPI endpoints, so the framework runs them on threadpool
 #: siblings concurrently. Before issue #244 a `/candidates` call that landed
 #: during a region build's Overpass failover inherited the failover endpoint
-#: and `overpass_rate_limit = False` — an upstream and an impoliteness it
-#: never asked for (licensing addendum G1). This lock is the "serialise OSM
-#: access behind one lock" option from that finding: hold it around any such
-#: call so no two are ever in flight under different globals.
+#: (and, pre-#245, `overpass_rate_limit = False`) — an upstream and an
+#: impoliteness it never asked for (licensing addendum G1). This lock is the
+#: "serialise OSM access behind one lock" option from that finding: hold it
+#: around any such call so no two are ever in flight under different globals.
 OSM_SETTINGS_LOCK = threading.Lock()
 
 
@@ -110,8 +110,12 @@ def overpass_settings(
     holder restored, i.e. the configured default. The candidate path calls
     this with no arguments purely for the mutual exclusion — it always wants
     the default endpoint and the default politeness posture. The routing-graph
-    failover loop passes a `url` per hop and `rate_limit=False` once it is
-    past its first (polite) attempt.
+    failover loop passes a `url` per hop and no `rate_limit` — since issue
+    #245 it keeps the configured pause in force for every attempt and relies
+    on a pre-flight connect probe, not on disabling the pause, to keep
+    failover fast (`graph/regions.py`). The `rate_limit` argument stays for a
+    caller that genuinely needs to override the pause for the length of a
+    block.
 
     Not reentrant: `OSM_SETTINGS_LOCK` is a plain `Lock` and nothing in
     plotlines-core nests one `overpass_settings` block inside another.

@@ -8,6 +8,7 @@ synthetic graph instead of touching the network.
 
 from __future__ import annotations
 
+import socket
 import threading
 import time
 
@@ -18,6 +19,20 @@ import pytest
 from plotlines_core.graph import regions
 
 _BBOX = (-105.30, 39.99, -105.25, 40.03)  # SPIKE-00's Boulder fixture bbox
+
+#: The real connect probe, captured before the autouse stub below replaces the
+#: module attribute — the probe's own unit tests call this directly.
+_REAL_PROBE_ENDPOINT = regions.probe_endpoint
+
+
+@pytest.fixture(autouse=True)
+def _stub_connect_probe(monkeypatch):
+    """Default every test to a probe that reports "socket opened" so no test
+    opens a real socket to the configured Overpass endpoints (issue #245).
+    Tests that exercise the probe's short-circuit pass an explicit `probe=`
+    to `ensure_graph`; tests of the probe itself call `_REAL_PROBE_ENDPOINT`.
+    """
+    monkeypatch.setattr(regions, "probe_endpoint", lambda _endpoint, **_kw: None)
 
 
 def _fake_graph(*_args, **_kwargs) -> nx.MultiDiGraph:
@@ -627,9 +642,11 @@ def test_candidate_fetch_does_not_inherit_a_concurrent_failover_hop(tmp_path, mo
     assert not build_thread.is_alive()
     assert build_error, "region build did not raise OverpassUnavailable"
 
-    # The build did mutate the globals — otherwise this test proves nothing.
+    # The build did mutate the endpoint — otherwise this test proves nothing.
     assert dirtied[0][0] == "https://primary.example/api"
-    assert any(rl is False for _u, rl in dirtied)  # the failover hop turned it off
+    # ...but since #245 it does NOT flip the rate limit off on a failover hop;
+    # the configured pause stays in force for every attempt.
+    assert all(rl == default_rate_limit for _u, rl in dirtied)
 
     # ...and the candidate fetch, forced to wait on the lock, saw only the
     # restored defaults.
@@ -692,3 +709,191 @@ def test_overpass_settings_serialises_two_threads():
 
     assert seen_by_second == [ox.settings.overpass_url]
     assert seen_by_second != ["https://first.example/api"]
+
+
+# --- issue #245: keep overpass_rate_limit on during failover; probe the -------
+#     refused-connection case so it is still fast
+#
+# The pre-#245 loop honoured the server's advertised slot pause only on
+# endpoint 0 / attempt 1 and set `overpass_rate_limit = False` for every
+# attempt after — dropping politeness exactly when we retry hardest (#238
+# mechanism 3). #240 wanted it off because a failing build burns ~60 s in
+# osmnx's status-endpoint slot-pause before its first error. The resolution:
+# keep the pause on for every attempt, and add a cheap connect probe so an
+# unreachable host fails over in well under a second without ever entering
+# that slot pause. The probe covers refused / unreachable only — a 502 from a
+# host whose socket opens is still a full attempt (addendum G4).
+
+
+def test_ensure_graph_never_disables_the_rate_limit_on_failover(tmp_path, monkeypatch):
+    """`overpass_rate_limit` is observed at its configured value on every
+    attempt — the two failing attempts on the first endpoint and the
+    succeeding attempt on the second. Nothing in the failover path sets it
+    `False` (the pre-#245 behaviour this replaces)."""
+    configured = ox.settings.overpass_rate_limit
+    seen_rate_limit: list[object] = []
+
+    def download(_region):
+        seen_rate_limit.append(ox.settings.overpass_rate_limit)
+        if ox.settings.overpass_url == "https://a.example/api":
+            raise requests.exceptions.ConnectionError("connection refused")
+        return _fake_graph()
+
+    monkeypatch.setattr(regions, "_download_region_graph", download)
+
+    region = regions.region_for(_BBOX, "bike")
+    path = regions.ensure_graph(
+        region, tmp_path,
+        endpoints=("https://a.example/api", "https://b.example/api"),
+        probe=lambda _e: None,
+        sleep=lambda _s: None,
+    )
+
+    assert path.exists()
+    assert seen_rate_limit == [configured, configured, configured]
+    assert False not in seen_rate_limit
+
+
+def test_ensure_graph_probe_short_circuits_a_refused_first_endpoint(tmp_path, monkeypatch):
+    """A probe that says the first endpoint's socket will not open makes
+    `ensure_graph` fail over to the second without ever calling osmnx for the
+    first — and in well under the 60 s osmnx would otherwise spend in its
+    status-endpoint slot pause (issue #240)."""
+    downloaded_from: list[str] = []
+
+    def download(_region):
+        downloaded_from.append(ox.settings.overpass_url)
+        return _fake_graph()
+
+    monkeypatch.setattr(regions, "_download_region_graph", download)
+
+    def probe(endpoint):
+        return "connection refused" if endpoint == "https://a.example/api" else None
+
+    region = regions.region_for(_BBOX, "bike")
+    started = time.monotonic()
+    path = regions.ensure_graph(
+        region, tmp_path,
+        endpoints=("https://a.example/api", "https://b.example/api"),
+        probe=probe,
+        sleep=lambda _s: None,
+    )
+    elapsed = time.monotonic() - started
+
+    assert path.exists()
+    assert downloaded_from == ["https://b.example/api"]  # 'a' never reached osmnx
+    assert elapsed < 5.0  # nowhere near the 60 s status-endpoint pause
+
+
+def test_ensure_graph_does_not_back_off_between_probe_failures(tmp_path, monkeypatch):
+    """A probe failure never reached the far end, so there is nothing to be
+    polite to — no exponential backoff is spent between probe attempts (that
+    is what keeps a fully-unreachable endpoint list fast). Backoff still
+    applies to a real transport error against a host the socket opened to."""
+    slept: list[float] = []
+    monkeypatch.setattr(
+        regions, "_download_region_graph",
+        lambda _r: (_ for _ in ()).throw(AssertionError("probe should short-circuit")),
+    )
+
+    region = regions.region_for(_BBOX, "bike")
+    with pytest.raises(regions.OverpassUnavailable):
+        regions.ensure_graph(
+            region, tmp_path,
+            endpoints=("https://a.example/api", "https://b.example/api"),
+            probe=lambda _e: "connection refused",
+            attempts_per_endpoint=3,
+            backoff_base_s=1.0,
+            sleep=slept.append,
+        )
+
+    assert slept == []  # no politeness pause for a host we never contacted
+
+
+def test_ensure_graph_raises_overpass_unavailable_when_every_probe_fails(
+    tmp_path, monkeypatch,
+):
+    """Probe failure on every endpoint still ends in the finished-sentence
+    `OverpassUnavailable`, never a raw error, and never touches osmnx."""
+    def download(_region):
+        raise AssertionError("osmnx must not be called when the probe fails")
+
+    monkeypatch.setattr(regions, "_download_region_graph", download)
+
+    region = regions.region_for(_BBOX, "bike")
+    with pytest.raises(regions.OverpassUnavailable) as excinfo:
+        regions.ensure_graph(
+            region, tmp_path,
+            endpoints=("https://a.example/api", "https://b.example/api"),
+            probe=lambda _e: "connection refused",
+            sleep=lambda _s: None,
+        )
+
+    msg = str(excinfo.value)
+    assert "map-data service" in msg
+    assert "unreachable" in msg          # the probe's label reaches the `tried:` list
+    assert not region.graph_path(tmp_path).exists()
+
+
+def test_ensure_graph_probe_does_not_mask_a_502_endpoint(tmp_path, monkeypatch):
+    """The probe catches refused / unreachable only. An endpoint whose socket
+    opens and then answers `502` (issue #232) is *not* short-circuited — it
+    still gets its full retry budget before failover, which is the accepted
+    trade (addendum G4)."""
+    seen: list[str] = []
+
+    def download(_region):
+        seen.append(ox.settings.overpass_url)
+        if ox.settings.overpass_url == "https://a.example/api":
+            raise _status_error("a.example")
+        return _fake_graph()
+
+    monkeypatch.setattr(regions, "_download_region_graph", download)
+
+    region = regions.region_for(_BBOX, "bike")
+    path = regions.ensure_graph(
+        region, tmp_path,
+        endpoints=("https://a.example/api", "https://b.example/api"),
+        probe=lambda _e: None,  # every socket opens fine
+        sleep=lambda _s: None,
+    )
+
+    assert path.exists()
+    assert seen == ["https://a.example/api", "https://a.example/api",
+                    "https://b.example/api"]  # 2 full attempts on 'a', then 'b'
+
+
+def test_probe_endpoint_returns_none_when_the_socket_opens():
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    try:
+        port = listener.getsockname()[1]
+        assert _REAL_PROBE_ENDPOINT(f"http://127.0.0.1:{port}/api") is None
+    finally:
+        listener.close()
+
+
+def test_probe_endpoint_reports_a_refused_connection():
+    # Bind to claim a free port, then close it so nothing is listening there.
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+
+    reason = _REAL_PROBE_ENDPOINT(f"http://127.0.0.1:{port}/api", timeout_s=1.0)
+    assert reason is not None
+    assert "127.0.0.1" in reason or "refused" in reason.lower() or "connect" in reason.lower()
+
+
+def test_probe_endpoint_reports_an_unresolvable_host():
+    # `.invalid` is reserved (RFC 2606) and must never resolve.
+    reason = _REAL_PROBE_ENDPOINT("https://overpass.nonexistent.invalid/api", timeout_s=2.0)
+    assert reason is not None
+    assert "resolution" in reason
+
+
+def test_probe_endpoint_ignores_an_endpoint_with_no_host():
+    # A malformed `PLOTLINES_OVERPASS_ENDPOINTS` entry is left for osmnx to
+    # reject rather than being failed by the probe.
+    assert _REAL_PROBE_ENDPOINT("not-a-url") is None
