@@ -55,7 +55,7 @@ from plotlines_core.curation.registry import build_default_registry
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph import regions as region_lib
 from plotlines_core.multimodal.modes import TRAVERSAL_MODES
-from plotlines_core.osm_identity import apply_osm_http_identity
+from plotlines_core.osm_identity import apply_osm_http_identity, nominatim_rate_limit
 from plotlines_core.graph.loader import LoadedGraph, load_graphml, nearest_node
 from plotlines_core.routing.access import mode_legal_graph
 from plotlines_core.routing.diagnose import diagnose
@@ -1568,11 +1568,20 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         to frame itself on but a point. **This never becomes the trip bbox**
         (FR96: the location prompt only ever centers the map) — it only lets
         the draw map open on a real extent instead of an arbitrary zoom.
+
+        Issue #249 / addendum P2 — the Nominatim usage policy caps this at
+        "an absolute maximum of 1 request per second". `nominatim_rate_limit`
+        makes that an asserted, process-wide invariant instead of relying on
+        osmnx's own per-call, per-thread `pause = 1`, which two concurrent
+        callers in this process (this is a sync `def` endpoint, so FastAPI
+        may run two calls on threadpool siblings) can each individually pass
+        while together exceeding the policy.
         """
         if not q.strip():
             raise HTTPException(422, "empty query")
         try:
-            gdf = ox.geocode_to_gdf(q)
+            with nominatim_rate_limit():
+                gdf = ox.geocode_to_gdf(q)
         except (ValueError, RuntimeError) as exc:
             # osmnx raises a mix of exception types for "nothing found" vs.
             # a downstream Nominatim/network failure; both are the same
