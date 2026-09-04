@@ -160,6 +160,35 @@ void main() {
     expect(find.textContaining("Couldn't resolve"), findsOneWidget);
   });
 
+  testWidgets(
+      'typing alone never geocodes — only submitting or tapping Continue does '
+      '(issue #249: Nominatim usage policy forbids per-keystroke autocomplete)',
+      (tester) async {
+    var geocodeCalls = 0;
+    await tester.pumpWidget(_harness(
+      prefill: '',
+      geocode: (_) async {
+        geocodeCalls++;
+        return const [];
+      },
+      onResult: (_) {},
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pump();
+
+    // Typing character by character, the way a real keystroke stream would,
+    // must not itself trigger a request — the field has no `onChanged` wired
+    // to geocode at all.
+    await tester.enterText(find.byType(TextField), 'B');
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'Bo');
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'Boulder, CO');
+    await tester.pump();
+
+    expect(geocodeCalls, 0);
+  });
+
   testWidgets('cancel returns null without resolving anything', (tester) async {
     TripLocationChoice? result;
     var resultSet = false;
