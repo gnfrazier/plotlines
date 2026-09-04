@@ -28,7 +28,17 @@ from pathlib import Path
 import osmnx as ox
 import requests
 
+from plotlines_core.osm_identity import apply_osm_http_identity
+
 log = logging.getLogger("plotlines.regions")
+
+# Identify ourselves to Overpass/Nominatim before the first request can leave
+# this process (issue #241, review §3.4). A real entrypoint re-applies this
+# with the build version; importing this module — which every path that
+# builds a graph does — is enough to stop osmnx's default UA, which names
+# someone else's library, from ever going out. `DEFAULT_OVERPASS_ENDPOINTS`
+# below is the other half of the same politeness policy.
+apply_osm_http_identity()
 
 #: Current cache-key ruleset. Bump to invalidate every cached graph on disk —
 #: the key is `(bbox, network_type, GRAPH_RULESET_VERSION)`, so a bump alone

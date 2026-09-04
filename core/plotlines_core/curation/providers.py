@@ -205,6 +205,14 @@ class OsmLayerProvider:
     def fetch(self, bbox: BBox, layers: set[str]) -> list[RawFeature]:
         import osmnx as ox
 
+        from ..osm_identity import apply_osm_http_identity
+
+        # Issue #241 / review §3.4: the candidate path must not query Overpass
+        # as osmnx's stock UA either. A headless entrypoint already stamps the
+        # build version; this is the floor for a caller that reaches curation
+        # without importing `graph.regions`.
+        apply_osm_http_identity()
+
         tags = osm_tags_for(layers)
         if not tags:
             return []

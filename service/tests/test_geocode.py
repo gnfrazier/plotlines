@@ -50,3 +50,23 @@ def test_geocode_rejects_an_empty_query(tmp_path: Path) -> None:
     client = TestClient(create_app(tmp_path))
     resp = client.get("/geocode", params={"q": "   "})
     assert resp.status_code == 422
+
+
+def test_create_app_stamps_a_contactable_nominatim_user_agent(tmp_path: Path) -> None:
+    """Issue #241 / addendum P2: `/geocode` hits public Nominatim, whose
+    usage policy names a stock library UA as explicitly insufficient.
+    `create_app` sets `ox.settings.http_user_agent`/`http_referer` to the
+    Plotlines identity — carrying the real build version — before the app
+    can serve a request.
+    """
+    from plotlines_core.osm_identity import osm_user_agent
+    from plotlines_service.version import VERSION
+
+    ox.settings.http_user_agent = "OSMnx Python package (https://github.com/gboeing/osmnx)"
+    ox.settings.http_referer = "OSMnx Python package (https://github.com/gboeing/osmnx)"
+
+    create_app(tmp_path)
+
+    assert ox.settings.http_user_agent == osm_user_agent(VERSION)
+    assert ox.settings.http_referer == osm_user_agent(VERSION)
+    assert VERSION in ox.settings.http_user_agent

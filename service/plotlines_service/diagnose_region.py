@@ -24,8 +24,10 @@ from pathlib import Path
 
 from plotlines_core.graph import regions as region_lib
 from plotlines_core.graph.loader import load_graphml
+from plotlines_core.osm_identity import apply_osm_http_identity
 
 from .logging_setup import configure_logging
+from .version import VERSION
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,8 +45,13 @@ def main(argv: list[str] | None = None) -> int:
 
     configure_logging(None, args.log_level)  # stderr only
 
+    # This bypasses `create_app`, so it must stamp the Plotlines identity
+    # itself before `ensure_graph` reaches Overpass (issue #241).
+    user_agent = apply_osm_http_identity(VERSION)
+
     region = region_lib.region_for(tuple(args.bbox), args.network_type)
     print(f"region key={region.key} bbox={region.bbox} nt={region.network_type}")
+    print(f"user-agent: {user_agent}")
     print(f"endpoints: {list(region_lib.overpass_endpoints())}")
     print(f"cache path: {region.graph_path(args.cache_dir)} "
           f"(exists={region.graph_path(args.cache_dir).exists()})")

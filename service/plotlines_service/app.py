@@ -53,6 +53,7 @@ from plotlines_core.curation.registry import build_default_registry
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph import regions as region_lib
 from plotlines_core.multimodal.modes import TRAVERSAL_MODES
+from plotlines_core.osm_identity import apply_osm_http_identity
 from plotlines_core.graph.loader import LoadedGraph, load_graphml, nearest_node
 from plotlines_core.routing.access import mode_legal_graph
 from plotlines_core.routing.diagnose import diagnose
@@ -786,6 +787,14 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                tiles_upstream: str | Path | None = None,
                allow_unmirrored_tiles: bool = False,
                web_domain: str | None = None) -> FastAPI:
+    # Issue #241 — stamp the contactable Plotlines UA/referer on every
+    # Overpass and Nominatim call this app makes (region graph builds,
+    # candidate fetches, and `/geocode`) before the first request goes out.
+    # Both modes and both transports read the same two `ox.settings` fields,
+    # so this one call at the app factory covers all of them with the real
+    # build version.
+    apply_osm_http_identity(VERSION)
+
     state = Readiness(cache_dir, tiles_upstream or default_home_region_archive(),
                       allow_unmirrored=allow_unmirrored_tiles)
 

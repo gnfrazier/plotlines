@@ -6,9 +6,12 @@ same split `graph/loader.py` uses to keep geometry math independently
 testable from the disk/network read that feeds it.
 """
 
+import osmnx as ox
 from shapely.geometry import Point, Polygon
 
-from plotlines_core.curation.providers import feature_from_geometry, osm_tags_for
+from plotlines_core.curation.providers import (
+    BBox, OsmLayerProvider, feature_from_geometry, osm_tags_for,
+)
 
 
 def test_osm_tags_for_wildcard_layer_asks_for_the_whole_key():
@@ -61,3 +64,31 @@ def test_feature_from_geometry_uses_centroid_for_polygon_coord():
     assert feature is not None
     assert abs(feature.coord[0] - d / 2) < 1e-9
     assert abs(feature.coord[1] - d / 2) < 1e-9
+
+
+def test_fetch_stamps_the_plotlines_user_agent_before_querying(monkeypatch):
+    """Issue #241 / review §3.4: the candidate path must not query Overpass
+    as osmnx's stock UA either. `fetch` applies the contactable identity
+    before its first `features_from_bbox` call — asserted here because
+    `fetch` is otherwise the one thin network wrapper this file skips.
+    """
+    saved_ua = ox.settings.http_user_agent
+    monkeypatch.setattr(ox.settings, "http_user_agent",
+                        "OSMnx Python package (https://github.com/gboeing/osmnx)")
+
+    seen: dict[str, str] = {}
+
+    def fake_features_from_bbox(*_args, **_kwargs):
+        import geopandas as gpd
+
+        seen["ua"] = ox.settings.http_user_agent
+        return gpd.GeoDataFrame({"geometry": []})
+
+    monkeypatch.setattr(ox, "features_from_bbox", fake_features_from_bbox)
+    try:
+        OsmLayerProvider().fetch(BBox(0.0, 0.0, 0.01, 0.01), {"historic"})
+    finally:
+        ox.settings.http_user_agent = saved_ua
+
+    assert seen["ua"].startswith("Plotlines/")
+    assert "gboeing" not in seen["ua"]
