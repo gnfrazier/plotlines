@@ -30,6 +30,10 @@ because all three read the same two settings.
 
 from __future__ import annotations
 
+import threading
+from contextlib import contextmanager
+from typing import Iterator
+
 PRODUCT_NAME = "Plotlines"
 
 #: A URL an OSM service operator investigating Plotlines' traffic can open to
@@ -72,3 +76,57 @@ def apply_osm_http_identity(version: str | None = None) -> str:
     ox.settings.http_user_agent = ua
     ox.settings.http_referer = ua
     return ua
+
+
+#: Serialises every stretch of plotlines-core code that makes an osmnx
+#: Overpass call while driving the process-global `ox.settings.overpass_url` /
+#: `ox.settings.overpass_rate_limit`.
+#:
+#: osmnx has no per-request override for either — `_overpass_request` and
+#: `_get_overpass_pause` read them straight off the global `ox.settings` — and
+#: they are shared by the routing-graph path (`graph/regions.py`) and the
+#: candidate path (`curation/providers.py`). `/regions` and `/candidates` are
+#: both sync `def` FastAPI endpoints, so the framework runs them on threadpool
+#: siblings concurrently. Before issue #244 a `/candidates` call that landed
+#: during a region build's Overpass failover inherited the failover endpoint
+#: and `overpass_rate_limit = False` — an upstream and an impoliteness it
+#: never asked for (licensing addendum G1). This lock is the "serialise OSM
+#: access behind one lock" option from that finding: hold it around any such
+#: call so no two are ever in flight under different globals.
+OSM_SETTINGS_LOCK = threading.Lock()
+
+
+@contextmanager
+def overpass_settings(
+    *, url: str | None = None, rate_limit: bool | None = None,
+) -> Iterator[None]:
+    """Hold `OSM_SETTINGS_LOCK` for the block, optionally point osmnx's
+    process-global `overpass_url` / `overpass_rate_limit` at `url` /
+    `rate_limit` while it runs, and restore both to the values seen on entry
+    on the way out — even if the block raises.
+
+    `url=None` and `rate_limit=None` each mean "leave that setting untouched":
+    under this exclusion the value on entry is always whatever the previous
+    holder restored, i.e. the configured default. The candidate path calls
+    this with no arguments purely for the mutual exclusion — it always wants
+    the default endpoint and the default politeness posture. The routing-graph
+    failover loop passes a `url` per hop and `rate_limit=False` once it is
+    past its first (polite) attempt.
+
+    Not reentrant: `OSM_SETTINGS_LOCK` is a plain `Lock` and nothing in
+    plotlines-core nests one `overpass_settings` block inside another.
+    """
+    import osmnx as ox
+
+    with OSM_SETTINGS_LOCK:
+        saved_url = ox.settings.overpass_url
+        saved_rate_limit = ox.settings.overpass_rate_limit
+        try:
+            if url is not None:
+                ox.settings.overpass_url = url
+            if rate_limit is not None:
+                ox.settings.overpass_rate_limit = rate_limit
+            yield
+        finally:
+            ox.settings.overpass_url = saved_url
+            ox.settings.overpass_rate_limit = saved_rate_limit

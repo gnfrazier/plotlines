@@ -213,7 +213,7 @@ class OsmLayerProvider:
     def fetch(self, bbox: BBox, layers: set[str]) -> list[RawFeature]:
         import osmnx as ox
 
-        from ..osm_identity import apply_osm_http_identity
+        from ..osm_identity import apply_osm_http_identity, overpass_settings
 
         # Issue #241 / review §3.4: the candidate path must not query Overpass
         # as osmnx's stock UA either. A headless entrypoint already stamps the
@@ -224,7 +224,16 @@ class OsmLayerProvider:
         tags = osm_tags_for(layers)
         if not tags:
             return []
-        gdf = ox.features_from_bbox((bbox.west, bbox.south, bbox.east, bbox.north), tags)
+        # Issue #244 / licensing addendum G1: `overpass_url` and
+        # `overpass_rate_limit` are process-global and `graph/regions.py`
+        # drives them per endpoint during a routing-graph failover. Hold
+        # `OSM_SETTINGS_LOCK` for this call (passing no `url`/`rate_limit`, so
+        # it runs on the configured default endpoint and posture) rather than
+        # racing a concurrent build's mutated globals on a FastAPI threadpool
+        # sibling.
+        with overpass_settings():
+            gdf = ox.features_from_bbox(
+                (bbox.west, bbox.south, bbox.east, bbox.north), tags)
         return [f for f in self._features_from_gdf(gdf) if f is not None]
 
     @staticmethod
