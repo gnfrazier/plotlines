@@ -16,11 +16,19 @@ per-layer lifecycle on top.
 
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
 from dataclasses import dataclass, field
-from typing import Iterable, Protocol
+from typing import TYPE_CHECKING, Iterable, Protocol
 
-from .notability import RawFeature, score_with_taxonomy
+from .notability import RULESET_VERSION, RawFeature, score_with_taxonomy
 from .taxonomy import LAYERS, TAXONOMY, TypeRule, TypeTaxonomy
+
+if TYPE_CHECKING:
+    from ..cache_layout import CacheLayout
+
+log = logging.getLogger("plotlines.curation.providers")
 
 _EARTH_R_M = 6_371_000.0
 
@@ -230,6 +238,49 @@ class OsmLayerProvider:
             yield feature_from_geometry(feature_id, row.geometry, tags)
 
 
+def _layer_set_version() -> str:
+    """A short hash of the built-in OSM layer set *and* the Overpass tag
+    filter it generates. This is ARCH §4.2's `layer_set_version` half of the
+    candidate cache key: a persisted raw extract is stale the moment the set
+    of layers, or the tags any of them selects, changes — even if
+    `RULESET_VERSION` (which versions the *scores*) was not bumped in the
+    same edit. Derived rather than hand-maintained so it cannot drift from
+    `TAXONOMY`.
+    """
+    payload = json.dumps(
+        {"layers": sorted(LAYERS), "tags": osm_tags_for(set(LAYERS))},
+        sort_keys=True,
+    )
+    return hashlib.sha1(payload.encode()).hexdigest()[:12]
+
+
+LAYER_SET_VERSION = _layer_set_version()
+
+
+def _raw_feature_to_json(f: RawFeature) -> dict:
+    return {
+        "id": f.id,
+        "coord": [f.coord[0], f.coord[1]],
+        "tags": dict(f.tags),
+        "area_m2": f.area_m2,
+        "geometry": ([[x, y] for x, y in f.geometry]
+                     if f.geometry is not None else None),
+    }
+
+
+def _raw_feature_from_json(d: dict) -> RawFeature:
+    geom = d.get("geometry")
+    lon, lat = d["coord"]
+    return RawFeature(
+        id=d["id"],
+        coord=(float(lon), float(lat)),
+        tags=dict(d.get("tags") or {}),
+        area_m2=(float(d["area_m2"]) if d.get("area_m2") is not None else None),
+        geometry=(tuple((float(x), float(y)) for x, y in geom)
+                  if geom is not None else None),
+    )
+
+
 class SharedOsmFetch:
     """One bbox -> one `OsmLayerProvider.fetch` call, shared by the six
     per-layer `BuiltinOsmLayerProvider` instances registered against it
@@ -237,19 +288,91 @@ class SharedOsmFetch:
     plugin — one dataset, one provider — and would turn one Overpass query
     into six for a batched built-in source). `engine` is injectable so a
     test can feed committed fixtures instead of hitting the commons.
+
+    Two cache tiers (issue #243, ARCH A23's first mitigation, FR94):
+
+    * **L1** — `self._cache`, an in-process dict. Dies on a sidecar restart,
+      which M12's health-poll watchdog triggers precisely when a heavy build
+      saturates the sidecar — the moment the cache is most valuable.
+    * **L2** — `CacheLayout.candidate_set(bbox)` on disk, when a
+      `cache_layout` is supplied. Survives the restart. The file records the
+      `(layer_set_version, ruleset_version)` half of ARCH §4.2's key in its
+      *contents* (the path is bbox-scoped only); a mismatch on either is a
+      miss, so a ruleset bump never reads a stale extract. A23 measured the
+      warm re-read at 1.75 s against 15.8 s cold.
+
+    With no `cache_layout` the behaviour is exactly the pre-#243 L1-only one.
     """
 
-    def __init__(self, engine: "OsmLayerProvider | None" = None) -> None:
+    def __init__(self, engine: "OsmLayerProvider | None" = None, *,
+                 cache_layout: "CacheLayout | None" = None) -> None:
         self._engine = engine or OsmLayerProvider()
         self._cache: dict[tuple[float, float, float, float], list[RawFeature]] = {}
+        self._disk = cache_layout
 
     def features_for(self, bbox: BBox, layers: set[str]) -> list[RawFeature]:
         key = (bbox.west, bbox.south, bbox.east, bbox.north)
-        if key not in self._cache:
-            # Always fetch every built-in layer for this bbox, once, so a
-            # second per-layer sibling reads the cache rather than re-querying.
-            self._cache[key] = self._engine.fetch(bbox, set(LAYERS))
-        return self._cache[key]
+        if key in self._cache:
+            return self._cache[key]
+
+        from_disk = self._read_disk(key)
+        if from_disk is not None:
+            self._cache[key] = from_disk
+            return from_disk
+
+        # Always fetch every built-in layer for this bbox, once, so a second
+        # per-layer sibling reads the cache rather than re-querying.
+        features = self._engine.fetch(bbox, set(LAYERS))
+        self._cache[key] = features
+        self._write_disk(key, features)
+        return features
+
+    # -- L2 disk tier ----------------------------------------------------- #
+
+    def _read_disk(
+        self, key: tuple[float, float, float, float],
+    ) -> list[RawFeature] | None:
+        if self._disk is None:
+            return None
+        path = self._disk.candidate_set(key)
+        try:
+            doc = json.loads(path.read_text())
+        except (OSError, ValueError):
+            return None
+        if not isinstance(doc, dict):
+            return None
+        if doc.get("layer_set_version") != LAYER_SET_VERSION:
+            return None
+        if doc.get("ruleset_version") != RULESET_VERSION:
+            return None
+        features = doc.get("features")
+        if not isinstance(features, list):
+            return None
+        try:
+            return [_raw_feature_from_json(item) for item in features]
+        except (KeyError, TypeError, ValueError):
+            log.warning("candidate cache at %s is unreadable; ignoring", path)
+            return None
+
+    def _write_disk(
+        self, key: tuple[float, float, float, float], features: list[RawFeature],
+    ) -> None:
+        if self._disk is None:
+            return
+        path = self._disk.candidate_set(key)
+        doc = {
+            "layer_set_version": LAYER_SET_VERSION,
+            "ruleset_version": RULESET_VERSION,
+            "bbox": list(key),
+            "features": [_raw_feature_to_json(f) for f in features],
+        }
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.parent / f"{path.name}.tmp"
+            tmp.write_text(json.dumps(doc))
+            tmp.replace(path)  # atomic — a concurrent reader sees whole file or none
+        except OSError as exc:
+            log.warning("candidate cache write to %s failed: %s", path, exc)
 
 
 class BuiltinOsmLayerProvider:
@@ -284,8 +407,12 @@ class BuiltinOsmLayerProvider:
 
 def builtin_osm_providers(
     engine: "OsmLayerProvider | None" = None,
+    *,
+    cache_layout: "CacheLayout | None" = None,
 ) -> dict[str, BuiltinOsmLayerProvider]:
     """One `BuiltinOsmLayerProvider` per built-in OSM layer, all sharing one
-    `SharedOsmFetch` so the six only ever cost one Overpass round trip."""
-    shared = SharedOsmFetch(engine)
+    `SharedOsmFetch` so the six only ever cost one Overpass round trip.
+    `cache_layout`, when given, adds the on-disk L2 tier (issue #243) so a
+    fresh process re-reads the extract instead of re-querying Overpass."""
+    shared = SharedOsmFetch(engine, cache_layout=cache_layout)
     return {layer: BuiltinOsmLayerProvider(layer, shared) for layer in sorted(LAYERS)}

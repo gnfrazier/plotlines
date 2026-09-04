@@ -190,3 +190,58 @@ def test_candidates_extract_422s_only_on_an_empty_layer_set(client: TestClient) 
         "west": -105.4, "south": 39.9, "east": -105.2, "north": 40.1, "layers": "",
     })
     assert resp.status_code == 422
+
+
+_BBOX_PARAMS = {"west": -105.4, "south": 39.9, "east": -105.2, "north": 40.1,
+                "layers": "natural,historic"}
+
+
+def _fake_engine_registry(engine, cache_dir: Path):
+    """A default registry with `engine` and the on-disk candidate cache
+    under `cache_dir` — the wiring `create_app` itself uses (issue #243)."""
+    from plotlines_core.cache_layout import CacheLayout
+    from plotlines_core.curation.registry import build_default_registry
+
+    return build_default_registry(
+        osm_engine=engine, discover_plugins=False,
+        cache_layout=CacheLayout(cache_dir))
+
+
+def test_candidates_second_process_serves_from_the_disk_cache(tmp_path: Path) -> None:
+    """Issue #243 AC: a second `/candidates` call for the same bbox in a
+    fresh process does no Overpass request. A new `create_app` + new registry
+    is the fresh-process analogue — its in-process L1 dict is empty."""
+    feats = [
+        RawFeature(id="peak1", coord=(-105.3, 40.0), tags={"natural": "peak"}),
+        RawFeature(id="castle1", coord=(-105.3, 40.0), tags={"historic": "castle"}),
+    ]
+
+    engine1 = _FakeOsmEngine(list(feats))
+    client1 = TestClient(create_app(tmp_path))
+    client1.app.state.layer_registry = _fake_engine_registry(engine1, tmp_path)
+    body1 = client1.get("/candidates", params=_BBOX_PARAMS).json()
+    assert len(engine1.calls) == 1
+
+    engine2 = _FakeOsmEngine([])  # would serve nothing if it were consulted
+    client2 = TestClient(create_app(tmp_path))
+    client2.app.state.layer_registry = _fake_engine_registry(engine2, tmp_path)
+    body2 = client2.get("/candidates", params=_BBOX_PARAMS).json()
+
+    assert engine2.calls == []
+    assert body2["candidates"] == body1["candidates"]
+    assert {c["id"] for c in body2["candidates"]} == {"peak1", "castle1"}
+
+
+def test_candidates_disk_cache_lands_under_the_cache_root(tmp_path: Path) -> None:
+    from plotlines_core.cache_layout import CacheLayout
+
+    engine = _FakeOsmEngine([
+        RawFeature(id="peak1", coord=(-105.3, 40.0), tags={"natural": "peak"}),
+    ])
+    client = TestClient(create_app(tmp_path))
+    client.app.state.layer_registry = _fake_engine_registry(engine, tmp_path)
+    client.get("/candidates", params=_BBOX_PARAMS)
+
+    entry = CacheLayout(tmp_path).candidate_set((-105.4, 39.9, -105.2, 40.1))
+    assert entry.exists()
+    assert entry.parent == tmp_path / "candidates"

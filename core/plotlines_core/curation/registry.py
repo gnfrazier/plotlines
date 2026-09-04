@@ -277,17 +277,21 @@ class LayerRegistry:
 
 
 def build_default_registry(
-    *, osm_engine=None, discover_plugins: bool = True,
+    *, osm_engine=None, discover_plugins: bool = True, cache_layout=None,
 ) -> LayerRegistry:
     """A registry with the six built-in OSM layers registered, plus any
     plugin layer discovered via the `plotlines.layer_providers` entry point
     (story N5). `osm_engine` is injectable for tests; `discover_plugins` is
     off in tests that do not want the host environment's installed plugins.
+    `cache_layout` (a `CacheLayout`) enables the built-in OSM layers' on-disk
+    candidate cache (issue #243, FR94) — the sidecar passes one, most tests
+    leave it None for an in-process-only fetch.
     """
     from .providers import builtin_osm_providers
 
     registry = LayerRegistry()
-    registry.register_builtins(builtin_osm_providers(osm_engine))
+    registry.register_builtins(
+        builtin_osm_providers(osm_engine, cache_layout=cache_layout))
     if discover_plugins:
         from .plugins import discover_layer_providers
 

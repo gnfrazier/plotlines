@@ -911,8 +911,11 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
     # built-in OSM layers and every plugin layer discovered via the
     # `plotlines.layer_providers` entry point, each with its own readiness
     # lifecycle and its own `LayerLicence`. On `app.state` so a test can
-    # substitute one with no plugins / a fake OSM engine.
-    app.state.layer_registry = build_default_registry()
+    # substitute one with no plugins / a fake OSM engine. `cache_layout`
+    # gives the built-in OSM layers the on-disk candidate cache (issue #243,
+    # FR94) so a sidecar restart mid-build does not throw the extract away.
+    app.state.layer_registry = build_default_registry(
+        cache_layout=CacheLayout(cache_dir))
 
     @app.get("/layers")
     def layers(mode: str = "cycling", day_type: str = "route") -> dict:
