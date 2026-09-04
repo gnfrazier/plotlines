@@ -8,6 +8,9 @@ synthetic graph instead of touching the network.
 
 from __future__ import annotations
 
+import threading
+import time
+
 import networkx as nx
 import osmnx as ox
 import pytest
@@ -543,3 +546,149 @@ def test_ensure_graph_dedupes_endpoints_before_trying_them(tmp_path, monkeypatch
         )
 
     assert set(tried) == {"https://a.example/api"}  # the alias is never tried
+
+
+# --- issue #244: a concurrent candidate fetch does not inherit a failover hop -
+#
+# `ensure_graph` drives the process-global `ox.settings.overpass_url` and
+# `overpass_rate_limit` per failover attempt. `/regions` and `/candidates` are
+# both sync `def` FastAPI endpoints, so the framework runs them on threadpool
+# siblings concurrently — and before #244 a candidate fetch that landed during
+# a failing build inherited the failover endpoint *and* `overpass_rate_limit =
+# False`, becoming impolite on an upstream nobody chose for it (addendum G1).
+# `OSM_SETTINGS_LOCK`, held via `overpass_settings`, serialises the two.
+
+
+def test_candidate_fetch_does_not_inherit_a_concurrent_failover_hop(tmp_path, monkeypatch):
+    """Run a failing region build and a candidate fetch on two threads, the
+    way FastAPI's threadpool would. The candidate call must observe the
+    *default* Overpass endpoint and rate-limit posture, never the build's
+    failover hop.
+
+    Regression: fails against the pre-#244 code — with `ensure_graph` mutating
+    `ox.settings` in the open and `OsmLayerProvider.fetch` calling
+    `features_from_bbox` with no lock, the candidate thread reads
+    `secondary.example` / `False` mid-failover and returns near-instantly.
+    """
+    from plotlines_core.curation.providers import BBox, OsmLayerProvider
+
+    default_url = ox.settings.overpass_url
+    default_rate_limit = ox.settings.overpass_rate_limit
+    assert default_url not in (
+        "https://primary.example/api", "https://secondary.example/api")
+
+    build_running = threading.Event()
+    dirtied: list[tuple[str, object]] = []
+
+    def slow_failing_download(_region):
+        # `ensure_graph` has already pointed the globals at this hop.
+        dirtied.append((ox.settings.overpass_url, ox.settings.overpass_rate_limit))
+        build_running.set()
+        time.sleep(0.3)  # hold the dirty globals across the candidate's window
+        raise requests.exceptions.ConnectionError("connection refused")
+
+    monkeypatch.setattr(regions, "_download_region_graph", slow_failing_download)
+
+    observed: dict[str, object] = {}
+
+    def fake_features_from_bbox(*_args, **_kwargs):
+        import geopandas as gpd
+
+        observed["url"] = ox.settings.overpass_url
+        observed["rate_limit"] = ox.settings.overpass_rate_limit
+        return gpd.GeoDataFrame({"geometry": []})
+
+    monkeypatch.setattr(ox, "features_from_bbox", fake_features_from_bbox)
+
+    region = regions.region_for(_BBOX, "bike")
+    build_error: list[BaseException] = []
+
+    def run_build():
+        try:
+            regions.ensure_graph(
+                region, tmp_path,
+                endpoints=("https://primary.example/api",
+                           "https://secondary.example/api"),
+                attempts_per_endpoint=1,
+                sleep=lambda _s: None,
+            )
+        except regions.OverpassUnavailable as exc:
+            build_error.append(exc)
+
+    build_thread = threading.Thread(target=run_build)
+    build_thread.start()
+    assert build_running.wait(timeout=5), "region build never started"
+
+    started = time.monotonic()
+    OsmLayerProvider().fetch(BBox(0.0, 0.0, 0.01, 0.01), {"historic"})
+    fetch_elapsed = time.monotonic() - started
+
+    build_thread.join(timeout=5)
+    assert not build_thread.is_alive()
+    assert build_error, "region build did not raise OverpassUnavailable"
+
+    # The build did mutate the globals — otherwise this test proves nothing.
+    assert dirtied[0][0] == "https://primary.example/api"
+    assert any(rl is False for _u, rl in dirtied)  # the failover hop turned it off
+
+    # ...and the candidate fetch, forced to wait on the lock, saw only the
+    # restored defaults.
+    assert observed["url"] == default_url
+    assert observed["rate_limit"] == default_rate_limit
+    assert fetch_elapsed >= 0.2  # it blocked on the build, it did not race it
+
+
+def test_overpass_settings_restores_globals_on_exit_and_on_error():
+    """`overpass_settings` puts `overpass_url` / `overpass_rate_limit` back to
+    their entry values whether the block returns or raises, and `url=None` /
+    `rate_limit=None` leave that setting untouched."""
+    from plotlines_core.osm_identity import overpass_settings
+
+    original_url = ox.settings.overpass_url
+    original_rate_limit = ox.settings.overpass_rate_limit
+
+    with overpass_settings(url="https://scratch.example/api", rate_limit=False):
+        assert ox.settings.overpass_url == "https://scratch.example/api"
+        assert ox.settings.overpass_rate_limit is False
+    assert ox.settings.overpass_url == original_url
+    assert ox.settings.overpass_rate_limit == original_rate_limit
+
+    with pytest.raises(RuntimeError):
+        with overpass_settings(url="https://scratch.example/api", rate_limit=False):
+            raise RuntimeError("boom")
+    assert ox.settings.overpass_url == original_url
+    assert ox.settings.overpass_rate_limit == original_rate_limit
+
+    with overpass_settings():  # no args -> pure mutual exclusion
+        assert ox.settings.overpass_url == original_url
+        assert ox.settings.overpass_rate_limit == original_rate_limit
+
+
+def test_overpass_settings_serialises_two_threads():
+    """Two `overpass_settings` blocks never overlap: the second thread's entry
+    snapshot is taken only after the first has restored, so it never captures
+    the first block's mutated `overpass_url`."""
+    from plotlines_core.osm_identity import overpass_settings
+
+    seen_by_second: list[str] = []
+    first_in = threading.Event()
+
+    def first():
+        with overpass_settings(url="https://first.example/api"):
+            first_in.set()
+            time.sleep(0.3)
+
+    def second():
+        first_in.wait(timeout=5)
+        with overpass_settings():
+            seen_by_second.append(ox.settings.overpass_url)
+
+    t1 = threading.Thread(target=first)
+    t2 = threading.Thread(target=second)
+    t1.start()
+    t2.start()
+    t1.join(timeout=5)
+    t2.join(timeout=5)
+
+    assert seen_by_second == [ox.settings.overpass_url]
+    assert seen_by_second != ["https://first.example/api"]

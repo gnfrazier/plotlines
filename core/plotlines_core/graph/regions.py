@@ -31,7 +31,7 @@ from urllib.parse import urlparse
 import osmnx as ox
 import requests
 
-from plotlines_core.osm_identity import apply_osm_http_identity
+from plotlines_core.osm_identity import apply_osm_http_identity, overpass_settings
 
 log = logging.getLogger("plotlines.regions")
 
@@ -400,51 +400,54 @@ def ensure_graph(
     started = time.monotonic()
 
     # `overpass_url` and the rate-limit flag are process-global osmnx settings
-    # shared with curation's own Overpass calls — drive them per endpoint here,
-    # but leave them exactly as found.
-    saved_url = ox.settings.overpass_url
-    saved_rate_limit = ox.settings.overpass_rate_limit
+    # with no per-call override, and they are shared with the candidate path's
+    # own Overpass calls in `curation/providers.py`. Before issue #244 this
+    # loop drove them in the open: `/regions` and `/candidates` are both sync
+    # `def` FastAPI endpoints, so a `/candidates` request the framework
+    # scheduled on a threadpool sibling during a failover hop inherited this
+    # endpoint and `overpass_rate_limit = False` — an upstream and an
+    # impoliteness it never chose (licensing addendum G1). `overpass_settings`
+    # holds `OSM_SETTINGS_LOCK` around each attempt and restores both values
+    # on the way out, so no concurrent osmnx caller can observe a hop's
+    # globals. The cost is that a candidate fetch blocks for the length of an
+    # attempt (option (b) in #244); Phase 1's mirror removes the shared
+    # endpoint and with it the contention.
     failures: list[str] = []
-    try:
-        for endpoint_index, endpoint in enumerate(endpoints):
-            ox.settings.overpass_url = endpoint
-            for attempt in range(1, attempts_per_endpoint + 1):
-                # Honour the server's advertised slot pause on the very first
-                # try (stay polite); once we are failing over we are only
-                # probing alternates, so skip the 60 s status-pause osmnx
-                # falls back to when a status endpoint is itself unreachable.
-                ox.settings.overpass_rate_limit = (
-                    saved_rate_limit
-                    if (endpoint_index == 0 and attempt == 1)
-                    else False
-                )
-                attempt_started = time.monotonic()
-                try:
+    for endpoint_index, endpoint in enumerate(endpoints):
+        for attempt in range(1, attempts_per_endpoint + 1):
+            # Honour the server's advertised slot pause on the very first try
+            # (stay polite); once we are failing over we are only probing
+            # alternates, so skip the 60 s status-pause osmnx falls back to
+            # when a status endpoint is itself unreachable. `rate_limit=None`
+            # leaves the configured (polite) value in place.
+            polite = endpoint_index == 0 and attempt == 1
+            attempt_started = time.monotonic()
+            try:
+                with overpass_settings(
+                    url=endpoint, rate_limit=None if polite else False,
+                ):
                     graph = _download_region_graph(region)
-                except TRANSIENT_OVERPASS_ERRORS as exc:
-                    elapsed = time.monotonic() - attempt_started
-                    failures.append(f"{endpoint} ({type(exc).__name__})")
-                    log.warning(
-                        "ensure_graph key=%s endpoint=%s attempt=%d/%d FAILED "
-                        "after %.1fs: %s: %s", region.key, endpoint, attempt,
-                        attempts_per_endpoint, elapsed, type(exc).__name__, exc)
-                    if attempt < attempts_per_endpoint:
-                        backoff = backoff_base_s * 2 ** (attempt - 1)
-                        log.info("ensure_graph key=%s backing off %.1fs before retry",
-                                 region.key, backoff)
-                        sleep(backoff)
-                    continue
-                out_path.parent.mkdir(parents=True, exist_ok=True)
-                ox.io.save_graphml(graph, out_path)
-                log.info(
-                    "ensure_graph key=%s endpoint=%s attempt=%d OK: %d nodes, "
-                    "%d edges, %.1fs total", region.key, endpoint, attempt,
-                    graph.number_of_nodes(), graph.number_of_edges(),
-                    time.monotonic() - started)
-                return out_path
-    finally:
-        ox.settings.overpass_url = saved_url
-        ox.settings.overpass_rate_limit = saved_rate_limit
+            except TRANSIENT_OVERPASS_ERRORS as exc:
+                elapsed = time.monotonic() - attempt_started
+                failures.append(f"{endpoint} ({type(exc).__name__})")
+                log.warning(
+                    "ensure_graph key=%s endpoint=%s attempt=%d/%d FAILED "
+                    "after %.1fs: %s: %s", region.key, endpoint, attempt,
+                    attempts_per_endpoint, elapsed, type(exc).__name__, exc)
+                if attempt < attempts_per_endpoint:
+                    backoff = backoff_base_s * 2 ** (attempt - 1)
+                    log.info("ensure_graph key=%s backing off %.1fs before retry",
+                             region.key, backoff)
+                    sleep(backoff)
+                continue
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            ox.io.save_graphml(graph, out_path)
+            log.info(
+                "ensure_graph key=%s endpoint=%s attempt=%d OK: %d nodes, "
+                "%d edges, %.1fs total", region.key, endpoint, attempt,
+                graph.number_of_nodes(), graph.number_of_edges(),
+                time.monotonic() - started)
+            return out_path
 
     tried = ", ".join(failures) if failures else ", ".join(endpoints)
     log.error("ensure_graph key=%s EXHAUSTED all %d endpoints after %.1fs: %s",
