@@ -39,6 +39,7 @@ from .providers import (
     PENDING,
     READY,
     BBox,
+    CandidateFetchUnavailable,
     LayerLoadState,
     LayerProvider,
 )
@@ -251,6 +252,12 @@ class LayerRegistry:
         it never aborts the request (N2's AC, and the exact inverse of the
         shipped `/candidates`'s single `try`). A raising provider is also
         marked `failed` so the picker reflects it on the next `/health`.
+
+        The error string is `type(exc).__name__: exc` for an ordinary
+        provider bug, but a `CandidateFetchUnavailable` (issue #250 — the
+        built-in OSM layers' accepted single-endpoint Overpass posture)
+        surfaces its `str()` verbatim instead: a finished, user-facing
+        sentence, not a raw exception repr.
         """
         with self._lock:
             requested = sorted(layers)
@@ -268,6 +275,15 @@ class LayerRegistry:
                 continue
             try:
                 candidates.extend(entry.provider.fetch_candidates(bbox))
+            except CandidateFetchUnavailable as exc:
+                # Issue #250: this is already a finished, user-facing
+                # sentence (the same standard #248 set for the routing
+                # path's `OverpassUnavailable`/`NoRoutableWaysError`) — surface
+                # it verbatim rather than re-wrapping it in the generic
+                # `type(exc).__name__: exc` raw-repr shape below.
+                reason = str(exc)
+                errors[layer] = f"{FAILED}:{reason}"
+                self._fail(layer, reason)
             except Exception as exc:  # noqa: BLE001 — subtract the layer, keep the rest
                 reason = f"{type(exc).__name__}: {exc}"
                 errors[layer] = f"{FAILED}:{reason}"
