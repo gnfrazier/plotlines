@@ -2,12 +2,14 @@
 
 **Date:** 2026-09-03 · **Branch:** `fix/232-overpass-status-failover`
 **Reviews:** [`docs/Plotlines_OSM_Acquisition_Review.md`](Plotlines_OSM_Acquisition_Review.md)
-**Status:** **accepted 2026-09-03.** All six §5 questions answered with the recommendations as
-written — recorded here per question and in the reviewed document's §12. §6's Phase 0 amendments
-are filed as #241–#253 (epic #254); the Phase 1 amendments are filed as #255–#263 under epic #264;
-Phase 2 is #265–#267 under epic #268. **§6's Phase 3+ block was re-triaged 2026-09-03** — 3b was
+**Status:** **accepted 2026-09-03; fully filed 2026-09-03.** All six §5 questions answered with the
+recommendations as written — recorded here per question and in the reviewed document's §12. §6's Phase 0
+amendments are filed as #241–#253 (epic #254); the Phase 1 amendments as #255–#263 under epic #264;
+Phase 2 as #265–#267 under epic #268; Phase 3 as #273–#278 under epic #272; Phase 4 as #280–#282 under
+epic #279; Phase 5 as #284–#287 under epic #283. **§6's Phase 3+ block was re-triaged 2026-09-03** — 3b was
 not Phase 3 work and is now #269 (Phase 0), and 3a split, its schema half landing as #270
-(Phase 1).
+(Phase 1) and its remaining half as #277 (Phase 3). **Every gap this addendum names now has an issue**;
+the per-gap map is in §7.
 **Not legal advice.** Clause readings below are engineering readings; §L2/§L3 and open
 question 4 are the two that warrant a real sign-off before they ship.
 
@@ -532,7 +534,7 @@ sizes × trips-per-Author-per-region. Recorded in the review as §12-Q6 and §6.
 
 ## 6. Suggested checklist amendments
 
-Additive to §13, in the same phases. **Phase 0, Phase 1 and Phase 2 are filed** — the issue
+Additive to §13, in the same phases. **Every phase is now filed** — the issue
 number follows each item. Phase 2's spike amendments are filed **inside the spike issues they
 amend** rather than as separate stories, since each is an acceptance criterion on a spike;
 2d is a build task and has its own issue.
@@ -587,7 +589,7 @@ Phase 3 is one half of one item.
     there is no backfill for "what produced this payload", and the schema is a four-consumer
     contract (SPIKE-20). Q2 already folded this in: *"L7's payload pin is part of this answer,
     not separate from it."*
-  - **3a-ii, the pin as a mirror build id, and export propagation → stays Phase 3.** That value
+  - **3a-ii, the pin as a mirror build id, and export propagation → #277, Phase 3.** That value
     does not exist until the extract path does, and `core/plotlines_core/export/` references
     neither provenance nor attribution today.
 - **3b.** Bring the routing graph under `assert_attribution_complete`'s gate, so
@@ -599,9 +601,66 @@ Phase 3 is one half of one item.
   #251. Today the graph is credited **by accident**, because the basemap above it happens to be
   OSM too.
 
+**Phase 3** *(epic #272)*
+- **3a-ii.** The pin as a mirror build id, and export propagation. *(L7)* → **#277**
+- Also filed against this phase, from the reviewed document rather than from this addendum:
+  **#273** (the fourth `CacheLayout` payload), **#274** (the extent-triggered download),
+  **#275** (the transport swap), **#276** (§11.1's re-validation of the osmnx-era calibrations),
+  **#278** (the Q1-D offline decision, where **L1** returns if D is taken).
+
+**Phase 4** *(epic #279)*
+- **4a.** Bind the licensing position to the hosted surface — the surface **L2** says most
+  clearly triggers public use. *(L2, Q4-D)* → **#282**
+- With **#280** (the hosted clip) and **#281** (§9's named concurrency measurement, with **G5**'s
+  pre-registered bands applied a second time).
+
+**Phase 5** *(epic #283)*
+- **5a.** The third-party-host refusal — the one of **P6**'s three gates that genuinely needed the
+  mirror first. *(P6)* → **#284**
+- **5b.** The capped live-refresh affordance, with **P4**'s four assertable numbers and **P3**'s
+  count-in-queries rule, shipped in the same commit. *(P4, P3, Q5-A)* → **#285**
+- **5c.** The give-back: an "improve this in OSM" hand-off, and the sponsorship decision. → **#286**
+- **5d.** Close out **A23**/**A23a** and Punchlist **2A.3**, record the ARCH **D**-number, and land
+  the doc amendments below. *(review checklist item 26)* → **#287**
+
 **Doc amendments owed, not issues.** Two ARCH edits fall out of the above and are wording
 changes rather than work: **§12.2 / §13.4** describe attribution as derived from the loaded
 layer set, which is now one of two mechanisms — restate it as one policy over every payload, per
 §8.1's precedent (#269); and **§8** says a trip pins the build it started on without saying the
 pin is *written into the payload*, which is the whole of L7 (#270). Both are owed by decisions
-already taken, not by the issues.
+already taken, not by the issues. **#287 confirms they landed** rather than owning them.
+
+---
+
+## 7. Gap-to-issue map
+
+Every gap this addendum names, and where it is answered. The point of the table is that a gap
+with no issue is visible at a glance — which is how **3b** was found scheduled behind a mirror it
+did not need.
+
+| Gap | Issue(s) | Phase |
+|---|---|---|
+| **L1** — `osmium extract` is GPL-3, `pyosmium` is BSD-2 | #262 (pyosmium API only), #266 (acceptance criterion), #267 (asserted against an inventory) | 1, 2 |
+| **L2** — ODbL triggers on *public use*, not distribution | #253 (the position), #282 (bound to the hosted surface) | 0, 4 |
+| **L3** — Derivative vs Collective; the separable-layer decision | #253 — which files its own implementation issue if the answer is yes | 0 |
+| **L4** — mirror has no licence artifacts; `index-v1.json` unverified | #256, #259 | 1 |
+| **L5** — no third-party dependency licence inventory | #267 | 2 |
+| **L6** — the attribution gate does not cover the routing graph | #269 | 0 *(pulled forward)* |
+| **L7** — a trip does not record its OSM snapshot | #270 (field + producer), #277 (mirror build id, exports) | 1, 3 |
+| **P1** — the privacy statement is currently false | #252 | 0 |
+| **P2** — Nominatim: identification, pacing, caching | #241, #242, #249 | 0 |
+| **P3** — one accepted bbox is at least two queries | #254's ordering note; mechanised by #285's sub-`max_query_area_size` cap | 0, 5 |
+| **P4** — "small, polite Overpass" is undefined | #285 | 5 |
+| **P5** — Geofabrik etiquette by assumption; open vs restricted | #258, #263 | 1 |
+| **P6** — no mechanical gate for the whole migration window | #251 (two tests, now), #284 (the third, needs the mirror) | 0, 5 |
+| **G1** — `ox.settings` globals mutated across threads | #244 | 0 |
+| **G2** — the candidate path's missing failover | #250 | 0 |
+| **G3** — §6.2/§6.3 contradiction; the `planet.pmtiles` stand-in | #257 | 1 |
+| **G4** — the connect probe misses #232's `502` | #245 (scoped honestly in the issue) | 0 |
+| **G5** — SPIKE-I has no stated pass/fail band | #265; applied again in #281 | 2, 4 |
+| **Q1** — extract granularity | #262 (C), #278 (D fallback, on evidence) | 1, 3 |
+| **Q2** — pin cadence and ownership | #260, #270 | 1 |
+| **Q3** — where the covering-set merge happens | dissolved by Q1-C; reopens **as B** only via #278 | — |
+| **Q4** — ODbL sign-off | #253, #282 | 0, 4 |
+| **Q5** — keep the interactive affordance | #285, with #284 as its gate | 5 |
+| **Q6** — egress budget | #256 (bucket layout), #262, #265 (the owed arithmetic), #281 (the compute half) | 1, 2, 4 |

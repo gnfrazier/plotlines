@@ -2,9 +2,12 @@
 
 **Date:** 2026-09-02, revised 2026-09-03 · **Branch at review:** `fix/232-overpass-status-failover`
 **Scope:** how Plotlines acquires OSM data for the routing graph, curation candidates, and geocoding
-**Status:** **accepted 2026-09-03.** Phase 0 filed as #241–#253 under epic #254. Phase 1 filed as
-#255–#263 under epic #264. The six §12 open questions are **answered** — see §12; the answers change §6, and those
-changes are folded in below rather than left as an appendix.
+**Status:** **accepted 2026-09-03; fully filed 2026-09-03.** Phase 0 is #241–#253 + #269 under epic **#254**;
+Phase 1 is #255–#263 + #270 under epic **#264**; Phase 2 is #265–#267 under epic **#268**; Phase 3 is
+#273–#278 under epic **#272**; Phase 4 is #280–#282 under epic **#279**; Phase 5 is #284–#287 under
+epic **#283**. Every numbered checklist item in §13 now has an issue behind it. The six §12 open questions
+are **answered** — see §12; the answers change §6, and those changes are folded in below rather than left
+as an appendix.
 **Open issues in view:** [#238](https://github.com/gnfrazier/plotlines/issues/238), [#239](https://github.com/gnfrazier/plotlines/issues/239), [#240](https://github.com/gnfrazier/plotlines/issues/240), [#154](https://github.com/gnfrazier/plotlines/issues/154), [#144](https://github.com/gnfrazier/plotlines/issues/144)
 **Documents in view:** ARCH **A23** / **A23a** / §8.3 / §11 / §12, PRD **FR1** / **FR92** / **FR94** / **FR95** / **FR120** / **FR121**, Punchlist **2A.3**
 
@@ -591,15 +594,35 @@ it unnecessary to check.
     FR101's data-attribution gate, and where SPIKE-J's no-GPL-binary answer lives.
     *(L5, 2d — filed as #267)*
 
-**After the spikes report — Phases 3–5**
+**After the spikes report — Phase 3** *(epic #272)*
 
 23b. Carry the pin as a **mirror build id** and propagate it to exports — the remaining half of
     3a, gated on the extract path existing. `export/` references neither provenance nor
-    attribution today. *(L7, 3a-ii)*
+    attribution today. *(L7, 3a-ii — filed as #277)*
 
-24. Build the bbox → mirror-clip → build path behind FR121 capability reporting. *(§8)*
-25. Add the §10 policy gate and Q5's mechanical caps. *(§10, P4)*
+24. Build the bbox → mirror-clip → build path behind FR121 capability reporting. *(§8 — filed as
+    **#273** the fourth `CacheLayout` payload, **#274** the extent-triggered download, **#275** the
+    transport swap under `ensure_graph` / `OsmLayerProvider.fetch`)*
+24a. Re-validate the osmnx-era calibrations — SPIKE-A's golden candidate sets, SPIKE-G's density
+    model and its ~2,800-marker ceiling, the scoring weights, SPIKE-21's cue derivation. §11.1 says
+    to budget for this; a node-count assertion does not catch it. *(§11.1 — filed as #276)*
+24b. Decide the offline bbox-edit posture on SPIKE-I's evidence: accept Q1-C as shipped, or take
+    Q1's **D** fallback. Shaped as fix-or-record, like #250. *(§6.7, Q1 — filed as #278)*
+
+**Then — Phase 5, the policy gate** *(epic #283)*
+
+25. Add the §10 policy gate and Q5's mechanical caps. *(§10, P4 — filed as **#284** the
+    third-party-host refusal, **#285** the capped live-refresh affordance and its four numbers.
+    §10's other two gates already shipped in Phase 0 as #251.)*
+25a. Give back: an "improve this in OSM" hand-off, and the OSMF/Geofabrik sponsorship decision.
+    *(§10 closing — filed as #286)*
 26. Revisit ARCH **A23** / **A23a** and Punchlist **2A.3** — mark local extracts measured, and
-    record the decision as a new ARCH **D**-number.
+    record the decision as a new ARCH **D**-number, plus the doc amendments owed by #269, #270 and
+    §12. *(filed as #287)*
+
+**When web is on the table — Phase 4** *(epic #279)*
+
 27. Phase 4 (hosted clip) inherits §6.7's endpoint rather than starting from nothing; its
-    concurrency profile is still a named measurement. *(§9)*
+    concurrency profile is still a named measurement. *(§9 — filed as **#280** the hosted clip,
+    **#281** the concurrency measurement, **#282** binding the licensing position to the served
+    surface per L2)*

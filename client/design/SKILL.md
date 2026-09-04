@@ -12,6 +12,14 @@ Read `readme.md` in this skill, then explore the other files.
   `package:plotlines_ui/plotlines_ui.dart` and theme with `PlotTheme.light()` /
   `.dark()` / `.highContrast()`.
 - **HTML specimens** live in `cards/` and `Plotlines UI Gallery.dc.html`.
+- **Flow canvases** are the eleven `Flow N - *.dc.html` files — the designed shape of each
+  feature area, one canvas per area.
+- **`screens/`** holds captured screenshots of the app as it actually is today (several
+  filenames name the defect they capture). Use them to see what a surface looks like now
+  before redesigning it; they are evidence, not a spec. Mirrored at `client/design/screens/`.
+- **`uploads/` is scratch input, not source of truth** — it contains stale hashed copies of
+  product docs, including a **v1 `Plotlines_PRD.md`** whose model is reversed relative to v2.
+  Never read a doc from here; read `docs/*_v2.md` in the repo.
 
 If creating visual artifacts (slides, mocks, throwaway prototypes), copy assets
 out and produce static HTML using the tokens. If working on production Flutter
