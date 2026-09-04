@@ -405,6 +405,21 @@ class RegionState:
             log.warning("region build FAILED key=%s attempt=%d (overpass): %s",
                         self.key, attempt, exc)
             return
+        except region_lib.NoRoutableWaysError as exc:
+            # Also already a finished, user-facing sentence (issue #248) — an
+            # empty Overpass response is a true answer about the bbox/mode,
+            # not an outage, so it gets the same verbatim treatment as
+            # `OverpassUnavailable` rather than the generic branch's
+            # `type(exc).__name__` prefix.
+            self.timings["total"] = time.monotonic() - t0
+            self.last_error = str(exc)
+            self.last_traceback = traceback.format_exc()
+            self.last_attempt_finished_at = time.time()
+            self.failed_at = time.monotonic()  # starts the requeue cooldown (#247)
+            self.graph_state.fail(str(exc))
+            log.warning("region build FAILED key=%s attempt=%d (no routable ways): %s",
+                        self.key, attempt, exc)
+            return
         except Exception as exc:  # noqa: BLE001 — surface honestly, never hang (A6)
             self.timings["total"] = time.monotonic() - t0
             self.last_error = f"{type(exc).__name__}: {exc}"
