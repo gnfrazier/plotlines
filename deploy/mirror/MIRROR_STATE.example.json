@@ -8,6 +8,13 @@
   "geofabrik": {
     "pinned_date": null,
     "regions": {},
-    "_note": "One entry per region with its pull timestamp and verified .md5 — Phase 1.4/1.6, issues #258/#260. This is Plotlines' own covering-set record; it deliberately replaces rather than mirrors Geofabrik's own index-v1.json (see osm/COPYRIGHT.txt, finding L4)."
+    "index": {
+      "etag": null,
+      "checked_at": null,
+      "pulled_at": null,
+      "consecutive_failures": 0,
+      "last_failure": null
+    },
+    "_note": "One entry per region with its pull timestamp and verified .md5 — Phase 1.4/1.6, issues #258/#260. `index` tracks the pull of Geofabrik's index-v1.json itself, mirrored per issue #259's licence check (see osm/COPYRIGHT.txt, finding L4); MIRROR_STATE.json remains Plotlines' own covering-set record regardless — a consumer resolves regions from what this mirror actually pulled, not from the index alone."
   }
 }

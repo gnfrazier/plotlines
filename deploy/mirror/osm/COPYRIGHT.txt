@@ -9,16 +9,22 @@ Full copyright and licence terms: https://www.openstreetmap.org/copyright
 Extracts are produced from OpenStreetMap data by Geofabrik GmbH
 (https://download.geofabrik.de/), regionally clipped and pinned to a build
 date named in each extract's path (e.g. `geofabrik/2026-09-01/...`).
-Geofabrik's own machine-readable region index (`index-v1.json`) is
-deliberately NOT mirrored here: as of 2026-09, Geofabrik's technical
-documentation does not state a licence for that index file distinct from
-the OSM data it points at, so its terms are unverified rather than
-confirmed compatible for redistribution (see docs/
-Plotlines_OSM_Acquisition_Review_Licensing_Addendum.md, finding L4; tracked
-for a definitive check under issue #259). MIRROR_STATE.json at the tree
-root is Plotlines' own record of which regions and build dates this mirror
-actually carries, and is what a consumer should read instead of Geofabrik's
-index.
+
+Geofabrik's own machine-readable region index (`index-v1.json`) IS mirrored
+here, under the same dated directory as the extracts it was pulled
+alongside. Its region geometries and metadata are Geofabrik's own
+cartographic work — not OSM data, so not covered by the ODbL statement
+above — and its redistribution terms come from Geofabrik's stated Open Data
+policy instead: "any data we produce or refine can be distributed in any
+way and through any channel" (https://www.geofabrik.de/geofabrik/free.html),
+conditioned only on not restricting others from further distributing or
+modifying it in turn. See docs/
+Plotlines_OSM_Acquisition_Review_Licensing_Addendum.md, finding L4, and
+issue #259 for the definitive check this resolved. MIRROR_STATE.json at the
+tree root remains Plotlines' own record of which regions and build dates
+this mirror actually carries — a consumer resolves *what this mirror
+serves* from MIRROR_STATE.json, and may use the mirrored index only to
+resolve region geometry, never as a claim about what is actually present.
 
 Each region's `.md5` file is Geofabrik's published checksum for the
 corresponding `.osm.pbf`, verified at pull time (see MIRROR_STATE.json and

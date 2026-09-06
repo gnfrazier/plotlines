@@ -35,10 +35,12 @@ if [[ ! -f "$ROOT/MIRROR_STATE.json" ]]; then
 	cp "$HERE/MIRROR_STATE.example.json" "$ROOT/MIRROR_STATE.json"
 fi
 
-# index-v1.json is deliberately not created here. Geofabrik's technical
-# documentation does not state a licence for that index file distinct from
-# the OSM data it points at (finding L4), so it is not mirrored/redistributed
-# pending the definitive check under #259 — see osm/COPYRIGHT.txt.
-# MIRROR_STATE.json is Plotlines' own covering-set record in its place.
+# index-v1.json is not created here — like the .osm.pbf extracts, it's
+# pulled over the network by geofabrik_pull.py (--pull-index, issue #259),
+# never by this offline scaffold script. Its licence question is resolved
+# (see osm/COPYRIGHT.txt): Geofabrik's stated Open Data policy covers data
+# it produces/refines, which is what the index is. MIRROR_STATE.json stays
+# Plotlines' own covering-set record regardless of whether the index has
+# been pulled yet.
 
 echo "Mirror tree scaffolded at $ROOT"
