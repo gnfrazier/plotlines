@@ -225,6 +225,44 @@ JSON" stands in for the `.md5` match as the verify-before-publish gate.
 both regions and the index — against a real (loopback) HTTP server and its
 own request log, not against an internal "would have skipped" flag.
 
+## Staleness monitor, cadence, and ownership (issue #260)
+
+§11.3 names the cost the mirror takes on: "we become the availability." A cron that silently
+stopped running looks identical to a working mirror until someone happens to SSH in and check —
+the exact quiet-and-permanent failure mode the review's Q2 decision (adopted 2026-09-03) answers by
+splitting cadence from monitoring:
+
+- **Cadence is monthly, with one named owner** — **Greg Frazier** — and a release-checklist item
+  that blocks a release on the bump, the same discipline `PROTOMAPS_BASEMAP_BUILD` already has. See
+  `docs/Plotlines_Release_Checklist.md`.
+- **The monitor is built regardless of cadence.** `MIRROR_STATE.json` already carries every
+  timestamp it needs (`checked_at`, `pulled_at`, `last_failure`, `consecutive_failures` per region
+  and for the index; `basemap.build_id`'s own leading date) — `core/plotlines_core/tiles/
+  mirror_state.py`'s `mirror_health()` is a pure read over that state, and `GET /health`'s
+  `capabilities.mirror` surfaces it on the sidecar's existing per-layer capability channel (story
+  N4) rather than requiring anyone to open this file by hand. `--mirror-state-url` (a local path or
+  the mirror's own served URL) points a sidecar at it; absent, `capabilities.mirror` reports
+  `{"configured": false}` rather than a stale-looking reading for a source nobody named — this is
+  the default today, since no sidecar is pointed at the mirror in production yet (#261).
+  `core/tests/test_mirror_state.py` and `service/tests/test_health_mirror.py` cover the staleness
+  math and the endpoint, including the case that matters most: a deliberately-stalled pull (a
+  `checked_at` far past `MAX_PIN_AGE_DAYS`, the monthly cadence plus a grace window) reads as
+  visibly stale rather than indistinguishable from a healthy mirror.
+
+## The Provenance/Attribution pin format (finding L7)
+
+A trip pins the OSM build it started on, and that pin belongs in the trip payload
+(`trips/payload.py`'s `Provenance`/`Attribution`) — an exported cue sheet carrying "contains OSM
+data, snapshot 2026-09-01" is a stronger notice than a bare credit, and without the pin, a trip
+built from a stale mirror is indistinguishable from a fresh one. The payload *write* lands with the
+extract path in Phase 3 (epic #264; #270/#277) — this issue only decides the *format*, so both ends
+agree before that code exists: `core/plotlines_core/tiles/mirror_state.py`'s
+`geofabrik_attribution_fields(state, region)` returns the four fields `Attribution(source, licence,
+credit, url)` takes, with `credit` in the exact "contains OSM data, snapshot `<date>`" shape L7
+names. It returns a plain `dict` rather than constructing `Attribution` itself, so `tiles` — a lower
+layer — never has to import `trips`; Phase 3 calls
+`Attribution(**geofabrik_attribution_fields(state, region))` directly.
+
 ## Bucket portability (Q6-C)
 
 - Every path `build_tree.sh` creates is a plain nested directory — no

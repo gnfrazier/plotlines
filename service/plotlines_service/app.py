@@ -75,6 +75,11 @@ from plotlines_core.scoring.metrics import edge_walk, measure
 from plotlines_core.scoring.profile import THEMES, WeightProfile
 from plotlines_core.tiles.archive import Archive, valid_zxy
 from plotlines_core.tiles.extract import NoTilesInBbox, extract_bbox
+from plotlines_core.tiles.mirror_state import (
+    MIRROR_NOT_CONFIGURED,
+    load_mirror_state,
+    mirror_health,
+)
 from plotlines_core.web.session import SessionCookiePolicy
 from plotlines_core.trips.compose import compose_day, split_trip
 from plotlines_core.trips.cues import derive_cue_sheet, route_polyline
@@ -170,6 +175,29 @@ ELEVATION_QA_PROXY_CONFIGURED: dict = {
     "ready": True,
     "reason": "qa_pi5_elevation_proxy",
 }
+
+
+def _mirror_capability(source: str | None) -> dict:
+    """`capabilities.mirror` — issue #260 (Phase 1.6, epic #264; review
+    §6.6, addendum Q2). `--mirror-state-url` is optional and orthogonal to
+    `--tiles-upstream`: it names where to *read* `MIRROR_STATE.json` for the
+    staleness monitor, not where tiles are extracted from. Absent (the
+    default today, before #261 points a sidecar at the mirror in
+    production), this reports `MIRROR_NOT_CONFIGURED` rather than a
+    stale-looking `configured: True` for a source nobody named.
+
+    `mirror_health` never raises on well-formed state, but the *fetch*
+    (a local path or the mirror's own http(s) URL) can — a missing file, a
+    Pi that's down, a network blip. `/health` must stay responsive for
+    every other capability even when this one can't be read, so a fetch
+    failure reports as stale with the reason, never a 500."""
+    if not source:
+        return MIRROR_NOT_CONFIGURED
+    try:
+        state = load_mirror_state(source)
+    except (OSError, ValueError) as exc:
+        return {"configured": True, "stale": True, "error": str(exc)}
+    return mirror_health(state)
 
 
 class CapabilityState:
@@ -992,7 +1020,8 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                tiles_upstream: str | Path | None = None,
                allow_unmirrored_tiles: bool = False,
                web_domain: str | None = None,
-               elevation_upstream: str | None = None) -> FastAPI:
+               elevation_upstream: str | None = None,
+               mirror_state_url: str | None = None) -> FastAPI:
     # Issue #241 — stamp the contactable Plotlines UA/referer on every
     # Overpass and Nominatim call this app makes (region graph builds,
     # candidate fetches, and `/geocode`) before the first request goes out.
@@ -1070,6 +1099,14 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         Version-mismatch refusal (A8, M12) is unchanged and lives entirely
         client-side in `SidecarManager.start()`, before the sidecar is even
         spawned — `/health` was never part of that check and still isn't.
+
+        `mirror` (issue #260, story N4/Q2) reports OSM-mirror staleness —
+        `MIRROR_NOT_CONFIGURED` when no `--mirror-state-url` was given
+        (the default until #261 points a sidecar at the mirror in
+        production), otherwise `plotlines_core.tiles.mirror_state.
+        mirror_health()`'s basemap/Geofabrik pin ages and a single `stale`
+        flag, so a cron that silently stopped is loud here rather than
+        indistinguishable from a working mirror (§11.3).
         """
         registry = app.state.layer_registry
         layers_cap = registry.capability()
@@ -1087,6 +1124,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                     if state.elevation_upstream
                     else ELEVATION_NOT_CONFIGURED
                 ),
+                "mirror": _mirror_capability(mirror_state_url),
             },
         }
         # Hosted mode only: the same-site session contract (story M4). A

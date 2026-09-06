@@ -56,6 +56,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "API_KEY need not be set on this machine at all. "
                              "Absent (the default) leaves elevation exactly as "
                              "today: elevation_source_not_configured:tracked_in_148.")
+    parser.add_argument("--mirror-state-url", default=None,
+                        help="issue #260: where to read MIRROR_STATE.json for the "
+                             "GET /health staleness monitor — a local path or the "
+                             "mirror's own http(s) URL (e.g. https://tiles.plotlines"
+                             ".app/MIRROR_STATE.json). Independent of "
+                             "--tiles-upstream, which is where tiles are actually "
+                             "extracted from. Absent (the default) reports "
+                             "capabilities.mirror = {'configured': False} rather "
+                             "than a stale-looking reading for a source nobody "
+                             "named.")
     parser.add_argument("--web-domain", default=None,
                         help="hosted mode only: the registrable parent domain "
                              "(e.g. plotlines.app) that app.<domain> and "
@@ -115,7 +125,8 @@ def main(argv: list[str] | None = None) -> int:
                          tiles_upstream=args.tiles_upstream,
                          allow_unmirrored_tiles=args.allow_unmirrored_tiles,
                          web_domain=args.web_domain,
-                         elevation_upstream=args.elevation_upstream)
+                         elevation_upstream=args.elevation_upstream,
+                         mirror_state_url=args.mirror_state_url)
     except ValueError as exc:
         print(f"refusing: {exc}", file=sys.stderr)
         return 2
