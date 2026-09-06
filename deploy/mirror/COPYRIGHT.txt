@@ -1,0 +1,25 @@
+Plotlines OSM/basemap mirror — copyright and licence notices
+==============================================================
+
+Everything served from this host is derived from OpenStreetMap data. The
+moment this tree is reachable over the network, Plotlines is a public
+redistributor of an OpenStreetMap-derived database, and this notice is the
+distribution-channel obligation that comes with that (not a substitute for
+the in-app credits on the About screen and on every export/print output).
+
+  © OpenStreetMap contributors
+  Data licensed under the Open Database License (ODbL) 1.0:
+  https://opendatacommons.org/licenses/odbl/1-0/
+  Full copyright and licence terms: https://www.openstreetmap.org/copyright
+
+basemap/  — Protomaps Basemap builds, a Produced Work from OpenStreetMap
+            data under ODbL 1.0. See https://protomaps.com for the build
+            pipeline; the OSM notice above is the operative licence term.
+
+osm/      — Geofabrik regional extracts of OpenStreetMap data. See
+            osm/COPYRIGHT.txt for the notice scoped to that subtree,
+            including Geofabrik's own role in producing the extracts.
+
+This file, and osm/COPYRIGHT.txt, must remain reachable over plain HTTP at
+their paths below this root — the notice obligation attaches to the
+distribution channel, not to the presence of a file on disk.

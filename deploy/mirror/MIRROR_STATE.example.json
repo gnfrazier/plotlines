@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "basemap": {
+    "build_id": null,
+    "covered_regions": [],
+    "_note": "Populated when the basemap stand-in is copied in — Phase 1.3, issue #257."
+  },
+  "geofabrik": {
+    "pinned_date": null,
+    "regions": {},
+    "_note": "One entry per region with its pull timestamp and verified .md5 — Phase 1.4/1.6, issues #258/#260. This is Plotlines' own covering-set record; it deliberately replaces rather than mirrors Geofabrik's own index-v1.json (see osm/COPYRIGHT.txt, finding L4)."
+  }
+}
