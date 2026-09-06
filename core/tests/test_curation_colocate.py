@@ -65,6 +65,76 @@ def test_candidates_outside_bbox_are_ignored():
     assert all(m.candidate_id.startswith("in") for m in props[0].members)
 
 
+# --- area candidates: bbox membership is extent overlap, not centroid ------ #
+# issue #227 — a polygon whose centroid falls outside the bbox but whose
+# extent overlaps it was dropped with no error and no "+N more" count, and
+# the proposal that survived carried the wrong role set (a narrative anchor
+# lost, not merely a missing pin).
+
+def area_cand(cid, ring, coord=None, salience=0.8, affinity="narrative", tags=None, title=None):
+    lons = [p[0] for p in ring]
+    lats = [p[1] for p in ring]
+    return Candidate(
+        id=cid, coord=coord or (sum(lons) / len(lons), sum(lats) / len(lats)),
+        layer=affinity, salience=salience, role_affinity=affinity,
+        tags=tags or {"historic": "district"}, title=title or cid,
+        geometry=tuple(ring))
+
+
+def test_area_candidate_with_centroid_outside_bbox_is_not_dropped():
+    # The issue's own repro: a district polygon spans just past the bbox's
+    # north edge, so its centroid sits outside while a third of it — and the
+    # two provision candidates inside it — sit inside.
+    bbox = BBox(west=-82.60, south=35.55, east=-82.50, north=35.62)
+    district = area_cand(
+        "way/1",
+        ring=[(-82.57, 35.610), (-82.53, 35.610), (-82.53, 35.640), (-82.57, 35.640), (-82.57, 35.610)],
+        coord=(-82.55, 35.6250),  # outside north=35.62
+        title="Montford Historic District",
+    )
+    cafe = cand("node/2", -82.5500, 35.6150, salience=0.45, affinity="provision", tags={"amenity": "cafe"})
+    water = cand("node/3", -82.5502, 35.6152, salience=0.40, affinity="provision", tags={"amenity": "drinking_water"})
+
+    props, beyond = analyze_colocation_full([district, cafe, water], bbox)
+
+    assert beyond == 0
+    assert len(props) == 1
+    assert {m.candidate_id for m in props[0].members} == {"way/1", "node/2", "node/3"}
+    # The role set is the point of the bug: dropping the district silently
+    # turns a "narrative + provision" plot point into a bare provision stop.
+    assert props[0].role_affinities == ("narrative", "provision")
+    assert props[0].name == "Montford Historic District"
+
+
+def test_area_candidate_whose_polygon_does_not_reach_the_bbox_is_still_excluded():
+    # The fix is extent overlap, not "admit every polygon" — a polygon whose
+    # bounding box is nowhere near the trip bbox must stay excluded.
+    bbox = BBox(west=-82.60, south=35.55, east=-82.50, north=35.62)
+    far_away = area_cand(
+        "way/9",
+        ring=[(-80.00, 35.610), (-79.96, 35.610), (-79.96, 35.640), (-80.00, 35.640), (-80.00, 35.610)],
+        title="Unrelated District",
+    )
+    cafe = cand("node/2", -82.5500, 35.6150, salience=0.45, affinity="provision")
+    water = cand("node/3", -82.5502, 35.6152, salience=0.40, affinity="provision")
+
+    props = analyze_colocation([far_away, cafe, water], bbox)
+
+    assert len(props) == 1
+    assert "way/9" not in {m.candidate_id for m in props[0].members}
+
+
+def test_point_candidate_bbox_membership_is_unchanged():
+    # Regression guard: the fix must not change plain-point behaviour, which
+    # `test_candidates_outside_bbox_are_ignored` above already locks — this
+    # just pins the point-only fast path (no geometry) explicitly.
+    bbox = BBox(-1.0, -1.0, 1.0, 1.0)
+    inside = cand("in", 0.0, 0.0)
+    outside = cand("out", 5.0, 5.0)
+    props = analyze_colocation([inside, cand("in2", *at(0.0, 0.0, 20, 0)), outside], bbox)
+    assert {m.candidate_id for p in props for m in p.members} == {"in", "in2"}
+
+
 # --- affinity union (FR105 / D47) ----------------------------------------- #
 
 def test_narrative_only_cluster_reads_as_narrative():

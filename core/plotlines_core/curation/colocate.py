@@ -182,6 +182,110 @@ def _dist_to_polyline_m(p, route: Sequence[tuple[float, float]], lat0: float) ->
               for i in range(len(route) - 1))
 
 
+def _in_bbox(c: Candidate, bbox: BBox) -> bool:
+    """Whether `c` belongs in the bbox — by **extent overlap** when it carries
+    a polygon, falling back to the centroid test for a point (issue #227).
+
+    Stage 1 extraction never clips (`osmnx`'s own note: retain rows whose
+    geometry merely *intersects* the query polygon), so an area candidate —
+    a historic district, a park, a main-street block — is routinely in the
+    cache with a centroid outside a bbox its polygon still overlaps. Filtering
+    stage 3's membership on `c.coord` alone silently drops exactly that
+    candidate, and area candidates are the highest-salience ones a layer
+    proposes — this is the §0 silent-failure mode in its worst spot, not a
+    missing pin (see the issue for the worked district+cafe repro).
+
+    This mirrors `tiles/archive.py::ArchiveInfo.covers` — bbox-vs-bbox
+    rejection, same shape, different geometry source.
+    """
+    if c.geometry:
+        lons = [p[0] for p in c.geometry]
+        lats = [p[1] for p in c.geometry]
+        west, east = min(lons), max(lons)
+        south, north = min(lats), max(lats)
+    else:
+        west = east = c.coord[0]
+        south = north = c.coord[1]
+    return not (east < bbox.west or west > bbox.east
+               or north < bbox.south or south > bbox.north)
+
+
+def _clip_to_bbox(ring: Sequence[tuple[float, float]], bbox: BBox) -> list[tuple[float, float]]:
+    """Sutherland-Hodgman clip of `ring` against the axis-aligned `bbox`."""
+    def clip_edge(poly: list[tuple[float, float]], inside, intersect):
+        out: list[tuple[float, float]] = []
+        n = len(poly)
+        for i in range(n):
+            cur, prev = poly[i], poly[i - 1]
+            cur_in, prev_in = inside(cur), inside(prev)
+            if cur_in:
+                if not prev_in:
+                    out.append(intersect(prev, cur))
+                out.append(cur)
+            elif prev_in:
+                out.append(intersect(prev, cur))
+        return out
+
+    def lerp(a, b, t):
+        return (a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]))
+
+    poly = list(ring)
+    poly = clip_edge(poly, lambda p: p[0] >= bbox.west,
+                     lambda a, b: lerp(a, b, (bbox.west - a[0]) / (b[0] - a[0])))
+    poly = clip_edge(poly, lambda p: p[0] <= bbox.east,
+                     lambda a, b: lerp(a, b, (bbox.east - a[0]) / (b[0] - a[0])))
+    poly = clip_edge(poly, lambda p: p[1] >= bbox.south,
+                     lambda a, b: lerp(a, b, (bbox.south - a[1]) / (b[1] - a[1])))
+    poly = clip_edge(poly, lambda p: p[1] <= bbox.north,
+                     lambda a, b: lerp(a, b, (bbox.north - a[1]) / (b[1] - a[1])))
+    return poly
+
+
+def _cluster_anchor(c: Candidate, bbox: BBox) -> tuple[float, float]:
+    """The (lon, lat) point `c` clusters, extents, and reports its share of a
+    proposal's centroid at — never `c.coord` unmodified for a polygon that
+    pokes outside the bbox (issue #227's design question).
+
+    Clustering runs on a single point per candidate (SPIKE-B's grid pre-pass),
+    so an area candidate needs *one* representative point, not its raw
+    centroid: a district whose polygon only partly overlaps the bbox has a
+    centroid that can be a kilometre outside the part any other candidate
+    could share a stop with. The representative point is the centroid of
+    **the polygon clipped to the bbox** — the part of the feature that is
+    actually in play here — which is what puts a district back within
+    `max_diameter_m` of the provision candidates sitting inside it. Falls
+    back to the unclipped centroid if clipping the ring came up empty (a
+    polygon whose bounding box overlaps the bbox but whose actual boundary
+    does not — the bbox-vs-bbox `_in_bbox` test is coarser than this).
+    """
+    if not c.geometry:
+        return c.coord
+    clipped = _clip_to_bbox(c.geometry, bbox)
+    if not clipped:
+        return c.coord
+    return _polygon_centroid(clipped) or c.coord
+
+
+def _polygon_centroid(ring: Sequence[tuple[float, float]]) -> tuple[float, float] | None:
+    """Area-weighted centroid (shoelace formula). `None` for a degenerate
+    (near-zero-area — a sliver clip, or too few distinct points) ring, so the
+    caller can fall back rather than divide by ~0."""
+    pts = ring if ring[0] == ring[-1] else (*ring, ring[0])
+    a_sum = cx_sum = cy_sum = 0.0
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        cross = x0 * y1 - x1 * y0
+        a_sum += cross
+        cx_sum += (x0 + x1) * cross
+        cy_sum += (y0 + y1) * cross
+    area = a_sum / 2.0
+    if abs(area) < 1e-12:
+        uniq = list(dict.fromkeys(ring))
+        if not uniq:
+            return None
+        return (sum(p[0] for p in uniq) / len(uniq), sum(p[1] for p in uniq) / len(uniq))
+    return (cx_sum / (6.0 * area), cy_sum / (6.0 * area))
+
+
 # --------------------------------------------------------------------------- #
 # Clustering — grid pre-pass for connected components, then complete-linkage
 # agglomeration inside each so every cluster's diameter <= max_diameter_m.
@@ -399,15 +503,19 @@ def analyze_colocation_full(
     """`(capped_proposals, n_beyond_cap)` — the form N4a's dense state needs."""
     in_box = [
         c for c in candidates
-        if bbox.west <= c.coord[0] <= bbox.east
-        and bbox.south <= c.coord[1] <= bbox.north
+        if _in_bbox(c, bbox)
         and c.salience >= params.min_member_salience
     ]
     if len(in_box) < 2:
         return [], 0
 
+    # Cluster at `_cluster_anchor`, not raw `c.coord` — see its docstring
+    # (issue #227). A polygon admitted by `_in_bbox` can still centroid far
+    # outside the bbox; anchoring on the bbox-clipped centroid instead is what
+    # lets a district cluster with the provisions sitting inside it.
     lat0 = (bbox.south + bbox.north) / 2
-    pts_xy = [_local_xy(c.coord[0], c.coord[1], lat0) for c in in_box]
+    anchors = [_cluster_anchor(c, bbox) for c in in_box]
+    pts_xy = [_local_xy(lon, lat, lat0) for lon, lat in anchors]
     rejected_sets = [frozenset(r) for r in rejected]
 
     proposals: list[ClusterProposal] = []
@@ -436,8 +544,8 @@ def analyze_colocation_full(
         score = sal * tight_mult
 
         centroid_lonlat = (
-            sum(m2.coord[0] for m2 in (in_box[i] for i in idxs)) / len(idxs),
-            sum(m2.coord[1] for m2 in (in_box[i] for i in idxs)) / len(idxs),
+            sum(anchors[i][0] for i in idxs) / len(idxs),
+            sum(anchors[i][1] for i in idxs) / len(idxs),
         )
         # SPIKE-B / Q12: distance-to-route is carried for display, the N4a
         # corridor *filter*, and the "resort by distance-from-route" action
