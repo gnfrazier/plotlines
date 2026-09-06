@@ -77,10 +77,13 @@ def test_docker_compose_pins_the_caddy_image_and_mounts_read_only() -> None:
     assert "/srv/plotlines-mirror:ro" in _COMPOSE
 
 
-def test_index_v1_json_is_never_mentioned_as_something_we_serve() -> None:
-    # Finding L4: Geofabrik's index-v1.json licence is unverified as of this
-    # issue (see deploy/mirror/README.md). Nothing here should reference it
-    # as a served path.
+def test_index_v1_json_needs_no_special_caddy_or_compose_config() -> None:
+    # Finding L4, resolved under issue #259: index-v1.json is mirrored now
+    # (see deploy/mirror/README.md and osm/COPYRIGHT.txt), but nothing here
+    # should need to name it — Caddy's `file_server` serves any path under
+    # the tree root generically, the same as it does every .osm.pbf, so
+    # naming this one file specifically would be a config drift risk with no
+    # benefit.
     assert "index-v1.json" not in _CADDYFILE
     assert "index-v1.json" not in _COMPOSE
 
@@ -108,6 +111,10 @@ class TestBuildTree:
         assert (root / "MIRROR_STATE.json").is_file()
 
     def test_never_creates_index_v1_json(self, tmp_path: Path) -> None:
+        # This offline scaffold script never reaches the network — pulling
+        # index-v1.json (issue #259) is geofabrik_pull.py's job
+        # (--pull-index), the same division of labour build_tree.sh already
+        # has with the .osm.pbf extracts.
         root = tmp_path / "mirror"
         self._run(root)
 

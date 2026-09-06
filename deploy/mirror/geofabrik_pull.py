@@ -41,15 +41,25 @@ by invoking it more than once:
   rather than only a log line nobody is watching.
 
 **Regions are named explicitly** (`--region north-america/us/north-carolina`,
-repeatable), never discovered from Geofabrik's own `index-v1.json`. That
-index's licence is unverified pending #259 ("#259 gates #258's index
-handling — do not mirror a file whose terms nobody has read", epic #264);
-naming regions by hand sidesteps needing it at all, and `MIRROR_STATE.json`
-is Plotlines' own covering-set record in the index's place (see
-`deploy/mirror/osm/COPYRIGHT.txt`).
+repeatable), never discovered from Geofabrik's own `index-v1.json` — a
+region's covering extent is a Plotlines decision, not something worth a
+network round-trip to look up.
 
-Only this script's own `geofabrik.regions.<region>` entries and
-`geofabrik.pinned_date` are written — `basemap` (owned by
+**`index-v1.json` itself is pulled separately, with `--pull-index`.** Issue
+#259 found Geofabrik's own stated Open Data policy
+(https://www.geofabrik.de/geofabrik/free.html): "any data we produce or
+refine can be distributed in any way and through any channel" — a
+redistribution grant for Geofabrik's *own* produced/refined data (which is
+what the index is: their cut lines and metadata, not raw OSM data), distinct
+from the ODbL statement that covers the `.osm.pbf` extracts. `pull_index`
+applies the same etiquette as `pull_region` — at most daily, identified,
+backs off on error — with an ETag-conditional GET standing in for the `.md5`
+check regions get (Geofabrik publishes no digest for the index), and a
+JSON-parses-cleanly check standing in for the `.md5` match before the
+downloaded body is published to its immutable path.
+
+Only this script's own `geofabrik.regions.<region>` / `geofabrik.index`
+entries and `geofabrik.pinned_date` are written — `basemap` (owned by
 `copy_basemap_standin.sh`, issue #257) and everything else in
 `MIRROR_STATE.json` are left untouched, the same non-clobbering contract
 `build_tree.sh` documents for the file as a whole.
@@ -57,7 +67,7 @@ Only this script's own `geofabrik.regions.<region>` entries and
 Usage::
 
     ./geofabrik_pull.py --root /srv/plotlines-mirror \\
-        --region north-america/us/north-carolina
+        --region north-america/us/north-carolina --pull-index
 
 Run this by hand to bootstrap a new region, or from cron/#260's monthly pin
 bump — the etiquette above holds regardless of how often it is invoked.
@@ -155,10 +165,39 @@ def _pbf_url(base_url: str, region: str) -> str:
     return f"{base_url.rstrip('/')}/{region}-latest.osm.pbf"
 
 
+def _index_url(base_url: str) -> str:
+    return f"{base_url.rstrip('/')}/index-v1.json"
+
+
 def _get(url: str, *, user_agent: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": user_agent})
     with urllib.request.urlopen(req) as resp:
         return resp.read()
+
+
+class _NotModified(Exception):
+    """Raised by `_get_conditional` on a 304 — the caller's cached copy is
+    still current, distinguishing "unchanged" from every other failure."""
+
+
+def _get_conditional(
+    url: str, *, user_agent: str, etag: str | None
+) -> tuple[bytes, str | None]:
+    """GET with `If-None-Match: etag` when we have one. Returns (body,
+    new_etag) on 200, or raises `_NotModified` on 304 — Geofabrik's stand-in
+    for the `.md5` conditional check regions get, since it publishes no
+    digest for `index-v1.json` itself."""
+    headers = {"User-Agent": user_agent}
+    if etag:
+        headers["If-None-Match"] = etag
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return resp.read(), resp.headers.get("ETag")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 304:
+            raise _NotModified from exc
+        raise
 
 
 def _get_streaming(url: str, dest: Path, *, user_agent: str) -> None:
@@ -316,6 +355,87 @@ def pull_region(
     return PullResult(region, "pulled", remote_md5)
 
 
+def pull_index(
+    *,
+    root: Path,
+    pinned_date: str,
+    state: dict,
+    base_url: str = DEFAULT_BASE_URL,
+    user_agent: str = PLOTLINES_USER_AGENT,
+    min_interval: timedelta = DEFAULT_MIN_INTERVAL,
+    now: Callable[[], datetime] = _utcnow,
+) -> PullResult:
+    """Pull Geofabrik's `index-v1.json`, mutating only
+    `state["geofabrik"]["index"]` — see issue #259 for why this is mirrored
+    at all (Geofabrik's own stated policy for data it produces/refines,
+    distinct from the ODbL grant that covers the `.osm.pbf` extracts) and
+    `pull_region`'s docstring/tests for the shared etiquette. The same rules
+    apply here with two substitutions forced by what Geofabrik actually
+    publishes for this file: an ETag-conditional GET stands in for the
+    `.md5` cadence check, and "the body parses as JSON" stands in for the
+    `.md5` match as the verify-before-publish gate."""
+    entry = state.setdefault("geofabrik", {}).setdefault("index", {})
+    current_time = now()
+
+    consecutive_failures = entry.get("consecutive_failures", 0)
+    last_failure = entry.get("last_failure")
+    if consecutive_failures and last_failure:
+        last_failure_at = _parse_iso(last_failure.get("at"))
+        if last_failure_at is not None:
+            resume_at = last_failure_at + _backoff_delay(consecutive_failures)
+            if current_time < resume_at:
+                LOG.info(
+                    "index: backing off until %s (%d consecutive failures)",
+                    _iso(resume_at), consecutive_failures,
+                )
+                return PullResult("index-v1.json", "skipped_backoff",
+                                   f"resumes at {_iso(resume_at)}")
+
+    checked_at = _parse_iso(entry.get("checked_at"))
+    if checked_at is not None and current_time - checked_at < min_interval:
+        LOG.info(
+            "index: checked %s ago, inside the %s cadence window — "
+            "skipping, no request made", current_time - checked_at,
+            min_interval,
+        )
+        return PullResult("index-v1.json", "skipped_cadence",
+                           f"last checked {_iso(checked_at)}")
+
+    dest = root / "osm" / "geofabrik" / pinned_date / "index-v1.json"
+
+    try:
+        body, new_etag = _get_conditional(
+            _index_url(base_url), user_agent=user_agent, etag=entry.get("etag"),
+        )
+    except _NotModified:
+        LOG.info("index: unchanged (etag %s) — no body bytes transferred",
+                  entry.get("etag"))
+        entry["checked_at"] = _iso(current_time)
+        entry["consecutive_failures"] = 0
+        entry["last_failure"] = None
+        return PullResult("index-v1.json", "skipped_unchanged", entry.get("etag", ""))
+    except (urllib.error.URLError, OSError) as exc:
+        return _record_failure("index-v1.json", entry, current_time,
+                                f"fetch failed: {exc}")
+    entry["checked_at"] = _iso(current_time)
+
+    try:
+        json.loads(body)
+    except ValueError as exc:
+        return _record_failure("index-v1.json", entry, current_time,
+                                f"response is not valid JSON: {exc}")
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _atomic_write(dest, body)
+
+    entry["etag"] = new_etag
+    entry["pulled_at"] = _iso(current_time)
+    entry["consecutive_failures"] = 0
+    entry["last_failure"] = None
+    LOG.info("index: pulled (etag %s) -> %s", new_etag, dest)
+    return PullResult("index-v1.json", "pulled", new_etag or "")
+
+
 def load_state(state_path: Path) -> dict:
     with open(state_path) as f:
         return json.load(f)
@@ -333,6 +453,7 @@ def run(
     base_url: str = DEFAULT_BASE_URL,
     min_interval: timedelta = DEFAULT_MIN_INTERVAL,
     now: Callable[[], datetime] = _utcnow,
+    pull_index_too: bool = False,
 ) -> list[PullResult]:
     state_path = root / "MIRROR_STATE.json"
     if not state_path.exists():
@@ -349,6 +470,11 @@ def run(
         results.append(result)
         # Checkpoint after every region so a mid-run crash on region N
         # doesn't lose the state recorded for regions before it.
+        save_state(state_path, state)
+    if pull_index_too:
+        results.append(pull_index(root=root, pinned_date=pinned_date, state=state,
+                                   base_url=base_url, min_interval=min_interval,
+                                   now=now))
         save_state(state_path, state)
     return results
 
@@ -374,6 +500,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--min-interval-hours", type=float,
                          default=DEFAULT_MIN_INTERVAL.total_seconds() / 3600)
+    parser.add_argument(
+        "--pull-index", action="store_true", dest="pull_index_too",
+        help="Also pull Geofabrik's index-v1.json (issue #259) — off by "
+             "default; opt in explicitly rather than fetching a 3-4 MB file "
+             "nobody asked for on every region-bootstrap invocation.",
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args(argv)
 
@@ -387,6 +519,7 @@ def main(argv: list[str] | None = None) -> int:
         args.regions, root=args.root, pinned_date=pinned_date,
         base_url=args.base_url,
         min_interval=timedelta(hours=args.min_interval_hours),
+        pull_index_too=args.pull_index_too,
     )
     failed = [r for r in results if r.action == "failed"]
     return 1 if failed else 0

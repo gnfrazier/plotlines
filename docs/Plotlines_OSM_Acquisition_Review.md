@@ -265,7 +265,7 @@ immutable.
   basemap/protomaps/20250101/planet.pmtiles             # matches MIRROR_ARCHIVE_URL exactly
   basemap/protomaps/20250101-wnc/corridor.pmtiles       # 1b: the SPIKE-14 stand-in, honestly named
   osm/COPYRIGHT.txt                                     # © OpenStreetMap contributors, ODbL 1.0
-  osm/geofabrik/2026-09-01/index-v1.json                # only if its own licence checks out — 1a
+  osm/geofabrik/2026-09-01/index-v1.json                # licence checked (#259) — mirrored — 1a
   osm/geofabrik/2026-09-01/north-america/us/north-carolina.osm.pbf
   osm/geofabrik/2026-09-01/north-america/us/north-carolina.osm.pbf.md5
 ```
@@ -278,7 +278,9 @@ Two amendments from the addendum are in that tree and are not optional:
   directory, in the layout from the start. Separately: `index-v1.json` is Geofabrik's own region
   geometry — their cut lines, their naming — and its licence is **unverified**. Check it before
   mirroring it; if it is unclear, derive the covering-set geometry from the bboxes we actually
-  need rather than re-serving their index.
+  need rather than re-serving their index. *(Resolved 2026-09-06 under #259: Geofabrik's own
+  stated Open Data policy covers data it produces/refines, which is what the index is — it is
+  mirrored, with a notice citing that policy distinct from the ODbL statement.)*
 - **1b — the stand-in gets an honest path.** A file named `planet.pmtiles` containing one corridor
   makes every bbox outside WNC a silent miss that looks like a mirror bug, and makes
   "build-pinned paths are immutable" untrue for the one file most likely to be swapped. Its own
@@ -577,7 +579,8 @@ it unnecessary to check.
     its covered regions in `MIRROR_STATE.json`, and verify a byte-range read works end to end via
     `tiles/extract.py:http_range_source`. *(§6.3, 1b)*
 14. Verify `index-v1.json`'s licence before mirroring it; if unclear, derive covering-set geometry
-    ourselves instead. *(1a / L4)*
+    ourselves instead. *(1a / L4 — resolved 2026-09-06: Geofabrik's stated Open Data policy
+    covers it; mirrored with notice. See the addendum's L4 correction and issue #259.)*
 15. Pull the first state extract from Geofabrik through a client that is **≤daily, conditional,
     identified and backs off** — not a bare cron. Verify the `.md5`. *(§6.6, 1c)*
 16. Point the sidecar at it with `--tiles-upstream` + `--allow-unmirrored-tiles`; confirm a region

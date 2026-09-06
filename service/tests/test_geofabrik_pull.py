@@ -17,6 +17,12 @@ Each test below maps directly to one #258 acceptance-criterion clause:
 - repeated failures back off rather than hammering, and land in
   `MIRROR_STATE.json` where #260's monitor can see them;
 - cadence and what was pulled land in `MIRROR_STATE.json`.
+
+`pull_index` (issue #259) gets its own tests below, exercising the same
+etiquette shape against the one substitution Geofabrik's actual `index-v1
+.json` response forces: an ETag-conditional GET standing in for the `.md5`
+check (Geofabrik publishes no digest for the index), verified against a real
+304 from the fake upstream, not an internal "would have skipped" flag.
 """
 
 from __future__ import annotations
@@ -56,6 +62,9 @@ _PBF_BODY = b"pretend this is an osm.pbf extract"
 _PBF_DIGEST = hashlib.md5(_PBF_BODY).hexdigest()
 _MD5_BODY = f"{_PBF_DIGEST}  {_REGION}-latest.osm.pbf\n".encode()
 
+_INDEX_BODY = b'{"type": "FeatureCollection", "features": []}'
+_INDEX_ETAG = '"abc123"'
+
 
 def test_plotlines_user_agent_matches_osm_identity() -> None:
     # "One contactable string across every upstream we touch" (issue #241) —
@@ -65,9 +74,10 @@ def test_plotlines_user_agent_matches_osm_identity() -> None:
 
 
 class _Route:
-    def __init__(self, status: int = 200, body: bytes = b""):
+    def __init__(self, status: int = 200, body: bytes = b"", etag: str | None = None):
         self.status = status
         self.body = body
+        self.etag = etag
 
 
 class _RecordingHandler(http.server.BaseHTTPRequestHandler):
@@ -80,7 +90,14 @@ class _RecordingHandler(http.server.BaseHTTPRequestHandler):
         if route is None:
             self.send_error(404)
             return
+        if route.etag and self.headers.get("If-None-Match") == route.etag:
+            self.send_response(304)
+            self.send_header("ETag", route.etag)
+            self.end_headers()
+            return
         self.send_response(route.status)
+        if route.etag:
+            self.send_header("ETag", route.etag)
         self.send_header("Content-Length", str(len(route.body)))
         self.end_headers()
         if route.body:
@@ -95,6 +112,7 @@ def upstream():
     routes: dict[str, _Route] = {
         f"/{_REGION}-latest.osm.pbf.md5": _Route(200, _MD5_BODY),
         f"/{_REGION}-latest.osm.pbf": _Route(200, _PBF_BODY),
+        "/index-v1.json": _Route(200, _INDEX_BODY, etag=_INDEX_ETAG),
     }
     request_log: list[tuple[str, dict]] = []
     handler = type("Handler", (_RecordingHandler,),
@@ -295,3 +313,120 @@ def test_invalid_region_paths_are_rejected(region, mirror_root) -> None:
     with pytest.raises(gp.InvalidRegion):
         gp.pull_region(region=region, root=mirror_root, pinned_date="2026-09-01",
                         state=state, base_url="http://127.0.0.1:1")
+
+
+# --- pull_index (issue #259) ------------------------------------------------
+
+
+def test_pull_index_first_pull_downloads_and_records_etag(upstream, mirror_root) -> None:
+    state = {"geofabrik": {}}
+    t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+
+    result = gp.pull_index(root=mirror_root, pinned_date="2026-09-01", state=state,
+                            base_url=upstream.base_url, now=_clock(t0))
+
+    assert result.action == "pulled"
+    dest = mirror_root / "osm" / "geofabrik" / "2026-09-01" / "index-v1.json"
+    assert dest.read_bytes() == _INDEX_BODY
+
+    entry = state["geofabrik"]["index"]
+    assert entry["etag"] == _INDEX_ETAG
+    assert entry["pulled_at"] == gp._iso(t0)
+    assert entry["checked_at"] == gp._iso(t0)
+    assert entry["consecutive_failures"] == 0
+
+    path, headers = upstream.request_log[-1]
+    assert path == "/index-v1.json"
+    assert headers["User-Agent"] == gp.PLOTLINES_USER_AGENT
+    assert "If-None-Match" not in headers  # nothing cached yet on the first pull
+
+
+def test_pull_index_second_run_within_cadence_makes_no_request(upstream, mirror_root) -> None:
+    state = {"geofabrik": {}}
+    t0 = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
+    t1 = t0 + timedelta(hours=3)  # well inside the 24h default cadence
+
+    gp.pull_index(root=mirror_root, pinned_date="2026-09-01", state=state,
+                  base_url=upstream.base_url, now=_clock(t0))
+    requests_after_first = len(upstream.request_log)
+
+    second = gp.pull_index(root=mirror_root, pinned_date="2026-09-01", state=state,
+                            base_url=upstream.base_url, now=_clock(t1))
+
+    assert second.action == "skipped_cadence"
+    assert len(upstream.request_log) == requests_after_first
+
+
+def test_pull_index_conditional_get_skips_body_once_cadence_has_elapsed(
+    upstream, mirror_root
+) -> None:
+    state = {"geofabrik": {}}
+    t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+    t1 = t0 + timedelta(hours=25)  # past the 24h cadence window
+
+    gp.pull_index(root=mirror_root, pinned_date="2026-09-01", state=state,
+                  base_url=upstream.base_url, now=_clock(t0))
+    upstream.request_log.clear()
+
+    result = gp.pull_index(root=mirror_root, pinned_date="2026-09-01", state=state,
+                            base_url=upstream.base_url, now=_clock(t1))
+
+    assert result.action == "skipped_unchanged"
+    # A real 304 came back from the fake upstream (not an internal
+    # short-circuit) because the second request carried the etag recorded
+    # from the first pull.
+    assert len(upstream.request_log) == 1
+    _path, headers = upstream.request_log[0]
+    assert headers["If-None-Match"] == _INDEX_ETAG
+
+
+def test_pull_index_rejects_a_response_that_is_not_valid_json(upstream, mirror_root) -> None:
+    upstream.routes["/index-v1.json"] = _Route(200, b"<html>not json</html>")
+    state = {"geofabrik": {}}
+    t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+
+    result = gp.pull_index(root=mirror_root, pinned_date="2026-09-01", state=state,
+                            base_url=upstream.base_url, now=_clock(t0))
+
+    assert result.action == "failed"
+    assert "not valid JSON" in result.detail
+    dest = mirror_root / "osm" / "geofabrik" / "2026-09-01" / "index-v1.json"
+    assert not dest.exists()
+    assert state["geofabrik"]["index"]["consecutive_failures"] == 1
+
+
+def test_pull_index_repeated_failures_back_off_instead_of_hammering(
+    upstream, mirror_root
+) -> None:
+    upstream.routes["/index-v1.json"] = _Route(500, b"")
+    state = {"geofabrik": {}}
+    t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+
+    first = gp.pull_index(root=mirror_root, pinned_date="2026-09-01", state=state,
+                           base_url=upstream.base_url, now=_clock(t0))
+    assert first.action == "failed"
+    requests_after_first_failure = len(upstream.request_log)
+
+    soon = gp.pull_index(root=mirror_root, pinned_date="2026-09-01", state=state,
+                          base_url=upstream.base_url,
+                          now=_clock(t0 + timedelta(minutes=30)))
+    assert soon.action == "skipped_backoff"
+    assert len(upstream.request_log) == requests_after_first_failure
+
+
+def test_run_pulls_index_only_when_the_flag_is_passed(upstream, mirror_root) -> None:
+    t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+
+    default_results = gp.run([_REGION], root=mirror_root, pinned_date="2026-09-01",
+                              base_url=upstream.base_url, now=_clock(t0))
+    assert [r.region for r in default_results] == [_REGION]
+
+    t1 = t0 + timedelta(hours=25)
+    with_index = gp.run([_REGION], root=mirror_root, pinned_date="2026-09-01",
+                         base_url=upstream.base_url, now=lambda: t1,
+                         pull_index_too=True)
+
+    assert [r.region for r in with_index] == [_REGION, "index-v1.json"]
+    assert with_index[-1].action == "pulled"
+    state = json.loads((mirror_root / "MIRROR_STATE.json").read_text())
+    assert state["geofabrik"]["index"]["etag"] == _INDEX_ETAG

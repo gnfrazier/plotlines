@@ -139,24 +139,41 @@ bbox is also `plotlines_core.tiles.mirror.WNC_CORRIDOR_BBOX`, so core code
 nothing points a default upstream at it yet, and nothing on the Pi answers
 at that path today.
 
-## The `index-v1.json` decision (finding L4)
+## The `index-v1.json` decision (finding L4, resolved by issue #259)
 
 The §6.3 tree diagram lists Geofabrik's `index-v1.json` conditionally —
-"only if its own licence checks out." It doesn't, as of this issue: Geofabrik's
-own technical documentation (`download.geofabrik.de/technical.html`) states
-a site-wide footer copyright line ("Data/Maps Copyright ... Geofabrik GmbH
-and OpenStreetMap Contributors ... ODbL 1.0") but nowhere grants terms for
-redistributing the index file itself, distinct from the `.osm.pbf` extracts
-it points at. That is exactly the "unclear" case L4 anticipates, and its
-stated fallback is taken here: **`index-v1.json` is not mirrored.**
-`build_tree.sh` never creates it, and `osm/COPYRIGHT.txt` says so. In its
-place, `MIRROR_STATE.json` is Plotlines' own covering-set record — which
-region/build-date pairs this mirror actually carries — populated from the
-bboxes Plotlines has actually pulled rather than re-served from Geofabrik's
-cartographic index. A definitive check of Geofabrik's terms (e.g. asking
-them directly) is tracked separately under issue #259; this decision can be
-revisited there without changing the tree layout, since the layout was
-built to make `index-v1.json` optional rather than load-bearing.
+"only if its own licence checks out." Issue #256's own check (looking only
+at `download.geofabrik.de/technical.html`'s footer copyright line) found
+that unclear, and the mirror shipped without it as a result.
+
+Issue #259 did the definitive check the earlier one deferred, and looked in
+the right place: not the download server's footer, but Geofabrik's own
+stated Open Data policy at
+https://www.geofabrik.de/geofabrik/free.html. That page draws exactly the
+distinction this decision needed — OSM data itself is ODbL, but "any data
+we produce or refine can be distributed in any way and through any
+channel," conditioned only on not restricting further redistribution or
+modification. `index-v1.json`'s region geometries, cut lines, and metadata
+are Geofabrik's own produced/refined data, not raw OSM data — exactly the
+category that statement addresses. **`index-v1.json` is mirrored** as of
+this issue, under `osm/geofabrik/<pinned_date>/index-v1.json`, with the
+licence notice in `osm/COPYRIGHT.txt` citing the page above rather than the
+ODbL statement that covers the `.osm.pbf` extracts.
+
+`build_tree.sh` still never creates it — like the `.osm.pbf` extracts, it's
+pulled over the network, which is `geofabrik_pull.py`'s job
+(`--pull-index`, off by default; see below), not the offline scaffold
+script's. `MIRROR_STATE.json` remains Plotlines' own covering-set record
+regardless of whether the index has been pulled — a consumer resolves
+*what this mirror actually serves* from `MIRROR_STATE.json`, never from the
+index alone, since the index only ever describes what Geofabrik offers, not
+what this mirror has pulled and verified.
+
+No code today reads the mirrored index for region resolution (the
+mirror-side clip is Phase 3/#272 — the transport swap — and doesn't exist
+yet), so there is nothing yet to constrain to "reads only what we are
+entitled to serve"; that constraint falls on whichever issue writes that
+resolution code; the mirror's index-consumption is a stand-in until then.
 
 ## Geofabrik pull client (issue #258)
 
@@ -195,12 +212,18 @@ cannot turn into repeated unconditional pulls:
   `MIRROR_STATE.json` (`geofabrik.regions.<region>.last_failure`) rather
   than only a log line — the surface #260's staleness monitor reads.
 
-It never touches `index-v1.json` — regions are named explicitly on the
-command line rather than discovered from Geofabrik's own index, which
-sidesteps needing that index at all while its licence is unverified
-(#259). `service/tests/test_geofabrik_pull.py` proves the etiquette above
-against a real (loopback) HTTP server and its own request log, not against
-an internal "would have skipped" flag.
+Regions are named explicitly on the command line rather than discovered
+from Geofabrik's own index — a region's covering extent is a Plotlines
+decision, not worth a network round-trip to look up. `index-v1.json`
+itself is pulled only when `--pull-index` is passed (issue #259; see "The
+`index-v1.json` decision" above for why it's mirrored at all), applying the
+same etiquette with two substitutions Geofabrik's actual response forces:
+an ETag-conditional GET stands in for regions' `.md5` cadence check
+(Geofabrik publishes no digest for the index), and "the body parses as
+JSON" stands in for the `.md5` match as the verify-before-publish gate.
+`service/tests/test_geofabrik_pull.py` proves the etiquette above — for
+both regions and the index — against a real (loopback) HTTP server and its
+own request log, not against an internal "would have skipped" flag.
 
 ## Bucket portability (Q6-C)
 

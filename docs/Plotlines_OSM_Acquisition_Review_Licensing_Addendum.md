@@ -53,7 +53,7 @@ stack.
 | **Overpass public instances** (`overpass-api.de`, `overpass.kumi.systems`) | Operator usage policy: interactive/small queries, per-IP concurrent slots and daily quota, bulk consumers directed to extracts | Identify ourselves; stay small; back off; do not treat as bulk transport | **Not satisfied** — this is the document's whole thesis, and P3 makes it ~2× worse than stated |
 | **Nominatim** (`nominatim.openstreetmap.org`, osmnx default) | OSMF Nominatim Usage Policy | UA/Referer identifying *the application* (a stock library UA is explicitly insufficient); ≤1 req/s; **cache results**; no bulk or per-keystroke autocomplete; display attribution | **Partially satisfied by accident** — see P2 |
 | **Geofabrik extracts** (`.osm.pbf`) | Data: ODbL. Service: Geofabrik's download-server terms and pull etiquette | Attribution + licence notice when we redistribute; polite, conditional, ≤daily pull cadence; identify the puller | **Not yet mechanical** — see L4/P5 |
-| **Geofabrik `index-v1.json`** | **Unverified.** Region geometries are Geofabrik's own cartographic work, not necessarily ODbL OSM data | Unknown until checked | **Gap — verify before mirroring it** (L4) |
+| **Geofabrik `index-v1.json`** | **Verified 2026-09-06 (#259).** Region geometries are Geofabrik's own produced/refined data, covered by Geofabrik's stated Open Data policy (https://www.geofabrik.de/geofabrik/free.html), not the ODbL data licence | Attribution/notice per that policy's share-alike-equivalent condition | **Resolved — mirrored with notice** (L4) |
 | **Protomaps Basemap** | ODbL as a Produced Work (FR95) | `© OpenStreetMap contributors`; mirror, never hotlink | **Satisfied and mechanical** (`HotlinkRefused`) — the model the rest should copy |
 | **OpenTopography elevation** | CC BY 4.0 (FR86) | Separate credit, not substitutable | Out of scope here; shares the attribution machinery |
 | **osmnx** | MIT | Notice only | Fine. Its *default UA* is the problem, not its licence |
@@ -169,6 +169,16 @@ Two gaps:
   their naming. Check Geofabrik's stated terms for that file before mirroring and
   redistributing it, and if it is unclear, derive the covering-set geometry ourselves from
   the bboxes we actually need rather than re-serving their index.
+
+**Correction — issue #259 (2026-09-06):** checked. Geofabrik's own Open Data policy page
+(https://www.geofabrik.de/geofabrik/free.html) states that "any data we produce or refine can
+be distributed in any way and through any channel," conditioned only on not restricting
+further redistribution or modification — this is the statement `download.geofabrik.de/
+technical.html`'s footer alone doesn't make, and it squarely covers `index-v1.json` as
+Geofabrik's own produced/refined data. The index is now mirrored (`osm/geofabrik/
+<pinned_date>/index-v1.json`, pulled by `geofabrik_pull.py --pull-index`) with a licence
+notice in `osm/COPYRIGHT.txt` citing that page distinctly from the ODbL statement covering the
+extracts.
 
 ### L5 — There is no third-party dependency licence inventory, and Phase 2 adds to the shipped binary
 
@@ -651,7 +661,7 @@ did not need.
 | **L1** — `osmium extract` is GPL-3, `pyosmium` is BSD-2 | #262 (pyosmium API only), #266 (acceptance criterion), #267 (asserted against an inventory) | 1, 2 |
 | **L2** — ODbL triggers on *public use*, not distribution | #253 (the position), #282 (bound to the hosted surface) | 0, 4 |
 | **L3** — Derivative vs Collective; the separable-layer decision | #253 (decided **yes** — and found already shipped as `AnchorProvenance`, 2026-08-24, against the current `Trip.anchors` model rather than the `Node` shape this addendum read); #301 (the one real gap: nothing yet reads it to offer the OSM layer separately) | 0, 1 |
-| **L4** — mirror has no licence artifacts; `index-v1.json` unverified | #256, #259 | 1 |
+| **L4** — mirror has no licence artifacts; `index-v1.json` unverified | #256 (artifacts), #259 (verified 2026-09-06, resolved — mirrored) | 1 |
 | **L5** — no third-party dependency licence inventory | #267 | 2 |
 | **L6** — the attribution gate does not cover the routing graph | #269 | 0 *(pulled forward)* |
 | **L7** — a trip does not record its OSM snapshot | #270 (field + producer), #277 (mirror build id, exports) | 1, 3 |
