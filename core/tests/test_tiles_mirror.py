@@ -13,6 +13,9 @@ from plotlines_core.tiles.extract import extract_bbox
 from plotlines_core.tiles.mirror import (
     MIRROR_ARCHIVE_URL,
     MIRROR_HOST,
+    MIRROR_WNC_CORRIDOR_URL,
+    WNC_CORRIDOR_BBOX,
+    WNC_CORRIDOR_BUILD_ID,
     HotlinkRefused,
     UpstreamKind,
     basemap_attribution,
@@ -73,6 +76,36 @@ def test_extract_bbox_still_reads_a_local_archive(tmp_path):
     out = extract_bbox(src, (-180.0, -85.0, 180.0, 85.0), tmp_path / "out.pmtiles",
                        min_zoom=0, max_zoom=0)
     assert out.exists()
+
+
+# --------------------------------------------------------------- WNC corridor stand-in (#257)
+
+def test_the_wnc_corridor_standin_classifies_as_mirror():
+    assert classify_upstream(MIRROR_WNC_CORRIDOR_URL) is UpstreamKind.MIRROR
+
+
+def test_the_wnc_corridor_standin_has_its_own_honest_build_id():
+    # G3/1b: never call a one-corridor archive "planet.pmtiles", and never
+    # reuse the planet build id — the whole point is that the two paths are
+    # visibly different builds, not just different filenames.
+    assert WNC_CORRIDOR_BUILD_ID != "20250101"
+    assert "-wnc" in WNC_CORRIDOR_BUILD_ID
+    assert WNC_CORRIDOR_BUILD_ID in MIRROR_WNC_CORRIDOR_URL
+
+
+def test_the_wnc_corridor_standin_is_never_named_planet():
+    assert "planet" not in MIRROR_WNC_CORRIDOR_URL
+    assert MIRROR_WNC_CORRIDOR_URL != MIRROR_ARCHIVE_URL
+
+
+def test_the_wnc_corridor_bbox_is_a_west_south_east_north_tuple_over_western_nc():
+    west, south, east, north = WNC_CORRIDOR_BBOX
+    assert west < east
+    assert south < north
+    # Western North Carolina, not anywhere else — sanity bound, not a retest
+    # of the archive header.
+    assert -85.0 < west < east < -80.0
+    assert 34.0 < south < north < 37.0
 
 
 def test_basemap_attribution_is_the_odbl_openstreetmap_line():

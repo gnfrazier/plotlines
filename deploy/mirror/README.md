@@ -1,44 +1,60 @@
 # Plotlines mirror — tree layout and Caddy front end
 
-Issue #256 (Phase 1.2, epic #264): the §6.3/§6.4 production layout, the
-licence artifacts §6.0/Q6 and addendum finding **1a** require, and the
-bucket-portable paths §6.0/**Q6** requires. Read
+Issues #256 (Phase 1.2, epic #264) and #257 (Phase 1.3): the §6.3/§6.4
+production layout, the licence artifacts §6.0/Q6 and addendum finding
+**1a** require, the bucket-portable paths §6.0/**Q6** requires, and the
+basemap stand-in's honest path (**G3**/**1b**, checklist item 13). Read
 `docs/Plotlines_OSM_Acquisition_Review.md` §6 and
 `docs/Plotlines_OSM_Acquisition_Review_Licensing_Addendum.md` findings
 **L4**/**G3** before changing anything here.
 
 Phase 1.1 (#255, the physical Pi 5 + NVMe host) and later Phase 1 steps
-(#257 basemap stand-in, #258/#260 the Geofabrik pull client and
-`MIRROR_STATE.json`'s real content, #261 pointing the sidecar at the
-mirror) are separate issues. This directory is the part of #256 that is a
-repo artifact: the tree scaffold, the Caddy config, and the licence
-notices. Everything here is deployed to the Pi; nothing here is Python
-application code.
+(#258/#260 the Geofabrik pull client and `MIRROR_STATE.json`'s Geofabrik
+content, #261 pointing the sidecar at the mirror) are separate issues. This
+directory is the part of #256/#257 that is a repo artifact: the tree
+scaffold, the Caddy config, the licence notices, and the basemap stand-in
+copy step. Everything here is deployed to the Pi; nothing here is Python
+application code (`copy_basemap_standin.sh` invokes `python3` only as a
+scripting utility to merge one JSON key, the same role `jq` would play if
+it were guaranteed present on the Pi).
 
 ## Deploying to the Pi
 
 ```
 scp -r deploy/mirror pi:/opt/plotlines-mirror
+scp spikes/SPIKE-14/tiles/wnc-corridor.pmtiles pi:/opt/plotlines-mirror/wnc-corridor.pmtiles
 ssh pi
 cd /opt/plotlines-mirror
 sudo ./build_tree.sh /srv/plotlines-mirror
+sudo ./copy_basemap_standin.sh /srv/plotlines-mirror ./wnc-corridor.pmtiles
 docker compose up -d
 ```
 
 `build_tree.sh` is idempotent — re-running it never overwrites
-`MIRROR_STATE.json` once it exists (that file's real content is #258/#260's
-job), and only ever (re)writes Plotlines' own static `COPYRIGHT.txt` files
-and creates directories. Basemap and Geofabrik payload files themselves are
-copied/pulled in by #257 and #258/#260 respectively — this script only
-scaffolds the tree they land in.
+`MIRROR_STATE.json` once it exists (that file's real content is #257's and
+#258/#260's job), and only ever (re)writes Plotlines' own static
+`COPYRIGHT.txt` files and creates directories.
+
+`copy_basemap_standin.sh` (#257) must run after `build_tree.sh` — it copies
+the SPIKE-14 corridor archive in under its own honest build id
+(`basemap/protomaps/20250101-wnc/corridor.pmtiles`, never `planet.pmtiles`)
+and merges `basemap.build_id`/`basemap.covered_regions` into
+`MIRROR_STATE.json`, leaving its `geofabrik` key untouched. It's also
+idempotent: re-running it overwrites the corridor file and the `basemap`
+key cleanly, and errors clearly rather than guessing if `MIRROR_STATE.json`
+doesn't exist yet or the source archive isn't where it was told to look.
+`spikes/SPIKE-14/tiles/` is gitignored (a locally-built spike artifact), so
+it has to be copied onto the Pi separately from `deploy/mirror` itself, as
+above. Geofabrik payload files themselves are pulled in by #258/#260 —
+neither script here reaches the network.
 
 ## Verifying it
 
 ```
-curl -I http://tiles.plotlines.app/basemap/protomaps/<build>/planet.pmtiles
+curl -I http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles
 curl -I http://tiles.plotlines.app/osm/geofabrik/<date>/<region>.osm.pbf
 curl -H 'Range: bytes=0-99' -o /dev/null -w '%{http_code}\n' \
-     http://tiles.plotlines.app/basemap/protomaps/<build>/planet.pmtiles   # expect 206
+     http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles   # expect 206
 curl http://tiles.plotlines.app/COPYRIGHT.txt
 curl http://tiles.plotlines.app/osm/COPYRIGHT.txt
 ```
@@ -55,6 +71,33 @@ on both `/basemap/*` and `/osm/*`, and both notice files served with `200`.
 at the Pi so `classify_upstream` returns `MIRROR`) is #261's job, not this
 issue's.
 
+A `curl -H Range` `206` proves Caddy serves ranges; it does not prove the
+sidecar's actual extraction path works, which is what #257 asked for
+("verify a byte-range read works end to end via `tiles/extract.py:
+http_range_source` — the real code path, not `curl` alone"). Against the
+live Pi, that's:
+
+```
+python3 -c "
+from pathlib import Path
+from plotlines_core.tiles.extract import extract_bbox
+from plotlines_core.tiles.mirror import MIRROR_WNC_CORRIDOR_URL, WNC_CORRIDOR_BBOX
+extract_bbox(MIRROR_WNC_CORRIDOR_URL, WNC_CORRIDOR_BBOX, Path('/tmp/out.pmtiles'),
+             min_zoom=8, max_zoom=8, allow_unmirrored=True)
+print('ok — a tile inside the corridor extracted via http_range_source')
+"
+```
+
+(`allow_unmirrored=True` because §6.5's DNS override hasn't landed yet —
+see above; once it has, this runs with no flag and `classify_upstream`
+returns `MIRROR`.) `core/tests/test_wnc_corridor_standin.py` covers both
+halves of this automatically and hermetically — a bbox inside the
+corridor's real tile-address range extracts over a real range-serving HTTP
+server, and a bbox outside it raises `NoTilesInBbox` rather than writing a
+silent empty archive — against a small synthetic stand-in rather than the
+real 118 MB archive, which is gitignored and not something CI can depend
+on being present.
+
 ## `{$MIRROR_ROOT}` / `{$MIRROR_LOG}`
 
 The checked-in `Caddyfile` is otherwise byte-for-byte the §6.4 block, with
@@ -67,6 +110,34 @@ tree instead of a hand-edited copy that could drift from what's committed.
 It is also one step further in the Q6 "swap is a hostname change and
 nothing else" direction: the root path becomes a config knob the same way
 the hostname already is.
+
+## The basemap stand-in's honest path (finding G3/1b)
+
+§6.3's tree diagram lists two basemap paths:
+`basemap/protomaps/20250101/planet.pmtiles`, which "matches
+`MIRROR_ARCHIVE_URL` exactly," and
+`basemap/protomaps/20250101-wnc/corridor.pmtiles`, "the SPIKE-14 stand-in,
+honestly named." §6.2 is explicit that this Pi never carries the first
+one — "do not put a planet archive on it, regional extracts only" — so
+only the second path is real today. G3 named the contradiction: checklist
+item 13, read literally, copied `wnc-corridor.pmtiles` into the
+`planet.pmtiles` path, which would make a bbox outside WNC fail as a
+silent miss indistinguishable from a mirror bug, and would make
+"build-pinned paths are immutable" untrue for the one file most likely to
+be swapped for a real planet build later.
+
+`copy_basemap_standin.sh` takes the fix G3/1b names: its own build id
+(`20250101-wnc`, not `20250101`) and its own filename (`corridor.pmtiles`,
+never `planet.pmtiles`), plus a `MIRROR_STATE.json` entry
+(`basemap.covered_regions`) naming the region and bbox it actually covers
+— read directly off the archive's own PMTiles header, not asserted. That
+bbox is also `plotlines_core.tiles.mirror.WNC_CORRIDOR_BBOX`, so core code
+(and `extract_bbox`'s `NoTilesInBbox`) and the deploy tree agree on what
+"covered" means without a second source of truth to drift from.
+`MIRROR_ARCHIVE_URL` (the `planet.pmtiles` path) stays defined in
+`mirror.py` for whenever the real Protomaps planet build is acquired, but
+nothing points a default upstream at it yet, and nothing on the Pi answers
+at that path today.
 
 ## The `index-v1.json` decision (finding L4)
 
