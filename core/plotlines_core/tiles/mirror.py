@@ -44,6 +44,28 @@ MIRROR_ARCHIVE_URL = (
     f"https://{MIRROR_HOST}/basemap/protomaps/{PROTOMAPS_BASEMAP_BUILD}/planet.pmtiles"
 )
 
+#: The SPIKE-14 WNC-corridor archive is what the mirror actually carries
+#: today — the full Protomaps planet build `MIRROR_ARCHIVE_URL` names has not
+#: been acquired (issue #257; review §6.2/§6.3, addendum finding G3/1b). It
+#: gets its own honest build id and filename rather than being copied in
+#: under the `planet.pmtiles` name: a file named for content it doesn't
+#: contain turns every bbox outside WNC into a silent miss that looks like a
+#: mirror bug, and makes "build-pinned paths are immutable" untrue for the
+#: one file most likely to be swapped later. Do not point a default upstream
+#: at this constant — it is a stand-in, not the production basemap.
+WNC_CORRIDOR_BUILD_ID = f"{PROTOMAPS_BASEMAP_BUILD}-wnc"
+MIRROR_WNC_CORRIDOR_URL = (
+    f"https://{MIRROR_HOST}/basemap/protomaps/{WNC_CORRIDOR_BUILD_ID}/corridor.pmtiles"
+)
+
+#: The archive's own coverage, read off its PMTiles header
+#: (min_lon_e7/min_lat_e7/max_lon_e7/max_lat_e7 = -836000000/352000000/
+#: -810000000/364000000) rather than asserted — a bbox outside this must
+#: fail as a diagnosable coverage miss (`extract.NoTilesInBbox`), never a
+#: silent blank. (west, south, east, north).
+WNC_CORRIDOR_BBOX = (-83.6, 35.2, -81.0, 36.4)
+WNC_CORRIDOR_REGION_NAME = "wnc-corridor"
+
 #: ODbL, as a Produced Work from OSM data (FR95). `terms_url` is the
 #: OpenStreetMap copyright page, not Protomaps' — the obligation runs to
 #: OpenStreetMap.
