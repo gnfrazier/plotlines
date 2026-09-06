@@ -158,6 +158,50 @@ them directly) is tracked separately under issue #259; this decision can be
 revisited there without changing the tree layout, since the layout was
 built to make `index-v1.json` optional rather than load-bearing.
 
+## Geofabrik pull client (issue #258)
+
+`geofabrik_pull.py` fills in `MIRROR_STATE.json`'s `geofabrik` key and the
+`osm/geofabrik/` tree — the two things `copy_basemap_standin.sh` and
+`build_tree.sh` deliberately leave alone. It's a standalone script (stdlib
+only, no `pip install`) so it deploys the same way as everything else here:
+
+```
+scp deploy/mirror/geofabrik_pull.py pi:/opt/plotlines-mirror/geofabrik_pull.py
+ssh pi
+python3 /opt/plotlines-mirror/geofabrik_pull.py \
+    --root /srv/plotlines-mirror \
+    --region north-america/us/north-carolina \
+    --pinned-date 2026-09-01
+```
+
+Run it by hand to bootstrap a new region (the WNC corridor's own state,
+`north-america/us/north-carolina`, is the natural first one — checklist
+item 15), or from cron/#260's monthly pin bump; its etiquette is enforced
+in code regardless of how often it's invoked, so a misconfigured cron
+cannot turn into repeated unconditional pulls:
+
+- **at most daily** — a repeat run inside `--min-interval-hours` (default
+  24) makes no request at all for a region;
+- **conditional first** — outside that window, only the small `.md5` is
+  fetched; the `.osm.pbf` body is skipped when its digest is unchanged;
+- **identified** — every request carries `PLOTLINES_USER_AGENT`, the same
+  contactable string issue #241 introduced for Overpass/Nominatim;
+- **verify before publish** — the body downloads to a sibling temp file and
+  is moved into place with `os.replace` only once its MD5 matches the
+  published one; a mismatch fails the pull and leaves whatever was
+  previously at that path untouched;
+- **backs off on error** — each consecutive failure doubles the wait before
+  the next attempt (capped at a week), and every failure is written into
+  `MIRROR_STATE.json` (`geofabrik.regions.<region>.last_failure`) rather
+  than only a log line — the surface #260's staleness monitor reads.
+
+It never touches `index-v1.json` — regions are named explicitly on the
+command line rather than discovered from Geofabrik's own index, which
+sidesteps needing that index at all while its licence is unverified
+(#259). `service/tests/test_geofabrik_pull.py` proves the etiquette above
+against a real (loopback) HTTP server and its own request log, not against
+an internal "would have skipped" flag.
+
 ## Bucket portability (Q6-C)
 
 - Every path `build_tree.sh` creates is a plain nested directory — no
