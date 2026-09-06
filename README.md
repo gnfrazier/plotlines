@@ -57,6 +57,8 @@ plotlines/
 │                    #   (a path dependency; fonts vendored offline)
 ├── packaging/        # frozen-binary build, installers, signing; version.lock is the
 │                     # single source of truth both client and sidecar stamp themselves with
+├── deploy/           # non-Python deployment artifacts (Caddy/mirror config, Dockerfiles'
+│   └── mirror/       #   companions) — deploy/mirror/ is the Pi5 OSM/basemap mirror (#256)
 ├── docs/             # PRD, architecture, MVP scope, research spikes
 │   └── schemas/      #   trip_payload.schema.json — the one contract core, drift and
 │                     #   the Dart domain layer all read (SPIKE-20, ARCH D28)

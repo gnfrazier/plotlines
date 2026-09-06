@@ -1,0 +1,25 @@
+© OpenStreetMap contributors, ODbL 1.0
+========================================
+
+The `.osm.pbf` extracts under this directory are OpenStreetMap data,
+licensed under the Open Database License (ODbL) 1.0:
+https://opendatacommons.org/licenses/odbl/1-0/
+Full copyright and licence terms: https://www.openstreetmap.org/copyright
+
+Extracts are produced from OpenStreetMap data by Geofabrik GmbH
+(https://download.geofabrik.de/), regionally clipped and pinned to a build
+date named in each extract's path (e.g. `geofabrik/2026-09-01/...`).
+Geofabrik's own machine-readable region index (`index-v1.json`) is
+deliberately NOT mirrored here: as of 2026-09, Geofabrik's technical
+documentation does not state a licence for that index file distinct from
+the OSM data it points at, so its terms are unverified rather than
+confirmed compatible for redistribution (see docs/
+Plotlines_OSM_Acquisition_Review_Licensing_Addendum.md, finding L4; tracked
+for a definitive check under issue #259). MIRROR_STATE.json at the tree
+root is Plotlines' own record of which regions and build dates this mirror
+actually carries, and is what a consumer should read instead of Geofabrik's
+index.
+
+Each region's `.md5` file is Geofabrik's published checksum for the
+corresponding `.osm.pbf`, verified at pull time (see MIRROR_STATE.json and
+the pull client in docs/Plotlines_OSM_Acquisition_Review.md §6.6).

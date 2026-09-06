@@ -1,0 +1,31 @@
+## Plotlines OSM/basemap mirror — issue #256 (Phase 1.2, epic #264).
+## Serves /srv/plotlines-mirror (see build_tree.sh and README.md in this
+## directory for the §6.3 tree layout) as plain static files.
+##
+## Three details that are not stylistic (docs/Plotlines_OSM_Acquisition_Review.md §6.4):
+##  - The `http://` scheme prefix is required. Without it Caddy attempts
+##    automatic HTTPS via ACME for a domain it cannot validate, and fails to
+##    start.
+##  - No `encode`. `.pmtiles` and `.osm.pbf` are already compressed, and
+##    on-the-fly compression breaks byte-range semantics — exactly what
+##    core/plotlines_core/tiles/extract.py:http_range_source needs.
+##  - This must never be served with `python -m http.server`;
+##    SimpleHTTPRequestHandler ignores Range and returns the whole file with
+##    a 200, silently defeating every byte-range read.
+##
+## {$MIRROR_ROOT:...} keeps the production default (/srv/plotlines-mirror)
+## while letting a local run point at a scratch tree without editing this
+## file — the same "swap is a hostname/root change, nothing else" discipline
+## §6.0 (Q6) asks of the tree itself.
+http://tiles.plotlines.app {
+	root * {$MIRROR_ROOT:/srv/plotlines-mirror}
+	file_server
+
+	# Build-pinned paths are immutable.
+	header /basemap/* Cache-Control "public, max-age=31536000, immutable"
+	header /osm/*     Cache-Control "public, max-age=31536000, immutable"
+
+	log {
+		output file {$MIRROR_LOG:/var/log/caddy/mirror.log}
+	}
+}

@@ -1,0 +1,28 @@
+# Runs the Plotlines mirror's Caddy front end containerized (issue #256,
+# §6.4: "run Caddy containerized, not as a native package install" — same
+# reasoning as the Pi5 elevation QA proxy, sidestepping apt-managed version
+# drift rather than fighting it).
+#
+# On the Pi:
+#   sudo ./build_tree.sh /srv/plotlines-mirror
+#   docker compose up -d
+services:
+  caddy:
+    image: caddy:2.11.4
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /srv/plotlines-mirror:/srv/plotlines-mirror:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    # MIRROR_ROOT / MIRROR_LOG are deliberately unset here: an unset variable
+    # falls through to the Caddyfile's production default
+    # (/srv/plotlines-mirror, /var/log/caddy/mirror.log). Override only for a
+    # local dry run, e.g.:
+    #   MIRROR_ROOT=/tmp/scratch-mirror MIRROR_LOG=/dev/stdout docker compose up
+
+volumes:
+  caddy_data:
+  caddy_config:
