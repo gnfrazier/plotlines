@@ -179,3 +179,76 @@ def test_health_exposes_matched_app_and_sidecar_version(tmp_path: Path) -> None:
     body = client.get("/health").json()
     assert body["app_version"] == VERSION
     assert body["sidecar_version"] == VERSION
+
+
+# -- QA/UAT elevation proxy flag (companion to epic #264, not #148) -------- #
+#
+# `--elevation-upstream` points a sidecar at the Pi5 caching elevation proxy
+# instead of leaving elevation permanently unattempted. These tests never
+# stand up a real proxy — they only check the flag's effect on `/health` and
+# that an unreachable upstream degrades a region build rather than breaking
+# it, matching the FR88 discipline `test_elevation_reports_a_fixed_not_ready_
+# reason` above already pins for the flag-absent default.
+
+def test_elevation_upstream_flag_flips_the_health_capability(tmp_path: Path) -> None:
+    client = TestClient(
+        create_app(tmp_path, elevation_upstream="http://example.invalid/dem")
+    )
+    caps = client.get("/health").json()["capabilities"]
+    assert caps["elevation"] == {"ready": True, "reason": "qa_pi5_elevation_proxy"}
+
+
+def test_elevation_upstream_absent_leaves_the_default_untouched(tmp_path: Path) -> None:
+    # Byte-identical to `test_elevation_reports_a_fixed_not_ready_reason`
+    # above — pinned again here, next to the flag-present test, so the two
+    # states are easy to compare at a glance.
+    client = TestClient(create_app(tmp_path))
+    caps = client.get("/health").json()["capabilities"]
+    assert caps["elevation"] == {
+        "ready": False,
+        "reason": "elevation_source_not_configured:tracked_in_148",
+    }
+
+
+@pytest.mark.skipif(
+    not (Path(__file__).resolve().parents[2] / "spikes" / "SPIKE-00" / "fixtures"
+        / "boulder_bike.graphml").exists(),
+    reason="SPIKE-00 fixture graph not present in this checkout",
+)
+def test_unreachable_elevation_upstream_degrades_the_region_without_failing_it(
+    tmp_path: Path,
+) -> None:
+    import shutil
+
+    fixture = (Path(__file__).resolve().parents[2] / "spikes" / "SPIKE-00" / "fixtures"
+              / "boulder_bike.graphml")
+    key = region_lib.region_key(tuple(_BBOX), "bike")
+    dest = tmp_path / "regions" / key / "graph.graphml"
+    dest.parent.mkdir(parents=True)
+    shutil.copy(fixture, dest)
+
+    # example.invalid never resolves (RFC 2606) — a real, deterministic
+    # unreachable upstream, no network mocking needed.
+    client = TestClient(
+        create_app(tmp_path, elevation_upstream="http://example.invalid/dem")
+    )
+    got_key = client.post("/regions", json={"bbox": _BBOX}).json()["region"]
+    assert got_key == key
+
+    body = _wait_for(client, lambda c: c["routing"]["regions"].get(key, {}).get("ready") is True)
+    # The region still builds and routes fine — elevation degrading never
+    # touches `routing` (FR88), and `/health` itself never raises.
+    assert body["capabilities"]["routing"]["regions"][key] == {"ready": True}
+    assert body["capabilities"]["elevation"]["ready"] is True  # the flag is set…
+
+    resp = client.post("/segments/generate", json={
+        "region": key,
+        "start": {"lat": 40.0175, "lon": -105.2797},
+        "end": {"lat": 40.02, "lon": -105.275},
+        "shape": "point_to_point",
+        "theme": "balanced",
+    })
+    # …but a degraded sampler never breaks a solve — elevation is just
+    # absent from the response, not a 500 or a fabricated number.
+    assert resp.status_code == 200
+    assert resp.json()["elevation"] == {}

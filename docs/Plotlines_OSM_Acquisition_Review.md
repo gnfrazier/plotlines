@@ -311,6 +311,15 @@ Three details that matter:
   returns the whole file with a `200`, so PMTiles reads would silently pull the entire archive per
   lookup and we would conclude the approach is slow.
 
+**Run Caddy containerized, not as a native package install.** Docker is already the Pi5's
+operating pattern (companion QA elevation proxy, §12.1-adjacent, uses it for the same reason —
+sidestepping aarch64 native-dependency packaging rather than fighting it). The official `caddy`
+image with this Caddyfile mounted read-only and `/srv/plotlines-mirror` bind-mounted read-only
+gives an identical result with no apt-managed Caddy version to track separately from the rest of
+this box's services, and trivial teardown/rebuild. Nothing above changes: the Caddyfile content,
+the immutable build-pinned paths, and the `http://` scheme requirement are unaffected by how the
+process is launched.
+
 ### 6.5 Hostname — exercise the real code path
 
 `classify_upstream` (`tiles/mirror.py`) matches on **hostname only and is scheme-agnostic**. So
@@ -364,6 +373,11 @@ Two constraints on it from day one:
   "pull a state extract deliberately for a trip you know is coming" is a configuration decision
   later and not a rebuild. Offline bbox *editing* is the case that would force D; that is a
   measurement, not a guess, and SPIKE-I is where it gets made.
+- **Containerize this service, same reasoning as §6.4's Caddy note.** pyosmium is a C++ extension
+  (libosmium) — exactly the class of aarch64 packaging risk the companion QA elevation proxy's
+  Dockerfile exists to sidestep for rasterio/GDAL. Pin a base image with a known-good pyosmium
+  wheel (or build it once in the image) rather than fighting apt/pip on the Pi directly; Docker is
+  already this box's operating pattern by the time #262 lands.
 
 The clip's cost profile — CPU, disk IO, and behaviour under concurrency — is exactly what §9 says
 Phase 3 does *not* prove for free. Rehearsing it here is how that stops being a surprise.

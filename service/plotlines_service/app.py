@@ -52,6 +52,12 @@ from plotlines_core.curation.defaults import resolve_default_layers
 from plotlines_core.curation.notability import RawFeature, RULESET_VERSION, score_notability
 from plotlines_core.curation.providers import BBox, OsmLayerProvider
 from plotlines_core.curation.registry import build_default_registry
+from plotlines_core.elevation.interface import (
+    ElevationResolver,
+    HttpElevationSource,
+    LocalCacheSource,
+)
+from plotlines_core.elevation.qa_proxy_client import qa_proxy_fetch
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph import regions as region_lib
 from plotlines_core.multimodal.modes import TRAVERSAL_MODES
@@ -153,6 +159,18 @@ ELEVATION_NOT_CONFIGURED: dict = {
     "reason": "elevation_source_not_configured:tracked_in_148",
 }
 
+# QA/UAT-only, companion to epic #264 — NOT #148's production wiring. When
+# `--elevation-upstream` points a sidecar at the Pi5 caching elevation proxy
+# (`plotlines_service.elevation_proxy`), this replaces `ELEVATION_NOT_CONFIGURED`
+# above. It reports that the sidecar *attempts* elevation through the shared
+# QA cache, not that any particular region's sampler resolved — a per-region
+# sampler failure degrades silently to flat elevation (FR88), the same as
+# every other void case, without flipping this process-wide capability off.
+ELEVATION_QA_PROXY_CONFIGURED: dict = {
+    "ready": True,
+    "reason": "qa_pi5_elevation_proxy",
+}
+
 
 class CapabilityState:
     """One capability's readiness lifecycle: pending -> loading -> ready|failed.
@@ -247,8 +265,12 @@ class RegionState:
     it, keyed so two requests for "the same" bbox share one build and one
     in-memory graph.
 
-    Elevation is never attempted for a region (see `ELEVATION_NOT_CONFIGURED`
-    above) — only `graph_state` gates `routing`.
+    Elevation is never attempted for a region by default (see
+    `ELEVATION_NOT_CONFIGURED` above) — only `graph_state` gates `routing`.
+    The one exception is the QA/UAT `--elevation-upstream` flag (companion to
+    epic #264, not #148's production path), which populates `self.sampler`
+    from the Pi5 caching proxy on a best-effort basis, same discipline as
+    tiles just below.
     """
 
     def __init__(self, key: str, bbox: tuple[float, float, float, float],
@@ -362,7 +384,8 @@ class RegionState:
         }
 
     def build(self, cache_dir: Path, tiles_upstream: str | Path,
-              allow_unmirrored: bool = False) -> None:
+              allow_unmirrored: bool = False,
+              elevation_upstream: str | None = None) -> None:
         self.build_attempts += 1
         attempt = self.build_attempts
         self.last_attempt_started_at = time.time()
@@ -460,6 +483,34 @@ class RegionState:
             log.warning("region tiles FAILED key=%s bbox=%s: %s\n%s",
                         self.key, self.bbox, self.tiles_error, traceback.format_exc())
 
+        # QA/UAT-only elevation, companion to epic #264 — NOT #148's
+        # production wiring (see `ELEVATION_QA_PROXY_CONFIGURED` above).
+        # Best-effort and independent of routing, same discipline as tiles
+        # just above: a Pi5 proxy that is unreachable degrades this region to
+        # flat elevation (existing FR88 void policy) rather than failing the
+        # build, and — deliberately — never falls back to a direct
+        # OpenTopography call from the sidecar, which would defeat the whole
+        # point of centralising calls behind the shared cache.
+        if elevation_upstream:
+            try:
+                e_cache = LocalCacheSource(CacheLayout(cache_dir).elevation_dir)
+                e_resolver = ElevationResolver(
+                    [
+                        e_cache,
+                        HttpElevationSource(
+                            elevation_upstream,
+                            name="qa-elevation-proxy",
+                            fetch=qa_proxy_fetch,
+                            write_back=e_cache,
+                        ),
+                    ]
+                )
+                self.sampler = e_resolver.sampler_for(self.bbox)
+            except Exception as exc:  # noqa: BLE001 — elevation never fails a region (FR88)
+                log.warning("region elevation FAILED key=%s bbox=%s: %s",
+                            self.key, self.bbox, exc)
+                self.sampler = None
+
 
 class Readiness:
     """The sidecar's region registry (ARCH §8.3, breaking change B1; PRD
@@ -475,10 +526,14 @@ class Readiness:
     """
 
     def __init__(self, cache_dir: Path, tiles_upstream: str | Path,
-                 allow_unmirrored: bool = False) -> None:
+                 allow_unmirrored: bool = False,
+                 elevation_upstream: str | None = None) -> None:
         self.cache_dir = cache_dir
         self.tiles_upstream = tiles_upstream
         self.allow_unmirrored = allow_unmirrored
+        #: QA/UAT-only (companion to epic #264, not #148). See
+        #: `ELEVATION_QA_PROXY_CONFIGURED` and `RegionState.build`.
+        self.elevation_upstream = elevation_upstream
         self.regions: dict[str, RegionState] = {}
         self._lock = threading.Lock()
         self.started_at = time.perf_counter()
@@ -556,6 +611,7 @@ class Readiness:
         self._build_pool.submit(
             region.build,
             self.cache_dir, self.tiles_upstream, self.allow_unmirrored,
+            self.elevation_upstream,
         )
 
     def region(self, key: str) -> RegionState | None:
@@ -935,7 +991,8 @@ class DiagnoseRegistry:
 def create_app(cache_dir: Path, mode: str = "sidecar", *,
                tiles_upstream: str | Path | None = None,
                allow_unmirrored_tiles: bool = False,
-               web_domain: str | None = None) -> FastAPI:
+               web_domain: str | None = None,
+               elevation_upstream: str | None = None) -> FastAPI:
     # Issue #241 — stamp the contactable Plotlines UA/referer on every
     # Overpass and Nominatim call this app makes (region graph builds,
     # candidate fetches, and `/geocode`) before the first request goes out.
@@ -956,7 +1013,8 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
     region_lib.configure_overpass_cache(cache_dir)
 
     state = Readiness(cache_dir, tiles_upstream or default_home_region_archive(),
-                      allow_unmirrored=allow_unmirrored_tiles)
+                      allow_unmirrored=allow_unmirrored_tiles,
+                      elevation_upstream=elevation_upstream)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -1002,6 +1060,12 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         `elevation` is a fixed not-ready state for every region (see
         `ELEVATION_NOT_CONFIGURED`) — never blocking routing, which needs
         only the graph. A failing region build never touches `layers`.
+        The one exception is the QA/UAT `--elevation-upstream` flag
+        (companion to epic #264, not #148's production path): when set,
+        `elevation` reports `ELEVATION_QA_PROXY_CONFIGURED` instead — this is
+        process-wide, like `tiles`/`layers`, not per-region like `routing`; a
+        given region's own sampler still degrades silently on a proxy miss
+        (FR88), never flipping this back off.
 
         Version-mismatch refusal (A8, M12) is unchanged and lives entirely
         client-side in `SidecarManager.start()`, before the sidecar is even
@@ -1018,7 +1082,11 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 "tiles": {"ready": True, "archive": home_tiles_identity},
                 "layers": layers_cap,
                 "routing": {"regions": state.routing_capabilities()},
-                "elevation": ELEVATION_NOT_CONFIGURED,
+                "elevation": (
+                    ELEVATION_QA_PROXY_CONFIGURED
+                    if state.elevation_upstream
+                    else ELEVATION_NOT_CONFIGURED
+                ),
             },
         }
         # Hosted mode only: the same-site session contract (story M4). A

@@ -46,6 +46,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="dev only: permit --tiles-upstream to point at an "
                              "http(s):// host other than the Plotlines mirror. "
                              "Never the shipped path (FR92/FR95).")
+    parser.add_argument("--elevation-upstream", default=None,
+                        help="QA/short-term only (companion to epic #264, tracked "
+                             "separately from #148/FR87): base URL of the Pi5 "
+                             "caching elevation proxy's /dem endpoint "
+                             "(plotlines_service.elevation_proxy). When set, "
+                             "elevation reads go through this shared cache instead "
+                             "of being unattempted, and PLOTLINES_OPENTOPOGRAPHY_"
+                             "API_KEY need not be set on this machine at all. "
+                             "Absent (the default) leaves elevation exactly as "
+                             "today: elevation_source_not_configured:tracked_in_148.")
     parser.add_argument("--web-domain", default=None,
                         help="hosted mode only: the registrable parent domain "
                              "(e.g. plotlines.app) that app.<domain> and "
@@ -104,7 +114,8 @@ def main(argv: list[str] | None = None) -> int:
         app = create_app(cache_dir=args.cache_dir, mode=args.mode,
                          tiles_upstream=args.tiles_upstream,
                          allow_unmirrored_tiles=args.allow_unmirrored_tiles,
-                         web_domain=args.web_domain)
+                         web_domain=args.web_domain,
+                         elevation_upstream=args.elevation_upstream)
     except ValueError as exc:
         print(f"refusing: {exc}", file=sys.stderr)
         return 2

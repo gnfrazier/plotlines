@@ -1,0 +1,26 @@
+# Pi5 QA/UAT caching elevation proxy — companion to epic #264, not #148.
+# See service/plotlines_service/elevation_proxy.py for what this runs and why.
+#
+# Build from the repo root (needs both core/ and service/):
+#   docker build -f service/Dockerfile.elevation-proxy -t plotlines-elevation-proxy .
+#
+# rasterio ships self-contained manylinux aarch64 wheels (bundled GDAL), so a
+# plain slim Python image is sufficient — no separate GDAL apt install needed.
+# If a pinned rasterio version ever lacks an aarch64 wheel, switch the base
+# image to one that ships GDAL's shared libs (e.g. ghcr.io/osgeo/gdal) rather
+# than compiling from source on the Pi.
+FROM python:3.12-slim
+
+RUN pip install --no-cache-dir uv
+
+WORKDIR /app
+COPY core/ /app/core/
+COPY service/ /app/service/
+
+WORKDIR /app/service
+RUN uv sync --no-dev
+
+# Single process by design — see elevation_proxy.py's module docstring on
+# concurrency. Do not add --workers here.
+ENTRYPOINT ["uv", "run", "python", "-m", "plotlines_service.elevation_proxy"]
+CMD ["--host", "0.0.0.0", "--port", "8090", "--cache-dir", "/data"]
