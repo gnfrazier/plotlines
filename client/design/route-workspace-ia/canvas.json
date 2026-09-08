@@ -1,0 +1,25 @@
+{
+  "artboards": [
+    { "file": "Today.dc.html", "x": 0, "y": 0, "w": 1000, "h": 760, "title": "1 · What the rail holds today" },
+    { "file": "Depth.dc.html", "x": 1120, "y": 0, "w": 940, "h": 760, "title": "2 · Two levels become five" },
+    { "file": "Main.dc.html", "x": 0, "y": 900, "w": 1440, "h": 900, "title": "3 · The Route workspace at rest" },
+    { "file": "Tasks.dc.html", "x": 1560, "y": 900, "w": 1080, "h": 1020, "title": "4 · Frame · Tune · Refine, opened" }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": 0,
+      "y": -190,
+      "w": 560,
+      "text": "Issue #271, Finding 9 — sidebar-scrolling, sidebar-scrolling-3, too-many-scrolly-sidebars.\n\nRead left to right: the diagnosis, the depth model, the workspace at rest, then the three tasks opened."
+    },
+    {
+      "id": "rest-note",
+      "x": 0,
+      "y": 1860,
+      "w": 640,
+      "text": "The empty space in the left rail is the design, not an unfinished frame. A rail that ends where the work ends is the whole proposal."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

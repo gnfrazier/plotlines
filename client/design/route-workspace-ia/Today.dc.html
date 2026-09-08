@@ -1,0 +1,139 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600;700&display=swap">
+  <style>
+    :root{
+      --canvas:#F4EFE4; --panel:#EBE3D4; --paper:#FBF9F3;
+      --ink:#221F1A; --ink2:#544D42; --ink3:#8C8476; --line:#D9D0BE;
+      --blaze:#DB5A28; --spruce:#2C4A3B; --slate:#3D6577; --gold:#B5852B; --ember:#9A3412;
+      --sans:'Archivo',system-ui,sans-serif;
+      --serif:'Instrument Serif',Georgia,serif;
+      --mono:'JetBrains Mono',ui-monospace,monospace;
+    }
+    body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);}
+    a{color:var(--blaze);} a:hover{color:var(--ember);}
+    .eyebrow{font-family:var(--mono);font-size:12px;line-height:1.4;font-weight:700;
+      letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);}
+    .num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  </style>
+</helmet>
+
+<div style="width:1000px; padding:40px 44px 44px; background:var(--canvas); box-sizing:border-box; display:flex; flex-direction:column; gap:28px">
+
+  <div style="display:flex; flex-direction:column; gap:8px">
+    <div class="eyebrow">Diagnosis &middot; issue 271 finding 9</div>
+    <div style="font-family:var(--serif); font-size:42px; line-height:1.05; letter-spacing:-.01em">What the Route rail is actually holding</div>
+    <div style="font-size:16px; line-height:1.6; color:var(--ink2); max-width:62ch">
+      Every property a <span class="num">Segment</span> has, in one 305&thinsp;px column, in the order the stories were built.
+      There is no level between &ldquo;this passage&rdquo; and &ldquo;this slider&rdquo;.
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:20px">
+
+    <div style="background:var(--paper); border:1px solid var(--line); border-radius:6px; padding:20px 22px; display:flex; flex-direction:column; gap:14px">
+      <div class="eyebrow">The inventory &middot; left rail</div>
+      <div style="display:flex; flex-direction:column; gap:0">
+
+        <div style="display:flex; align-items:baseline; gap:12px; padding:9px 0; border-bottom:1px solid var(--line)">
+          <div style="width:34px" class="num" style="color:var(--ink3)">1</div>
+          <div style="flex-grow:1; font-size:14px; font-weight:600">Explore / Compose toggle + explainer</div>
+          <div class="num" style="font-size:12px; color:var(--ink3)">2</div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:12px; padding:9px 0; border-bottom:1px solid var(--line)">
+          <div style="width:34px" class="num">2</div>
+          <div style="flex-grow:1; font-size:14px; font-weight:600">Weight sliders<div style="font-size:13px; font-weight:400; color:var(--ink2); line-height:1.5">climbing, traffic, paved, gravel, singletrack, interest &mdash; each a label, a value, a track and a legend</div></div>
+          <div class="num" style="font-size:12px; color:var(--ink3)">24</div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:12px; padding:9px 0; border-bottom:1px solid var(--line)">
+          <div style="width:34px" class="num">3</div>
+          <div style="flex-grow:1; font-size:14px; font-weight:600">Bands + &ldquo;add a band to diagnose&rdquo;</div>
+          <div class="num" style="font-size:12px; color:var(--ink3)">3+</div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:12px; padding:9px 0; border-bottom:1px solid var(--line)">
+          <div style="width:34px" class="num">4</div>
+          <div style="flex-grow:1; font-size:14px; font-weight:600">Mode chips</div>
+          <div class="num" style="font-size:12px; color:var(--ink3)">9</div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:12px; padding:9px 0; border-bottom:1px solid var(--line)">
+          <div style="width:34px" class="num">5</div>
+          <div style="flex-grow:1; font-size:14px; font-weight:600">Shape chips</div>
+          <div class="num" style="font-size:12px; color:var(--ink3)">3</div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:12px; padding:9px 0; border-bottom:1px solid var(--line)">
+          <div style="width:34px" class="num">6</div>
+          <div style="flex-grow:1; font-size:14px; font-weight:600">Arc-stage chips</div>
+          <div class="num" style="font-size:12px; color:var(--ink3)">6</div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:12px; padding:9px 0; border-bottom:1px solid var(--line)">
+          <div style="width:34px" class="num">7</div>
+          <div style="flex-grow:1; font-size:14px; font-weight:600">Target distance + helper</div>
+          <div class="num" style="font-size:12px; color:var(--ink3)">2</div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:12px; padding:9px 0; border-bottom:1px solid var(--line)">
+          <div style="width:34px" class="num">8</div>
+          <div style="flex-grow:1; font-size:14px; font-weight:600">Via badges, stale badge, compose spine</div>
+          <div class="num" style="font-size:12px; color:var(--ink3)">n</div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:12px; padding:9px 0">
+          <div style="width:34px" class="num">9</div>
+          <div style="flex-grow:1; font-size:14px; font-weight:600">Reset planning controls</div>
+          <div class="num" style="font-size:12px; color:var(--ink3)">1</div>
+        </div>
+      </div>
+      <div style="border-top:2px solid var(--ink); padding-top:12px; display:flex; align-items:baseline; gap:12px">
+        <div style="flex-grow:1; font-size:14px; font-weight:700">At one level, in one scroll</div>
+        <div class="num" style="font-size:20px; font-weight:700">50+</div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:20px">
+
+      <div style="background:var(--paper); border:1px solid var(--line); border-radius:6px; padding:20px 22px; display:flex; flex-direction:column; gap:14px">
+        <div class="eyebrow">Three scroll regions, one screen</div>
+        <div style="display:flex; flex-direction:column; gap:10px">
+          <div style="display:flex; gap:12px; align-items:flex-start">
+            <div style="width:8px; height:8px; margin-top:7px; background:var(--blaze); flex-shrink:0"></div>
+            <div style="font-size:14px; line-height:1.6"><strong>Left rail</strong> &mdash; vertical, ~50 controls deep</div>
+          </div>
+          <div style="display:flex; gap:12px; align-items:flex-start">
+            <div style="width:8px; height:8px; margin-top:7px; background:var(--blaze); flex-shrink:0"></div>
+            <div style="font-size:14px; line-height:1.6"><strong>Right rail</strong> &mdash; vertical, trip metrics and passage metrics interleaved</div>
+          </div>
+          <div style="display:flex; gap:12px; align-items:flex-start">
+            <div style="width:8px; height:8px; margin-top:7px; background:var(--blaze); flex-shrink:0"></div>
+            <div style="font-size:14px; line-height:1.6"><strong>Day strip</strong> &mdash; horizontal, under the map</div>
+          </div>
+        </div>
+        <div style="background:var(--canvas); border-left:3px solid var(--ember); padding:12px 14px; font-size:13px; line-height:1.6; color:var(--ink2)">
+          And the pinned <span class="num">Diagnose&nbsp;/&nbsp;Regenerate</span> footer sits <em>on top of</em> the rail&rsquo;s own scrolling
+          content &mdash; in <span class="num">too-many-scrolly-sidebars.png</span> it overlaps the arc chips it is covering.
+        </div>
+      </div>
+
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:20px 22px; display:flex; flex-direction:column; gap:12px">
+        <div class="eyebrow">The missing question</div>
+        <div style="font-family:var(--serif); font-size:24px; line-height:1.25">
+          Nothing in the rail asks what the Author is doing <em>right now</em>.
+        </div>
+        <div style="font-size:14px; line-height:1.65; color:var(--ink2)">
+          Framing a day, tuning how it feels, and refining what is on it are three different tasks that happen at
+          three different moments. The rail shows all three at once, always, at the same weight &mdash; so the Author
+          reads all of it to find any of it.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

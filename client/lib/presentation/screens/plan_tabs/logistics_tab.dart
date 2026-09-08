@@ -616,7 +616,7 @@ class _NewAlternateDialogState extends State<_NewAlternateDialog> {
               autofocus: true,
               decoration: const InputDecoration(
                 labelText: 'Name this alternate',
-                hintText: 'Toe River road',
+                hintText: 'A short name the group will recognise',
                 isDense: true,
               ),
               onChanged: (_) => setState(() {}),
@@ -830,7 +830,7 @@ class _AlternateEditorDialogState extends ConsumerState<_AlternateEditorDialog> 
                   minLines: 2,
                   maxLines: 5,
                   decoration: const InputDecoration(
-                    hintText: 'Three miles of the old tramway grade, then the portal itself…',
+                    hintText: 'What this path adds or avoids, in a sentence',
                     isDense: true,
                   ),
                   onChanged: (v) => _patch((cur) => v.trim().isEmpty

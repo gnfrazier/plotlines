@@ -190,6 +190,31 @@ void main() {
       expect(made.label, 'Mine road');
     });
 
+    // Issue #271, Finding 14 — both fields shipped a worked example from the
+    // requirements conversation as their placeholder ("Toe River road", "Three
+    // miles of the old tramway grade…"). A hint has to teach the shape of the
+    // answer, not read as a half-filled form the Author has to clear.
+    testWidgets('alternate placeholders are guidance, not leftover requirements examples', (tester) async {
+      await _pump(tester, Day(id: 'd1', index: 1, segments: [_leg('s1')]));
+
+      await tester.tap(find.text('Add alternate'));
+      await tester.pumpAndSettle();
+      expect(find.text('A short name the group will recognise'), findsOneWidget);
+      expect(find.text('Toe River road'), findsNothing);
+
+      await tester.tap(find.text('Branch'));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField).last, 'Mine road');
+      await tester.pump();
+      await tester.tap(find.text('Create branch'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('What this path adds or avoids, in a sentence'), findsOneWidget);
+      expect(
+          find.text('Three miles of the old tramway grade, then the portal itself…'),
+          findsNothing);
+    });
+
     testWidgets('an accommodation editor has no branch fields', (tester) async {
       await _pump(
         tester,

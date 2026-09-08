@@ -1,0 +1,252 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600;700&display=swap">
+  <style>
+    :root{
+      --canvas:#F4EFE4; --panel:#EBE3D4; --paper:#FBF9F3;
+      --ink:#221F1A; --ink2:#544D42; --ink3:#8C8476; --line:#D9D0BE;
+      --blaze:#DB5A28; --spruce:#2C4A3B; --slate:#3D6577; --gold:#B5852B; --ember:#9A3412;
+      --sans:'Archivo',system-ui,sans-serif;
+      --serif:'Instrument Serif',Georgia,serif;
+      --mono:'JetBrains Mono',ui-monospace,monospace;
+    }
+    body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);}
+    a{color:var(--blaze);} a:hover{color:var(--ember);}
+    .eyebrow{font-family:var(--mono);font-size:12px;line-height:1.4;font-weight:700;
+      letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);}
+    .num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+    .tab{font-family:var(--sans);font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--ink2);}
+  </style>
+</helmet>
+
+<div style="width:1440px; height:900px; background:var(--canvas); display:flex; flex-direction:column; box-sizing:border-box; overflow:hidden">
+
+  <!-- title bar -->
+  <div style="height:56px; flex-shrink:0; background:var(--canvas); border-bottom:1px solid var(--line); display:flex; align-items:center; padding:0 20px; gap:16px">
+    <div style="font-family:var(--serif); font-size:22px; line-height:1">UX Review Trip 9&ndash;3</div>
+    <div style="flex-grow:1"></div>
+    <div class="eyebrow" style="color:var(--spruce)">Saved 19:32</div>
+    <div style="border:1px solid var(--line); border-radius:4px; padding:7px 14px; font-size:14px; font-weight:600; background:var(--paper)">Save</div>
+  </div>
+
+  <!-- tabs -->
+  <div style="height:46px; flex-shrink:0; background:var(--paper); border-bottom:1px solid var(--line); display:flex; align-items:stretch; padding:0 20px; gap:32px">
+    <div style="display:flex; align-items:center; border-bottom:2px solid var(--blaze); color:var(--blaze)" class="tab">Route</div>
+    <div style="display:flex; align-items:center" class="tab">Logistics</div>
+    <div style="display:flex; align-items:center" class="tab">Layers</div>
+    <div style="display:flex; align-items:center" class="tab">Content</div>
+    <div style="display:flex; align-items:center" class="tab">Roster</div>
+    <div style="display:flex; align-items:center" class="tab">Export</div>
+  </div>
+
+  <!-- body -->
+  <div style="flex-grow:1; display:flex; align-items:stretch; min-height:0">
+
+    <!-- ============ LEFT RAIL ============ -->
+    <div style="width:320px; flex-shrink:0; background:var(--canvas); border-right:1px solid var(--line); display:flex; flex-direction:column">
+
+      <!-- rail header: what am I editing, and in which posture -->
+      <div style="padding:16px 18px 14px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:12px">
+        <div style="display:flex; align-items:baseline; gap:8px">
+          <div class="eyebrow" style="color:var(--ink)">Day 1</div>
+          <div class="eyebrow">&middot;&nbsp; passage 1 of 1</div>
+        </div>
+        <div style="display:flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; background:var(--paper)">
+          <div style="flex-grow:1; text-align:center; padding:9px 0; font-size:14px; font-weight:600; background:var(--spruce); color:var(--paper)">Explore</div>
+          <div style="flex-grow:1; text-align:center; padding:9px 0; font-size:14px; font-weight:600; color:var(--ink2)">Compose</div>
+        </div>
+      </div>
+
+      <!-- the three tasks, at rest -->
+      <div style="flex-grow:1; display:flex; flex-direction:column">
+
+        <div style="padding:16px 18px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:flex-start; background:var(--paper)">
+          <svg width="12" height="12" viewBox="0 0 12 12" style="margin-top:5px; flex-shrink:0" aria-hidden="true">
+            <path d="M4 2 L8 6 L4 10" fill="none" stroke="#544D42" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div style="flex-grow:1; display:flex; flex-direction:column; gap:5px">
+            <div style="font-size:15px; font-weight:700; letter-spacing:.01em">Frame</div>
+            <div class="num" style="font-size:12px; letter-spacing:.06em; color:var(--ink2)">RIDE &nbsp;&middot;&nbsp; LOOP &nbsp;&middot;&nbsp; 16.1 KM TARGET</div>
+          </div>
+        </div>
+
+        <div style="padding:16px 18px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:flex-start; background:var(--paper)">
+          <svg width="12" height="12" viewBox="0 0 12 12" style="margin-top:5px; flex-shrink:0" aria-hidden="true">
+            <path d="M4 2 L8 6 L4 10" fill="none" stroke="#544D42" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div style="flex-grow:1; display:flex; flex-direction:column; gap:5px">
+            <div style="font-size:15px; font-weight:700; letter-spacing:.01em">Tune</div>
+            <div class="num" style="font-size:12px; letter-spacing:.06em; color:var(--ink2)">BALANCED &nbsp;&middot;&nbsp; NO BANDS SET</div>
+          </div>
+        </div>
+
+        <div style="padding:16px 18px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:flex-start; background:var(--paper)">
+          <svg width="12" height="12" viewBox="0 0 12 12" style="margin-top:5px; flex-shrink:0" aria-hidden="true">
+            <path d="M4 2 L8 6 L4 10" fill="none" stroke="#544D42" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div style="flex-grow:1; display:flex; flex-direction:column; gap:5px">
+            <div style="font-size:15px; font-weight:700; letter-spacing:.01em">Refine</div>
+            <div class="num" style="font-size:12px; letter-spacing:.06em; color:var(--ink2)">2 NODES &nbsp;&middot;&nbsp; NO ARC &nbsp;&middot;&nbsp; NO ALTERNATE</div>
+          </div>
+        </div>
+
+        <!-- the empty space is the design -->
+        <div style="flex-grow:1; display:flex; align-items:center; justify-content:center; padding:24px 26px">
+          <div style="font-size:13px; line-height:1.65; color:var(--ink3); text-align:center; text-wrap:pretty">
+            Three tasks, one open at a time.<br>The rail ends where the work ends.
+          </div>
+        </div>
+      </div>
+
+      <!-- action bar: its own plane, never over the scroll -->
+      <div style="flex-shrink:0; border-top:1px solid var(--line); background:var(--panel); padding:12px 14px; display:flex; gap:8px; align-items:center">
+        <div style="flex-grow:1; background:var(--blaze); color:#FFFFFF; text-align:center; border-radius:4px; padding:12px 0; font-size:16px; font-weight:700">Regenerate</div>
+        <div style="border:1px solid var(--line); background:var(--paper); border-radius:4px; padding:12px 14px; font-size:14px; font-weight:600; color:var(--ink2)">Diagnose</div>
+        <div style="border:1px solid var(--line); background:var(--paper); border-radius:4px; width:44px; height:44px; display:flex; align-items:center; justify-content:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="#9A3412" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ MAP ============ -->
+    <div style="flex-grow:1; display:flex; flex-direction:column; min-width:0">
+      <div style="flex-grow:1; position:relative; background:#E7E3D9; overflow:hidden">
+        <svg viewBox="0 0 816 620" preserveAspectRatio="xMidYMid slice" style="position:absolute; inset:0; width:100%; height:100%" aria-hidden="true">
+          <rect width="816" height="620" fill="#E9E4D8"/>
+          <path d="M0 120 Q180 96 320 150 T816 128" fill="none" stroke="#FBF9F3" stroke-width="9"/>
+          <path d="M0 372 Q220 340 400 396 T816 356" fill="none" stroke="#FBF9F3" stroke-width="7"/>
+          <path d="M148 0 Q176 200 132 360 T196 620" fill="none" stroke="#FBF9F3" stroke-width="7"/>
+          <path d="M596 0 Q568 190 632 340 T576 620" fill="none" stroke="#FBF9F3" stroke-width="6"/>
+          <path d="M0 250 L816 236" fill="none" stroke="#FBF9F3" stroke-width="4"/>
+          <path d="M0 508 L816 528" fill="none" stroke="#FBF9F3" stroke-width="4"/>
+          <path d="M392 0 L376 620" fill="none" stroke="#FBF9F3" stroke-width="4"/>
+          <ellipse cx="120" cy="470" rx="118" ry="72" fill="#CFDCC9" opacity=".8"/>
+          <ellipse cx="690" cy="184" rx="130" ry="86" fill="#CFDCC9" opacity=".8"/>
+          <ellipse cx="470" cy="556" rx="96" ry="54" fill="#CFDCC9" opacity=".8"/>
+          <path d="M0 300 Q170 268 300 316 Q430 364 560 320 Q690 276 816 312" fill="none" stroke="#9EC0D0" stroke-width="5"/>
+          <!-- the route -->
+          <path d="M300 214 Q404 158 512 202 Q604 240 588 336 Q572 428 452 452 Q332 476 274 402 Q220 334 300 214 Z"
+                fill="none" stroke="#DB5A28" stroke-width="5" stroke-linejoin="round"/>
+        </svg>
+
+        <!-- proposed start / finish marks (issue 320): shape carries meaning, colour reinforces -->
+        <div style="position:absolute; left:36%; top:33%; transform:translate(-50%,-50%)">
+          <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+            <circle cx="15" cy="15" r="12.5" fill="#FBF9F3" stroke="#2C4A3B" stroke-width="2.4"/>
+            <path d="M12 9.5 L20 15 L12 20.5 Z" fill="#2C4A3B"/>
+          </svg>
+        </div>
+        <div style="position:absolute; left:56%; top:73%; transform:translate(-50%,-50%)">
+          <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+            <circle cx="15" cy="15" r="12.5" fill="#FBF9F3" stroke="#221F1A" stroke-width="2.4"/>
+            <rect x="10.5" y="10.5" width="9" height="9" fill="#221F1A"/>
+          </svg>
+        </div>
+        <div style="position:absolute; left:70%; top:44%; transform:translate(-50%,-50%)">
+          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+            <circle cx="13" cy="13" r="10.5" fill="#FBF9F3" stroke="#B5852B" stroke-width="2.2"/>
+            <circle cx="13" cy="13" r="3.6" fill="#B5852B"/>
+          </svg>
+        </div>
+
+        <div style="position:absolute; left:16px; top:16px; background:rgba(251,249,243,.94); border:1px solid var(--line); border-radius:4px; padding:8px 12px">
+          <div class="eyebrow" style="color:var(--ink2)">Editing &middot; Day 1 &middot; passage 1</div>
+        </div>
+        <div style="position:absolute; right:16px; top:16px; background:var(--blaze); color:#FFFFFF; border-radius:4px; padding:11px 16px; font-size:16px; font-weight:700">Add node</div>
+        <div style="position:absolute; left:12px; bottom:10px; background:rgba(251,249,243,.9); padding:3px 8px; font-family:var(--mono); font-size:11px; color:var(--ink2)">&copy; OpenStreetMap contributors (ODbL) &middot; Protomaps</div>
+      </div>
+
+      <!-- day strip: the one selector -->
+      <div style="flex-shrink:0; border-top:1px solid var(--line); background:var(--canvas); padding:12px 16px 14px; display:flex; flex-direction:column; gap:10px">
+        <div style="display:flex; gap:8px; align-items:center">
+          <div style="background:var(--spruce); color:var(--paper); border-radius:4px; padding:8px 16px; font-size:14px; font-weight:700; letter-spacing:.04em">DAY 1</div>
+          <div style="border:1px solid var(--line); background:var(--paper); border-radius:4px; padding:8px 16px; font-size:14px; font-weight:600; color:var(--ink2); letter-spacing:.04em">DAY 2</div>
+          <div style="border:1px dashed var(--line); border-radius:4px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; color:var(--ink3); font-size:18px">+</div>
+          <div style="flex-grow:1"></div>
+          <div class="num" style="font-size:11px; letter-spacing:.08em; color:var(--ink3)">SELECTING A DAY SELECTS ITS FIRST PASSAGE</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:stretch">
+          <div style="border:2px solid var(--blaze); background:rgba(219,90,40,.06); border-radius:6px; padding:10px 14px; display:flex; gap:12px; align-items:center; min-width:190px">
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="6" cy="17.5" r="3.6" fill="none" stroke="#221F1A" stroke-width="1.6"/>
+              <circle cx="18" cy="17.5" r="3.6" fill="none" stroke="#221F1A" stroke-width="1.6"/>
+              <path d="M6 17.5 L10 9.5 L15 9.5 M10 9.5 L14.5 17.5 M13 6.5 h3" fill="none" stroke="#221F1A" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <div style="display:flex; flex-direction:column; gap:2px">
+              <div style="font-size:14px; font-weight:700">Ride</div>
+              <div class="num" style="font-size:12px; color:var(--ink2)">16.4 KM</div>
+            </div>
+          </div>
+          <div style="border:1px dashed var(--line); border-radius:6px; padding:10px 16px; display:flex; align-items:center; color:var(--ink3); font-size:14px; font-weight:600">+ Passage</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT RAIL ============ -->
+    <div style="width:304px; flex-shrink:0; background:var(--canvas); border-left:1px solid var(--line); display:flex; flex-direction:column">
+
+      <div style="padding:16px 18px 14px; border-bottom:1px solid var(--line)">
+        <div class="eyebrow" style="color:var(--ink)">This passage</div>
+      </div>
+
+      <div style="padding:16px 18px; display:flex; flex-direction:column; gap:12px; border-bottom:1px solid var(--line)">
+        <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px">
+          <div style="background:var(--paper); border:1px solid var(--line); border-radius:6px; padding:12px 13px; display:flex; flex-direction:column; gap:6px">
+            <div class="eyebrow" style="font-size:11px">Distance</div>
+            <div class="num" style="font-size:22px; font-weight:700">16.4 <span style="font-size:13px; font-weight:600; color:var(--ink2)">KM</span></div>
+          </div>
+          <div style="background:var(--paper); border:1px solid var(--line); border-radius:6px; padding:12px 13px; display:flex; flex-direction:column; gap:6px">
+            <div class="eyebrow" style="font-size:11px">Climb</div>
+            <div class="num" style="font-size:22px; font-weight:700; color:var(--ink3)">&mdash;</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px">
+          <div style="background:var(--paper); border:1px solid var(--line); border-radius:6px; padding:12px 13px; display:flex; flex-direction:column; gap:6px">
+            <div class="eyebrow" style="font-size:11px">Moving time</div>
+            <div class="num" style="font-size:22px; font-weight:700">1<span style="font-size:13px; font-weight:600; color:var(--ink2)">h</span> 06<span style="font-size:13px; font-weight:600; color:var(--ink2)">m</span></div>
+          </div>
+          <div style="background:var(--paper); border:1px solid var(--line); border-radius:6px; padding:12px 13px; display:flex; flex-direction:column; gap:6px">
+            <div class="eyebrow" style="font-size:11px">Vs target</div>
+            <div class="num" style="font-size:22px; font-weight:700; color:var(--spruce)">+0.3</div>
+          </div>
+        </div>
+        <div style="background:var(--panel); border-left:3px solid var(--gold); padding:11px 13px; display:flex; flex-direction:column; gap:4px">
+          <div style="font-size:13px; font-weight:700">Elevation is unavailable</div>
+          <div style="font-size:13px; line-height:1.55; color:var(--ink2)">No elevation source is configured, so climb and the profile stay blank.</div>
+        </div>
+      </div>
+
+      <!-- trip scope, collapsed: it is not this passage -->
+      <div style="padding:16px 18px; display:flex; gap:12px; align-items:flex-start; background:var(--paper); border-bottom:1px solid var(--line)">
+        <svg width="12" height="12" viewBox="0 0 12 12" style="margin-top:5px; flex-shrink:0" aria-hidden="true">
+          <path d="M4 2 L8 6 L4 10" fill="none" stroke="#544D42" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div style="flex-grow:1; display:flex; flex-direction:column; gap:5px">
+          <div style="font-size:15px; font-weight:700">Whole trip</div>
+          <div class="num" style="font-size:12px; letter-spacing:.06em; color:var(--ink2)">2 DAYS &nbsp;&middot;&nbsp; 30.1 KM &nbsp;&middot;&nbsp; CYCLING</div>
+        </div>
+      </div>
+
+      <div style="flex-grow:1"></div>
+
+      <div style="padding:14px 18px 16px; border-top:1px solid var(--line)">
+        <div style="font-size:13px; line-height:1.6; color:var(--ink3); text-wrap:pretty">
+          Passage figures first, because the rail belongs to what is selected. Trip totals are one click away, not interleaved.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

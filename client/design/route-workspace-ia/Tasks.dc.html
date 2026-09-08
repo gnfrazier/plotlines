@@ -1,0 +1,191 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600;700&display=swap">
+  <style>
+    :root{
+      --canvas:#F4EFE4; --panel:#EBE3D4; --paper:#FBF9F3;
+      --ink:#221F1A; --ink2:#544D42; --ink3:#8C8476; --line:#D9D0BE;
+      --blaze:#DB5A28; --spruce:#2C4A3B; --slate:#3D6577; --gold:#B5852B; --ember:#9A3412;
+      --sans:'Archivo',system-ui,sans-serif;
+      --serif:'Instrument Serif',Georgia,serif;
+      --mono:'JetBrains Mono',ui-monospace,monospace;
+    }
+    body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);}
+    a{color:var(--blaze);} a:hover{color:var(--ember);}
+    .eyebrow{font-family:var(--mono);font-size:12px;line-height:1.4;font-weight:700;
+      letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);}
+    .num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+    .rail{width:320px;background:var(--canvas);border:1px solid var(--line);border-radius:6px;
+      display:flex;flex-direction:column;overflow:hidden;}
+    .row{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;gap:11px;
+      align-items:flex-start;background:var(--paper);}
+    .rowname{font-size:15px;font-weight:700;letter-spacing:.01em;}
+    .rowsum{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px;
+      letter-spacing:.06em;color:var(--ink2);}
+    .open{background:var(--canvas);border-bottom:1px solid var(--line);}
+    .grp{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.09em;
+      text-transform:uppercase;color:var(--ink3);}
+    .chip{border:1px solid var(--line);background:var(--paper);border-radius:4px;
+      padding:8px 12px;font-size:14px;font-weight:600;color:var(--ink2);}
+    .chipon{background:var(--spruce);color:var(--paper);border-color:var(--spruce);}
+    .track{height:4px;background:var(--panel);border-radius:2px;position:relative;}
+    .knob{position:absolute;top:-5px;width:14px;height:14px;border-radius:50%;
+      background:var(--blaze);border:2px solid var(--paper);}
+  </style>
+</helmet>
+
+<div style="width:1080px; padding:38px 40px 42px; background:var(--canvas); box-sizing:border-box; display:flex; flex-direction:column; gap:26px">
+
+  <div style="display:flex; flex-direction:column; gap:8px">
+    <div class="eyebrow">Proposal &middot; the third level</div>
+    <div style="font-family:var(--serif); font-size:40px; line-height:1.05; letter-spacing:-.01em">Three tasks, one open at a time</div>
+    <div style="font-size:16px; line-height:1.6; color:var(--ink2); max-width:72ch">
+      An accordion, not independent toggles &mdash; opening one closes the others, which is what caps the rail&rsquo;s height and
+      removes the scroll. Closed, each task states its own answer in the data voice, so the rail is readable at rest.
+    </div>
+  </div>
+
+  <div style="display:flex; gap:30px; align-items:flex-start">
+
+    <!-- FRAME open -->
+    <div class="rail">
+      <div class="row"><div style="flex-grow:1; display:flex; flex-direction:column; gap:4px"><div class="rowname">Frame</div><div class="rowsum">RIDE &middot; LOOP &middot; 16.1 KM</div></div></div>
+      <div class="open" style="padding:16px; display:flex; flex-direction:column; gap:16px">
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <div class="grp">Mode</div>
+          <div style="display:flex; flex-wrap:wrap; gap:7px">
+            <div class="chip chipon">Ride</div><div class="chip">Hike</div><div class="chip">Paddle</div>
+            <div class="chip" style="color:var(--ink3)">All 9 &hellip;</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <div class="grp">Shape</div>
+          <div style="display:flex; flex-wrap:wrap; gap:7px">
+            <div class="chip chipon">Loop</div><div class="chip">Out &amp; back</div><div class="chip">Point to point</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <div class="grp">Target distance</div>
+          <div style="border:1px solid var(--line); background:var(--paper); border-radius:4px; padding:11px 13px; display:flex; align-items:baseline; gap:8px">
+            <div class="num" style="font-size:18px; font-weight:700; flex-grow:1">16.1</div>
+            <div class="num" style="font-size:13px; color:var(--ink2)">KM</div>
+          </div>
+          <div style="font-size:13px; line-height:1.55; color:var(--ink3)">A constraint in Explore. Set the unit once, in Preferences.</div>
+        </div>
+      </div>
+      <div class="row"><div style="flex-grow:1; display:flex; flex-direction:column; gap:4px"><div class="rowname">Tune</div><div class="rowsum">BALANCED &middot; NO BANDS</div></div></div>
+      <div class="row" style="border-bottom:none"><div style="flex-grow:1; display:flex; flex-direction:column; gap:4px"><div class="rowname">Refine</div><div class="rowsum">2 NODES &middot; NO ARC</div></div></div>
+      <div style="background:var(--panel); border-top:1px solid var(--line); padding:11px 13px; display:flex; gap:7px">
+        <div style="flex-grow:1; background:var(--blaze); color:#FFFFFF; text-align:center; border-radius:4px; padding:11px 0; font-size:16px; font-weight:700">Regenerate</div>
+        <div class="chip" style="padding:11px 13px">Diagnose</div>
+      </div>
+    </div>
+
+    <!-- TUNE open -->
+    <div class="rail">
+      <div class="row"><div style="flex-grow:1; display:flex; flex-direction:column; gap:4px"><div class="rowname">Frame</div><div class="rowsum">RIDE &middot; LOOP &middot; 16.1 KM</div></div></div>
+      <div class="row" style="background:var(--paper)"><div style="flex-grow:1; display:flex; flex-direction:column; gap:4px"><div class="rowname">Tune</div><div class="rowsum">BALANCED &middot; NO BANDS</div></div></div>
+      <div class="open" style="padding:16px; display:flex; flex-direction:column; gap:16px">
+        <div style="display:flex; flex-direction:column; gap:10px">
+          <div class="grp">Terrain</div>
+          <div style="display:flex; flex-direction:column; gap:4px">
+            <div style="display:flex; align-items:baseline; gap:8px"><div style="flex-grow:1; font-size:14px; font-weight:600">Climbing</div><div class="num" style="font-size:13px; color:var(--ink2)">2.5</div></div>
+            <div class="track"><div class="knob" style="left:47%"></div></div>
+            <div style="font-size:12px; color:var(--ink3)">flat &harr; indifferent &harr; seek peaks</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px">
+            <div style="display:flex; align-items:baseline; gap:8px"><div style="flex-grow:1; font-size:14px; font-weight:600">Traffic</div><div class="num" style="font-size:13px; color:var(--ink2)">2.5</div></div>
+            <div class="track"><div class="knob" style="left:47%"></div></div>
+            <div style="font-size:12px; color:var(--ink3)">avoid cars &harr; indifferent &harr; seek</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <div class="grp">Surface &nbsp;&mdash;&nbsp; <span style="color:var(--ink2)">3 sliders</span></div>
+          <div style="border:1px solid var(--line); background:var(--paper); border-radius:4px; padding:11px 13px; display:flex; align-items:center; gap:10px">
+            <div style="flex-grow:1; font-size:14px; font-weight:600; color:var(--ink2)">Paved, gravel, singletrack</div>
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2 L8 6 L4 10" fill="none" stroke="#8C8476" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <div class="grp">Bands</div>
+          <div style="font-size:13px; line-height:1.55; color:var(--ink2)">None set. A band names an acceptance range on a realised attribute.</div>
+          <div class="chip" style="align-self:flex-start">+ Add a band</div>
+        </div>
+      </div>
+      <div class="row" style="border-bottom:none"><div style="flex-grow:1; display:flex; flex-direction:column; gap:4px"><div class="rowname">Refine</div><div class="rowsum">2 NODES &middot; NO ARC</div></div></div>
+      <div style="background:var(--panel); border-top:1px solid var(--line); padding:11px 13px; display:flex; gap:7px">
+        <div style="flex-grow:1; background:var(--blaze); color:#FFFFFF; text-align:center; border-radius:4px; padding:11px 0; font-size:16px; font-weight:700">Regenerate</div>
+        <div class="chip" style="padding:11px 13px">Diagnose</div>
+      </div>
+    </div>
+
+    <!-- REFINE open -->
+    <div class="rail">
+      <div class="row"><div style="flex-grow:1; display:flex; flex-direction:column; gap:4px"><div class="rowname">Frame</div><div class="rowsum">RIDE &middot; LOOP &middot; 16.1 KM</div></div></div>
+      <div class="row"><div style="flex-grow:1; display:flex; flex-direction:column; gap:4px"><div class="rowname">Tune</div><div class="rowsum">BALANCED &middot; NO BANDS</div></div></div>
+      <div class="row" style="background:var(--paper)"><div style="flex-grow:1; display:flex; flex-direction:column; gap:4px"><div class="rowname">Refine</div><div class="rowsum">2 NODES &middot; NO ARC</div></div></div>
+      <div class="open" style="padding:16px; display:flex; flex-direction:column; gap:16px">
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <div class="grp">On this passage</div>
+          <div style="border:1px solid var(--line); background:var(--paper); border-radius:4px; padding:10px 12px; display:flex; gap:10px; align-items:center">
+            <svg width="20" height="20" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="10.5" fill="#FBF9F3" stroke="#B5852B" stroke-width="2.2"/><circle cx="13" cy="13" r="3.6" fill="#B5852B"/></svg>
+            <div style="flex-grow:1; display:flex; flex-direction:column; gap:2px">
+              <div style="font-size:14px; font-weight:600">The best roadside farm stand</div>
+              <div class="num" style="font-size:11px; letter-spacing:.06em; color:var(--ink2)">POI &middot; 4.2 KM IN &middot; ON ROUTE</div>
+            </div>
+          </div>
+          <div style="border:1px solid var(--line); background:var(--paper); border-radius:4px; padding:10px 12px; display:flex; gap:10px; align-items:center">
+            <svg width="20" height="20" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="10.5" fill="#FBF9F3" stroke="#3D6577" stroke-width="2.2"/><path d="M7.5 15 L13 9 L18.5 15 Z" fill="#3D6577"/></svg>
+            <div style="flex-grow:1; display:flex; flex-direction:column; gap:2px">
+              <div style="font-size:14px; font-weight:600">Regroup at the gap</div>
+              <div class="num" style="font-size:11px; letter-spacing:.06em; color:var(--gold)">REGROUP &middot; 40 M OFF ROUTE</div>
+            </div>
+          </div>
+          <div class="chip" style="align-self:flex-start">+ Add node</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <div class="grp">Arc stage</div>
+          <div style="display:flex; flex-wrap:wrap; gap:7px">
+            <div class="chip chipon">None</div><div class="chip">Rising</div><div class="chip">Crux</div>
+            <div class="chip" style="color:var(--ink3)">All 6 &hellip;</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px">
+          <div class="grp">Alternates</div>
+          <div style="font-size:13px; line-height:1.55; color:var(--ink2)">Mark a fork and a rejoin on the map to start one.</div>
+        </div>
+      </div>
+      <div style="background:var(--panel); border-top:1px solid var(--line); padding:11px 13px; display:flex; gap:7px">
+        <div style="flex-grow:1; background:var(--blaze); color:#FFFFFF; text-align:center; border-radius:4px; padding:11px 0; font-size:16px; font-weight:700">Regenerate</div>
+        <div class="chip" style="padding:11px 13px">Diagnose</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:22px; padding-top:6px">
+    <div style="display:flex; flex-direction:column; gap:6px">
+      <div class="eyebrow" style="color:var(--spruce)">Frame</div>
+      <div style="font-size:14px; line-height:1.6; color:var(--ink2)">What this day <em>is</em>. Answered once, early, and rarely revisited. Mode, shape, and the distance constraint.</div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px">
+      <div class="eyebrow" style="color:var(--spruce)">Tune</div>
+      <div style="font-size:14px; line-height:1.6; color:var(--ink2)">How it should <em>feel</em>. Iterated against the map, many times. Weights grouped by what they are about, not listed flat.</div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px">
+      <div class="eyebrow" style="color:var(--spruce)">Refine</div>
+      <div style="font-size:14px; line-height:1.6; color:var(--ink2)">What is <em>on</em> it. Comes last, once the line is right. Nodes with their relationship to the route stated, arc, alternates.</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
