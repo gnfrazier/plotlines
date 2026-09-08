@@ -190,6 +190,77 @@ class AuthorNote {
       };
 }
 
+/// D4b (FR78a) — a profile-field value the **Author recorded themselves**,
+/// because they already held it from outside the app (the roster that arrived
+/// by text, email, and conversation before anyone opened Plotlines).
+///
+/// This is the second category of "information one person holds about
+/// another" after [AuthorNote], and it inherits that model's rules rather
+/// than a new one:
+///   * **provenance is first-class** — a value here is `entered by the
+///     Author`, shown visibly distinct from a Character's grant and never
+///     rendered as `granted` (`profile_request.dart`'s [ConsentStatus] keeps
+///     that structural);
+///   * it **never satisfies the pending request** — the Author's ask stays
+///     outstanding until the Character responds;
+///   * it is **Author-only** — it never reaches a Character-facing surface,
+///     the trip archive, an export, print, or a relay, exactly as an
+///     [AuthorNote] never does (there is no wire path for the roster layer at
+///     all today — see this file's header);
+///   * a Character's later K2 response **supersedes** it (again structural in
+///     [resolveStatus]);
+///   * a clone that carries the roster **carries it** (FR74/FR74b) — it is
+///     authored data the Author holds, not consent, so the profile-grant
+///     exclusion does not reach it — and [retainingPeople] drops it with the
+///     person, same as a note;
+///   * FR135a / D6a deletes it.
+///
+/// Scoped to `(Author, Character, field)`. [updatedAt] bumps on every edit
+/// and is carried verbatim across a clone (never reset to "now"), the same
+/// rule [AuthorNote.updatedAt] follows.
+class AuthorEnteredValue {
+  const AuthorEnteredValue({
+    required this.subjectCharacterId,
+    required this.fieldId,
+    required this.value,
+    required this.updatedAt,
+  });
+
+  final String subjectCharacterId;
+
+  /// A `defaultProfileFieldCatalog` field id (`profile_request.dart`).
+  final String fieldId;
+
+  /// The value the Author holds — free text, shown as data, never composed
+  /// into a sentence (FR145).
+  final String value;
+
+  /// ISO-8601.
+  final String updatedAt;
+
+  AuthorEnteredValue copyWith({String? value, String? updatedAt}) =>
+      AuthorEnteredValue(
+        subjectCharacterId: subjectCharacterId,
+        fieldId: fieldId,
+        value: value ?? this.value,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+
+  factory AuthorEnteredValue.fromJson(Map<String, dynamic> json) => AuthorEnteredValue(
+        subjectCharacterId: json['subject_character_id'] as String,
+        fieldId: json['field_id'] as String,
+        value: json['value'] as String,
+        updatedAt: json['updated_at'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'subject_character_id': subjectCharacterId,
+        'field_id': fieldId,
+        'value': value,
+        'updated_at': updatedAt,
+      };
+}
+
 /// The whole roster layer for one trip: membership, group assignments, shared
 /// gear, meal responsibilities, and Author notes. Everything Clone reasons
 /// about that is *not* the canonical payload.
@@ -199,6 +270,7 @@ class TripRoster {
     this.gear = const [],
     this.meals = const [],
     this.authorNotes = const [],
+    this.authorEnteredValues = const [],
   });
 
   final List<RosterEntry> entries;
@@ -206,10 +278,35 @@ class TripRoster {
   final List<MealResponsibility> meals;
   final List<AuthorNote> authorNotes;
 
+  /// D4b — profile-field values the Author recorded themselves. Sits beside
+  /// [authorNotes] because it is the same kind of thing: authored data the
+  /// Author holds about a person, Author-only, carried by a roster clone,
+  /// dropped with the person.
+  final List<AuthorEnteredValue> authorEnteredValues;
+
   static const TripRoster empty = TripRoster();
 
   bool get isEmpty =>
-      entries.isEmpty && gear.isEmpty && meals.isEmpty && authorNotes.isEmpty;
+      entries.isEmpty &&
+      gear.isEmpty &&
+      meals.isEmpty &&
+      authorNotes.isEmpty &&
+      authorEnteredValues.isEmpty;
+
+  TripRoster copyWith({
+    List<RosterEntry>? entries,
+    List<GearAssignment>? gear,
+    List<MealResponsibility>? meals,
+    List<AuthorNote>? authorNotes,
+    List<AuthorEnteredValue>? authorEnteredValues,
+  }) =>
+      TripRoster(
+        entries: entries ?? this.entries,
+        gear: gear ?? this.gear,
+        meals: meals ?? this.meals,
+        authorNotes: authorNotes ?? this.authorNotes,
+        authorEnteredValues: authorEnteredValues ?? this.authorEnteredValues,
+      );
 
   Set<String> get characterIds => {for (final e in entries) e.characterId};
 
@@ -242,6 +339,12 @@ class TripRoster {
         for (final n in authorNotes)
           if (keepIds.contains(n.subjectCharacterId)) n,
       ],
+      // D4b — author-entered values follow the person too (FR74b: "where a
+      // scope drops people, everything assigned to them drops with them").
+      authorEnteredValues: [
+        for (final v in authorEnteredValues)
+          if (keepIds.contains(v.subjectCharacterId)) v,
+      ],
     );
   }
 
@@ -254,6 +357,7 @@ class TripRoster {
         gear: gear,
         meals: meals,
         authorNotes: authorNotes,
+        authorEnteredValues: authorEnteredValues,
       );
 
   factory TripRoster.fromJson(Map<String, dynamic> json) => TripRoster(
@@ -273,6 +377,10 @@ class TripRoster {
           for (final v in (json['author_notes'] as List? ?? const []))
             AuthorNote.fromJson(Map<String, dynamic>.from(v as Map)),
         ],
+        authorEnteredValues: [
+          for (final v in (json['author_entered_values'] as List? ?? const []))
+            AuthorEnteredValue.fromJson(Map<String, dynamic>.from(v as Map)),
+        ],
       );
 
   Map<String, dynamic> toJson() => {
@@ -281,6 +389,8 @@ class TripRoster {
         if (meals.isNotEmpty) 'meals': [for (final m in meals) m.toJson()],
         if (authorNotes.isNotEmpty)
           'author_notes': [for (final n in authorNotes) n.toJson()],
+        if (authorEnteredValues.isNotEmpty)
+          'author_entered_values': [for (final v in authorEnteredValues) v.toJson()],
       };
 }
 

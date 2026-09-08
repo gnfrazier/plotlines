@@ -56,12 +56,16 @@ class ProfileRequestNotifier extends StateNotifier<ProfileRequestState> {
   /// always an explicit Character action" means this app has no honest way
   /// to originate that decision itself; only [recordResponse] (standing in
   /// for K2, the Character-side response flow) can move a field off pending.
-  void addCharacter(String name) {
+  String addCharacter(String name) {
     final id = 'char-${DateTime.now().microsecondsSinceEpoch}-${state.responses.length}';
     state = state.copyWith(responses: [
       ...state.responses,
       CharacterResponse(characterId: id, characterName: name),
     ]);
+    // D4b — the Roster tab uses this id to register the same Character in
+    // `currentRosterProvider`, so author-entered values (persisted, clone-
+    // carried) and this session-only response grid share one identity.
+    return id;
   }
 
   void removeCharacter(String characterId) => state = state.copyWith(

@@ -99,6 +99,69 @@ void main() {
     });
   });
 
+  group('D4b — Author-entered values (FR78a)', () {
+    final request = FieldRequestSet.defaults(); // full_name, phone, emergency_contact
+    const response = CharacterResponse(characterId: 'c1', characterName: 'Bob');
+
+    test('an entered value reads authorEntered, never granted', () {
+      final status = resolveStatus(request, response, 'full_name',
+          authorEnteredFieldIds: {'full_name'});
+      expect(status, ConsentStatus.authorEntered);
+      expect(status, isNot(ConsentStatus.granted));
+    });
+
+    test('an entered value never satisfies the request — it stays outstanding', () {
+      // "Pending" and "author-entered" are both outstanding; "granted" is not.
+      expect(requestOutstanding(ConsentStatus.requested), isTrue);
+      expect(
+          requestOutstanding(resolveStatus(request, response, 'phone',
+              authorEnteredFieldIds: {'phone'})),
+          isTrue);
+      expect(requestOutstanding(ConsentStatus.granted), isFalse);
+      expect(requestOutstanding(ConsentStatus.declined), isFalse);
+    });
+
+    test('a Character response supersedes the Author entry rather than merging', () {
+      const granted = CharacterResponse(
+        characterId: 'c1',
+        characterName: 'Bob',
+        grants: {'full_name': true},
+      );
+      expect(
+          resolveStatus(request, granted, 'full_name',
+              authorEnteredFieldIds: {'full_name'}),
+          ConsentStatus.granted);
+
+      const declined = CharacterResponse(
+        characterId: 'c1',
+        characterName: 'Bob',
+        grants: {'phone': false},
+      );
+      expect(
+          resolveStatus(request, declined, 'phone',
+              authorEnteredFieldIds: {'phone'}),
+          ConsentStatus.declined);
+
+      const volunteered = CharacterResponse(
+        characterId: 'c1',
+        characterName: 'Bob',
+        volunteeredFieldIds: {'emergency_contact'},
+      );
+      expect(
+          resolveStatus(request, volunteered, 'emergency_contact',
+              authorEnteredFieldIds: {'emergency_contact'}),
+          ConsentStatus.volunteered);
+    });
+
+    test('resolveCharacterStatuses carries the entered provenance through', () {
+      final statuses = resolveCharacterStatuses(request, response,
+          authorEnteredFieldIds: {'full_name'});
+      final byId = {for (final s in statuses) s.field.id: s.status};
+      expect(byId['full_name'], ConsentStatus.authorEntered);
+      expect(byId['phone'], ConsentStatus.requested); // no entry -> still pending
+    });
+  });
+
   group('resolveCharacterStatuses — the Author\'s per-Character view', () {
     test('covers every requested field plus any volunteered extras, nothing else', () {
       final request = FieldRequestSet.defaults(); // full_name, phone, emergency_contact

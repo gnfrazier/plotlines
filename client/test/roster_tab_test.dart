@@ -81,7 +81,7 @@ void main() {
     await tester.tap(find.text('Add'));
     await tester.pump();
 
-    await tester.tap(find.text('Volunteer a field'));
+    await tester.tap(find.text('Record a field they volunteered'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Medical conditions').last);
     await tester.pumpAndSettle();
@@ -90,5 +90,52 @@ void main() {
 
     expect(find.text('VOLUNTEERED UNPROMPTED'), findsOneWidget);
     expect(find.text('VOLUNTEERED'), findsOneWidget);
+  });
+
+  // D4b (FR78a) — the Author fills in a value they already hold.
+  testWidgets('entering a value shows its provenance and leaves the request pending',
+      (tester) async {
+    await _pump(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Character name'), 'Bob');
+    await tester.tap(find.text('Add'));
+    await tester.pump();
+
+    // Three default-requested fields, each with a fill-in affordance.
+    expect(find.byTooltip('Fill in what they already told you'), findsNWidgets(3));
+
+    await tester.tap(find.byTooltip('Fill in what they already told you').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Value'), '555-0100');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    // The value is shown, tagged as Author-entered, never as granted...
+    expect(find.text('555-0100'), findsOneWidget);
+    expect(find.text('ENTERED BY YOU'), findsOneWidget);
+    expect(find.text('GRANTED'), findsNothing);
+    // ...and the request is still outstanding: all three rows read PENDING.
+    expect(find.text('PENDING'), findsNWidgets(3));
+  });
+
+  testWidgets('recording the Character\'s grant supersedes the entered value', (tester) async {
+    await _pump(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Character name'), 'Bob');
+    await tester.tap(find.text('Add'));
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Fill in what they already told you').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Value'), '555-0100');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('ENTERED BY YOU'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Record as granted').first);
+    await tester.pump();
+
+    // The Character's response replaces the Author's entry rather than merging.
+    expect(find.text('GRANTED'), findsOneWidget);
+    expect(find.text('ENTERED BY YOU'), findsNothing);
+    expect(find.text('555-0100'), findsNothing);
   });
 }
