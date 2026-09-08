@@ -387,6 +387,18 @@ class _StatusRow extends StatelessWidget {
                 style: PlotTypography.small(c.textMuted),
               ),
             ),
+          // D4b AC — once a Character response supersedes it, the fact that an
+          // Author-entered value existed stays visible on the field (a small
+          // audit line; the value is retained, not deleted).
+          if (status.status != ConsentStatus.authorEntered && authorEnteredValue != null)
+            Padding(
+              padding: const EdgeInsets.only(left: PlotSpacing.s1, top: 2),
+              child: Text(
+                '${response.characterName}\'s response replaced the value you '
+                'had entered ($authorEnteredValue).',
+                style: PlotTypography.small(c.textMuted),
+              ),
+            ),
         ],
       ),
     );

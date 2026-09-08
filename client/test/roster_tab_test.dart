@@ -133,9 +133,12 @@ void main() {
     await tester.tap(find.byTooltip('Record as granted').first);
     await tester.pump();
 
-    // The Character's response replaces the Author's entry rather than merging.
+    // The Character's response replaces the Author's entry rather than merging,
+    // but the field still shows that an Author-entered value existed (AC).
     expect(find.text('GRANTED'), findsOneWidget);
     expect(find.text('ENTERED BY YOU'), findsNothing);
-    expect(find.text('555-0100'), findsNothing);
+    expect(find.text('555-0100'), findsNothing); // no longer the live value
+    expect(find.textContaining('replaced the value you had entered (555-0100)'),
+        findsOneWidget);
   });
 }
