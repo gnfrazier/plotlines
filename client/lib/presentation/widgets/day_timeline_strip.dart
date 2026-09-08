@@ -22,6 +22,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
+import '../../state/settings_provider.dart';
 import 'transition_editor_sheet.dart';
 import 'transition_strand_prompt.dart';
 import 'travel_mode_icons.dart';
@@ -103,6 +104,7 @@ class _DaySegmentStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
+    final df = ref.watch(displayFormatProvider);
     if (day.isRest) {
       return Row(
         children: [
@@ -132,7 +134,11 @@ class _DaySegmentStrip extends ConsumerWidget {
         children: [
           for (var i = 0; i < day.segments.length; i++) ...[
             if (i > 0)
-              _TransitionGlyph(dayId: day.id, transition: transitionBefore(day, i)),
+              _TransitionGlyph(
+                dayId: day.id,
+                transition: transitionBefore(day, i),
+                displayFormat: df,
+              ),
             _SegmentChip(
               day: day,
               segment: day.segments[i],
@@ -142,20 +148,20 @@ class _DaySegmentStrip extends ConsumerWidget {
           ],
           for (final breach in breaches) ...[
             const SizedBox(width: PlotSpacing.s4),
-            _BreachChip(text: _describeBreach(breach)),
+            _BreachChip(text: _describeBreach(breach, df)),
           ],
         ],
       ),
     );
   }
 
-  String _describeBreach(LimitBreach breach) {
-    final realisedKm = (breach.realisedM / 1000).toStringAsFixed(0);
-    final limitKm = (breach.limitM / 1000).toStringAsFixed(0);
+  String _describeBreach(LimitBreach breach, DisplayFormat df) {
+    final realised = df.formatDistance(breach.realisedM, fractionDigits: 0);
+    final limit = df.formatDistance(breach.limitM, fractionDigits: 0);
     final mode = travelModeLabel(breach.mode);
     return breach.bound == 'min'
-        ? '$mode: $realisedKm km · below $limitKm km min'
-        : '$mode: $realisedKm km · above $limitKm km max';
+        ? '$mode: $realised · below $limit min'
+        : '$mode: $realised · above $limit max';
   }
 }
 
@@ -178,7 +184,8 @@ class _SegmentChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
     final selected = ref.watch(selectedSegmentProvider) == (day.id, segment.id);
-    final km = segment.metrics?.distanceM == null ? null : segment.metrics!.distanceM! / 1000;
+    final df = ref.watch(displayFormatProvider);
+    final distanceM = segment.metrics?.distanceM;
     return InkWell(
       borderRadius: PlotRadii.controlShape,
       onTap: () => ref.read(selectedSegmentProvider.notifier).state = (day.id, segment.id),
@@ -203,7 +210,7 @@ class _SegmentChip extends ConsumerWidget {
                 Text(travelModeLabel(segment.mode),
                     style: PlotTypography.body(c.textPrimary).copyWith(fontWeight: FontWeight.w600)),
                 Text(
-                  km == null ? '—' : '${km.toStringAsFixed(1)} km',
+                  distanceM == null ? '—' : df.formatDistance(distanceM),
                   style: PlotTypography.small(c.textMuted),
                 ),
               ],
@@ -283,9 +290,14 @@ class _MoveButton extends StatelessWidget {
 }
 
 class _TransitionGlyph extends StatelessWidget {
-  const _TransitionGlyph({required this.dayId, this.transition});
+  const _TransitionGlyph({
+    required this.dayId,
+    required this.displayFormat,
+    this.transition,
+  });
   final String dayId;
   final Transition? transition;
+  final DisplayFormat displayFormat;
 
   @override
   Widget build(BuildContext context) {
@@ -308,17 +320,18 @@ class _TransitionGlyph extends StatelessWidget {
     final t = transition!;
     final parts = <String>[
       if (t.gapWarning ?? false)
-        'These two passages do not meet — ${_metres(t.gapM)} between the first '
-            "one's end and the next one's start (warns above "
-            '${(kDefaultGapWarnM / 1000).toStringAsFixed(1)} km).',
+        'These two passages do not meet — ${_gapDistance(t.gapM)} between the '
+            "first one's end and the next one's start (warns above "
+            '${displayFormat.formatDistance(kDefaultGapWarnM)}).',
       if (t.instructions != null) t.instructions!,
     ];
     if (parts.isEmpty) return 'Add transition instructions';
     return parts.join('\n\n');
   }
 
-  static String _metres(double? gapM) =>
-      gapM == null ? 'an unmeasured distance' : '${gapM.round()} m';
+  String _gapDistance(double? gapM) => gapM == null
+      ? 'an unmeasured distance'
+      : displayFormat.formatSmallLength(gapM);
 
   Widget _glyph(BuildContext context) {
     final c = PlotColors.of(context);
@@ -359,11 +372,11 @@ class _TransitionGlyph extends StatelessWidget {
     );
   }
 
-  static String _gapLabel(double? gapM) => gapM == null
+  String _gapLabel(double? gapM) => gapM == null
       ? 'GAP'
       : gapM >= 1000
-          ? 'GAP ${(gapM / 1000).toStringAsFixed(1)} km'
-          : 'GAP ${gapM.round()} m';
+          ? 'GAP ${displayFormat.formatDistance(gapM)}'
+          : 'GAP ${displayFormat.formatSmallLength(gapM)}';
 
   /// "Portage" is only the right word for a mode change into or out of
   /// paddling — any other mode change (e.g. ride to hike) is a generic

@@ -17,6 +17,7 @@ import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
 import '../../state/providers.dart';
+import '../../state/settings_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import 'conflict_dialog.dart';
 import 'error_states.dart';
@@ -46,11 +47,11 @@ Violation? _violationFor(List<Violation> violations, String attribute) {
 /// exists to satisfy). One line per attribute; `Violation.shortfall` is
 /// signed (negative under a minimum, positive over a maximum), which is all
 /// that's needed to say which side it missed on.
-String _violationsSummary(List<Violation> violations) {
+String _violationsSummary(List<Violation> violations, DisplayFormat format) {
   final lines = violations.map((v) {
     final side = v.shortfall < 0 ? 'short of the minimum' : 'over the maximum';
-    return '${v.attribute}: realized ${_formatMetric(v.attribute, v.realised)} — '
-        '${_formatMetric(v.attribute, v.shortfall.abs())} $side.';
+    return '${v.attribute}: realized ${_formatMetric(v.attribute, v.realised, format)} — '
+        '${_formatMetric(v.attribute, v.shortfall.abs(), format)} $side.';
   });
   return lines.join('\n');
 }
@@ -59,12 +60,17 @@ String _violationsSummary(List<Violation> violations) {
 /// `format_value`) — a fraction as a percentage, everything else with its
 /// raw unit — kept intentionally simple since this is a client-side echo of
 /// numbers the solve already returned, not a new source of truth.
-String _formatMetric(String attribute, double value) {
+String _formatMetric(String attribute, double value, DisplayFormat format) {
   if (attribute.endsWith('_frac') || attribute == 'traffic' || attribute == 'salience') {
     return '${(value * 100).toStringAsFixed(0)}%';
   }
+  // `distance_m` is a route length (miles/km); `climb_m` / `descent_m` are
+  // altitude (feet/metres) — issue #312.
+  if (attribute == 'distance_m') {
+    return format.formatDistance(value);
+  }
   if (attribute.endsWith('_m')) {
-    return '${value.toStringAsFixed(0)} m';
+    return format.formatElevation(value);
   }
   return value.toStringAsFixed(2);
 }
@@ -120,6 +126,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         .read(currentTripProvider.notifier)
         .updateSegmentWeights(widget.dayId, segment.id, w);
     final mode = ref.watch(dayPlanningModeProvider(widget.dayId));
+    final df = ref.watch(displayFormatProvider);
 
     return Container(
       width: 308,
@@ -201,6 +208,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                       BandRow(
                         key: ValueKey(band.attribute),
                         band: band,
+                        displayFormat: df,
                         violation: _violationFor(segment.violations, band.attribute),
                         onChanged: (updated) => ref.read(currentTripProvider.notifier).updateSegmentBands(
                               widget.dayId,
@@ -222,7 +230,8 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                     // half of A6.
                     if (segment.violations.isNotEmpty) ...[
                       const SizedBox(height: PlotSpacing.s2),
-                      ConflictBanner(explanation: _violationsSummary(segment.violations)),
+                      ConflictBanner(
+                          explanation: _violationsSummary(segment.violations, df)),
                     ],
                     Align(
                       alignment: Alignment.centerLeft,
@@ -647,13 +656,18 @@ class _TargetDistanceField extends ConsumerStatefulWidget {
 }
 
 class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
-  late final _controller = TextEditingController(
-    text: widget.segment.targetDistance == null
-        ? ''
-        : (widget.segment.targetDistance!.valueM / 1000).toStringAsFixed(1),
-  );
+  late final _controller = TextEditingController(text: _storedAsInput());
   String? _lastSegmentId;
   PlanningMode? _lastMode;
+
+  /// The stored target distance as a bare number in the Author's active
+  /// route-distance unit (issue #312) — km or miles — for pre-filling the
+  /// field. Empty when no target is set.
+  String _storedAsInput() {
+    final target = widget.segment.targetDistance;
+    if (target == null) return '';
+    return ref.read(displayFormatProvider).distanceInputValue(target.valueM);
+  }
 
   @override
   void dispose() {
@@ -664,6 +678,7 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
+    final df = ref.watch(displayFormatProvider);
     // Re-sync the field on a different segment, or on a compose->explore
     // transition — the latter because switching modes is the one non-typing
     // way this value changes underneath the field (FR119's backfill in
@@ -671,9 +686,7 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
     // coming out of compose, which shows no text field at all.
     if (_lastSegmentId != widget.segment.id ||
         (_lastMode == PlanningMode.compose && widget.mode == PlanningMode.explore)) {
-      _controller.text = widget.segment.targetDistance == null
-          ? ''
-          : (widget.segment.targetDistance!.valueM / 1000).toStringAsFixed(1);
+      _controller.text = _storedAsInput();
     }
     _lastSegmentId = widget.segment.id;
     _lastMode = widget.mode;
@@ -710,7 +723,7 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
                       style: PlotTypography.small(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: PlotSpacing.s1),
                   Text(
-                    distanceM == null ? '—' : '${(distanceM / 1000).toStringAsFixed(1)} km',
+                    distanceM == null ? '—' : df.formatDistance(distanceM),
                     style: PlotTypography.data(c.textPrimary).copyWith(fontSize: 18),
                   ),
                 ],
@@ -735,18 +748,17 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
           controller: _controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
-            labelText: 'Target distance (km)',
+            labelText: 'Target distance (${df.distanceUnitLabel})',
             isDense: true,
             border: const OutlineInputBorder(),
             helperText: 'The constraint Generate/Regenerate solves toward',
             helperStyle: PlotTypography.small(c.textMuted),
           ),
           onSubmitted: (text) {
-            final km = double.tryParse(text);
             ref.read(currentTripProvider.notifier).updateSegmentTargetDistance(
                   widget.dayId,
                   widget.segment.id,
-                  km == null ? null : km * 1000,
+                  df.parseDistanceToMetres(text),
                 );
           },
         ),
@@ -759,6 +771,7 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
           const SizedBox(height: PlotSpacing.s1),
           BandRow(
             band: Band(attribute: 'distance_m', min: targetDistance.minM, max: targetDistance.maxM),
+            displayFormat: df,
             violation: _violationFor(widget.segment.violations, 'distance_m'),
             onChanged: (updated) => ref
                 .read(currentTripProvider.notifier)
@@ -818,9 +831,16 @@ class BandRow extends StatefulWidget {
     required this.onChanged,
     this.onRemove,
     this.violation,
+    this.displayFormat = const DisplayFormat(),
   });
   final Band band;
   final ValueChanged<Band> onChanged;
+
+  /// Issue #312 — the Author's active units, used only to render the
+  /// "Missed by …" violation line (`distance_m` in miles/km, `climb_m` /
+  /// `descent_m` in feet/metres). The band's own min/max inputs stay in the
+  /// attribute's raw unit.
+  final DisplayFormat displayFormat;
 
   /// Null hides the remove control entirely — FR8/A8's distance band is
   /// never dropped from the explore search's constraint set, only widened
@@ -900,8 +920,8 @@ class _BandRowState extends State<BandRow> {
             if (violation != null) ...[
               const SizedBox(height: PlotSpacing.s1),
               Text(
-                'Missed by ${_formatMetric(widget.band.attribute, violation.shortfall.abs())} '
-                '(realized ${_formatMetric(widget.band.attribute, violation.realised)})',
+                'Missed by ${_formatMetric(widget.band.attribute, violation.shortfall.abs(), widget.displayFormat)} '
+                '(realized ${_formatMetric(widget.band.attribute, violation.realised, widget.displayFormat)})',
                 style: PlotTypography.small(c.danger),
               ),
             ],
@@ -1119,6 +1139,7 @@ class _ComposeDeviationPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
+    final df = ref.watch(displayFormatProvider);
     final realizedDistanceM = segment.metrics?.distanceM;
     if (segment.via.isEmpty || realizedDistanceM == null) {
       return Text(
@@ -1146,7 +1167,7 @@ class _ComposeDeviationPanel extends ConsumerWidget {
     final moving = _formatHoursMinutes(segment.metrics?.movingTimeS);
     final elapsed = _formatHoursMinutes(segment.metrics?.elapsedTimeS);
     final detailParts = [
-      if (climbM != null) '${climbM.toStringAsFixed(0)} m of climb',
+      if (climbM != null) '${df.formatElevation(climbM)} of climb',
       if (moving != null) '$moving moving',
       if (elapsed != null) '$elapsed elapsed',
     ];
@@ -1170,6 +1191,7 @@ class _ComposeDeviationPanel extends ConsumerWidget {
               placeCount: segment.via.length,
               realizedDistanceM: realizedDistanceM,
               band: band,
+              format: df,
             ),
             style: PlotTypography.body(statusColor).copyWith(fontWeight: FontWeight.w600),
           ),

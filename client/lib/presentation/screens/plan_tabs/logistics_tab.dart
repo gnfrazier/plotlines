@@ -22,6 +22,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../../domain/domain.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
+import '../../../state/settings_provider.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/day_removal_prompt.dart';
 import '../../widgets/plot_date_range_picker.dart';
@@ -301,7 +302,12 @@ class _DayCard extends ConsumerWidget {
               ],
             ),
             for (final segment in day.segments) ...[
-              _SegmentTile(day: day, segment: segment, onOpen: () => onOpenSegment(day.id, segment.id)),
+              _SegmentTile(
+                day: day,
+                segment: segment,
+                onOpen: () => onOpenSegment(day.id, segment.id),
+                displayFormat: ref.watch(displayFormatProvider),
+              ),
               if (!day.isRest) _AlternatesSection(dayId: day.id, segment: segment),
             ],
             if (!day.isRest) ...[
@@ -329,15 +335,21 @@ class _DayCard extends ConsumerWidget {
 }
 
 class _SegmentTile extends StatelessWidget {
-  const _SegmentTile({required this.day, required this.segment, required this.onOpen});
+  const _SegmentTile({
+    required this.day,
+    required this.segment,
+    required this.onOpen,
+    required this.displayFormat,
+  });
   final Day day;
   final Segment segment;
   final VoidCallback onOpen;
+  final DisplayFormat displayFormat;
 
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
-    final km = segment.metrics?.distanceM == null ? null : segment.metrics!.distanceM! / 1000;
+    final distanceM = segment.metrics?.distanceM;
     final stale = segment.solve?.stale ?? false;
     return PlotListTile(
       onTap: onOpen,
@@ -352,7 +364,8 @@ class _SegmentTile extends StatelessWidget {
       ),
       title: '${segment.mode} · ${segment.shape.replaceAll('_', ' ')}',
       subtitle: _segmentSubtitle(segment),
-      trailingMono: km == null ? '—' : '${km.toStringAsFixed(1)} km',
+      trailingMono:
+          distanceM == null ? '—' : displayFormat.formatDistance(distanceM),
       trailing: stale ? Icon(Icons.sync_problem, size: 16, color: c.warning) : null,
     );
   }
@@ -1029,6 +1042,7 @@ class _DayLimitEditor extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
+    final df = ref.watch(displayFormatProvider);
     final limitedModes = day.limits.keys.toList()..sort();
     final dayModes = {for (final s in day.segments) s.mode};
     final addable = [
@@ -1049,7 +1063,8 @@ class _DayLimitEditor extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Text('DAY LIMITS (km)', style: PlotTypography.data(c.textMuted)),
+              Text('DAY LIMITS (${df.distanceUnitLabel})',
+                  style: PlotTypography.data(c.textMuted)),
               const Spacer(),
               if (addable.isNotEmpty)
                 PopupMenuButton<String>(
@@ -1087,10 +1102,19 @@ class _DayLimitRow extends ConsumerStatefulWidget {
 }
 
 class _DayLimitRowState extends ConsumerState<_DayLimitRow> {
-  late final _min = TextEditingController(text: _kmText(widget.day.limits[widget.mode]?.minM));
-  late final _max = TextEditingController(text: _kmText(widget.day.limits[widget.mode]?.maxM));
+  late final _min = TextEditingController(
+      text: _limitAsInput(widget.day.limits[widget.mode]?.minM));
+  late final _max = TextEditingController(
+      text: _limitAsInput(widget.day.limits[widget.mode]?.maxM));
 
-  String _kmText(double? metres) => metres == null ? '' : (metres / 1000).toStringAsFixed(0);
+  /// A stored day-limit as a bare number in the Author's active route unit
+  /// (issue #312) — whole km, or miles to one decimal so the value survives
+  /// the round-trip [_emit] makes on edit.
+  String _limitAsInput(double? metres) {
+    if (metres == null) return '';
+    final df = ref.read(displayFormatProvider);
+    return df.distanceInputValue(metres, fractionDigits: df.useMiles ? 1 : 0);
+  }
 
   @override
   void dispose() {
@@ -1100,13 +1124,12 @@ class _DayLimitRowState extends ConsumerState<_DayLimitRow> {
   }
 
   void _emit() {
-    final minKm = double.tryParse(_min.text);
-    final maxKm = double.tryParse(_max.text);
+    final df = ref.read(displayFormatProvider);
     ref.read(currentTripProvider.notifier).updateDayLimits(widget.day.id, {
       ...widget.day.limits,
       widget.mode: DayLimit(
-        minM: minKm == null ? null : minKm * 1000,
-        maxM: maxKm == null ? null : maxKm * 1000,
+        minM: df.parseDistanceToMetres(_min.text),
+        maxM: df.parseDistanceToMetres(_max.text),
       ),
     });
   }

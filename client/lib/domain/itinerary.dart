@@ -29,6 +29,7 @@ library;
 
 import 'day.dart';
 import 'day_timeline.dart';
+import 'display_format.dart';
 import 'travel_mode.dart';
 import 'trip.dart';
 
@@ -76,6 +77,7 @@ Itinerary buildItinerary(
   Trip trip, {
   Set<String>? attendedDayIds,
   String? characterLabel,
+  DisplayFormat format = const DisplayFormat(),
 }) {
   final days = attendedDayIds == null
       ? trip.days
@@ -83,16 +85,16 @@ Itinerary buildItinerary(
   return Itinerary(
     title: characterLabel == null ? trip.title : '${trip.title} — $characterLabel',
     isIndividual: attendedDayIds != null,
-    days: [for (final day in days) _buildDayEntry(day)],
+    days: [for (final day in days) _buildDayEntry(day, format)],
   );
 }
 
-ItineraryDayEntry _buildDayEntry(Day day) {
+ItineraryDayEntry _buildDayEntry(Day day, DisplayFormat format) {
   final heading = 'Day ${day.index}${day.title != null ? ' — ${day.title}' : ''}';
   return ItineraryDayEntry(
     day: day,
     heading: heading,
-    paragraphs: day.isRest ? [_restDayAccount(day)] : _routeDayAccount(day),
+    paragraphs: day.isRest ? [_restDayAccount(day)] : _routeDayAccount(day, format),
   );
 }
 
@@ -105,7 +107,7 @@ String _restDayAccount(Day day) {
   return sentences.join(' ');
 }
 
-List<String> _routeDayAccount(Day day) {
+List<String> _routeDayAccount(Day day, DisplayFormat format) {
   final paragraphs = <String>[];
 
   final legs = <String>[];
@@ -114,7 +116,7 @@ List<String> _routeDayAccount(Day day) {
       case PassageEntry():
         final distanceM = entry.passage.metrics?.distanceM;
         final distanceText =
-            distanceM == null ? '' : ' (${(distanceM / 1000).toStringAsFixed(1)} km)';
+            distanceM == null ? '' : ' (${format.formatDistance(distanceM)})';
         legs.add('${travelModeLabel(entry.mode)}$distanceText');
       case ModeChangeEntry(:final isModeChange, :final toMode) when isModeChange:
         legs.add('switch to ${travelModeLabel(toMode!)}');

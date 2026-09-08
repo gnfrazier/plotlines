@@ -276,29 +276,30 @@ double? _bandableMetricValue(RouteMetrics metrics, String attribute) {
 
 /// FR118's quoted editing-decision headline — *"these seven plot points
 /// make a 94-mile day; your band was 55–70"* — built from the segment
-/// actually in front of the Author. Reports in km, matching this rail's
-/// other realized-distance readout (`_TargetDistanceField`'s compose
-/// branch in `weights_rail.dart`) rather than the AC's illustrative miles —
-/// this app's distance prose is km throughout, and A0a is not the place to
-/// introduce a second unit system.
+/// actually in front of the Author. Distances render in the Author's active
+/// unit ([format], from `displayFormatProvider`) so this line agrees with
+/// the rail's other realized-distance readouts (issue #312) rather than
+/// being fixed to km.
 String composeDeviationHeadline({
   required int placeCount,
   required double realizedDistanceM,
+  required DisplayFormat format,
   Band? band,
 }) {
-  final km = (realizedDistanceM / 1000).toStringAsFixed(1);
+  final distance = format.formatDistance(realizedDistanceM);
   final noun = placeCount == 1 ? 'plot point' : 'plot points';
-  final base = 'These $placeCount $noun make a $km km day.';
+  final base = 'These $placeCount $noun make a $distance day.';
   if (band == null) return base;
-  return '$base Your band was ${_describeBandKm(band)}.';
+  return '$base Your band was ${_describeBand(band, format)}.';
 }
 
-String _describeBandKm(Band band) {
-  final min = band.min == null ? null : (band.min! / 1000).toStringAsFixed(1);
-  final max = band.max == null ? null : (band.max! / 1000).toStringAsFixed(1);
-  if (min != null && max != null) return '$min–$max km';
-  if (min != null) return 'at least $min km';
-  return 'at most $max km';
+String _describeBand(Band band, DisplayFormat format) {
+  final min = band.min == null ? null : format.distanceInputValue(band.min!);
+  final max = band.max == null ? null : format.distanceInputValue(band.max!);
+  final unit = format.distanceUnitLabel;
+  if (min != null && max != null) return '$min–$max $unit';
+  if (min != null) return 'at least $min $unit';
+  return 'at most $max $unit';
 }
 
 /// FR118/A0a — "widen the band" is one of the deviation panel's five

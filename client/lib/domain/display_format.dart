@@ -151,4 +151,86 @@ class DisplayFormat {
     final suffix = temperatureUnit == TemperatureUnit.fahrenheit ? '°F' : '°C';
     return '${temperatureValue(celsius).round()}$suffix';
   }
+
+  // --- Distance & length (K5 / FR79 / issue #312) ------------------------
+  //
+  // Three sub-units, decided here once rather than at each call site:
+  //
+  //  * route / day distance   → miles or kilometres, one decimal
+  //  * short lengths          → feet or metres, whole units
+  //    (a narration trigger radius, a between-passages gap, a snap tolerance)
+  //  * altitude / climb       → feet or metres, whole units — never yards,
+  //    and never metres-under-imperial
+  //
+  // Every method is canonical SI metres in, a display string (or a bare
+  // display number) out. Nothing here is ever stored, exported, or digested
+  // — SI metres remain the sole persisted form (ARCH D49). Parsing back from
+  // an Author-typed field is [parseDistanceToMetres], so a value typed in
+  // miles round-trips to metres before it reaches the payload.
+
+  static const double _metresPerMile = 1609.344;
+  static const double _feetPerMetre = 3.28084;
+
+  /// `mi` under imperial, `km` under metric — for a unit-aware field label
+  /// or suffix (`Target distance (km)` → `Target distance (mi)`).
+  String get distanceUnitLabel => useMiles ? 'mi' : 'km';
+
+  /// `ft` under imperial, `m` under metric — for short lengths and altitude.
+  String get smallLengthUnitLabel => useMiles ? 'ft' : 'm';
+
+  /// Canonical metres → the reader's route/day-distance unit, as a number
+  /// (no rounding, no label).
+  double distanceValue(double metres) =>
+      useMiles ? metres / _metresPerMile : metres / 1000;
+
+  /// Canonical metres → a route/day distance in the reader's unit, e.g.
+  /// `17.8 km` / `11.1 mi`. One decimal by default.
+  String formatDistance(double metres, {int fractionDigits = 1}) =>
+      '${distanceValue(metres).toStringAsFixed(fractionDigits)} $distanceUnitLabel';
+
+  /// Canonical metres → a bare route/day-distance number in the reader's
+  /// unit, no label — for pre-filling a text field whose unit is shown
+  /// separately.
+  String distanceInputValue(double metres, {int fractionDigits = 1}) =>
+      distanceValue(metres).toStringAsFixed(fractionDigits);
+
+  /// Canonical metres → the reader's short-length unit (feet / metres), as a
+  /// number.
+  double smallLengthValue(double metres) =>
+      useMiles ? metres * _feetPerMetre : metres;
+
+  /// Canonical metres → a short length in the reader's unit, e.g. `120 ft` /
+  /// `37 m`. Whole units by default.
+  String formatSmallLength(double metres, {int fractionDigits = 0}) =>
+      '${smallLengthValue(metres).toStringAsFixed(fractionDigits)} $smallLengthUnitLabel';
+
+  /// Canonical metres of altitude / climb → the reader's unit (feet /
+  /// metres), as a number. Distinct from [smallLengthValue] only in intent —
+  /// altitude is never yards and never miles/km.
+  double elevationValue(double metres) =>
+      useMiles ? metres * _feetPerMetre : metres;
+
+  /// Canonical metres of altitude / climb → a string in the reader's unit,
+  /// e.g. `1200 ft` / `366 m`. Whole units by default; callers add any `↑`
+  /// or `+` marker themselves.
+  String formatElevation(double metres, {int fractionDigits = 0}) =>
+      '${elevationValue(metres).toStringAsFixed(fractionDigits)} $smallLengthUnitLabel';
+
+  /// An Author-typed route/day distance in the active unit → canonical
+  /// metres, so the value reaching the payload is always SI. Returns null
+  /// when [text] is not a number.
+  double? parseDistanceToMetres(String text) {
+    final v = double.tryParse(text.trim());
+    if (v == null) return null;
+    return useMiles ? v * _metresPerMile : v * 1000;
+  }
+
+  /// An Author-typed short length in the active unit (feet / metres) →
+  /// canonical metres. The inverse of [smallLengthValue]; returns null when
+  /// [text] is not a number.
+  double? parseSmallLengthToMetres(String text) {
+    final v = double.tryParse(text.trim());
+    if (v == null) return null;
+    return useMiles ? v / _feetPerMetre : v;
+  }
 }
