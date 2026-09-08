@@ -29,6 +29,25 @@ final selectedSegmentProvider = StateProvider<(String dayId, String segmentId)?>
   return null;
 }
 
+/// Issue #323 — the [selectedSegmentProvider] value a day switch implies.
+/// The map, the planning rail and the weights rail all read the *selected
+/// segment*, never the active day, so selecting a day without also moving
+/// the selection left whatever was last tapped on the map — Day 2's line
+/// still drawn while Day 1 is the active day. Selecting a day now selects
+/// that day's first segment; a day with no segments to select (a rest day,
+/// or a route day not yet solved) clears the selection instead, so no other
+/// day's polyline is left standing over it. One user action, one coherent
+/// state. Returns `null` for an unknown [dayId] as well — same "nothing to
+/// select" outcome.
+(String dayId, String segmentId)? daySelection(Trip trip, String dayId) {
+  for (final d in trip.days) {
+    if (d.id != dayId) continue;
+    if (d.segments.isEmpty) return null;
+    return (d.id, d.segments.first.id);
+  }
+  return null;
+}
+
 /// FR7/A7 — the shape a new passage starts on, until the Author picks
 /// otherwise: loop, because it is the one shape that needs neither a
 /// destination nor even a fixed turnaround, only a start and a target

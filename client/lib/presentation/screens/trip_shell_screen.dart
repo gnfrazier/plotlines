@@ -69,6 +69,16 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
     final c = PlotColors.of(context);
     final trip = ref.watch(currentTripProvider);
     _syncActiveDay(trip);
+    // Issue #323 — generate/regenerate and a day switch both move
+    // `selectedSegmentProvider` now. `_activeDayId` drives the day timeline
+    // strip and the Layers tab, so pull it along with the selection whenever
+    // the selection points at a real day: a route solved for Day 2 shouldn't
+    // leave the strip highlighting Day 1. A cleared selection (a day with no
+    // segments) leaves `_activeDayId` on whatever `onSelectDay` just set.
+    final selected = ref.watch(selectedSegmentProvider);
+    if (selected != null && trip.days.any((d) => d.id == selected.$1)) {
+      _activeDayId = selected.$1;
+    }
     _maybeRaiseSyncAlerts(trip);
 
     return Scaffold(
@@ -119,7 +129,13 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
             builder: (_) => RouteTab(
               trip: trip,
               activeDayId: _activeDayId,
-              onSelectDay: (id) => setState(() => _activeDayId = id),
+              // Issue #323 — selecting a day moves the map/rails with it:
+              // select the day's first segment, or clear the selection for a
+              // day with none rather than leave another day's line drawn.
+              onSelectDay: (id) {
+                setState(() => _activeDayId = id);
+                ref.read(selectedSegmentProvider.notifier).state = daySelection(trip, id);
+              },
             ),
           ),
           _LazyTab(

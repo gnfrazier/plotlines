@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/domain/domain.dart';
+import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart';
 import 'package:plotlines_client/presentation/screens/trip_shell_screen.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
@@ -128,6 +129,101 @@ void main() {
     // Back to Route — the rail should still reflect the selected segment.
     await _switchTab(tester, 'ROUTE');
     expect(find.text('ROUTE WEIGHTS'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  // Issue #323 — selecting a day used to move only the day strip / Layers
+  // tab (`_activeDayId`); the map reads `selectedSegmentProvider`, which
+  // nothing but a segment tap ever wrote, so another day's line stayed
+  // drawn. Both assertions below fail against the pre-#323 code.
+  testWidgets('selecting a day selects that day\'s first segment and the map follows',
+      (tester) async {
+    final day1 = Day(id: 'day-1', index: 1, segments: [
+      Segment(
+        id: 'seg-1',
+        mode: 'cycling',
+        shape: 'point_to_point',
+        start: const [-105.27, 40.02],
+        end: const [-105.20, 40.05],
+        geometry: LineString(coordinates: const [
+          [-105.27, 40.02],
+          [-105.20, 40.05],
+        ]),
+        metrics: RouteMetrics(distanceM: 8000),
+      ),
+    ]);
+    final day2 = Day(id: 'day-2', index: 2, segments: [
+      Segment(
+        id: 'seg-2',
+        mode: 'cycling',
+        shape: 'point_to_point',
+        start: const [-105.10, 40.10],
+        end: const [-105.00, 40.20],
+        geometry: LineString(coordinates: const [
+          [-105.10, 40.10],
+          [-105.00, 40.20],
+        ]),
+        metrics: RouteMetrics(distanceM: 15000),
+      ),
+    ]);
+    final day3 = Day(id: 'day-3', index: 3, kind: 'rest');
+    final trip = Trip(
+      id: 'trip-1',
+      title: 'Multi-day',
+      createdAt: '2026-09-08T00:00:00Z',
+      updatedAt: '2026-09-08T00:00:00Z',
+      days: [day1, day2, day3],
+    );
+
+    // A desktop-width surface — the Route tab is a three-column Row (weights
+    // rail ~300px + map + metrics rail 308px), and the day chip strip is a
+    // lazy horizontal ListView, so at the 800px default the third day chip
+    // is never built.
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final container = ProviderContainer(overrides: [
+      sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+      appDatabaseProvider.overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
+      currentTripProvider.overrideWith((ref) => CurrentTripNotifier(ref)..open(trip)),
+      // Start on Day 2's segment — the "another day is drawn" starting state.
+      selectedSegmentProvider.overrideWith((ref) => ('day-2', 'seg-2')),
+    ]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: TripShellScreen()),
+      ),
+    );
+    await tester.pump();
+
+    List<List<double>> mapPolyline() =>
+        tester.widget<TapToPickMap>(find.byType(TapToPickMap)).polyline;
+
+    // Precondition: Day 2's line is what's on the map.
+    expect(mapPolyline(), day2.segments.single.geometry!.coordinates);
+
+    // Select Day 1.
+    await tester.tap(find.text('DAY 1'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(container.read(selectedSegmentProvider), ('day-1', 'seg-1'));
+    expect(mapPolyline(), day1.segments.single.geometry!.coordinates);
+    expect(tester.takeException(), isNull);
+
+    // Select the rest day — no segment to select, so the selection clears
+    // rather than leaving Day 1's line standing.
+    await tester.tap(find.text('DAY 3 · REST'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(container.read(selectedSegmentProvider), isNull);
+    expect(mapPolyline(), isEmpty);
     expect(tester.takeException(), isNull);
   });
 }
