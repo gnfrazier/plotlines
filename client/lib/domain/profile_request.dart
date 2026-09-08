@@ -188,8 +188,24 @@ enum ConsentStatus {
   requested,
   granted,
   declined,
-  volunteered;
+  volunteered,
+
+  /// D4b (FR78a) — the Author recorded a value for this field themselves,
+  /// from something they already held outside the app, and the Character has
+  /// said nothing about it yet. This is a **provenance**, not a consent
+  /// state: the request is still outstanding ([requestOutstanding] is true),
+  /// the value never reads as [granted], and a Character response of any kind
+  /// supersedes it (see [resolveStatus] — the grant/decline/volunteer checks
+  /// all run first). Author-entered values live in `roster.dart`
+  /// ([AuthorEnteredValue]); this file only classifies them.
+  authorEntered;
 }
+
+/// D4b's AC — "Author-entered values ... never satisfy a pending request; the
+/// request stays outstanding." True for a field that was requested and has no
+/// Character response, whether or not the Author has filled a value in.
+bool requestOutstanding(ConsentStatus status) =>
+    status == ConsentStatus.requested || status == ConsentStatus.authorEntered;
 
 /// The single decision point "requesting never auto-grants" runs through:
 /// a field only ever reads [ConsentStatus.granted] when [response] carries
@@ -201,13 +217,19 @@ enum ConsentStatus {
 ConsentStatus resolveStatus(
   FieldRequestSet request,
   CharacterResponse response,
-  String fieldId,
-) {
+  String fieldId, {
+  Set<String> authorEnteredFieldIds = const {},
+}) {
   if (response.volunteeredFieldIds.contains(fieldId)) return ConsentStatus.volunteered;
   if (!request.isRequested(fieldId)) return ConsentStatus.notRequested;
   final grant = response.grants[fieldId];
   if (grant == true) return ConsentStatus.granted;
   if (grant == false) return ConsentStatus.declined;
+  // D4b — the Character has said nothing, so if the Author recorded a value
+  // themselves it shows here. It never reaches this line ahead of a real
+  // response: grant/decline/volunteer are all checked above, so a Character
+  // response supersedes the Author's entry rather than merging with it.
+  if (authorEnteredFieldIds.contains(fieldId)) return ConsentStatus.authorEntered;
   return ConsentStatus.requested;
 }
 
@@ -226,13 +248,20 @@ List<CharacterFieldStatus> resolveCharacterStatuses(
   FieldRequestSet request,
   CharacterResponse response, {
   List<ProfileField> catalog = defaultProfileFieldCatalog,
+  Set<String> authorEnteredFieldIds = const {},
 }) {
+  // An Author may only record a value for a field in the request set, so an
+  // author-entered field is always already covered by `request.isRequested`.
   final requestedOrVolunteered = <ProfileField>[
     for (final f in catalog)
       if (request.isRequested(f.id) || response.volunteeredFieldIds.contains(f.id)) f,
   ];
   return [
     for (final f in requestedOrVolunteered)
-      CharacterFieldStatus(field: f, status: resolveStatus(request, response, f.id)),
+      CharacterFieldStatus(
+        field: f,
+        status: resolveStatus(request, response, f.id,
+            authorEnteredFieldIds: authorEnteredFieldIds),
+      ),
   ];
 }

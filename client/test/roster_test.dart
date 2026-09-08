@@ -32,6 +32,20 @@ TripRoster _roster() => const TripRoster(
         AuthorNote(subjectCharacterId: 'ann', body: 'Strong on scrambly ground.', updatedAt: '2024-06-01T00:00:00.000Z'),
         AuthorNote(subjectCharacterId: 'cy', body: 'New to multi-day.', updatedAt: '2025-01-15T00:00:00.000Z'),
       ],
+      authorEnteredValues: [
+        AuthorEnteredValue(
+          subjectCharacterId: 'ann',
+          fieldId: 'phone',
+          value: '555-0100',
+          updatedAt: '2025-06-01T00:00:00.000Z',
+        ),
+        AuthorEnteredValue(
+          subjectCharacterId: 'cy',
+          fieldId: 'emergency_contact',
+          value: 'Dana, 555-0199',
+          updatedAt: '2025-06-02T00:00:00.000Z',
+        ),
+      ],
     );
 
 void main() {
@@ -50,6 +64,10 @@ void main() {
     expect(after.meals.firstWhere((m) => m.id == 'm1').dayId, 'd1');
     expect(after.authorNotes.map((n) => n.subjectCharacterId), ['ann', 'cy']);
     expect(after.authorNotes.first.updatedAt, '2024-06-01T00:00:00.000Z');
+    // D4b (FR78a) — author-entered values round-trip with zero loss too.
+    expect(after.authorEnteredValues.map((v) => v.fieldId), ['phone', 'emergency_contact']);
+    expect(after.authorEnteredValues.first.value, '555-0100');
+    expect(after.authorEnteredValues.first.updatedAt, '2025-06-01T00:00:00.000Z');
   });
 
   test('empty roster serialises to {} and back', () {
@@ -62,6 +80,13 @@ void main() {
       final kept = _roster().retainingPeople({'ann', 'bo'});
       expect(kept.entries.map((e) => e.characterId), ['ann', 'bo']);
       expect(kept.authorNotes.map((n) => n.subjectCharacterId), ['ann']);
+    });
+
+    test('drops author-entered values for absent people (FR74b / D6a)', () {
+      final kept = _roster().retainingPeople({'ann', 'bo'});
+      expect(kept.authorEnteredValues.map((v) => v.subjectCharacterId), ['ann']);
+      // cy is gone, so is the value the Author entered about cy.
+      expect(kept.authorEnteredValues.any((v) => v.subjectCharacterId == 'cy'), isFalse);
     });
 
     test('strips a dropped person from a shared-gear line, keeps the line for whoever remains', () {
@@ -79,6 +104,11 @@ void main() {
 
     test('retainingPeople({}) empties the whole roster', () {
       expect(_roster().retainingPeople(const {}).isEmpty, isTrue);
+    });
+
+    test('withoutPositionOverrides keeps author-entered values untouched', () {
+      final flat = _roster().withoutPositionOverrides();
+      expect(flat.authorEnteredValues.map((v) => v.fieldId), ['phone', 'emergency_contact']);
     });
 
     test('day/passage group overrides are itinerary-keyed, not people-keyed — untouched', () {

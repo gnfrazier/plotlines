@@ -44,6 +44,20 @@ TripRoster _sourceRoster() => const TripRoster(
       authorNotes: [
         AuthorNote(subjectCharacterId: 'ann', body: 'Strong scrambler.', updatedAt: '2024-06-01T00:00:00.000Z'),
       ],
+      authorEnteredValues: [
+        AuthorEnteredValue(
+          subjectCharacterId: 'ann',
+          fieldId: 'phone',
+          value: '555-0100',
+          updatedAt: '2025-06-01T00:00:00.000Z',
+        ),
+        AuthorEnteredValue(
+          subjectCharacterId: 'bo',
+          fieldId: 'emergency_contact',
+          value: 'Kim, 555-0177',
+          updatedAt: '2025-06-02T00:00:00.000Z',
+        ),
+      ],
     );
 
 CloneOutcome _clone(CloneScope scope, {CloneParts parts = const CloneParts()}) => cloneTrip(
@@ -63,6 +77,9 @@ void main() {
       expect(m.carried, contains(startsWith('The authored trip')));
       expect(m.carried, contains('Roster membership'));
       expect(m.carried, contains('Group and sub-group assignments'));
+      // D4b (FR78a) — the Author's own recorded values are on the carried
+      // list, stated before the clone runs; they are not a grant.
+      expect(m.carried, contains(startsWith('Values you entered yourself')));
       expect(m.runsTripInitiation, isFalse);
     });
 
@@ -154,6 +171,12 @@ void main() {
       expect(out.roster.authorNotes.single.body, 'Strong scrambler.');
       // D6 — Author-note updated_at is preserved verbatim, never bumped.
       expect(out.roster.authorNotes.single.updatedAt, '2024-06-01T00:00:00.000Z');
+      // D4b (FR78a) — author-entered values carry with the roster, updated_at
+      // verbatim, and are not consent.
+      expect(out.roster.authorEnteredValues.map((v) => v.fieldId),
+          ['phone', 'emergency_contact']);
+      expect(out.roster.authorEnteredValues.first.value, '555-0100');
+      expect(out.roster.authorEnteredValues.first.updatedAt, '2025-06-01T00:00:00.000Z');
     });
 
     test('does not mutate the source trip or roster', () {
@@ -210,6 +233,7 @@ void main() {
       expect(out.roster.gear, isEmpty);
       expect(out.roster.meals, isEmpty);
       expect(out.roster.authorNotes, isEmpty);
+      expect(out.roster.authorEnteredValues, isEmpty);
     });
   });
 
@@ -240,6 +264,9 @@ void main() {
         final out = _clone(scope, parts: parts);
         final rosterCarried = out.roster.entries.isNotEmpty;
         expect(out.roster.authorNotes.isNotEmpty, rosterCarried,
+            reason: 'scope=$scope parts=(${parts.roster},${parts.authoredTrip})');
+        // D4b — author-entered values are present on exactly the same scopes.
+        expect(out.roster.authorEnteredValues.isNotEmpty, rosterCarried,
             reason: 'scope=$scope parts=(${parts.roster},${parts.authoredTrip})');
       }
     }

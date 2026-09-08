@@ -15,7 +15,9 @@
 //     clone copies it in full via `toJson()`/`fromJson`, swapping only id,
 //     title, and timestamps.
 //   * `TripRoster` — membership, group assignments, shared gear, meal
-//     responsibilities, Author notes (`roster.dart`).
+//     responsibilities, Author notes, and Author-entered profile values
+//     (`roster.dart`). The last two are authored data the Author *holds*
+//     about a person, not consent — a grant is still never carried.
 //   * `declaredModes` — carried with the authored trip; re-declared at trip
 //     initiation when the authored trip is not in scope (FR144).
 //
@@ -118,6 +120,9 @@ CloneManifest describeClone(CloneScope scope, {CloneParts parts = const ClonePar
       'Group and sub-group assignments',
       'Shared gear and meal responsibilities',
       'Author notes (they follow the person, not the trip)',
+      // D4b (FR78a) — the Author's own record of a field they already held.
+      // Not a grant: consent is still never carried (see notCarried).
+      'Values you entered yourself for a Character\'s profile fields',
     ],
   ];
 
@@ -166,10 +171,10 @@ class CloneOutcome {
 ///     `updated_at` replaced;
 ///   * authored trip out of scope → a blank [Trip] (no days, anchors,
 ///     duration, or weights), and [CloneOutcome.runsTripInitiation] is true;
-///   * roster in scope → membership, groups, gear, meals, and Author notes
-///     are carried (Author-note `updated_at` verbatim); if the authored trip
-///     is *not* also in scope, per-day / per-passage group overrides are
-///     cleared (nothing to point at);
+///   * roster in scope → membership, groups, gear, meals, Author notes, and
+///     Author-entered profile values are carried (their `updated_at`
+///     verbatim); if the authored trip is *not* also in scope, per-day /
+///     per-passage group overrides are cleared (nothing to point at);
 ///   * roster out of scope → [TripRoster.empty]; everything that was assigned
 ///     to a person is gone with them, not dangling.
 ///
