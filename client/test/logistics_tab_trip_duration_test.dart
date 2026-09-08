@@ -15,9 +15,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/logistics_tab.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'support/display_units.dart';
 
 Future<ProviderContainer> _pump(WidgetTester tester, List<Day> days, {TripDuration? duration}) async {
-  final container = ProviderContainer();
+  final container = ProviderContainer(overrides: [metricUnits()]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(
         Trip(

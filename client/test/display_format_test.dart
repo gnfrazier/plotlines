@@ -121,6 +121,47 @@ void main() {
     });
   });
 
+  group('distance & length are render-time transforms on canonical metres (#312)', () {
+    const metric = DisplayFormat();
+    const imperial = DisplayFormat(useMiles: true);
+
+    test('route/day distance: km passes through, miles convert, one decimal', () {
+      expect(metric.formatDistance(17800), '17.8 km');
+      expect(imperial.formatDistance(17800), '11.1 mi'); // 11.06 -> 11.1
+      expect(metric.distanceUnitLabel, 'km');
+      expect(imperial.distanceUnitLabel, 'mi');
+      expect(metric.formatDistance(42000, fractionDigits: 0), '42 km');
+    });
+
+    test('short lengths: feet under imperial, metres under metric, whole units', () {
+      expect(metric.formatSmallLength(120), '120 m');
+      expect(imperial.formatSmallLength(120), '394 ft'); // 393.7 -> 394
+      expect(metric.smallLengthUnitLabel, 'm');
+      expect(imperial.smallLengthUnitLabel, 'ft');
+    });
+
+    test('altitude: feet under imperial, never metres-under-imperial', () {
+      expect(metric.formatElevation(366), '366 m');
+      expect(imperial.formatElevation(366), '1201 ft'); // 1200.8 -> 1201
+    });
+
+    test('parseDistanceToMetres inverts the active route unit', () {
+      expect(metric.parseDistanceToMetres('40'), 40000);
+      expect(imperial.parseDistanceToMetres('40'), closeTo(64373.76, 1e-6));
+      expect(metric.parseDistanceToMetres('not a number'), isNull);
+    });
+
+    test('parseSmallLengthToMetres inverts the active short-length unit', () {
+      expect(metric.parseSmallLengthToMetres('150'), 150);
+      expect(imperial.parseSmallLengthToMetres('150'), closeTo(45.72, 1e-3));
+    });
+
+    test('a value typed in one unit round-trips through parse+format', () {
+      final metres = imperial.parseDistanceToMetres('26.2')!; // a marathon
+      expect(imperial.distanceInputValue(metres), '26.2');
+    });
+  });
+
   test('formatDateTime composes the chosen date and time forms', () {
     final f = DisplayFormat(
       datePref: DateFormatPref.monDayYear,

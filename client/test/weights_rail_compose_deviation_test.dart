@@ -19,6 +19,7 @@ import 'package:plotlines_client/presentation/widgets/weights_rail.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'package:plotlines_client/state/providers.dart';
+import 'support/display_units.dart';
 
 class _FakeSidecarManager extends SidecarManager {
   @override
@@ -108,10 +109,12 @@ Finder _inWeightsRail(Finder matching) =>
     find.descendant(of: find.byType(WeightsRail), matching: matching);
 
 void main() {
-  Future<void> pumpShell(WidgetTester tester, {Trip? trip, SidecarManager? sidecar}) async {
+  Future<void> pumpShell(WidgetTester tester,
+      {Trip? trip, SidecarManager? sidecar, bool imperial = false}) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          imperial ? imperialUnits() : metricUnits(),
           sidecarManagerProvider.overrideWith((ref) => sidecar ?? _FakeSidecarManager()),
           appDatabaseProvider.overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
           currentTripProvider
@@ -142,6 +145,20 @@ void main() {
     // Never routed through A6's conflict/error surface.
     expect(find.text('Diagnose'), findsNothing);
     expect(find.byTooltip('Conflict'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the editing-decision headline reads in miles under imperial (#312)',
+      (tester) async {
+    await pumpShell(tester, imperial: true);
+    await switchToCompose(tester);
+
+    expect(
+      _inWeightsRail(find.text(
+        'These 2 plot points make a 93.8 mi day. Your band was 54.7–70.2 mi.',
+      )),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 

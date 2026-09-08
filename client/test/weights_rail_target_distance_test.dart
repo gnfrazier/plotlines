@@ -11,6 +11,7 @@ import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/weights_rail.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
+import 'support/display_units.dart';
 
 Segment _segment({required String shape, TargetDistance? targetDistance}) => Segment(
       id: 'seg-1',
@@ -33,10 +34,12 @@ Trip _trip(Segment segment) {
   );
 }
 
-Future<void> _pump(WidgetTester tester, Segment segment, {PlanningMode mode = PlanningMode.explore}) async {
+Future<void> _pump(WidgetTester tester, Segment segment,
+    {PlanningMode mode = PlanningMode.explore, bool imperial = false}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        imperial ? imperialUnits() : metricUnits(),
         currentTripProvider.overrideWith((ref) => CurrentTripNotifier(ref)..open(_trip(segment))),
         dayPlanningModeProvider('day-1').overrideWith((ref) => mode),
       ],
@@ -132,5 +135,40 @@ void main() {
         expect(find.text('Target distance (km)'), findsNothing);
       });
     }
+  });
+
+  // Issue #312 — the display-unit preference reaches this field's label and
+  // its parsed input, while the stored value stays canonical metres.
+  group('imperial preference', () {
+    testWidgets('the label carries the active unit', (tester) async {
+      await _pump(tester, _segment(shape: 'loop'), imperial: true);
+
+      expect(find.text('Target distance (mi)'), findsOneWidget);
+      expect(find.text('Target distance (km)'), findsNothing);
+    });
+
+    testWidgets('a stored value pre-fills in miles', (tester) async {
+      await _pump(
+        tester,
+        _segment(shape: 'loop', targetDistance: TargetDistance(valueM: 32186.88)),
+        imperial: true,
+      );
+
+      expect(find.widgetWithText(TextField, '20.0'), findsOneWidget); // 20 mi
+    });
+
+    testWidgets('a value typed in miles is stored as canonical metres', (tester) async {
+      await _pump(tester, _segment(shape: 'loop'), imperial: true);
+
+      await tester.enterText(find.byType(TextField), '20');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      final container =
+          ProviderScope.containerOf(tester.element(find.byType(WeightsRail)));
+      final stored =
+          container.read(currentTripProvider).days.single.segments.single.targetDistance;
+      expect(stored!.valueM, closeTo(32186.88, 1e-3)); // 20 mi in metres, not 20000
+    });
   });
 }

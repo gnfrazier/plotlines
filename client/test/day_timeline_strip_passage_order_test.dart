@@ -14,6 +14,7 @@ import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/day_timeline_strip.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
+import 'support/display_units.dart';
 
 Segment _passage(String id, {String mode = 'cycling', Coord? start, Coord? end}) =>
     Segment(
@@ -29,8 +30,9 @@ Segment _passage(String id, {String mode = 'cycling', Coord? start, Coord? end})
 /// write through it — a fixture trip passed in as a widget argument alone
 /// would let a reorder "pass" without any state actually moving.
 Future<ProviderContainer> _pump(WidgetTester tester, List<Segment> segments,
-    {String? selectedId}) async {
-  final container = ProviderContainer();
+    {String? selectedId, bool imperial = false}) async {
+  final container =
+      ProviderContainer(overrides: [imperial ? imperialUnits() : metricUnits()]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(
         Trip(
@@ -85,6 +87,27 @@ void main() {
       _passage('b', start: const [-105.25, 40.00], end: const [-105.20, 40.00]),
     ]);
     expect(find.text('GAP 4.3 KM'), findsOneWidget);
+  });
+
+  testWidgets('the gap badge follows the display-unit preference (#312)', (tester) async {
+    await _pump(tester, [
+      _passage('a', start: const [-105.30, 40.00], end: const [-105.30, 40.00]),
+      _passage('b', start: const [-105.29, 40.00], end: const [-105.25, 40.00]),
+    ], imperial: true);
+
+    // ~852 m short gap -> feet under imperial, still uppercased by PlotBadge.
+    expect(find.text('GAP 2795 FT'), findsOneWidget);
+    expect(find.text('GAP 852 M'), findsNothing);
+  });
+
+  testWidgets('a long gap reads in miles under imperial (#312)', (tester) async {
+    await _pump(tester, [
+      _passage('a', start: const [-105.30, 40.00], end: const [-105.30, 40.00]),
+      _passage('b', start: const [-105.25, 40.00], end: const [-105.20, 40.00]),
+    ], imperial: true);
+
+    expect(find.textContaining(RegExp(r'GAP 2\.\d MI')), findsOneWidget);
+    expect(find.textContaining('KM'), findsNothing);
   });
 
   testWidgets('passages that meet show an ordinary transition, no warning', (tester) async {

@@ -15,6 +15,7 @@ import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/logistics_tab.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'support/display_units.dart';
 
 /// `TapToPickMap` drags in flutter_map/vector_map_tiles, which leaves a
 /// ticker a single `pump()` doesn't fully settle — several short pumps
@@ -26,7 +27,7 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 Future<ProviderContainer> _pump(WidgetTester tester, Day day) async {
-  final container = ProviderContainer();
+  final container = ProviderContainer(overrides: [metricUnits()]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(
         Trip(

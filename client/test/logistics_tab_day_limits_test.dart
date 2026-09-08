@@ -14,11 +14,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/logistics_tab.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'support/display_units.dart';
 
 Segment _leg(String id, String mode) => Segment(id: id, mode: mode, shape: 'point_to_point');
 
-Future<ProviderContainer> _pump(WidgetTester tester, Day day) async {
-  final container = ProviderContainer();
+Future<ProviderContainer> _pump(WidgetTester tester, Day day,
+    {bool imperial = false}) async {
+  final container =
+      ProviderContainer(overrides: [imperial ? imperialUnits() : metricUnits()]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(
         Trip(
@@ -131,5 +134,41 @@ void main() {
 
     final limits = container.read(currentTripProvider).days.single.limits;
     expect(limits.length, 1);
+  });
+
+  // Issue #312 — the section header carries the Author's active unit and a
+  // stored limit pre-fills in that unit, while storage stays SI metres.
+  group('imperial preference', () {
+    testWidgets('the DAY LIMITS header names the active unit', (tester) async {
+      await _pump(tester, Day(id: 'd1', index: 1, segments: [_leg('s1', 'cycling')]),
+          imperial: true);
+
+      expect(find.text('DAY LIMITS (mi)'), findsOneWidget);
+      expect(find.text('DAY LIMITS (km)'), findsNothing);
+    });
+
+    testWidgets('an existing limit pre-fills in miles and a typed edit stores metres',
+        (tester) async {
+      final container = await _pump(
+        tester,
+        Day(
+          id: 'd1',
+          index: 1,
+          segments: [_leg('s1', 'cycling')],
+          limits: {'cycling': DayLimit(maxM: 80467.2)}, // 50 mi
+        ),
+        imperial: true,
+      );
+
+      expect(find.widgetWithText(TextField, '50.0'), findsOneWidget);
+
+      final maxField =
+          find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'max');
+      await tester.enterText(maxField, '40');
+      await tester.pump();
+
+      final stored = container.read(currentTripProvider).days.single.limits['cycling'];
+      expect(stored!.maxM, closeTo(64373.76, 1e-3)); // 40 mi, not 40000
+    });
   });
 }

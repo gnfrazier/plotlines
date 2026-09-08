@@ -73,12 +73,16 @@ void main() {
   });
 
   group('composeDeviationHeadline', () {
+    const metric = DisplayFormat();
+    const imperial = DisplayFormat(useMiles: true);
+
     test('quotes the AC\'s pattern: place count, realized km, and the band', () {
       final band = Band(attribute: 'distance_m', min: 88000, max: 113000);
       final headline = composeDeviationHeadline(
         placeCount: 7,
         realizedDistanceM: 151000,
         band: band,
+        format: metric,
       );
       expect(
         headline,
@@ -86,13 +90,30 @@ void main() {
       );
     });
 
+    test('renders the AC\'s illustrative miles when the Author is on imperial', () {
+      // FR118's own example is stated in miles — issue #312 makes that the
+      // reading an imperial Author actually gets, rather than fixed km.
+      final headline = composeDeviationHeadline(
+        placeCount: 7,
+        realizedDistanceM: 151000,
+        band: Band(attribute: 'distance_m', min: 88000, max: 113000),
+        format: imperial,
+      );
+      expect(
+        headline,
+        'These 7 plot points make a 93.8 mi day. Your band was 54.7–70.2 mi.',
+      );
+    });
+
     test('singular place count reads naturally', () {
-      final headline = composeDeviationHeadline(placeCount: 1, realizedDistanceM: 12000);
+      final headline = composeDeviationHeadline(
+          placeCount: 1, realizedDistanceM: 12000, format: metric);
       expect(headline, 'These 1 plot point make a 12.0 km day.');
     });
 
     test('omits the band sentence entirely when none is stated', () {
-      final headline = composeDeviationHeadline(placeCount: 3, realizedDistanceM: 42000);
+      final headline = composeDeviationHeadline(
+          placeCount: 3, realizedDistanceM: 42000, format: metric);
       expect(headline, 'These 3 plot points make a 42.0 km day.');
     });
 
@@ -101,6 +122,7 @@ void main() {
         placeCount: 2,
         realizedDistanceM: 10000,
         band: Band(attribute: 'distance_m', min: 20000),
+        format: metric,
       );
       expect(minOnly, contains('at least 20.0 km'));
 
@@ -108,6 +130,7 @@ void main() {
         placeCount: 2,
         realizedDistanceM: 10000,
         band: Band(attribute: 'distance_m', max: 5000),
+        format: metric,
       );
       expect(maxOnly, contains('at most 5.0 km'));
     });
