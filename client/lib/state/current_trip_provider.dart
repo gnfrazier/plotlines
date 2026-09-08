@@ -16,6 +16,7 @@ import 'planner_ui_state.dart'
         dayPlanningModeProvider,
         hasTargetDistanceControl,
         resetSegmentPlanningControls,
+        selectedSegmentProvider,
         targetDistanceForViaCount,
         viaAnchorsMakeDistanceAdvisory;
 import 'current_roster_provider.dart';
@@ -358,6 +359,13 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         : resolved;
     final day = _dayOrNew(dayId);
     _replaceDay(day.copyWith(segments: [...day.segments, segment]));
+    // Issue #323 — nothing but an explicit tap on a segment card ever wrote
+    // `selectedSegmentProvider`, so a freshly generated route drew its line
+    // on the map while the segment card, the planning rail and the weights
+    // rail all stayed unbound — the Author's read was that Generate had done
+    // nothing. Selecting the segment this solve just produced is the whole
+    // point of the action; every other post-generate surface binds off this.
+    _ref.read(selectedSegmentProvider.notifier).state = (day.id, segment.id);
   }
 
   /// FR139/Q2 — removes a passage from a day. Its nodes are never deleted
@@ -1197,6 +1205,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     );
     final segments = [for (final s in day.segments) if (s.id == segmentId) replaced else s];
     _replaceDay(day.copyWith(segments: segments));
+    // Issue #323 — a re-solve is a "here is your route" moment too: bind the
+    // map and both rails to the segment that just changed shape, the same as
+    // `generateSegment`. A bulk `resolveAllStale` run lands on whichever
+    // segment it re-solved last, which is a real coherent state rather than
+    // the stale prior selection it would otherwise leave standing.
+    _ref.read(selectedSegmentProvider.notifier).state = (dayId, segmentId);
   }
 
   /// B2/D1/C3 (issue #212) — the authoritative composition pass:

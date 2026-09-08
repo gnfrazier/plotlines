@@ -69,4 +69,39 @@ void main() {
       );
     });
   });
+
+  group('daySelection (issue #323)', () {
+    Segment seg(String id) => Segment(id: id, mode: 'cycling', shape: 'loop');
+    Trip tripOf(List<Day> days) => Trip(
+          id: 'trip-1',
+          title: 'T',
+          createdAt: '2026-09-08T00:00:00Z',
+          updatedAt: '2026-09-08T00:00:00Z',
+          days: days,
+        );
+
+    test('selects the day\'s first segment', () {
+      final trip = tripOf([
+        Day(id: 'day-1', index: 1, segments: [seg('a'), seg('b')]),
+        Day(id: 'day-2', index: 2, segments: [seg('c')]),
+      ]);
+      expect(daySelection(trip, 'day-1'), ('day-1', 'a'));
+      expect(daySelection(trip, 'day-2'), ('day-2', 'c'));
+    });
+
+    test('a day with no segments clears the selection rather than pointing elsewhere', () {
+      final trip = tripOf([
+        Day(id: 'day-1', index: 1, segments: [seg('a')]),
+        Day(id: 'day-2', index: 2, kind: 'rest'),
+        Day(id: 'day-3', index: 3), // route day, not yet solved
+      ]);
+      expect(daySelection(trip, 'day-2'), isNull);
+      expect(daySelection(trip, 'day-3'), isNull);
+    });
+
+    test('an unknown day id selects nothing', () {
+      final trip = tripOf([Day(id: 'day-1', index: 1, segments: [seg('a')])]);
+      expect(daySelection(trip, 'nope'), isNull);
+    });
+  });
 }
