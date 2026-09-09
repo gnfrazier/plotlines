@@ -21,10 +21,12 @@ import '../../../domain/candidate.dart';
 import '../../../domain/domain.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/layer_selection_provider.dart';
+import '../../../state/messages_provider.dart';
 import '../../../state/providers.dart';
 import '../../../state/trip_bbox_provider.dart';
 import '../../../state/trip_candidates_provider.dart';
 import '../../map/candidate_map.dart';
+import '../../widgets/desktop_error_surface.dart';
 import '../../widgets/layer_picker.dart';
 import '../../../data/curation_client.dart' show LayerCatalog;
 import 'proposals_view.dart';
@@ -66,20 +68,35 @@ class _LayersTabState extends ConsumerState<LayersTab> {
 
   @override
   Widget build(BuildContext context) {
-    final c = PlotColors.of(context);
     final day = _activeDay;
     final modes = _effectiveModes;
-    final catalogAsync =
-        ref.watch(layerCatalogProvider((modes: layerModesKey(modes), dayType: _dayType)));
+    final catalogKey = (modes: layerModesKey(modes), dayType: _dayType);
+    final catalogAsync = ref.watch(layerCatalogProvider(catalogKey));
     final selection = ref.watch(layerSelectionProvider);
 
     return catalogAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
+      // Issue #317 — a `/layers` failure is M13's `layerExtractionFailed`
+      // state (the curation capability is what this tab is a surface for),
+      // routed through the one shared desktop error surface: a headline, a
+      // cause phrase from the bounded table, and a Retry that re-runs the
+      // fetch. `err` (a `CurationException`) never reaches the screen —
+      // its `toString()` is the class name, the status code and the raw
+      // response body, which is exactly what M13 exists to keep out of the UI.
       error: (err, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(PlotSpacing.s6),
-          child: Text('Could not load the layer catalog: $err',
-              style: PlotTypography.body(c.danger), textAlign: TextAlign.center),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: DesktopErrorSurface(
+              state: DesktopErrorState.layerExtractionFailed,
+              content: DesktopErrorContent(
+                headline: 'The trip layers didn\'t load',
+                why: ref.watch(messagesProvider).reason(ReasonCode.layerExtractionFailed),
+                onRetry: () => ref.invalidate(layerCatalogProvider(catalogKey)),
+              ),
+            ),
+          ),
         ),
       ),
       data: (catalog) {

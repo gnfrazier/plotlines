@@ -27,12 +27,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
+import '../../domain/desktop_error_state.dart';
+import '../../domain/reason_phrase.dart';
 import '../../domain/travel_mode.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/layer_selection_provider.dart';
+import '../../state/messages_provider.dart';
 import '../../state/providers.dart';
 import '../../state/trip_bbox_provider.dart';
 import '../../state/trip_candidates_provider.dart';
+import '../widgets/desktop_error_surface.dart';
 import '../widgets/layer_picker.dart';
 
 class TripLayersScreen extends ConsumerStatefulWidget {
@@ -75,9 +79,8 @@ class _TripLayersScreenState extends ConsumerState<TripLayersScreen> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final modes = _effectiveModes;
-    final catalogAsync = ref.watch(
-      layerCatalogProvider((modes: layerModesKey(modes), dayType: 'route')),
-    );
+    final catalogKey = (modes: layerModesKey(modes), dayType: 'route');
+    final catalogAsync = ref.watch(layerCatalogProvider(catalogKey));
     final selection = ref.watch(layerSelectionProvider);
     final layerStates =
         ref.watch(sidecarManagerProvider).capabilities?.layersPerLayer ?? const {};
@@ -105,10 +108,20 @@ class _TripLayersScreenState extends ConsumerState<TripLayersScreen> {
           constraints: const BoxConstraints(maxWidth: 620),
           child: catalogAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
+            // Issue #317 — same fix as the Layers tab: a `/layers` failure
+            // goes through M13's shared error surface as `layerExtractionFailed`
+            // with a bounded cause phrase and a Retry, never the caught
+            // `CurationException`'s `toString()`.
             error: (err, _) => Padding(
               padding: const EdgeInsets.all(PlotSpacing.s6),
-              child: Text('Could not load the layer catalog: $err',
-                  style: PlotTypography.body(c.danger), textAlign: TextAlign.center),
+              child: DesktopErrorSurface(
+                state: DesktopErrorState.layerExtractionFailed,
+                content: DesktopErrorContent(
+                  headline: 'The trip layers didn\'t load',
+                  why: ref.watch(messagesProvider).reason(ReasonCode.layerExtractionFailed),
+                  onRetry: () => ref.invalidate(layerCatalogProvider(catalogKey)),
+                ),
+              ),
             ),
             data: (catalog) {
               // FR144/N0 — reseed the trip-wide live set from the
