@@ -22,6 +22,7 @@ import '../../domain/home_region.dart';
 import '../../domain/trip_bbox.dart';
 import '../../state/providers.dart';
 import 'map_attribution.dart';
+import 'map_label_scale.dart';
 import 'no_basemap_notice.dart';
 import 'tap_to_pick_map.dart' show MapTileAssets;
 import 'vector_tile_provider.dart';
@@ -81,6 +82,10 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final isDark = material.Theme.of(context).brightness == Brightness.dark;
+    final labelScale = resolveMapLabelScale(
+      MediaQuery.textScalerOf(context).scale(1),
+      MediaQuery.devicePixelRatioOf(context),
+    );
     final center = widget.bbox?.center ??
         (widget.candidates.isNotEmpty ? widget.candidates.first.coord : HomeRegion.center);
     final sidecar = ref.watch(sidecarManagerProvider);
@@ -88,7 +93,7 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
     final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
 
     return FutureBuilder(
-      future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
+      future: MapTileAssets.theme(isDark ? 'dark' : 'light', labelScale: labelScale),
       builder: (context, snapshot) {
         final themeResult = snapshot.data;
         final vectorTheme = themeResult?.theme;

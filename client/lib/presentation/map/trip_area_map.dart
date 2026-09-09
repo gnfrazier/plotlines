@@ -30,6 +30,7 @@ import '../../domain/trip_bbox.dart';
 import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
 import 'map_attribution.dart';
+import 'map_label_scale.dart';
 import 'no_basemap_notice.dart';
 import 'tap_to_pick_map.dart' show MapTileAssets;
 import 'vector_tile_provider.dart';
@@ -194,6 +195,10 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final isDark = material.Theme.of(context).brightness == Brightness.dark;
+    final labelScale = resolveMapLabelScale(
+      MediaQuery.textScalerOf(context).scale(1),
+      MediaQuery.devicePixelRatioOf(context),
+    );
     final displayBbox = _liveResize ?? widget.bbox;
     final drawPreview = (_drawStartGlobal != null && _drawCurrentGlobal != null)
         ? TripBbox.fromCorners(_globalToLatLon(_drawStartGlobal!), _globalToLatLon(_drawCurrentGlobal!))
@@ -208,7 +213,7 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
     final unit = ref.watch(settingsProvider).unit;
 
     return FutureBuilder(
-      future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
+      future: MapTileAssets.theme(isDark ? 'dark' : 'light', labelScale: labelScale),
       builder: (context, snapshot) {
         final themeResult = snapshot.data;
         final vectorTheme = themeResult?.theme;

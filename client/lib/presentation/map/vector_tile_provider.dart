@@ -22,9 +22,15 @@ import 'package:vector_tile_renderer/vector_tile_renderer.dart' show VectorTileR
 
 /// The deepest zoom the basemap archive is built to. Held here rather than
 /// repeated as a literal on every `VectorTileLayer`, so the provider and
-/// the layers that read from it can never drift apart (issue #230 A3: past
-/// this zoom the layer over-zooms already-rasterised content, which is
-/// exactly where someone is trying to read a street name).
+/// the layers that read from it can never drift apart.
+///
+/// Issue #321 item 3 — what happens past this zoom: `vector_map_tiles`
+/// over-zooms the z15 tile by scaling the whole tile canvas up
+/// (`grid_tile_positioner`'s `canvas.scale`), so labels get *larger* on
+/// screen with everything else, not smaller. The reported "I zoom in and
+/// they shrink again" was the `TileOffset.DEFAULT` packing bug (fixed in
+/// #230 A3, `e83a744`), not over-zoom — no change is needed here, and the
+/// archive only reaches z15 so the ceiling itself cannot move.
 const int basemapMaximumZoom = 15;
 
 /// Reads tiles from the sidecar rather than local disk. `baseUrl` is the
