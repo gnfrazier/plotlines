@@ -15,6 +15,7 @@ export 'day.dart';
 export 'day_timeline.dart';
 export 'desktop_error_state.dart';
 export 'diagnosis.dart';
+export 'discipline.dart';
 export 'display_format.dart';
 export 'edit_scope.dart';
 export 'empty_state.dart';
@@ -23,6 +24,7 @@ export 'hazard_rollup.dart';
 export 'itinerary.dart';
 export 'json_utils.dart'
     show Coord, DayLimit, JsonFields, Ring, checkCoord, checkPolygonRings, checkRing, finite, pruneJson;
+export 'legacy_mode.dart';
 export 'message_catalog.dart';
 export 'message_template.dart';
 export 'node.dart';

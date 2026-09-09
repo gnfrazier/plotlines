@@ -127,17 +127,36 @@
     },
 
     "travel_mode": {
-      "description": "FR10 / B1 [AMENDED v2.0] — the eight traversal modes, plus `transit`. Cycling, hiking and paddling are first-class at MVP (paddling's router lands in Leg 3, MVP \u00a71.3; the mode is nonetheless authorable from day one, which is exactly what B1's AC requires); the rest are absorbed by `WeightProfile` config (FR130) rather than by a parallel scorer, and `core/plotlines_core/multimodal/modes.py` is the registry this enum mirrors. Driving is a routed mode, not a note (FR29). `transit` is the other half of FR29 \u2014 train, shuttle and flight legs are authored notes with carrier and times, never solved. Climbing, canyoneering and jumaring are station activities (FR109 / O4) and appear nowhere in this list.",
+      "description": "FR10 / B1 [AMENDED v2.0; #315] — the five traversal *categories*, plus `transit`. Issue #315 settled Model B: a discipline (road / gravel / mountain, and so on — `$defs/discipline`) is a variant *under* a category that selects a `WeightProfile` (FR130), never a category of its own. `mountain_biking`, `packrafting` and `riverboarding` were removed from this enum and became the `mountain`, `packraft` and `riverboard` disciplines; `core/plotlines_core/multimodal/legacy.py` maps the old spelling forward. Cycling, hiking and paddling are first-class at MVP; `core/plotlines_core/multimodal/modes.py` is the registry this enum mirrors. Driving is a routed mode, not a note (FR29). `transit` is the other half of FR29 \u2014 train, shuttle and flight legs are authored notes with carrier and times, never solved. Climbing, canyoneering and jumaring are station activities (FR109 / O4) and appear nowhere in this list.",
       "enum": [
         "cycling",
         "hiking",
         "paddling",
         "cross_country_skiing",
-        "packrafting",
-        "riverboarding",
-        "mountain_biking",
         "driving",
         "transit"
+      ]
+    },
+
+    "discipline": {
+      "description": "FR10 / FR130 [#315] — the second axis under a `travel_mode` category: a variant that selects a `WeightProfile` (and, later, surface bands). Chosen per passage; absent means the category's own default profile. `core/plotlines_core/multimodal/disciplines.py` is the registry this enum mirrors; `test_disciplines.py` asserts each key belongs to its category (kept out of this file to hold it flat).",
+      "enum": [
+        "road",
+        "gravel",
+        "mountain",
+        "hike",
+        "run",
+        "trail_run",
+        "canoe",
+        "kayak",
+        "packraft",
+        "riverboard",
+        "nordic",
+        "skimo",
+        "backcountry",
+        "resort",
+        "street",
+        "high_clearance"
       ]
     },
 
@@ -557,6 +576,10 @@
         "id": { "$ref": "#/$defs/id" },
         "title": { "type": "string" },
         "mode": { "$ref": "#/$defs/travel_mode" },
+        "discipline": {
+          "$ref": "#/$defs/discipline",
+          "description": "FR10 / FR130 [#315] — this passage's discipline under `mode`. Optional: absent resolves to the category's own default profile. Pair consistency (the discipline belongs to `mode`'s category) is asserted in tests, not in this schema."
+        },
         "shape": {
           "enum": ["loop", "out_and_back", "point_to_point"],
           "default": "loop",

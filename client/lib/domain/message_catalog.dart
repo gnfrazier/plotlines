@@ -157,16 +157,32 @@ const Map<MessageId, String> baseLocalePatterns = {
   MessageId.termArcClimax: 'climax',
   MessageId.termArcResolution: 'resolution',
 
-  // Vocabulary — travel modes.
+  // Vocabulary — travel-mode categories.
   MessageId.termModeCycling: 'Ride',
   MessageId.termModeHiking: 'Hike',
   MessageId.termModePaddling: 'Paddle',
   MessageId.termModeCrossCountrySkiing: 'Ski',
-  MessageId.termModePackrafting: 'Packraft',
-  MessageId.termModeRiverboarding: 'Riverboard',
-  MessageId.termModeMountainBiking: 'MTB',
   MessageId.termModeDriving: 'Drive',
   MessageId.termModeTransit: 'Transit',
+
+  // Vocabulary — disciplines (#315). Each string must equal
+  // `discipline.dart`'s `disciplineLabel`, pinned by `discipline_test.dart`.
+  MessageId.termDisciplineRoad: 'Road',
+  MessageId.termDisciplineGravel: 'Gravel',
+  MessageId.termDisciplineMountain: 'Mountain',
+  MessageId.termDisciplineHike: 'Hike',
+  MessageId.termDisciplineRun: 'Run',
+  MessageId.termDisciplineTrailRun: 'Trail run',
+  MessageId.termDisciplineCanoe: 'Canoe',
+  MessageId.termDisciplineKayak: 'Kayak',
+  MessageId.termDisciplinePackraft: 'Packraft',
+  MessageId.termDisciplineRiverboard: 'Riverboard',
+  MessageId.termDisciplineNordic: 'Nordic',
+  MessageId.termDisciplineSkimo: 'Skimo',
+  MessageId.termDisciplineBackcountry: 'Backcountry',
+  MessageId.termDisciplineResort: 'Resort',
+  MessageId.termDisciplineStreet: 'Street',
+  MessageId.termDisciplineHighClearance: 'High clearance',
 
   // Vocabulary — capabilities.
   MessageId.termCapabilityTiles: 'the basemap',
@@ -368,11 +384,31 @@ class MessageResolver {
         'hiking' => MessageId.termModeHiking,
         'paddling' => MessageId.termModePaddling,
         'cross_country_skiing' => MessageId.termModeCrossCountrySkiing,
-        'packrafting' => MessageId.termModePackrafting,
-        'riverboarding' => MessageId.termModeRiverboarding,
-        'mountain_biking' => MessageId.termModeMountainBiking,
         'driving' => MessageId.termModeDriving,
         'transit' => MessageId.termModeTransit,
+        _ => null,
+      };
+
+  /// The term for one discipline wire value (`discipline.dart`'s
+  /// `kDisciplineKeys`) — #315. `null` for a plugin-declared discipline this
+  /// build has no term for, same contract as [travelModeTerm].
+  MessageId? disciplineTerm(String discipline) => switch (discipline) {
+        'road' => MessageId.termDisciplineRoad,
+        'gravel' => MessageId.termDisciplineGravel,
+        'mountain' => MessageId.termDisciplineMountain,
+        'hike' => MessageId.termDisciplineHike,
+        'run' => MessageId.termDisciplineRun,
+        'trail_run' => MessageId.termDisciplineTrailRun,
+        'canoe' => MessageId.termDisciplineCanoe,
+        'kayak' => MessageId.termDisciplineKayak,
+        'packraft' => MessageId.termDisciplinePackraft,
+        'riverboard' => MessageId.termDisciplineRiverboard,
+        'nordic' => MessageId.termDisciplineNordic,
+        'skimo' => MessageId.termDisciplineSkimo,
+        'backcountry' => MessageId.termDisciplineBackcountry,
+        'resort' => MessageId.termDisciplineResort,
+        'street' => MessageId.termDisciplineStreet,
+        'high_clearance' => MessageId.termDisciplineHighClearance,
         _ => null,
       };
 

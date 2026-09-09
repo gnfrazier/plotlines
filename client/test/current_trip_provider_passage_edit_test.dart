@@ -46,6 +46,35 @@ void main() {
       expect(updated.shape, 'point_to_point');
       expect(updated.solve?.stale, isTrue);
     });
+
+    test('#315 — changing the category drops a discipline that belonged to the old one', () {
+      final segment = Segment(
+        id: 'seg-1', mode: 'cycling', discipline: 'mountain', shape: 'loop',
+        solve: SolveProvenance(solvedAt: '2026-01-01T00:00:00Z'),
+      );
+      final container = containerWithSegment(segment);
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).updateSegmentMode('day-1', 'seg-1', 'hiking');
+      final updated = container.read(currentTripProvider).days.single.segments.single;
+      expect(updated.mode, 'hiking');
+      expect(updated.discipline, isNull);
+    });
+
+    test('#315 — a discipline that still fits the new category is kept', () {
+      // `gravel` and `mountain` are both cycling disciplines, so a re-pick
+      // within the category leaves an unrelated discipline alone.
+      final segment = Segment(
+        id: 'seg-1', mode: 'cycling', discipline: 'gravel', shape: 'loop',
+        solve: SolveProvenance(solvedAt: '2026-01-01T00:00:00Z'),
+      );
+      final container = containerWithSegment(segment);
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).updateSegmentMode('day-1', 'seg-1', 'cycling');
+      expect(container.read(currentTripProvider).days.single.segments.single.discipline,
+          'gravel');
+    });
   });
 
   group('updateSegmentEndpoints', () {

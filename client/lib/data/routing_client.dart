@@ -86,6 +86,9 @@ class RoutingClient {
     Coord? end,
     List<Coord> via = const [],
     String mode = 'cycling',
+    // #315 — the discipline under [mode]; ridden on the wire when set, and
+    // reflected back onto the returned segment. Does not change the graph.
+    String? discipline,
     String shape = 'loop',
     String theme = 'balanced',
     Map<String, double>? weights,
@@ -100,6 +103,7 @@ class RoutingClient {
         if (end != null) 'end': _latLon(end),
         'via': via.map(_latLon).toList(),
         'mode': mode,
+        if (discipline != null) 'discipline': discipline,
         'shape': shape,
         'theme': theme,
         if (weights != null) 'weights': weights,
@@ -108,12 +112,15 @@ class RoutingClient {
     );
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
-    return _segmentFromSolveResponse(raw, mode: mode, shape: shape, start: start, end: end, via: via);
+    return _segmentFromSolveResponse(raw,
+        mode: mode, discipline: discipline, shape: shape,
+        start: start, end: end, via: via);
   }
 
   static Segment _segmentFromSolveResponse(
     Map<String, dynamic> raw, {
     required String mode,
+    String? discipline,
     required String shape,
     required Coord start,
     required Coord? end,
@@ -126,6 +133,9 @@ class RoutingClient {
     return Segment(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       mode: mode,
+      // #315 — the response echoes `discipline` when it was sent; fall back to
+      // what the caller asked for so a re-solve never drops it.
+      discipline: (raw['discipline'] as String?) ?? discipline,
       shape: (raw['shape'] as String?) ?? shape,
       start: start,
       end: end ?? (coords.isNotEmpty ? coords.last : null),
@@ -250,6 +260,8 @@ class RoutingClient {
         'start': _latLon(segment.start!),
         if (segment.end != null) 'end': _latLon(segment.end!),
         'via': segment.via.map(_latLon).toList(),
+        // #315 — keep the cue re-solve on the same profile the generate used.
+        if (segment.discipline != null) 'discipline': segment.discipline,
         'shape': segment.shape,
         if (segment.weights?.name != null) 'theme': segment.weights!.name,
         if (segment.targetDistance != null) 'target_m': segment.targetDistance!.valueM,

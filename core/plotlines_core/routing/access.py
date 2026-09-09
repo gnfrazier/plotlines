@@ -228,12 +228,14 @@ def constraints_for(mode: str) -> ModeConstraints | None:
     """The legality row governing `mode`, following the traversal-mode
     registry's `access_mode` alias (FR130).
 
-    Mountain biking is legally cycling, packrafting is legally paddling, and
-    cross-country skiing is legally foot travel — three modes, one rule set
-    each side. Resolving the alias here rather than copying rows keeps FR130's
-    claim true: a new mode is a registry row, not a second constraints table.
-    `None` for a mode nothing has an opinion on — it routes unconstrained,
-    exactly as it did before A11.
+    Cross-country skiing is legally foot travel; a `cycling` passage with a
+    `mountain` discipline is legally cycling. One rule set each side —
+    resolving the alias here rather than copying rows keeps FR130's claim
+    true: a new mode is a registry row, not a second constraints table.
+    `access_mode_for` also folds the `travel_mode` values issue #315 removed
+    (`mountain_biking` etc.) onto their category, so a payload that reached
+    here without migration still routes legally. `None` for a mode nothing
+    has an opinion on — it routes unconstrained, exactly as it did before A11.
     """
     return MODE_CONSTRAINTS.get(access_mode_for(mode) or "")
 
@@ -349,9 +351,9 @@ def mode_legal_graph(graph: nx.MultiDiGraph, mode: str) -> nx.MultiDiGraph:
     if constraints is None:
         return graph
 
-    # Keyed on the *resolved* rule set, not the requested mode: mountain biking
-    # and cycling filter to the identical graph, and re-filtering a region-sized
-    # graph for the second of them would be pure waste.
+    # Keyed on the *resolved* rule set, not the requested mode: a `mountain`
+    # discipline and plain `cycling` filter to the identical graph, and
+    # re-filtering a region-sized graph for the second would be pure waste.
     cache: dict[str, nx.MultiDiGraph] = graph.graph.setdefault("_pl_mode_graph_cache", {})
     cached = cache.get(constraints.mode)
     if cached is not None:

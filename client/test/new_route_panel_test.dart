@@ -80,31 +80,27 @@ void main() {
     await _pumpPanel(tester);
 
     expect(find.text('PRIMARY MODES · pick any'), findsNothing);
-    expect(find.text('TRIP MODES'), findsOneWidget);
+    // Issue #315 — the trip-level control declares broad categories now.
+    expect(find.text('TRIP CATEGORIES'), findsOneWidget);
     expect(find.text('MODE FOR THIS ROUTE'), findsOneWidget);
-    // Issue #316 — the layer set is chosen on its own step now; TRIP MODES
+    // Issue #316 — the layer set is chosen on its own step now; this control
     // seeds it rather than claiming the switch happens here.
-    expect(find.textContaining('seeds the trip\'s starting layers'), findsOneWidget);
-    expect(find.textContaining('Which mode this first route is solved for'), findsOneWidget);
+    expect(find.textContaining('Seeds the trip\'s starting layers'), findsOneWidget);
+    expect(find.textContaining('Which category this first route is solved for'),
+        findsOneWidget);
   });
 
-  testWidgets('the trip-mode overflow pushes the form down instead of covering it',
+  testWidgets('trip categories are five flat chips, no overflow disclosure',
       (tester) async {
-    // B5 — this was a `PopupMenuButton`; its menu sat on top of the days and
-    // party-size fields, hiding their labels while open.
+    // Issue #315 — `mountain_biking` / `packrafting` etc. are disciplines now,
+    // so there is nothing hidden behind a "More modes" affordance.
     await _pumpPanel(tester);
 
     expect(find.byType(PopupMenuButton<String>), findsNothing);
-    expect(find.text('More modes'), findsOneWidget);
-
-    final beforeDates = tester.getRect(find.text('DATES'));
-    await tester.tap(find.text('More modes'));
-    await tester.pump();
-
-    // The extra modes appear, and DATES moved *down* rather than being
-    // covered — it is still hit-testable at its new position.
-    expect(find.text('Transit'), findsOneWidget);
-    expect(tester.getRect(find.text('DATES')).top, greaterThan(beforeDates.top));
+    expect(find.text('More modes'), findsNothing);
+    for (final label in ['Cycle', 'Foot', 'Paddle', 'Ski', 'Drive']) {
+      expect(find.text(label), findsWidgets, reason: label);
+    }
   });
 
   testWidgets('no unbuilt capability is offered in the primary path', (tester) async {

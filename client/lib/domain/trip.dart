@@ -19,7 +19,11 @@ import 'weight_profile.dart';
 // `role.arc`/`segment.arc_stage`, and to 1.6.0 by FR27 (Story C11), which
 // added `hazard.anchor_id` so a hazard/technical-crux marker can be pinned
 // to a promoted anchor — additive each time: an absent field still parses.
-const String tripSchemaVersion = '1.6.0';
+// Bumped to 1.7.0 by issue #315: `segment.discipline` arrived (optional) and
+// `travel_mode` lost `mountain_biking` / `packrafting` / `riverboarding` —
+// `Segment.fromJson` / `Transition.fromJson` rewrite those to the category +
+// discipline they became, so a trip saved before this bump still loads.
+const String tripSchemaVersion = '1.7.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {

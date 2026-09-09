@@ -55,39 +55,91 @@
   },
   "termModeCycling": "Ride",
   "@termModeCycling": {
-    "description": "travel mode \"cycling\""
+    "description": "travel category \"cycling\""
   },
   "termModeHiking": "Hike",
   "@termModeHiking": {
-    "description": "travel mode \"hiking\""
+    "description": "travel category \"hiking\""
   },
   "termModePaddling": "Paddle",
   "@termModePaddling": {
-    "description": "travel mode \"paddling\""
+    "description": "travel category \"paddling\""
   },
   "termModeCrossCountrySkiing": "Ski",
   "@termModeCrossCountrySkiing": {
-    "description": "travel mode \"cross_country_skiing\""
-  },
-  "termModePackrafting": "Packraft",
-  "@termModePackrafting": {
-    "description": "travel mode \"packrafting\""
-  },
-  "termModeRiverboarding": "Riverboard",
-  "@termModeRiverboarding": {
-    "description": "travel mode \"riverboarding\""
-  },
-  "termModeMountainBiking": "MTB",
-  "@termModeMountainBiking": {
-    "description": "travel mode \"mountain_biking\""
+    "description": "travel category \"cross_country_skiing\""
   },
   "termModeDriving": "Drive",
   "@termModeDriving": {
-    "description": "travel mode \"driving\""
+    "description": "travel category \"driving\""
   },
   "termModeTransit": "Transit",
   "@termModeTransit": {
     "description": "travel mode \"transit\""
+  },
+  "termDisciplineRoad": "Road",
+  "@termDisciplineRoad": {
+    "description": "discipline \"road\""
+  },
+  "termDisciplineGravel": "Gravel",
+  "@termDisciplineGravel": {
+    "description": "discipline \"gravel\""
+  },
+  "termDisciplineMountain": "Mountain",
+  "@termDisciplineMountain": {
+    "description": "discipline \"mountain\""
+  },
+  "termDisciplineHike": "Hike",
+  "@termDisciplineHike": {
+    "description": "discipline \"hike\""
+  },
+  "termDisciplineRun": "Run",
+  "@termDisciplineRun": {
+    "description": "discipline \"run\""
+  },
+  "termDisciplineTrailRun": "Trail run",
+  "@termDisciplineTrailRun": {
+    "description": "discipline \"trail_run\""
+  },
+  "termDisciplineCanoe": "Canoe",
+  "@termDisciplineCanoe": {
+    "description": "discipline \"canoe\""
+  },
+  "termDisciplineKayak": "Kayak",
+  "@termDisciplineKayak": {
+    "description": "discipline \"kayak\""
+  },
+  "termDisciplinePackraft": "Packraft",
+  "@termDisciplinePackraft": {
+    "description": "discipline \"packraft\""
+  },
+  "termDisciplineRiverboard": "Riverboard",
+  "@termDisciplineRiverboard": {
+    "description": "discipline \"riverboard\""
+  },
+  "termDisciplineNordic": "Nordic",
+  "@termDisciplineNordic": {
+    "description": "discipline \"nordic\""
+  },
+  "termDisciplineSkimo": "Skimo",
+  "@termDisciplineSkimo": {
+    "description": "discipline \"skimo\""
+  },
+  "termDisciplineBackcountry": "Backcountry",
+  "@termDisciplineBackcountry": {
+    "description": "discipline \"backcountry\""
+  },
+  "termDisciplineResort": "Resort",
+  "@termDisciplineResort": {
+    "description": "discipline \"resort\""
+  },
+  "termDisciplineStreet": "Street",
+  "@termDisciplineStreet": {
+    "description": "discipline \"street\""
+  },
+  "termDisciplineHighClearance": "High clearance",
+  "@termDisciplineHighClearance": {
+    "description": "discipline \"high_clearance\""
   },
   "termCapabilityTiles": "the basemap",
   "@termCapabilityTiles": {

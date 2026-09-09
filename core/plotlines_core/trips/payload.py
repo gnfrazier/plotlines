@@ -61,7 +61,12 @@ from plotlines_core.content.anchor import Anchor
 #: pinned to a promoted anchor, not only to a segment/day node or a bare
 #: point. Additive: an absent `anchor_id` still parses, and every hazard
 #: written before this bump behaves exactly as before.
-SCHEMA_VERSION = "1.6.0"
+#: Bumped to 1.7.0 by issue #315: the optional `segment.discipline` field
+#: arrived and `travel_mode` lost `mountain_biking` / `packrafting` /
+#: `riverboarding` (now disciplines). A payload written before this bump is
+#: read through `multimodal.legacy.migrate_payload_modes`, which rewrites the
+#: removed values before validation — so old data still loads.
+SCHEMA_VERSION = "1.7.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -694,6 +699,10 @@ class Segment:
     shape: str
     id: str = field(default_factory=new_id)
     title: str | None = None
+    #: #315 — the discipline under `mode` (a `multimodal.disciplines` key), or
+    #: `None` for the category's own default profile. A variant that selects a
+    #: `WeightProfile`, never a change to the routing graph or legality.
+    discipline: str | None = None
     start: Coord | None = None
     end: Coord | None = None
     via: list[Coord] = field(default_factory=list)
@@ -719,6 +728,7 @@ class Segment:
     def to_dict(self) -> dict:
         return {
             "id": self.id, "title": self.title, "mode": self.mode,
+            "discipline": self.discipline,
             "shape": self.shape, "start": self.start, "end": self.end,
             "via": list(self.via) or None,
             "target_distance": (self.target_distance.to_dict()

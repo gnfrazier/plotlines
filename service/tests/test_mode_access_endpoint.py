@@ -151,21 +151,35 @@ def test_segments_generate_loop_response_carries_surfaced_constraints_field(
     assert "surfaced_constraints" in resp.json()
 
 
-# --- B1 / FR130 — a traversal mode is configuration, over the wire ---------
+# --- B1 / FR130 / #315 — a discipline is configuration, over the wire ------
 
 
-def test_segments_generate_accepts_a_traversal_mode_name_as_a_theme(tmp_path: Path) -> None:
-    """FR130 — a mode's own `WeightProfile` entry is nameable, so a mountain-
-    biking passage solves on the weights its registry row carries and no second
-    scorer. The named-theme catalogue is untouched by this."""
+def test_segments_generate_takes_a_discipline_and_echoes_it(tmp_path: Path) -> None:
+    """#315 — a `cycling` passage with the `mountain` discipline solves on the
+    profile that discipline carries (the one `mountain_biking` used to carry as
+    a mode), with no second scorer, and the response echoes `discipline` the
+    way it echoes `mode`/`theme`."""
     client, key = _client_with_boulder_region(tmp_path)
     resp = client.post("/segments/generate", json={
         "region": key, "start": {"lat": 40.0175, "lon": -105.2797},
         "shape": "loop", "target_m": 2000.0,
-        "mode": "mountain_biking", "theme": "mountain_biking",
+        "mode": "cycling", "discipline": "mountain",
     })
     assert resp.status_code == 200
-    assert resp.json()["theme"] == "mountain_biking"
+    assert resp.json()["discipline"] == "mountain"
+
+
+def test_a_discipline_name_also_works_as_a_theme_string(tmp_path: Path) -> None:
+    """A discipline is nameable as a `theme` too, and so is a `travel_mode`
+    value #315 removed — `theme="mountain_biking"` resolves to the `mountain`
+    discipline's profile, so an un-migrated request still weights correctly."""
+    client, key = _client_with_boulder_region(tmp_path)
+    for theme in ("mountain", "mountain_biking"):
+        resp = client.post("/segments/generate", json={
+            "region": key, "start": {"lat": 40.0175, "lon": -105.2797},
+            "shape": "loop", "target_m": 2000.0, "mode": "cycling", "theme": theme,
+        })
+        assert resp.status_code == 200, theme
 
 
 def test_a_string_that_is_neither_a_theme_nor_a_mode_is_still_422(tmp_path: Path) -> None:
@@ -177,12 +191,12 @@ def test_a_string_that_is_neither_a_theme_nor_a_mode_is_still_422(tmp_path: Path
     assert resp.status_code == 422
 
 
-def test_a_mountain_biking_passage_inherits_cyclings_legality_over_the_wire(
+def test_a_legacy_mountain_biking_mode_inherits_cyclings_legality_over_the_wire(
     tmp_path: Path,
 ) -> None:
-    """The alias resolves on the service's own path, not just in a unit test:
-    `bicycle=no` closes the direct edge to a mountain bike, with no
-    `mountain_biking` row in `MODE_CONSTRAINTS`."""
+    """#315 — an un-migrated `mode="mountain_biking"` is folded onto `cycling`
+    by the request validator, so `bicycle=no` still closes the direct edge to
+    it, with no `mountain_biking` row in `MODE_CONSTRAINTS`."""
     client, key = _client_with_boulder_region(tmp_path)
     _swap_in_graph(client, key, _two_route_graph(bicycle_tag="no"))
 
@@ -192,3 +206,4 @@ def test_a_mountain_biking_passage_inherits_cyclings_legality_over_the_wire(
     })
     assert resp.status_code == 200
     assert resp.json()["node_count"] == 4  # forced onto the same 0-2-3-1 detour
+    assert resp.json()["mode"] == "cycling"  # the validator canonicalised it

@@ -35,6 +35,7 @@ class _FakeRoutingClient extends RoutingClient {
     Coord? end,
     List<Coord> via = const [],
     String mode = 'cycling',
+    String? discipline,
     String shape = 'point_to_point',
     String theme = 'balanced',
     Map<String, double>? weights,

@@ -45,17 +45,20 @@ _SCHEMA = Path(__file__).resolve().parents[2] / "docs" / "schemas" / "trip_paylo
 # --- FR10: the traversal list --------------------------------------------
 
 
-def test_the_traversal_list_is_fr10s_eight_modes():
+def test_the_traversal_list_is_the_five_categories():
+    """Issue #315 reduced FR10's list to the traversal *categories*;
+    `mountain_biking` / `packrafting` / `riverboarding` are now disciplines
+    (`test_disciplines.py`), not modes."""
     assert set(TRAVERSAL_MODES) == {
         "cycling",
         "hiking",
         "paddling",
         "cross_country_skiing",
-        "packrafting",
-        "riverboarding",
-        "mountain_biking",
         "driving",
     }
+    for removed in ("mountain_biking", "packrafting", "riverboarding"):
+        assert removed not in TRAVERSAL_MODES
+        assert removed not in all_mode_keys()
 
 
 def test_driving_is_a_traversal_mode_not_a_note():
@@ -137,18 +140,21 @@ def test_the_schema_enum_carries_no_station_activity():
 
 
 def test_aliased_modes_resolve_to_an_existing_constraints_row():
-    """Mountain biking is legally cycling, packrafting legally paddling,
-    cross-country skiing legally foot travel — one rule set each side, no
-    second constraints table."""
+    """Cross-country skiing is legally foot travel — one rule set each side, no
+    second constraints table. The `travel_mode` values #315 removed still
+    resolve legally: `access_mode_for` folds `mountain_biking` etc. onto their
+    category, so a payload that reached the router without migration is not
+    silently unconstrained."""
+    assert access.constraints_for("cross_country_skiing") is access.MODE_CONSTRAINTS["hiking"]
     assert access.constraints_for("mountain_biking") is access.MODE_CONSTRAINTS["cycling"]
     assert access.constraints_for("packrafting") is access.MODE_CONSTRAINTS["paddling"]
     assert access.constraints_for("riverboarding") is access.MODE_CONSTRAINTS["paddling"]
-    assert access.constraints_for("cross_country_skiing") is access.MODE_CONSTRAINTS["hiking"]
 
 
-def test_an_aliased_mode_inherits_the_hard_exclusion_it_should():
-    """`bicycle=no` closes a way to a mountain bike as surely as to a tourer —
-    without `mountain_biking` appearing anywhere in `MODE_CONSTRAINTS`."""
+def test_a_legacy_mode_inherits_the_hard_exclusion_it_should():
+    """`bicycle=no` closes a way to an un-migrated `mountain_biking` value as
+    surely as to `cycling` — without `mountain_biking` appearing anywhere in
+    `MODE_CONSTRAINTS`."""
     assert "mountain_biking" not in access.MODE_CONSTRAINTS
     verdict = access.evaluate_edge({"highway": "path", "bicycle": "no"}, "mountain_biking")
     assert not verdict.passable
@@ -222,12 +228,13 @@ def test_adding_a_mode_needs_only_a_profile_and_domain_parameters():
 
 
 def test_a_modes_profile_is_a_real_scoring_input_not_decoration():
-    """Mountain biking's registry row seeks singletrack outright and avoids
-    pavement (FR4's bipolar dials); that has to show up as a cheaper trail
-    edge and a dearer paved one under the shared scorer."""
-    trail = {"highway": "path", "length": 100.0}
-    road = {"highway": "residential", "surface": "asphalt", "length": 100.0}
-    mtb = weights_for("mountain_biking")
-    plain = weights_for("cycling")
-    assert edge_cost(trail, mtb) < edge_cost(trail, plain)
-    assert edge_cost(road, mtb) > edge_cost(road, plain)
+    """A tuned registry profile has to change the score. Hiking's row prefers
+    the quiet path and weights directness down; against an indifferent profile
+    that shows up as a dearer residential edge under the shared scorer.
+
+    (Mountain biking's own version of this test moved to `test_disciplines.py`
+    when #315 turned that row into a discipline.)"""
+    edge = {"highway": "residential", "length": 100.0, "maxspeed": "60"}
+    assert edge_cost(edge, weights_for("hiking")) > edge_cost(
+        edge, WeightProfile(name="flat", quiet=0.0, directness=0.2)
+    )

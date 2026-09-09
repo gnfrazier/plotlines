@@ -1,5 +1,5 @@
 {
-  "_comment": "FR97 — layer defaults by (travel mode x day type). Data, not code: a sauna (leisure=sauna, taxonomy layer 'amenity') is excluded from a riding day because 'amenity' is not live on a 'route' day, and included on a rest day because 'amenity' joins the live set under 'rest'. Editing what's notable on a rest day is a config change here, never a code change. '_default' is used for a mode this file has no entry for.",
+  "_comment": "FR97 — layer defaults by (travel category x day type). Data, not code: a sauna (leisure=sauna, taxonomy layer 'amenity') is excluded from a riding day because 'amenity' is not live on a 'route' day, and included on a rest day because 'amenity' joins the live set under 'rest'. Editing what's notable on a rest day is a config change here, never a code change. '_default' is used for a mode this file has no entry for. Keyed by travel-mode *category*, never by discipline (issue #315): a mountain-biking passage resolves against 'cycling'.",
   "_default": {
     "route": ["sight", "historic", "natural"],
     "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
@@ -17,18 +17,6 @@
     "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
   },
   "cross_country_skiing": {
-    "route": ["sight", "natural"],
-    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
-  },
-  "packrafting": {
-    "route": ["sight", "natural"],
-    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
-  },
-  "riverboarding": {
-    "route": ["sight", "natural"],
-    "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
-  },
-  "mountain_biking": {
     "route": ["sight", "natural"],
     "rest": ["sight", "historic", "natural", "amenity", "leisure", "man_made"]
   },

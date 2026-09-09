@@ -149,7 +149,8 @@ def _roll_up() -> P.RollUp:
 
 def _segment() -> P.Segment:
     return P.Segment(
-        mode="cycling", shape="point_to_point", id="s1", title="Morning climb",
+        mode="cycling", discipline="mountain", shape="point_to_point", id="s1",
+        title="Morning climb",
         start=[-105.30, 40.00], end=[-105.20, 40.05], via=[[-105.25, 40.02]],
         target_distance=P.TargetDistance(value_m=20000.0, min_m=18000.0,
                                          max_m=22000.0, advisory=True),

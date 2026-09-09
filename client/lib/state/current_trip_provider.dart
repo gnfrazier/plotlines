@@ -316,6 +316,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     Coord? end,
     List<Coord> via = const [],
     String mode = 'cycling',
+    // #315 — the discipline under [mode], or null for the category profile.
+    // The per-passage discipline picker is a fast-follow; today this is only
+    // non-null when re-solving a segment that already carries one.
+    String? discipline,
     String shape = 'loop',
     String theme = 'balanced',
     Map<String, double>? weights,
@@ -339,6 +343,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       end: end,
       via: via,
       mode: mode,
+      discipline: discipline,
       shape: shape,
       theme: theme,
       weights: weights,
@@ -811,11 +816,21 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// weights and bands; this marks the segment stale (Q3/FR140) rather than
   /// re-solving, same as [updateSegmentShape]. Mode-legal routability
   /// (A11) is re-checked when [regenerateSegment] next solves it, not here.
+  ///
+  /// #315 — changing the category drops a discipline that belonged to the old
+  /// one (a `mountain` discipline makes no sense on a `hiking` passage); the
+  /// per-passage discipline picker (a fast-follow) is where a new one is
+  /// chosen.
   void updateSegmentMode(String dayId, String segmentId, String mode) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
-        if (s.id == segmentId) s.copyWith(mode: mode) else s,
+        if (s.id == segmentId)
+          (categoryOfDiscipline(s.discipline ?? '') == mode)
+              ? s.copyWith(mode: mode)
+              : s.copyWith(mode: mode, clearDiscipline: true)
+        else
+          s,
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
@@ -1134,6 +1149,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       end: old.shape == 'loop' ? null : old.end!,
       via: old.via,
       mode: old.mode,
+      // #315 — carry the passage's discipline through the re-solve. When the
+      // Author has set explicit weight sliders (`weightsPayload` below) the
+      // server uses those and ignores this; with no overrides, the discipline
+      // *is* the profile — this is what keeps a migrated mountain-biking
+      // passage riding like one.
+      discipline: old.discipline,
       shape: old.shape,
       // `theme` only matters to the server when `weights` is empty —
       // service/app.py's `_resolve_profile` falls back to `THEMES[theme]`
@@ -1182,6 +1203,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final replaced = Segment(
       id: old.id,
       mode: merged.mode,
+      discipline: merged.discipline,
       shape: merged.shape,
       title: merged.title,
       start: merged.start,

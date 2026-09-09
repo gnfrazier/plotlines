@@ -367,16 +367,31 @@ enum MessageId {
   termArcClimax,
   termArcResolution,
 
-  // ── Vocabulary: travel modes (FR10, FR144) ──────────────────────────────
+  // ── Vocabulary: travel-mode categories (FR10, FR144) ────────────────────
   termModeCycling,
   termModeHiking,
   termModePaddling,
   termModeCrossCountrySkiing,
-  termModePackrafting,
-  termModeRiverboarding,
-  termModeMountainBiking,
   termModeDriving,
   termModeTransit,
+
+  // ── Vocabulary: disciplines (FR10, FR130, #315) ─────────────────────────
+  termDisciplineRoad,
+  termDisciplineGravel,
+  termDisciplineMountain,
+  termDisciplineHike,
+  termDisciplineRun,
+  termDisciplineTrailRun,
+  termDisciplineCanoe,
+  termDisciplineKayak,
+  termDisciplinePackraft,
+  termDisciplineRiverboard,
+  termDisciplineNordic,
+  termDisciplineSkimo,
+  termDisciplineBackcountry,
+  termDisciplineResort,
+  termDisciplineStreet,
+  termDisciplineHighClearance,
 
   // ── Vocabulary: capabilities (FR121, M12a) ──────────────────────────────
   termCapabilityTiles,
@@ -484,19 +499,37 @@ const Map<MessageId, MessageTemplate> messageTemplates = {
   MessageId.termArcCrux: MessageTemplate(id: MessageId.termArcCrux, usage: 'ArcStage.crux'),
   MessageId.termArcClimax: MessageTemplate(id: MessageId.termArcClimax, usage: 'ArcStage.climax'),
   MessageId.termArcResolution: MessageTemplate(id: MessageId.termArcResolution, usage: 'ArcStage.resolution'),
-  MessageId.termModeCycling: MessageTemplate(id: MessageId.termModeCycling, usage: 'travel mode "cycling"'),
-  MessageId.termModeHiking: MessageTemplate(id: MessageId.termModeHiking, usage: 'travel mode "hiking"'),
-  MessageId.termModePaddling: MessageTemplate(id: MessageId.termModePaddling, usage: 'travel mode "paddling"'),
+  MessageId.termModeCycling: MessageTemplate(id: MessageId.termModeCycling, usage: 'travel category "cycling"'),
+  MessageId.termModeHiking: MessageTemplate(id: MessageId.termModeHiking, usage: 'travel category "hiking"'),
+  MessageId.termModePaddling: MessageTemplate(id: MessageId.termModePaddling, usage: 'travel category "paddling"'),
   MessageId.termModeCrossCountrySkiing: MessageTemplate(
-      id: MessageId.termModeCrossCountrySkiing, usage: 'travel mode "cross_country_skiing"'),
-  MessageId.termModePackrafting:
-      MessageTemplate(id: MessageId.termModePackrafting, usage: 'travel mode "packrafting"'),
-  MessageId.termModeRiverboarding:
-      MessageTemplate(id: MessageId.termModeRiverboarding, usage: 'travel mode "riverboarding"'),
-  MessageId.termModeMountainBiking:
-      MessageTemplate(id: MessageId.termModeMountainBiking, usage: 'travel mode "mountain_biking"'),
-  MessageId.termModeDriving: MessageTemplate(id: MessageId.termModeDriving, usage: 'travel mode "driving"'),
+      id: MessageId.termModeCrossCountrySkiing, usage: 'travel category "cross_country_skiing"'),
+  MessageId.termModeDriving: MessageTemplate(id: MessageId.termModeDriving, usage: 'travel category "driving"'),
   MessageId.termModeTransit: MessageTemplate(id: MessageId.termModeTransit, usage: 'travel mode "transit"'),
+  MessageId.termDisciplineRoad: MessageTemplate(id: MessageId.termDisciplineRoad, usage: 'discipline "road"'),
+  MessageId.termDisciplineGravel: MessageTemplate(id: MessageId.termDisciplineGravel, usage: 'discipline "gravel"'),
+  MessageId.termDisciplineMountain:
+      MessageTemplate(id: MessageId.termDisciplineMountain, usage: 'discipline "mountain"'),
+  MessageId.termDisciplineHike: MessageTemplate(id: MessageId.termDisciplineHike, usage: 'discipline "hike"'),
+  MessageId.termDisciplineRun: MessageTemplate(id: MessageId.termDisciplineRun, usage: 'discipline "run"'),
+  MessageId.termDisciplineTrailRun:
+      MessageTemplate(id: MessageId.termDisciplineTrailRun, usage: 'discipline "trail_run"'),
+  MessageId.termDisciplineCanoe: MessageTemplate(id: MessageId.termDisciplineCanoe, usage: 'discipline "canoe"'),
+  MessageId.termDisciplineKayak: MessageTemplate(id: MessageId.termDisciplineKayak, usage: 'discipline "kayak"'),
+  MessageId.termDisciplinePackraft:
+      MessageTemplate(id: MessageId.termDisciplinePackraft, usage: 'discipline "packraft"'),
+  MessageId.termDisciplineRiverboard:
+      MessageTemplate(id: MessageId.termDisciplineRiverboard, usage: 'discipline "riverboard"'),
+  MessageId.termDisciplineNordic: MessageTemplate(id: MessageId.termDisciplineNordic, usage: 'discipline "nordic"'),
+  MessageId.termDisciplineSkimo: MessageTemplate(id: MessageId.termDisciplineSkimo, usage: 'discipline "skimo"'),
+  MessageId.termDisciplineBackcountry:
+      MessageTemplate(id: MessageId.termDisciplineBackcountry, usage: 'discipline "backcountry"'),
+  MessageId.termDisciplineResort:
+      MessageTemplate(id: MessageId.termDisciplineResort, usage: 'discipline "resort"'),
+  MessageId.termDisciplineStreet:
+      MessageTemplate(id: MessageId.termDisciplineStreet, usage: 'discipline "street"'),
+  MessageId.termDisciplineHighClearance:
+      MessageTemplate(id: MessageId.termDisciplineHighClearance, usage: 'discipline "high_clearance"'),
   MessageId.termCapabilityTiles: MessageTemplate(id: MessageId.termCapabilityTiles, usage: 'FR121 capability "tiles"'),
   MessageId.termCapabilityLayers:
       MessageTemplate(id: MessageId.termCapabilityLayers, usage: 'FR121 capability "layers"'),

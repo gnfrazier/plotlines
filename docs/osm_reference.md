@@ -252,9 +252,11 @@ No single canonical "greenway" tag exists in OSM — greenways and rail-trails a
 | `amenity=drinking_water` | Potable water source | POI candidate — high practical value on longer/hot rides |
 | `amenity=bench` / `amenity=shelter` | Seating / weather shelter | POI candidate (minor) |
 
-## Mountain Biking (MTB) — subset of cycling
+## Mountain Biking (MTB) — the `mountain` discipline under `cycling`
 
-Distinct character from the road-touring tags above: dirt singletrack and trail-difficulty grading rather than road surface/traffic. The project's five existing themes (flattest, most climbing, lowest traffic, fewest turns, most art/history) are road-touring themes — MTB doesn't fit any of them without its own difficulty-aware weighting, so treat this as a genuinely separate mode to consider, not free extra content on top of the road themes.
+> **Post-#315:** MTB, nordic and paddling are **disciplines** under a travel-mode category now (`multimodal/disciplines.py`), not modes of their own. The tags below feed the discipline's `WeightProfile` and (future, B9/FR14b) its grading story; they never change the routing graph, which stays the category's.
+
+Distinct character from the road-touring tags above: dirt singletrack and trail-difficulty grading rather than road surface/traffic. The project's road themes don't fit it without its own difficulty-aware weighting, so treat this as a genuinely separate discipline, not free extra content on top of the road themes.
 
 | Tag                                                                 | Description                                                | Status                                                                                 |
 | ------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------- |

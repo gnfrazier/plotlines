@@ -31,6 +31,7 @@
 // bring before the clone is created").
 library;
 
+import 'legacy_mode.dart';
 import 'roster.dart';
 import 'trip.dart';
 
@@ -227,7 +228,10 @@ CloneOutcome cloneTrip({
   return CloneOutcome(
     trip: clonedTrip,
     roster: clonedRoster,
-    declaredModes: carriesAuthored ? {...sourceDeclaredModes} : const {},
+    // #315 — fold any pre-migration mode value carried from the source.
+    declaredModes: carriesAuthored
+        ? {for (final m in sourceDeclaredModes) canonicalMode(m)}
+        : const {},
     runsTripInitiation: !carriesAuthored,
   );
 }

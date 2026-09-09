@@ -37,6 +37,7 @@ class _RecordingRoutingClient extends RoutingClient {
     Coord? end,
     List<Coord> via = const [],
     String mode = 'cycling',
+    String? discipline,
     String shape = 'loop',
     String theme = 'balanced',
     Map<String, double>? weights,
@@ -77,15 +78,12 @@ class _RecordingRoutingClient extends RoutingClient {
 
 void main() {
   group('networkTypeForMode mirrors multimodal/modes.py', () {
-    test('the routed modes map to their registry network_type', () {
+    test('the routed categories map to their registry network_type', () {
       expect(networkTypeForMode('cycling'), 'bike');
-      expect(networkTypeForMode('mountain_biking'), 'bike');
       expect(networkTypeForMode('hiking'), 'walk');
       expect(networkTypeForMode('driving'), 'drive');
       expect(networkTypeForMode('paddling'), 'all');
       expect(networkTypeForMode('cross_country_skiing'), 'all');
-      expect(networkTypeForMode('packrafting'), 'all');
-      expect(networkTypeForMode('riverboarding'), 'all');
     });
 
     test('an unknown or note mode falls through to bike, as network_type_for does', () {

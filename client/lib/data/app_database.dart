@@ -92,7 +92,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.connection);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -108,6 +108,43 @@ class AppDatabase extends _$AppDatabase {
             // G2 / G2b — the roster layer and the card-face metrics summary.
             await m.addColumn(trips, trips.roster);
             await m.addColumn(trips, trips.summary);
+          }
+          if (from < 5) {
+            // #315 — `mountain_biking` / `packrafting` / `riverboarding` left
+            // the travel_mode enum. Fold them onto their category in the two
+            // denormalized CSV columns (the `payload` blob is migrated on
+            // decode by `Segment.fromJson`). Done row-by-row so a trip that
+            // carried both `cycling` and `mountain_biking` ends up with one
+            // `cycling`, not a duplicate.
+            const alias = {
+              'mountain_biking': 'cycling',
+              'packrafting': 'paddling',
+              'riverboarding': 'paddling',
+            };
+            List<String> fold(String csv) {
+              final out = <String>[];
+              for (final raw in csv.split(',')) {
+                final v = raw.trim();
+                if (v.isEmpty) continue;
+                final canon = alias[v] ?? v;
+                if (!out.contains(canon)) out.add(canon);
+              }
+              return out;
+            }
+
+            final rows = await m.database
+                .customSelect('SELECT id, modes, declared_modes FROM trips')
+                .get();
+            for (final row in rows) {
+              await m.database.customStatement(
+                'UPDATE trips SET modes = ?, declared_modes = ? WHERE id = ?',
+                [
+                  fold(row.read<String>('modes')).join(','),
+                  fold(row.read<String>('declared_modes')).join(','),
+                  row.read<String>('id'),
+                ],
+              );
+            }
           }
         },
       );

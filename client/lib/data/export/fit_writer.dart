@@ -43,9 +43,6 @@ const Map<String, double> _fallbackSpeedMps = {
   'hiking': 1.39,
   'paddling': 1.11,
   'cross_country_skiing': 2.22,
-  'packrafting': 1.25,
-  'riverboarding': 1.11,
-  'mountain_biking': 3.33,
   'driving': 16.67,
   'transit': 8.33,
 };
@@ -391,9 +388,9 @@ const Map<String, int> _sport = {
 };
 
 String _sportForMode(String? mode) => switch (mode) {
-      'cycling' || 'mountain_biking' => 'cycling',
+      'cycling' => 'cycling',
       'hiking' => 'hiking',
-      'paddling' || 'packrafting' || 'riverboarding' => 'paddling',
+      'paddling' => 'paddling',
       _ => 'generic',
     };
 
