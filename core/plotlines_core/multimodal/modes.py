@@ -1,11 +1,18 @@
 """The traversal-mode registry (FR10 / B1, FR130 / M1) — ARCH §6.4.
 
-FR10 [AMENDED v2.0] names eight **traversal modes** — cycling, hiking, paddling,
-cross-country skiing, packrafting, riverboarding, mountain biking, and driving — and
-draws a hard line between them and **station activities** (FR109): climbing,
-canyoneering, and jumaring are performed *at* a place, not *between* two, and v1.0's
-filing of them under "further modes, a scoping decision" was never buildable, because
-`WeightProfile` models horizontal traversal and could not have absorbed them.
+FR10 [AMENDED v2.0] names the **traversal modes** and draws a hard line between them
+and **station activities** (FR109): climbing, canyoneering, and jumaring are performed
+*at* a place, not *between* two, and v1.0's filing of them under "further modes, a
+scoping decision" was never buildable, because `WeightProfile` models horizontal
+traversal and could not have absorbed them.
+
+**Issue #315 reduced this list to the traversal *categories*.** `mountain_biking`,
+`packrafting` and `riverboarding` were "Model B expressed as a Model A row" — a mode
+that shared another's graph and legality and differed only in weights. They are now
+*disciplines* (`multimodal.disciplines`: `mountain` under `cycling`, `packraft` /
+`riverboard` under `paddling`), reusing the exact profiles they carried here.
+`multimodal.legacy` maps the old spelling forward. So this registry is now
+cycling, hiking, paddling, cross-country skiing (the "Ski" category), and driving.
 
 FR130 states the extension path this module *is*: adding a traversal mode requires
 only a new `WeightProfile` entry and its domain parameters — **no parallel scorer**.
@@ -16,15 +23,14 @@ So a mode here is a row of data, never a branch of code:
     `routing/` switches on `mode` to score.
   * `network_type`, `access_mode`, `base_speed_kmh`, `medium` — the domain parameters
     M1 names. `access_mode` points at an existing `routing.access.MODE_CONSTRAINTS`
-    row rather than duplicating it: mountain biking is legally cycling, packrafting is
-    legally paddling, and cross-country skiing is legally foot travel. A mode with no
-    legality opinion of its own routes exactly as it did before A11.
+    row rather than duplicating it: cross-country skiing is legally foot travel, and a
+    `cycling` + `mountain` discipline is legally cycling. A mode with no legality
+    opinion of its own routes exactly as it did before A11.
 
 `tier` records what MVP ships as first-class (cycling, hiking, paddling — PRD §10's
 "Multimodal breadth": v2.0 resolves *how* further modes extend, not *which* ship
-when) without removing the rest from the list. An Author can author a packrafting
-passage today; what "first-class" buys is a tuned weight profile and a router that
-has been measured, not the mode's existence.
+when) without removing the rest from the list. What "first-class" buys is a tuned
+weight profile and a router that has been measured, not the mode's existence.
 
 `transit` is deliberately **not** a traversal mode. FR29 [AMENDED v2.0] splits access
 legs in two: driving legs are *routed*, with distance, time and a cue sheet, while
@@ -37,6 +43,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+
+from plotlines_core.multimodal.legacy import LEGACY_MODE_ALIASES
 
 from plotlines_core.scoring.profile import WeightProfile
 
@@ -79,8 +87,10 @@ class TraversalMode:
         return self.tier == FIRST_CLASS
 
 
-#: FR10's list, in the order the PRD states it. Every entry is one row of
-#: configuration; adding a ninth mode means adding a row here and nothing else.
+#: FR10's traversal *categories*, in the order the PRD states them (issue #315
+#: reduced the list from eight modes; the road/gravel/mountain-style variants
+#: live in `multimodal.disciplines`). Every entry is one row of configuration;
+#: adding a category means adding a row here and nothing else.
 TRAVERSAL_MODES: dict[str, TraversalMode] = {
     "cycling": TraversalMode(
         key="cycling",
@@ -133,43 +143,6 @@ TRAVERSAL_MODES: dict[str, TraversalMode] = {
         # an access one.
         access_mode="hiking",
         base_speed_kmh=8.0,
-    ),
-    "packrafting": TraversalMode(
-        key="packrafting",
-        label="Packraft",
-        tier=EXTENDED,
-        medium="water",
-        weights=WeightProfile(name="packrafting", quiet=1.0, scenic=0.8, directness=0.3),
-        network_type="all",
-        access_mode="paddling",
-        base_speed_kmh=4.5,
-    ),
-    "riverboarding": TraversalMode(
-        key="riverboarding",
-        label="Riverboard",
-        tier=EXTENDED,
-        medium="water",
-        weights=WeightProfile(name="riverboarding", quiet=1.0, scenic=0.8, directness=0.3),
-        network_type="all",
-        access_mode="paddling",
-        base_speed_kmh=4.0,
-    ),
-    "mountain_biking": TraversalMode(
-        key="mountain_biking",
-        label="MTB",
-        tier=EXTENDED,
-        medium="land",
-        # FR4's bipolar surface dials are what make this a *configuration* of
-        # cycling rather than a second cycling scorer: seek singletrack outright,
-        # avoid pavement, and take the climbing.
-        weights=WeightProfile(
-            name="mountain_biking", quiet=0.9, scenic=0.7, directness=0.2,
-            peaks=0.4, surface_singletrack=1.0, surface_gravel=0.5,
-            surface_paved=-0.6,
-        ),
-        network_type="bike",
-        access_mode="cycling",
-        base_speed_kmh=12.0,
     ),
     "driving": TraversalMode(
         key="driving",
@@ -267,10 +240,16 @@ def access_mode_for(
 ) -> str | None:
     """Which `routing.access.MODE_CONSTRAINTS` row governs `mode`'s legality.
 
-    Falls through to `mode` itself for a mode the registry doesn't carry, so
+    A value that was a `travel_mode` before issue #315 (`mountain_biking` etc.)
+    resolves to the legality of the category it folded into, so a payload that
+    slipped through without migration still routes legally. Otherwise falls
+    through to `mode` itself for a mode the registry doesn't carry, so
     `routing.access` behaves for unknown modes exactly as it did before this
     registry existed.
     """
+    alias = LEGACY_MODE_ALIASES.get(mode)
+    if alias is not None:
+        mode = alias[0]
     found = traversal_mode(mode, registry)
     if found is None:
         return mode

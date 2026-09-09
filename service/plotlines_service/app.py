@@ -30,7 +30,7 @@ from pathlib import Path
 
 import osmnx as ox
 from fastapi import FastAPI, HTTPException, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from plotlines_core.cache_layout import CacheLayout
 from plotlines_core.curation.attribution import (
@@ -60,6 +60,12 @@ from plotlines_core.elevation.interface import (
 from plotlines_core.elevation.qa_proxy_client import qa_proxy_fetch
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph import regions as region_lib
+from plotlines_core.multimodal.disciplines import DISCIPLINES
+from plotlines_core.multimodal.legacy import (
+    LEGACY_MODE_ALIASES,
+    canonical_mode,
+    migrate_payload_modes,
+)
 from plotlines_core.multimodal.modes import TRAVERSAL_MODES
 from plotlines_core.osm_identity import apply_osm_http_identity, nominatim_rate_limit
 from plotlines_core.graph.loader import LoadedGraph, load_graphml, nearest_node
@@ -703,6 +709,9 @@ class SegmentRequest(BaseModel):
     end: Coordinate | None = None
     via: list[Coordinate] = Field(default_factory=list)
     mode: str = "cycling"
+    # #315 — the discipline under `mode`. Selects the weight profile; does not
+    # change the graph. Takes precedence over `theme` in `_resolve_profile`.
+    discipline: str | None = None
     # One of loop | out_and_back | point_to_point (FR7/A7). Loop is the
     # AC-stated default — the shape needing only a start, no destination.
     shape: str = "loop"
@@ -713,6 +722,14 @@ class SegmentRequest(BaseModel):
     # single-request generate has nowhere to carry a band, so this is the
     # point estimate a band would center on).
     target_m: float | None = None
+
+    @field_validator("mode")
+    @classmethod
+    def _canon_mode(cls, v: str) -> str:
+        # #315 — a payload that reached the service without migration can still
+        # carry a removed `travel_mode` value (`mountain_biking` etc.); fold it
+        # onto its category so the graph filter and legality see a known name.
+        return canonical_mode(v)
 
 
 class GeometryInput(BaseModel):
@@ -774,11 +791,19 @@ class CuesRequest(BaseModel):
     weights: dict[str, float] | None = None
     target_m: float | None = None
     mode: str = "cycling"
+    # #315 — see `SegmentRequest.discipline`. Kept in sync so a cue re-solve
+    # weights the route exactly as the generate did.
+    discipline: str | None = None
     segment_id: str | None = None
     nodes: list[NodeInput] = Field(default_factory=list)
     hazards: list[HazardInput] = Field(default_factory=list)
     portages: list[PortageInput] = Field(default_factory=list)
     alternates: list[AlternateInput] = Field(default_factory=list)
+
+    @field_validator("mode")
+    @classmethod
+    def _canon_mode(cls, v: str) -> str:
+        return canonical_mode(v)
 
 
 class DayComposeRequest(BaseModel):
@@ -1416,23 +1441,46 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             "proposals": [_proposal_to_dict(p) for p in proposals],
         }
 
-    def _resolve_profile(theme: str, weights: dict[str, float] | None) -> WeightProfile:
+    def _resolve_profile(
+        theme: str,
+        weights: dict[str, float] | None,
+        discipline: str | None = None,
+    ) -> WeightProfile:
         if weights:
             try:
                 return WeightProfile(name=theme or "custom", **weights)
             except (TypeError, ValueError) as exc:
                 raise HTTPException(422, f"bad weights: {exc}") from exc
+        # #315 — a discipline the caller named wins over `theme`: it *is* the
+        # weight choice for a passage under a category. An unknown discipline
+        # falls through to `theme` rather than erroring (FR144's posture).
+        if discipline and discipline in DISCIPLINES:
+            return DISCIPLINES[discipline].weights
         if theme in THEMES:
             return THEMES[theme]
-        # FR130 / B1 — a traversal mode's own default profile is nameable here,
-        # so a mountain-biking or driving passage can be solved with the weights
-        # its registry row carries and no second scorer. The named-theme
-        # catalogue still wins; only a string that is neither a theme nor a mode
-        # is an error.
+        # #315 — a discipline is also nameable as a `theme` string, and so is a
+        # `travel_mode` value removed by #315 (`mountain_biking` → the
+        # `mountain` discipline's profile). FR130 / B1 — a traversal mode's own
+        # default profile stays nameable too, so a driving passage solves with
+        # the weights its registry row carries and no second scorer. The
+        # named-theme catalogue still wins; only a string that matches none of
+        # these is an error.
+        if theme in DISCIPLINES:
+            return DISCIPLINES[theme].weights
+        alias = LEGACY_MODE_ALIASES.get(theme)
+        if alias is not None:
+            return DISCIPLINES[alias[1]].weights
         mode_profile = TRAVERSAL_MODES.get(theme)
         if mode_profile is not None:
             return mode_profile.weights
         raise HTTPException(422, f"unknown theme {theme!r}")
+
+    def _with_discipline(resp: dict, discipline: str | None) -> dict:
+        """#315 — echo the discipline back on a solve response, the same way
+        `mode` and `theme` are echoed, when the caller supplied one."""
+        if discipline:
+            resp["discipline"] = discipline
+        return resp
 
     def _loop_to_dict(graph, loop: Loop, mode: str, theme: str, shape: str,
                       sampler: ElevationSampler | None,
@@ -1500,7 +1548,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
     @app.post("/segments/generate")
     def segments_generate(req: SegmentRequest) -> dict:
         region = _resolve_region(req.region)
-        profile = _resolve_profile(req.theme, req.weights)
+        profile = _resolve_profile(req.theme, req.weights, req.discipline)
         graph = region.graph.graph
         via = [(c.lat, c.lon) for c in req.via]
 
@@ -1515,16 +1563,20 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                     raise HTTPException(422, "loop shape requires target_m")
                 loop = generate_loop(graph, (req.start.lat, req.start.lon),
                                      req.target_m, profile, via=via, mode=req.mode)
-                return _loop_to_dict(graph, loop, req.mode, req.theme, "loop",
-                                     region.sampler, target_advisory=advisory)
+                return _with_discipline(
+                    _loop_to_dict(graph, loop, req.mode, req.theme, "loop",
+                                  region.sampler, target_advisory=advisory),
+                    req.discipline)
 
             if req.shape == "out_and_back":
                 end = (req.end.lat, req.end.lon) if req.end else None
                 loop = generate_out_and_back(graph, (req.start.lat, req.start.lon),
                                              profile, via=via, end=end,
                                              target_m=req.target_m, mode=req.mode)
-                return _loop_to_dict(graph, loop, req.mode, req.theme, "out_and_back",
-                                     region.sampler, target_advisory=advisory)
+                return _with_discipline(
+                    _loop_to_dict(graph, loop, req.mode, req.theme, "out_and_back",
+                                  region.sampler, target_advisory=advisory),
+                    req.discipline)
 
             if req.end is None:
                 raise HTTPException(422, "point_to_point shape requires end")
@@ -1542,14 +1594,14 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             raise HTTPException(422, str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
-        return segment.to_dict()
+        return _with_discipline(segment.to_dict(), req.discipline)
 
     def _solve_walk(req: CuesRequest, graph) -> tuple[list[int], list]:
         """Shape-aware re-solve shared with `/segments/generate`'s loop/
         out_and_back paths, but always returning a `(path, walk)` pair —
         `derive_cue_sheet` needs the walk regardless of which shape produced it.
         """
-        profile = _resolve_profile(req.theme, req.weights)
+        profile = _resolve_profile(req.theme, req.weights, req.discipline)
         via = [(c.lat, c.lon) for c in req.via]
 
         if req.shape == "loop":
@@ -1787,7 +1839,12 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
 
     @app.post("/trips/split")
     def trips_split(req: TripSplitRequest) -> dict:
-        days = [parse_dataclass(PayloadDay, d) for d in req.days]
+        # #315 — fold any pre-migration `travel_mode` value (`mountain_biking`
+        # etc.) in the posted days onto its category + discipline before the
+        # dataclass parse, so the assembled trip and its roll-ups never carry
+        # a name the schema no longer allows.
+        migrated = migrate_payload_modes({"days": req.days})["days"]
+        days = [parse_dataclass(PayloadDay, d) for d in migrated]
         default_weights = (
             parse_dataclass(PayloadWeightProfile, req.default_weights)
             if req.default_weights else None
