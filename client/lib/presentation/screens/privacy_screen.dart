@@ -22,6 +22,10 @@ class PrivacyScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final client = ref.watch(routingClientProvider);
     return Scaffold(
+      // Issue #314 — a recessed content field so the statement reads as a
+      // panel on a surface, not loose text sharing one plane with the
+      // (now border-ruled) header.
+      backgroundColor: PlotColors.of(context).surfaceSunk,
       appBar: AppBar(title: const Text('Privacy & data')),
       body: FutureBuilder<Map<String, dynamic>>(
         future: client.about(),
@@ -57,16 +61,29 @@ class PrivacyStatementView extends StatelessWidget {
           style: PlotTypography.small(c.textMuted),
         ),
         const SizedBox(height: PlotSpacing.s5),
-        for (final point in points) ...[
-          Text(
-            point.title,
-            style: PlotTypography.body(c.textPrimary)
-                .copyWith(fontWeight: FontWeight.w700),
+        // Issue #314 — one bordered panel with a hairline rule between
+        // clauses, not an unbroken run of text on the canvas.
+        PlotCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final (i, point) in points.indexed) ...[
+                if (i > 0) ...[
+                  const SizedBox(height: PlotSpacing.s4),
+                  Divider(height: 1, thickness: 1, color: c.border),
+                  const SizedBox(height: PlotSpacing.s4),
+                ],
+                Text(
+                  point.title,
+                  style: PlotTypography.body(c.textPrimary)
+                      .copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: PlotSpacing.s1),
+                Text(point.body, style: PlotTypography.body(c.textSecondary)),
+              ],
+            ],
           ),
-          const SizedBox(height: PlotSpacing.s1),
-          Text(point.body, style: PlotTypography.body(c.textSecondary)),
-          const SizedBox(height: PlotSpacing.s4),
-        ],
+        ),
       ],
     );
   }

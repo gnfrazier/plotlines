@@ -44,6 +44,14 @@ class PlotTheme {
         backgroundColor: c.surfaceApp,
         foregroundColor: c.textPrimary,
         elevation: 0,
+        // Borders do the structural work: a hairline rule under every app
+        // header so it reads as its own plane above the content field
+        // rather than dissolving into it (issue #314). The zeroed
+        // scrolled-under elevation and transparent tint keep it from
+        // picking up Material 3's primary-tinted wash on scroll.
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shape: Border(bottom: BorderSide(color: c.border)),
         centerTitle: false,
         titleTextStyle: PlotTypography.title(c.textPrimary),
       ),

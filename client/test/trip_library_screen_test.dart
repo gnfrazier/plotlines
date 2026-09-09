@@ -20,6 +20,7 @@ import 'package:plotlines_client/presentation/screens/trip_library_screen.dart';
 import 'package:plotlines_client/presentation/widgets/trip_location_prompt.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/providers.dart';
+import 'package:plotlines_ui/plotlines_ui.dart';
 
 class _FakeSidecarManager extends SidecarManager {
   @override
@@ -98,6 +99,30 @@ void main() {
     await tester.tap(find.text('New trip'));
     await tester.pump();
     expect(find.text('How will you travel?'), findsOneWidget);
+  });
+
+  testWidgets('the empty library gives the content field and the empty state their own planes',
+      (tester) async {
+    // Issue #314 — the header, the content area and the empty state used to
+    // sit on one flat sheet of canvas. The content field is now the recessed
+    // surfaceSunk plane, and the empty state is a bordered PlotCard on top of
+    // it rather than loose text.
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    await tester.pumpWidget(_harness(db));
+    await _settleMap(tester);
+
+    final field = tester.widget<ColoredBox>(
+      find.byKey(const Key('library-content-field')),
+    );
+    expect(field.color, PlotColors.light.surfaceSunk);
+
+    expect(
+      find.ancestor(
+        of: find.text('No trips yet'),
+        matching: find.byType(PlotCard),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('the New trip control returns once there is a library to sit over',

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/privacy_statement.dart';
 import 'package:plotlines_client/presentation/screens/privacy_screen.dart';
+import 'package:plotlines_ui/plotlines_ui.dart';
 
 void main() {
   group('privacyStatement constant', () {
@@ -104,6 +105,32 @@ void main() {
 
     for (final p in privacyStatement) {
       expect(find.text(p.title), findsOneWidget);
+    }
+  });
+
+  testWidgets('the statement is one bordered panel, not loose text on the canvas',
+      (tester) async {
+    // Issue #314 — the screen was a single unbroken plane; the clauses now
+    // sit inside a PlotCard so the statement reads as a panel on the recessed
+    // content field.
+    tester.view.physicalSize = const Size(1000, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(body: PrivacyStatementView(points: privacyStatement)),
+    ));
+
+    expect(find.byType(PlotCard), findsOneWidget);
+    for (final p in privacyStatement) {
+      expect(
+        find.ancestor(
+          of: find.text(p.title),
+          matching: find.byType(PlotCard),
+        ),
+        findsOneWidget,
+      );
     }
   });
 }
