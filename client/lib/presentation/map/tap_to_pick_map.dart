@@ -33,6 +33,11 @@ typedef LatLonPoint = List<double>; // [lon, lat]
 /// target — role read from position instead of from role.
 typedef MapMarkerPoint = ({LatLonPoint coord, NodeMarkerType role});
 
+/// #322 — a thin connector from an authored node to its nearest point on the
+/// route, drawn when the node sits off the line so its relationship to the
+/// day is visible rather than left to be guessed from proximity.
+typedef MapLeaderLine = ({LatLonPoint from, LatLonPoint to});
+
 /// Why a bundled basemap style failed to resolve. A bare `null` collapsed
 /// these four into one indistinguishable outcome (issue #184, an M13
 /// "never a silent failure" violation) — the caller could not tell a
@@ -221,7 +226,9 @@ class TapToPickMap extends ConsumerStatefulWidget {
     this.points = const [],
     this.onTap,
     this.polyline = const [],
+    this.leaderLines = const [],
     this.center,
+    this.focusCoord,
     this.initialZoom = 13,
     this.outline,
   });
@@ -229,7 +236,19 @@ class TapToPickMap extends ConsumerStatefulWidget {
   final List<MapMarkerPoint> points;
   final void Function(LatLonPoint)? onTap;
   final List<LatLonPoint> polyline;
+
+  /// #322 — off-route node → nearest-point-on-line connectors, drawn muted and
+  /// dashed beneath the markers.
+  final List<MapLeaderLine> leaderLines;
+
   final LatLonPoint? center;
+
+  /// #322 — a coordinate to pan to and draw highlighted whenever it changes:
+  /// the node that was just saved or selected. Distinct from [center], which
+  /// only seeds the initial camera; a new [focusCoord] moves a map already on
+  /// screen so the Author sees what they just made.
+  final LatLonPoint? focusCoord;
+
   final double initialZoom;
 
   /// A static bbox outline to draw on the map (A10's shipped home region;
@@ -244,6 +263,21 @@ class TapToPickMap extends ConsumerStatefulWidget {
 class _TapToPickMapState extends ConsumerState<TapToPickMap> {
   final _mapController = MapController();
   bool _mapReady = false;
+
+  @override
+  void didUpdateWidget(TapToPickMap old) {
+    super.didUpdateWidget(old);
+    // #322 — a fresh focus coordinate (a node just saved or selected) pans the
+    // live map to it. Guarded on `_mapReady` because `camera` throws before
+    // `FlutterMap` has laid out; the same guard `trip_area_map.dart` uses.
+    final f = widget.focusCoord;
+    if (f != null && !_sameCoord(f, old.focusCoord) && _mapReady) {
+      _mapController.move(ll.LatLng(f[1], f[0]), _mapController.camera.zoom);
+    }
+  }
+
+  static bool _sameCoord(LatLonPoint? a, LatLonPoint? b) =>
+      a == null || b == null ? a == b : a[0] == b[0] && a[1] == b[1];
 
   @override
   void dispose() {
@@ -293,7 +327,16 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                     ? null
                     : (tapPosition, point) => widget.onTap!([point.longitude, point.latitude]),
                 onMapEvent: (_) => setState(() {}),
-                onMapReady: () => setState(() => _mapReady = true),
+                onMapReady: () {
+                  setState(() => _mapReady = true);
+                  // #322 — a node already selected when the map mounts is
+                  // revealed as soon as there is a camera to move.
+                  final f = widget.focusCoord;
+                  if (f != null) {
+                    _mapController.move(
+                        ll.LatLng(f[1], f[0]), _mapController.camera.zoom);
+                  }
+                },
               ),
               children: [
                 // Issue #230 C1 — the grid is the ground under the tiles,
@@ -324,14 +367,37 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                       strokeWidth: 4,
                     ),
                   ]),
+                // #322 — leader lines from off-route nodes to the line. Muted
+                // and dashed so they read as a reference, not as route.
+                if (widget.leaderLines.isNotEmpty)
+                  PolylineLayer(polylines: [
+                    for (final l in widget.leaderLines)
+                      Polyline(
+                        points: [
+                          ll.LatLng(l.from[1], l.from[0]),
+                          ll.LatLng(l.to[1], l.to[0]),
+                        ],
+                        color: c.textMuted,
+                        strokeWidth: 1.5,
+                        pattern: StrokePattern.dashed(segments: const [6.0, 4.0]),
+                      ),
+                  ]),
                 MarkerLayer(markers: [
                   for (final p in widget.points)
-                    Marker(
-                      point: ll.LatLng(p.coord[1], p.coord[0]),
-                      width: 28,
-                      height: 28,
-                      child: NodeMarker(p.role),
-                    ),
+                    if (_sameCoord(p.coord, widget.focusCoord))
+                      Marker(
+                        point: ll.LatLng(p.coord[1], p.coord[0]),
+                        width: 44,
+                        height: 44,
+                        child: _HighlightedMarker(role: p.role, halo: c.primary),
+                      )
+                    else
+                      Marker(
+                        point: ll.LatLng(p.coord[1], p.coord[0]),
+                        width: 28,
+                        height: 28,
+                        child: NodeMarker(p.role),
+                      ),
                 ]),
               ],
             ),
@@ -355,6 +421,33 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
           ],
         );
       },
+    );
+  }
+}
+
+/// #322 — the marker for the node the planner is focused on: the canonical
+/// [NodeMarker] shape (so its kind still reads) sat on a soft [halo] ring, a
+/// little larger. The halo carries the "this one" signal without changing the
+/// mark itself.
+class _HighlightedMarker extends StatelessWidget {
+  const _HighlightedMarker({required this.role, required this.halo});
+
+  final NodeMarkerType role;
+  final Color halo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: halo.withValues(alpha: 0.14),
+          border: Border.all(color: halo, width: 2),
+        ),
+        child: Center(child: NodeMarker(role, size: 26)),
+      ),
     );
   }
 }

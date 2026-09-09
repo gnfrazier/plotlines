@@ -104,4 +104,39 @@ void main() {
       expect(daySelection(trip, 'nope'), isNull);
     });
   });
+
+  group('nodeKindIsRoutingConstraint (issue #322)', () {
+    test('via, start, finish and the portage ends pin the route', () {
+      for (final kind in [
+        NodeKind.via,
+        NodeKind.start,
+        NodeKind.finish,
+        NodeKind.portageStart,
+        NodeKind.portageEnd,
+      ]) {
+        expect(nodeKindIsRoutingConstraint(kind), isTrue, reason: '$kind');
+      }
+    });
+
+    test('annotation kinds never invalidate a solved geometry', () {
+      for (final kind in [
+        NodeKind.waypoint,
+        NodeKind.regroup,
+        NodeKind.restStop,
+        NodeKind.poi,
+        NodeKind.transition,
+        NodeKind.event,
+      ]) {
+        expect(nodeKindIsRoutingConstraint(kind), isFalse, reason: '$kind');
+      }
+    });
+
+    test('every NodeKind is classified — a new kind cannot slip through', () {
+      // The switch is exhaustive over `NodeKind.values`; this asserts the
+      // enum and the classifier have not drifted apart.
+      for (final kind in NodeKind.values) {
+        expect(() => nodeKindIsRoutingConstraint(kind), returnsNormally);
+      }
+    });
+  });
 }

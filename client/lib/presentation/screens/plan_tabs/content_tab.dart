@@ -148,6 +148,7 @@ class _ContentTabState extends ConsumerState<ContentTab> {
                         dayId: day.id,
                         segmentId: segment.id,
                         coord: coord,
+                        routeGeometry: segment.geometry?.coordinates,
                         existing: existing,
                         onSaved: (node) => setState(() {
                           _selectedNodeId = node.id;
