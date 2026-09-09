@@ -131,6 +131,26 @@ void main() {
       expect(result.ok, isTrue, reason: 'committed style_light.json should parse');
     });
 
+    test('the label scale is part of the cache key (issue #321)', () async {
+      // Same name, same scale bucket → the cached future.
+      final a = MapTileAssets.theme('light', labelScale: 1.5);
+      final b = MapTileAssets.theme('light', labelScale: 1.5);
+      expect(identical(a, b), isTrue);
+
+      // Same name, a scale that rounds to a different bucket → a fresh
+      // parse, so moving the TEXT SIZE control actually re-themes the map.
+      final c = MapTileAssets.theme('light', labelScale: 1.15);
+      expect(identical(a, c), isFalse);
+
+      // The default (1.0) is its own bucket, distinct from a scaled one.
+      final d = MapTileAssets.theme('light');
+      expect(identical(a, d), isFalse);
+
+      for (final f in [a, b, c, d]) {
+        expect((await f).ok, isTrue);
+      }
+    });
+
     test('a failed load is evicted so a later call retries', () async {
       final failing = MapTileAssets.theme('does-not-exist-anywhere');
       final result = await failing;

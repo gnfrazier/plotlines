@@ -20,6 +20,7 @@ import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 import '../../domain/home_region.dart';
 import '../../state/providers.dart';
 import 'map_attribution.dart';
+import 'map_label_scale.dart';
 import 'no_basemap_notice.dart';
 import 'vector_tile_provider.dart';
 
@@ -105,15 +106,25 @@ class MapTileAssets {
   /// failure is evicted once its future settles (issue #184) so a
   /// transient cause (a file briefly unreadable, a sidecar mid-write) is
   /// retried on the next build rather than pinned forever.
+  ///
+  /// Keyed by `<name>@<label-scale bucket>` (issue #321): the same style at
+  /// a different map-label scale is a different parsed theme, so changing
+  /// TEXT SIZE in Preferences re-parses rather than serving the old ramp,
+  /// while an unchanged scale still hits the cache on every rebuild.
   static final Map<String, Future<BasemapThemeResult>> _themes = {};
 
-  static Future<BasemapThemeResult> theme(String name) {
-    final pending = _themes[name];
+  /// [labelScale] multiplies every `text-size` in the style before it is
+  /// parsed (issue #321) — the resolved app text scale times the DPR
+  /// baseline, from [resolveMapLabelScale]. Defaults to 1.0 (parse the
+  /// shipped bytes unchanged).
+  static Future<BasemapThemeResult> theme(String name, {double labelScale = 1.0}) {
+    final key = '$name@${mapLabelScaleBucket(labelScale)}';
+    final pending = _themes[key];
     if (pending != null) return pending;
-    final future = loadBasemapTheme(candidateStylePaths(name));
-    _themes[name] = future;
+    final future = loadBasemapTheme(candidateStylePaths(name), labelScale: labelScale);
+    _themes[key] = future;
     future.then((result) {
-      if (!result.ok) _themes.remove(name);
+      if (!result.ok) _themes.remove(key);
     });
     return future;
   }
@@ -147,6 +158,7 @@ Future<BasemapThemeResult> loadBasemapTheme(
   List<String> candidatePaths, {
   bool Function(String path)? exists,
   Future<String> Function(String path)? read,
+  double labelScale = 1.0,
 }) async {
   final existsFn = exists ?? (p) => File(p).existsSync();
   final readFn = read ?? (p) => File(p).readAsString();
@@ -188,7 +200,11 @@ Future<BasemapThemeResult> loadBasemapTheme(
   }
 
   try {
-    return BasemapThemeResult.ready(ThemeReader().read(json));
+    // Issue #321 — multiply every `text-size` before parsing so the map's
+    // labels honour the app's TEXT SIZE preference and the desktop DPR
+    // baseline. A `labelScale` of 1.0 returns the style unchanged.
+    final scaled = scaleStyleTextSizes(json, labelScale);
+    return BasemapThemeResult.ready(ThemeReader().read(scaled));
   } catch (e) {
     debugPrint('basemap: style file $found was rejected by ThemeReader: $e');
     return BasemapThemeResult.failed(
@@ -239,6 +255,10 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final isDark = material.Theme.of(context).brightness == Brightness.dark;
+    final labelScale = resolveMapLabelScale(
+      MediaQuery.textScalerOf(context).scale(1),
+      MediaQuery.devicePixelRatioOf(context),
+    );
     final startCenter = widget.center ??
         (widget.points.isNotEmpty ? widget.points.first.coord : HomeRegion.center);
     final sidecar = ref.watch(sidecarManagerProvider);
@@ -246,7 +266,7 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
     final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
 
     return FutureBuilder(
-      future: MapTileAssets.theme(isDark ? 'dark' : 'light'),
+      future: MapTileAssets.theme(isDark ? 'dark' : 'light', labelScale: labelScale),
       builder: (context, snapshot) {
         final themeResult = snapshot.data;
         final vectorTheme = themeResult?.theme;
