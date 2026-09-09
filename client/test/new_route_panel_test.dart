@@ -82,7 +82,9 @@ void main() {
     expect(find.text('PRIMARY MODES · pick any'), findsNothing);
     expect(find.text('TRIP MODES'), findsOneWidget);
     expect(find.text('MODE FOR THIS ROUTE'), findsOneWidget);
-    expect(find.textContaining('which map layers switch on'), findsOneWidget);
+    // Issue #316 — the layer set is chosen on its own step now; TRIP MODES
+    // seeds it rather than claiming the switch happens here.
+    expect(find.textContaining('seeds the trip\'s starting layers'), findsOneWidget);
     expect(find.textContaining('Which mode this first route is solved for'), findsOneWidget);
   });
 

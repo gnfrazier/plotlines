@@ -23,6 +23,7 @@ import '../../../state/current_trip_provider.dart';
 import '../../../state/layer_selection_provider.dart';
 import '../../../state/providers.dart';
 import '../../../state/trip_bbox_provider.dart';
+import '../../../state/trip_candidates_provider.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/layer_picker.dart';
 import '../../../data/curation_client.dart' show LayerCatalog;
@@ -40,9 +41,10 @@ class LayersTab extends ConsumerStatefulWidget {
 }
 
 class _LayersTabState extends ConsumerState<LayersTab> {
-  List<Candidate> _candidates = const [];
-  bool _loading = false;
-  String? _error;
+  // Issue #316 — the candidate list, its loading flag and its last error
+  // moved to `tripCandidatesProvider` so the set the trip-creation layer
+  // step warms is the same one this tab shows. The "Find candidates here"
+  // button re-runs it; nothing here fetches on entry.
   _CurationView _view = _CurationView.candidates;
 
   Day? get _activeDay =>
@@ -118,6 +120,7 @@ class _LayersTabState extends ConsumerState<LayersTab> {
     final selection = ref.watch(layerSelectionProvider);
     final bbox = ref.watch(tripBboxProvider);
     final modes = _effectiveModes;
+    final candidatesState = ref.watch(tripCandidatesProvider);
     final layerStates =
         ref.watch(sidecarManagerProvider).capabilities?.layersPerLayer ?? const {};
     return Row(
@@ -125,22 +128,25 @@ class _LayersTabState extends ConsumerState<LayersTab> {
             Expanded(
               child: Stack(
                 children: [
-                  CandidateMap(candidates: _candidates, bbox: bbox, onCandidateTap: _promote),
+                  CandidateMap(
+                      candidates: candidatesState.candidates,
+                      bbox: bbox,
+                      onCandidateTap: _promote),
                   Positioned(
                     top: PlotSpacing.s3,
                     left: PlotSpacing.s3,
                     child: _FindCandidatesButton(
-                      enabled: bbox != null && !_loading,
-                      loading: _loading,
+                      enabled: bbox != null && !candidatesState.loading,
+                      loading: candidatesState.loading,
                       onPressed: () => _fetchCandidates(live),
                     ),
                   ),
-                  if (_error != null)
+                  if (candidatesState.error != null)
                     Positioned(
                       bottom: PlotSpacing.s3,
                       left: PlotSpacing.s3,
                       right: PlotSpacing.s3,
-                      child: _ErrorBanner(message: _error!),
+                      child: _ErrorBanner(message: candidatesState.error!),
                     ),
                 ],
               ),
@@ -236,25 +242,10 @@ class _LayersTabState extends ConsumerState<LayersTab> {
         );
   }
 
-  Future<void> _fetchCandidates(Set<String> liveLayers) async {
+  void _fetchCandidates(Set<String> liveLayers) {
     final bbox = ref.read(tripBboxProvider);
     if (bbox == null) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final candidates = await ref
-          .read(curationClientProvider)
-          .candidatesForBbox(bbox: bbox, liveLayers: liveLayers);
-      if (!mounted) return;
-      setState(() => _candidates = candidates);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    ref.read(tripCandidatesProvider.notifier).fetch(bbox: bbox, liveLayers: liveLayers);
   }
 
   /// FR99 — "an Author can promote any candidate directly [...] without

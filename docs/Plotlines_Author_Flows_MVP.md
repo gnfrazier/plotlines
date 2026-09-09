@@ -1,6 +1,6 @@
 # Plotlines — Author Flows (MVP)
 
-**Version:** 1.4
+**Version:** 1.5
 **Companion to:** `Plotlines_PRD_v2.md` (source of truth), `Plotlines_ARCHITECTURE_v2.md`, `Plotlines_MVP_Redirection_Punchlist.md`
 **Scope:** Every **[MVP]** Author story in PRD v2.0, plus the account, error, and edit behaviours that cut across them.
 
@@ -23,9 +23,12 @@ flowchart TD
     M --> D["Location prompt<br/><i>prefilled, centers map</i>"]
     D --> E["Draw the bbox<br/><i>navigable map, scale shown</i>"]
     Z --> E
-    E --> F["Layers + POI ready<br/><i>curation unlocked</i>"]
+    E --> L["Choose starting layers<br/><i>mode-derived default, skippable</i>"]
+    L --> N["First route<br/><i>New Route form</i>"]
+    L --> F["Layers + POI ready<br/><i>curation unlocked</i>"]
     E --> G["Elevation enriching<br/><i>routing gated, honest</i>"]
     F --> H[Start curating]
+    N --> H
     G --> H
 ```
 
@@ -37,6 +40,7 @@ flowchart TD
 | Choose clone scope | **MVP** | FR74b | G2b | Carries roster membership, group assignments, and the whole authored trip. **Never carries profile grants or arrival visibility** — each Character re-grants per trip (K2), or cloning becomes a consent-laundering path. Author notes follow the person automatically (D6), no rule needed. A clone brings its own bbox, so it skips the location prompt. |
 | Location prompt | FR96 | A10, N1 | Prefilled last-used, freely editable. **Centers the map only** — never becomes the bbox. |
 | Draw the bbox | **MVP** | FR120 | N1 | Bounds layers, clusters, tiles, elevation. **Map is navigable while drawing** — zoom, pan, recentre, scale shown — and navigating never alters the extent. Revisable, see flow 9. |
+| Choose starting layers | **MVP** | FR97, FR144 | N3, N0 | **Its own step, between the extent and the first route** (issue #316) — the pipeline's own order, layer selection at stage 2 not stage 7. Shows the (mode × day-type) default live set with the full catalog to override; **skippable on the default** (PRD §5). Kicks candidate extraction off on Continue so it warms while the Author fills in New Route. The Layers tab is unchanged — it stays the curation workspace; only the *initial* selection moved here. |
 | Layers + POI ready | FR121, FR97 | N2, N3 | Ordered **ahead of** elevation. Per-layer state for plugin layers. |
 | Elevation enriching | FR121, FR91 | N2, M12a | Background. Routing disabled with a stated reason, never a silent failure. |
 
@@ -346,6 +350,7 @@ Newest first.
 
 | Version | Change |
 |---|---|
+| **1.5** | **Flow 1 gains an explicit "Choose starting layers" step** (issue #316, from the UX review in #271), between the extent step and the first route — layer selection is pipeline stage 2 and was running at stage 7 (a tab reached only after a route exists). Mode-derived default, full catalog to override, skippable on the default; candidate extraction starts here rather than on first entry to the Layers tab, which is otherwise unchanged. |
 | **1.4** | **Design cross-check applied** (CR-1 to CR-7). Flow 1 gains **mode declaration** (FR144, N0) ahead of the location prompt, a **navigable map** on the extent step (FR120), and a **clone scope** choice (FR74b, G2b). New across the set: FR142(e) first-run teaching (K12a), FR145 string templates (M14) — the latter closing a reveal-leak path the export byte assertions structurally could not catch. CR-7's errata had already been corrected in the pass preceding this one. |
 | **1.3** | **Priority column added to every node**, after a Design cross-check found flow 2's cluster branch (N4, N4a) read as MVP here while being [P1] in the PRD. Flow 9 gained its missing **Q4** node (duplication, FR141), which the coverage table had claimed without drawing. Change log reordered newest-first and the intro note relabelled to match the document version. |
 | 1.2 | Flow 1 gains a **clone branch** (FR74, G2): cloning carries roster, group assignments, and the trip, but **never profile grants**. Named travel circles (FR143, D9) noted as Later. |
