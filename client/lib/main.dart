@@ -10,6 +10,7 @@ import 'presentation/screens/new_route_screen.dart';
 import 'presentation/screens/privacy_screen.dart';
 import 'presentation/screens/settings_screen.dart';
 import 'presentation/screens/trip_area_screen.dart';
+import 'presentation/screens/trip_layers_screen.dart';
 import 'presentation/screens/trip_library_screen.dart';
 import 'presentation/screens/trip_shell_screen.dart';
 import 'presentation/widgets/desktop_window_frame.dart';
@@ -67,6 +68,14 @@ final _router = GoRouter(
     GoRoute(
       path: '/trip-area',
       builder: (context, state) => const TripAreaScreen(isCreation: false),
+    ),
+    // Issue #316 — step 3 of trip initiation: the mode-derived layer set,
+    // chosen before the first route is drawn (pipeline stage 2, ahead of
+    // routing at stage 7). Skippable on the default.
+    GoRoute(
+      path: '/new-trip-layers',
+      builder: (context, state) =>
+          TripLayersScreen(initialCenter: state.extra as List<double>?),
     ),
     GoRoute(
       path: '/new',

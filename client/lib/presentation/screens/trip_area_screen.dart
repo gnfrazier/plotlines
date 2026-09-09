@@ -117,8 +117,11 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
       // New Route fell through to a hardcoded Boulder default. `bbox.center`
       // is always non-null here — the "Use this extent" button (below) is
       // itself disabled until a bbox exists.
+      //
+      // Issue #316 — the extent step now hands off to the layer step, not
+      // straight to New Route; the drawn centre is forwarded through it.
       final bbox = ref.read(tripBboxProvider);
-      context.push('/new', extra: bbox?.center);
+      context.push('/new-trip-layers', extra: bbox?.center);
     } else {
       context.pop();
     }
@@ -157,7 +160,7 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
             Padding(
               padding: const EdgeInsets.only(right: PlotSpacing.s4),
               child: Center(
-                child: Text('NEW TRIP · STEP 2 OF 3',
+                child: Text('NEW TRIP · STEP 2 OF 4',
                     style: PlotTypography.eyebrow(c.textMuted)),
               ),
             ),

@@ -62,8 +62,10 @@ GoRouter _routerFor(
     initialLocation: '/trip-area',
     routes: [
       GoRoute(path: '/trip-area', builder: tripAreaBuilder),
+      // Issue #316 — trip creation's extent step now hands off to the layer
+      // step, which forwards the drawn centre on to New Route.
       GoRoute(
-        path: '/new',
+        path: '/new-trip-layers',
         builder: (_, state) {
           onReachedNewRoute(state.extra as List<double>?);
           return const SizedBox.shrink();
@@ -95,7 +97,7 @@ void main() {
     expect(reachedExtra, isNull);
   });
 
-  testWidgets('drawing during trip creation enables the button and proceeds to New Route',
+  testWidgets('drawing during trip creation enables the button and proceeds to the layer step',
       (tester) async {
     List<double>? reachedExtra;
     var reachedNew = false;
@@ -240,7 +242,7 @@ void main() {
     );
     await tester.pumpWidget(_harness(_containerFor(), router: creation));
     await _settleMap(tester);
-    expect(find.textContaining('STEP 2 OF 3'), findsOneWidget);
+    expect(find.textContaining('STEP 2 OF 4'), findsOneWidget);
 
     final revision = _routerFor(
       (context, state) => const TripAreaScreen(isCreation: false),

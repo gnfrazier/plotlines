@@ -215,7 +215,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
         actions: [
           // Issue #230 B1 — where in trip creation this is.
           Center(
-            child: Text('NEW TRIP · STEP 3 OF 3',
+            child: Text('NEW TRIP · STEP 4 OF 4',
                 style: PlotTypography.eyebrow(c.textMuted)),
           ),
           const SizedBox(width: PlotSpacing.s4),
@@ -303,8 +303,13 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                   // for their scope and carry one line saying what they do.
                   _SectionLabel('TRIP MODES'),
                   Text(
-                    'How this trip travels overall. It decides which map layers switch on; '
-                    'it never limits what a passage can be.',
+                    // Issue #316 — the layer set is chosen on its own step now
+                    // (before this screen), so this no longer promises "which
+                    // map layers switch on" as if it happened here. It still
+                    // seeds those defaults and the passage-mode offer.
+                    'How this trip travels overall. It seeds the trip\'s starting layers — '
+                    'chosen on the previous step — and the modes offered when you add a '
+                    'passage; it never limits what a passage can be.',
                     style: PlotTypography.small(c.textSecondary),
                   ),
                   const SizedBox(height: PlotSpacing.s2),

@@ -75,9 +75,12 @@ class _TripModeDialogState extends State<_TripModeDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'This sets which map layers and passage modes the trip starts with — '
-                'pick at least one. Nothing here is a limit: creating a passage in '
-                'another mode later just adds it.',
+                // Issue #316 — layer selection is its own step now (after the
+                // extent), so this points forward to it rather than implying
+                // the layers are settled here.
+                'This seeds the map layers you\'ll confirm on the layer step, and the '
+                'modes offered when you add a passage — pick at least one. Nothing here '
+                'is a limit: creating a passage in another mode later just adds it.',
                 style: PlotTypography.body(c.textSecondary),
               ),
               const SizedBox(height: PlotSpacing.s4),

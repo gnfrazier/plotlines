@@ -32,6 +32,7 @@ import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
 import '../../state/trip_authoring_meta_provider.dart';
 import '../../state/trip_bbox_provider.dart';
+import '../../state/trip_candidates_provider.dart';
 import '../../state/trip_library_provider.dart';
 import '../map/tap_to_pick_map.dart';
 import '../widgets/clone_scope_dialog.dart';
@@ -219,6 +220,9 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
     // N1 (FR120) — the location only centers the map; the Author still has
     // to draw the trip's own bbox before New Route's setup form.
     ref.read(tripBboxProvider.notifier).reset();
+    // Issue #316 — so the layer step / Layers tab never opens showing the
+    // previous trip's warmed candidate set.
+    ref.read(tripCandidatesProvider.notifier).reset();
     context.push('/new-trip-area', extra: choice);
   }
 }
@@ -523,6 +527,8 @@ class _TripCard extends ConsumerWidget {
     if (!context.mounted) return;
     ref.read(currentTripProvider.notifier).setDeclaredModes(modes);
     ref.read(tripBboxProvider.notifier).reset();
+    // Issue #316 — clear any candidate set warmed for a prior trip creation.
+    ref.read(tripCandidatesProvider.notifier).reset();
     context.push('/new-trip-area', extra: choice);
   }
 
