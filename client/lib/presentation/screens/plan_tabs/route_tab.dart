@@ -13,6 +13,7 @@ import '../../../data/sidecar_manager.dart' show CapabilityStatus;
 import '../../../domain/domain.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../../state/providers.dart';
+import '../../../state/settings_provider.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/day_timeline_strip.dart';
 import '../../widgets/metrics_rail.dart';
@@ -114,6 +115,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
           selectedSegment: selectedSegment,
           elevationCapability: _elevationCapability,
           composeItinerary: composeItinerary,
+          displayFormat: ref.watch(displayFormatProvider),
         ),
       ],
     );

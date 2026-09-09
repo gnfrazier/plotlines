@@ -17,6 +17,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
+import '../../state/settings_provider.dart';
 
 const _uuid = Uuid();
 const _arcStages = ['exposition', 'rising', 'crux', 'climax', 'resolution'];
@@ -93,7 +94,17 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
   late final _note = TextEditingController(text: widget.existing?.note ?? '');
   late final _poiType = TextEditingController(text: widget.existing?.poiType ?? '');
   late final _triggerDistance =
-      TextEditingController(text: widget.existing?.narration?.triggerDistanceM.toString() ?? '');
+      TextEditingController(text: _triggerAsInput());
+
+  /// The stored narration trigger distance (canonical metres) as a bare
+  /// number in the Author's active short-length unit — feet under imperial,
+  /// metres otherwise (issue #312). Empty when no trigger is set.
+  String _triggerAsInput() {
+    final m = widget.existing?.narration?.triggerDistanceM;
+    if (m == null) return '';
+    final df = ref.read(displayFormatProvider);
+    return df.useMiles ? df.smallLengthValue(m).toStringAsFixed(0) : m.toString();
+  }
   late NodeKind _kind = widget.existing?.kind ?? NodeKind.waypoint;
   late String? _arcStage = widget.existing?.arcStage;
   late final Set<String> _amenities = {...(widget.existing?.amenities ?? const [])};
@@ -105,7 +116,7 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
       _title.text = widget.existing?.title ?? '';
       _note.text = widget.existing?.note ?? '';
       _poiType.text = widget.existing?.poiType ?? '';
-      _triggerDistance.text = widget.existing?.narration?.triggerDistanceM.toString() ?? '';
+      _triggerDistance.text = _triggerAsInput();
       _kind = widget.existing?.kind ?? NodeKind.waypoint;
       _arcStage = widget.existing?.arcStage;
       _amenities
@@ -126,6 +137,7 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
+    final df = ref.watch(displayFormatProvider);
     return ListView(
       controller: widget.scrollController,
       padding: const EdgeInsets.all(PlotSpacing.s5),
@@ -214,7 +226,10 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
         TextField(
           controller: _triggerDistance,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Trigger distance (m)', border: OutlineInputBorder()),
+          decoration: InputDecoration(
+            labelText: 'Trigger distance (${df.smallLengthUnitLabel})',
+            border: const OutlineInputBorder(),
+          ),
         ),
         const SizedBox(height: PlotSpacing.s5),
         PlotButton(label: 'Save node', expand: true, onPressed: _save),
@@ -223,7 +238,9 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
   }
 
   void _save() {
-    final triggerM = double.tryParse(_triggerDistance.text);
+    final triggerM = ref
+        .read(displayFormatProvider)
+        .parseSmallLengthToMetres(_triggerDistance.text);
     final node = Node(
       id: widget.existing?.id ?? _uuid.v4(),
       kind: _kind,

@@ -348,3 +348,15 @@ class SettingsNotifier extends StateNotifier<DisplaySettings> {
 final settingsProvider =
     StateNotifierProvider<SettingsNotifier, DisplaySettings>(
         (ref) => SettingsNotifier(ref));
+
+/// K5 / FR79 (issue #312) — the render-time [DisplayFormat] for the active
+/// display preferences, rebuilt whenever [settingsProvider] changes. This is
+/// what the planning, logistics, export and itinerary surfaces read so a
+/// Miles/feet choice in Preferences reaches every distance they render.
+///
+/// Date/time `inherit` resolves to ISO 8601 / 24-hour here — a surface that
+/// needs the platform's own date pattern builds its own [DisplayFormat] via
+/// [DisplaySettings.resolveFormat] with the device closures. Distance and
+/// length carry no such platform fallback, so this is complete for them.
+final displayFormatProvider = Provider<DisplayFormat>(
+    (ref) => ref.watch(settingsProvider).resolveFormat());

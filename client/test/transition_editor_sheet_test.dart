@@ -12,6 +12,7 @@ import 'package:plotlines_client/presentation/widgets/day_timeline_strip.dart';
 import 'package:plotlines_client/presentation/widgets/transition_editor_sheet.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
+import 'support/display_units.dart';
 
 Segment _passage(String id, {String mode = 'cycling', Coord? start, Coord? end}) =>
     Segment(
@@ -28,7 +29,7 @@ Future<ProviderContainer> _pump(
   List<Segment> segments, {
   String? selectedId,
 }) async {
-  final container = ProviderContainer();
+  final container = ProviderContainer(overrides: [metricUnits()]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(
         Trip(

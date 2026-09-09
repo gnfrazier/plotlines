@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/export_tab.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'support/display_units.dart';
 
 Segment _passage(String id, {required String mode, double distanceM = 12000}) => Segment(
       id: id,
@@ -21,8 +22,9 @@ Segment _passage(String id, {required String mode, double distanceM = 12000}) =>
       metrics: RouteMetrics(distanceM: distanceM),
     );
 
-Future<void> _pump(WidgetTester tester, List<Day> days) async {
-  final container = ProviderContainer();
+Future<void> _pump(WidgetTester tester, List<Day> days, {bool imperial = false}) async {
+  final container =
+      ProviderContainer(overrides: [imperial ? imperialUnits() : metricUnits()]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(
         Trip(
@@ -120,5 +122,16 @@ void main() {
       expect(find.textContaining('## Day 1 — To the Gap'), findsOneWidget);
       expect(find.textContaining('Ride (42.0 km)'), findsWidgets);
     });
+  });
+
+  // Issue #312 — the itinerary prose (previewed and exported) follows the
+  // Author's display-unit preference.
+  testWidgets('renders leg distances in miles under an imperial preference',
+      (tester) async {
+    await _pump(tester, _twoDayTrip(), imperial: true);
+
+    expect(find.textContaining('Ride (26.1 mi)'), findsOneWidget); // 42000 m
+    expect(find.textContaining('Hike (5.0 mi)'), findsOneWidget); //  8000 m
+    expect(find.textContaining('km'), findsNothing);
   });
 }

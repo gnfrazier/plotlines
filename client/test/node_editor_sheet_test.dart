@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/node_editor_sheet.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'support/display_units.dart';
 
 const Coord _coord = [-105.2797, 40.0175];
 
@@ -46,9 +47,11 @@ Future<(ProviderContainer, List<Node>)> _pumpForm(
   WidgetTester tester, {
   Node? existing,
   List<Node> nodes = const [],
+  bool imperial = false,
 }) async {
   _useTallWindow(tester);
-  final container = ProviderContainer();
+  final container =
+      ProviderContainer(overrides: [imperial ? imperialUnits() : metricUnits()]);
   container.read(currentTripProvider.notifier).open(_trip(nodes: nodes));
   final saved = <Node>[];
 
@@ -247,6 +250,37 @@ void main() {
       expect(_nodesOf(container).single.narration, isNull);
     });
 
+    // Issue #312 — a trigger distance is a short length: feet under imperial,
+    // and the typed value round-trips to canonical metres in storage.
+    testWidgets('under imperial the field asks for feet and stores metres',
+        (tester) async {
+      final (container, _) = await _pumpForm(tester, imperial: true);
+      addTearDown(container.dispose);
+
+      expect(find.widgetWithText(TextField, 'Trigger distance (ft)'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Trigger distance (m)'), findsNothing);
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Trigger distance (ft)'), '300');
+      await _tap(tester, find.text('Save node'));
+
+      expect(_nodesOf(container).single.narration!.triggerDistanceM,
+          closeTo(91.44, 1e-3)); // 300 ft, not 300
+    });
+
+    testWidgets('an existing trigger distance pre-fills in feet under imperial',
+        (tester) async {
+      final existing = Node(
+        id: 'n1',
+        kind: NodeKind.poi,
+        coord: _coord,
+        narration: Narration(triggerDistanceM: 91.44), // 300 ft
+      );
+      final (_, _) = await _pumpForm(tester, existing: existing, imperial: true);
+
+      expect(find.widgetWithText(TextField, '300'), findsOneWidget);
+    });
+
     testWidgets('arc stage defaults to none', (tester) async {
       final (container, _) = await _pumpForm(tester);
       addTearDown(container.dispose);
@@ -296,7 +330,7 @@ void main() {
       // `existing` under it. Without `didUpdateWidget`, the second node opens
       // showing the first one's text — and saving would write it back.
       _useTallWindow(tester);
-      final container = ProviderContainer();
+      final container = ProviderContainer(overrides: [metricUnits()]);
       final first = Node(
           id: 'n1', kind: NodeKind.poi, coord: _coord, title: 'First');
       final second = Node(
@@ -345,7 +379,7 @@ void main() {
       // A rebuild for any other reason must not discard what the Author is
       // halfway through typing.
       _useTallWindow(tester);
-      final container = ProviderContainer();
+      final container = ProviderContainer(overrides: [metricUnits()]);
       final node = Node(id: 'n1', kind: NodeKind.poi, coord: _coord, title: 'First');
       container.read(currentTripProvider.notifier).open(_trip(nodes: [node]));
       addTearDown(container.dispose);
@@ -379,7 +413,7 @@ void main() {
   group('the modal container', () {
     testWidgets('the sheet closes once the node is saved', (tester) async {
       _useTallWindow(tester);
-      final container = ProviderContainer();
+      final container = ProviderContainer(overrides: [metricUnits()]);
       container.read(currentTripProvider.notifier).open(_trip());
       addTearDown(container.dispose);
 

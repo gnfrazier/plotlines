@@ -19,6 +19,7 @@ import 'package:plotlines_client/presentation/widgets/weights_rail.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'package:plotlines_client/state/providers.dart';
+import 'support/display_units.dart';
 
 class _FakeSidecarManager extends SidecarManager {
   @override
@@ -103,6 +104,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          metricUnits(),
           sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
           appDatabaseProvider.overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
           currentTripProvider

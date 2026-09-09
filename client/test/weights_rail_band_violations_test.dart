@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/weights_rail.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'support/display_units.dart';
 
 Segment _segment({required List<Band> bands, required List<Violation> violations}) => Segment(
       id: 'seg-1',
@@ -35,10 +36,11 @@ Trip _trip(Segment segment) {
   );
 }
 
-Future<void> _pump(WidgetTester tester, Segment segment) async {
+Future<void> _pump(WidgetTester tester, Segment segment, {bool imperial = false}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        imperial ? imperialUnits() : metricUnits(),
         currentTripProvider.overrideWith((ref) => CurrentTripNotifier(ref)..open(_trip(segment))),
       ],
       child: MaterialApp(
@@ -87,5 +89,18 @@ void main() {
     expect(find.text('No route satisfies every band'), findsOneWidget);
     // Names the specific missed band (FR9's AC), not a generic message.
     expect(find.textContaining('climb_m'), findsWidgets);
+  });
+
+  // Issue #312 — a climb miss reads in feet under an imperial preference
+  // (and a distance miss in miles), not raw metres.
+  testWidgets('the violation figures follow the display-unit preference', (tester) async {
+    final segment = _segment(
+      bands: [Band(attribute: 'climb_m', min: 280)],
+      violations: [Violation(attribute: 'climb_m', realised: 210, shortfall: -70)],
+    );
+    await _pump(tester, segment, imperial: true);
+
+    expect(find.textContaining('realized 689 ft'), findsWidgets); // 210 m
+    expect(find.textContaining(' m)'), findsNothing);
   });
 }

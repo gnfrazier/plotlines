@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/weights_rail.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'support/display_units.dart';
 
 Segment _segment({double? traffic}) => Segment(
       id: 'seg-1',
@@ -36,6 +37,7 @@ Future<void> _pump(WidgetTester tester, Segment segment) async {
     ProviderScope(
       overrides: [
         currentTripProvider.overrideWith((ref) => CurrentTripNotifier(ref)..open(_trip(segment))),
+        metricUnits(),
       ],
       child: MaterialApp(
         home: Scaffold(body: WeightsRail(dayId: 'day-1', segment: segment)),

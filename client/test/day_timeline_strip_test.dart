@@ -17,9 +17,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/day_timeline_strip.dart';
+import 'support/display_units.dart';
 
-Future<void> _pump(WidgetTester tester, Trip trip) => tester.pumpWidget(
+Future<void> _pump(WidgetTester tester, Trip trip, {bool imperial = false}) =>
+    tester.pumpWidget(
       ProviderScope(
+        overrides: [imperial ? imperialUnits() : metricUnits()],
         child: MaterialApp(
           home: Scaffold(
             body: DayTimelineStrip(trip: trip, activeDayId: trip.days.single.id, onSelectDay: (_) {}),
@@ -115,5 +118,29 @@ void main() {
     );
     await _pump(tester, _tripWithDay(day));
     expect(find.textContaining('below'), findsOneWidget);
+  });
+
+  // Issue #312 — every distance on the strip follows the display-unit
+  // preference: the per-segment readout and the breach chip.
+  group('imperial preference', () {
+    testWidgets('the segment distance reads in miles', (tester) async {
+      final day = Day(id: 'day-1', index: 1, segments: [_segment(distanceM: 16093.44)]);
+      await _pump(tester, _tripWithDay(day), imperial: true);
+
+      expect(find.text('10.0 mi'), findsOneWidget);
+      expect(find.textContaining('km'), findsNothing);
+    });
+
+    testWidgets('the breach chip reads in miles', (tester) async {
+      final day = Day(
+        id: 'day-1',
+        index: 1,
+        segments: [_segment(distanceM: 16093.44)], // 10 mi
+        limits: {'hiking': DayLimit(minM: 48280.32)}, // 30 mi
+      );
+      await _pump(tester, _tripWithDay(day), imperial: true);
+
+      expect(find.textContaining('10 mi · below 30 mi min'), findsOneWidget);
+    });
   });
 }

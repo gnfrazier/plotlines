@@ -21,9 +21,15 @@ class MetricsRail extends StatelessWidget {
     required this.selectedSegment,
     required this.elevationCapability,
     this.composeItinerary,
+    this.displayFormat = const DisplayFormat(),
   });
   final Trip trip;
   final Segment? selectedSegment;
+
+  /// K5 / FR79 (issue #312) — the active display units. `RouteTab` passes the
+  /// resolved [displayFormatProvider]; the metric default keeps this rail's
+  /// numbers in km/m when a caller has no preference to hand it.
+  final DisplayFormat displayFormat;
 
   /// E3 / FR39 / FR117 / FR118 (issue #214) — the active day's compose-mode
   /// places-first itinerary (`/days/compose`, captured by
@@ -116,14 +122,16 @@ class MetricsRail extends StatelessWidget {
                       Expanded(
                         child: _StatCard(
                           label: 'TRIP DISTANCE',
-                          value: '${(distance / 1000).toStringAsFixed(1)} km',
+                          value: displayFormat.formatDistance(distance),
                         ),
                       ),
                       const SizedBox(width: PlotSpacing.s2),
                       Expanded(
                         child: _StatCard(
                           label: 'TOTAL CLIMB',
-                          value: elevationReady ? '↑ ${climb.toStringAsFixed(0)} m' : '↑ —',
+                          value: elevationReady
+                              ? '↑ ${displayFormat.formatElevation(climb)}'
+                              : '↑ —',
                           muted: !elevationReady,
                         ),
                       ),
@@ -151,7 +159,7 @@ class MetricsRail extends StatelessWidget {
                         fraction: maxDayDistance <= 0
                             ? 0
                             : dist / maxDayDistance,
-                        valueLabel: '${(dist / 1000).toStringAsFixed(1)} km',
+                        valueLabel: displayFormat.formatDistance(dist),
                         color: breached ? c.warning : c.primary,
                         breached: breached,
                       ),
@@ -171,8 +179,7 @@ class MetricsRail extends StatelessWidget {
                         fraction: maxModeDistance <= 0
                             ? 0
                             : entry.value / maxModeDistance,
-                        valueLabel:
-                            '${(entry.value / 1000).toStringAsFixed(1)} km',
+                        valueLabel: displayFormat.formatDistance(entry.value),
                         color: c.success,
                       ),
                   ],
@@ -211,7 +218,10 @@ class MetricsRail extends StatelessWidget {
                   ],
                   if (composeItinerary != null) ...[
                     const SizedBox(height: PlotSpacing.s4),
-                    _ComposeItinerarySection(itinerary: composeItinerary!),
+                    _ComposeItinerarySection(
+                      itinerary: composeItinerary!,
+                      displayFormat: displayFormat,
+                    ),
                   ],
                   const SizedBox(height: PlotSpacing.s4),
                   Text(
@@ -248,7 +258,8 @@ class MetricsRail extends StatelessWidget {
                       startLabel: '0',
                       endLabel: selectedSegment?.metrics?.distanceM == null
                           ? null
-                          : '${(selectedSegment!.metrics!.distanceM! / 1000).toStringAsFixed(1)} km',
+                          : displayFormat.formatDistance(
+                              selectedSegment!.metrics!.distanceM!),
                     ),
                   if (selectedSegment != null &&
                       selectedSegment!.via.isNotEmpty &&
@@ -350,11 +361,14 @@ class _ViaAnchorSummary extends StatelessWidget {
 /// not folded into the explore-mode by-day bars above — a composed day is
 /// organised around its places, not a target distance.
 class _ComposeItinerarySection extends StatelessWidget {
-  const _ComposeItinerarySection({required this.itinerary});
+  const _ComposeItinerarySection({
+    required this.itinerary,
+    required this.displayFormat,
+  });
   final ComposeItinerary itinerary;
+  final DisplayFormat displayFormat;
 
-  static String _km(double? m) =>
-      m == null ? '—' : '${(m / 1000).toStringAsFixed(1)} km';
+  String _dist(double? m) => m == null ? '—' : displayFormat.formatDistance(m);
 
   @override
   Widget build(BuildContext context) {
@@ -370,14 +384,14 @@ class _ComposeItinerarySection extends StatelessWidget {
           style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: PlotSpacing.s2),
-        _StatCard(label: 'DAY DISTANCE', value: _km(distance.realisedM)),
+        _StatCard(label: 'DAY DISTANCE', value: _dist(distance.realisedM)),
         if (distance.hasTarget && dev != null) ...[
           const SizedBox(height: PlotSpacing.s2),
           Text(
             dev.abs() < 1
-                ? 'On the ${_km(distance.targetM)} you had in mind.'
-                : '${_km(dev.abs())} ${dev > 0 ? 'over' : 'under'} the '
-                    '${_km(distance.targetM)} you had in mind.',
+                ? 'On the ${_dist(distance.targetM)} you had in mind.'
+                : '${_dist(dev.abs())} ${dev > 0 ? 'over' : 'under'} the '
+                    '${_dist(distance.targetM)} you had in mind.',
             style: PlotTypography.small(c.textSecondary),
           ),
           if (distance.dispositions.length > 1)
@@ -391,9 +405,15 @@ class _ComposeItinerarySection extends StatelessWidget {
         ],
         const SizedBox(height: PlotSpacing.s3),
         for (var i = 0; i < itinerary.stops.length; i++) ...[
-          _ComposeStopRow(stop: itinerary.stops[i]),
+          _ComposeStopRow(
+            stop: itinerary.stops[i],
+            displayFormat: displayFormat,
+          ),
           if (i < itinerary.legs.length)
-            _ComposeLegRow(leg: itinerary.legs[i]),
+            _ComposeLegRow(
+              leg: itinerary.legs[i],
+              displayFormat: displayFormat,
+            ),
         ],
       ],
     );
@@ -401,8 +421,9 @@ class _ComposeItinerarySection extends StatelessWidget {
 }
 
 class _ComposeStopRow extends StatelessWidget {
-  const _ComposeStopRow({required this.stop});
+  const _ComposeStopRow({required this.stop, required this.displayFormat});
   final ComposeStop stop;
+  final DisplayFormat displayFormat;
 
   @override
   Widget build(BuildContext context) {
@@ -452,7 +473,9 @@ class _ComposeStopRow extends StatelessWidget {
           ),
           const SizedBox(width: PlotSpacing.s2),
           Text(
-            _ComposeItinerarySection._km(stop.distanceAlongM),
+            stop.distanceAlongM == null
+                ? '—'
+                : displayFormat.formatDistance(stop.distanceAlongM!),
             style: PlotTypography.data(c.textSecondary),
           ),
         ],
@@ -462,8 +485,9 @@ class _ComposeStopRow extends StatelessWidget {
 }
 
 class _ComposeLegRow extends StatelessWidget {
-  const _ComposeLegRow({required this.leg});
+  const _ComposeLegRow({required this.leg, required this.displayFormat});
   final ComposeLeg leg;
+  final DisplayFormat displayFormat;
 
   @override
   Widget build(BuildContext context) {
@@ -481,7 +505,9 @@ class _ComposeLegRow extends StatelessWidget {
             ),
           ),
           Text(
-            _ComposeItinerarySection._km(leg.distanceM),
+            leg.distanceM == null
+                ? '—'
+                : displayFormat.formatDistance(leg.distanceM!),
             style: PlotTypography.data(c.textMuted),
           ),
         ],

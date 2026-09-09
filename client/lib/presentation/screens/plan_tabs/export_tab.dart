@@ -30,6 +30,7 @@ import '../../../data/export/itinerary_writer.dart';
 import '../../../data/export/tcx_writer.dart';
 import '../../../domain/domain.dart';
 import '../../../state/providers.dart';
+import '../../../state/settings_provider.dart';
 import '../../../state/trip_bbox_provider.dart';
 import '../../widgets/error_states.dart';
 import '../../widgets/stale_list_dialog.dart';
@@ -79,15 +80,15 @@ class ExportTab extends ConsumerWidget {
 /// own future story), and FR48's "tailored individual itineraries for
 /// partial-attendance Characters" is satisfiable today as an ad hoc
 /// day-attendance selection the Author makes at export time.
-class _ItinerarySection extends StatefulWidget {
+class _ItinerarySection extends ConsumerStatefulWidget {
   const _ItinerarySection({required this.trip});
   final Trip trip;
 
   @override
-  State<_ItinerarySection> createState() => _ItinerarySectionState();
+  ConsumerState<_ItinerarySection> createState() => _ItinerarySectionState();
 }
 
-class _ItinerarySectionState extends State<_ItinerarySection> {
+class _ItinerarySectionState extends ConsumerState<_ItinerarySection> {
   bool _individual = false;
   final Set<String> _attendedDayIds = {};
   final _labelController = TextEditingController();
@@ -105,6 +106,7 @@ class _ItinerarySectionState extends State<_ItinerarySection> {
         characterLabel: _individual && _labelController.text.trim().isNotEmpty
             ? _labelController.text.trim()
             : null,
+        format: ref.read(displayFormatProvider),
       );
 
   @override
@@ -511,6 +513,7 @@ class _DayCueSectionState extends ConsumerState<_DayCueSection> {
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
+    final df = ref.watch(displayFormatProvider);
     if (widget.day.segments.isEmpty && widget.day.nodes.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -556,8 +559,7 @@ class _DayCueSectionState extends ConsumerState<_DayCueSection> {
                       children: [
                         for (var i = 0; i < entries.length; i++)
                           CueSheetRow(
-                            mile:
-                                '${(entries[i].distanceAlongM / 1000).toStringAsFixed(1)} km',
+                            mile: df.formatDistance(entries[i].distanceAlongM),
                             turn: entries[i].glyph,
                             instruction: entries[i].label,
                             tag: entries[i].tag,
@@ -594,11 +596,12 @@ class _DayCueSectionState extends ConsumerState<_DayCueSection> {
   /// through.
   Future<void> _showPrintPreview(List<_CueEntry> entries) {
     final day = widget.day;
+    final df = ref.read(displayFormatProvider);
     final lines = [
       'Day ${day.index}${day.title != null ? ' — ${day.title}' : ''}',
       '',
       for (final e in entries)
-        '${(e.distanceAlongM / 1000).toStringAsFixed(1)} km  ${e.glyph}  ${e.label}'
+        '${df.formatDistance(e.distanceAlongM)}  ${e.glyph}  ${e.label}'
             '${e.tag != null ? '  [${e.tag}]' : ''}',
     ];
     return showDialog<void>(

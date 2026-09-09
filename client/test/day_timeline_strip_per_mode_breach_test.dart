@@ -13,9 +13,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/day_timeline_strip.dart';
+import 'support/display_units.dart';
 
 Future<void> _pump(WidgetTester tester, Day day) => tester.pumpWidget(
       ProviderScope(
+        overrides: [metricUnits()],
         child: MaterialApp(
           home: Scaffold(
             body: DayTimelineStrip(
