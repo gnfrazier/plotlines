@@ -18,7 +18,7 @@ Diagrams are Mermaid so they version-control, diff, and render in the repo. Each
 flowchart TD
     A[Launch app] --> B["Buncombe County<br/><i>shipped, no download</i>"]
     B --> C{New, or clone<br/>an existing trip?}
-    C -->|new| M["Declare travel modes<br/><i>seeds layer defaults</i>"]
+    C -->|new| M["Declare travel categories<br/><i>seeds layer defaults</i>"]
     C -->|clone| Z["Choose clone scope<br/><i>grants never carry</i>"]
     M --> D["Location prompt<br/><i>prefilled, centers map</i>"]
     D --> E["Draw the bbox<br/><i>navigable map, scale shown</i>"]
@@ -35,7 +35,7 @@ flowchart TD
 | Node | FR | Story | Note |
 |---|---|---|---|
 | Buncombe County | FR96 | A10 | A constant, not a default. No override, no prompt, **no download**. |
-| Declare travel modes | **MVP** | FR144 | N0 | **Blocks the layer picker** — FR97's defaults vary by (mode × day-type) and have no argument without this. Declaring is **not constraining**: a passage in an undeclared mode succeeds and adds the mode. |
+| Declare travel categories | **MVP** | FR144 | N0 | **Blocks the layer picker** — FR97's defaults vary by (category × day-type) and have no argument without this. #315 — five equal targets (Cycle · Foot · Paddle · Ski · Drive), no overflow, no `transit`; a discipline under a category is chosen per passage, not here. Declaring is **not constraining**: a passage in an undeclared category succeeds and adds it. |
 | New, or clone? | **MVP** | FR74, FR74b | G2, G2b, N1 | **Cloning is the MVP answer for a recurring group** — last year's paddling crew, their group assignments, and the trip to edit down. Named travel circles (FR143, D9) are Later. |
 | Choose clone scope | **MVP** | FR74b | G2b | Carries roster membership, group assignments, and the whole authored trip. **Never carries profile grants or arrival visibility** — each Character re-grants per trip (K2), or cloning becomes a consent-laundering path. Author notes follow the person automatically (D6), no rule needed. A clone brings its own bbox, so it skips the location prompt. |
 | Location prompt | FR96 | A10, N1 | Prefilled last-used, freely editable. **Centers the map only** — never becomes the bbox. |
@@ -151,7 +151,7 @@ flowchart TD
 |---|---|---|---|
 | Set trip duration | FR17 | C1 | **Editing this later is flow 9.** |
 | Mark day types | FR18 | C2 | Rest days are a primary case for area anchors (O3). |
-| Create passages | FR10, FR29, FR130 | B1, C13 | Traversal modes only. **Driving is routed**, not a note. Station activities are O4. |
+| Create passages | FR10, FR29, FR130 | B1, C13 | Traversal categories only. **Driving is routed**, not a note. Station activities are O4. A **discipline** under the category (road / gravel / mountain, and so on — #315) is the per-passage second axis; the discipline *picker* is [P1], filed as a fast-follow to #315, so today a passage picks only its category. |
 | Order within a day | FR11 | B2 | |
 | Add transition nodes | FR12 | B3 | |
 | Split by distance + arc | FR19, FR38 | C3, O6 | **Both** the metric and the arc shape — a day may close at a resolution anchor. |
