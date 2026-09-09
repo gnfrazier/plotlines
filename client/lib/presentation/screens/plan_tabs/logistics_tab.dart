@@ -1312,7 +1312,9 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
         width: 480,
         height: 360,
         child: TapToPickMap(
-          points: _picked == null ? const [] : [_picked!],
+          points: _picked == null
+              ? const []
+              : [(coord: _picked!, role: NodeMarkerType.waypoint)],
           center: _picked,
           onTap: (point) => setState(() => _picked = point),
         ),

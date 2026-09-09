@@ -20,6 +20,23 @@ import '../../widgets/metrics_rail.dart';
 import '../../widgets/node_editor_sheet.dart';
 import '../../widgets/weights_rail.dart';
 
+/// Every day's segment endpoints, each tagged with the role it plays: a
+/// segment's `start` begins a day, its `end` finishes one (#320). The mark is
+/// chosen from that role, never from the point's position in a concatenated
+/// list — so on a multi-day trip *every* day's start is a `start`, not just
+/// day 1's, and a lone endpoint is not both the first and last index at once.
+///
+/// Authored `Segment.nodes` / `Day.nodes` are still not drawn here — that is
+/// #322, which reuses the typed [MapMarkerPoint] shape this introduces.
+List<MapMarkerPoint> routeTabMarkerPoints(Trip trip) => [
+      for (final d in trip.days)
+        for (final s in d.segments) ...[
+          if (s.start != null)
+            (coord: s.start!, role: NodeMarkerType.start),
+          if (s.end != null) (coord: s.end!, role: NodeMarkerType.finish),
+        ],
+    ];
+
 class RouteTab extends ConsumerStatefulWidget {
   const RouteTab({super.key, required this.trip, required this.activeDayId, required this.onSelectDay});
   final Trip trip;
@@ -66,14 +83,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                 child: Stack(
                   children: [
                     TapToPickMap(
-                      points: [
-                        for (final d in widget.trip.days)
-                          for (final s in d.segments)
-                            if (s.start != null) s.start!,
-                        for (final d in widget.trip.days)
-                          for (final s in d.segments)
-                            if (s.end != null) s.end!,
-                      ],
+                      points: routeTabMarkerPoints(widget.trip),
                       polyline: selectedSegment?.geometry?.coordinates ?? const [],
                       onTap: (!_addingNode || selected == null)
                           ? null
