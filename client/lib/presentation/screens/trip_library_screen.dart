@@ -133,7 +133,14 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
               icon: const Icon(Icons.add),
               label: const Text('New trip'),
             ),
-      body: tripsAsync.when(
+      // Issue #314 — the content field is a recessed plane, distinct from
+      // the header above it (which the theme now rules off with a hairline
+      // border), so the trip cards and the empty-state panel read as sitting
+      // on something rather than floating on one flat wall of canvas.
+      body: ColoredBox(
+        key: const Key('library-content-field'),
+        color: c.surfaceSunk,
+        child: tripsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
           child: Text('Couldn\'t open the local trip library: $err',
@@ -188,6 +195,7 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
                   ),
                 ],
               ),
+      ),
       ),
     );
   }
@@ -304,13 +312,19 @@ class _EmptyLibrary extends StatelessWidget {
       // map, so it has to survive a short window (and a raised text scale —
       // issue #230 A2) rather than assuming 260 px of map always fits.
       final mapHeight = (constraints.maxHeight * 0.42).clamp(120.0, 260.0);
-      final mapWidth = (constraints.maxWidth - 64).clamp(200.0, 420.0);
+      // Budget: the s6 outer padding (64) plus the PlotCard's own s5 padding
+      // (48) now sit between the viewport and the map.
+      final mapWidth = (constraints.maxWidth - 128).clamp(160.0, 340.0);
       return SingleChildScrollView(
       child: Center(
       child: Padding(
         padding: const EdgeInsets.all(PlotSpacing.s6),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 460),
+          // Issue #314 — the empty state is a bordered card (surfaceCard +
+          // PlotRadii card shape) on the recessed content field, not loose
+          // text sharing one plane with the header and the canvas behind it.
+          child: PlotCard(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -346,6 +360,7 @@ class _EmptyLibrary extends StatelessWidget {
                 style: PlotTypography.small(c.textMuted),
               ),
             ],
+          ),
           ),
         ),
       ),

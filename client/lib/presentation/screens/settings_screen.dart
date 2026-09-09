@@ -24,6 +24,10 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
+      // Issue #314 — the two panes are a recessed content field so the
+      // PlotCard groups within them read as their own plane rather than
+      // merging into one unbroken sheet of canvas under a borderless header.
+      backgroundColor: PlotColors.of(context).surfaceSunk,
       appBar: AppBar(title: const Text('Preferences')),
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -331,13 +335,20 @@ class AboutPane extends ConsumerWidget {
               const SizedBox(height: PlotSpacing.s3),
             ],
             const SizedBox(height: PlotSpacing.s4),
-            PlotListTile(
-              title: 'Privacy & data',
-              subtitle: 'What stays on this device, what reaches the server, '
-                  'and what is never shared.',
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const PrivacyScreen()),
+            // Issue #314 — a bordered card on the pane, like the credits
+            // above it, rather than a bare divider row on the raw field.
+            PlotCard(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: PlotSpacing.s4, vertical: PlotSpacing.s1),
+              child: PlotListTile(
+                title: 'Privacy & data',
+                subtitle: 'What stays on this device, what reaches the server, '
+                    'and what is never shared.',
+                trailing: const Icon(Icons.chevron_right),
+                divider: false,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const PrivacyScreen()),
+                ),
               ),
             ),
             const SizedBox(height: PlotSpacing.s5),

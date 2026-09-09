@@ -14,6 +14,7 @@ import 'package:plotlines_client/data/routing_client.dart';
 import 'package:plotlines_client/presentation/screens/privacy_screen.dart';
 import 'package:plotlines_client/presentation/screens/settings_screen.dart';
 import 'package:plotlines_client/state/providers.dart';
+import 'package:plotlines_ui/plotlines_ui.dart';
 
 class _FakeRoutingClient extends RoutingClient {
   _FakeRoutingClient(this._about) : super('http://127.0.0.1:0');
@@ -127,6 +128,15 @@ void main() {
     await _pump(tester, _FakeRoutingClient(_fullAbout));
 
     expect(find.text('Privacy & data'), findsOneWidget);
+    // Issue #314 — the nav row is a bordered card on its pane, like the
+    // credit cards above it, not a bare divider row on an unbroken canvas.
+    expect(
+      find.ancestor(
+        of: find.text('Privacy & data'),
+        matching: find.byType(PlotCard),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Privacy & data'));
     await tester.pumpAndSettle();
 
