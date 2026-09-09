@@ -23,7 +23,7 @@ import 'support/display_units.dart';
 
 const Coord _coord = [-105.2797, 40.0175];
 
-Trip _trip({List<Node> nodes = const []}) => Trip(
+Trip _trip({List<Node> nodes = const [], bool solved = false}) => Trip(
       id: 't1',
       title: 'Trip',
       createdAt: '2026-09-02T00:00:00Z',
@@ -36,6 +36,9 @@ Trip _trip({List<Node> nodes = const []}) => Trip(
             shape: 'loop',
             start: const [-105.27, 40.02],
             nodes: nodes,
+            solve: solved
+                ? SolveProvenance(solvedAt: '2026-09-02T00:00:00Z')
+                : null,
           ),
         ]),
       ],
@@ -48,11 +51,16 @@ Future<(ProviderContainer, List<Node>)> _pumpForm(
   Node? existing,
   List<Node> nodes = const [],
   bool imperial = false,
+  bool solved = false,
+  Coord coord = _coord,
+  List<Coord>? routeGeometry,
 }) async {
   _useTallWindow(tester);
   final container =
       ProviderContainer(overrides: [imperial ? imperialUnits() : metricUnits()]);
-  container.read(currentTripProvider.notifier).open(_trip(nodes: nodes));
+  container
+      .read(currentTripProvider.notifier)
+      .open(_trip(nodes: nodes, solved: solved));
   final saved = <Node>[];
 
   await tester.pumpWidget(UncontrolledProviderScope(
@@ -62,7 +70,8 @@ Future<(ProviderContainer, List<Node>)> _pumpForm(
         body: NodeEditorForm(
           dayId: 'd1',
           segmentId: 's1',
-          coord: _coord,
+          coord: coord,
+          routeGeometry: routeGeometry,
           existing: existing,
           onSaved: saved.add,
         ),
@@ -72,6 +81,9 @@ Future<(ProviderContainer, List<Node>)> _pumpForm(
   await tester.pumpAndSettle();
   return (container, saved);
 }
+
+SolveProvenance? _solveOf(ProviderContainer container) =>
+    container.read(currentTripProvider).days.single.segments.single.solve;
 
 List<Node> _nodesOf(ProviderContainer container) =>
     container.read(currentTripProvider).days.single.segments.single.nodes;
@@ -407,6 +419,106 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Half-typed edit'), findsOneWidget);
+    });
+  });
+
+  // #322 — a routing-constraint node (via / start / finish / portage ends)
+  // invalidates a solved geometry; per Q3/FR140 that marks the segment stale
+  // rather than silently re-solving. Annotation kinds leave it alone.
+  group('a constraint-kind node marks the segment stale', () {
+    testWidgets('placing a via node on a solved segment sets solve.stale', (tester) async {
+      final (container, _) = await _pumpForm(tester, solved: true);
+      addTearDown(container.dispose);
+
+      expect(_solveOf(container)?.stale, isNot(isTrue));
+      await _tap(tester, find.widgetWithText(ChoiceChip, 'via'));
+      await _tap(tester, find.text('Save node'));
+
+      expect(_solveOf(container)?.stale, isTrue);
+    });
+
+    testWidgets('placing a poi node leaves a solved segment alone', (tester) async {
+      final (container, _) = await _pumpForm(tester, solved: true);
+      addTearDown(container.dispose);
+
+      await _tap(tester, find.widgetWithText(ChoiceChip, 'poi'));
+      await _tap(tester, find.text('Save node'));
+
+      expect(_solveOf(container)?.stale, isNot(isTrue));
+    });
+
+    testWidgets('retyping a via node back to a waypoint still marks stale — the '
+        'route no longer needs that pin', (tester) async {
+      final existing = Node(id: 'n1', kind: NodeKind.via, coord: _coord);
+      final (container, _) = await _pumpForm(tester,
+          existing: existing, nodes: [existing], solved: true);
+      addTearDown(container.dispose);
+
+      await _tap(tester, find.widgetWithText(ChoiceChip, 'waypoint'));
+      await _tap(tester, find.text('Save node'));
+
+      expect(_solveOf(container)?.stale, isTrue);
+    });
+
+    testWidgets('an unsolved segment has nothing to invalidate', (tester) async {
+      final (container, _) = await _pumpForm(tester); // solved: false
+      addTearDown(container.dispose);
+
+      await _tap(tester, find.widgetWithText(ChoiceChip, 'via'));
+      await _tap(tester, find.text('Save node'));
+
+      expect(_solveOf(container), isNull);
+    });
+  });
+
+  // #322 — "Snap to route": offered when a node sits a short way off the
+  // selected segment's line, absent when it is on the line or plainly placed
+  // off-route on purpose.
+  group('Snap to route', () {
+    // A west–east line at latitude 40°; ~0.0004° of latitude is ~44 m.
+    const line = <Coord>[
+      [-105.010, 40.0],
+      [-105.000, 40.0],
+    ];
+
+    testWidgets('appears for a node a short way off the line and snaps it on', (tester) async {
+      final (container, _) = await _pumpForm(tester,
+          coord: const [-105.005, 40.0004], routeGeometry: line);
+      addTearDown(container.dispose);
+
+      expect(find.text('Snap to route'), findsOneWidget);
+      expect(find.textContaining('off the route'), findsOneWidget);
+
+      await _tap(tester, find.text('Snap to route'));
+      await _tap(tester, find.text('Save node'));
+
+      final node = _nodesOf(container).single;
+      expect(node.coord[1], closeTo(40.0, 1e-6));
+      expect(node.coord[0], closeTo(-105.005, 1e-4));
+    });
+
+    testWidgets('is absent when the node is already on the line', (tester) async {
+      final (container, _) = await _pumpForm(tester,
+          coord: const [-105.005, 40.0], routeGeometry: line);
+      addTearDown(container.dispose);
+
+      expect(find.text('Snap to route'), findsNothing);
+    });
+
+    testWidgets('is absent when the node is far off the line', (tester) async {
+      final (container, _) = await _pumpForm(tester,
+          coord: const [-105.005, 40.02], routeGeometry: line);
+      addTearDown(container.dispose);
+
+      expect(find.text('Snap to route'), findsNothing);
+    });
+
+    testWidgets('is absent when there is no route geometry to snap to', (tester) async {
+      final (container, _) =
+          await _pumpForm(tester, coord: const [-105.005, 40.0004]);
+      addTearDown(container.dispose);
+
+      expect(find.text('Snap to route'), findsNothing);
     });
   });
 

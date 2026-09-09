@@ -14,28 +14,81 @@ import '../../../domain/domain.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
+import '../../map/node_marker_role.dart';
+import '../../map/route_geometry.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/day_timeline_strip.dart';
 import '../../widgets/metrics_rail.dart';
 import '../../widgets/node_editor_sheet.dart';
 import '../../widgets/weights_rail.dart';
 
-/// Every day's segment endpoints, each tagged with the role it plays: a
-/// segment's `start` begins a day, its `end` finishes one (#320). The mark is
-/// chosen from that role, never from the point's position in a concatenated
-/// list — so on a multi-day trip *every* day's start is a `start`, not just
-/// day 1's, and a lone endpoint is not both the first and last index at once.
+/// Every day's segment endpoints plus every authored node, each tagged with
+/// the role it plays: a segment's `start` begins a day, its `end` finishes one
+/// (#320), and an authored `Node` draws as the mark its `kind` implies
+/// (`node_marker_role.dart`, #322). The mark is chosen from that role, never
+/// from the point's position in a concatenated list — so on a multi-day trip
+/// *every* day's start is a `start`, not just day 1's, and a lone endpoint is
+/// not both the first and last index at once.
 ///
-/// Authored `Segment.nodes` / `Day.nodes` are still not drawn here — that is
-/// #322, which reuses the typed [MapMarkerPoint] shape this introduces.
+/// Before #322 authored nodes were saved, exported and itemised but never
+/// reached the map at all: `Segment.nodes` and `Day.nodes` were simply not
+/// read here.
 List<MapMarkerPoint> routeTabMarkerPoints(Trip trip) => [
-      for (final d in trip.days)
+      for (final d in trip.days) ...[
         for (final s in d.segments) ...[
-          if (s.start != null)
-            (coord: s.start!, role: NodeMarkerType.start),
+          if (s.start != null) (coord: s.start!, role: NodeMarkerType.start),
           if (s.end != null) (coord: s.end!, role: NodeMarkerType.finish),
+          for (final n in s.nodes)
+            (coord: n.coord, role: markerForNodeKind(n.kind)),
         ],
+        // Day-scoped nodes — a rest day's POIs and scheduled events, which no
+        // segment owns.
+        for (final n in d.nodes)
+          (coord: n.coord, role: markerForNodeKind(n.kind)),
+      ],
     ];
+
+/// #322 — a node closer to the line than this is effectively *on* it; a leader
+/// line would be a nub. Farther than [kLeaderLineMaxM] it reads as its own
+/// place rather than an offset from the day's line, and a dashed line drawn
+/// clear across the map is noise, not information — so no connector either way.
+const double kLeaderLineMinM = 4;
+const double kLeaderLineMaxM = 750;
+
+/// #322 — connectors from the selected segment's off-route nodes to their
+/// nearest point on its solved geometry. Empty until there is a line to
+/// measure against.
+List<MapLeaderLine> routeTabLeaderLines(Segment? segment) {
+  final geom = segment?.geometry?.coordinates;
+  if (geom == null || geom.length < 2) return const [];
+  final out = <MapLeaderLine>[];
+  for (final n in segment!.nodes) {
+    final near = nearestPointOnPath(geom, n.coord);
+    if (near == null) continue;
+    if (near.distanceM < kLeaderLineMinM || near.distanceM > kLeaderLineMaxM) {
+      continue;
+    }
+    out.add((from: n.coord, to: near.point));
+  }
+  return out;
+}
+
+/// #322 — the coordinate of the node [selectedNodeIdProvider] names, scanning
+/// segment and day nodes; `null` when nothing is selected or the id is stale.
+LatLonPoint? nodeCoordById(Trip trip, String? nodeId) {
+  if (nodeId == null) return null;
+  for (final d in trip.days) {
+    for (final s in d.segments) {
+      for (final n in s.nodes) {
+        if (n.id == nodeId) return n.coord;
+      }
+    }
+    for (final n in d.nodes) {
+      if (n.id == nodeId) return n.coord;
+    }
+  }
+  return null;
+}
 
 class RouteTab extends ConsumerStatefulWidget {
   const RouteTab({super.key, required this.trip, required this.activeDayId, required this.onSelectDay});
@@ -73,6 +126,11 @@ class _RouteTabState extends ConsumerState<RouteTab> {
             ? ref.watch(composeItineraryProvider(railDayId))
             : null;
 
+    // #322 — the node just saved/selected: the map pans to it and draws it
+    // highlighted so the Author sees the thing they made.
+    final focusCoord =
+        nodeCoordById(widget.trip, ref.watch(selectedNodeIdProvider));
+
     return Row(
       children: [
         WeightsRail(dayId: railDayId, segment: selectedSegment),
@@ -85,16 +143,25 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                     TapToPickMap(
                       points: routeTabMarkerPoints(widget.trip),
                       polyline: selectedSegment?.geometry?.coordinates ?? const [],
+                      leaderLines: routeTabLeaderLines(selectedSegment),
+                      focusCoord: focusCoord,
                       onTap: (!_addingNode || selected == null)
                           ? null
-                          : (point) {
-                              showNodeEditorSheet(
+                          : (point) async {
+                              setState(() => _addingNode = false);
+                              final saved = await showNodeEditorSheet(
                                 context,
                                 dayId: selected.$1,
                                 segmentId: selected.$2,
                                 coord: point,
+                                routeGeometry:
+                                    selectedSegment?.geometry?.coordinates,
                               );
-                              setState(() => _addingNode = false);
+                              // #322 — select and reveal the node just placed.
+                              if (saved != null) {
+                                ref.read(selectedNodeIdProvider.notifier).state =
+                                    saved.id;
+                              }
                             },
                     ),
                     if (selected != null)

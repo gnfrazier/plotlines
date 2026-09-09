@@ -14,6 +14,41 @@ final plannerTargetDayIdProvider = StateProvider<String?>((ref) => null);
 /// Which segment is focused on the planner's map/metrics pane.
 final selectedSegmentProvider = StateProvider<(String dayId, String segmentId)?>((ref) => null);
 
+/// #322 — the authored node the planner is focused on: the one the Route tab's
+/// map pans to and draws highlighted. Set when a node is saved (so an Author
+/// sees the thing they just made) and cleared with the rest of this ephemeral
+/// UI state on reopen. A stale id simply resolves to no node and no highlight.
+final selectedNodeIdProvider = StateProvider<String?>((ref) => null);
+
+/// #322 — does a node of this [kind] pin where the route must go, such that
+/// adding, moving, retyping or removing it invalidates a solved geometry?
+///
+/// `via` is the explicit routing waypoint; `start` / `finish` fix a passage's
+/// endpoints; the two portage marks bracket a carry the line has to route to
+/// and from. Everything else — `waypoint`, `regroup`, `rest_stop`, `poi`,
+/// `transition`, `event` — is an annotation hung on the day and never changes
+/// what a re-solve would produce.
+///
+/// Per Q3/FR140 (#123) a constraint edit **marks the segment stale**, it does
+/// not silently re-solve: an Author making a run of edits is stopped zero
+/// times and re-solves once when ready. The issue text's "`via` re-solves" is
+/// superseded by that standing rule.
+bool nodeKindIsRoutingConstraint(NodeKind kind) => switch (kind) {
+      NodeKind.via ||
+      NodeKind.start ||
+      NodeKind.finish ||
+      NodeKind.portageStart ||
+      NodeKind.portageEnd =>
+        true,
+      NodeKind.waypoint ||
+      NodeKind.regroup ||
+      NodeKind.restStop ||
+      NodeKind.poi ||
+      NodeKind.transition ||
+      NodeKind.event =>
+        false,
+    };
+
 /// Resolves [selectedSegmentProvider]'s `(dayId, segmentId)` tuple against a
 /// [Trip] — shared by the Route and Content tabs (`plan_tabs/route_tab.dart`,
 /// `plan_tabs/content_tab.dart`) so there's exactly one lookup to keep
