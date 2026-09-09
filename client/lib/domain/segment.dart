@@ -5,6 +5,7 @@ library;
 import 'band.dart';
 import 'hazard.dart';
 import 'json_utils.dart';
+import 'legacy_mode.dart';
 import 'node.dart';
 import 'route_metrics.dart';
 import 'weight_profile.dart';
@@ -423,6 +424,7 @@ class Segment {
     required this.id,
     required this.mode,
     required this.shape,
+    this.discipline,
     this.title,
     this.start,
     this.end,
@@ -448,9 +450,16 @@ class Segment {
   final String id;
   final String? title;
 
-  /// One of `travel_mode.dart`'s [kTravelModes] — FR10's eight traversal
-  /// modes plus FR29's authored-note `transit`.
+  /// One of `travel_mode.dart`'s [kTravelModes] — FR10's five traversal
+  /// categories plus FR29's authored-note `transit`.
   final String mode;
+
+  /// FR10 / FR130 [#315] — the discipline under [mode] (a `discipline.dart`
+  /// key), or `null` for the category's own default profile. A variant that
+  /// selects a weight profile at solve time; never a change to the routing
+  /// graph. A stored `mountain_biking` etc. is folded to `(mode, discipline)`
+  /// on read (`legacy_mode.dart`).
+  final String? discipline;
 
   /// One of `loop` | `out_and_back` | `point_to_point`.
   final String shape;
@@ -502,10 +511,18 @@ class Segment {
 
   factory Segment.fromJson(Map<String, dynamic> json) {
     final f = JsonFields(json, 'segment');
+    // #315 — fold a stored `mountain_biking` / `packrafting` / `riverboarding`
+    // onto its category + discipline before building, so a trip saved before
+    // the enum change loads.
+    final migrated = migrateLegacyMode(
+      f.takeString('mode')!,
+      discipline: f.takeString('discipline'),
+    );
     final s = Segment(
       id: f.takeString('id')!,
       title: f.takeString('title'),
-      mode: f.takeString('mode')!,
+      mode: migrated.mode,
+      discipline: migrated.discipline,
       shape: f.takeString('shape')!,
       start: f.takeCoord('start'),
       end: f.takeCoord('end'),
@@ -536,6 +553,7 @@ class Segment {
         'id': id,
         'title': title,
         'mode': mode,
+        'discipline': discipline,
         'shape': shape,
         'start': start == null ? null : checkCoord(start!, 'segment.start'),
         'end': end == null ? null : checkCoord(end!, 'segment.end'),
@@ -560,6 +578,8 @@ class Segment {
   Segment copyWith({
     String? title,
     String? mode,
+    String? discipline,
+    bool clearDiscipline = false,
     String? shape,
     Coord? start,
     Coord? end,
@@ -587,6 +607,7 @@ class Segment {
         id: id,
         title: title ?? this.title,
         mode: mode ?? this.mode,
+        discipline: clearDiscipline ? null : (discipline ?? this.discipline),
         shape: shape ?? this.shape,
         start: start ?? this.start,
         end: end ?? this.end,

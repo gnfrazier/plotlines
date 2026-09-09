@@ -1,7 +1,8 @@
-// FR144/N0 — the mode-declaration dialog itself: at least one required,
-// every real mode always offered, Cancel aborts distinctly from an empty
-// selection. `trip_library_screen_test.dart` covers this wired into the
-// New Trip flow; this pins the dialog's own contract in isolation.
+// FR144/N0 — the mode-declaration dialog itself: at least one required, every
+// travel *category* always offered (issue #315 — Cycle/Foot/Paddle/Ski/Drive
+// as five equal targets, no overflow, no Transit), Cancel aborts distinctly
+// from an empty selection. `trip_library_screen_test.dart` covers this wired
+// into the New Trip flow; this pins the dialog's own contract in isolation.
 library;
 
 import 'package:flutter/material.dart';
@@ -28,40 +29,43 @@ Future<void> _open(WidgetTester tester, {Set<String> initialModes = const {}}) a
 }
 
 void main() {
-  testWidgets('every real mode is offered, and none is preselected by default', (tester) async {
+  testWidgets('the five categories are offered flat, none preselected, no overflow',
+      (tester) async {
     await _open(tester);
 
-    // Issue #230 B5 — the dialog leads with Flow 1 §02's four common modes
-    // plus "More…", instead of all nine flat in a ragged wrap. Every real
-    // mode is still offered; the rest are one disclosure away.
-    for (final label in ['Ride', 'Paddle', 'Hike', 'Drive']) {
+    // Issue #315 — five equal targets, no "common vs every other mode"
+    // tiering and no disclosure.
+    for (final label in ['Cycle', 'Foot', 'Paddle', 'Ski', 'Drive']) {
       expect(find.text(label), findsOneWidget);
       final chip = tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, label));
       expect(chip.selected, isFalse);
     }
+    expect(find.text('More…'), findsNothing);
+    expect(find.text('More modes'), findsNothing);
+    expect(find.text('EVERY OTHER MODE'), findsNothing);
+    // Transit is a note mode (FR29), never in a "how will you travel" list.
     expect(find.text('Transit'), findsNothing);
-
-    await tester.tap(find.text('More…'));
-    await tester.pumpAndSettle();
-
-    for (final label in ['Ride', 'Paddle', 'Hike', 'Drive', 'Transit']) {
-      expect(find.text(label), findsOneWidget);
-      final chip = tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, label));
-      expect(chip.selected, isFalse);
-    }
     // FR109/O4 — never offered as a travel mode.
     for (final label in ['Climbing', 'Canyoneering', 'Jumaring']) {
       expect(find.text(label), findsNothing);
     }
   });
 
-  testWidgets('an already-declared uncommon mode is visible without opening More…',
+  testWidgets('a legacy declared value is folded onto its category and preselected',
       (tester) async {
-    // A preselected chip must never hide behind a disclosure.
-    await _open(tester, initialModes: const {'transit'});
-    expect(find.text('More…'), findsNothing);
-    final chip = tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, 'Transit'));
+    // #315 — a trip saved with `mountain_biking` declared shows Cycle selected.
+    await _open(tester, initialModes: const {'mountain_biking'});
+    final chip = tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, 'Cycle'));
     expect(chip.selected, isTrue);
+  });
+
+  testWidgets('a stray non-category value is dropped from the preselection', (tester) async {
+    await _open(tester, initialModes: const {'transit'});
+    // Nothing selected — `transit` is not a category chip.
+    for (final label in ['Cycle', 'Foot', 'Paddle', 'Ski', 'Drive']) {
+      final chip = tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, label));
+      expect(chip.selected, isFalse, reason: label);
+    }
   });
 
   testWidgets('Continue is disabled until at least one mode is selected', (tester) async {
@@ -74,23 +78,23 @@ void main() {
 
     expect(continueButton().onPressed, isNull);
 
-    await tester.tap(find.text('Hike'));
+    await tester.tap(find.text('Foot'));
     await tester.pump();
     expect(continueButton().onPressed, isNotNull);
 
-    await tester.tap(find.text('Hike'));
+    await tester.tap(find.text('Foot'));
     await tester.pump();
     expect(continueButton().onPressed, isNull);
   });
 
-  testWidgets('choosing modes and confirming returns exactly that set', (tester) async {
+  testWidgets('choosing categories and confirming returns exactly that set', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: _HarnessScreen()));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Ride'));
+    await tester.tap(find.text('Cycle'));
     await tester.pump();
-    await tester.tap(find.text('Hike'));
+    await tester.tap(find.text('Foot'));
     await tester.pump();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
@@ -103,7 +107,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Ride')); // prove a selection existed and was discarded
+    await tester.tap(find.text('Cycle')); // prove a selection existed and was discarded
     await tester.pump();
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();

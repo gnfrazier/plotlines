@@ -22,17 +22,20 @@ void main() {
     }
   });
 
-  test('the traversal list is FR10\'s eight modes, in the order the PRD states them', () {
+  test('the traversal list is FR10\'s five categories, in the order the PRD states them', () {
+    // Issue #315 reduced this to the categories; the removed three are
+    // disciplines now (`discipline_test.dart`).
     expect(kTraversalModes, [
       'cycling',
       'hiking',
       'paddling',
       'cross_country_skiing',
-      'packrafting',
-      'riverboarding',
-      'mountain_biking',
       'driving',
     ]);
+    expect(kTravelCategories, kTraversalModes);
+    for (final removed in ['mountain_biking', 'packrafting', 'riverboarding']) {
+      expect(kTravelModes, isNot(contains(removed)), reason: removed);
+    }
   });
 
   test('driving is a traversal mode, not a note', () {
@@ -58,8 +61,7 @@ void main() {
       expect(isFirstClassMode(mode), isTrue, reason: mode);
       expect(kTraversalModes, contains(mode), reason: mode);
     }
-    for (final mode in ['cross_country_skiing', 'packrafting', 'riverboarding',
-      'mountain_biking', 'driving']) {
+    for (final mode in ['cross_country_skiing', 'driving']) {
       expect(isFirstClassMode(mode), isFalse, reason: mode);
     }
   });
@@ -75,8 +77,14 @@ void main() {
     }
     expect(travelModeLabel('cycling'), 'Ride');
     expect(travelModeLabel('driving'), 'Drive');
-    expect(travelModeLabel('mountain_biking'), 'MTB');
     expect(travelModeLabel('teleportation'), 'teleportation');
+  });
+
+  test('travelCategoryLabel names each category as the trip control presents it', () {
+    expect(kTravelCategories.map(travelCategoryLabel).toList(),
+        ['Cycle', 'Foot', 'Paddle', 'Ski', 'Drive']);
+    // Falls through to the wire-value labeller for anything else.
+    expect(travelCategoryLabel('transit'), 'Transit');
   });
 
   test('FR145/M14: every mode has a localizable term, and the two labels agree', () {

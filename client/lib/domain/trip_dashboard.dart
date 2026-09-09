@@ -38,9 +38,6 @@ const Map<String, double> modeBaseSpeedKmh = {
   'hiking': 5.0,
   'paddling': 4.0,
   'cross_country_skiing': 8.0,
-  'packrafting': 4.5,
-  'riverboarding': 4.0,
-  'mountain_biking': 12.0,
   'driving': 60.0,
 };
 

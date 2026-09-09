@@ -97,10 +97,6 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   String? _error;
   List<GeocodeResult> _searchResults = const [];
 
-  /// Issue #230 B5 — whether the trip-mode overflow is expanded inline.
-  /// Replaces a `PopupMenuButton` whose menu covered the form beneath it.
-  bool _showAllTripModes = false;
-
   _StartMethod _startMethod = _StartMethod.theme;
   late final _tripNameController =
       TextEditingController(text: ref.read(currentTripProvider).title);
@@ -109,13 +105,6 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
 
   static const _shapes = ['loop', 'out_and_back', 'point_to_point'];
   static const _themes = ['balanced', 'quiet_scenic', 'fastest', 'gravel'];
-  // Wireframe screen 00 shows only Ride/Paddle/Hike by default, plus a
-  // "+ Add" affordance for anything else — Transit isn't a default chip.
-  static const _basePrimaryModes = ['cycling', 'paddling', 'hiking'];
-  // FR10/B1 — every offerable mode, traversal modes plus FR29's authored-note
-  // `transit` leg. The three base chips below are the wireframe's defaults;
-  // the rest reach the Author through the "+ Add" menu.
-  static const _primaryModeChoices = kTravelModes;
 
   @override
   void dispose() {
@@ -301,13 +290,13 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                   // two different decisions that used the same nine words and
                   // said nothing about how they differ. Both are now named
                   // for their scope and carry one line saying what they do.
-                  _SectionLabel('TRIP MODES'),
+                  _SectionLabel('TRIP CATEGORIES'),
                   Text(
-                    // Issue #316 — the layer set is chosen on its own step now
-                    // (before this screen), so this no longer promises "which
-                    // map layers switch on" as if it happened here. It still
-                    // seeds those defaults and the passage-mode offer.
-                    'How this trip travels overall. It seeds the trip\'s starting layers — '
+                    // Issue #316 — the layer set is chosen on its own step now.
+                    // Issue #315 — this declares the broad categories; a
+                    // discipline (road / gravel / mountain, and so on) is
+                    // picked per passage.
+                    'The broad ways this trip travels. Seeds the trip\'s starting layers — '
                     'chosen on the previous step — and the modes offered when you add a '
                     'passage; it never limits what a passage can be.',
                     style: PlotTypography.small(c.textSecondary),
@@ -315,68 +304,19 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                   const SizedBox(height: PlotSpacing.s2),
                   Builder(builder: (context) {
                     final selected = ref.watch(currentTripProvider).declaredModes;
-                    final extra = _primaryModeChoices
-                        .where((m) => !_basePrimaryModes.contains(m))
-                        .toList();
-                    final shownExtra = extra.where(selected.contains);
-                    final hidden = extra.where((m) => !selected.contains(m)).toList();
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    return Wrap(
+                      spacing: PlotSpacing.s2,
+                      runSpacing: PlotSpacing.s2,
                       children: [
-                        Wrap(
-                          spacing: PlotSpacing.s2,
-                          runSpacing: PlotSpacing.s2,
-                          children: [
-                            for (final m in _basePrimaryModes)
-                              PlotToggleChip(
-                                label: travelModeLabel(m),
-                                icon: travelModeIcon(m),
-                                selected: selected.contains(m),
-                                onTap: () =>
-                                    ref.read(currentTripProvider.notifier).toggleDeclaredMode(m),
-                              ),
-                            for (final m in shownExtra)
-                              PlotToggleChip(
-                                label: travelModeLabel(m),
-                                icon: travelModeIcon(m),
-                                selected: true,
-                                onTap: () =>
-                                    ref.read(currentTripProvider.notifier).toggleDeclaredMode(m),
-                              ),
-                            // Issue #230 B5 — the "+ Add" overflow was a
-                            // `PopupMenuButton`, and in a 440 px panel its
-                            // menu sat *on top of* the days and party-size
-                            // fields beneath it, hiding their labels while
-                            // open. An inline disclosure pushes the form
-                            // down instead of covering it, and needs no
-                            // second interaction model to dismiss.
-                            if (hidden.isNotEmpty && !_showAllTripModes)
-                              PlotToggleChip(
-                                label: 'More modes',
-                                icon: Icons.add,
-                                selected: false,
-                                onTap: () => setState(() => _showAllTripModes = true),
-                              ),
-                          ],
-                        ),
-                        if (_showAllTripModes && hidden.isNotEmpty) ...[
-                          const SizedBox(height: PlotSpacing.s2),
-                          Wrap(
-                            spacing: PlotSpacing.s2,
-                            runSpacing: PlotSpacing.s2,
-                            children: [
-                              for (final m in hidden)
-                                PlotToggleChip(
-                                  label: travelModeLabel(m),
-                                  icon: travelModeIcon(m),
-                                  selected: false,
-                                  onTap: () => ref
-                                      .read(currentTripProvider.notifier)
-                                      .toggleDeclaredMode(m),
-                                ),
-                            ],
+                        for (final m in kTravelCategories)
+                          PlotToggleChip(
+                            label: travelCategoryLabel(m),
+                            icon: travelModeIcon(m),
+                            selected: selected.contains(m),
+                            onTap: () => ref
+                                .read(currentTripProvider.notifier)
+                                .toggleDeclaredMode(m),
                           ),
-                        ],
                       ],
                     );
                   }),
@@ -468,8 +408,12 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     // *this first route* is solved for, not the trip's.
                     _SectionLabel('MODE FOR THIS ROUTE'),
                     Text(
-                      'Which mode this first route is solved for. Later passages pick their '
-                      'own.',
+                      // Issue #315 — this first route picks a category; the
+                      // per-passage discipline picker is a fast-follow, so
+                      // for now the route solves on the category's own
+                      // profile. Later passages pick their own.
+                      'Which category this first route is solved for — on the category\'s '
+                      'own weight profile for now. Later passages pick their own.',
                       style: PlotTypography.small(c.textSecondary),
                     ),
                     const SizedBox(height: PlotSpacing.s2),

@@ -2,12 +2,15 @@
 library;
 
 import 'json_utils.dart';
+import 'legacy_mode.dart';
 import 'node.dart';
 
 /// FR12 / B3 — the mode change between two segments of a day. A first-class
 /// member of the day rather than a node on either segment, because it
 /// belongs to neither: `compose_day(segments, transitions)` (ARCH §6.1)
 /// takes them as separate lists for exactly this reason.
+String? _canonOrNull(String? mode) => mode == null ? null : canonicalMode(mode);
+
 class Transition {
   Transition({
     required this.id,
@@ -38,8 +41,9 @@ class Transition {
       id: f.takeString('id')!,
       fromSegmentId: f.takeString('from_segment_id')!,
       toSegmentId: f.takeString('to_segment_id')!,
-      fromMode: f.takeString('from_mode'),
-      toMode: f.takeString('to_mode'),
+      // #315 — a stored `mountain_biking` etc. reads as its category here.
+      fromMode: _canonOrNull(f.takeString('from_mode')),
+      toMode: _canonOrNull(f.takeString('to_mode')),
       node: f.takeObject('node', Node.fromJson),
       gapM: f.takeNum('gap_m'),
       gapWarning: f.takeBool('gap_warning'),

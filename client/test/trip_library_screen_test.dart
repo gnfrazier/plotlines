@@ -56,7 +56,7 @@ Widget _harness(AppDatabase db, {GoRouter? router}) {
 /// FR144/N0 — "New trip" now opens the mode-declaration prompt ahead of the
 /// location prompt; every scenario below that reaches the location prompt
 /// has to clear it first.
-Future<void> _declareModes(WidgetTester tester, {List<String> labels = const ['Ride']}) async {
+Future<void> _declareModes(WidgetTester tester, {List<String> labels = const ['Cycle']}) async {
   expect(find.text('How will you travel?'), findsOneWidget);
   for (final label in labels) {
     await tester.tap(find.text(label));
@@ -146,13 +146,13 @@ void main() {
     var continueButton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Continue'));
     expect(continueButton.onPressed, isNull);
 
-    await tester.tap(find.text('Ride'));
+    await tester.tap(find.text('Cycle'));
     await tester.pump();
     continueButton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Continue'));
     expect(continueButton.onPressed, isNotNull);
 
     // Deselecting back to none disables it again — not just a one-time gate.
-    await tester.tap(find.text('Ride'));
+    await tester.tap(find.text('Cycle'));
     await tester.pump();
     continueButton = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Continue'));
     expect(continueButton.onPressed, isNull);
@@ -209,7 +209,7 @@ void main() {
 
     await tester.tap(find.text('New trip'));
     await tester.pump();
-    await _declareModes(tester, labels: ['Hike']);
+    await _declareModes(tester, labels: ['Foot']);
     await tester.tap(find.text('Use ${HomeRegion.label}'));
     await _settleMap(tester);
 

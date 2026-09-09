@@ -187,7 +187,7 @@ void main() {
   });
 
   testWidgets('the passage chip names its mode with the shared label', (tester) async {
-    await _pump(tester, [_passage('a', mode: 'mountain_biking')]);
-    expect(find.text('MTB'), findsOneWidget);
+    await _pump(tester, [_passage('a', mode: 'cross_country_skiing')]);
+    expect(find.text('Ski'), findsOneWidget);
   });
 }

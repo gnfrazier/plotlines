@@ -7,6 +7,44 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/domain.dart';
 
 void main() {
+  group('Segment.discipline (#315)', () {
+    test('defaults to null and is absent from JSON', () {
+      final segment = Segment(id: 's1', mode: 'cycling', shape: 'loop');
+      expect(segment.discipline, isNull);
+      expect(segment.toJson().containsKey('discipline'), isFalse);
+    });
+
+    test('round-trips through JSON', () {
+      final segment = Segment(
+          id: 's1', mode: 'cycling', discipline: 'mountain', shape: 'loop');
+      final decoded = Segment.fromJson(segment.toJson());
+      expect(decoded.mode, 'cycling');
+      expect(decoded.discipline, 'mountain');
+    });
+
+    test('a legacy mode on read migrates to (category, discipline)', () {
+      final decoded = Segment.fromJson(
+          {'id': 's1', 'mode': 'mountain_biking', 'shape': 'loop'});
+      expect(decoded.mode, 'cycling');
+      expect(decoded.discipline, 'mountain');
+    });
+
+    test('an explicit stored discipline wins over the legacy default', () {
+      final decoded = Segment.fromJson({
+        'id': 's1', 'mode': 'packrafting', 'discipline': 'kayak', 'shape': 'loop',
+      });
+      expect(decoded.mode, 'paddling');
+      expect(decoded.discipline, 'kayak');
+    });
+
+    test('copyWith(clearDiscipline) drops it', () {
+      final segment = Segment(
+          id: 's1', mode: 'cycling', discipline: 'gravel', shape: 'loop');
+      expect(segment.copyWith(mode: 'hiking', clearDiscipline: true).discipline,
+          isNull);
+    });
+  });
+
   group('Segment.arcStage (FR38 / O6)', () {
     test('defaults to null and is absent from JSON', () {
       final segment = Segment(id: 's1', mode: 'hiking', shape: 'point_to_point');

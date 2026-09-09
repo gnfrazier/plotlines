@@ -11,6 +11,7 @@
 library;
 
 import 'json_utils.dart';
+import 'legacy_mode.dart';
 
 /// What the route actually IS, as opposed to what was asked for.
 class RouteMetrics {
@@ -211,10 +212,16 @@ class RollUp {
     final f = JsonFields(json, 'roll_up');
     final total = f.takeObject('total', RouteMetrics.fromJson);
     final rawByMode = f.take('by_mode');
+    // #315 — a stored roll-up can be keyed by a removed `travel_mode` value;
+    // fold it onto the category. Two legacy keys collapsing onto one category
+    // is a metrics artefact, regenerated whole on the next solve.
     final byMode = rawByMode == null
         ? <String, RouteMetrics>{}
-        : (rawByMode as Map).map((k, v) => MapEntry(
-            k as String, RouteMetrics.fromJson(Map<String, dynamic>.from(v as Map))));
+        : <String, RouteMetrics>{
+            for (final e in (rawByMode as Map).entries)
+              canonicalMode(e.key as String):
+                  RouteMetrics.fromJson(Map<String, dynamic>.from(e.value as Map)),
+          };
     final breaches = f.takeList('limit_breaches', LimitBreach.fromJson);
     f.done();
     return RollUp(total: total, byMode: byMode, limitBreaches: breaches);

@@ -5,9 +5,11 @@
 // and the passage inspector so a mode chip looks the same wherever it's
 // offered.
 //
-// Every FR10 traversal mode gets a distinct glyph: a mode picker that shows
-// the same bike for cycling and mountain biking makes the two unreadable at a
-// glance, which is the whole job of the icon.
+// One glyph per travel-mode category (#315 reduced the list). A discipline
+// under a category (`discipline.dart`) has no glyph of its own at MVP — the
+// per-passage discipline picker is a fast-follow; when it lands, each
+// discipline within a category needs a distinct glyph so road / gravel /
+// mountain don't all read as the same bike.
 library;
 
 import 'package:flutter/material.dart';
@@ -16,9 +18,6 @@ IconData travelModeIcon(String mode) => switch (mode) {
       'hiking' => Icons.hiking,
       'paddling' => Icons.kayaking,
       'cross_country_skiing' => Icons.downhill_skiing,
-      'packrafting' => Icons.rowing,
-      'riverboarding' => Icons.surfing,
-      'mountain_biking' => Icons.pedal_bike,
       'driving' => Icons.directions_car,
       'transit' => Icons.directions_transit,
       _ => Icons.directions_bike,
