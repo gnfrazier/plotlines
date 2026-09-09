@@ -299,6 +299,170 @@ Future<void> _editRoleContent(
   );
 }
 
+/// FR109 / O4 — the station-activity badge label: the registry label for a
+/// known type (falling through to the raw key for a plugin activity, same as
+/// `disciplineLabel`), plus a compact duration when one is set. Neither piece
+/// is authored content — the type is a wire key, the duration a number — so
+/// this is a plain label, like the arc badge's `wireValue`.
+String _stationActivityBadge(StationActivity activity) {
+  final label = stationActivityLabel(activity.activityType);
+  final secs = activity.durationS;
+  if (secs == null) return label;
+  final minutes = (secs / 60).round();
+  final text = minutes >= 60
+      ? (minutes % 60 == 0
+          ? '${minutes ~/ 60} h'
+          : '${minutes ~/ 60} h ${minutes % 60} m')
+      : '$minutes m';
+  return '$label · $text';
+}
+
+/// FR109, FR16b, FR24 / O4 — set or edit a station role's [StationActivity]
+/// after promotion (O1's AC: "set here or later"). Mirrors [_editRoleContent]:
+/// a dialog rather than an inline expansion, since the anchor card is tight.
+Future<void> _editStationActivity(
+  BuildContext context,
+  WidgetRef ref, {
+  required String anchorId,
+  required Role role,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (_) => _StationActivityDialog(anchorId: anchorId, role: role),
+  );
+}
+
+/// A [StatefulWidget] rather than a `StatefulBuilder`, so its controllers
+/// outlive the dialog's pop animation and are disposed exactly once, by the
+/// framework (the difficulty/gear fields are the Author's own free text and
+/// are written as data, never composed into a message — FR145).
+class _StationActivityDialog extends ConsumerStatefulWidget {
+  const _StationActivityDialog({required this.anchorId, required this.role});
+  final String anchorId;
+  final Role role;
+
+  @override
+  ConsumerState<_StationActivityDialog> createState() => _StationActivityDialogState();
+}
+
+class _StationActivityDialogState extends ConsumerState<_StationActivityDialog> {
+  late String? _type = widget.role.activity?.activityType;
+  late final _duration = TextEditingController(
+    text: widget.role.activity?.durationS == null
+        ? ''
+        : (widget.role.activity!.durationS! / 60).round().toString(),
+  );
+  late final _difficulty =
+      TextEditingController(text: widget.role.activity?.difficulty ?? '');
+  late final _gear = TextEditingController(
+      text: widget.role.activity?.requiredGear.join('\n') ?? '');
+
+  @override
+  void dispose() {
+    _duration.dispose();
+    _difficulty.dispose();
+    _gear.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final chosen = _type;
+    final notifier = ref.read(currentTripProvider.notifier);
+    if (chosen == null) {
+      notifier.updateRole(widget.anchorId, widget.role.id, clearActivity: true);
+    } else {
+      final minutes = double.tryParse(_duration.text.trim());
+      final gear = [
+        for (final line in _gear.text.split('\n').map((l) => l.trim()))
+          if (line.isNotEmpty) line,
+      ];
+      final difficulty = _difficulty.text.trim();
+      notifier.updateRole(
+        widget.anchorId,
+        widget.role.id,
+        activity: StationActivity(
+          activityType: chosen,
+          durationS: minutes == null ? null : minutes * 60,
+          requiredGear: gear,
+          difficulty: difficulty.isEmpty ? null : difficulty,
+        ),
+      );
+    }
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Station activity'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButton<String?>(
+                isDense: true,
+                isExpanded: true,
+                value: _type,
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('Activity: none yet')),
+                  for (final a in kStationActivityTypes.values)
+                    DropdownMenuItem(value: a.key, child: Text(a.label)),
+                ],
+                onChanged: (key) => setState(() {
+                  _type = key;
+                  if (key != null && _duration.text.trim().isEmpty) {
+                    final secs = defaultStationActivityDurationS(key);
+                    if (secs != null) _duration.text = (secs / 60).round().toString();
+                  }
+                }),
+              ),
+              if (_type != null) ...[
+                const SizedBox(height: PlotSpacing.s2),
+                TextField(
+                  controller: _duration,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Expected duration (minutes)',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: PlotSpacing.s2),
+                TextField(
+                  controller: _difficulty,
+                  decoration: const InputDecoration(
+                    labelText: 'Difficulty — your call (optional)',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: PlotSpacing.s2),
+                TextField(
+                  controller: _gear,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Gear — one item per line (optional)',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: _save, child: const Text('Save')),
+      ],
+    );
+  }
+}
+
 class _RoleChip extends ConsumerWidget {
   const _RoleChip({required this.anchorId, required this.role, this.placeName});
 
@@ -375,6 +539,26 @@ class _RoleChip extends ConsumerWidget {
           // FR38 / O6 — this role's stage in the day's story, distinguished
           // from a plain content chip so it reads as structure, not a label.
           if (role.arc != null) PlotBadge(role.arc!.wireValue, tone: PlotBadgeTone.slate),
+          // FR109, FR16b, FR24 / O4 — a station role that carries an activity
+          // shows its type (from the registry, so a plugin activity still
+          // reads as its raw key) and duration. Logistics, not reveal-gated
+          // content — Character-facing surfacing of the packable list is C8.
+          if (role.activity != null)
+            PlotBadge(_stationActivityBadge(role.activity!), tone: PlotBadgeTone.spruce),
+          // FR109 / O4 — set or edit the station role's activity.
+          if (role.kind == RoleKind.station)
+            IconButton(
+              tooltip: role.activity == null ? 'Add activity' : 'Edit activity',
+              icon: Icon(
+                role.activity == null ? Icons.terrain_outlined : Icons.terrain,
+                size: 16,
+                color: c.textMuted,
+              ),
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              padding: EdgeInsets.zero,
+              onPressed: () => _editStationActivity(context, ref, anchorId: anchorId, role: role),
+            ),
           // FR37 / E1 — content (note/media) may be left unset at promotion
           // and decided later (O1's AC); this is that "later." A filled icon
           // marks a role that already carries a note or media so the Author
@@ -468,6 +652,14 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
   // FR38 / O6 — one optional arc stage per role kind, `null` (no arc beat) by
   // default: most promoted places carry no arc at all.
   final Map<RoleKind, ArcStage?> _arc = {};
+  // FR109, FR16b, FR24 / O4 — the station role's activity. `null` type means
+  // "no activity detail yet" (O1's AC — set at promotion or later). Only the
+  // station role reads these; kept as plain fields, not a per-kind map,
+  // because FR109 puts an activity on a station role and nowhere else.
+  String? _stationActivityType;
+  final _stationDurationMin = TextEditingController();
+  final _stationDifficulty = TextEditingController();
+  final _stationGear = TextEditingController();
   // FR108 / O3 — Flow 3's "Role geometry: point, offset, or area": whether
   // this anchor is a district/block/reserve rather than a pin. Off by
   // default, since most promoted places remain points (O2's AC extended).
@@ -481,6 +673,9 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
     _lat.dispose();
     _lon.dispose();
     _areaVertices.dispose();
+    _stationDurationMin.dispose();
+    _stationDifficulty.dispose();
+    _stationGear.dispose();
     for (final controller in _offsetLat.values) {
       controller.dispose();
     }
@@ -607,6 +802,12 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                     _selectedRoles.remove(kind);
                     _hazard.remove(kind);
                     _arc.remove(kind);
+                    if (kind == RoleKind.station) {
+                      _stationActivityType = null;
+                      _stationDurationMin.clear();
+                      _stationDifficulty.clear();
+                      _stationGear.clear();
+                    }
                   }
                 }),
               ),
@@ -709,8 +910,99 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                 onChanged: (stage) => setState(() => _arc[kind] = stage),
               ),
             ),
+          // FR109, FR16b, FR24 / O4 — the station role's activity: type,
+          // expected duration (feeds day timing), Author-declared difficulty,
+          // and gear (feeds the C8 checklist). Only shown for the station
+          // role; deliberately no Checkbox here — the area checkbox below is
+          // found by index.
+          if (selected && kind == RoleKind.station) _stationActivityFields(c),
         ],
       ),
+    );
+  }
+
+  Widget _stationActivityFields(PlotColors c) {
+    return Padding(
+      padding: const EdgeInsets.only(left: PlotSpacing.s6, bottom: PlotSpacing.s2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('STATION ACTIVITY (FR109)', style: PlotTypography.small(c.textMuted)),
+          DropdownButton<String?>(
+            isDense: true,
+            isExpanded: true,
+            value: _stationActivityType,
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Activity: none yet')),
+              for (final a in kStationActivityTypes.values)
+                DropdownMenuItem(value: a.key, child: Text(a.label)),
+            ],
+            onChanged: (key) => setState(() {
+              _stationActivityType = key;
+              // Seed the duration from the registry default when the Author
+              // picks a type and hasn't typed one — never overwrite a value
+              // they entered.
+              if (key != null && _stationDurationMin.text.trim().isEmpty) {
+                final secs = defaultStationActivityDurationS(key);
+                if (secs != null) {
+                  _stationDurationMin.text = (secs / 60).round().toString();
+                }
+              }
+            }),
+          ),
+          if (_stationActivityType != null) ...[
+            TextField(
+              controller: _stationDurationMin,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Expected duration (minutes)',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: PlotSpacing.s2),
+            TextField(
+              controller: _stationDifficulty,
+              decoration: const InputDecoration(
+                labelText: 'Difficulty — your call (optional)',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: PlotSpacing.s2),
+            TextField(
+              controller: _stationGear,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Gear — one item per line (optional)',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// FR109 / O4 — build the station role's [StationActivity] from the fields
+  /// above, or `null` when the Author picked no activity type (O1's AC — a
+  /// station role may carry no activity detail yet).
+  StationActivity? _buildStationActivity() {
+    final type = _stationActivityType;
+    if (type == null) return null;
+    final minutes = double.tryParse(_stationDurationMin.text.trim());
+    final gear = [
+      for (final line in _stationGear.text.split('\n').map((l) => l.trim()))
+        if (line.isNotEmpty) line,
+    ];
+    final difficulty = _stationDifficulty.text.trim();
+    return StationActivity(
+      activityType: type,
+      durationS: minutes == null ? null : minutes * 60,
+      requiredGear: gear,
+      difficulty: difficulty.isEmpty ? null : difficulty,
     );
   }
 
@@ -783,6 +1075,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
           reveal: entry.value,
           hazard: _hazard[entry.key] ?? false,
           arc: _arc[entry.key],
+          activity: entry.key == RoleKind.station ? _buildStationActivity() : null,
         ),
     ];
     // Hand-placed provenance carries no `sourceId`, so `promoteAnchor`'s

@@ -374,6 +374,110 @@ void main() {
     });
   });
 
+  // FR109, FR16b, FR24 / O4 — the station role's activity.
+  group('station activity (FR109 / O4)', () {
+    testWidgets('the activity fields show only for the station role', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      // narrative — no station activity block.
+      await tester.tap(find.byType(Checkbox).at(0));
+      await tester.pump();
+      expect(find.text('STATION ACTIVITY (FR109)'), findsNothing);
+
+      // station (index 2) — the block appears.
+      final stationCheckbox = find.byType(Checkbox).at(2);
+      await tester.ensureVisible(stationCheckbox);
+      await tester.tap(stationCheckbox);
+      await tester.pumpAndSettle();
+      expect(find.text('STATION ACTIVITY (FR109)'), findsOneWidget);
+      // No new Checkbox — the area checkbox is still found by index 3.
+      expect(find.byType(Checkbox), findsNWidgets(4));
+    });
+
+    testWidgets('promoting a station role with an activity shows a type + duration badge', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      final stationCheckbox = find.byType(Checkbox).at(2);
+      await tester.ensureVisible(stationCheckbox);
+      await tester.tap(stationCheckbox);
+      await tester.pumpAndSettle();
+
+      final typeDropdown = find.byType(DropdownButton<String?>);
+      await tester.ensureVisible(typeDropdown);
+      await tester.tap(typeDropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Climbing').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      // PlotBadge uppercases; the registry default duration for climbing is 3 h.
+      expect(find.text('CLIMBING · 3 H'), findsOneWidget);
+    });
+
+    testWidgets('a station role with no activity chosen carries none and shows only the kind chip', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      final stationCheckbox = find.byType(Checkbox).at(2);
+      await tester.ensureVisible(stationCheckbox);
+      await tester.tap(stationCheckbox);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      final anchor = ProviderScope.containerOf(
+        tester.element(find.byType(AnchorPromotionPanel)),
+      ).read(currentTripProvider).anchors.single;
+      expect(anchor.roles.single.kind, RoleKind.station);
+      expect(anchor.roles.single.activity, isNull);
+    });
+
+    testWidgets('the activity can be added to an existing station role from the card', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      final stationCheckbox = find.byType(Checkbox).at(2);
+      await tester.ensureVisible(stationCheckbox);
+      await tester.tap(stationCheckbox);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      // Open the "Add activity" affordance on the station role chip.
+      await tester.tap(find.byTooltip('Add activity'));
+      await tester.pumpAndSettle();
+      expect(find.text('Station activity'), findsOneWidget);
+
+      await tester.tap(find.byType(DropdownButton<String?>).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Hot spring').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final anchor = ProviderScope.containerOf(
+        tester.element(find.byType(AnchorPromotionPanel)),
+      ).read(currentTripProvider).anchors.single;
+      expect(anchor.roles.single.activity!.activityType, 'hot_spring');
+      expect(find.text('HOT SPRING · 1 H'), findsOneWidget);
+    });
+  });
+
   // O5's AC — "the Author can preview the trip as a Character would see it
   // before departure."
   group('preview as Character (O5 AC)', () {
