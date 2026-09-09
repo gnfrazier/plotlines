@@ -707,6 +707,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     String? note,
     bool clearNote = false,
     List<MediaRef>? media,
+    // FR109, FR16b, FR24 / O4 — a station role's activity (type, duration,
+    // gear, Author-declared difficulty), set at promotion or edited here
+    // later (O1's AC). `clearActivity` drops it (the station stays, its
+    // activity detail does not).
+    StationActivity? activity,
+    bool clearActivity = false,
   }) {
     final anchors = [
       for (final a in state.anchors)
@@ -720,6 +726,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
                   note: note,
                   clearNote: clearNote,
                   media: media,
+                  activity: activity,
+                  clearActivity: clearActivity,
                 )
               else
                 r,

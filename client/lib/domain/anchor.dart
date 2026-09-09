@@ -12,10 +12,19 @@
 /// the set exists: one anchor holds a narrative role (the statue) and a provision
 /// role (restrooms, water), one arrival, one pin — a type field cannot express both.
 ///
-/// Deliberately absent from [Role], reserved for a later story per ARCH §7.8's own
-/// note that the four properties shown there are "the whole point," not the full
-/// set: station activity (FR109 / O4). It adds its own field to this file, the
-/// schema, and the core Python mirror together when it is built.
+/// [Role.activity] (FR109, FR16b, FR24 / O4) is the fourth of ARCH §7.8's four
+/// Role properties: a [StationActivity] on a [RoleKind.station] role, carrying the
+/// activity type, an expected duration, gear requirements and an Author-declared
+/// difficulty. It is `null` on every non-station role and the constructor rejects
+/// it on one. The activity type is a free string (`$defs/station_activity
+/// .activity_type` is not an enum) — `station_activity_type.dart` mirrors the core
+/// registry of types the app ships knowing about, but a plugin may name one this
+/// build has never heard of (FR144). [StationActivity.durationS] feeds day timing;
+/// [StationActivity.requiredGear] and [StationActivity.difficulty] are
+/// always-visible logistics — they carry no reveal policy and are never routed
+/// through [RevealResolver] (gear must be packable before departure, and a
+/// declared difficulty is the Author's to state). Only the station role's own
+/// [Role.title]/[Role.note]/[Role.media] obey reveal.
 ///
 /// [Role.arc] (FR38 / O6) is the other of ARCH §7.8's four properties: arc attaches
 /// to a role — one anchor's narrative role can be the story's crux while its
@@ -198,6 +207,78 @@ bool _ringContainsPoint(Ring ring, Coord point) {
   return inside;
 }
 
+/// FR109, FR16b, FR24 / O4 — the activity a [RoleKind.station] role models:
+/// something done *at* a place with a duration (a crag, hot spring, sauna,
+/// summit scramble, canyon descent), reached by a traversal mode and then
+/// performed — never a way of travelling between two places (that is a
+/// travel mode).
+///
+/// [activityType] is one of `station_activity_type.dart`'s registry keys in
+/// the common case, but is a free string here (the payload accepts one a
+/// plugin declares, FR144). [durationS] feeds day timing — a three-hour crag
+/// is three hours of the day (FR16b). [requiredGear] feeds the mode/activity
+/// gear checklist (FR24 / C8); [difficulty] is the Author's own free-text
+/// declaration, shown as data and never composed into a sentence (FR145) or
+/// rendered as "easy" when absent. Neither carries a reveal policy — both are
+/// always-visible logistics (see [Role]'s doc comment).
+class StationActivity {
+  StationActivity({
+    required this.activityType,
+    this.durationS,
+    this.requiredGear = const [],
+    this.difficulty,
+  }) {
+    if (activityType.trim().isEmpty) {
+      throw ArgumentError('station activityType must be a non-empty string');
+    }
+    if (durationS != null && (!durationS!.isFinite || durationS! < 0)) {
+      throw ArgumentError('station durationS must be finite and non-negative');
+    }
+  }
+
+  final String activityType;
+
+  /// Expected time at the station, in seconds. Stored SI — a display like
+  /// "3 h" is a render-time transform (ARCH D49).
+  final double? durationS;
+  final List<String> requiredGear;
+  final String? difficulty;
+
+  StationActivity copyWith({
+    String? activityType,
+    double? durationS,
+    bool clearDuration = false,
+    List<String>? requiredGear,
+    String? difficulty,
+    bool clearDifficulty = false,
+  }) =>
+      StationActivity(
+        activityType: activityType ?? this.activityType,
+        durationS: clearDuration ? null : (durationS ?? this.durationS),
+        requiredGear: requiredGear ?? this.requiredGear,
+        difficulty: clearDifficulty ? null : (difficulty ?? this.difficulty),
+      );
+
+  factory StationActivity.fromJson(Map<String, dynamic> json) {
+    final f = JsonFields(json, 'station_activity');
+    final a = StationActivity(
+      activityType: f.takeString('activity_type')!,
+      durationS: f.takeNum('duration_s'),
+      requiredGear: f.takeStrings('required_gear'),
+      difficulty: f.takeString('difficulty'),
+    );
+    f.done();
+    return a;
+  }
+
+  Map<String, dynamic> toJson() => pruneJson({
+        'activity_type': activityType,
+        'duration_s': durationS,
+        'required_gear': requiredGear.isEmpty ? null : requiredGear,
+        'difficulty': difficulty,
+      });
+}
+
 /// FR106, FR107, FR110 / O1, O2 — one entry in an anchor's role set. [reveal] and
 /// content ([title]/[note]/[media]) may be left unset at promotion and decided
 /// later (O1's AC: "set here or later"); nothing here defaults [reveal] on the
@@ -226,6 +307,10 @@ bool _ringContainsPoint(Ring ring, Coord point) {
 /// [arc] (FR38 / O6) is this role's stage in the day's story, or `null` when
 /// this role carries no arc beat (the common case: not every promoted place
 /// is a story point).
+///
+/// [activity] (FR109, FR16b, FR24 / O4) is a [StationActivity] on a
+/// [RoleKind.station] role and `null` on any other — the constructor rejects it
+/// on a narrative or provision role, mirroring the hazard/`onArrival` guard.
 class Role {
   Role({
     required this.kind,
@@ -238,11 +323,16 @@ class Role {
     this.media = const [],
     this.hazard = false,
     this.arc,
+    this.activity,
   }) {
     if (hazard && reveal == RevealPolicy.onArrival) {
       throw ArgumentError(
           'role $id: FR115 forbids a hazard/technical-crux role from being set on_arrival — '
           'hazards are always visible, enforced in the model');
+    }
+    if (activity != null && kind != RoleKind.station) {
+      throw ArgumentError(
+          'role $id: FR109 puts an activity on a station role only — got ${kind.wireValue}');
     }
   }
 
@@ -256,6 +346,7 @@ class Role {
   final List<MediaRef> media;
   final bool hazard;
   final ArcStage? arc;
+  final StationActivity? activity;
 
   Role copyWith({
     RoleKind? kind,
@@ -273,6 +364,8 @@ class Role {
     bool? hazard,
     ArcStage? arc,
     bool clearArc = false,
+    StationActivity? activity,
+    bool clearActivity = false,
   }) =>
       Role(
         id: id,
@@ -285,6 +378,7 @@ class Role {
         media: media ?? this.media,
         hazard: hazard ?? this.hazard,
         arc: clearArc ? null : (arc ?? this.arc),
+        activity: clearActivity ? null : (activity ?? this.activity),
       );
 
   factory Role.fromJson(Map<String, dynamic> json) {
@@ -295,6 +389,7 @@ class Role {
     final area = f.takeObject('area', Area.fromJson);
     final rawReveal = f.takeString('reveal');
     final rawArc = f.takeString('arc');
+    final activity = f.takeObject('activity', StationActivity.fromJson);
     final r = Role(
       id: id,
       kind: kind,
@@ -306,6 +401,7 @@ class Role {
       media: f.takeList('media', MediaRef.fromJson),
       hazard: f.takeBool('hazard') ?? false,
       arc: rawArc == null ? null : ArcStage.fromWire(rawArc),
+      activity: activity,
     );
     f.done();
     return r;
@@ -325,6 +421,7 @@ class Role {
         // never be ambiguous between "false" and "absent."
         'hazard': hazard,
         'arc': arc?.wireValue,
+        'activity': activity?.toJson(),
       });
 }
 

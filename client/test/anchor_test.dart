@@ -243,6 +243,87 @@ void main() {
     });
   });
 
+  group('Role.activity — StationActivity (FR109, FR16b, FR24 / O4)', () {
+    test('round-trips through JSON with type, duration, gear and difficulty', () {
+      final role = Role(
+        id: 'r1',
+        kind: RoleKind.station,
+        activity: StationActivity(
+          activityType: 'climbing',
+          durationS: 10800,
+          requiredGear: ['helmet', 'harness', 'rope'],
+          difficulty: '5.10c sport, 6 pitches',
+        ),
+      );
+      final decoded = Role.fromJson(role.toJson()).activity!;
+      expect(decoded.activityType, 'climbing');
+      expect(decoded.durationS, 10800);
+      expect(decoded.requiredGear, ['helmet', 'harness', 'rope']);
+      expect(decoded.difficulty, '5.10c sport, 6 pitches');
+    });
+
+    test('defaults to null and is absent from JSON', () {
+      final role = Role(id: 'r1', kind: RoleKind.station);
+      expect(role.activity, isNull);
+      expect(role.toJson().containsKey('activity'), isFalse);
+    });
+
+    test('an activity on a non-station role is rejected (FR109)', () {
+      for (final kind in [RoleKind.narrative, RoleKind.provision]) {
+        expect(
+          () => Role(id: 'r1', kind: kind, activity: StationActivity(activityType: 'climbing')),
+          throwsArgumentError,
+          reason: kind.wireValue,
+        );
+      }
+    });
+
+    test('activityType must be non-empty; duration must be finite and non-negative', () {
+      expect(() => StationActivity(activityType: '  '), throwsArgumentError);
+      expect(() => StationActivity(activityType: 'sauna', durationS: -60), throwsArgumentError);
+      expect(() => StationActivity(activityType: 'sauna', durationS: double.infinity),
+          throwsArgumentError);
+      expect(StationActivity(activityType: 'sauna').durationS, isNull);
+    });
+
+    test('activityType is a free string, not bound to the registry (FR144)', () {
+      final role = Role(
+        id: 'r1', kind: RoleKind.station,
+        activity: StationActivity(activityType: 'via_ferrata'),
+      );
+      expect(Role.fromJson(role.toJson()).activity!.activityType, 'via_ferrata');
+    });
+
+    test('gear and difficulty prune when empty', () {
+      final role = Role(
+        id: 'r1', kind: RoleKind.station,
+        activity: StationActivity(activityType: 'hot_spring'),
+      );
+      final json = role.toJson()['activity'] as Map<String, dynamic>;
+      expect(json, {'activity_type': 'hot_spring'});
+    });
+
+    test('copyWith preserves activity by default and clears it via clearActivity', () {
+      final role = Role(
+        id: 'r1', kind: RoleKind.station,
+        activity: StationActivity(activityType: 'jumaring', durationS: 7200),
+      );
+      expect(role.copyWith(title: 'x').activity!.activityType, 'jumaring');
+      expect(role.copyWith(clearActivity: true).activity, isNull);
+    });
+
+    test('coexists with hazard and arc on the same station role', () {
+      final role = Role(
+        id: 'r1', kind: RoleKind.station, hazard: true, arc: ArcStage.crux,
+        activity: StationActivity(activityType: 'canyoneering', durationS: 14400),
+      );
+      final decoded = Role.fromJson(role.toJson());
+      expect(decoded.hazard, isTrue);
+      expect(decoded.arc, ArcStage.crux);
+      expect(decoded.activity!.activityType, 'canyoneering');
+    });
+  });
+
   group('Role.note / Role.title clear flags (FR37 / E1)', () {
     test('copyWith preserves title/note by default and clears them via clearTitle/clearNote', () {
       final role = Role(id: 'r1', kind: RoleKind.narrative, title: 'The Overlook', note: 'A vista.');
