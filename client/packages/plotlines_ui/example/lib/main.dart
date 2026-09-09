@@ -113,6 +113,8 @@ class _DemoAppState extends State<DemoApp> {
                 NodeMarker(NodeMarkerType.hazard),
                 NodeMarker(NodeMarkerType.portage),
                 NodeMarker(NodeMarkerType.plot),
+                NodeMarker(NodeMarkerType.start),
+                NodeMarker(NodeMarkerType.finish),
               ]),
             ],
           ),

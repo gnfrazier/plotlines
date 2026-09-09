@@ -238,7 +238,14 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
             child: Stack(
               children: [
                 TapToPickMap(
-                  points: [?_start, ..._via, if (_shape != 'loop') ?_end],
+                  points: [
+                    if (_start != null)
+                      (coord: _start!, role: NodeMarkerType.start),
+                    for (final v in _via)
+                      (coord: v, role: NodeMarkerType.waypoint),
+                    if (_shape != 'loop' && _end != null)
+                      (coord: _end!, role: NodeMarkerType.finish),
+                  ],
                   onTap: (point) => setState(() => _handleTap(point)),
                   center: widget.initialCenter,
                 ),

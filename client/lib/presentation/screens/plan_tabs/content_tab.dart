@@ -23,6 +23,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../../domain/domain.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
+import '../../map/node_marker_role.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/anchor_promotion_panel.dart';
 import '../../widgets/node_editor_sheet.dart';
@@ -81,7 +82,10 @@ class _ContentTabState extends ConsumerState<ContentTab> {
           child: Stack(
             children: [
               TapToPickMap(
-                points: [for (final n in segment.nodes) n.coord],
+                points: [
+                  for (final n in segment.nodes)
+                    (coord: n.coord, role: markerForNodeKind(n.kind)),
+                ],
                 center: segment.start,
                 onTap: (point) => setState(() {
                   _selectedNodeId = null;

@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../theme/colors.dart';
 
-/// The six canonical map markers. Following topographic convention, each has a
-/// distinct silhouette *plus* an internal mark, so the shape carries the
+/// The eight canonical map markers. Following topographic convention, each has
+/// a distinct silhouette *plus* an internal mark, so the shape carries the
 /// meaning and color only reinforces it — every marker reads in one ink, in
 /// glare, or for color-blind users.
 ///
 /// Circles = points on the route · squares = stops & transitions · triangle =
-/// warning.
+/// warning. [start] and [finish] are the day's endpoints: a circle with a
+/// forward "play" triangle for where it begins, a checkered square for where
+/// it ends — the two stay apart in grayscale (a printed cue sheet is a real
+/// output), and neither is the concentric ring that read as a target before.
 enum NodeMarkerType {
   waypoint, // ring + dot        · spruce
   regroup, // double ring (rally) · blaze
@@ -16,6 +19,8 @@ enum NodeMarkerType {
   hazard, // warning triangle    · ember
   portage, // square + arrow      · gold
   plot, // filled disc + star  · ink (narrative)
+  start, // ring + play triangle · spruce (the day begins here)
+  finish, // checkered square    · ink (the day ends here)
 }
 
 class NodeMarker extends StatelessWidget {
@@ -42,6 +47,10 @@ class NodeMarker extends StatelessWidget {
         return c.warning; // gold
       case NodeMarkerType.plot:
         return c.textPrimary; // ink
+      case NodeMarkerType.start:
+        return c.success; // spruce — go
+      case NodeMarkerType.finish:
+        return c.textPrimary; // ink — terminus
     }
   }
 
@@ -137,6 +146,26 @@ class _NodeMarkerPainter extends CustomPainter {
       case NodeMarkerType.plot: // filled disc + star (narrative)
         canvas.drawCircle(c, 8 * u, fill);
         _drawStar(canvas, c, 4.2 * u, paperFill);
+        break;
+      case NodeMarkerType.start: // ring + forward play triangle
+        canvas.drawCircle(c, 8.5 * u, paperFill);
+        canvas.drawCircle(c, 8.5 * u, stroke..strokeWidth = 2.5 * u);
+        final play = Path()
+          ..moveTo(9.8 * u, 7.7 * u)
+          ..lineTo(9.8 * u, 16.3 * u)
+          ..lineTo(16.2 * u, 12 * u)
+          ..close();
+        canvas.drawPath(play, fill);
+        break;
+      case NodeMarkerType.finish: // checkered square (motorsport finish)
+        final r = RRect.fromRectAndRadius(
+          Rect.fromLTWH(4 * u, 4 * u, 16 * u, 16 * u),
+          Radius.circular(2.5 * u),
+        );
+        canvas.drawRRect(r, paperFill);
+        canvas.drawRRect(r, stroke);
+        canvas.drawRect(Rect.fromLTWH(7.5 * u, 7.5 * u, 4.5 * u, 4.5 * u), fill);
+        canvas.drawRect(Rect.fromLTWH(12 * u, 12 * u, 4.5 * u, 4.5 * u), fill);
         break;
     }
   }

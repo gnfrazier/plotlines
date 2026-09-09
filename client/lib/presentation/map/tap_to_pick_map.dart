@@ -25,6 +25,13 @@ import 'vector_tile_provider.dart';
 
 typedef LatLonPoint = List<double>; // [lon, lat]
 
+/// A marker to draw, tagged with the role it plays. The caller states the
+/// role; the map draws it. Before #320 the marker type was picked from a
+/// point's index in a concatenated list, so a day-2 start was drawn as the
+/// narrative `plot` marker and the very first point as a concentric-ring
+/// target — role read from position instead of from role.
+typedef MapMarkerPoint = ({LatLonPoint coord, NodeMarkerType role});
+
 /// Why a bundled basemap style failed to resolve. A bare `null` collapsed
 /// these four into one indistinguishable outcome (issue #184, an M13
 /// "never a silent failure" violation) — the caller could not tell a
@@ -203,7 +210,7 @@ class TapToPickMap extends ConsumerStatefulWidget {
     this.outline,
   });
 
-  final List<LatLonPoint> points;
+  final List<MapMarkerPoint> points;
   final void Function(LatLonPoint)? onTap;
   final List<LatLonPoint> polyline;
   final LatLonPoint? center;
@@ -232,8 +239,8 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final isDark = material.Theme.of(context).brightness == Brightness.dark;
-    final startCenter =
-        widget.center ?? (widget.points.isNotEmpty ? widget.points.first : HomeRegion.center);
+    final startCenter = widget.center ??
+        (widget.points.isNotEmpty ? widget.points.first.coord : HomeRegion.center);
     final sidecar = ref.watch(sidecarManagerProvider);
     final baseUrl = sidecar.baseUrl;
     final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
@@ -298,18 +305,12 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                     ),
                   ]),
                 MarkerLayer(markers: [
-                  for (var i = 0; i < widget.points.length; i++)
+                  for (final p in widget.points)
                     Marker(
-                      point: ll.LatLng(widget.points[i][1], widget.points[i][0]),
+                      point: ll.LatLng(p.coord[1], p.coord[0]),
                       width: 28,
                       height: 28,
-                      child: NodeMarker(
-                        i == 0
-                            ? NodeMarkerType.waypoint
-                            : (i == widget.points.length - 1
-                                ? NodeMarkerType.regroup
-                                : NodeMarkerType.plot),
-                      ),
+                      child: NodeMarker(p.role),
                     ),
                 ]),
               ],

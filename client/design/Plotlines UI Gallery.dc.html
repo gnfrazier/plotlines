@@ -189,7 +189,9 @@ class Component extends DCLogic {
       rest: `<g fill="none" stroke="var(--info)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11l7-5 7 5v9"/><path d="M3.5 12L12 5.5 20.5 12"/><path d="M5 20h14"/></g>`,
       hazard: `<path d="M12 4l8.5 15H3.5z" fill="${paper}" stroke="var(--danger)" stroke-width="2.3" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="var(--danger)" stroke-width="2.3" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2" fill="var(--danger)"/>`,
       portage: `<rect x="4" y="4" width="16" height="16" rx="2.5" fill="${paper}" stroke="var(--warning)" stroke-width="2.3"/><path d="M8 12h7" stroke="var(--warning)" stroke-width="2.3" stroke-linecap="round"/><path d="M12.5 9l3 3-3 3" fill="none" stroke="var(--warning)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>`,
-      plot: `<circle cx="12" cy="12" r="8" fill="var(--text-primary)"/><path d="M12 8.2l1.1 2.3 2.5.3-1.9 1.7.5 2.5-2.2-1.2-2.2 1.2.5-2.5-1.9-1.7 2.5-.3z" fill="${paper}"/>`
+      plot: `<circle cx="12" cy="12" r="8" fill="var(--text-primary)"/><path d="M12 8.2l1.1 2.3 2.5.3-1.9 1.7.5 2.5-2.2-1.2-2.2 1.2.5-2.5-1.9-1.7 2.5-.3z" fill="${paper}"/>`,
+      start: `<circle cx="12" cy="12" r="8.5" fill="${paper}" stroke="var(--success)" stroke-width="2.5"/><path d="M9.8 7.7L9.8 16.3 16.2 12z" fill="var(--success)"/>`,
+      finish: `<rect x="4" y="4" width="16" height="16" rx="2.5" fill="${paper}" stroke="var(--text-primary)" stroke-width="2.3"/><rect x="7.5" y="7.5" width="4.5" height="4.5" fill="var(--text-primary)"/><rect x="12" y="12" width="4.5" height="4.5" fill="var(--text-primary)"/>`
     };
     return { __html: `<svg width="26" height="26" viewBox="0 0 24 24">${defs[kind]}</svg>` };
   }
@@ -210,10 +212,12 @@ class Component extends DCLogic {
         { name: 'Rest stop', spec: 'shelter', svg: this.marker('rest') },
         { name: 'Hazard / crux', spec: 'warning triangle', svg: this.marker('hazard') },
         { name: 'Portage', spec: 'square + arrow', svg: this.marker('portage') },
-        { name: 'Plot point', spec: 'disc + star', svg: this.marker('plot') }
+        { name: 'Plot point', spec: 'disc + star', svg: this.marker('plot') },
+        { name: 'Start', spec: 'ring + play triangle', svg: this.marker('start') },
+        { name: 'Finish', spec: 'checkered square', svg: this.marker('finish') }
       ],
       tiles: [
-        { title: 'Riverside lot', sub: 'Waypoint · start', mi: 'MI 0.0', svg: this.marker('waypoint') },
+        { title: 'Riverside lot', sub: 'Start · day 1', mi: 'MI 0.0', svg: this.marker('start') },
         { title: 'Clock tower', sub: 'Regroup point', mi: 'MI 12.4', svg: this.marker('regroup') },
         { title: 'Washout at CR-9', sub: 'Hazard · reported 1d ago', mi: 'MI 18.1', svg: this.marker('hazard') }
       ]
