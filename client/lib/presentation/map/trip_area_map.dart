@@ -257,7 +257,7 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
                   // it shows through wherever coverage stops, so a bbox-sized
                   // island of tiles reads as the edge of the extent rather
                   // than as a failed render on a flat grey canvas.
-                  MapGraticule(color: c.border),
+                  MapGraticule(ground: c.surfaceSunk, line: c.textMuted, label: c.textSecondary),
                   if (tilesAvailable)
                     VectorTileLayer(
                       theme: vectorTheme,
