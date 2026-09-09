@@ -112,7 +112,7 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
             ),
             children: [
               // Issue #230 C1 — ground under the tiles, not a fallback.
-              MapGraticule(color: c.border),
+              MapGraticule(ground: c.surfaceSunk, line: c.textMuted, label: c.textSecondary),
               if (tilesAvailable)
                 VectorTileLayer(
                   theme: vectorTheme,

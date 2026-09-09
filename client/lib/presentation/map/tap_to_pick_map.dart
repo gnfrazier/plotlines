@@ -272,7 +272,7 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                 // Issue #230 C1 — the grid is the ground under the tiles,
                 // not a fallback for their absence: past the edge of
                 // coverage the map reads as a map, not as a failed render.
-                MapGraticule(color: c.border),
+                MapGraticule(ground: c.surfaceSunk, line: c.textMuted, label: c.textSecondary),
                 if (tilesAvailable)
                   VectorTileLayer(
                     theme: vectorTheme,
