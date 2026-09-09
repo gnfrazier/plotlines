@@ -18,10 +18,21 @@ Authority for the wire shape is `docs/schemas/trip_payload.schema.json`'s `ancho
 `role`, `role_kind`, `reveal_policy`, and `anchor_provenance` $defs — where this module
 and the schema disagree, the schema wins (ARCH D28).
 
-Deliberately absent from `Role` and reserved for a later story, per ARCH §7.8's own
-note that the four properties shown there are "the whole point," not the full set:
-station activity (FR109 / O4). It adds its own field to this module, the schema, and
-the Dart mirror together when it is built — not guessed ahead of time here.
+`Role.activity` (FR109, FR16b, FR24 / O4) is the fourth of ARCH §7.8's four Role
+properties: a `StationActivity` on a station-kind role, carrying the activity type,
+an expected duration, gear requirements, and an Author-declared difficulty. It is
+`None` on every non-station role and rejected on one (a `__post_init__` guard, the
+same shape as the hazard/`on_arrival` guard below). The activity type is a free
+string validated only for non-emptiness — the registry of types the app ships
+knowing about is `multimodal.station_activities` (O4: "a config entry, not code"),
+and `$defs/station_activity.activity_type` is a plain string, not an enum, so a
+plugin may name one this build has never heard of (FR144). `expected_duration_s`
+feeds day timing (`trips.dashboard.station_hold_s` → moving-vs-elapsed time, ETAs,
+scheduled-event conflict detection). `required_gear` and `difficulty` are
+logistics: they carry no reveal field and are never routed through
+`RevealResolver` — gear must be packable before departure, and a difficulty the
+Author declared is theirs to state (shown as data, never composed into a sentence,
+FR145). Only the station role's own `title`/`note`/`media` obey reveal.
 
 `Role.arc` (FR38 / O6) is the other of ARCH §7.8's four properties: arc attaches to a
 Role — one anchor's narrative role can be the story's crux while its provision role
@@ -193,6 +204,64 @@ class MediaRef:
 
 
 @dataclass
+class StationActivity:
+    """FR109, FR16b, FR24 / O4 — the activity a station role models: something
+    done *at* a place with a duration (a crag, hot spring, sauna, summit
+    scramble, canyon descent), reached by a traversal mode and then performed.
+
+    `activity_type` is one of `multimodal.station_activities`' registry keys in
+    the common case, but is validated here only for non-emptiness: the payload
+    accepts an activity a plugin declares that this build has never heard of
+    (FR144), the same posture `trips.payload` takes toward enum-shaped fields
+    generally — the schema is the authority, and `$defs/station_activity
+    .activity_type` is a plain string, not an enum.
+
+    `expected_duration_s` is what feeds day timing — `trips.dashboard
+    .station_hold_s` sums it across a day's station roles into the hold that
+    the moving-vs-elapsed model and ETA already consume, and it is what a
+    scheduled-event conflict check (FR28 / C12) reads. A three-hour crag is
+    three hours of the day, not an annotation on a pin (FR16b).
+
+    `required_gear` feeds the mode/activity gear checklist (FR24 / C8).
+    `difficulty` is the Author's own free-text declaration — published grading
+    scales for these activities are too domain-specific and, per SPIKE-C, too
+    thin to impose one, so it is a string shown as data, never composed into a
+    sentence (FR145) and never rendered as "easy" when absent. Neither field
+    carries a reveal policy: gear must be packable before departure and a
+    declared difficulty is the Author's to state, so both are always-visible
+    logistics, never routed through the reveal gate — only the station role's
+    `title`/`note`/`media` obey reveal.
+    """
+
+    activity_type: str
+    expected_duration_s: float | None = None
+    required_gear: list[str] = field(default_factory=list)
+    difficulty: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.activity_type, str) or not self.activity_type.strip():
+            raise ValueError("station activity_type must be a non-empty string")
+        if self.expected_duration_s is not None:
+            secs = _finite(self.expected_duration_s, "station_activity.expected_duration_s")
+            if secs < 0:
+                raise ValueError(
+                    f"station activity {self.activity_type!r}: expected_duration_s "
+                    f"must be non-negative, got {self.expected_duration_s!r}"
+                )
+            self.expected_duration_s = secs
+
+    def to_dict(self) -> dict:
+        return {
+            "activity_type": self.activity_type,
+            "duration_s": (None if self.expected_duration_s is None
+                           else _finite(self.expected_duration_s,
+                                        "station_activity.expected_duration_s")),
+            "required_gear": list(self.required_gear) or None,
+            "difficulty": self.difficulty,
+        }
+
+
+@dataclass
 class Role:
     """FR106, FR107, FR110 / O1, O2 — one entry in an anchor's role set.
 
@@ -226,6 +295,12 @@ class Role:
     place is a story point). Day composition (`trips.compose`) reads it to let
     a day close at a resolution-stage anchor rather than only at a distance
     threshold.
+
+    `activity` (FR109, FR16b, FR24 / O4) is a `StationActivity` on a
+    `station`-kind role and `None` on any other — the `__post_init__` guard
+    rejects it on a narrative or provision role rather than silently keeping a
+    field nothing will read. See `StationActivity` above for what it carries
+    and why its logistics fields sit outside the reveal gate.
     """
 
     kind: str
@@ -238,6 +313,7 @@ class Role:
     media: list[MediaRef] = field(default_factory=list)
     hazard: bool = False
     arc: str | None = None
+    activity: StationActivity | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in ROLE_KINDS:
@@ -251,6 +327,11 @@ class Role:
             )
         if self.arc is not None and self.arc not in ARC_STAGES:
             raise ValueError(f"arc stage {self.arc!r} not in {ARC_STAGES}")
+        if self.activity is not None and self.kind != "station":
+            raise ValueError(
+                f"role {self.id}: FR109 puts an activity on a station role only — "
+                f"got kind {self.kind!r}"
+            )
 
     def to_dict(self) -> dict:
         return {
@@ -267,6 +348,7 @@ class Role:
             # never be ambiguous between "false" and "absent."
             "hazard": self.hazard,
             "arc": self.arc,
+            "activity": self.activity.to_dict() if self.activity else None,
         }
 
 

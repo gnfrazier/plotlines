@@ -6,6 +6,7 @@ from plotlines_core.content.anchor import (
     AnchorProvenance,
     MediaRef,
     Role,
+    StationActivity,
 )
 
-__all__ = ["Anchor", "AnchorProvenance", "MediaRef", "Role"]
+__all__ = ["Anchor", "AnchorProvenance", "MediaRef", "Role", "StationActivity"]

@@ -14,6 +14,7 @@ D1's AC, line by line:
 
 import pytest
 
+from plotlines_core.content.anchor import Anchor, Role, StationActivity
 from plotlines_core.trips.dashboard import (
     PACE_CUSTOM,
     PACE_SYSTEM_DEFAULT,
@@ -21,6 +22,7 @@ from plotlines_core.trips.dashboard import (
     build_dashboard,
     eta,
     moving_time_s,
+    station_hold_s,
 )
 from plotlines_core.trips.payload import Day, RouteMetrics, Segment, Trip
 
@@ -191,6 +193,58 @@ def test_trip_eta_folds_in_every_days_hold():
     assert board.trip_total.total.elapsed_time_s == pytest.approx(21_000.0)
     assert board.trip_hold_s == 5_400.0
     assert board.trip_eta == "2026-08-28T11:50:00Z"   # 06:00 + 5 h 50 m
+
+
+# --- FR16b / O4: station durations feed the hold ------------------------
+
+
+def _station_anchor(seconds: float | None, *, kind: str = "station") -> Anchor:
+    return Anchor(
+        coord=[0.0, 0.0],
+        roles=[Role(
+            kind=kind,
+            activity=(None if kind != "station"
+                      else StationActivity(activity_type="climbing",
+                                           expected_duration_s=seconds)),
+        )],
+    )
+
+
+def test_station_hold_s_sums_station_role_durations():
+    anchors = [_station_anchor(3 * 3600.0), _station_anchor(1800.0)]
+    assert station_hold_s(anchors) == pytest.approx(12_600.0)
+
+
+def test_station_hold_s_ignores_non_station_roles_and_durationless_activities():
+    anchors = [
+        _station_anchor(None),              # station role, no duration set
+        Anchor(coord=[0.0, 0.0], roles=[Role(kind="narrative")]),
+        Anchor(coord=[0.0, 0.0], roles=[Role(kind="provision")]),
+    ]
+    assert station_hold_s(anchors) == 0.0
+
+
+def test_build_dashboard_derives_each_days_hold_from_its_station_anchors():
+    trip = _trip()
+    board = build_dashboard(trip, day_anchors={
+        trip.days[0].id: [_station_anchor(3 * 3600.0), _station_anchor(1800.0)],
+    })
+    total = board.days[0].metrics.total
+    # day 1 moving is 8400 s (as elsewhere); + 12600 s of stations.
+    assert board.days[0].hold_s == pytest.approx(12_600.0)
+    assert total.elapsed_time_s == pytest.approx(21_000.0)
+    # rolls into the trip total too.
+    assert board.trip_hold_s == pytest.approx(12_600.0)
+
+
+def test_an_explicit_day_hold_s_still_wins_over_a_computed_one():
+    trip = _trip()
+    board = build_dashboard(
+        trip,
+        day_anchors={trip.days[0].id: [_station_anchor(3 * 3600.0)]},
+        day_hold_s={trip.days[0].id: 60.0},
+    )
+    assert board.days[0].hold_s == 60.0
 
 
 def test_a_leg_with_no_pace_leaves_the_scope_total_time_unset_not_understated():

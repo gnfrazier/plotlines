@@ -2,7 +2,16 @@
 
 import pytest
 
-from plotlines_core.content.anchor import ARC_STAGES, ROLE_KINDS, Anchor, AnchorProvenance, MediaRef, Polygon, Role
+from plotlines_core.content.anchor import (
+    ARC_STAGES,
+    ROLE_KINDS,
+    Anchor,
+    AnchorProvenance,
+    MediaRef,
+    Polygon,
+    Role,
+    StationActivity,
+)
 from plotlines_core.trips.payload import Trip
 
 # A closed square ring, wound counter-clockwise (canonical exterior winding).
@@ -323,6 +332,89 @@ def test_national_monument_narrative_role_carries_the_climax():
     by_kind = {r["kind"]: r for r in out["roles"]}
     assert by_kind["narrative"]["arc"] == "climax"
     assert by_kind["provision"]["arc"] is None
+
+
+# --------------------------------------------------------------------------
+# FR109, FR16b, FR24 / O4 — station activity on a station role
+# --------------------------------------------------------------------------
+
+
+def test_station_activity_round_trips_with_type_duration_gear_and_difficulty():
+    role = Role(
+        kind="station",
+        activity=StationActivity(
+            activity_type="climbing",
+            expected_duration_s=3 * 3600.0,
+            required_gear=["helmet", "harness", "rope"],
+            difficulty="5.10c sport, 6 pitches",
+        ),
+    )
+    out = role.to_dict()["activity"]
+    assert out == {
+        "activity_type": "climbing",
+        "duration_s": 10800.0,
+        "required_gear": ["helmet", "harness", "rope"],
+        "difficulty": "5.10c sport, 6 pitches",
+    }
+
+
+def test_station_activity_is_omitted_when_absent_and_role_behaves_as_before():
+    before = Role(kind="station").to_dict()
+    assert before["activity"] is None  # pruned at the Trip level, absent on the wire
+
+
+def test_activity_on_a_non_station_role_is_rejected():
+    # FR109 — an activity belongs to a station role only.
+    for kind in ("narrative", "provision"):
+        with pytest.raises(ValueError, match="station role only"):
+            Role(kind=kind, activity=StationActivity(activity_type="climbing"))
+
+
+def test_activity_type_must_be_a_non_empty_string():
+    for bad in ("", "   "):
+        with pytest.raises(ValueError, match="non-empty string"):
+            StationActivity(activity_type=bad)
+
+
+def test_activity_duration_is_optional_and_rejects_negative_or_non_finite():
+    assert StationActivity(activity_type="sauna").expected_duration_s is None
+    with pytest.raises(ValueError, match="non-negative"):
+        StationActivity(activity_type="sauna", expected_duration_s=-60.0)
+    with pytest.raises(ValueError, match="non-finite"):
+        StationActivity(activity_type="sauna", expected_duration_s=float("inf"))
+
+
+def test_activity_gear_and_difficulty_default_empty_and_prune():
+    out = Role(
+        kind="station", activity=StationActivity(activity_type="hot_spring")
+    ).to_dict()["activity"]
+    assert out == {
+        "activity_type": "hot_spring",
+        "duration_s": None,
+        "required_gear": None,
+        "difficulty": None,
+    }
+
+
+def test_activity_type_is_a_free_string_not_bound_to_the_registry():
+    # FR144 posture — a plugin may name an activity this build has never
+    # heard of, and the model stores it without complaint (the registry
+    # supplies labels/defaults for the known set, it is not a gate).
+    role = Role(kind="station", activity=StationActivity(activity_type="via_ferrata"))
+    assert role.to_dict()["activity"]["activity_type"] == "via_ferrata"
+
+
+def test_station_activity_coexists_with_hazard_and_arc_on_the_same_role():
+    role = Role(
+        kind="station",
+        hazard=True,
+        arc="crux",
+        activity=StationActivity(activity_type="canyoneering", expected_duration_s=4 * 3600.0),
+    )
+    out = role.to_dict()
+    assert out["hazard"] is True
+    assert out["arc"] == "crux"
+    assert out["activity"]["activity_type"] == "canyoneering"
 
 
 def test_trip_carries_anchors_and_prunes_when_empty():
