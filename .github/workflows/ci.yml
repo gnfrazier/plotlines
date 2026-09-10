@@ -61,12 +61,13 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install jsonschema
-      # Validates the committed fixture payloads against the committed schema and
-      # checks that every FR-map pointer still resolves. Deliberately the light half of
-      # the spike: no graph fixtures, no Dart, no network — the full round trip is
-      # `spikes/SPIKE-20/run.py` and needs both. What this catches is the drift that
-      # actually happens between runs, a schema edit that no longer describes the
-      # payload the core emits (ARCH D28).
+      # Validates the committed fixture payloads against the committed schema, checks
+      # that every FR-map pointer still resolves, and checks that core's SCHEMA_VERSION
+      # and the client's tripSchemaVersion name the same schema (#346). Deliberately the
+      # light half of the spike: no graph fixtures, no Dart, no network — the full round
+      # trip is `spikes/SPIKE-20/run.py` and needs both. What this catches is the drift
+      # that actually happens between runs: a schema edit that no longer describes the
+      # payload the core emits, or one producer bumped without the other (ARCH D28).
       - run: PYTHONPATH=core python spikes/SPIKE-20/run.py --check-committed
 
   core-tests:

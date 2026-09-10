@@ -58,6 +58,15 @@ FIXTURES_OUT = RESULTS / "fixtures"
 DART_DIR = SPIKE / "dart"
 DART_OUT = RESULTS / "dart"
 
+#: The two files that each carry a copy of the payload schema version. The producer
+#: on each side stamps its own constant onto every payload it writes, and until #346
+#: nothing checked that they name the same schema — O4 (#11) moved one and not the
+#: other, so the client stamped `1.7.0` on payloads carrying a `1.8.0` field.
+CORE_PAYLOAD_PY = ROOT / "core" / "plotlines_core" / "trips" / "payload.py"
+DART_TRIP_DART = ROOT / "client" / "lib" / "domain" / "trip.dart"
+_PY_SCHEMA_VERSION_RE = re.compile(r'^SCHEMA_VERSION\s*=\s*"([^"]+)"', re.MULTILINE)
+_DART_SCHEMA_VERSION_RE = re.compile(r"""\btripSchemaVersion\s*=\s*['"]([^'"]+)['"]""")
+
 #: The three edits the Dart side applies, as patterns over JSON-pointer paths. Any
 #: difference NOT matching one of these is a silent change, which is the failure this
 #: spike exists to detect.
@@ -523,6 +532,44 @@ def check_fr_map(validator) -> dict:
             "rows": MAPPING}
 
 
+def schema_version_drift() -> list[str]:
+    """The two producers of the payload contract must name the same schema version.
+
+    `SCHEMA_VERSION` in `core/plotlines_core/trips/payload.py` and `tripSchemaVersion`
+    in `client/lib/domain/trip.dart` are each stamped onto every payload their side
+    writes, and `schema_version` is the only thing a reader has to tell it what shape
+    to expect. O4 (#11) bumped the core constant to 1.8.0 for `role.activity` and did
+    not move the Dart one, so the client spent a release stamping `1.7.0` on payloads
+    that carried a 1.8.0 field — a payload lying about itself, which a version-keyed
+    migration or validator then mis-branches on. ARCH D28 says the schema wins over any
+    implementation; two implementations that disagree about *which* schema they
+    implement is the state that makes D28 unenforceable (#346).
+
+    Read by regex on purpose: `--check-committed` is the no-toolchain gate, and
+    standing up a Dart SDK to read one `const` would defeat the point of it.
+    """
+    failures: list[str] = []
+    py_match = _PY_SCHEMA_VERSION_RE.search(CORE_PAYLOAD_PY.read_text())
+    dart_match = _DART_SCHEMA_VERSION_RE.search(DART_TRIP_DART.read_text())
+    if not py_match:
+        failures.append(
+            f"could not read SCHEMA_VERSION from {CORE_PAYLOAD_PY.relative_to(ROOT)}")
+    if not dart_match:
+        failures.append(
+            f"could not read tripSchemaVersion from {DART_TRIP_DART.relative_to(ROOT)}")
+    if py_match and dart_match:
+        core_version, client_version = py_match.group(1), dart_match.group(1)
+        agree = core_version == client_version
+        print(f"schema version: core {core_version}  client {client_version}  "
+              f"{'OK' if agree else 'DRIFTED'}")
+        if not agree:
+            failures.append(
+                f"schema version drift: core SCHEMA_VERSION={core_version} but client "
+                f"tripSchemaVersion={client_version} — the two halves of the payload "
+                f"contract disagree about which schema they implement (ARCH D28, #346)")
+    return failures
+
+
 def run(bench, regions: list[str]) -> dict:
     validator = load_validator()
     payload_out: dict = {
@@ -546,8 +593,10 @@ def run(bench, regions: list[str]) -> dict:
     payload_out["scale_test"] = scale_test(validator, fixture)
     payload_out["probes"] = probes(validator, fixture)
     payload_out["fr_coverage"] = check_fr_map(validator)
+    payload_out["schema_version_drift"] = schema_version_drift()
 
     failures = [f for region in payload_out["regions"] for f in region["failures"]]
+    failures.extend(payload_out["schema_version_drift"])
     if payload_out["fr_coverage"]["unresolved_pointers"]:
         failures.append("FR map points at schema fields that do not exist")
     if not payload_out["probes"]["key_order"]["identical_after_roundtrip"]:
@@ -576,14 +625,15 @@ def run(bench, regions: list[str]) -> dict:
 def check_committed() -> int:
     """Validate what is in the repo, without building or solving anything.
 
-    The CI-shaped mode: every committed fixture payload must still validate against the
-    committed schema, and every FR-map pointer must still resolve. Needs `jsonschema`
-    and nothing else — no graphs, no Dart, no network. It cannot prove the round trip
-    (that is the full run), but it does catch the failure that actually happens between
-    runs: the schema and the payloads drifting apart in a later edit.
+    The CI-shaped mode: the core and client schema-version constants must agree, every
+    committed fixture payload must still validate against the committed schema, and
+    every FR-map pointer must still resolve. Needs `jsonschema` and nothing else — no
+    graphs, no Dart, no network. It cannot prove the round trip (that is the full run),
+    but it does catch the failure that actually happens between runs: the schema, the
+    payloads, and the two producers drifting apart in a later edit.
     """
     validator = load_validator()
-    failures = []
+    failures = schema_version_drift()
     fixtures = sorted(FIXTURES_OUT.glob("*_trip.json"))
     if not fixtures:
         print(f"no committed fixtures under {FIXTURES_OUT}")
