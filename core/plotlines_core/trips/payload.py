@@ -71,7 +71,13 @@ from plotlines_core.content.anchor import Anchor
 #: Author-declared difficulty), valid only on a `station`-kind role. Additive
 #: in the same sense as O2/O3/O6: an absent `activity` still parses, and a
 #: station role without one behaves exactly as it did before O4.
-SCHEMA_VERSION = "1.8.0"
+#: Bumped to 1.9.0 by FR140/Q3 (issue #344): an `alternate` gains an optional
+#: `solve` (the same `$defs/solve_provenance` a segment carries), so moving
+#: where an alternate forks or rejoins can mark *that alternate* stale while
+#: its parent passage stays exactly as solved. Additive: an absent `solve`
+#: means never solved — an Author-drawn line measured off itself — which is
+#: how every alternate written before this bump already read.
+SCHEMA_VERSION = "1.9.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -545,6 +551,14 @@ class Alternate:
     elevation: Elevation | None = None
     diverges_at_m: float | None = None
     rejoins_at_m: float | None = None
+    #: FR140/Q3 (issue #344) — provenance for *this alternate's* derived half. An
+    #: alternate is a second path with its own ``geometry``/``metrics``/``elevation``,
+    #: so moving where it forks or rejoins invalidates its numbers and leaves the
+    #: parent segment's untouched; a ``stale`` flag on the segment cannot say that.
+    #: ``None`` means never solved — an Author-drawn line whose length is measured
+    #: off the line itself, which is a different statement from "solved, then gone
+    #: stale". See ``SolveProvenance``, defined below and shared with ``Segment``.
+    solve: SolveProvenance | None = None
     #: Branch alternates only — the Author's prose for what is different on this path.
     note: str | None = None
     #: Branch alternates only — trip-scoped anchors on this path, by id (a reference,
@@ -577,6 +591,7 @@ class Alternate:
                               else round(f(self.diverges_at_m), 1)),
             "rejoins_at_m": (None if self.rejoins_at_m is None
                              else round(f(self.rejoins_at_m), 1)),
+            "solve": self.solve.to_dict() if self.solve else None,
             "note": self.note,
             "anchor_ids": list(self.anchor_ids) or None,
             "narration": self.narration.to_dict() if self.narration else None,

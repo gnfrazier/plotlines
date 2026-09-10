@@ -23,7 +23,17 @@ import 'weight_profile.dart';
 // `travel_mode` lost `mountain_biking` / `packrafting` / `riverboarding` —
 // `Segment.fromJson` / `Transition.fromJson` rewrite those to the category +
 // discipline they became, so a trip saved before this bump still loads.
-const String tripSchemaVersion = '1.7.0';
+// 1.8.0 was FR109/FR16b/FR24 (Story O4): `role.activity`, valid only on a
+// `station`-kind role. The Dart mirror of that field shipped but this constant
+// did not move with it, so the client stamped `1.7.0` on payloads carrying an
+// `activity` — see the issue filed alongside #344. Nothing pins the two
+// constants to each other, which is why it went unnoticed.
+// Bumped to 1.9.0 by FR140/Q3 (issue #344): `alternate.solve` arrived (the
+// same `$defs/solve_provenance` a segment carries), so an alternate whose fork
+// or rejoin has moved can be stale on its own while its parent passage is not.
+// Additive: an absent `solve` means never solved, which is how every alternate
+// written before this bump already read.
+const String tripSchemaVersion = '1.9.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {

@@ -113,7 +113,8 @@ def _alternate() -> P.Alternate:
     return P.Alternate(
         kind="variant", geometry=_line_string(), id="alt1", intent="branch",
         label="Gravel variant", metrics=_route_metrics(500.0), elevation=_elevation(),
-        diverges_at_m=200.0, rejoins_at_m=800.0, note="drier in spring",
+        diverges_at_m=200.0, rejoins_at_m=800.0, solve=_solve(),
+        note="drier in spring",
         anchor_ids=["a1"], narration=_narration(), reveal="always_visible",
     )
 
