@@ -21,6 +21,7 @@ import '../../map/route_geometry.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/alternate_draft_bar.dart';
 import '../../widgets/alternate_editor_dialog.dart';
+import '../../widgets/alternate_move_bar.dart';
 import '../../widgets/day_timeline_strip.dart';
 import '../../widgets/metrics_rail.dart';
 import '../../widgets/node_editor_sheet.dart';
@@ -77,6 +78,28 @@ List<MapLeaderLine> routeTabLeaderLines(Segment? segment) {
   return out;
 }
 
+/// #344 — the drawn line of every alternate on [segment], except [exceptId]
+/// (the one currently in hand, which draws as the draft line instead). Empty
+/// for no segment, or one with no alternates.
+///
+/// Before this an alternate left the map the instant it was created — the card
+/// could name where it forked and rejoined but nothing showed where that was,
+/// which is why `Move on the map` needed this before it could mean anything.
+List<List<LatLonPoint>> alternateLinesFor(Segment? segment, {String? exceptId}) => [
+      for (final a in segment?.alternates ?? const <Alternate>[])
+        if (a.id != exceptId) a.geometry.coordinates,
+    ];
+
+/// #344 — the name of the alternate being moved, for the gesture panel's
+/// heading. A passage can carry several and they all draw the same way, so the
+/// panel has to say which one is in hand.
+String _alternateLabel(Segment? segment, String alternateId) {
+  for (final a in segment?.alternates ?? const <Alternate>[]) {
+    if (a.id == alternateId) return a.label ?? 'this alternate';
+  }
+  return 'this alternate';
+}
+
 /// #322 — the coordinate of the node [selectedNodeIdProvider] names, scanning
 /// segment and day nodes; `null` when nothing is selected or the id is stale.
 LatLonPoint? nodeCoordById(Trip trip, String? nodeId) {
@@ -115,14 +138,26 @@ class _RouteTabState extends ConsumerState<RouteTab> {
   AlternateDraft? _altDraft;
   (String dayId, String segmentId)? _altDraftOn;
 
-  /// Selecting a different passage abandons a half-drawn divergence: a fork
-  /// measured along one line means nothing on another. Nothing authored is
-  /// lost — the draft has not reached the trip yet.
+  /// #344 — the alternate being moved, and the passage it hangs off. `Move on
+  /// the map` (Flow 11 §03/§04) opens one of these; nothing reaches the trip
+  /// until the Author is done, so backing out is free.
+  AlternateEdit? _altEdit;
+  (String dayId, String segmentId)? _altEditOn;
+
+  /// Selecting a different passage abandons a half-drawn divergence or a
+  /// half-finished move: a fork measured along one line means nothing on
+  /// another. Nothing authored is lost either way — a draft has not reached
+  /// the trip yet, and a move has not been saved.
   void _syncDraftToSelection((String, String)? selected) {
-    if (_altDraft == null) return;
-    if (_altDraftOn == null || selected == null || _altDraftOn != selected) {
+    if (_altDraft != null &&
+        (_altDraftOn == null || selected == null || _altDraftOn != selected)) {
       _altDraft = null;
       _altDraftOn = null;
+    }
+    if (_altEdit != null &&
+        (_altEditOn == null || selected == null || _altEditOn != selected)) {
+      _altEdit = null;
+      _altEditOn = null;
     }
   }
 
@@ -145,12 +180,66 @@ class _RouteTabState extends ConsumerState<RouteTab> {
       _altDraftOn = null;
     });
     if (!mounted) return;
-    await showAlternateCard(
+    await _openAlternateCard(dayId, segmentId, made.id);
+  }
+
+  /// The card, and the one thing it can ask for that it cannot do itself. A
+  /// `Move on the map` closes the card and opens the gesture here; finishing
+  /// the gesture opens the card again, so the Author sees what the move cost
+  /// against the day — the same "the card describes something that exists"
+  /// loop #324 established for creation.
+  Future<void> _openAlternateCard(String dayId, String segmentId, String alternateId) async {
+    final move = await showAlternateCard(
       context,
       dayId: dayId,
       segmentId: segmentId,
-      alternateId: made.id,
+      alternateId: alternateId,
     );
+    if (!mounted || !move) return;
+    _startAlternateMove(dayId, segmentId, alternateId);
+  }
+
+  /// Open the move gesture on one alternate. A no-op when the alternate or its
+  /// passage has gone, or when the passage has no solved line to measure the
+  /// marks against — the marks snap onto that line, and a mark merely *near*
+  /// one has no distance along the day.
+  void _startAlternateMove(String dayId, String segmentId, String alternateId) {
+    final resolved = resolveSelectedSegment(widget.trip, (dayId, segmentId));
+    final segment = resolved?.$2;
+    final route = segment?.geometry?.coordinates;
+    if (segment == null || !AlternateEdit.canMoveOn(route)) return;
+    Alternate? alternate;
+    for (final a in segment.alternates) {
+      if (a.id == alternateId) alternate = a;
+    }
+    if (alternate == null) return;
+    setState(() {
+      _addingNode = false;
+      _altDraft = null;
+      _altDraftOn = null;
+      _altEdit = AlternateEdit.of(alternate!, route!);
+      _altEditOn = (dayId, segmentId);
+    });
+  }
+
+  /// Save the moved path. FR140/D-O: nothing authored was lost, so nothing is
+  /// confirmed; the notifier marks the alternate stale if it had been solved,
+  /// and nothing re-solves on its own (ARCH D52).
+  Future<void> _finishAlternateMove(AlternateEdit edit, String dayId, String segmentId) async {
+    ref.read(currentTripProvider.notifier).updateAlternateGeometry(
+          dayId,
+          segmentId,
+          edit.alternateId,
+          geometry: edit.geometry!,
+          divergesAtM: edit.divergesAtM,
+          rejoinsAtM: edit.rejoinsAtM,
+        );
+    setState(() {
+      _altEdit = null;
+      _altEditOn = null;
+    });
+    if (!mounted) return;
+    await _openAlternateCard(dayId, segmentId, edit.alternateId);
   }
 
   /// FR121/N2 — same "no trip-wide flag" reading `new_route_screen.dart`'s
@@ -182,7 +271,19 @@ class _RouteTabState extends ConsumerState<RouteTab> {
         nodeCoordById(widget.trip, ref.watch(selectedNodeIdProvider));
 
     _syncDraftToSelection(selected);
+    // #344 — a `Move on the map` asked for from the Logistics tab's ALTERNATES
+    // list: the request survives the tab switch, and is consumed the moment the
+    // gesture opens so it cannot re-fire on the next rebuild.
+    final requested = ref.watch(alternateToMoveProvider);
+    if (requested != null && selected != null && _altEdit?.alternateId != requested) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(alternateToMoveProvider.notifier).state = null;
+        _startAlternateMove(selected.$1, selected.$2, requested);
+      });
+    }
     final draft = _altDraft;
+    final edit = _altEdit;
     final routeCoords = selectedSegment?.geometry?.coordinates;
     // #324 — a passage with no solved line has nothing to diverge from, so
     // the gesture is not offered rather than offered and then refused.
@@ -201,11 +302,17 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                       points: routeTabMarkerPoints(widget.trip),
                       polyline: routeCoords ?? const [],
                       leaderLines: routeTabLeaderLines(selectedSegment),
-                      // #324 — the divergence as it is being drawn: the path
-                      // dashed, the stretch of the day it stands in for cased
-                      // underneath, and a mark at each end.
-                      draftLine: draft?.previewLine ?? const [],
-                      replacedStretch: draft?.canonStretch ?? const [],
+                      // #324 — the divergence as it is being drawn or moved:
+                      // the path dashed, the stretch of the day it stands in
+                      // for cased underneath, and a mark at each end.
+                      draftLine: draft?.previewLine ?? edit?.previewLine ?? const [],
+                      replacedStretch:
+                          draft?.canonStretch ?? edit?.canonStretch ?? const [],
+                      // #344 — every other alternate on the passage stays
+                      // drawn, muted, so the day's divergences are visible
+                      // while one of them is in hand.
+                      alternateLines:
+                          alternateLinesFor(selectedSegment, exceptId: edit?.alternateId),
                       annotations: [
                         if (draft?.leavesPoint != null)
                           (
@@ -217,11 +324,23 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                             coord: draft!.rejoinsPoint!,
                             marker: const AlternateEndpointMarker(AlternateEndpoint.rejoin),
                           ),
+                        if (edit?.leavesPoint != null)
+                          (
+                            coord: edit!.leavesPoint!,
+                            marker: const AlternateEndpointMarker(AlternateEndpoint.fork),
+                          ),
+                        if (edit?.rejoinsPoint != null)
+                          (
+                            coord: edit!.rejoinsPoint!,
+                            marker: const AlternateEndpointMarker(AlternateEndpoint.rejoin),
+                          ),
                       ],
                       focusCoord: focusCoord,
                       onTap: draft != null
                           ? (point) => setState(() => _altDraft = draft.tap(point))
-                          : (!_addingNode || selected == null)
+                          : edit != null
+                              ? (point) => setState(() => _altEdit = edit.tap(point))
+                              : (!_addingNode || selected == null)
                               ? null
                               : (point) async {
                                   setState(() => _addingNode = false);
@@ -256,6 +375,32 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                           onCreate: draft.isComplete
                               ? () => _createAlternate(
                                   draft, _altDraftOn!.$1, _altDraftOn!.$2)
+                              : null,
+                        ),
+                      )
+                    else if (edit != null)
+                      Positioned(
+                        top: PlotSpacing.s3,
+                        right: PlotSpacing.s3,
+                        child: AlternateMoveBar(
+                          edit: edit,
+                          label: _alternateLabel(selectedSegment, edit.alternateId),
+                          displayFormat: ref.watch(displayFormatProvider),
+                          onGrab: (handle, index) =>
+                              setState(() => _altEdit = edit.grab(handle, index: index)),
+                          onAddPoint: () => setState(
+                              () => _altEdit = edit.grab(AlternateHandle.newShapePoint)),
+                          onRemovePoint: edit.handle == AlternateHandle.shapePoint
+                              ? () => setState(
+                                  () => _altEdit = edit.removeGrabbedShapePoint())
+                              : null,
+                          onCancel: () => setState(() {
+                            _altEdit = null;
+                            _altEditOn = null;
+                          }),
+                          onDone: edit.isComplete
+                              ? () => _finishAlternateMove(
+                                  edit, _altEditOn!.$1, _altEditOn!.$2)
                               : null,
                         ),
                       )

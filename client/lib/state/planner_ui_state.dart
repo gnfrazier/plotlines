@@ -20,6 +20,19 @@ final selectedSegmentProvider = StateProvider<(String dayId, String segmentId)?>
 /// UI state on reopen. A stale id simply resolves to no node and no highlight.
 final selectedNodeIdProvider = StateProvider<String?>((ref) => null);
 
+/// #344 — the alternate the Author asked to move on the map, by id, from a
+/// card opened somewhere other than the Route tab.
+///
+/// `Move on the map` lives on the alternate card (Flow 11 §03/§04) and the
+/// card opens from two places. From the Route tab it can start the gesture
+/// directly; from the Logistics tab's ALTERNATES list — the path FR142(b)/K12
+/// names for finding an alternate again — the map is not even on screen, so
+/// the request has to survive the tab switch. It is consumed by the Route tab
+/// the moment the gesture opens, and a request naming an alternate that is no
+/// longer there simply resolves to nothing, like [selectedNodeIdProvider]'s
+/// stale id.
+final alternateToMoveProvider = StateProvider<String?>((ref) => null);
+
 /// #322 — does a node of this [kind] pin where the route must go, such that
 /// adding, moving, retyping or removing it invalidates a solved geometry?
 ///

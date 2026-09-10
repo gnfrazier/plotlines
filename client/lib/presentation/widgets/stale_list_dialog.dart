@@ -58,7 +58,9 @@ class _StaleListDialogState extends ConsumerState<_StaleListDialog> {
     }
 
     return AlertDialog(
-      title: Text('${items.length} stale ${items.length == 1 ? 'route needs' : 'routes need'} re-solving',
+      // #344 — a stale item is a passage or one of its alternates, so the
+      // heading counts items and each row says which it is.
+      title: Text('${items.length} stale ${items.length == 1 ? 'item needs' : 'items need'} re-solving',
           style: PlotTypography.title(c.textPrimary)),
       content: SizedBox(
         width: 460,
@@ -136,9 +138,18 @@ class _StaleRowState extends ConsumerState<_StaleRow> {
       _error = null;
     });
     try {
-      await ref
-          .read(currentTripProvider.notifier)
-          .regenerateSegment(widget.item.dayId, widget.item.segmentId);
+      final notifier = ref.read(currentTripProvider.notifier);
+      // #344 — each item re-solves against its own inputs: a passage from its
+      // start/end/via/mode/weights, an alternate from its own marks and the
+      // points the Author shaped it with. Re-solving the passage for a stale
+      // branch would redo work nothing invalidated and still leave the branch
+      // stale.
+      if (widget.item.isAlternate) {
+        await notifier.regenerateAlternate(
+            widget.item.dayId, widget.item.segmentId, widget.item.alternateId!);
+      } else {
+        await notifier.regenerateSegment(widget.item.dayId, widget.item.segmentId);
+      }
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
     } finally {
@@ -148,16 +159,34 @@ class _StaleRowState extends ConsumerState<_StaleRow> {
 
   /// FR140's own callout: "where the list offers dropping an object instead
   /// of re-solving it, that action does confirm" — the one confirming step
-  /// anywhere in this dialog.
+  /// anywhere in this dialog. FR139 says what the confirmation has to carry:
+  /// the scope. Dropping a passage orphans its anchors (they survive
+  /// unattached); dropping a *branch* destroys the note, the narration and the
+  /// reveal that only a branch can hold, and that is worth naming before it
+  /// happens rather than after.
   Future<void> _drop() async {
+    final item = widget.item;
+    final String title;
+    final String body;
+    if (!item.isAlternate) {
+      title = 'Drop this route?';
+      body = '${item.label} will be removed rather than re-solved. '
+          'Its anchors survive unattached.';
+    } else if (item.alternateIsBranch) {
+      title = 'Drop this branch?';
+      body = '${item.label} will be removed rather than re-solved, and its note, '
+          'narration and reveal go with it. Any anchors on it stay in the trip, '
+          'unattached, and stay findable in the anchors view.';
+    } else {
+      title = 'Drop this alternate?';
+      body = '${item.label} will be removed rather than re-solved. The day as '
+          'written is unchanged.';
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Drop this route?'),
-        content: Text(
-          '${widget.item.label} will be removed rather than re-solved. '
-          'Its anchors survive unattached.',
-        ),
+        title: Text(title),
+        content: Text(body),
         actions: [
           PlotButton(
             label: 'Keep',
@@ -173,7 +202,12 @@ class _StaleRowState extends ConsumerState<_StaleRow> {
       ),
     );
     if (confirmed ?? false) {
-      ref.read(currentTripProvider.notifier).dropStaleSegment(widget.item.dayId, widget.item.segmentId);
+      final notifier = ref.read(currentTripProvider.notifier);
+      if (item.isAlternate) {
+        notifier.dropStaleAlternate(item.dayId, item.segmentId, item.alternateId!);
+      } else {
+        notifier.dropStaleSegment(item.dayId, item.segmentId);
+      }
     }
   }
 

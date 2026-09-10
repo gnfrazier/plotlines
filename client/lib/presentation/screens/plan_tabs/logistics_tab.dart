@@ -52,7 +52,11 @@ class LogisticsTab extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: PlotSpacing.s3),
                   child: Text(
-                    '$staleCount stale ${staleCount == 1 ? 'route' : 'routes'} — needs re-solving before export',
+                    // #344 — an alternate whose fork has moved is stale in its
+                    // own right, so the count is no longer routes alone. The
+                    // list itself names each item by what it is; this is only
+                    // the count, and it must not claim a kind it does not know.
+                    '$staleCount stale ${staleCount == 1 ? 'item needs' : 'items need'} re-solving before export',
                     style: PlotTypography.small(PlotColors.of(context).textMuted),
                   ),
                 ),
@@ -317,7 +321,12 @@ class _DayCard extends ConsumerWidget {
                 onOpen: () => onOpenSegment(day.id, segment.id),
                 displayFormat: ref.watch(displayFormatProvider),
               ),
-              if (!day.isRest) _AlternatesSection(dayId: day.id, segment: segment),
+              if (!day.isRest)
+                _AlternatesSection(
+                  dayId: day.id,
+                  segment: segment,
+                  onOpenSegment: onOpenSegment,
+                ),
             ],
             if (!day.isRest) ...[
               Align(
@@ -403,9 +412,17 @@ String? _segmentSubtitle(Segment segment) {
 /// empty state points at the gesture rather than offering a form for a path
 /// that does not exist.
 class _AlternatesSection extends ConsumerWidget {
-  const _AlternatesSection({required this.dayId, required this.segment});
+  const _AlternatesSection({
+    required this.dayId,
+    required this.segment,
+    required this.onOpenSegment,
+  });
   final String dayId;
   final Segment segment;
+
+  /// #344 — how a row hands `Move on the map` to the Route tab: the gesture
+  /// happens on the map, and the map is not on this tab.
+  final void Function(String dayId, String segmentId) onOpenSegment;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -439,7 +456,12 @@ class _AlternatesSection extends ConsumerWidget {
                 caption: 'Same day, different effort',
               ),
               for (final a in accommodation)
-                _AlternateRow(dayId: dayId, segment: segment, alternate: a),
+                _AlternateRow(
+                  dayId: dayId,
+                  segment: segment,
+                  alternate: a,
+                  onOpenSegment: onOpenSegment,
+                ),
             ],
             if (branch.isNotEmpty) ...[
               const SizedBox(height: PlotSpacing.s2),
@@ -448,7 +470,12 @@ class _AlternatesSection extends ConsumerWidget {
                 caption: 'Changes what the day contains',
               ),
               for (final a in branch)
-                _AlternateRow(dayId: dayId, segment: segment, alternate: a),
+                _AlternateRow(
+                  dayId: dayId,
+                  segment: segment,
+                  alternate: a,
+                  onOpenSegment: onOpenSegment,
+                ),
             ],
           ],
         ),
@@ -480,10 +507,32 @@ class _IntentGroupHeading extends StatelessWidget {
 }
 
 class _AlternateRow extends ConsumerWidget {
-  const _AlternateRow({required this.dayId, required this.segment, required this.alternate});
+  const _AlternateRow({
+    required this.dayId,
+    required this.segment,
+    required this.alternate,
+    required this.onOpenSegment,
+  });
   final String dayId;
   final Segment segment;
   final Alternate alternate;
+  final void Function(String dayId, String segmentId) onOpenSegment;
+
+  /// #344 — the card's `Move on the map`, from this side of the app. The card
+  /// closes with the request; this selects the passage, names the alternate on
+  /// [alternateToMoveProvider], and switches to the Route tab, where the
+  /// gesture actually runs.
+  Future<void> _open(BuildContext context, WidgetRef ref) async {
+    final move = await showAlternateCard(
+      context,
+      dayId: dayId,
+      segmentId: segment.id,
+      alternateId: alternate.id,
+    );
+    if (!move) return;
+    ref.read(alternateToMoveProvider.notifier).state = alternate.id;
+    onOpenSegment(dayId, segment.id);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -505,16 +554,21 @@ class _AlternateRow extends ConsumerWidget {
       if (alternate.isBranch && alternate.narration != null) 'narration',
       if (alternate.isBranch && alternate.reveal != null)
         alternate.reveal == 'on_arrival' ? 'on arrival' : 'always visible',
+      // #344 — Flow 11 §06: the distances are the ones this path was solved
+      // with, and they say so wherever they appear. This is one of the places
+      // they appear.
+      if (alternate.isStale) 'stale',
     ];
     return PlotListTile(
-      onTap: () => showAlternateCard(
-        context,
-        dayId: dayId,
-        segmentId: segment.id,
-        alternateId: alternate.id,
-      ),
+      onTap: () => _open(context, ref),
       title: alternate.label ?? 'Untitled alternate',
       subtitle: meta.join(' · '),
+      // FR140/Q3's "a small marker on the affected object" — the same mark the
+      // passage tile above carries, so a stale branch and a stale route read
+      // alike while planning.
+      leading: alternate.isStale
+          ? Icon(Icons.sync_problem, size: 16, color: c.warning)
+          : null,
       trailing: IconButton(
         tooltip: 'Remove alternate',
         icon: Icon(Icons.delete_outline, size: 16, color: c.textMuted),

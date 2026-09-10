@@ -533,6 +533,10 @@
           "description": "Distance along the parent segment where the alternate rejoins it."
         },
         "diverges_at_m": { "$ref": "#/$defs/metres" },
+        "solve": {
+          "$ref": "#/$defs/solve_provenance",
+          "description": "FR140 / Q3 (issue #344) — how *this alternate's* `geometry`, `metrics` and `elevation` came to exist, and whether they are still what the Author is asking for. An alternate is a second path with its own derived half, so it needs its own provenance: moving where it forks or rejoins invalidates the alternate's numbers while the parent segment's stay exactly as solved, and a `stale` flag on the segment could not say that. Absent means never solved — an Author-drawn line whose length is measured off the line itself, which is a different statement from a solved line gone stale, and every surface says which it is reading."
+        },
         "note": {
           "$ref": "#/$defs/markdown",
           "description": "Branch alternates only — the Author's prose for what is different on this path (\"the long way past the abandoned mine\"). Absent on an accommodation alternate, whose difference is effort, not story."
@@ -570,7 +574,7 @@
     },
 
     "solve_provenance": {
-      "description": "How this geometry came to exist. Kept per segment rather than per trip because a multimodal day mixes solved and Author-drawn legs, and a trip-level stamp would claim engine authority for a line someone drew with a mouse.",
+      "description": "How this geometry came to exist. Kept per geometry-bearing object rather than per trip because a multimodal day mixes solved and Author-drawn legs, and a trip-level stamp would claim engine authority for a line someone drew with a mouse. Carried by `segment` and — since issue #344 — by `alternate`, for the same reason one step down: an alternate's `geometry`/`metrics`/`elevation` can go stale while its parent passage's are untouched.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

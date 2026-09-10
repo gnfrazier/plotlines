@@ -61,20 +61,28 @@ Future<AlternateNaming?> showAlternateNamingDialog(
     );
 
 /// The card for one alternate that already exists on [segmentId].
-Future<void> showAlternateCard(
+///
+/// Resolves `true` when the Author asked to **move it on the map** (Flow 11
+/// §03/§04's `Move on the map`, issue #344). The card cannot run that gesture
+/// itself — it is a dialog, and the gesture happens on the Route tab's map —
+/// so it closes and hands the request back to whoever opened it: the Route tab
+/// starts the gesture directly, the Logistics tab switches to the Route tab
+/// first. Resolves `false` (or null, on a barrier dismiss) otherwise.
+Future<bool> showAlternateCard(
   BuildContext context, {
   required String dayId,
   required String segmentId,
   required String alternateId,
-}) =>
-    showDialog<void>(
+}) async =>
+    await showDialog<bool>(
       context: context,
       builder: (_) => AlternateCard(
         dayId: dayId,
         segmentId: segmentId,
         alternateId: alternateId,
       ),
-    );
+    ) ??
+    false;
 
 // ---------------------------------------------------------------------------
 // Naming
@@ -120,7 +128,9 @@ class _NameAlternateDialogState extends ConsumerState<_NameAlternateDialog> {
                 rejoinsAtM: widget.draft.rejoinsAtM,
                 pathDistanceM: widget.draft.alternateDistanceM,
                 deltaM: widget.draft.deltaM,
-                solved: false,
+                // A draft is unsolved by definition — nothing has been added to
+                // the trip for the engine to have seen.
+                note: kAlternateDrawnNotSolvedNote,
                 displayFormat: df,
               ),
               const SizedBox(height: PlotSpacing.s3),
@@ -290,6 +300,12 @@ class _AlternateCardState extends ConsumerState<AlternateCard> {
   late final TextEditingController _name;
   late final TextEditingController _note;
 
+  /// FR140/Q3 — a solve in flight, and the failure if it came back one. Shown
+  /// where the action was taken, never through M13's shared error surface:
+  /// stale work is pending work the Author caused deliberately (FR140a).
+  bool _resolving = false;
+  String? _resolveError;
+
   Alternate? _find(Trip trip) {
     for (final day in trip.days) {
       if (day.id != widget.dayId) continue;
@@ -338,6 +354,25 @@ class _AlternateCardState extends ConsumerState<AlternateCard> {
         widget.dayId, widget.segmentId, a.id, 'accommodation');
   }
 
+  /// Flow 11 §06 — `Re-solve this branch`. Destroys nothing (it recomputes
+  /// derived work from inputs the Author already set), so per D-O it does not
+  /// confirm; and nothing calls it on the Author's behalf (ARCH D52), which is
+  /// why it is a button rather than a side effect of moving a mark.
+  Future<void> _resolve() async {
+    setState(() {
+      _resolving = true;
+      _resolveError = null;
+    });
+    try {
+      await _notifier.regenerateAlternate(
+          widget.dayId, widget.segmentId, widget.alternateId);
+    } catch (e) {
+      if (mounted) setState(() => _resolveError = '$e');
+    } finally {
+      if (mounted) setState(() => _resolving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
@@ -359,6 +394,16 @@ class _AlternateCardState extends ConsumerState<AlternateCard> {
             child: Text(a.label ?? 'Untitled alternate',
                 style: PlotTypography.title(c.textPrimary), overflow: TextOverflow.ellipsis),
           ),
+          // FR140/Q3's "while planning this is passive only — a small marker
+          // on the affected object". The same mark the passage tile carries,
+          // and deliberately not a banner: an Author making six edits in a row
+          // is stopped zero times.
+          if (a.isStale) ...[
+            const SizedBox(width: PlotSpacing.s2),
+            Icon(Icons.sync_problem, size: 16, color: c.warning),
+            const SizedBox(width: PlotSpacing.s1),
+            const PlotBadge('STALE', tone: PlotBadgeTone.gold),
+          ],
         ],
       ),
       content: SizedBox(
@@ -376,9 +421,44 @@ class _AlternateCardState extends ConsumerState<AlternateCard> {
                 rejoinsAtM: a.rejoinsAtM,
                 pathDistanceM: a.drawnDistanceM,
                 deltaM: a.distanceDeltaM,
-                solved: a.metrics?.distanceM != null,
+                // Flow 11 §06 — "its distances are the ones it was solved
+                // with, and they say so wherever they appear."
+                note: a.provenanceNote,
+                solvedAt: a.solve?.solvedAt,
                 displayFormat: df,
               ),
+              const SizedBox(height: PlotSpacing.s2),
+              // Flow 11 §03/§04 put `Move on the map` directly under the
+              // leaves/rejoins block, on the branch card and the accommodation
+              // card alike. Without it the only recourse for a fork placed
+              // 400 m too early was to delete the alternate and draw it again,
+              // losing the name, the note, the anchors, the narration and the
+              // reveal with the geometry.
+              Wrap(
+                spacing: PlotSpacing.s2,
+                runSpacing: PlotSpacing.s2,
+                children: [
+                  PlotButton(
+                    label: 'Move on the map',
+                    icon: Icons.open_with,
+                    variant: PlotButtonVariant.secondary,
+                    onPressed: () => Navigator.pop(context, true),
+                  ),
+                  PlotButton(
+                    label: _resolving
+                        ? 'Solving…'
+                        : a.isSolved
+                            ? (a.isBranch ? 'Re-solve this branch' : 'Re-solve this path')
+                            : 'Solve this path',
+                    variant: PlotButtonVariant.ghost,
+                    onPressed: _resolving ? null : _resolve,
+                  ),
+                ],
+              ),
+              if (_resolveError != null) ...[
+                const SizedBox(height: PlotSpacing.s1),
+                Text(_resolveError!, style: PlotTypography.small(c.danger)),
+              ],
               const SizedBox(height: PlotSpacing.s3),
               TextField(
                 controller: _name,
@@ -495,25 +575,35 @@ class _AlternateCardState extends ConsumerState<AlternateCard> {
 /// Where the path leaves the day and where it comes back, and what it costs
 /// against the day as written. The block that replaced `not drawn`.
 ///
-/// [solved] says which kind of number this is: a solved distance from the
-/// engine, or the length of the line the Author drew. Numbers are never fudged
-/// and a drawn line does not get to wear a solved line's authority, so the two
-/// are labelled differently rather than merged.
+/// [note] says which kind of number this is — the length of the line the
+/// Author drew, or a solved distance, or a solved distance from before the
+/// path moved. Numbers are never fudged and a drawn line does not get to wear
+/// a solved line's authority, so the three are labelled apart rather than
+/// merged; [AlternateGeometryReadout.provenanceNote] is the one place that
+/// decides which sentence applies. Null means the numbers are current and
+/// solved and need no qualifying.
+///
+/// [solvedAt] renders beside it as data, in the Author's own date format
+/// (ARCH D49: the stored value stays ISO 8601 and the preference is a
+/// render-time transform), so "which solve" is answerable and not merely
+/// implied.
 class _DivergenceReadout extends StatelessWidget {
   const _DivergenceReadout({
     required this.divergesAtM,
     required this.rejoinsAtM,
     required this.pathDistanceM,
     required this.deltaM,
-    required this.solved,
+    required this.note,
     required this.displayFormat,
+    this.solvedAt,
   });
 
   final double? divergesAtM;
   final double? rejoinsAtM;
   final double? pathDistanceM;
   final double? deltaM;
-  final bool solved;
+  final String? note;
+  final String? solvedAt;
   final DisplayFormat displayFormat;
 
   @override
@@ -564,16 +654,25 @@ class _DivergenceReadout extends StatelessWidget {
               ),
             ],
           ),
-          if (!solved) ...[
+          if (note != null) ...[
             const SizedBox(height: PlotSpacing.s2),
-            Text(
-              'Measured off the line as drawn, not solved.',
-              style: PlotTypography.small(c.textMuted),
-            ),
+            Text(note!, style: PlotTypography.small(c.textMuted)),
+          ],
+          if (solvedAt != null) ...[
+            const SizedBox(height: PlotSpacing.s1),
+            Text('SOLVED ${_stamp(solvedAt!)}', style: PlotTypography.data(c.textMuted)),
           ],
         ],
       ),
     );
+  }
+
+  /// The stored ISO 8601 instant in the Author's date/clock preference. An
+  /// unparseable value renders as itself rather than disappearing — a stamp
+  /// that vanishes is worse than one that is ugly.
+  String _stamp(String iso) {
+    final parsed = DateTime.tryParse(iso);
+    return parsed == null ? iso : displayFormat.formatDateTime(parsed.toLocal());
   }
 }
 

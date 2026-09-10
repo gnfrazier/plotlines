@@ -361,6 +361,14 @@ class AlternateDraft {
   String get impliedKind => (deltaM ?? 0) < 0 ? 'bypass' : 'extension';
 }
 
+/// What qualifies the numbers on a path the engine has never seen: they are
+/// the length of the line the Author drew, not a solve. Said once here because
+/// the naming dialog (over an [AlternateDraft], which is unsolved by
+/// definition) and the card (over an [Alternate] that may be) both say it, and
+/// a drawn line must never wear a solved line's authority on either.
+const String kAlternateDrawnNotSolvedNote =
+    'Measured off the line as drawn, not solved.';
+
 /// The same three measurements, read back off a saved [Alternate] — what the
 /// branch card shows in place of the old `not drawn` line: where it leaves,
 /// where it comes back, and what it costs against the day as written.
@@ -394,4 +402,30 @@ extension AlternateGeometryReadout on Alternate {
   /// Whether this alternate knows where it leaves and rejoins the passage.
   /// False only for one saved before the marks were part of creating it.
   bool get hasForkAndRejoin => divergesAtM != null && rejoinsAtM != null;
+
+  /// Whether the engine has ever solved this path. False means every number
+  /// on it is measured off the line the Author drew — which is honest, and a
+  /// different statement from [isStale].
+  bool get isSolved => solve != null;
+
+  /// FR140 / Q3 (issue #344) — the alternate's derived half describes a path
+  /// that has moved. Never true for an unsolved alternate: there is nothing
+  /// derived to invalidate.
+  bool get isStale => solve?.stale ?? false;
+
+  /// Flow 11 §06 — "its distances are the ones it was solved with, and they
+  /// say so wherever they appear." The one line that qualifies an alternate's
+  /// numbers, so the sentence is not written three times and three ways on the
+  /// three surfaces that show them. Null when the numbers need no qualifying:
+  /// solved, and still describing the path they were solved for.
+  ///
+  /// Deliberately not a failure and deliberately not a template slot for a
+  /// timestamp — the *when* is data and renders as data, in the Author's own
+  /// date format, beside this (ARCH D49: a display format never reaches
+  /// stored data, and an ISO string never reaches a sentence).
+  String? get provenanceNote {
+    if (!isSolved) return kAlternateDrawnNotSolvedNote;
+    if (!isStale) return null;
+    return 'These distances are the ones this path was solved with, before it moved.';
+  }
 }
