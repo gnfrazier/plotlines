@@ -631,6 +631,165 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     _replaceDay(day.copyWith(segments: segments));
   }
 
+  /// FR20 [AMENDED v2.0] / C4 + FR140 / Q3, Flow 11 §03–§04 and §06 (issue
+  /// #344) — the alternate's path after a `Move on the map`: where it now
+  /// leaves the passage, where it now comes back, and the line between them.
+  ///
+  /// This is Flow 11 §06's third outcome, the one that is *neither refused nor
+  /// asked*. Nothing authored is lost — the name, the note, the attached
+  /// anchors, the narration and the reveal are all still here, which is exactly
+  /// why deleting and redrawing was never an acceptable substitute for this
+  /// method. So per D-O there is **no confirmation**: deliberateness is
+  /// reserved for destruction.
+  ///
+  /// What the move *does* invalidate is the alternate's derived half. If this
+  /// path had been solved, its `metrics` and `elevation` describe the effort of
+  /// a path that has since moved, so [Alternate.solve] is marked stale — and,
+  /// per ARCH D52, **nothing re-solves on its own**: [regenerateAlternate] is
+  /// an explicit call the Author makes from the card or the stale list.
+  ///
+  /// An alternate with no `solve` is left unstale, the same guard
+  /// [markSegmentStale] applies one level up. There is no derived work to
+  /// invalidate: its distances are measured off the line the Author drew and
+  /// say so on every surface. Marking it stale would put an item in the export
+  /// gate's list that no re-solve was ever owed for — and since #324 made
+  /// drawing an alternate the ordinary way to create one, that would mean
+  /// every new alternate blocks an export.
+  ///
+  /// A move that changes nothing (the Author opened the gesture and closed it
+  /// again) is a no-op down to the trip object: looking is not editing.
+  void updateAlternateGeometry(
+    String dayId,
+    String segmentId,
+    String alternateId, {
+    required LineString geometry,
+    double? divergesAtM,
+    double? rejoinsAtM,
+  }) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segment = day.segments.firstWhere((s) => s.id == segmentId);
+    final current = segment.alternates.firstWhere((a) => a.id == alternateId);
+    final unchanged = _sameLine(current.geometry.coordinates, geometry.coordinates) &&
+        current.divergesAtM == divergesAtM &&
+        current.rejoinsAtM == rejoinsAtM;
+    if (unchanged) return;
+    final moved = current.copyWith(
+      geometry: geometry,
+      divergesAtM: divergesAtM,
+      clearDivergesAtM: divergesAtM == null,
+      rejoinsAtM: rejoinsAtM,
+      clearRejoinsAtM: rejoinsAtM == null,
+      solve: current.solve?.markStale(),
+    );
+    updateAlternateInSegment(dayId, segmentId, moved);
+  }
+
+  static bool _sameLine(List<Coord> a, List<Coord> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].length != b[i].length) return false;
+      for (var j = 0; j < a[i].length; j++) {
+        if (a[i][j] != b[i][j]) return false;
+      }
+    }
+    return true;
+  }
+
+  /// FR140 / Q3, Flow 11 §06 — `Re-solve this branch`: ask the engine what this
+  /// path actually costs, between the marks and through the points the Author
+  /// shaped it with, on the parent passage's own mode, discipline and weights.
+  ///
+  /// **The drawn line is an input, not an output, and is never overwritten.**
+  /// #324's rule holds: an alternate's `geometry` is `authored` — the Author
+  /// drew it — and a consumer that cannot tell a drawn line from a solved one
+  /// gives the drawn one a solved line's authority. What a solve produces is
+  /// the alternate's *derived* half, `metrics` and `elevation`: the effort
+  /// against canon the card shows. Keeping the geometry authored also keeps
+  /// re-solving idempotent — overwriting it would turn every vertex of the
+  /// solved line into a via-point for the next solve, pinning the route to
+  /// itself.
+  ///
+  /// Clears [Alternate.solve]'s stale flag, because only a solve does
+  /// (ARCH D30). Throws like every other [RoutingClient] call — the card and
+  /// the stale list each show the failure where the action was taken, never
+  /// through M13's error surface (FR140a).
+  Future<void> regenerateAlternate(
+    String dayId,
+    String segmentId,
+    String alternateId, {
+    PlanningMode mode = PlanningMode.explore,
+  }) async {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segment = day.segments.firstWhere((s) => s.id == segmentId);
+    final current = segment.alternates.firstWhere((a) => a.id == alternateId);
+    final drawn = current.geometry.coordinates;
+    if (drawn.length < 2) {
+      throw StateError('alternate $alternateId has no drawn path to solve along');
+    }
+    final client = _ref.read(routingClientProvider);
+    final bbox = _ref.read(tripBboxProvider);
+    if (bbox == null) {
+      throw StateError(
+          'no trip bbox — draw the trip area (FR120) before solving an alternate');
+    }
+    final region = await client.ensureRegion(bbox.bboxWsen,
+        networkType: networkTypeForMode(segment.mode));
+    final weightsPayload = _solverWeights(segment.weights, mode);
+    final resolved = await client.generateSegment(
+      region: region,
+      start: drawn.first,
+      // The Author's shaping points are the vias: they are what makes this
+      // path *this* path rather than the shortest way between the two marks.
+      via: drawn.length > 2 ? drawn.sublist(1, drawn.length - 1) : const [],
+      end: drawn.last,
+      mode: segment.mode,
+      discipline: segment.discipline,
+      // Two fixed ends and a list of points to hit — never a loop, and never
+      // a target distance: an alternate's length is an outcome of where the
+      // Author put the marks, exactly as compose-mode distance is (FR118).
+      shape: 'point_to_point',
+      theme: (weightsPayload != null && weightsPayload.isNotEmpty)
+          ? (segment.weights?.name ?? 'balanced')
+          : 'balanced',
+      weights: weightsPayload,
+    );
+    updateAlternateInSegment(
+      dayId,
+      segmentId,
+      Alternate(
+        id: current.id,
+        intent: current.intent,
+        kind: current.kind,
+        label: current.label,
+        geometry: current.geometry,
+        metrics: resolved.metrics,
+        elevation: resolved.elevation,
+        divergesAtM: current.divergesAtM,
+        rejoinsAtM: current.rejoinsAtM,
+        solve: _freshSolve(resolved.solve),
+        note: current.note,
+        anchorIds: current.anchorIds,
+        narration: current.narration,
+        reveal: current.reveal,
+      ),
+    );
+  }
+
+  /// The provenance a just-completed alternate solve is stamped with: whatever
+  /// the engine reported, with `stale` explicitly false. A solve is the only
+  /// thing that clears staleness (ARCH D30), so it is set here rather than
+  /// left to whatever the response happened to carry.
+  static SolveProvenance _freshSolve(SolveProvenance? reported) => SolveProvenance(
+        engineVersion: reported?.engineVersion,
+        graphRegion: reported?.graphRegion,
+        solveMs: reported?.solveMs,
+        solverCalls: reported?.solverCalls,
+        solvedAt: reported?.solvedAt ?? DateTime.now().toUtc().toIso8601String(),
+        closed: reported?.closed,
+        hitVia: reported?.hitVia,
+        stale: false,
+      );
+
   void removeAlternateFromSegment(String dayId, String segmentId, String alternateId) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
@@ -1102,6 +1261,39 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     _replaceDay(day.copyWith(limits: limits));
   }
 
+  /// The solver-scale weight spread a passage's Author-facing [WeightProfile]
+  /// becomes on the wire, or null when the Author has set none (the server
+  /// then falls back to the named theme).
+  ///
+  /// Author-facing 0.0–5.0 → solver-internal 0.0–1.0 (bipolar −1..1 for peaks
+  /// and each `surface_<class>`), per `scoring/profile.py`'s documented
+  /// conversion (risk A18, MVP doc §1.4.5 — "it lands with the first weight
+  /// slider": this is that slider). Absent classes stay absent from the
+  /// spread, the same omit-rather-than-invent rule as `peaks`/`quiet`.
+  ///
+  /// Shared by [regenerateSegment] and [regenerateAlternate] (issue #344) so
+  /// there is one conversion site per direction — a branch solved with a
+  /// second, drifted copy of this arithmetic would ride differently from the
+  /// passage it hangs off, for no authored reason.
+  static Map<String, double>? _solverWeights(WeightProfile? weights, PlanningMode mode) {
+    if (weights == null) return null;
+    final peaks = peaksFromClimbing(weights.climbing);
+    // FR3/A2: inverted, not scaled — see `quietFromTraffic`'s doc comment.
+    final quiet = quietFromTraffic(weights.traffic);
+    final surfaceWeights = surfaceWeightsFromAuthor(weights.surface);
+    // FR5/A4, ARCH §7.7: `interest` is explore-mode only — compose never sends
+    // it, the same way it never sends `target_m` (the promoted anchors are
+    // already the spine, so a salience bias has nothing left to decide).
+    final interest =
+        mode == PlanningMode.compose ? null : interestFromAuthor(weights.interest);
+    return {
+      if (peaks != null) 'peaks': peaks,
+      if (quiet != null) 'quiet': quiet,
+      ...surfaceWeights,
+      if (interest != null) 'interest': interest,
+    };
+  }
+
   /// Re-solves a segment against its current start/end/via/mode/weights and
   /// replaces it in place — same id, same curated content (nodes, hazards),
   /// new geometry/metrics. `generateSegment`'s sidecar call always returns a
@@ -1135,32 +1327,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     }
     final region = await client.ensureRegion(bbox.bboxWsen, networkType: networkTypeForMode(old.mode));
     final weights = old.weights;
-    // Author-facing 0.0-5.0 -> solver-internal 0.0-1.0 (bipolar -1..1 for
-    // peaks and each surface_<class>), per scoring/profile.py's documented
-    // conversion (risk A18, MVP doc §1.4.5 — "it lands with the first
-    // weight slider": this is that slider).
-    final peaks = weights == null ? null : peaksFromClimbing(weights.climbing);
-    // FR3/A2: inverted, not scaled — see `quietFromTraffic`'s doc comment.
-    final quiet = weights == null ? null : quietFromTraffic(weights.traffic);
-    // FR4/A3: one bipolar dial per class — see `surfaceWeightsFromAuthor`'s doc
-    // comment. Absent classes are simply absent from the spread, same
-    // omit-rather-than-invent rule as `peaks`/`quiet` above.
-    final surfaceWeights =
-        weights == null ? const <String, double>{} : surfaceWeightsFromAuthor(weights.surface);
-    // FR5/A4, ARCH §7.7: `interest` is explore-mode only — compose never sends
-    // it, the same way it never sends `target_m` (the promoted anchors are
-    // already the spine, so a salience bias has nothing left to decide).
-    final interest = (weights == null || mode == PlanningMode.compose)
-        ? null
-        : interestFromAuthor(weights.interest);
-    final weightsPayload = weights == null
-        ? null
-        : {
-            if (peaks != null) 'peaks': peaks,
-            if (quiet != null) 'quiet': quiet,
-            ...surfaceWeights,
-            if (interest != null) 'interest': interest,
-          };
+    final weightsPayload = _solverWeights(weights, mode);
     final resolved = await client.generateSegment(
       region: region,
       start: old.start!,
@@ -1392,15 +1559,27 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   }
 
   /// FR140/Q3 — the stale list's "re-solve-all as one unconfirmed action":
-  /// re-solves every currently-stale segment in the trip from its own
-  /// current inputs (start/end/via/mode/weights), the same as calling
-  /// [regenerateSegment] on each in turn, which clears each one's staleness
-  /// as it completes. Destroys nothing — the AC's own reason this action
-  /// never confirms — so a failure partway through simply leaves the
+  /// re-solves every currently-stale item in the trip from its own current
+  /// inputs, the same as resolving each in turn, which clears each one's
+  /// staleness as it completes. Destroys nothing — the AC's own reason this
+  /// action never confirms — so a failure partway through simply leaves the
   /// remaining items stale for a retry rather than needing any rollback.
+  ///
+  /// A stale item is a passage or one of its alternates (issue #344), and each
+  /// resolves against its own inputs: [regenerateSegment] from the passage's
+  /// start/end/via/mode/weights, [regenerateAlternate] from the alternate's
+  /// own marks and drawn shape. The list is walked in its own order, which
+  /// puts a passage before the alternates hanging off it — so a day whose line
+  /// and branch are both stale re-solves the line first and measures the
+  /// branch against the route it will actually leave.
   Future<void> resolveAllStale({PlanningMode mode = PlanningMode.explore}) async {
     for (final item in tripStaleItems(state)) {
-      await regenerateSegment(item.dayId, item.segmentId, mode: mode);
+      if (item.isAlternate) {
+        await regenerateAlternate(item.dayId, item.segmentId, item.alternateId!,
+            mode: mode);
+      } else {
+        await regenerateSegment(item.dayId, item.segmentId, mode: mode);
+      }
     }
   }
 
@@ -1411,6 +1590,16 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// defines for Q2 — its anchors still survive unattached — not a new
   /// mechanism.
   void dropStaleSegment(String dayId, String segmentId) => removeSegment(dayId, segmentId);
+
+  /// FR140/Q3 (issue #344) — the same resolution for a stale *alternate*:
+  /// remove the path rather than solve it again. Also the confirming one, and
+  /// it has more to confirm — a branch carries its own note, narration and
+  /// reveal, and dropping it destroys them (FR139: the prompt states the
+  /// scope). Its attached anchors are references, so they stay in the trip,
+  /// unattached and findable, exactly as the branch→accommodation conversion
+  /// leaves them.
+  void dropStaleAlternate(String dayId, String segmentId, String alternateId) =>
+      removeAlternateFromSegment(dayId, segmentId, alternateId);
 }
 
 final currentTripProvider =
