@@ -16,19 +16,11 @@ import '../../domain/domain.dart';
 /// The point [targetM] along [coords], linearly interpolated between the
 /// two vertices it falls between. Clamps to the first/last vertex outside
 /// the line's range rather than extrapolating.
-Coord pointAtDistance(List<Coord> coords, double targetM) {
-  if (coords.isEmpty) return const [0, 0];
-  if (coords.length == 1 || targetM <= 0) return coords.first;
-  var cumulative = 0.0;
-  for (var i = 1; i < coords.length; i++) {
-    final segLen = haversineM(coords[i - 1], coords[i]);
-    if (cumulative + segLen >= targetM) {
-      final frac = segLen <= 0 ? 0.0 : ((targetM - cumulative) / segLen).clamp(0.0, 1.0);
-      final lon = coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * frac;
-      final lat = coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * frac;
-      return [lon, lat];
-    }
-    cumulative += segLen;
-  }
-  return coords.last;
-}
+///
+/// The measurement itself is `domain/alternate_draft.dart`'s
+/// [pointAtDistanceOnPath] (issue #324): a fork placed at MI 6.2 and a cue
+/// placed at MI 6.2 have to land on the same metre of the same line, and two
+/// copies of the walk is one copy too many to keep agreeing. This name stays
+/// because every export writer already calls it.
+Coord pointAtDistance(List<Coord> coords, double targetM) =>
+    pointAtDistanceOnPath(coords, targetM);

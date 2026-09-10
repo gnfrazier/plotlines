@@ -25,6 +25,18 @@ enum EmptyStateContext {
 
   /// A layer set that yielded no candidates.
   layerSetNoCandidates,
+
+  /// A passage with no alternates on it yet (issue #324) — the Logistics
+  /// list's own empty condition, whose next action is the map gesture that
+  /// makes one.
+  passageNoAlternates,
+
+  /// A branch alternate with no anchors attached, on a trip that has none to
+  /// attach (issue #324).
+  branchNoAnchors,
+
+  /// A branch alternate with no narration on it yet (issue #324).
+  branchNoNarration,
 }
 
 /// The copy for one [EmptyStateContext]: what's true, and what to do about
@@ -64,6 +76,18 @@ const Map<EmptyStateContext, EmptyStateCopy> emptyStateRegistry = {
   EmptyStateContext.layerSetNoCandidates: EmptyStateCopy(
     message: 'This layer selection returned no candidates.',
     nextAction: 'Widen the layer selection or adjust the bbox to bring in more of the map.',
+  ),
+  EmptyStateContext.passageNoAlternates: EmptyStateCopy(
+    message: 'No alternates on this passage.',
+    nextAction: 'Draw one on the Route tab: mark where it leaves the route and where it rejoins.',
+  ),
+  EmptyStateContext.branchNoAnchors: EmptyStateCopy(
+    message: 'No anchors in this trip yet.',
+    nextAction: 'Promote a place on the Layers tab, then attach it here.',
+  ),
+  EmptyStateContext.branchNoNarration: EmptyStateCopy(
+    message: 'No narration on this branch.',
+    nextAction: 'Attach it from the narrative editor.',
   ),
 };
 

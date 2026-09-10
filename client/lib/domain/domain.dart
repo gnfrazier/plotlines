@@ -4,6 +4,7 @@
 /// file's own doc comment for which `$defs` entry it implements.
 library;
 
+export 'alternate_draft.dart';
 export 'anchor.dart';
 export 'area_trigger.dart';
 export 'band.dart';

@@ -38,6 +38,11 @@ typedef MapMarkerPoint = ({LatLonPoint coord, NodeMarkerType role});
 /// day is visible rather than left to be guessed from proximity.
 typedef MapLeaderLine = ({LatLonPoint from, LatLonPoint to});
 
+/// #324 — a mark the caller draws itself, at a coordinate. Used for the fork
+/// and rejoin of an alternate being drawn, which are not nodes on the day and
+/// so do not come from [MapMarkerPoint]'s node-role vocabulary.
+typedef MapAnnotation = ({LatLonPoint coord, Widget marker});
+
 /// Why a bundled basemap style failed to resolve. A bare `null` collapsed
 /// these four into one indistinguishable outcome (issue #184, an M13
 /// "never a silent failure" violation) — the caller could not tell a
@@ -227,6 +232,9 @@ class TapToPickMap extends ConsumerStatefulWidget {
     this.onTap,
     this.polyline = const [],
     this.leaderLines = const [],
+    this.draftLine = const [],
+    this.replacedStretch = const [],
+    this.annotations = const [],
     this.center,
     this.focusCoord,
     this.initialZoom = 13,
@@ -240,6 +248,21 @@ class TapToPickMap extends ConsumerStatefulWidget {
   /// #322 — off-route node → nearest-point-on-line connectors, drawn muted and
   /// dashed beneath the markers.
   final List<MapLeaderLine> leaderLines;
+
+  /// #324 — an alternate path being drawn, or one being inspected. Dashed and
+  /// thinner than [polyline]: it is a second path on the passage, and an
+  /// Author-drawn one, so it must never read with a solved line's authority.
+  final List<LatLonPoint> draftLine;
+
+  /// #324 — the stretch of [polyline] an alternate stands in for, drawn as a
+  /// wide translucent casing under the route. What is being replaced is half
+  /// of what a divergence means, and it is not inferable from the new path
+  /// alone.
+  final List<LatLonPoint> replacedStretch;
+
+  /// #324 — caller-drawn marks (an alternate's fork and rejoin), above the
+  /// lines and below nothing.
+  final List<MapAnnotation> annotations;
 
   final LatLonPoint? center;
 
@@ -359,12 +382,36 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                       borderStrokeWidth: 2,
                     ),
                   ]),
+                // #324 — the replaced stretch goes under the route so the
+                // route still reads as the route; the casing widens it rather
+                // than recolouring it.
+                if (widget.replacedStretch.length >= 2)
+                  PolylineLayer(polylines: [
+                    Polyline(
+                      points: [
+                        for (final p in widget.replacedStretch) ll.LatLng(p[1], p[0]),
+                      ],
+                      color: c.warning.withValues(alpha: 0.35),
+                      strokeWidth: 12,
+                    ),
+                  ]),
                 if (widget.polyline.length >= 2)
                   PolylineLayer(polylines: [
                     Polyline(
                       points: [for (final p in widget.polyline) ll.LatLng(p[1], p[0])],
                       color: c.primary,
                       strokeWidth: 4,
+                    ),
+                  ]),
+                // #324 — the alternate's own path: dashed, thinner, so a line
+                // the Author drew never carries a solved line's authority.
+                if (widget.draftLine.length >= 2)
+                  PolylineLayer(polylines: [
+                    Polyline(
+                      points: [for (final p in widget.draftLine) ll.LatLng(p[1], p[0])],
+                      color: c.warning,
+                      strokeWidth: 3,
+                      pattern: StrokePattern.dashed(segments: const [10.0, 6.0]),
                     ),
                   ]),
                 // #322 — leader lines from off-route nodes to the line. Muted
@@ -398,6 +445,16 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                         height: 28,
                         child: NodeMarker(p.role),
                       ),
+                  // #324 — fork and rejoin marks sit above the node markers:
+                  // while a divergence is being drawn they are what the
+                  // Author is working on.
+                  for (final a in widget.annotations)
+                    Marker(
+                      point: ll.LatLng(a.coord[1], a.coord[0]),
+                      width: 30,
+                      height: 30,
+                      child: a.marker,
+                    ),
                 ]),
               ],
             ),

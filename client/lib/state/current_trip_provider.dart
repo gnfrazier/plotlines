@@ -554,15 +554,23 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// intent (`accommodation` | `branch`) is set here, at creation, and is not
   /// something a later edit toggles blindly: converting between the two goes
   /// through [convertAlternateIntent], which is where the branch-content prompt
-  /// lives. [geometry] is whatever the Author has drawn so far — an empty
-  /// line-string is "not drawn yet", not an error.
+  /// lives.
+  ///
+  /// [geometry] is required and [divergesAtM] / [rejoinsAtM] come with it
+  /// (issue #324): an alternate is drawn on the map before it is named, so by
+  /// the time this is called the path exists and the fork and rejoin have been
+  /// marked on the passage's own line. `AlternateDraft` is what produces all
+  /// three — this seam does not accept a path it would have to describe as
+  /// "not drawn".
   Alternate addAlternateToSegment(
     String dayId,
     String segmentId, {
     required String intent,
     required String kind,
+    required LineString geometry,
     String? label,
-    LineString? geometry,
+    double? divergesAtM,
+    double? rejoinsAtM,
   }) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final alternate = Alternate(
@@ -570,7 +578,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       intent: intent,
       kind: kind,
       label: (label ?? '').trim().isEmpty ? null : label!.trim(),
-      geometry: geometry ?? LineString(coordinates: const [], source: 'authored'),
+      geometry: geometry,
+      divergesAtM: divergesAtM,
+      rejoinsAtM: rejoinsAtM,
     );
     final segments = [
       for (final s in day.segments)

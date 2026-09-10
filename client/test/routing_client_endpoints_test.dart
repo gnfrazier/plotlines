@@ -107,8 +107,11 @@ Segment _segment() => Segment(
           id: 'a1',
           kind: 'variant',
           intent: 'branch',
+          // #324 — an alternate is a path: two coordinates minimum, the same
+          // `$defs/line_string` floor the schema has always had.
           geometry: LineString(coordinates: const [
-            [-105.2755, 40.0195]
+            [-105.2755, 40.0195],
+            [-105.2745, 40.0205],
           ]),
           label: 'Gravel variant',
           divergesAtM: 200,

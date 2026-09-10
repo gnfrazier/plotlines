@@ -9,6 +9,7 @@ import '../data/app_database.dart';
 import '../data/curation_client.dart';
 import '../data/routing_client.dart';
 import '../data/sidecar_manager.dart';
+import '../domain/teaching.dart';
 
 /// One [SidecarManager] for the app's lifetime — it owns a real OS process.
 /// `ref.onDispose` stops it if the provider is ever torn down (tests,
@@ -38,6 +39,13 @@ final curationClientProvider = Provider<CurationClient>((ref) {
   final manager = ref.watch(sidecarManagerProvider);
   return CurationClient(manager.baseUrl);
 });
+
+/// FR142(e) / K12a — one [TeachingDismissals] for the session, keyed inside by
+/// trip id so a tip dismissed on one trip does not reappear there and does
+/// appear on the next. Deliberately session-lived and not persisted: it holds
+/// no [Trip] payload data, and nothing it tracks can make a control
+/// inoperable — a teaching block is chrome, shown or hidden.
+final teachingDismissalsProvider = Provider<TeachingDismissals>((ref) => TeachingDismissals());
 
 /// One drift connection for the app's lifetime (ARCH §9.2 — desktop storage).
 final appDatabaseProvider = Provider<AppDatabase>((ref) {

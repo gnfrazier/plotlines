@@ -114,6 +114,14 @@ class Portage {
 ///
 /// [kind] tags the shape either way — for a branch it reads as the direct way
 /// (`bypass`) versus the long way round (`extension`).
+///
+/// **An alternate always has a path** (issue #324). It is drawn on the map
+/// first — the fork and the rejoin are marked on the passage's own line — and
+/// only then does anything ask it to be named, described, or given a reveal.
+/// There is no `not drawn` state to author into: `$defs/line_string` requires
+/// two coordinates, so an alternate with an empty geometry was never a payload
+/// the schema would accept, and the card that used to open on one could not
+/// answer where it went or what it contained.
 class Alternate {
   Alternate({
     required this.id,
@@ -138,6 +146,11 @@ class Alternate {
               (note == null && anchorIds.isEmpty && narration == null && reveal == null),
           'note / anchorIds / narration / reveal are branch-alternate content; '
           'an accommodation alternate carries none of them',
+        ),
+        assert(
+          geometry.coordinates.length >= 2,
+          'an alternate is a path: `\$defs/line_string` requires two '
+          'coordinates, and "not drawn" is not an authorable state (#324)',
         );
 
   final String id;

@@ -21,7 +21,22 @@ void main() {
     }
   });
 
-  test('the enumeration covers exactly the contexts named in K12 AC', () {
+  test('the enumeration covers the contexts named in K12 AC, plus what has been added since', () {
+    // The five K12 named — none may quietly disappear.
+    expect(
+      EmptyStateContext.values.toSet(),
+      containsAll({
+        EmptyStateContext.tripNoDays,
+        EmptyStateContext.dayNoPassages,
+        EmptyStateContext.bboxNoPromotedAnchors,
+        EmptyStateContext.rosterNoCharacters,
+        EmptyStateContext.layerSetNoCandidates,
+      }),
+    );
+    // And the whole enumeration, so a new context is a deliberate addition
+    // with its own registry copy. Added since K12: the three alternate
+    // surfaces (issue #324), where the copy they replaced explained the model
+    // instead of naming the next action.
     expect(
       EmptyStateContext.values.toSet(),
       {
@@ -30,6 +45,9 @@ void main() {
         EmptyStateContext.bboxNoPromotedAnchors,
         EmptyStateContext.rosterNoCharacters,
         EmptyStateContext.layerSetNoCandidates,
+        EmptyStateContext.passageNoAlternates,
+        EmptyStateContext.branchNoAnchors,
+        EmptyStateContext.branchNoNarration,
       },
     );
   });

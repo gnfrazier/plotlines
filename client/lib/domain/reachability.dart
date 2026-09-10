@@ -37,6 +37,12 @@ enum ReachableObject {
 
   /// Stale list (Q3).
   staleItem,
+
+  /// An alternate on a passage (C4). Drawn on the Route tab's map (#324) and
+  /// found back on the Logistics tab, under the passage it diverges from —
+  /// the one object an Author makes on one surface and inspects on another,
+  /// which is exactly the case FR142(b) exists for.
+  alternate,
 }
 
 /// Where one [ReachableObject] is found back, and a short label for the
@@ -86,6 +92,10 @@ const Map<ReachableObject, ReachabilityTarget> reachabilityRegistry = {
   ReachableObject.staleItem: ReachabilityTarget(
     surface: 'stale_list',
     description: 'Stale list (Q3)',
+  ),
+  ReachableObject.alternate: ReachabilityTarget(
+    surface: 'logistics_tab_passage_alternates',
+    description: "Logistics tab — the passage's ALTERNATES list (C4)",
   ),
 };
 
