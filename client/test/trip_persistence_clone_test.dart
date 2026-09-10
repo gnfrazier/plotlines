@@ -35,7 +35,7 @@ Future<String> _seedTrip(ProviderContainer c) async {
           RosterEntry(characterId: 'ann', name: 'Ann', groupLabel: 'Fast'),
           RosterEntry(characterId: 'bo', name: 'Bo', groupLabel: 'Slow'),
         ],
-        gear: [GearAssignment(id: 'g1', label: 'Tent', assigneeIds: {'ann', 'bo'})],
+        gear: [GearItem(id: 'g1', label: 'Tent', shared: true, assigneeIds: {'ann', 'bo'})],
         authorNotes: [
           AuthorNote(subjectCharacterId: 'ann', body: 'Strong scrambler.', updatedAt: '2024-06-01T00:00:00.000Z'),
         ],

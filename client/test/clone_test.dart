@@ -39,7 +39,7 @@ TripRoster _sourceRoster() => const TripRoster(
         ),
         RosterEntry(characterId: 'bo', name: 'Bo', groupLabel: 'Slow'),
       ],
-      gear: [GearAssignment(id: 'g1', label: 'Tent', assigneeIds: {'ann', 'bo'})],
+      gear: [GearItem(id: 'g1', label: 'Tent', shared: true, assigneeIds: {'ann', 'bo'})],
       meals: [MealResponsibility(id: 'm1', label: 'Dinner', cookIds: {'ann'})],
       authorNotes: [
         AuthorNote(subjectCharacterId: 'ann', body: 'Strong scrambler.', updatedAt: '2024-06-01T00:00:00.000Z'),
