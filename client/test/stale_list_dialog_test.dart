@@ -184,7 +184,7 @@ void main() {
   });
 
   group('the list', () {
-    testWidgets('counts the stale routes and names each one', (tester) async {
+    testWidgets('counts the stale items and names each one', (tester) async {
       final (_, container) = await _open(
           tester,
           _trip([
@@ -193,17 +193,20 @@ void main() {
           ]));
       addTearDown(container.dispose);
 
-      expect(find.textContaining('2 stale routes need re-solving'), findsOneWidget);
+      // #344 — "items", not "routes": a stale alternate is an item on this
+      // list in its own right, so the count may not claim a kind. Each row
+      // still names what it is.
+      expect(find.textContaining('2 stale items need re-solving'), findsOneWidget);
       expect(find.text('Day 1 — cycling loop'), findsOneWidget);
       expect(find.text('Day 3 — cycling loop'), findsOneWidget);
     });
 
-    testWidgets('a single stale route reads in the singular', (tester) async {
+    testWidgets('a single stale item reads in the singular', (tester) async {
       final (_, container) =
           await _open(tester, _trip([Day(id: 'd1', index: 1, segments: [_stale('s1')])]));
       addTearDown(container.dispose);
 
-      expect(find.textContaining('1 stale route needs re-solving'), findsOneWidget);
+      expect(find.textContaining('1 stale item needs re-solving'), findsOneWidget);
     });
 
     testWidgets('a fresh route is not listed', (tester) async {
@@ -380,6 +383,145 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AlertDialog), findsNothing);
+      expect(proceed.value, isTrue);
+    });
+  });
+
+  // Issue #344 — an alternate carries its own `solve`, so a branch whose fork
+  // has moved is an item on this list in its own right. Two things have to be
+  // true of it: it re-solves against *its* inputs rather than dragging its
+  // untouched passage through a solve, and dropping it states what that
+  // destroys, which for a branch is more than a route.
+  group('a stale alternate on the list', () {
+    Alternate branch(String id, {String? label, bool isBranch = true}) => Alternate(
+          id: id,
+          kind: 'extension',
+          intent: isBranch ? 'branch' : 'accommodation',
+          label: label,
+          geometry: LineString(
+            coordinates: const [
+              [-105.27, 40.02],
+              [-105.24, 40.05],
+              [-105.21, 40.02],
+            ],
+            source: 'authored',
+          ),
+          divergesAtM: 1000.0,
+          rejoinsAtM: 4000.0,
+          solve: SolveProvenance(solvedAt: '2026-01-01T00:00:00Z', stale: true),
+          note: isBranch ? 'Three miles of old tramway grade.' : null,
+        );
+
+    Day dayWith(Alternate alternate, {bool passageStale = false}) => Day(
+          id: 'd1',
+          index: 1,
+          segments: [
+            Segment(
+              id: 's1',
+              mode: 'cycling',
+              shape: 'loop',
+              start: const [-105.27, 40.02],
+              solve: SolveProvenance(
+                  solvedAt: '2026-01-01T00:00:00Z', stale: passageStale),
+              alternates: [alternate],
+            )
+          ],
+        );
+
+    testWidgets('is listed by what it is and which day it is on', (tester) async {
+      final (proceed, container) = await _open(
+          tester, _trip([dayWith(branch('a1', label: 'Past the Sugarloaf mine'))]));
+      addTearDown(container.dispose);
+
+      expect(proceed.settled, isFalse);
+      expect(find.textContaining('1 stale item needs re-solving'), findsOneWidget);
+      expect(find.textContaining('Past the Sugarloaf mine'), findsOneWidget);
+      expect(find.textContaining('branch'), findsOneWidget);
+      expect(find.textContaining('Day 1'), findsOneWidget);
+    });
+
+    testWidgets('re-solves against its own marks, not the passage it hangs off',
+        (tester) async {
+      final client = _FakeRoutingClient();
+      final (proceed, container) = await _open(
+          tester, _trip([dayWith(branch('a1', label: 'Past the mine'))]),
+          client: client);
+      addTearDown(container.dispose);
+
+      await tester.tap(find.text('Re-solve'));
+      await tester.pumpAndSettle();
+
+      expect(client.solves, 1);
+      final alternate =
+          container.read(currentTripProvider).days.single.segments.single.alternates.single;
+      expect(alternate.isStale, isFalse);
+      // The passage was never stale and was never re-solved with it.
+      expect(container.read(currentTripProvider).days.single.segments.single.solve!.stale,
+          isFalse);
+      expect(proceed.value, isTrue);
+    });
+
+    testWidgets('dropping a branch names what goes with it', (tester) async {
+      final (_, container) = await _open(
+          tester, _trip([dayWith(branch('a1', label: 'Past the mine'))]));
+      addTearDown(container.dispose);
+
+      await tester.tap(find.text('Drop'));
+      await tester.pumpAndSettle();
+
+      // FR139: the confirmation states the scope, and a branch holds more than
+      // a route does.
+      expect(find.text('Drop this branch?'), findsOneWidget);
+      expect(find.textContaining('note, narration and reveal'), findsOneWidget);
+      expect(find.textContaining('anchors on it stay in the trip'), findsOneWidget);
+
+      await tester.tap(find.text('Keep'));
+      await tester.pumpAndSettle();
+      expect(
+        container.read(currentTripProvider).days.single.segments.single.alternates,
+        hasLength(1),
+        reason: 'declining the confirmation keeps the branch',
+      );
+    });
+
+    testWidgets('dropping an accommodation says only that the day is unchanged',
+        (tester) async {
+      final (_, container) = await _open(
+          tester,
+          _trip([dayWith(branch('a1', label: 'Toe River road', isBranch: false))]));
+      addTearDown(container.dispose);
+
+      await tester.tap(find.text('Drop'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Drop this alternate?'), findsOneWidget);
+      expect(find.textContaining('narration'), findsNothing);
+
+      await tester.tap(find.text('Drop').last);
+      await tester.pumpAndSettle();
+      expect(
+        container.read(currentTripProvider).days.single.segments.single.alternates,
+        isEmpty,
+      );
+      // The passage itself survives — only the path went.
+      expect(container.read(currentTripProvider).days.single.segments, hasLength(1));
+    });
+
+    testWidgets('re-solve-all clears a stale passage and a stale branch together',
+        (tester) async {
+      final client = _FakeRoutingClient();
+      final (proceed, container) = await _open(
+          tester,
+          _trip([dayWith(branch('a1', label: 'Past the mine'), passageStale: true)]),
+          client: client);
+      addTearDown(container.dispose);
+
+      expect(find.textContaining('2 stale items need re-solving'), findsOneWidget);
+      await tester.tap(find.text('Re-solve all'));
+      await tester.pumpAndSettle();
+
+      expect(client.solves, 2);
+      expect(tripReadyToExport(container.read(currentTripProvider)), isTrue);
       expect(proceed.value, isTrue);
     });
   });

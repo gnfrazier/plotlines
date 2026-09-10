@@ -233,6 +233,7 @@ class TapToPickMap extends ConsumerStatefulWidget {
     this.polyline = const [],
     this.leaderLines = const [],
     this.draftLine = const [],
+    this.alternateLines = const [],
     this.replacedStretch = const [],
     this.annotations = const [],
     this.center,
@@ -253,6 +254,13 @@ class TapToPickMap extends ConsumerStatefulWidget {
   /// thinner than [polyline]: it is a second path on the passage, and an
   /// Author-drawn one, so it must never read with a solved line's authority.
   final List<LatLonPoint> draftLine;
+
+  /// #344 — the passage's *saved* alternates, drawn muted and dashed beneath
+  /// [draftLine]. Before this an alternate vanished from the map the moment it
+  /// was created, which made `Move on the map` unusable by construction: an
+  /// Author cannot move a fork they cannot see. Muted rather than warning-
+  /// coloured so the one being drawn or moved still reads as the one in hand.
+  final List<List<LatLonPoint>> alternateLines;
 
   /// #324 — the stretch of [polyline] an alternate stands in for, drawn as a
   /// wide translucent casing under the route. What is being replaced is half
@@ -402,6 +410,19 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                       color: c.primary,
                       strokeWidth: 4,
                     ),
+                  ]),
+                // #344 — every other alternate on this passage, so the day's
+                // divergences are visible while one of them is being worked on.
+                if (widget.alternateLines.isNotEmpty)
+                  PolylineLayer(polylines: [
+                    for (final line in widget.alternateLines)
+                      if (line.length >= 2)
+                        Polyline(
+                          points: [for (final p in line) ll.LatLng(p[1], p[0])],
+                          color: c.textMuted,
+                          strokeWidth: 2.5,
+                          pattern: StrokePattern.dashed(segments: const [8.0, 6.0]),
+                        ),
                   ]),
                 // #324 — the alternate's own path: dashed, thinner, so a line
                 // the Author drew never carries a solved line's authority.
