@@ -39,6 +39,12 @@ enum TeachingMoment {
 
   /// In Compose mode, distance is a reported outcome, not an enforced input.
   composeDistanceIsOutcome,
+
+  /// Anchors attached to a branch are references, not copies (issue #324).
+  /// Standing body copy on the branch card until #324 — five blocks of the
+  /// card explained the model rather than describing the alternate in it,
+  /// which is what this enumeration is for.
+  branchAnchorsByReference,
 }
 
 /// The copy, surface, and reachability affordance for one [TeachingMoment].
@@ -83,6 +89,11 @@ const Map<TeachingMoment, TeachingCopy> teachingRegistry = {
     surface: 'day_view_compose_mode',
     message: 'In Compose mode you pick the places; the engine connects them, and the resulting distance is reported, not enforced.',
     helpAffordance: 'day_view_compose_mode_help',
+  ),
+  TeachingMoment.branchAnchorsByReference: TeachingCopy(
+    surface: 'alternate_branch_card',
+    message: 'Anchors are attached here by reference, never copied — edit one and you have edited the trip’s anchor; detach it and it stays in the trip.',
+    helpAffordance: 'alternate_branch_card_help',
   ),
 };
 

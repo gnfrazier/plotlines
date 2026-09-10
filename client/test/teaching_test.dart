@@ -17,7 +17,22 @@ void main() {
     }
   });
 
-  test('the enumeration covers exactly the moments named in K12a AC', () {
+  test('the enumeration covers the moments named in K12a AC, plus what has been added since', () {
+    // The four K12a named. None may quietly disappear: each is a behaviour
+    // the interface cannot make inferable on its own.
+    expect(
+      TeachingMoment.values.toSet(),
+      containsAll({
+        TeachingMoment.promotionNotIntoDay,
+        TeachingMoment.revealIsRoleProperty,
+        TeachingMoment.staleRouteIsDeliberate,
+        TeachingMoment.composeDistanceIsOutcome,
+      }),
+    );
+    // And the whole enumeration, so a fifth moment is a deliberate addition
+    // with its own registry entry rather than a drive-by. Added since K12a:
+    // `branchAnchorsByReference` (issue #324), which was standing body copy
+    // on the alternate branch card.
     expect(
       TeachingMoment.values.toSet(),
       {
@@ -25,6 +40,7 @@ void main() {
         TeachingMoment.revealIsRoleProperty,
         TeachingMoment.staleRouteIsDeliberate,
         TeachingMoment.composeDistanceIsOutcome,
+        TeachingMoment.branchAnchorsByReference,
       },
     );
   });

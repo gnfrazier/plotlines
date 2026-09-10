@@ -11,12 +11,16 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../../data/sidecar_manager.dart' show CapabilityStatus;
 import '../../../domain/domain.dart';
+import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
+import '../../map/alternate_markers.dart';
 import '../../map/node_marker_role.dart';
 import '../../map/route_geometry.dart';
 import '../../map/tap_to_pick_map.dart';
+import '../../widgets/alternate_draft_bar.dart';
+import '../../widgets/alternate_editor_dialog.dart';
 import '../../widgets/day_timeline_strip.dart';
 import '../../widgets/metrics_rail.dart';
 import '../../widgets/node_editor_sheet.dart';
@@ -103,6 +107,52 @@ class RouteTab extends ConsumerStatefulWidget {
 class _RouteTabState extends ConsumerState<RouteTab> {
   bool _addingNode = false;
 
+  /// #324 — the divergence being drawn, and the passage it is being drawn on.
+  /// Alternate creation *starts* here, on the map, on a day that already has a
+  /// route: the Author marks the fork and the rejoin (and shapes the path
+  /// between them if they want to), and only then is anything named. The card
+  /// that opens afterwards describes a path that exists.
+  AlternateDraft? _altDraft;
+  (String dayId, String segmentId)? _altDraftOn;
+
+  /// Selecting a different passage abandons a half-drawn divergence: a fork
+  /// measured along one line means nothing on another. Nothing authored is
+  /// lost — the draft has not reached the trip yet.
+  void _syncDraftToSelection((String, String)? selected) {
+    if (_altDraft == null) return;
+    if (_altDraftOn == null || selected == null || _altDraftOn != selected) {
+      _altDraft = null;
+      _altDraftOn = null;
+    }
+  }
+
+  Future<void> _createAlternate(AlternateDraft draft, String dayId, String segmentId) async {
+    final naming = await showAlternateNamingDialog(context, draft: draft);
+    // Backing out of naming keeps the draft: the Author may still be drawing.
+    if (naming == null) return;
+    final made = ref.read(currentTripProvider.notifier).addAlternateToSegment(
+          dayId,
+          segmentId,
+          intent: naming.intent,
+          kind: naming.kind,
+          label: naming.label,
+          geometry: draft.geometry!,
+          divergesAtM: draft.divergesAtM,
+          rejoinsAtM: draft.rejoinsAtM,
+        );
+    setState(() {
+      _altDraft = null;
+      _altDraftOn = null;
+    });
+    if (!mounted) return;
+    await showAlternateCard(
+      context,
+      dayId: dayId,
+      segmentId: segmentId,
+      alternateId: made.id,
+    );
+  }
+
   /// FR121/N2 — same "no trip-wide flag" reading `new_route_screen.dart`'s
   /// `_routingCapability` uses: before the sidecar has answered `/health`
   /// even once this is an honest wait, not a bare "not ready".
@@ -131,6 +181,13 @@ class _RouteTabState extends ConsumerState<RouteTab> {
     final focusCoord =
         nodeCoordById(widget.trip, ref.watch(selectedNodeIdProvider));
 
+    _syncDraftToSelection(selected);
+    final draft = _altDraft;
+    final routeCoords = selectedSegment?.geometry?.coordinates;
+    // #324 — a passage with no solved line has nothing to diverge from, so
+    // the gesture is not offered rather than offered and then refused.
+    final canDraftAlternate = selected != null && AlternateDraft.canDraftOn(routeCoords);
+
     return Row(
       children: [
         WeightsRail(dayId: railDayId, segment: selectedSegment),
@@ -142,37 +199,93 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                   children: [
                     TapToPickMap(
                       points: routeTabMarkerPoints(widget.trip),
-                      polyline: selectedSegment?.geometry?.coordinates ?? const [],
+                      polyline: routeCoords ?? const [],
                       leaderLines: routeTabLeaderLines(selectedSegment),
+                      // #324 — the divergence as it is being drawn: the path
+                      // dashed, the stretch of the day it stands in for cased
+                      // underneath, and a mark at each end.
+                      draftLine: draft?.previewLine ?? const [],
+                      replacedStretch: draft?.canonStretch ?? const [],
+                      annotations: [
+                        if (draft?.leavesPoint != null)
+                          (
+                            coord: draft!.leavesPoint!,
+                            marker: const AlternateEndpointMarker(AlternateEndpoint.fork),
+                          ),
+                        if (draft?.rejoinsPoint != null)
+                          (
+                            coord: draft!.rejoinsPoint!,
+                            marker: const AlternateEndpointMarker(AlternateEndpoint.rejoin),
+                          ),
+                      ],
                       focusCoord: focusCoord,
-                      onTap: (!_addingNode || selected == null)
-                          ? null
-                          : (point) async {
-                              setState(() => _addingNode = false);
-                              final saved = await showNodeEditorSheet(
-                                context,
-                                dayId: selected.$1,
-                                segmentId: selected.$2,
-                                coord: point,
-                                routeGeometry:
-                                    selectedSegment?.geometry?.coordinates,
-                              );
-                              // #322 — select and reveal the node just placed.
-                              if (saved != null) {
-                                ref.read(selectedNodeIdProvider.notifier).state =
-                                    saved.id;
-                              }
-                            },
+                      onTap: draft != null
+                          ? (point) => setState(() => _altDraft = draft.tap(point))
+                          : (!_addingNode || selected == null)
+                              ? null
+                              : (point) async {
+                                  setState(() => _addingNode = false);
+                                  final saved = await showNodeEditorSheet(
+                                    context,
+                                    dayId: selected.$1,
+                                    segmentId: selected.$2,
+                                    coord: point,
+                                    routeGeometry: routeCoords,
+                                  );
+                                  // #322 — select and reveal the node just placed.
+                                  if (saved != null) {
+                                    ref.read(selectedNodeIdProvider.notifier).state =
+                                        saved.id;
+                                  }
+                                },
                     ),
-                    if (selected != null)
+                    if (draft != null)
                       Positioned(
                         top: PlotSpacing.s3,
                         right: PlotSpacing.s3,
-                        child: PlotButton(
-                          label: _addingNode ? 'Tap map to place node…' : 'Add node',
-                          icon: Icons.add_location_alt_outlined,
-                          variant: _addingNode ? PlotButtonVariant.secondary : PlotButtonVariant.primary,
-                          onPressed: () => setState(() => _addingNode = !_addingNode),
+                        child: AlternateDraftBar(
+                          draft: draft,
+                          displayFormat: ref.watch(displayFormatProvider),
+                          onUndo: draft.fork == null
+                              ? null
+                              : () => setState(() => _altDraft = draft.undoLast()),
+                          onCancel: () => setState(() {
+                            _altDraft = null;
+                            _altDraftOn = null;
+                          }),
+                          onCreate: draft.isComplete
+                              ? () => _createAlternate(
+                                  draft, _altDraftOn!.$1, _altDraftOn!.$2)
+                              : null,
+                        ),
+                      )
+                    else if (selected != null)
+                      Positioned(
+                        top: PlotSpacing.s3,
+                        right: PlotSpacing.s3,
+                        child: Row(
+                          children: [
+                            if (canDraftAlternate)
+                              PlotButton(
+                                label: 'Add alternate',
+                                icon: Icons.alt_route,
+                                variant: PlotButtonVariant.secondary,
+                                onPressed: () => setState(() {
+                                  _addingNode = false;
+                                  _altDraft = AlternateDraft.on(routeCoords!);
+                                  _altDraftOn = selected;
+                                }),
+                              ),
+                            const SizedBox(width: PlotSpacing.s2),
+                            PlotButton(
+                              label: _addingNode ? 'Tap map to place node…' : 'Add node',
+                              icon: Icons.add_location_alt_outlined,
+                              variant: _addingNode
+                                  ? PlotButtonVariant.secondary
+                                  : PlotButtonVariant.primary,
+                              onPressed: () => setState(() => _addingNode = !_addingNode),
+                            ),
+                          ],
                         ),
                       ),
                   ],
