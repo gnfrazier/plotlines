@@ -133,6 +133,7 @@ class Alternate {
     this.elevation,
     this.divergesAtM,
     this.rejoinsAtM,
+    this.solve,
     this.note,
     this.anchorIds = const [],
     this.narration,
@@ -173,6 +174,18 @@ class Alternate {
   /// Distance along the parent segment where the alternate rejoins it.
   final double? rejoinsAtM;
 
+  /// FR140/Q3 (issue #344) — provenance for *this alternate's* derived half.
+  /// An alternate is a second path with its own [geometry], [metrics] and
+  /// [elevation], so moving where it forks or rejoins invalidates its numbers
+  /// and leaves the parent passage's untouched; a `stale` flag on the segment
+  /// could not say that, and setting one would drag the day's own route into
+  /// the stale list behind an edit that never touched it.
+  ///
+  /// Null means **never solved** — an Author-drawn line whose length is
+  /// measured off the line itself. That is a different statement from "solved,
+  /// then gone stale", and the two are never merged on any surface.
+  final SolveProvenance? solve;
+
   /// Branch alternates only — the Author's prose for what is different on this
   /// path. Null on an accommodation alternate, whose difference is effort.
   final String? note;
@@ -204,6 +217,7 @@ class Alternate {
       elevation: f.takeObject('elevation', Elevation.fromJson),
       divergesAtM: f.takeNum('diverges_at_m'),
       rejoinsAtM: f.takeNum('rejoins_at_m'),
+      solve: f.takeObject('solve', SolveProvenance.fromJson),
       note: f.takeString('note'),
       anchorIds: f.takeStrings('anchor_ids'),
       narration: f.takeObject('narration', Narration.fromJson),
@@ -223,6 +237,7 @@ class Alternate {
         'elevation': elevation?.toJson(),
         'diverges_at_m': divergesAtM == null ? null : finite(divergesAtM!, 'alternate.diverges_at_m'),
         'rejoins_at_m': rejoinsAtM == null ? null : finite(rejoinsAtM!, 'alternate.rejoins_at_m'),
+        'solve': solve?.toJson(),
         'note': note,
         'anchor_ids': anchorIds.isEmpty ? null : anchorIds,
         'narration': narration?.toJson(),
@@ -254,6 +269,8 @@ class Alternate {
     bool clearDivergesAtM = false,
     double? rejoinsAtM,
     bool clearRejoinsAtM = false,
+    SolveProvenance? solve,
+    bool clearSolve = false,
     String? note,
     bool clearNote = false,
     List<String>? anchorIds,
@@ -272,6 +289,7 @@ class Alternate {
         elevation: clearElevation ? null : (elevation ?? this.elevation),
         divergesAtM: clearDivergesAtM ? null : (divergesAtM ?? this.divergesAtM),
         rejoinsAtM: clearRejoinsAtM ? null : (rejoinsAtM ?? this.rejoinsAtM),
+        solve: clearSolve ? null : (solve ?? this.solve),
         note: clearNote ? null : (note ?? this.note),
         anchorIds: anchorIds ?? this.anchorIds,
         narration: clearNarration ? null : (narration ?? this.narration),
@@ -294,6 +312,10 @@ class Alternate {
       elevation: elevation,
       divergesAtM: divergesAtM,
       rejoinsAtM: rejoinsAtM,
+      // The path is untouched by a change of intent, so its provenance is too:
+      // dropping [solve] here would silently un-stale a branch, or throw away a
+      // solve nothing invalidated.
+      solve: solve,
     );
   }
 
@@ -314,12 +336,16 @@ class Alternate {
       elevation: elevation,
       divergesAtM: divergesAtM,
       rejoinsAtM: rejoinsAtM,
+      solve: solve,
     );
   }
 }
 
-/// How this geometry came to exist. Kept per segment, not per trip, because a
-/// multimodal day mixes solved and Author-drawn legs.
+/// How this geometry came to exist. Kept per geometry-bearing object, not per
+/// trip, because a multimodal day mixes solved and Author-drawn legs — and
+/// since issue #344 an [Alternate] carries one too, for the same reason one
+/// step down: its derived half can go stale while its parent passage's is
+/// exactly as solved.
 class SolveProvenance {
   SolveProvenance({
     this.engineVersion,

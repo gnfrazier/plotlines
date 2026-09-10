@@ -172,6 +172,58 @@ void main() {
         throwsA(isA<AssertionError>()),
       );
     });
+
+    // Issue #344 — an alternate carries its own `solve`, so its derived half
+    // can go stale while the passage it hangs off is exactly as solved.
+    test('an alternate round-trips its own solve provenance', () {
+      final a = Alternate(
+        id: 'a5',
+        kind: 'extension',
+        geometry: line(),
+        divergesAtM: 8000.0,
+        rejoinsAtM: 24000.0,
+        solve: SolveProvenance(
+            engineVersion: '0.0.1', solvedAt: '2026-09-10T16:28:00Z', stale: true),
+      );
+      final decoded = Alternate.fromJson(a.toJson());
+      expect(decoded.solve!.stale, isTrue);
+      expect(decoded.solve!.solvedAt, '2026-09-10T16:28:00Z');
+      expect(decoded.isStale, isTrue);
+      expect(decoded.isSolved, isTrue);
+      expect(decoded.provenanceNote,
+          'These distances are the ones this path was solved with, before it moved.');
+    });
+
+    test('an alternate with no solve omits the key and reads as never solved', () {
+      final a = Alternate(id: 'a6', kind: 'bypass', geometry: line());
+      expect(a.toJson().containsKey('solve'), isFalse);
+      // Absent is a different statement from "solved, then gone stale", and
+      // the sentence each surface prints has to keep them apart.
+      expect(a.isSolved, isFalse);
+      expect(a.isStale, isFalse);
+      expect(a.provenanceNote, kAlternateDrawnNotSolvedNote);
+    });
+
+    test('a solved, current alternate qualifies its numbers with nothing', () {
+      final a = Alternate(
+        id: 'a7',
+        kind: 'bypass',
+        geometry: line(),
+        solve: SolveProvenance(solvedAt: '2026-09-10T16:28:00Z', stale: false),
+      );
+      expect(a.provenanceNote, isNull);
+    });
+
+    test('converting between intents keeps the solve — the path was not touched', () {
+      final a = Alternate(
+        id: 'a8',
+        kind: 'bypass',
+        geometry: line(),
+        solve: SolveProvenance(solvedAt: 'x', stale: true),
+      );
+      expect(a.asBranch().solve!.stale, isTrue);
+      expect(a.asBranch().asAccommodation().solve!.solvedAt, 'x');
+    });
   });
 
   group('Alternate.copyWith / intent conversion (FR20 [AMENDED v2.0], Flow 11 §06)', () {

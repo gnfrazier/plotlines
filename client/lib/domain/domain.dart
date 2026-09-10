@@ -5,6 +5,7 @@
 library;
 
 export 'alternate_draft.dart';
+export 'alternate_edit.dart';
 export 'anchor.dart';
 export 'area_trigger.dart';
 export 'band.dart';
