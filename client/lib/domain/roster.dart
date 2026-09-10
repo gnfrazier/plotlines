@@ -12,12 +12,15 @@
 // and `author_note` tables (ARCH §11.1), which are likewise separate from
 // `trip.payload JSONB`.
 //
-// This layer's reason to exist right now is G2 / G2b (#71, #73): the Trip
+// This layer's reason to exist started with G2 / G2b (#71, #73): the Trip
 // Library shows group size, and Clone carries or drops roster membership and
-// everything keyed to a person. The Character-facing roster *runtime* (group
-// visibility per day/passage, the per-Character detail view FR134) is a
-// separate story with no client surface yet — the same boundary H6 (#80)
-// drew — so this file is the domain model and its transforms only.
+// everything keyed to a person. C8 (#44) adds the first authoring surface
+// onto it — the gear checklist ([GearItem]) an Author builds by mode and by
+// station activity, with Shared Group Gear assigned to Characters. The
+// Character-facing side of C8 — a Character seeing their consolidated
+// personal + assigned list and checking items off — is Epic H field runtime
+// and has no client surface yet (the same boundary H6 (#80) drew), so this
+// file stays the domain model and its transforms only.
 library;
 
 /// FR136 — one Character's trip-scoped membership record: a group and
@@ -94,32 +97,139 @@ class RosterEntry {
       };
 }
 
-/// FR24 / C8 — a shared-group-gear line assigned to specific Characters.
-/// (The gear *checklist* by mode / station activity is a payload concern via
-/// `station.required_gear`; who carries the *shared* items is roster-scoped.)
-class GearAssignment {
-  const GearAssignment({
+/// FR24 / C8 — which segment of the trip a gear checklist item belongs to:
+/// the whole trip, one travel mode, or one station-activity type (O4).
+///
+/// "By mode **and by station activity**" is the AC's own phrasing, so the
+/// scope is a small tagged union rather than two parallel fields. [key] is
+/// the `travel_mode` wire value ([GearScopeKind.mode]) or the
+/// `station_activity.activity_type` key ([GearScopeKind.stationActivity]);
+/// it is `null` only for [GearScopeKind.trip].
+enum GearScopeKind { trip, mode, stationActivity }
+
+class GearScope {
+  /// Gear every Character packs regardless of what they are doing that day.
+  const GearScope.trip()
+      : kind = GearScopeKind.trip,
+        key = null;
+
+  /// Gear a given travel mode requires ([modeKey] is a `kTravelModes` value).
+  const GearScope.mode(String this.key) : kind = GearScopeKind.mode;
+
+  /// Gear a given station activity requires ([activityType] is a
+  /// `kStationActivityTypes` key, or a plugin-declared one — FR144).
+  const GearScope.stationActivity(String this.key)
+      : kind = GearScopeKind.stationActivity;
+
+  const GearScope._(this.kind, this.key);
+
+  final GearScopeKind kind;
+  final String? key;
+
+  factory GearScope.fromJson(Map<String, dynamic> json) {
+    final kind = GearScopeKind.values.firstWhere(
+      (k) => k.name == json['kind'],
+      orElse: () => GearScopeKind.trip,
+    );
+    return GearScope._(kind, kind == GearScopeKind.trip ? null : json['key'] as String?);
+  }
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind.name,
+        if (key != null) 'key': key,
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      other is GearScope && other.kind == kind && other.key == key;
+
+  @override
+  int get hashCode => Object.hash(kind, key);
+}
+
+/// FR24 / C8 — mandatory safety gear vs. recommended kit. An absent
+/// distinction is not "recommended" any more than an absent difficulty is
+/// "easy" (SPIKE-C posture) — every item carries one explicitly, defaulting
+/// to [recommended] only because that is the safer thing to under-state.
+enum GearNecessity { mandatory, recommended }
+
+/// FR24 / C8 — one line on the trip's gear checklist. Lives in the roster
+/// layer (beside the payload, like [RosterEntry]) because the load-bearing
+/// half — [shared] items and who carries them — is roster-scoped, and the
+/// checklist reads cleanest kept whole rather than split across two homes.
+/// A station role's own `activity.required_gear` (O4, in the payload) is a
+/// per-place jotting; this is the trip-level list an Author builds by mode
+/// and by activity.
+///
+/// [shared] marks the item **Shared Group Gear** — one physical thing the
+/// group splits (a tent, a stove, the sat phone), carried by the Characters
+/// in [assigneeIds]. A non-shared item is a personal-list line every
+/// Character packs their own copy of; [assigneeIds] is then empty and
+/// ignored.
+class GearItem {
+  const GearItem({
     required this.id,
     required this.label,
+    this.scope = const GearScope.trip(),
+    this.necessity = GearNecessity.recommended,
+    this.shared = false,
     this.assigneeIds = const {},
   });
 
   final String id;
   final String label;
+  final GearScope scope;
+  final GearNecessity necessity;
+  final bool shared;
   final Set<String> assigneeIds;
 
-  GearAssignment withAssignees(Set<String> ids) =>
-      GearAssignment(id: id, label: label, assigneeIds: ids);
+  bool get isMandatory => necessity == GearNecessity.mandatory;
 
-  factory GearAssignment.fromJson(Map<String, dynamic> json) => GearAssignment(
-        id: json['id'] as String,
-        label: json['label'] as String,
-        assigneeIds: {for (final v in (json['assignee_ids'] as List? ?? const [])) v as String},
+  GearItem copyWith({
+    String? label,
+    GearScope? scope,
+    GearNecessity? necessity,
+    bool? shared,
+    Set<String>? assigneeIds,
+  }) =>
+      GearItem(
+        id: id,
+        label: label ?? this.label,
+        scope: scope ?? this.scope,
+        necessity: necessity ?? this.necessity,
+        shared: shared ?? this.shared,
+        assigneeIds: assigneeIds ?? this.assigneeIds,
       );
+
+  GearItem withAssignees(Set<String> ids) => copyWith(assigneeIds: ids);
+
+  factory GearItem.fromJson(Map<String, dynamic> json) {
+    final assignees = {
+      for (final v in (json['assignee_ids'] as List? ?? const [])) v as String,
+    };
+    return GearItem(
+      id: json['id'] as String,
+      label: json['label'] as String,
+      scope: json['scope'] == null
+          ? const GearScope.trip()
+          : GearScope.fromJson(Map<String, dynamic>.from(json['scope'] as Map)),
+      necessity: GearNecessity.values.firstWhere(
+        (n) => n.name == json['necessity'],
+        orElse: () => GearNecessity.recommended,
+      ),
+      // Back-compat: a pre-C8 line had no `shared` flag and was, by
+      // definition, a shared-group-gear assignment.
+      shared: json['shared'] as bool? ?? assignees.isNotEmpty,
+      assigneeIds: assignees,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'label': label,
+        if (scope.kind != GearScopeKind.trip) 'scope': scope.toJson(),
+        'necessity': necessity.name,
+        if (shared) 'shared': true,
         if (assigneeIds.isNotEmpty) 'assignee_ids': assigneeIds.toList()..sort(),
       };
 }
@@ -261,9 +371,9 @@ class AuthorEnteredValue {
       };
 }
 
-/// The whole roster layer for one trip: membership, group assignments, shared
-/// gear, meal responsibilities, and Author notes. Everything Clone reasons
-/// about that is *not* the canonical payload.
+/// The whole roster layer for one trip: membership, group assignments, the
+/// gear checklist, meal responsibilities, and Author notes. Everything Clone
+/// reasons about that is *not* the canonical payload.
 class TripRoster {
   const TripRoster({
     this.entries = const [],
@@ -274,7 +384,10 @@ class TripRoster {
   });
 
   final List<RosterEntry> entries;
-  final List<GearAssignment> gear;
+
+  /// FR24 / C8 — the trip's gear checklist: personal-list lines and Shared
+  /// Group Gear, each scoped to the trip, a mode, or a station activity.
+  final List<GearItem> gear;
   final List<MealResponsibility> meals;
   final List<AuthorNote> authorNotes;
 
@@ -295,7 +408,7 @@ class TripRoster {
 
   TripRoster copyWith({
     List<RosterEntry>? entries,
-    List<GearAssignment>? gear,
+    List<GearItem>? gear,
     List<MealResponsibility>? meals,
     List<AuthorNote>? authorNotes,
     List<AuthorEnteredValue>? authorEnteredValues,
@@ -314,18 +427,26 @@ class TripRoster {
   /// drops people, everything assigned to them drops with them ... rather
   /// than being left as dangling references."
   ///
-  /// Keeps only entries whose `characterId` is in [keepIds]; intersects every
-  /// gear/meal assignee set with [keepIds] and removes any line that is left
-  /// with nobody on it (an unassigned "shared gear" line is not an
-  /// assignment); keeps an [AuthorNote] iff its subject is kept (notes follow
-  /// the person). Day/passage group overrides are keyed to the itinerary, not
-  /// to people, so they are untouched here.
+  /// Keeps only entries whose `characterId` is in [keepIds]; keeps an
+  /// [AuthorNote] iff its subject is kept (notes follow the person).
+  /// Day/passage group overrides are keyed to the itinerary, not to people,
+  /// so they are untouched here.
+  ///
+  /// Gear (C8): a **personal-list** line is keyed to nobody and always kept;
+  /// a **Shared Group Gear** line has its assignees intersected with
+  /// [keepIds], and is dropped only when it *had* assignees and every one of
+  /// them is now gone (FR74b — nothing assigned to an absent person left
+  /// dangling). A shared line nobody was on yet survives — there is nothing
+  /// to dangle. Meals stay a pure assignment: a cookless line drops.
   TripRoster retainingPeople(Set<String> keepIds) {
-    final keptGear = [
-      for (final g in gear)
-        if (g.assigneeIds.any(keepIds.contains))
-          g.withAssignees(g.assigneeIds.intersection(keepIds)),
-    ];
+    final keptGear = <GearItem>[];
+    for (final g in gear) {
+      if (!g.shared) {
+        keptGear.add(g);
+      } else if (g.assigneeIds.isEmpty || g.assigneeIds.any(keepIds.contains)) {
+        keptGear.add(g.withAssignees(g.assigneeIds.intersection(keepIds)));
+      }
+    }
     final keptMeals = [
       for (final m in meals)
         if (m.cookIds.any(keepIds.contains))
@@ -367,7 +488,7 @@ class TripRoster {
         ],
         gear: [
           for (final v in (json['gear'] as List? ?? const []))
-            GearAssignment.fromJson(Map<String, dynamic>.from(v as Map)),
+            GearItem.fromJson(Map<String, dynamic>.from(v as Map)),
         ],
         meals: [
           for (final v in (json['meals'] as List? ?? const []))

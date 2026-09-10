@@ -25,6 +25,7 @@ import '../../../state/planner_ui_state.dart';
 import '../../../state/settings_provider.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/day_removal_prompt.dart';
+import '../../widgets/gear_section.dart';
 import '../../widgets/plot_date_range_picker.dart';
 
 class LogisticsTab extends ConsumerWidget {
@@ -57,6 +58,13 @@ class LogisticsTab extends ConsumerWidget {
               _TripDurationCard(trip: trip),
               const SizedBox(height: PlotSpacing.s3),
               for (final day in trip.days) _DayCard(day: day, onOpenSegment: onOpenSegment),
+              const SizedBox(height: PlotSpacing.s4),
+              const Divider(height: 1),
+              const SizedBox(height: PlotSpacing.s4),
+              // FR24 / C8 — gear checklist by mode and station activity, with
+              // Shared Group Gear assigned to the roster. Reads the roster
+              // layer, so it lives here rather than on the payload-only tab.
+              GearSection(trip: trip),
             ],
           ),
         ),

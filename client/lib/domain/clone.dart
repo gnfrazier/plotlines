@@ -14,8 +14,9 @@
 //   * `Trip` — the canonical payload (`trip.dart`). A whole-trip / authored
 //     clone copies it in full via `toJson()`/`fromJson`, swapping only id,
 //     title, and timestamps.
-//   * `TripRoster` — membership, group assignments, shared gear, meal
-//     responsibilities, Author notes, and Author-entered profile values
+//   * `TripRoster` — membership, group assignments, the gear checklist
+//     (incl. Shared Group Gear), meal responsibilities, Author notes, and
+//     Author-entered profile values
 //     (`roster.dart`). The last two are authored data the Author *holds*
 //     about a person, not consent — a grant is still never carried.
 //   * `declaredModes` — carried with the authored trip; re-declared at trip
@@ -119,7 +120,7 @@ CloneManifest describeClone(CloneScope scope, {CloneParts parts = const ClonePar
     if (carriesRoster) ...[
       'Roster membership',
       'Group and sub-group assignments',
-      'Shared gear and meal responsibilities',
+      'The gear checklist, shared-gear assignments, and meal responsibilities',
       'Author notes (they follow the person, not the trip)',
       // D4b (FR78a) — the Author's own record of a field they already held.
       // Not a grant: consent is still never carried (see notCarried).
@@ -222,7 +223,11 @@ CloneOutcome cloneTrip({
   } else {
     // "Where a scope drops people, everything assigned to them drops with
     // them" — dropping the whole roster is the empty case of that rule.
-    clonedRoster = sourceRoster.retainingPeople(const {});
+    // `TripRoster.empty`, not `retainingPeople({})`: with C8 the gear
+    // checklist holds personal-list lines keyed to nobody, which
+    // `retainingPeople` deliberately keeps — but a clone with no roster has
+    // no gear list either (it lives in the roster layer).
+    clonedRoster = TripRoster.empty;
   }
 
   return CloneOutcome(

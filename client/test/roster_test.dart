@@ -21,8 +21,20 @@ TripRoster _roster() => const TripRoster(
         RosterEntry(characterId: 'cy', name: 'Cy'),
       ],
       gear: [
-        GearAssignment(id: 'g1', label: 'Tent', assigneeIds: {'ann', 'bo'}),
-        GearAssignment(id: 'g2', label: 'Stove', assigneeIds: {'cy'}),
+        GearItem(id: 'g1', label: 'Tent', shared: true, assigneeIds: {'ann', 'bo'}),
+        GearItem(id: 'g2', label: 'Stove', shared: true, assigneeIds: {'cy'}),
+        GearItem(
+          id: 'g3',
+          label: 'Headlamp',
+          necessity: GearNecessity.mandatory,
+          scope: GearScope.mode('hiking'),
+        ),
+        GearItem(
+          id: 'g4',
+          label: 'Helmet',
+          necessity: GearNecessity.mandatory,
+          scope: GearScope.stationActivity('climbing'),
+        ),
       ],
       meals: [
         MealResponsibility(id: 'm1', label: 'Night 1 dinner', dayId: 'd1', cookIds: {'bo'}),
@@ -59,8 +71,18 @@ void main() {
     expect(ann.subgroupLabel, 'Scouts');
     expect(ann.dayGroupOverrides, {'d1': 'Slow'});
     expect(ann.passageGroupOverrides, {'p1': 'Fast'});
-    expect(after.gear.map((g) => g.id), ['g1', 'g2']);
+    expect(after.gear.map((g) => g.id), ['g1', 'g2', 'g3', 'g4']);
+    expect(after.gear.first.shared, isTrue);
     expect(after.gear.first.assigneeIds, {'ann', 'bo'});
+    // C8 — necessity and scope round-trip too.
+    final headlamp = after.gear.firstWhere((g) => g.id == 'g3');
+    expect(headlamp.shared, isFalse);
+    expect(headlamp.necessity, GearNecessity.mandatory);
+    expect(headlamp.scope.kind, GearScopeKind.mode);
+    expect(headlamp.scope.key, 'hiking');
+    final helmet = after.gear.firstWhere((g) => g.id == 'g4');
+    expect(helmet.scope.kind, GearScopeKind.stationActivity);
+    expect(helmet.scope.key, 'climbing');
     expect(after.meals.firstWhere((m) => m.id == 'm1').dayId, 'd1');
     expect(after.authorNotes.map((n) => n.subjectCharacterId), ['ann', 'cy']);
     expect(after.authorNotes.first.updatedAt, '2024-06-01T00:00:00.000Z');
@@ -95,15 +117,23 @@ void main() {
       expect(tent.assigneeIds, {'ann', 'bo'});
     });
 
-    test('removes a gear/meal line left with nobody on it', () {
+    test('drops a shared-gear line orphaned of all its people, keeps personal-list lines (C8)', () {
       final kept = _roster().retainingPeople({'ann', 'bo'});
-      expect(kept.gear.map((g) => g.id), ['g1']); // g2 was cy-only
+      // g2 was a shared line assigned only to cy — nothing to dangle, so it
+      // drops. g3/g4 are personal-list lines keyed to nobody — always kept.
+      expect(kept.gear.map((g) => g.id), ['g1', 'g3', 'g4']);
       expect(kept.meals.map((m) => m.id), ['m1', 'm2']); // m2 keeps ann
       expect(kept.meals.firstWhere((m) => m.id == 'm2').cookIds, {'ann'});
     });
 
-    test('retainingPeople({}) empties the whole roster', () {
-      expect(_roster().retainingPeople(const {}).isEmpty, isTrue);
+    test('retainingPeople({}) drops every people-keyed line, keeps the personal-list gear', () {
+      final kept = _roster().retainingPeople(const {});
+      expect(kept.entries, isEmpty);
+      expect(kept.meals, isEmpty);
+      expect(kept.authorNotes, isEmpty);
+      expect(kept.authorEnteredValues, isEmpty);
+      // The mode/activity checklist is not keyed to a person — it survives.
+      expect(kept.gear.map((g) => g.id), ['g3', 'g4']);
     });
 
     test('withoutPositionOverrides keeps author-entered values untouched', () {
@@ -125,5 +155,50 @@ void main() {
     expect(ann.subgroupLabel, 'Scouts');
     expect(ann.dayGroupOverrides, isEmpty);
     expect(ann.passageGroupOverrides, isEmpty);
+  });
+
+  group('GearItem (C8 / FR24)', () {
+    test('a trip-scoped recommended personal item omits its defaults from JSON', () {
+      const item = GearItem(id: 'x', label: 'Sunscreen');
+      expect(item.toJson(), {'id': 'x', 'label': 'Sunscreen', 'necessity': 'recommended'});
+      final back = GearItem.fromJson(item.toJson());
+      expect(back.scope, const GearScope.trip());
+      expect(back.necessity, GearNecessity.recommended);
+      expect(back.shared, isFalse);
+    });
+
+    test('a scoped, shared, mandatory item round-trips every field', () {
+      final item = GearItem(
+        id: 'y',
+        label: 'Rope',
+        scope: GearScope.stationActivity('climbing'),
+        necessity: GearNecessity.mandatory,
+        shared: true,
+        assigneeIds: const {'ann'},
+      );
+      final back = GearItem.fromJson(item.toJson());
+      expect(back.scope, GearScope.stationActivity('climbing'));
+      expect(back.isMandatory, isTrue);
+      expect(back.shared, isTrue);
+      expect(back.assigneeIds, {'ann'});
+    });
+
+    test('a pre-C8 assignment shape (no `shared`, has assignees) reads as shared', () {
+      final back = GearItem.fromJson({
+        'id': 'g1',
+        'label': 'Tent',
+        'assignee_ids': ['ann', 'bo'],
+      });
+      expect(back.shared, isTrue);
+      expect(back.assigneeIds, {'ann', 'bo'});
+      expect(back.scope, const GearScope.trip());
+      expect(back.necessity, GearNecessity.recommended);
+    });
+
+    test('turning shared off via copyWith is the caller\'s to pair with clearing assignees', () {
+      final shared = GearItem(id: 'z', label: 'Stove', shared: true, assigneeIds: const {'ann'});
+      // copyWith is literal — it does not infer. The provider does the pairing.
+      expect(shared.copyWith(shared: false).assigneeIds, {'ann'});
+    });
   });
 }
