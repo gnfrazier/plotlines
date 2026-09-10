@@ -14,9 +14,17 @@ Read `readme.md` in this skill, then explore the other files.
 - **HTML specimens** live in `cards/` and `Plotlines UI Gallery.dc.html`.
 - **Flow canvases** are the eleven `Flow N - *.dc.html` files — the designed shape of each
   feature area, one canvas per area.
-- **`screens/`** holds captured screenshots of the app as it actually is today (several
-  filenames name the defect they capture). Use them to see what a surface looks like now
-  before redesigning it; they are evidence, not a spec. Mirrored at `client/design/screens/`.
+- **`screens/`** holds captured screenshots of the app as it actually is today — since issue
+  **#271** this is a 35-screen Author-desktop walkthrough, and several filenames name the
+  defect they capture (`layers-broken.png`, `too-many-scrolly-sidebars.png`,
+  `rest-day-need-a-search-by-address-not-usable.png`). Use them to see what a surface looks
+  like now before redesigning it; they are evidence, not a spec, and the ones naming a defect
+  usually have an issue behind them — search before assuming a finding is unfiled.
+- **`route-workspace-ia/`** is a worked re-design canvas rather than a flow canvas: the Route
+  tab's planning rail (issue **#328**, out of #271's Finding 9), diagnosing 50+ controls at one
+  depth across three competing scroll regions and proposing a **Frame / Tune / Refine** task
+  spine. Read its `readme.md` before touching the Route rail. Later re-designs of a single
+  surface belong in a sibling directory shaped the same way, not in the numbered flow set.
 - **`uploads/` is scratch input, not source of truth** — it contains stale hashed copies of
   product docs, including a **v1 `Plotlines_PRD.md`** whose model is reversed relative to v2.
   Never read a doc from here; read `docs/*_v2.md` in the repo.
