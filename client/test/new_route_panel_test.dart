@@ -16,15 +16,72 @@ import 'package:go_router/go_router.dart';
 import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/data/routing_client.dart';
 import 'package:plotlines_client/data/sidecar_manager.dart';
+import 'package:plotlines_client/domain/domain.dart';
+import 'package:plotlines_client/domain/trip_bbox.dart';
+import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart';
 import 'package:plotlines_client/presentation/screens/new_route_screen.dart';
+import 'package:plotlines_client/presentation/widgets/plot_toggle_chip.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/settings_provider.dart';
+import 'package:plotlines_client/state/trip_bbox_provider.dart';
 
 class _FakeSidecarManager extends SidecarManager {
   @override
   Future<void> start() async {}
   @override
   SidecarStatus get status => const SidecarStatus(SidecarState.ready);
+}
+
+/// #338 — a sidecar whose region graph reports ready, so the New Route
+/// Generate button is enabled and the discipline selection can be driven
+/// through to the `generateSegment` call.
+class _RoutingReadySidecarManager extends _FakeSidecarManager {
+  @override
+  Capabilities? get capabilities => const Capabilities(
+        tiles: CapabilityStatus(ready: true),
+        layers: CapabilityStatus(ready: true),
+        routing: RoutingCapability({'region-1': CapabilityStatus(ready: true)}),
+        elevation: CapabilityStatus(ready: false, progress: 0),
+      );
+}
+
+/// #338 — records the `discipline` argument every `generateSegment` was
+/// handed, and returns a segment the way `_segmentFromSolveResponse` would.
+class _RecordingRoutingClient extends RoutingClient {
+  _RecordingRoutingClient() : super('http://fake');
+
+  final List<String?> disciplines = [];
+
+  @override
+  Future<String> ensureRegion(List<double> bboxWsen,
+          {String networkType = 'bike', bool retry = false}) async =>
+      'region-1';
+
+  @override
+  Future<Segment> generateSegment({
+    required String region,
+    required Coord start,
+    Coord? end,
+    List<Coord> via = const [],
+    String mode = 'cycling',
+    String? discipline,
+    String shape = 'loop',
+    String theme = 'balanced',
+    Map<String, double>? weights,
+    double? targetM,
+  }) async {
+    disciplines.add(discipline);
+    return Segment(
+      id: 'solved-1',
+      mode: mode,
+      discipline: discipline,
+      shape: shape,
+      start: start,
+      end: end,
+      via: via,
+      metrics: RouteMetrics(distanceM: 12000),
+    );
+  }
 }
 
 /// The map layer leaves a ticker a single `pump()` does not settle — the
@@ -196,5 +253,95 @@ void main() {
     expect(find.textContaining('draw the trip area before routing is available'),
         findsOneWidget);
     expect(find.textContaining('place a start point'), findsNothing);
+  });
+
+  // ---- #338: the per-passage discipline picker, New Route half -------------
+
+  testWidgets('the discipline row is revealed under the chosen category, '
+      'with an explicit category-default choice', (tester) async {
+    await _pumpPanel(tester);
+
+    // Pick a category with disciplines (Ride == cycling).
+    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Ride'));
+    await tester.tap(find.widgetWithText(PlotToggleChip, 'Ride'));
+    await _settle(tester);
+
+    expect(find.text('DISCIPLINE'), findsOneWidget);
+    expect(find.widgetWithText(PlotToggleChip, 'Category default'), findsOneWidget);
+    for (final label in ['Road', 'Gravel', 'Mountain']) {
+      expect(find.widgetWithText(PlotToggleChip, label), findsOneWidget, reason: label);
+    }
+    // The control never grades difficulty (SPIKE-C) — no such claim on screen.
+    expect(find.textContaining('difficulty'), findsNothing);
+  });
+
+  testWidgets('selecting a discipline moves the selection off category default, '
+      'and switching category clears it', (tester) async {
+    await _pumpPanel(tester);
+
+    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Ride'));
+    await tester.tap(find.widgetWithText(PlotToggleChip, 'Ride'));
+    await _settle(tester);
+
+    PlotToggleChip chip(String label) =>
+        tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, label));
+
+    expect(chip('Category default').selected, isTrue);
+
+    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Gravel'));
+    await tester.tap(find.widgetWithText(PlotToggleChip, 'Gravel'));
+    await _settle(tester);
+
+    expect(chip('Gravel').selected, isTrue);
+    expect(chip('Category default').selected, isFalse);
+    // `gravel` is a tuned profile — the row says so from the tier, not placement.
+    expect(find.textContaining('tuned and measured against real routes'), findsOneWidget);
+
+    // Cross to a category that does not carry `gravel`.
+    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Hike'));
+    await tester.tap(find.widgetWithText(PlotToggleChip, 'Hike'));
+    await _settle(tester);
+
+    expect(find.widgetWithText(PlotToggleChip, 'Gravel'), findsNothing);
+    expect(chip('Category default').selected, isTrue);
+  });
+
+  testWidgets('the chosen discipline is fed into generateSegment', (tester) async {
+    final client = _RecordingRoutingClient();
+    await _pumpPanel(tester, extraOverrides: [
+      routingClientProvider.overrideWithValue(client),
+      sidecarManagerProvider.overrideWith((ref) => _RoutingReadySidecarManager()),
+      // A settled bbox with a zero settle window, so the region resolves to
+      // `region-1` within the test's pump loop rather than after 10 s.
+      tripBboxProvider.overrideWith((ref) => TripBboxNotifier()
+        ..set(const TripBbox(
+            minLat: 40.0, minLon: -105.3, maxLat: 40.1, maxLon: -105.2))),
+      tripRegionKeyProvider.overrideWith(
+          (ref) => TripRegionKeyNotifier(ref, settleWindow: Duration.zero)),
+    ]);
+    await _settle(tester);
+
+    // A point-to-point route needs only a start and an end — no target
+    // distance — so two map taps satisfy `_canGenerate`.
+    final map = tester.widget<TapToPickMap>(find.byType(TapToPickMap));
+    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'point to point'));
+    await tester.tap(find.widgetWithText(PlotToggleChip, 'point to point'));
+    await _settle(tester);
+    map.onTap!(const [-105.27, 40.02]);
+    map.onTap!(const [-105.20, 40.05]);
+    await _settle(tester);
+
+    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Ride'));
+    await tester.tap(find.widgetWithText(PlotToggleChip, 'Ride'));
+    await _settle(tester);
+    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Gravel'));
+    await tester.tap(find.widgetWithText(PlotToggleChip, 'Gravel'));
+    await _settle(tester);
+
+    await tester.ensureVisible(find.text('Generate route'));
+    await tester.tap(find.text('Generate route'));
+    await _settle(tester);
+
+    expect(client.disciplines, ['gravel']);
   });
 }

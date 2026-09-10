@@ -82,6 +82,10 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
       );
 
   late String _mode = _defaultMode;
+  // FR10/FR130 [#338] — the discipline under `_mode`, or null to solve on the
+  // category's own profile. A discipline is category-specific, so switching
+  // `_mode` clears it (see the MODE chip's onTap).
+  String? _discipline;
   // FR7/A7 — the AC-stated default shape (`planner_ui_state.dart`'s single
   // source of truth for it): loop needs only a start, no destination,
   // unlike point_to_point.
@@ -142,6 +146,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   /// back out of rather than implying an action that would do nothing.
   bool get _controlsAtDefault =>
       _mode == _defaultMode &&
+      _discipline == null &&
       _shape == defaultSegmentShape &&
       _theme == defaultRouteTheme &&
       _start == null &&
@@ -160,6 +165,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   void _resetControls() {
     setState(() {
       _mode = _defaultMode;
+      _discipline = null;
       _shape = defaultSegmentShape;
       _theme = defaultRouteTheme;
       _start = null;
@@ -408,12 +414,11 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     // *this first route* is solved for, not the trip's.
                     _SectionLabel('MODE FOR THIS ROUTE'),
                     Text(
-                      // Issue #315 — this first route picks a category; the
-                      // per-passage discipline picker is a fast-follow, so
-                      // for now the route solves on the category's own
-                      // profile. Later passages pick their own.
-                      'Which category this first route is solved for — on the category\'s '
-                      'own weight profile for now. Later passages pick their own.',
+                      // Issue #315 / #338 — this first route picks a category,
+                      // then optionally a discipline under it. Every passage
+                      // added later picks its own.
+                      'Which category this first route is solved for. Pick a discipline '
+                      'below to narrow it, or leave it on the category default.',
                       style: PlotTypography.small(c.textSecondary),
                     ),
                     const SizedBox(height: PlotSpacing.s2),
@@ -431,10 +436,61 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                             label: travelModeLabel(m),
                             icon: travelModeIcon(m),
                             selected: _mode == m,
-                            onTap: () => setState(() => _mode = m),
+                            // #338 — a discipline refines one category, so
+                            // changing the category drops it.
+                            onTap: () => setState(() {
+                              _mode = m;
+                              _discipline = null;
+                            }),
                           ),
                       ],
                     ),
+                    // #338 — the discipline row, revealed under the chosen
+                    // category. Single-select and optional: "category default"
+                    // solves on the category's own profile. Tuned-vs-generic
+                    // is read off `Discipline.tier`, never row placement, and
+                    // the control makes no difficulty-grading claim (SPIKE-C).
+                    if (disciplinesForCategory(_mode).isNotEmpty) ...[
+                      const SizedBox(height: PlotSpacing.s3),
+                      _SectionLabel('DISCIPLINE'),
+                      Text(
+                        'Optional — narrows the route to a discipline\'s own dials. '
+                        'Leave it on the category default to solve on '
+                        '${travelCategoryLabel(_mode)}\'s base profile.',
+                        style: PlotTypography.small(c.textSecondary),
+                      ),
+                      const SizedBox(height: PlotSpacing.s2),
+                      Wrap(
+                        spacing: PlotSpacing.s2,
+                        runSpacing: PlotSpacing.s2,
+                        children: [
+                          PlotToggleChip(
+                            label: 'Category default',
+                            selected: _discipline == null,
+                            onTap: () => setState(() => _discipline = null),
+                          ),
+                          for (final k in disciplinesForCategory(_mode))
+                            PlotToggleChip(
+                              label: disciplineLabel(k),
+                              icon: disciplineIcon(k),
+                              selected: _discipline == k,
+                              onTap: () => setState(() => _discipline = k),
+                            ),
+                        ],
+                      ),
+                      if (_discipline != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: PlotSpacing.s2),
+                          child: Text(
+                            (kDisciplines[_discipline]?.isFirstClass ?? false)
+                                ? '${disciplineLabel(_discipline!)} solves on dials that were '
+                                    'tuned and measured against real routes.'
+                                : '${disciplineLabel(_discipline!)} solves on its own dials, but '
+                                    'they are a first estimate — not tuned against real routes yet.',
+                            style: PlotTypography.small(c.textMuted),
+                          ),
+                        ),
+                    ],
                     if (_mode == 'paddling')
                       Padding(
                         padding: const EdgeInsets.only(top: PlotSpacing.s2),
@@ -743,6 +799,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
             end: _shape == 'loop' ? null : _end,
             via: _via,
             mode: _mode,
+            discipline: _discipline,
             shape: _shape,
             theme: _theme,
             targetM: _targetM,
