@@ -22,6 +22,7 @@ import '../../state/trip_bbox_provider.dart';
 import 'conflict_dialog.dart';
 import 'error_states.dart';
 import 'passage_removal_prompt.dart';
+import 'travel_mode_icons.dart';
 
 const _surfaceClasses = ['paved', 'gravel', 'singletrack'];
 // `distance_m` is deliberately absent: FR8/A8 bands it through
@@ -317,6 +318,51 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                                 ),
                             ],
                           ),
+                          // #338 — the discipline under the passage's mode
+                          // category: the second axis, revealed once the
+                          // category has disciplines. Single-select and
+                          // optional (CATEGORY DEFAULT = the category's own
+                          // profile); changing it marks the route stale, same
+                          // as MODE. Tuned-vs-generic is read off
+                          // `Discipline.tier`, not chip order, and no
+                          // difficulty-grading claim is made (SPIKE-C).
+                          if (disciplinesForCategory(segment.mode).isNotEmpty) ...[
+                            const SizedBox(height: PlotSpacing.s3),
+                            Text('DISCIPLINE',
+                                style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: PlotSpacing.s2),
+                            Wrap(
+                              spacing: PlotSpacing.s2,
+                              runSpacing: PlotSpacing.s2,
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('CATEGORY DEFAULT'),
+                                  selected: segment.discipline == null,
+                                  onSelected: (_) => ref
+                                      .read(currentTripProvider.notifier)
+                                      .updateSegmentDiscipline(widget.dayId, segment.id, null),
+                                ),
+                                for (final k in disciplinesForCategory(segment.mode))
+                                  ChoiceChip(
+                                    avatar: Icon(disciplineIcon(k), size: 16, color: c.textSecondary),
+                                    label: Text(disciplineLabel(k).toUpperCase()),
+                                    selected: segment.discipline == k,
+                                    onSelected: (_) => ref
+                                        .read(currentTripProvider.notifier)
+                                        .updateSegmentDiscipline(widget.dayId, segment.id, k),
+                                  ),
+                              ],
+                            ),
+                            if (segment.discipline != null) ...[
+                              const SizedBox(height: PlotSpacing.s2),
+                              Text(
+                                (kDisciplines[segment.discipline]?.isFirstClass ?? false)
+                                    ? 'Tuned dials, measured against real routes.'
+                                    : 'Its own dials — a first estimate, not tuned against real routes yet.',
+                                style: PlotTypography.small(c.textMuted),
+                              ),
+                            ],
+                          ],
                           const SizedBox(height: PlotSpacing.s3),
                           Text('SHAPE',
                               style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
