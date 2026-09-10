@@ -8,7 +8,22 @@ code, and station activities (FR109 / O4) are excluded from it by invariant.
 category with its own `WeightProfile`. `legacy.py` maps the three `travel_mode`
 values #315 removed (`mountain_biking`, `packrafting`, `riverboarding`) onto
 their new `(category, discipline)` spelling.
+
+`station_activities.py` is the third extension path (FR109 / O4): an activity
+done *at* a place with a duration, consumed by `content/` and day timing and
+never by the scorer. Adding one is a config entry there, nothing else.
 """
+
+from plotlines_core.multimodal.station_activities import (  # noqa: F401
+    ACTIVITY_TYPES,
+    STATION_ACTIVITY_KEYS,
+    ActivityType,
+    activity_label,
+    activity_type,
+    all_activity_type_keys,
+    default_duration_s_for,
+    is_activity_type,
+)
 
 from plotlines_core.multimodal.disciplines import (  # noqa: F401
     DISCIPLINES,

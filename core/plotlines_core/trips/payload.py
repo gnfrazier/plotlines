@@ -66,7 +66,12 @@ from plotlines_core.content.anchor import Anchor
 #: `riverboarding` (now disciplines). A payload written before this bump is
 #: read through `multimodal.legacy.migrate_payload_modes`, which rewrites the
 #: removed values before validation — so old data still loads.
-SCHEMA_VERSION = "1.7.0"
+#: Bumped to 1.8.0 by FR109/FR16b/FR24 (Story O4): a `role` gains an optional
+#: `activity` (the `$defs/station_activity` object — type, duration, gear,
+#: Author-declared difficulty), valid only on a `station`-kind role. Additive
+#: in the same sense as O2/O3/O6: an absent `activity` still parses, and a
+#: station role without one behaves exactly as it did before O4.
+SCHEMA_VERSION = "1.8.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7

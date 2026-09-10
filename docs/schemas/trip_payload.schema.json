@@ -414,8 +414,21 @@
       "enum": ["always_visible", "on_arrival"]
     },
 
+    "station_activity": {
+      "description": "FR109, FR16b, FR24 / O4 — the activity a `station`-kind role models: something done *at* a place with a duration (a crag, hot spring, sauna, summit scramble, canyon descent), reached by a traversal mode and then performed — never a way of travelling between two places (that is a `travel_mode`). Valid only on a role whose `kind` is `station`; the role `$defs` enforces that with an `allOf`/`if`. `activity_type` is one of the keys in `core/plotlines_core/multimodal/station_activities.py`'s registry, which supplies the label and default duration for the set the app ships knowing about — but it is a plain string, not an enum, on purpose: adding an activity type is a config entry there (O4's AC), and a plugin may name one this build has never heard of (FR144). `duration_s` feeds day timing — `trips.dashboard.station_hold_s` sums it across a day's station roles into moving-vs-elapsed time, ETAs, and scheduled-event conflict detection (FR16b, C12): a three-hour crag is three hours of the day. `required_gear` feeds the mode/activity gear checklist (FR24, C8) and, like a declared `difficulty`, is always-visible logistics — neither carries a reveal field and neither is routed through the reveal gate (gear must be packable before departure). `difficulty` is the Author's own free-text declaration (FR14/B8 posture — published grading is too domain-specific and, per SPIKE-C, too thin to impose a scale), shown as data and never composed into a sentence (FR145); an absent difficulty is absent, never rendered as 'easy'.",
+      "type": "object",
+      "required": ["activity_type"],
+      "additionalProperties": false,
+      "properties": {
+        "activity_type": { "type": "string", "minLength": 1 },
+        "duration_s": { "type": "number", "minimum": 0, "description": "FR16b — expected time at the station, in seconds. Stored SI; a display like \"3 h\" is a render-time transform (ARCH D49)." },
+        "required_gear": { "type": "array", "items": { "type": "string" } },
+        "difficulty": { "type": "string" }
+      }
+    },
+
     "role": {
-      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). `hazard` (FR115/O5) flags this role a hazard or technical-crux warning, orthogonal to `kind`; see the `not` clause below for the hard constraint it carries. `arc` (FR38/O6) is this role's stage in the day's story, or absent for a role with no arc beat. Station activity (FR109/O4) is a later story's addition to this object and is not present yet.",
+      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). `hazard` (FR115/O5) flags this role a hazard or technical-crux warning, orthogonal to `kind`; see the `not` clause below for the hard constraint it carries. `arc` (FR38/O6) is this role's stage in the day's story, or absent for a role with no arc beat. `activity` (FR109/O4) is the station activity — type, duration, gear, Author-declared difficulty — and is valid only on a `station`-kind role (the `allOf` below).",
       "type": "object",
       "required": ["id", "kind"],
       "additionalProperties": false,
@@ -429,13 +442,21 @@
         "note": { "$ref": "#/$defs/markdown" },
         "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" } },
         "hazard": { "type": "boolean", "description": "FR115 / O5 — hard constraint: `true` marks this role a hazard or technical-crux warning, whose effective reveal is always-visible regardless of `reveal` and cannot be set otherwise by any Author. Defaults to `false` when absent." },
-        "arc": { "$ref": "#/$defs/arc_stage", "description": "FR38 / O6 — this role's stage in the day's story. Absent means this role carries no arc beat." }
+        "arc": { "$ref": "#/$defs/arc_stage", "description": "FR38 / O6 — this role's stage in the day's story. Absent means this role carries no arc beat." },
+        "activity": { "$ref": "#/$defs/station_activity", "description": "FR109, FR16b, FR24 / O4 — present only on a `station`-kind role. Absent means this station carries no activity detail yet (O1's AC — set at promotion or later)." }
       },
       "not": {
         "description": "FR115 / O5 — enforced at the wire boundary too, not just by the Dart/Python constructors: a hazard role can never be stored as on_arrival.",
         "properties": { "hazard": { "const": true }, "reveal": { "const": "on_arrival" } },
         "required": ["hazard", "reveal"]
-      }
+      },
+      "allOf": [
+        {
+          "description": "FR109 / O4 — an `activity` belongs to a station role only.",
+          "if": { "required": ["activity"] },
+          "then": { "properties": { "kind": { "const": "station" } } }
+        }
+      ]
     },
 
     "anchor_provenance": {

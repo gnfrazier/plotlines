@@ -21,18 +21,28 @@ one — per-terrain speeds, an Author pace derived from an uploaded activity fil
 an aggregated participant pace. What D1 needs, and all this provides, is:
 `moving_time_s` from distance and a per-mode pace (a caller override, else the
 system-default base speed from `multimodal.modes`, SPIKE-05), elapsed time as
-moving time plus a caller-supplied station/hold duration (FR16b / O4 — the model
-that produces those durations is not built yet, so the dashboard *accepts* them
-rather than computing them), and an ETA as a day's or the trip's start time plus
-its elapsed time.
+moving time plus a station/hold duration, and an ETA as a day's or the trip's
+start time plus its elapsed time.
+
+**Station durations are now modelled (FR16b / O4).** `station_hold_s(anchors)`
+sums the `expected_duration_s` of every station role across a set of anchors —
+a three-hour crag is three hours of the day, not an annotation on a pin. A
+caller passes `build_dashboard(day_anchors={day_id: [...]})` and the dashboard
+computes each day's hold itself; the older `day_hold_s` (a caller-supplied
+number per day) still works and still wins when both are given. Grouping
+anchors by day is the caller's job because the payload has no anchor→day
+binding yet — that is FR8a's `via_anchors`, a separate story. The consumer for
+scheduled-event conflict detection (FR28 / C12) is likewise still to come; O4
+provides the duration it will read.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 
+from plotlines_core.content.anchor import Anchor
 from plotlines_core.multimodal.modes import base_speed_kmh
 from plotlines_core.trips.compose import roll_up
 from plotlines_core.trips.payload import (
@@ -50,6 +60,26 @@ _STAMP = "%Y-%m-%dT%H:%M:%SZ"
 
 
 # --------------------------------------------------------------- time model
+
+def station_hold_s(anchors: Iterable[Anchor]) -> float:
+    """FR16b / O4 — the total time spent *at* stations across `anchors`.
+
+    Sums `role.activity.expected_duration_s` over every station role that
+    carries an activity with a duration; a station role with no activity, or
+    an activity with no duration set, contributes nothing (it is a stop of
+    unknown length, not a zero-length one). This is the `hold_s` the
+    moving-vs-elapsed model and the ETA already consume — O4's job was to give
+    core a way to derive it from the trip's own model instead of a magic
+    number handed in by the caller.
+    """
+    total = 0.0
+    for anchor in anchors:
+        for role in anchor.roles:
+            activity = role.activity
+            if activity is not None and activity.expected_duration_s is not None:
+                total += max(float(activity.expected_duration_s), 0.0)
+    return total
+
 
 def moving_time_s(
     distance_m: float, mode: str, speeds: Mapping[str, float] | None = None
@@ -240,6 +270,7 @@ def build_dashboard(
     active_segment_id: str | None = None,
     speeds: Mapping[str, float] | None = None,
     day_hold_s: Mapping[str, float] | None = None,
+    day_anchors: Mapping[str, Iterable[Anchor]] | None = None,
     day_start_at: Mapping[str, str] | None = None,
     trip_start_at: str | None = None,
 ) -> Dashboard:
@@ -250,13 +281,24 @@ def build_dashboard(
 
     `speeds` — per-mode km/h overrides (FR16's custom or aggregated pace); a
       mode not listed falls back to its system-default base speed.
-    `day_hold_s` / `trip_start_at` / `day_start_at` — station/hold durations
-      (FR16b / O4) keyed by day id, and start times for ETA. All optional:
-      with none of them the dashboard is the distance/elevation panel D1's
-      first AC line requires, and the time fields stay unset.
+    `day_anchors` — the anchors that fall on each day, keyed by day id. When
+      given, each day's station/hold duration (FR16b / O4) is computed from
+      them via `station_hold_s`, and the trip total is the sum. The caller
+      groups anchors by day because the payload carries no anchor→day binding
+      yet (FR8a's `via_anchors`).
+    `day_hold_s` — a station/hold duration per day as a bare number, keyed by
+      day id. The pre-O4 interface; still honoured, and it *wins* over
+      `day_anchors` for any day present in both (an explicit override).
+    `trip_start_at` / `day_start_at` — start times for ETA, keyed by day id.
+    All optional: with none of them the dashboard is the distance/elevation
+    panel D1's first AC line requires, and the time fields stay unset.
     """
     pace_source = PACE_CUSTOM if speeds else PACE_SYSTEM_DEFAULT
-    day_hold_s = day_hold_s or {}
+    computed_hold = {
+        day_id: station_hold_s(anchors)
+        for day_id, anchors in (day_anchors or {}).items()
+    }
+    day_hold_s = {**computed_hold, **(day_hold_s or {})}
     day_start_at = day_start_at or {}
 
     days: list[DayLine] = []

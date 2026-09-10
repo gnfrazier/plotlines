@@ -45,6 +45,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from plotlines_core.multimodal.legacy import LEGACY_MODE_ALIASES
+from plotlines_core.multimodal.station_activities import STATION_ACTIVITY_KEYS
 
 from plotlines_core.scoring.profile import WeightProfile
 
@@ -175,9 +176,12 @@ TRANSPORT_NOTE_MODES: dict[str, str] = {"transit": "Transit"}
 #: below turns that sentence into an invariant this module cannot violate.
 #: Punchlist §2.6's fail signal is exactly "climbing or canyoneering appears
 #: anywhere in a travel mode list".
-STATION_ACTIVITIES: frozenset[str] = frozenset({
-    "climbing", "canyoneering", "jumaring", "sauna", "hot_spring", "swimming",
-})
+#:
+#: The registry that carries each activity's label and default duration —
+#: O4's "a config entry, not code" — lives in `multimodal.station_activities`;
+#: this is the key set it exposes for the disjointness check below and for
+#: `is_station_activity`. Re-exported (not redefined) so there is one source.
+STATION_ACTIVITIES: frozenset[str] = STATION_ACTIVITY_KEYS
 
 
 def _assert_disjoint() -> None:

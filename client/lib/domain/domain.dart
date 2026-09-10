@@ -39,6 +39,7 @@ export 'roster.dart';
 export 'route_metrics.dart';
 export 'segment.dart';
 export 'stale_work.dart';
+export 'station_activity_type.dart';
 export 'teaching.dart';
 export 'transition.dart';
 export 'travel_mode.dart';

@@ -91,6 +91,11 @@ MAPPING: list[dict] = [
      "status": "mapped", "pointer": "/$defs/node_kind"},
     {"fr": "FR27", "story": "C11", "what": "hazard and crux warnings",
      "status": "mapped", "pointer": "/$defs/hazard"},
+    {"fr": "FR109", "story": "O4", "what": "station activity (type, duration, gear, difficulty)",
+     "status": "mapped", "pointer": "/$defs/station_activity",
+     "note": "On a `station`-kind role only (role `allOf`). Duration feeds day "
+             "timing (`trips.dashboard.station_hold_s`); `activity_type` is a "
+             "plain string, not an enum — adding a type is a core config entry."},
     {"fr": "FR15", "story": "B6", "what": "portages (auto-included in cue sheets)",
      "status": "mapped", "pointer": "/$defs/portage",
      "note": "B6 itself is P1, but F1 `[MVP]` requires portages on cue sheets, so the "
