@@ -77,6 +77,70 @@ void main() {
     });
   });
 
+  group('updateSegmentDiscipline (#338)', () {
+    Segment cyclingSeg({String? discipline}) => Segment(
+          id: 'seg-1',
+          mode: 'cycling',
+          discipline: discipline,
+          shape: 'loop',
+          solve: SolveProvenance(solvedAt: '2026-01-01T00:00:00Z'),
+        );
+
+    test('sets a discipline under the passage\'s mode and marks it stale', () {
+      final container = containerWithSegment(cyclingSeg());
+      addTearDown(container.dispose);
+
+      container
+          .read(currentTripProvider.notifier)
+          .updateSegmentDiscipline('day-1', 'seg-1', 'gravel');
+
+      final updated = container.read(currentTripProvider).days.single.segments.single;
+      expect(updated.discipline, 'gravel');
+      expect(updated.mode, 'cycling');
+      expect(updated.solve?.stale, isTrue);
+    });
+
+    test('null clears the discipline back to the category profile, marking stale', () {
+      final container = containerWithSegment(cyclingSeg(discipline: 'mountain'));
+      addTearDown(container.dispose);
+
+      container
+          .read(currentTripProvider.notifier)
+          .updateSegmentDiscipline('day-1', 'seg-1', null);
+
+      final updated = container.read(currentTripProvider).days.single.segments.single;
+      expect(updated.discipline, isNull);
+      expect(updated.solve?.stale, isTrue);
+    });
+
+    test('a discipline that does not refine the passage\'s mode is ignored', () {
+      final container = containerWithSegment(cyclingSeg());
+      addTearDown(container.dispose);
+
+      // `hike` is a hiking discipline — illegal on a cycling passage.
+      container
+          .read(currentTripProvider.notifier)
+          .updateSegmentDiscipline('day-1', 'seg-1', 'hike');
+
+      final updated = container.read(currentTripProvider).days.single.segments.single;
+      expect(updated.discipline, isNull);
+      expect(updated.solve?.stale ?? false, isFalse);
+    });
+
+    test('re-picking the discipline already set is a no-op — no needless stale', () {
+      final container = containerWithSegment(cyclingSeg(discipline: 'gravel'));
+      addTearDown(container.dispose);
+
+      container
+          .read(currentTripProvider.notifier)
+          .updateSegmentDiscipline('day-1', 'seg-1', 'gravel');
+
+      final updated = container.read(currentTripProvider).days.single.segments.single;
+      expect(updated.discipline, 'gravel');
+      expect(updated.solve?.stale ?? false, isFalse);
+    });
+  });
+
   group('updateSegmentEndpoints', () {
     test('updates start/end and marks the route stale', () {
       final segment = Segment(

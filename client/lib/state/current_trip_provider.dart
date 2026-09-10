@@ -1013,6 +1013,33 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     markSegmentStale(dayId, segmentId);
   }
 
+  /// FR10 / FR130 [#338] — a passage's discipline (the second axis under its
+  /// mode category, `discipline.dart`) is editable after routing like its
+  /// mode; changing it marks the segment stale (Q3/FR140) rather than
+  /// re-solving, exactly as [updateSegmentMode]. Passing null clears it back
+  /// to "solve on the category's own profile" — the picker's own "category
+  /// default" choice.
+  ///
+  /// A discipline that does not refine the passage's current mode is ignored:
+  /// the picker only ever offers `disciplinesForCategory(mode)`, so a mismatch
+  /// means a caller raced a mode change, and stamping an illegal
+  /// `(mode, discipline)` pair onto the passage would be the worse outcome.
+  void updateSegmentDiscipline(String dayId, String segmentId, String? discipline) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segment = day.segments.firstWhere((s) => s.id == segmentId);
+    if (discipline != null && categoryOfDiscipline(discipline) != segment.mode) return;
+    if (discipline == segment.discipline) return;
+    final segments = [
+      for (final s in day.segments)
+        if (s.id == segmentId)
+          s.copyWith(discipline: discipline, clearDiscipline: discipline == null)
+        else
+          s,
+    ];
+    _replaceDay(day.copyWith(segments: segments));
+    markSegmentStale(dayId, segmentId);
+  }
+
   /// FR139/Q2 — a passage's endpoints are editable after routing too, same
   /// stale treatment as [updateSegmentShape]/[updateSegmentMode]. Omitting
   /// [end] leaves it as it was (a loop has none to begin with); there is no
