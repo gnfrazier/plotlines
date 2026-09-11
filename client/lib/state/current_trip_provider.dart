@@ -300,9 +300,22 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// point a rest day sits at, distinct from a routed day's segments. `null`
   /// clears it (`Day.copyWith`'s `clearLocation`, since a bare `null` here
   /// would otherwise read as "leave it as it was").
-  void setDayLocation(String dayId, Coord? location) {
+  ///
+  /// [label] (issue #325) is the resolved place [location] names — a
+  /// candidate's title or a geocoded address — so the day card can show a
+  /// confirmed place rather than a bare coordinate. Always passed alongside
+  /// [location] rather than left to a separate call: a stale label from the
+  /// *previous* location surviving onto a new one would misname the place,
+  /// so setting a new location with no resolvable name (a raw hand-placed
+  /// tap) must say so explicitly by leaving [label] `null`, not by omission.
+  void setDayLocation(String dayId, Coord? location, {String? label}) {
     final day = state.days.firstWhere((d) => d.id == dayId);
-    _replaceDay(day.copyWith(location: location, clearLocation: location == null));
+    _replaceDay(day.copyWith(
+      location: location,
+      clearLocation: location == null,
+      locationLabel: label,
+      clearLocationLabel: label == null,
+    ));
   }
 
   /// FR18 / C2 — a day's itinerary detail: free text, distinct from the

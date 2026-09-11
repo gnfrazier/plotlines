@@ -24,6 +24,7 @@ class Day {
     this.note,
     this.media = const [],
     this.location,
+    this.locationLabel,
     this.segments = const [],
     this.transitions = const [],
     this.nodes = const [],
@@ -54,6 +55,12 @@ class Day {
 
   /// A rest day holds a location without an active route.
   final Coord? location;
+
+  /// Issue #325 — the resolved place [location] names (a candidate's title
+  /// or a geocoded address), so the day card can show a confirmed place
+  /// rather than a bare coordinate. `null` when [location] was hand-placed
+  /// with no resolvable name — an honest "unresolved", not a guess.
+  final String? locationLabel;
   final List<Segment> segments;
   final List<Transition> transitions;
 
@@ -85,6 +92,7 @@ class Day {
       note: f.takeString('note'),
       media: f.takeList('media', MediaRef.fromJson),
       location: f.takeCoord('location'),
+      locationLabel: f.takeString('location_label'),
       segments: f.takeList('segments', Segment.fromJson),
       transitions: f.takeList('transitions', Transition.fromJson),
       nodes: f.takeList('nodes', Node.fromJson),
@@ -111,6 +119,7 @@ class Day {
         'note': note,
         'media': media.isEmpty ? null : media.map((m) => m.toJson()).toList(),
         'location': location == null ? null : checkCoord(location!, 'day.location'),
+        'location_label': locationLabel,
         'segments': segments.isEmpty ? null : segments.map((s) => s.toJson()).toList(),
         'transitions':
             transitions.isEmpty ? null : transitions.map((t) => t.toJson()).toList(),
@@ -139,6 +148,8 @@ class Day {
     List<MediaRef>? media,
     Coord? location,
     bool clearLocation = false,
+    String? locationLabel,
+    bool clearLocationLabel = false,
     List<Segment>? segments,
     List<Transition>? transitions,
     List<Node>? nodes,
@@ -158,6 +169,13 @@ class Day {
         note: clearNote ? null : (note ?? this.note),
         media: media ?? this.media,
         location: clearLocation ? null : (location ?? this.location),
+        // Clearing the location clears its label too — a label with no
+        // coordinate to name is meaningless. A caller changing [location]
+        // to a *different* place without also passing the new label (or
+        // [clearLocationLabel]) is a bug at the call site, not something
+        // this can guess right — `setDayLocation` always passes both.
+        locationLabel:
+            (clearLocation || clearLocationLabel) ? null : (locationLabel ?? this.locationLabel),
         segments: segments ?? this.segments,
         transitions: transitions ?? this.transitions,
         nodes: nodes ?? this.nodes,

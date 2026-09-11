@@ -760,6 +760,11 @@
         "note": { "$ref": "#/$defs/markdown" },
         "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" }, "description": "FR37 / E1 — media attached to this day itself, distinct from any role's or passage's own media." },
         "location": { "$ref": "#/$defs/coord", "description": "C2 — a rest day holds a location without an active route." },
+        "location_label": {
+          "description": "Issue #325 — the resolved place `location` names (a candidate's title or a geocoded address), confirmed by the Author rather than left as a bare coordinate. Absent when `location` was hand-placed with no resolvable name — an honest 'unresolved' rather than a guessed one.",
+          "type": "string",
+          "minLength": 1
+        },
         "segments": { "type": "array", "items": { "$ref": "#/$defs/segment" } },
         "transitions": { "type": "array", "items": { "$ref": "#/$defs/transition" } },
         "nodes": {

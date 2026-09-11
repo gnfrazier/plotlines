@@ -24,15 +24,16 @@ import '../../../domain/candidate.dart' show Candidate;
 import '../../../domain/domain.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
+import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
 import '../../../state/trip_candidates_provider.dart';
 import '../../map/candidate_map.dart';
-import '../../map/tap_to_pick_map.dart';
 import '../../widgets/alternate_editor_dialog.dart';
 import '../../widgets/day_removal_prompt.dart';
 import '../../widgets/gear_section.dart';
 import '../../widgets/plot_date_range_picker.dart';
 import '../../widgets/plot_toggle_chip.dart';
+import '../rest_day_location_screen.dart';
 
 const _uuid = Uuid();
 
@@ -848,19 +849,33 @@ class _RestDayDetailsState extends ConsumerState<_RestDayDetails> {
     super.dispose();
   }
 
+  /// Issue #325 — the 480×360 `TapToPickMap` dialog replaced with the
+  /// full-height picker: live candidate browsing, explicit-submit address
+  /// search, and the offline buffer as the default extent. [routeLinesOf]
+  /// and [Trip.offlineBufferM] both come from the whole trip, not just this
+  /// day, since a rest day's placement is judged against the finished route
+  /// as a whole.
   Future<void> _editLocation() async {
-    final picked = await showDialog<Coord>(
-      context: context,
-      builder: (context) => _LocationPickerDialog(initial: widget.day.location),
+    final trip = ref.read(currentTripProvider);
+    final choice = await showRestDayLocationScreen(
+      context,
+      initial: widget.day.location,
+      initialLabel: widget.day.locationLabel,
+      routeLines: routeLinesOf(trip),
+      bufferM: trip.offlineBufferM,
+      geocode: ref.read(routingClientProvider).geocode,
     );
-    if (picked == null || !mounted) return;
-    ref.read(currentTripProvider.notifier).setDayLocation(widget.day.id, picked);
+    if (choice == null || !mounted) return;
+    ref
+        .read(currentTripProvider.notifier)
+        .setDayLocation(widget.day.id, choice.coord, label: choice.label);
   }
 
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final location = widget.day.location;
+    final locationLabel = widget.day.locationLabel;
     final scheduled = widget.day.nodes.where((n) => n.scheduled != null).length;
     final anchors = widget.day.nodes.length - scheduled;
     return PlotCard(
@@ -875,10 +890,16 @@ class _RestDayDetailsState extends ConsumerState<_RestDayDetails> {
               const SizedBox(width: PlotSpacing.s2),
               Expanded(
                 child: Text(
+                  // Issue #325's "shows a resolved place, not a bare
+                  // coordinate" — the label when one was resolved; the
+                  // coordinate stays the honest fallback for a hand-placed
+                  // point with nothing to resolve it to.
                   location == null
                       ? 'No location set'
-                      : '${location[1].toStringAsFixed(5)}, ${location[0].toStringAsFixed(5)}',
+                      : locationLabel ??
+                          '${location[1].toStringAsFixed(5)}, ${location[0].toStringAsFixed(5)}',
                   style: PlotTypography.body(c.textSecondary),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               PlotButton(
@@ -923,56 +944,6 @@ class _RestDayDetailsState extends ConsumerState<_RestDayDetails> {
           ],
         ],
       ),
-    );
-  }
-}
-
-/// The map picker behind [_RestDayDetails]'s "Set location"/"Change" action
-/// — a single point, not a route: FR18's "rest days hold location ...
-/// without an active route" means there is nothing here to solve.
-class _LocationPickerDialog extends StatefulWidget {
-  const _LocationPickerDialog({this.initial});
-  final Coord? initial;
-
-  @override
-  State<_LocationPickerDialog> createState() => _LocationPickerDialogState();
-}
-
-class _LocationPickerDialogState extends State<_LocationPickerDialog> {
-  Coord? _picked;
-
-  @override
-  void initState() {
-    super.initState();
-    _picked = widget.initial;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Set rest day location'),
-      content: SizedBox(
-        width: 480,
-        height: 360,
-        child: TapToPickMap(
-          points: _picked == null
-              ? const []
-              : [(coord: _picked!, role: NodeMarkerType.waypoint)],
-          center: _picked,
-          onTap: (point) => setState(() => _picked = point),
-        ),
-      ),
-      actions: [
-        PlotButton(
-          label: 'Cancel',
-          variant: PlotButtonVariant.ghost,
-          onPressed: () => Navigator.pop(context),
-        ),
-        PlotButton(
-          label: 'Save',
-          onPressed: _picked == null ? null : () => Navigator.pop(context, _picked),
-        ),
-      ],
     );
   }
 }

@@ -38,7 +38,12 @@ import 'weight_profile.dart';
 // route, saved as a download parameter for the offline package (ARCH §12.3).
 // Distinct from the trip bbox (FR120) and the home region (FR96) per D41.
 // Additive: an absent value means the Author has not set one yet.
-const String tripSchemaVersion = '1.10.0';
+// Bumped to 1.11.0 by issue #325: `day.location_label` arrived — the
+// resolved place name a rest-day (or any day's) location came from, so the
+// day card shows a confirmed place rather than a bare coordinate. Additive:
+// an absent label means the location was hand-placed with no resolvable
+// name, which every day written before this bump already reads as.
+const String tripSchemaVersion = '1.11.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {

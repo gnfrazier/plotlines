@@ -175,7 +175,7 @@ def _day() -> P.Day:
     return P.Day(
         index=1, kind="riding", id="d1", roles=["driver"], date="2026-09-02",
         title="Day one", note="Day note.", media=[_media()],
-        location=[-105.26, 40.02], segments=[_segment()],
+        location=[-105.26, 40.02], location_label="Test Rest Stop", segments=[_segment()],
         transitions=[_transition()], nodes=[_node()], hazards=[_hazard()],
         limits={"cycling": {"min_m": 10000.0, "max_m": 90000.0}},
         weights=_weight_profile(), metrics=_roll_up(), cue_sheet=_cue_sheet(),

@@ -251,6 +251,45 @@ void main() {
       expect(container.read(currentTripProvider).days.single.location, isNull);
     });
 
+    test('setDayLocation with null also clears the resolved label', () {
+      final container = containerWithDays([
+        Day(id: 'd1', index: 1, kind: 'rest', location: const [1.0, 2.0], locationLabel: 'Old spot'),
+      ]);
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).setDayLocation('d1', null);
+
+      expect(container.read(currentTripProvider).days.single.locationLabel, isNull);
+    });
+
+    test('setDayLocation stores a resolved label alongside the coordinate (issue #325)', () {
+      final container = containerWithDays([Day(id: 'd1', index: 1, kind: 'rest')]);
+      addTearDown(container.dispose);
+
+      container
+          .read(currentTripProvider.notifier)
+          .setDayLocation('d1', const [-105.3, 40.0], label: 'Grand Hotel');
+
+      final day = container.read(currentTripProvider).days.single;
+      expect(day.location, const [-105.3, 40.0]);
+      expect(day.locationLabel, 'Grand Hotel');
+    });
+
+    test('a new location with no label clears any stale label from the previous one', () {
+      final container = containerWithDays([
+        Day(id: 'd1', index: 1, kind: 'rest', location: const [1.0, 2.0], locationLabel: 'Old spot'),
+      ]);
+      addTearDown(container.dispose);
+
+      // A raw hand-placed tap, with nothing to resolve it to — the stale
+      // "Old spot" label must not silently survive onto the new coordinate.
+      container.read(currentTripProvider.notifier).setDayLocation('d1', const [3.0, 4.0]);
+
+      final day = container.read(currentTripProvider).days.single;
+      expect(day.location, const [3.0, 4.0]);
+      expect(day.locationLabel, isNull);
+    });
+
     test('setDayTitle/setDayNote write itinerary detail, and an empty string clears it', () {
       final container = containerWithDays([Day(id: 'd1', index: 1, kind: 'rest')]);
       addTearDown(container.dispose);
