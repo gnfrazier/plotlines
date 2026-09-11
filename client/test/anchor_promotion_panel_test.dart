@@ -672,4 +672,77 @@ void main() {
       expect(find.byIcon(Icons.notes_outlined), findsOneWidget); // still empty
     });
   });
+
+  // FR26 / C10 — the reverse link: a permit pinned to an anchor shows on
+  // that anchor's own card, not only in the PERMITS section's own list.
+  group('permit reference on the anchor card (FR26 / C10)', () {
+    Future<void> _pumpWithTrip(WidgetTester tester, Trip trip) => tester.pumpWidget(
+          ProviderScope(
+            overrides: [currentTripProvider.overrideWith((ref) => CurrentTripNotifier(ref)..open(trip))],
+            child: const _Harness(),
+          ),
+        );
+
+    Anchor _anchor({List<Role>? roles}) => Anchor(
+          id: 'anchor-1',
+          coord: const [-105.27, 40.02],
+          title: 'Ranger Station',
+          roles: roles ?? [Role(id: 'role-1', kind: RoleKind.provision)],
+        );
+
+    testWidgets('a permit pinned to this anchor shows its title and status', (tester) async {
+      final trip = _fixtureTrip().copyWith(
+        anchors: [_anchor()],
+        permits: [Permit(id: 'p1', title: 'Backcountry permit', status: 'required', anchorId: 'anchor-1')],
+      );
+      await _pumpWithTrip(tester, trip);
+
+      expect(find.text('BACKCOUNTRY PERMIT · REQUIRED'), findsOneWidget);
+    });
+
+    testWidgets('an anchor with no permit referencing it shows nothing extra', (tester) async {
+      final trip = _fixtureTrip().copyWith(anchors: [_anchor()]);
+      await _pumpWithTrip(tester, trip);
+
+      expect(find.textContaining('Backcountry permit'), findsNothing);
+    });
+
+    testWidgets('a permit pinned to a different anchor does not show here', (tester) async {
+      final trip = _fixtureTrip().copyWith(
+        anchors: [_anchor()],
+        permits: [Permit(id: 'p1', title: 'Put-in permit', anchorId: 'some-other-anchor')],
+      );
+      await _pumpWithTrip(tester, trip);
+
+      expect(find.textContaining('Put-in permit'), findsNothing);
+    });
+
+    testWidgets('two permits on the same anchor both show', (tester) async {
+      final trip = _fixtureTrip().copyWith(
+        anchors: [_anchor()],
+        permits: [
+          Permit(id: 'p1', title: 'Wilderness permit', status: 'confirmed', anchorId: 'anchor-1'),
+          Permit(id: 'p2', title: 'Parking pass', status: 'denied', anchorId: 'anchor-1'),
+        ],
+      );
+      await _pumpWithTrip(tester, trip);
+
+      expect(find.text('WILDERNESS PERMIT · CONFIRMED'), findsOneWidget);
+      expect(find.text('PARKING PASS · DENIED'), findsOneWidget);
+    });
+
+    testWidgets('the permit badge still shows in preview-as-Character mode', (tester) async {
+      // Permits carry no reveal field (mirror Hazard) — never withheld.
+      final trip = _fixtureTrip().copyWith(
+        anchors: [_anchor()],
+        permits: [Permit(id: 'p1', title: 'Backcountry permit', anchorId: 'anchor-1')],
+      );
+      await _pumpWithTrip(tester, trip);
+
+      await tester.tap(find.byType(Switch)); // "Preview as Character"
+      await tester.pump();
+
+      expect(find.text('BACKCOUNTRY PERMIT · REQUIRED'), findsOneWidget);
+    });
+  });
 }
