@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plotlines_client/data/routing_client.dart';
+import 'package:plotlines_client/domain/attribution_line.dart' show nominatimSearchAttribution;
 import 'package:plotlines_client/domain/home_region.dart';
 import 'package:plotlines_client/presentation/widgets/trip_location_prompt.dart';
 
@@ -187,6 +188,20 @@ void main() {
     await tester.pump();
 
     expect(geocodeCalls, 0);
+  });
+
+  testWidgets(
+      "shows Nominatim's own display-attribution credit near the search field "
+      '(issue #296: the usage policy owes this and it was unmet)', (tester) async {
+    await tester.pumpWidget(_harness(
+      prefill: '',
+      geocode: (_) async => const [],
+      onResult: (_) {},
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pump();
+
+    expect(find.text(nominatimSearchAttribution), findsOneWidget);
   });
 
   testWidgets('cancel returns null without resolving anything', (tester) async {

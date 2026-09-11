@@ -18,6 +18,7 @@ from plotlines_core.elevation.region_asset import (
     elevation_attribution,
 )
 from plotlines_core.graph.regions import GRAPH_ATTRIBUTION, graph_attribution
+from plotlines_core.osm_identity import NOMINATIM_ATTRIBUTION, nominatim_attribution
 from plotlines_core.web.about import (
     PRIVACY_STATEMENT,
     about_attributions,
@@ -90,12 +91,28 @@ def test_graph_carries_its_own_odbl_credit_distinct_from_the_basemaps():
     assert by_layer["graph"]["licence"] == by_layer["basemap"]["licence"]
 
 
-def test_elevation_basemap_and_graph_lead_the_list_before_plugin_credits():
+def test_geocode_carries_nominatims_own_display_attribution():
+    # Issue #296: Nominatim's usage policy owes display attribution
+    # ("Search by Nominatim ... where reasonably practical") and it was
+    # unmet — neither `_STATIC_ATTRIBUTIONS` nor any `LayerProvider` credit
+    # covered it, since `/geocode` is not a layer.
+    lines = about_attributions(_registry())
+    by_layer = {line["layer"]: line for line in lines}
+
+    assert by_layer["geocode"]["licence"] == "ODbL-1.0"
+    assert by_layer["geocode"]["attribution"] == NOMINATIM_ATTRIBUTION
+    assert "Nominatim" in by_layer["geocode"]["attribution"]
+    # A separate obligation from the graph's, even though both are ODbL and
+    # both ultimately credit OSM — different usage policy, different surface.
+    assert by_layer["geocode"]["attribution"] != by_layer["graph"]["attribution"]
+
+
+def test_elevation_basemap_graph_and_geocode_lead_the_list_before_plugin_credits():
     reg = _registry()
     reg.register_plugin("battlefields", _Plugin(
         LayerLicence(id="CC-BY-4.0", attribution="Revwar GIS Project")))
     layers = [line["layer"] for line in about_attributions(reg)]
-    assert layers[:3] == ["elevation", "basemap", "graph"]
+    assert layers[:4] == ["elevation", "basemap", "graph", "geocode"]
     assert "battlefields" in layers
 
 
@@ -117,10 +134,14 @@ def test_graph_attribution_helper_matches_the_line_on_the_surface():
     assert graph_attribution() in about_attributions(_registry())
 
 
+def test_nominatim_attribution_helper_matches_the_line_on_the_surface():
+    assert nominatim_attribution() in about_attributions(_registry())
+
+
 def test_release_gate_passes_when_every_credit_is_present():
     lines = assert_about_attribution_complete(_registry())
     layers = {line["layer"] for line in lines}
-    assert {"elevation", "basemap", "graph"} <= layers
+    assert {"elevation", "basemap", "graph", "geocode"} <= layers
 
 
 def test_release_gate_is_a_build_failure_when_the_graph_credit_is_removed():
@@ -138,6 +159,22 @@ def test_release_gate_is_a_build_failure_when_the_graph_credit_is_removed():
         assert "graph" in str(excinfo.value)
     finally:
         about_module.graph_attribution = original
+
+
+def test_release_gate_is_a_build_failure_when_the_geocode_credit_is_removed():
+    # Issue #296's "done when": removing Nominatim's credit line fails a
+    # test rather than shipping quietly unmet again.
+    import plotlines_core.web.about as about_module
+
+    reg = _registry()
+    original = about_module.nominatim_attribution
+    about_module.nominatim_attribution = lambda: {**original(), "attribution": ""}
+    try:
+        with pytest.raises(MissingAttributionError) as excinfo:
+            assert_about_attribution_complete(reg)
+        assert "geocode" in str(excinfo.value)
+    finally:
+        about_module.nominatim_attribution = original
 
 
 def test_release_gate_is_a_build_failure_when_a_plugin_credit_is_blank():

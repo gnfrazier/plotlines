@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../data/routing_client.dart';
+import '../../domain/attribution_line.dart' show nominatimSearchAttribution;
 import '../../domain/home_region.dart';
 
 /// What the Author chose. [center] is null when they chose the shipped home
@@ -90,6 +91,11 @@ class _TripLocationDialogState extends State<_TripLocationDialog> {
               ),
               onSubmitted: (_) => _continue(),
             ),
+            const SizedBox(height: PlotSpacing.s1),
+            // Issue #296 — Nominatim's own display-attribution obligation,
+            // placed exactly where its usage policy's own example puts it:
+            // a small line beneath the search field a result comes from.
+            Text(nominatimSearchAttribution, style: PlotTypography.small(c.textMuted)),
             if (_error != null) ...[
               const SizedBox(height: PlotSpacing.s2),
               Text(_error!, style: PlotTypography.small(c.danger)),
