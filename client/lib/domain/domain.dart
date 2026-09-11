@@ -27,6 +27,7 @@ export 'itinerary.dart';
 export 'json_utils.dart'
     show Coord, DayLimit, JsonFields, Ring, checkCoord, checkPolygonRings, checkRing, finite, pruneJson;
 export 'legacy_mode.dart';
+export 'lodging.dart';
 export 'message_catalog.dart';
 export 'message_template.dart';
 export 'node.dart';

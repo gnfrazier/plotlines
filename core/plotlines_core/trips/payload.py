@@ -77,7 +77,21 @@ from plotlines_core.content.anchor import Anchor
 #: its parent passage stays exactly as solved. Additive: an absent `solve`
 #: means never solved — an Author-drawn line measured off itself — which is
 #: how every alternate written before this bump already read.
-SCHEMA_VERSION = "1.9.0"
+#: Bumped to 1.10.0 by FR35 (Story C14, issue #51): the trip gains an
+#: optional top-level `offline_buffer_m` — the corridor buffer around the
+#: finished route, saved as a download parameter for the Character's
+#: offline package (ARCH §12.3). A third extent, distinct from the trip
+#: bbox (FR120) and the home region (FR96) per D41: never used to bound
+#: candidates, tiles, or elevation during authoring. Additive: an absent
+#: value means the Author has not set one yet, which every trip written
+#: before this bump already reads as.
+#: Bumped to 1.11.0 by issue #325: a day gains an optional
+#: `location_label` — the resolved place name `location` came from (a
+#: candidate's title or a geocoded address), so the day card can show a
+#: confirmed place instead of a bare coordinate. Additive: an absent
+#: label means the location was hand-placed with no resolvable name,
+#: which every day written before this bump already reads as.
+SCHEMA_VERSION = "1.11.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -810,6 +824,9 @@ class Day:
     """FR37 / E1 — media attached to this day itself, distinct from any
     role's or passage's own media."""
     location: Coord | None = None
+    #: Issue #325 — the resolved place `location` names. `None` means
+    #: `location` was hand-placed with no resolvable name.
+    location_label: str | None = None
     segments: list[Segment] = field(default_factory=list)
     transitions: list[Transition] = field(default_factory=list)
     nodes: list[Node] = field(default_factory=list)
@@ -826,6 +843,7 @@ class Day:
             "title": self.title, "note": self.note,
             "media": [m.to_dict() for m in self.media] or None,
             "location": self.location,
+            "location_label": self.location_label,
             "segments": [s.to_dict() for s in self.segments] or None,
             "transitions": [t.to_dict() for t in self.transitions] or None,
             "nodes": [n.to_dict() for n in self.nodes] or None,
@@ -882,6 +900,10 @@ class Trip:
     metrics: RollUp | None = None
     provenance: Provenance | None = None
     schema_version: str = SCHEMA_VERSION
+    #: FR35 / C14 — the offline-package corridor buffer, metres. `None` means
+    #: the Author has not set one yet; distinct from `0.0`, a deliberate
+    #: route-only choice with no surrounding context.
+    offline_buffer_m: float | None = None
 
     def to_dict(self) -> dict:
         defaults = {
@@ -901,6 +923,7 @@ class Trip:
             "anchors": [a.to_dict() for a in self.anchors] or None,
             "metrics": self.metrics.to_dict() if self.metrics else None,
             "provenance": self.provenance.to_dict() if self.provenance else None,
+            "offline_buffer_m": f(self.offline_buffer_m) if self.offline_buffer_m is not None else None,
         })
 
     def to_json(self, *, indent: int | None = None) -> str:

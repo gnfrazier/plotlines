@@ -33,7 +33,17 @@ import 'weight_profile.dart';
 // or rejoin has moved can be stale on its own while its parent passage is not.
 // Additive: an absent `solve` means never solved, which is how every alternate
 // written before this bump already read.
-const String tripSchemaVersion = '1.9.0';
+// Bumped to 1.10.0 by FR35 (Story C14, issue #51): the trip gains an optional
+// top-level `offline_buffer_m` — the corridor buffer around the finished
+// route, saved as a download parameter for the offline package (ARCH §12.3).
+// Distinct from the trip bbox (FR120) and the home region (FR96) per D41.
+// Additive: an absent value means the Author has not set one yet.
+// Bumped to 1.11.0 by issue #325: `day.location_label` arrived — the
+// resolved place name a rest-day (or any day's) location came from, so the
+// day card shows a confirmed place rather than a bare coordinate. Additive:
+// an absent label means the location was hand-placed with no resolvable
+// name, which every day written before this bump already reads as.
+const String tripSchemaVersion = '1.11.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {
@@ -148,6 +158,7 @@ class Trip {
     this.metrics,
     this.provenance,
     this.declaredModes = const {},
+    this.offlineBufferM,
   });
 
   final String schemaVersion;
@@ -157,6 +168,16 @@ class Trip {
   final String updatedAt;
   final TripDuration? duration;
   final WeightProfile? defaultWeights;
+
+  /// FR35 / C14 — the corridor buffer (metres, per ARCH D49) around the
+  /// finished route, saved as a download parameter for the Character's
+  /// offline package (ARCH §12.3). A third authoring-adjacent extent,
+  /// distinct from the trip bbox (FR120) and the shipped home region
+  /// (FR96) per D41 — it never bounds candidates, tiles, or elevation
+  /// during authoring, it only sizes the package built from the finished
+  /// route. `null` means the Author has not set one yet, which is not the
+  /// same as a deliberate `0` (route-only, no surrounding context).
+  final double? offlineBufferM;
 
   /// FR36 / M2's `weights.at(position)` seam — the trip-level default a
   /// day's or segment's own `weights` overrides.
@@ -195,6 +216,7 @@ class Trip {
     final anchors = f.takeList('anchors', Anchor.fromJson);
     final metrics = f.takeObject('metrics', RollUp.fromJson);
     final provenance = f.takeObject('provenance', Provenance.fromJson);
+    final offlineBufferM = f.takeNum('offline_buffer_m');
     f.done();
     return Trip(
       schemaVersion: schemaVersion,
@@ -204,6 +226,7 @@ class Trip {
       updatedAt: updatedAt,
       duration: duration,
       defaultWeights: defaultWeights,
+      offlineBufferM: offlineBufferM,
       dayLimits: dayLimits,
       days: days,
       anchors: anchors,
@@ -227,6 +250,8 @@ class Trip {
       'defaults': defaults.isEmpty ? null : defaults,
       'metrics': metrics?.toJson(),
       'provenance': provenance?.toJson(),
+      'offline_buffer_m':
+          offlineBufferM == null ? null : finite(offlineBufferM!, 'trip.offline_buffer_m'),
     });
     // `days` is schema-required (top-level `required` array); keep it even when
     // empty rather than letting `pruneJson` drop it like every other list here —
@@ -275,6 +300,8 @@ class Trip {
     RollUp? metrics,
     Provenance? provenance,
     Set<String>? declaredModes,
+    double? offlineBufferM,
+    bool clearOfflineBufferM = false,
   }) =>
       Trip(
         schemaVersion: schemaVersion,
@@ -290,5 +317,7 @@ class Trip {
         metrics: metrics ?? this.metrics,
         provenance: provenance ?? this.provenance,
         declaredModes: declaredModes ?? this.declaredModes,
+        offlineBufferM:
+            clearOfflineBufferM ? null : (offlineBufferM ?? this.offlineBufferM),
       );
 }

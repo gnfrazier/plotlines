@@ -206,3 +206,45 @@ def nominatim_rate_limit(
             yield
         finally:
             _last_nominatim_call_finished = monotonic()
+
+
+# --- Display attribution (issue #296, addendum P2, table row *Nominatim*) --
+
+#: The Nominatim usage policy's fifth obligation, after UA/referer identity
+#: (this module's other half), pacing (`nominatim_rate_limit` above), caching,
+#: and no bulk/autocomplete: "you need to give credit to OpenStreetMap and
+#: Nominatim as the data source ... e.g. by putting 'Search by Nominatim' ...
+#: where reasonably practical." It is its own obligation — distinct from the
+#: routing graph's ODbL credit (issue #269) and the basemap's, because it
+#: covers a different surface (`/geocode` results) and a different usage
+#: policy than either, even though all three ultimately credit OSM data.
+#: `/geocode` always exists once the app ships (A10's location prompt, New
+#: Route's location search), so like elevation/basemap/graph this is a
+#: *static* obligation, not a per-layer one.
+NOMINATIM_LICENCE_ID = "ODbL-1.0"
+#: The policy's own suggested wording, per the quote above — kept close to
+#: it rather than paraphrased, since "Search by Nominatim" is the literal
+#: example the policy gives for a search-box credit.
+NOMINATIM_ATTRIBUTION = "Search by Nominatim — © OpenStreetMap contributors"
+NOMINATIM_TERMS_URL = "https://operations.osmfoundation.org/policies/nominatim/"
+
+
+def nominatim_attribution() -> dict:
+    """Nominatim's display-attribution credit line, shaped exactly like
+    `graph.regions.graph_attribution()`, `tiles.mirror.basemap_attribution()`
+    and `elevation.region_asset.elevation_attribution()` so it drops into
+    `web.about.about_attributions()` with no special-casing.
+
+    This covers the About surface's static obligation. The policy's own
+    example places the credit "where reasonably practical" nearer the
+    search box itself — the client surfaces that render `/geocode` results
+    (`_LocationSearchBar`, `_TripLocationDialog`) carry their own inline
+    copy of this same string rather than relying on the About surface alone.
+    """
+    return {
+        "layer": "geocode",
+        "licence": NOMINATIM_LICENCE_ID,
+        "attribution": NOMINATIM_ATTRIBUTION,
+        "builtin": True,
+        "terms_url": NOMINATIM_TERMS_URL,
+    }

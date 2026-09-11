@@ -19,6 +19,7 @@ import 'package:vector_map_tiles/vector_map_tiles.dart';
 import '../../domain/candidate.dart';
 import '../../domain/cluster_proposal.dart';
 import '../../domain/home_region.dart';
+import '../../domain/json_utils.dart' show Coord;
 import '../../domain/trip_bbox.dart';
 import '../../state/providers.dart';
 import 'map_attribution.dart';
@@ -40,10 +41,13 @@ class CandidateMap extends ConsumerStatefulWidget {
     this.bbox,
     this.onCandidateTap,
     this.initialZoom = 13,
+    this.initialCameraFit,
     this.proposals = const [],
     this.selectedProposalId,
     this.onProposalTap,
     this.route = const [],
+    this.onMapTap,
+    this.pickedCoord,
   });
 
   final List<Candidate> candidates;
@@ -53,6 +57,13 @@ class CandidateMap extends ConsumerStatefulWidget {
   final void Function(Candidate)? onCandidateTap;
   final double initialZoom;
 
+  /// Issue #325 — an explicit initial camera fit (e.g. the offline buffer
+  /// around a finished route), overriding [initialZoom]/[bbox]'s centering
+  /// for callers that need a real "fit to this extent" rather than a fixed
+  /// zoom. `null` (every caller before #325) preserves the original
+  /// center/zoom behaviour exactly.
+  final CameraFit? initialCameraFit;
+
   /// N4a — cluster proposals drawn as extent circles + a centroid marker,
   /// synchronized with the proposal list: [selectedProposalId] is emphasized,
   /// and a tap on a proposal calls [onProposalTap] (which selects its card).
@@ -60,9 +71,25 @@ class CandidateMap extends ConsumerStatefulWidget {
   final String? selectedProposalId;
   final void Function(ClusterProposal)? onProposalTap;
 
-  /// Optional lon/lat polyline of the current route, drawn so an Author can
-  /// see which proposals sit off the corridor.
-  final List<List<double>> route;
+  /// Optional lon/lat polyline(s) of the current route, drawn so an Author
+  /// can see which proposals sit off the corridor. One entry per separate
+  /// line (issue #325's rest-day picker draws every segment across the
+  /// whole trip, which are not necessarily one continuous path) — a caller
+  /// with a single continuous route passes a one-element list.
+  final List<List<Coord>> route;
+
+  /// Issue #325 — a tap on the map background rather than a marker, for the
+  /// rest-day location picker's hand-placement fallback ("every stage after
+  /// display is skippable" — an Author who knows the spot is not forced
+  /// through the candidate/search list). `null` (every caller before #325)
+  /// means the map background is not tappable, exactly as before.
+  final void Function(Coord)? onMapTap;
+
+  /// Issue #325 — draws one distinct pin for a caller's current pick (from
+  /// a candidate tap, a search result, or [onMapTap]'s hand-placement),
+  /// separate from the salience-scaled [CandidateMarker]s so it reads as
+  /// "this is what you chose" rather than another candidate.
+  final Coord? pickedCoord;
 
   @override
   ConsumerState<CandidateMap> createState() => _CandidateMapState();
@@ -112,8 +139,12 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
             options: MapOptions(
               initialCenter: ll.LatLng(center[1], center[0]),
               initialZoom: widget.initialZoom,
+              initialCameraFit: widget.initialCameraFit,
               onMapEvent: (_) => setState(() {}),
               onMapReady: () => setState(() => _mapReady = true),
+              onTap: widget.onMapTap == null
+                  ? null
+                  : (_, point) => widget.onMapTap!([point.longitude, point.latitude]),
             ),
             children: [
               // Issue #230 C1 — ground under the tiles, not a fallback.
@@ -134,13 +165,15 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
                     borderStrokeWidth: 2,
                   ),
                 ]),
-              if (widget.route.length >= 2)
+              if (widget.route.any((line) => line.length >= 2))
                 PolylineLayer(polylines: [
-                  Polyline(
-                    points: [for (final p in widget.route) ll.LatLng(p[1], p[0])],
-                    color: c.info,
-                    strokeWidth: 3,
-                  ),
+                  for (final line in widget.route)
+                    if (line.length >= 2)
+                      Polyline(
+                        points: [for (final p in line) ll.LatLng(p[1], p[0])],
+                        color: c.info,
+                        strokeWidth: 3,
+                      ),
                 ]),
               if (widget.proposals.isNotEmpty)
                 CircleLayer(circles: [
@@ -204,6 +237,18 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
                     ),
                   ),
               ]),
+              if (widget.pickedCoord != null)
+                MarkerLayer(markers: [
+                  Marker(
+                    point: ll.LatLng(widget.pickedCoord![1], widget.pickedCoord![0]),
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.topCenter,
+                    child: IgnorePointer(
+                      child: Icon(Icons.location_pin, color: c.primary, size: 36),
+                    ),
+                  ),
+                ]),
             ],
           ),
           if (!tilesAvailable || outOfCoverage)

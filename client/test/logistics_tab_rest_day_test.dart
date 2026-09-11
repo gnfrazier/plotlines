@@ -5,19 +5,27 @@
 // title/note itinerary fields, and the promoted-content summary this story
 // adds, wired through a real `currentTripProvider` the same way
 // `logistics_tab_trip_duration_test.dart` (C1) already does.
+//
+// Issue #325 replaced the location picker's 480x360 `TapToPickMap` dialog
+// with the full-height `rest_day_location_screen.dart`; the "Set location"
+// flow below exercises that screen through the day card, end to end. The
+// screen's own behaviour (search, candidate browsing, the buffer warning,
+// attribution) is covered in `rest_day_location_screen_test.dart`.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/domain/domain.dart';
-import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart';
+import 'package:plotlines_client/presentation/map/candidate_map.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/logistics_tab.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'package:plotlines_client/state/providers.dart';
 import 'support/display_units.dart';
 
-/// `TapToPickMap` drags in flutter_map/vector_map_tiles, which leaves a
+/// `CandidateMap` drags in flutter_map/vector_map_tiles, which leaves a
 /// ticker a single `pump()` doesn't fully settle — several short pumps
 /// clear it (same pattern `trip_library_screen_test.dart` uses).
 Future<void> _settle(WidgetTester tester) async {
@@ -26,8 +34,18 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+class _FakeSidecarManager extends SidecarManager {
+  @override
+  Future<void> start() async {}
+  @override
+  SidecarStatus get status => const SidecarStatus(SidecarState.ready);
+}
+
 Future<ProviderContainer> _pump(WidgetTester tester, Day day) async {
-  final container = ProviderContainer(overrides: [metricUnits()]);
+  final container = ProviderContainer(overrides: [
+    metricUnits(),
+    sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+  ]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(
         Trip(
@@ -70,44 +88,80 @@ void main() {
     expect(find.text('Set location'), findsOneWidget);
   });
 
-  testWidgets('a rest day with a location shows it and offers Change/Clear', (tester) async {
+  testWidgets('a rest day with a resolved place shows its name, not the coordinate',
+      (tester) async {
+    // Issue #325's "day card shows a resolved place, not a bare coordinate".
+    await _pump(
+      tester,
+      Day(id: 'd1', index: 1, kind: 'rest', location: const [-105.3, 40.0], locationLabel: 'Grand Hotel'),
+    );
+    expect(find.text('Grand Hotel'), findsOneWidget);
+    expect(find.textContaining('40.00000'), findsNothing);
+    expect(find.text('Change'), findsOneWidget);
+    expect(find.byIcon(Icons.close), findsOneWidget);
+  });
+
+  testWidgets('a rest day with an unresolved (hand-placed) location falls back to the coordinate',
+      (tester) async {
     await _pump(
       tester,
       Day(id: 'd1', index: 1, kind: 'rest', location: const [-105.3, 40.0]),
     );
     expect(find.textContaining('40.00000'), findsOneWidget);
-    expect(find.text('Change'), findsOneWidget);
-    expect(find.byIcon(Icons.close), findsOneWidget);
   });
 
-  testWidgets('tapping "Set location" opens a map picker and Save writes the picked point',
-      (tester) async {
+  testWidgets(
+      'tapping "Set location" opens the full-height picker; a map tap plus Confirm writes the '
+      'picked point with no label (hand-placed, nothing resolved)', (tester) async {
     final container = await _pump(tester, Day(id: 'd1', index: 1, kind: 'rest'));
 
     await tester.tap(find.text('Set location'));
     await _settle(tester);
 
-    expect(find.byType(TapToPickMap), findsOneWidget);
-    final map = tester.widget<TapToPickMap>(find.byType(TapToPickMap));
-    map.onTap!(const [-105.25, 40.1]);
+    // Issue #325's first AC: a full-height screen, not a dialog card.
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.byType(CandidateMap), findsOneWidget);
+
+    final map = tester.widget<CandidateMap>(find.byType(CandidateMap));
+    map.onMapTap!(const [-105.25, 40.1]);
     await _settle(tester);
 
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Confirm'));
     await _settle(tester);
 
-    expect(container.read(currentTripProvider).days.single.location, const [-105.25, 40.1]);
+    final day = container.read(currentTripProvider).days.single;
+    expect(day.location, const [-105.25, 40.1]);
+    expect(day.locationLabel, isNull);
   });
 
-  testWidgets('clearing a location removes it', (tester) async {
+  testWidgets('cancelling the picker leaves the existing location untouched', (tester) async {
     final container = await _pump(
       tester,
-      Day(id: 'd1', index: 1, kind: 'rest', location: const [1.0, 2.0]),
+      Day(id: 'd1', index: 1, kind: 'rest', location: const [1.0, 2.0], locationLabel: 'Old spot'),
+    );
+
+    await tester.tap(find.text('Change'));
+    await _settle(tester);
+    await tester.tap(find.text('Cancel'));
+    await _settle(tester);
+
+    final day = container.read(currentTripProvider).days.single;
+    expect(day.location, const [1.0, 2.0]);
+    expect(day.locationLabel, 'Old spot');
+  });
+
+  testWidgets('clearing a location removes it and its label', (tester) async {
+    final container = await _pump(
+      tester,
+      Day(id: 'd1', index: 1, kind: 'rest', location: const [1.0, 2.0], locationLabel: 'Old spot'),
     );
 
     await tester.tap(find.byIcon(Icons.close));
     await tester.pump();
 
-    expect(container.read(currentTripProvider).days.single.location, isNull);
+    final day = container.read(currentTripProvider).days.single;
+    expect(day.location, isNull);
+    expect(day.locationLabel, isNull);
   });
 
   testWidgets('editing the title and note fields writes itinerary detail', (tester) async {

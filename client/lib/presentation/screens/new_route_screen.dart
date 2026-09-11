@@ -36,6 +36,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../data/routing_client.dart';
 import '../../data/sidecar_manager.dart' show CapabilityStatus;
+import '../../domain/attribution_line.dart' show nominatimSearchAttribution;
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
@@ -967,6 +968,18 @@ class _LocationSearchBar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   for (final r in results) PlotListTile(title: r.label, onTap: () => onPick(r)),
+                  // Issue #296 — Nominatim's own display-attribution
+                  // obligation, shown next to the results it actually
+                  // produced rather than left to the About surface alone.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: PlotSpacing.s3, vertical: PlotSpacing.s1),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(nominatimSearchAttribution,
+                          style: PlotTypography.small(c.textMuted)),
+                    ),
+                  ),
                 ],
               ),
             ),

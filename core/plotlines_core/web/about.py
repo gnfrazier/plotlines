@@ -7,14 +7,16 @@ Two obligations meet on one screen:
   elevation's **CC BY** (FR86), the basemap's ODbL ``© OpenStreetMap`` (FR95),
   the routing graph's own ODbL credit (issue #269 — built from the same OSM
   data, but a distinct obligation rather than a free ride under the
-  basemap's line), and a credit line for **every loaded plugin layer** (FR101,
+  basemap's line), Nominatim's own display-attribution obligation for
+  ``/geocode`` results (issue #296 — a different usage policy again, unmet
+  until now), and a credit line for **every loaded plugin layer** (FR101,
   story N5). Plus the running app version and, on desktop, the sidecar
   version that must match ``/health``. A loaded layer that would reach a
   display surface with no attribution is a **build failure** —
   :func:`assert_about_attribution_complete` is that release gate, wrapping
   :func:`plotlines_core.curation.attribution.assert_attribution_complete` and
-  adding the three always-owed static obligations (elevation, basemap, graph)
-  to it.
+  adding the four always-owed static obligations (elevation, basemap, graph,
+  geocode) to it.
 
 * **K11 / FR138.** A plain-language privacy statement, reachable from the About
   surface on every platform including the lightest (Web guest, the share-token
@@ -44,6 +46,7 @@ from plotlines_core.curation.attribution import (
 )
 from plotlines_core.elevation.region_asset import elevation_attribution
 from plotlines_core.graph.regions import graph_attribution
+from plotlines_core.osm_identity import nominatim_attribution
 from plotlines_core.tiles.mirror import basemap_attribution
 
 
@@ -51,12 +54,14 @@ from plotlines_core.tiles.mirror import basemap_attribution
 
 #: The obligations owed on every surface no matter which plugin layers are
 #: loaded: the shipped home-region DEM (FR90) always owes CC BY, the basemap
-#: always ships and owes ODbL, and the routing graph — built from the same
+#: always ships and owes ODbL, the routing graph — built from the same
 #: OSM data, one of the three capability gates that always starts (ARCH B1)
 #: — owes its own ODbL credit rather than inheriting the basemap's by
-#: accident (issue #269, addendum L6). Enumerated here so the build gate can
-#: assert their presence independently of the dynamic per-layer set.
-_STATIC_ATTRIBUTIONS = ("elevation", "basemap", "graph")
+#: accident (issue #269, addendum L6), and `/geocode` owes Nominatim's own
+#: display-attribution obligation (issue #296, addendum P2), unmet until
+#: now and distinct from the other three. Enumerated here so the build gate
+#: can assert their presence independently of the dynamic per-layer set.
+_STATIC_ATTRIBUTIONS = ("elevation", "basemap", "graph", "geocode")
 
 
 def about_attributions(registry) -> list[dict]:
@@ -64,15 +69,17 @@ def about_attributions(registry) -> list[dict]:
     :meth:`plotlines_core.curation.attribution.LayerAttribution.as_dict`.
 
     Order: elevation (CC BY, FR86), then basemap (ODbL, FR95), then the
-    routing graph (ODbL, issue #269) — the three static obligations, shown
-    together because each is a *separate* obligation even where two share a
-    licence — then every ready layer's credit (FR101), built-ins before
-    plugins, each alphabetical.
+    routing graph (ODbL, issue #269), then Nominatim's display credit
+    (issue #296) — the four static obligations, shown together because each
+    is a *separate* obligation even where more than one shares a licence —
+    then every ready layer's credit (FR101), built-ins before plugins, each
+    alphabetical.
     """
     lines: list[dict] = [
         elevation_attribution(),
         basemap_attribution(),
         graph_attribution(),
+        nominatim_attribution(),
     ]
     lines += [a.as_dict() for a in attributions_for(registry)]
     return lines
@@ -88,10 +95,10 @@ def assert_about_attribution_complete(registry) -> list[dict]:
     # The dynamic half: every loaded, in-use layer must carry a credit.
     assert_attribution_complete(registry)
 
-    # The static half: elevation, basemap, and the routing graph always ship,
-    # so their credit lines must always be non-empty. A drift here (a
-    # constant emptied by a bad merge) is exactly the failure this gate
-    # exists to catch.
+    # The static half: elevation, basemap, the routing graph, and `/geocode`
+    # always ship, so their credit lines must always be non-empty. A drift
+    # here (a constant emptied by a bad merge) is exactly the failure this
+    # gate exists to catch.
     lines = about_attributions(registry)
     by_layer = {line["layer"]: line for line in lines}
     missing = [

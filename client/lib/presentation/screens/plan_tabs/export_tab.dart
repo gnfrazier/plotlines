@@ -375,6 +375,14 @@ List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
     }
     offset += day.segments[i].metrics?.distanceM ?? 0;
   }
+  // FR133 — day-scoped nodes (a rest day's POIs, and lodging/campground
+  // choices placed at the day level — Story C7, issue #43) have no route
+  // position of their own; place them after the day's last derived cue,
+  // in their own list order (see `_dayNodeEntries`'s doc comment for why
+  // `_entriesFromAuthoredContent` needs the same treatment).
+  for (var i = 0; i < day.nodes.length; i++) {
+    entries.add(_cueEntryForNode(day.nodes[i], distanceAlongM: offset + i + 1));
+  }
   return entries;
 }
 
@@ -405,23 +413,7 @@ List<_CueEntry> _entriesFromAuthoredContent(Day day) {
       // FR133 — the same narrative-register weaving `cues.node_cues` does
       // server-side, kept here too since this fallback runs whenever the
       // sidecar/region graph is unavailable (`_load`'s other branch).
-      final label = node.amenities.isEmpty
-          ? (node.title ?? node.kind.wireValue)
-          : '${node.title ?? node.kind.wireValue} — ${node.amenities.join(', ')}';
-      entries.add(
-        _CueEntry(
-          distanceAlongM: node.distanceAlongM ?? 0,
-          label: label,
-          glyph: node.amenities.isNotEmpty
-              ? 'P'
-              : node.kind == NodeKind.regroup
-                  ? '◆'
-                  : node.kind == NodeKind.event
-                      ? '◷'
-                      : '●',
-          tag: node.amenities.isNotEmpty ? 'PROVISION' : node.poiType?.toUpperCase(),
-        ),
-      );
+      entries.add(_cueEntryForNode(node, distanceAlongM: node.distanceAlongM ?? 0));
     }
     for (final hazard in segment.hazards) {
       entries.add(
@@ -463,8 +455,58 @@ List<_CueEntry> _entriesFromAuthoredContent(Day day) {
       );
     }
   }
+  entries.addAll(_dayNodeEntries(day, after: entries));
   entries.sort((a, b) => a.distanceAlongM.compareTo(b.distanceAlongM));
   return entries;
+}
+
+/// FR133 (the Frodo principle) — "transportation, places, hazards and
+/// rest/lodging detail are woven into a day's account together"
+/// (`itinerary.dart`'s own citation of the same requirement). `Day.nodes`
+/// carries exactly that: a rest day's POIs, and — since Story C7 (issue
+/// #43) — lodging/campground choices placed on a route day at the day
+/// level rather than tied to one segment's own position. Neither
+/// [_entriesFromAuthoredContent] nor [_entriesFromCueSheets] read it before
+/// this, despite this file's own header doc comment already claiming "the
+/// cue-sheet preview below... reads the same day-scoped nodes" —
+/// `day.nodes` reached the itinerary (`itinerary.dart`) and the Logistics
+/// tab, but never here.
+///
+/// A day-scoped node has no route position to sort by (that is the whole
+/// reason it lives on the day rather than a segment), so these are placed
+/// after every entry already built from the day's segments — [after] — in
+/// their own list order, using each entry's own index past that point to
+/// keep that order stable through the final sort.
+List<_CueEntry> _dayNodeEntries(Day day, {required List<_CueEntry> after}) {
+  if (day.nodes.isEmpty) return const [];
+  final dayEndM =
+      after.isEmpty ? 0.0 : after.map((e) => e.distanceAlongM).reduce((a, b) => a > b ? a : b);
+  return [
+    for (var i = 0; i < day.nodes.length; i++)
+      _cueEntryForNode(day.nodes[i], distanceAlongM: dayEndM + i + 1),
+  ];
+}
+
+/// One [_CueEntry] for an authored [node] — the same amenity-weaving and
+/// `poiType` tagging [_entriesFromAuthoredContent]'s segment-node loop
+/// applies, factored out so [_dayNodeEntries] and that loop can never drift
+/// apart on how a node becomes a line.
+_CueEntry _cueEntryForNode(Node node, {required double distanceAlongM}) {
+  final label = node.amenities.isEmpty
+      ? (node.title ?? node.kind.wireValue)
+      : '${node.title ?? node.kind.wireValue} — ${node.amenities.join(', ')}';
+  return _CueEntry(
+    distanceAlongM: distanceAlongM,
+    label: label,
+    glyph: node.amenities.isNotEmpty
+        ? 'P'
+        : node.kind == NodeKind.regroup
+            ? '◆'
+            : node.kind == NodeKind.event
+                ? '◷'
+                : '●',
+    tag: node.amenities.isNotEmpty ? 'PROVISION' : node.poiType?.toUpperCase(),
+  );
 }
 
 class _DayCueSection extends ConsumerStatefulWidget {

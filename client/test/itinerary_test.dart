@@ -81,6 +81,42 @@ void main() {
       expect(paragraphs.every((p) => !p.contains('|')), isTrue);
     });
 
+    test('a rest day\'s lodging choice reads on the agenda (Story C7, issue #43)', () {
+      // FR133's own citation names "rest/lodging detail" as one of the
+      // things a day's prose has to weave in — this is `Day.nodes` (not a
+      // segment's), the same field `_LodgingSection` (logistics_tab.dart)
+      // attaches a placed lodging/campground choice to.
+      final trip = _trip([
+        Day(
+          id: 'd1', index: 1, kind: 'rest',
+          nodes: [
+            Node(id: 'n1', kind: NodeKind.poi, coord: const [0, 0], title: 'Grand Hotel', poiType: 'hotel'),
+          ],
+        ),
+      ]);
+
+      final paragraphs = buildItinerary(trip).days.single.paragraphs;
+      expect(paragraphs.single, contains('On the agenda: Grand Hotel.'));
+    });
+
+    test('a route day\'s day-level lodging choice reads along the way too', () {
+      // Lodging placed on a route day (not tied to any one segment) still
+      // lives on `Day.nodes`, the same as a rest day's — `_routeDayAccount`
+      // reads both `segment.nodes` and `day.nodes` together.
+      final trip = _trip([
+        Day(
+          id: 'd1', index: 1,
+          segments: [_passage('s1', mode: 'cycling', distanceM: 30000)],
+          nodes: [
+            Node(id: 'n1', kind: NodeKind.poi, coord: const [0, 0], title: 'Pine Camp', poiType: 'campsite'),
+          ],
+        ),
+      ]);
+
+      final paragraphs = buildItinerary(trip).days.single.paragraphs;
+      expect(paragraphs, contains('Along the way: Pine Camp.'));
+    });
+
     test('a mode change between passages reads as a switch, in one flowing sentence', () {
       // `dayTimeline` (which `buildItinerary` reads) only surfaces a mode
       // change when the day carries an explicit `Transition` for that

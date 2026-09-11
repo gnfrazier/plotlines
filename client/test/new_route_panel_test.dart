@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/data/routing_client.dart';
 import 'package:plotlines_client/data/sidecar_manager.dart';
+import 'package:plotlines_client/domain/attribution_line.dart' show nominatimSearchAttribution;
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/domain/trip_bbox.dart';
 import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart';
@@ -121,11 +122,12 @@ class _CountingRoutingClient extends RoutingClient {
   _CountingRoutingClient() : super('http://127.0.0.1:0');
 
   int geocodeCalls = 0;
+  List<GeocodeResult> resultsOverride = const [];
 
   @override
   Future<List<GeocodeResult>> geocode(String query) async {
     geocodeCalls++;
-    return const [];
+    return resultsOverride;
   }
 }
 
@@ -233,6 +235,26 @@ void main() {
     await tester.pump();
 
     expect(client.geocodeCalls, 0);
+  });
+
+  testWidgets(
+      "submitting a search shows Nominatim's own display-attribution credit "
+      'next to the results it produced (issue #296)', (tester) async {
+    final client = _CountingRoutingClient()
+      ..resultsOverride = const [GeocodeResult(label: 'Boulder, CO', coord: [-105.27, 40.02])];
+    await _pumpPanel(tester, extraOverrides: [
+      routingClientProvider.overrideWithValue(client),
+    ]);
+
+    final field = find.byWidgetPredicate((w) =>
+        w is TextField &&
+        w.decoration?.hintText == 'Search a town, or click the map to drop a start');
+    await tester.enterText(field, 'Boulder, CO');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await _settle(tester);
+
+    expect(find.text('Boulder, CO'), findsWidgets);
+    expect(find.text(nominatimSearchAttribution), findsOneWidget);
   });
 
   testWidgets('a disabled Generate is never silent, and never gives two reasons at once',

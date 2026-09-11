@@ -18,16 +18,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../../domain/candidate.dart' show Candidate;
 import '../../../domain/domain.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
+import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
-import '../../map/tap_to_pick_map.dart';
+import '../../../state/trip_candidates_provider.dart';
+import '../../map/candidate_map.dart';
 import '../../widgets/alternate_editor_dialog.dart';
 import '../../widgets/day_removal_prompt.dart';
 import '../../widgets/gear_section.dart';
 import '../../widgets/plot_date_range_picker.dart';
+import '../../widgets/plot_toggle_chip.dart';
+import '../rest_day_location_screen.dart';
+
+const _uuid = Uuid();
 
 class LogisticsTab extends ConsumerWidget {
   const LogisticsTab({super.key, required this.trip, required this.onOpenSegment});
@@ -61,6 +69,8 @@ class LogisticsTab extends ConsumerWidget {
                   ),
                 ),
               _TripDurationCard(trip: trip),
+              const SizedBox(height: PlotSpacing.s3),
+              _OfflineBufferCard(trip: trip),
               const SizedBox(height: PlotSpacing.s3),
               for (final day in trip.days) _DayCard(day: day, onOpenSegment: onOpenSegment),
               const SizedBox(height: PlotSpacing.s4),
@@ -239,6 +249,86 @@ class _TripDurationCardState extends ConsumerState<_TripDurationCard> {
   }
 }
 
+/// Story C14 (issue #51), FR35 — "Authors set the offline data buffer
+/// distance (corridor around the finished route) saved as a download
+/// parameter for the adventure package." Trip-scoped, not per-day, since the
+/// buffer sizes one package for the whole finished route.
+///
+/// **Not the trip bbox and not the home region** (ARCH D41) — this value
+/// never bounds candidates, tiles, or elevation during authoring; it is
+/// stored on `Trip.offlineBufferM` purely as a download parameter the
+/// (not-yet-built) offline-package step reads later. Reuses the same
+/// mi/km input convention `_DayLimitRow` already established:
+/// `DisplayFormat.distanceInputValue`/`parseDistanceToMetres` so the field
+/// reads and writes in the Author's active unit while the stored value stays
+/// SI metres (ARCH D49).
+class _OfflineBufferCard extends ConsumerStatefulWidget {
+  const _OfflineBufferCard({required this.trip});
+  final Trip trip;
+
+  @override
+  ConsumerState<_OfflineBufferCard> createState() => _OfflineBufferCardState();
+}
+
+class _OfflineBufferCardState extends ConsumerState<_OfflineBufferCard> {
+  late final _buffer = TextEditingController(text: _asInput(widget.trip.offlineBufferM));
+
+  String _asInput(double? metres) {
+    if (metres == null) return '';
+    final df = ref.read(displayFormatProvider);
+    return df.distanceInputValue(metres, fractionDigits: df.useMiles ? 1 : 0);
+  }
+
+  @override
+  void dispose() {
+    _buffer.dispose();
+    super.dispose();
+  }
+
+  void _emit() {
+    final df = ref.read(displayFormatProvider);
+    final text = _buffer.text.trim();
+    ref.read(currentTripProvider.notifier).setOfflineBufferM(
+          text.isEmpty ? null : df.parseDistanceToMetres(text),
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final df = ref.watch(displayFormatProvider);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: PlotSpacing.s3),
+      child: PlotCard(
+        padding: const EdgeInsets.all(PlotSpacing.s3),
+        child: Row(
+          children: [
+            Icon(Icons.download_outlined, size: 16, color: c.textMuted),
+            const SizedBox(width: PlotSpacing.s2),
+            Expanded(
+              child: Text('Offline buffer around the finished route',
+                  style: PlotTypography.body(c.textSecondary)),
+            ),
+            SizedBox(
+              width: 72,
+              child: TextField(
+                controller: _buffer,
+                textAlign: TextAlign.right,
+                decoration: const InputDecoration(hintText: 'none', isDense: true),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onSubmitted: (_) => _emit(),
+                onChanged: (_) => _emit(),
+              ),
+            ),
+            const SizedBox(width: PlotSpacing.s2),
+            Text(df.distanceUnitLabel, style: PlotTypography.body(c.textMuted)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DayCard extends ConsumerWidget {
   const _DayCard({required this.day, required this.onOpenSegment});
   final Day day;
@@ -345,6 +435,8 @@ class _DayCard extends ConsumerWidget {
               _DayLimitEditor(day: day),
             ],
             if (day.isRest) _RestDayDetails(day: day),
+            const SizedBox(height: PlotSpacing.s3),
+            _LodgingSection(day: day),
           ],
         ),
       ),
@@ -757,19 +849,33 @@ class _RestDayDetailsState extends ConsumerState<_RestDayDetails> {
     super.dispose();
   }
 
+  /// Issue #325 — the 480×360 `TapToPickMap` dialog replaced with the
+  /// full-height picker: live candidate browsing, explicit-submit address
+  /// search, and the offline buffer as the default extent. [routeLinesOf]
+  /// and [Trip.offlineBufferM] both come from the whole trip, not just this
+  /// day, since a rest day's placement is judged against the finished route
+  /// as a whole.
   Future<void> _editLocation() async {
-    final picked = await showDialog<Coord>(
-      context: context,
-      builder: (context) => _LocationPickerDialog(initial: widget.day.location),
+    final trip = ref.read(currentTripProvider);
+    final choice = await showRestDayLocationScreen(
+      context,
+      initial: widget.day.location,
+      initialLabel: widget.day.locationLabel,
+      routeLines: routeLinesOf(trip),
+      bufferM: trip.offlineBufferM,
+      geocode: ref.read(routingClientProvider).geocode,
     );
-    if (picked == null || !mounted) return;
-    ref.read(currentTripProvider.notifier).setDayLocation(widget.day.id, picked);
+    if (choice == null || !mounted) return;
+    ref
+        .read(currentTripProvider.notifier)
+        .setDayLocation(widget.day.id, choice.coord, label: choice.label);
   }
 
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final location = widget.day.location;
+    final locationLabel = widget.day.locationLabel;
     final scheduled = widget.day.nodes.where((n) => n.scheduled != null).length;
     final anchors = widget.day.nodes.length - scheduled;
     return PlotCard(
@@ -784,10 +890,16 @@ class _RestDayDetailsState extends ConsumerState<_RestDayDetails> {
               const SizedBox(width: PlotSpacing.s2),
               Expanded(
                 child: Text(
+                  // Issue #325's "shows a resolved place, not a bare
+                  // coordinate" — the label when one was resolved; the
+                  // coordinate stays the honest fallback for a hand-placed
+                  // point with nothing to resolve it to.
                   location == null
                       ? 'No location set'
-                      : '${location[1].toStringAsFixed(5)}, ${location[0].toStringAsFixed(5)}',
+                      : locationLabel ??
+                          '${location[1].toStringAsFixed(5)}, ${location[0].toStringAsFixed(5)}',
                   style: PlotTypography.body(c.textSecondary),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               PlotButton(
@@ -836,52 +948,153 @@ class _RestDayDetailsState extends ConsumerState<_RestDayDetails> {
   }
 }
 
-/// The map picker behind [_RestDayDetails]'s "Set location"/"Change" action
-/// — a single point, not a route: FR18's "rest days hold location ...
-/// without an active route" means there is nothing here to solve.
-class _LocationPickerDialog extends StatefulWidget {
-  const _LocationPickerDialog({this.initial});
-  final Coord? initial;
+/// Story C7 (issue #43, FR23) — "Authors filter and place lodging/campground
+/// options on the planning map by type." One per day, route or rest alike:
+/// a route day still ends somewhere the Character sleeps, so this is not
+/// rest-day-only the way [_RestDayDetails]'s bare location is.
+///
+/// Reads the trip-wide [tripCandidatesProvider] (the same warmed candidate
+/// set the Layers tab's `_FindCandidatesButton` fills) rather than running
+/// its own extraction — one candidate set per trip, per ARCH §4.1, not a
+/// second extraction path for one placement flow. [_typeFilter] narrows
+/// which of those candidates are lodging-relevant *and* match the selected
+/// types; the map dialog only ever sees that filtered list, so "overlays
+/// update with filters" (the AC) is true by construction rather than a
+/// second filter re-implemented inside the dialog.
+class _LodgingSection extends ConsumerStatefulWidget {
+  const _LodgingSection({required this.day});
+  final Day day;
 
   @override
-  State<_LocationPickerDialog> createState() => _LocationPickerDialogState();
+  ConsumerState<_LodgingSection> createState() => _LodgingSectionState();
 }
 
-class _LocationPickerDialogState extends State<_LocationPickerDialog> {
-  Coord? _picked;
-
-  @override
-  void initState() {
-    super.initState();
-    _picked = widget.initial;
-  }
+class _LodgingSectionState extends ConsumerState<_LodgingSection> {
+  Set<LodgingType> _typeFilter = LodgingType.values.toSet();
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Set rest day location'),
-      content: SizedBox(
-        width: 480,
-        height: 360,
-        child: TapToPickMap(
-          points: _picked == null
-              ? const []
-              : [(coord: _picked!, role: NodeMarkerType.waypoint)],
-          center: _picked,
-          onTap: (point) => setState(() => _picked = point),
+    final c = PlotColors.of(context);
+    final candidatesState = ref.watch(tripCandidatesProvider);
+    final lodgingCandidates = candidatesState.candidates
+        .where((cand) => _typeFilter.contains(lodgingTypeOfCandidate(cand)))
+        .toList();
+    final placed = widget.day.nodes.where(isLodgingNode).toList();
+    final everFetched = candidatesState.fetchedFor != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('LODGING', style: PlotTypography.eyebrow(c.textMuted)),
+        const SizedBox(height: PlotSpacing.s2),
+        Wrap(
+          spacing: PlotSpacing.s2,
+          runSpacing: PlotSpacing.s2,
+          children: [
+            for (final type in LodgingType.values)
+              PlotToggleChip(
+                label: type.label,
+                selected: _typeFilter.contains(type),
+                onTap: () => setState(() {
+                  _typeFilter = _typeFilter.contains(type)
+                      ? (_typeFilter.toSet()..remove(type))
+                      : (_typeFilter.toSet()..add(type));
+                }),
+              ),
+          ],
+        ),
+        if (placed.isNotEmpty) ...[
+          const SizedBox(height: PlotSpacing.s2),
+          Wrap(
+            spacing: PlotSpacing.s2,
+            runSpacing: PlotSpacing.s2,
+            children: [
+              for (final node in placed)
+                Chip(
+                  label: Text(node.title ?? (node.poiType ?? 'Lodging')),
+                  onDeleted: () =>
+                      ref.read(currentTripProvider.notifier).removeNodesById({node.id}),
+                ),
+            ],
+          ),
+        ],
+        const SizedBox(height: PlotSpacing.s2),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: PlotButton(
+            label: 'Place lodging on map',
+            variant: PlotButtonVariant.ghost,
+            icon: Icons.hotel_outlined,
+            onPressed: !everFetched
+                ? null
+                : () => _openMap(context, lodgingCandidates),
+          ),
+        ),
+        if (!everFetched)
+          Text(
+            'Find candidates on the Layers tab first — lodging is filtered '
+            'from the same candidate set.',
+            style: PlotTypography.small(c.textMuted),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _openMap(BuildContext context, List<Candidate> candidates) async {
+    final picked = await showDialog<Candidate>(
+      context: context,
+      builder: (_) => _LodgingMapDialog(candidates: candidates),
+    );
+    if (picked == null || !mounted) return;
+    final node = lodgingNodeFromCandidate(picked, id: _uuid.v4());
+    if (node == null) return;
+    ref.read(currentTripProvider.notifier).promoteCandidate(widget.day.id, node);
+  }
+}
+
+/// The map surface behind "Place lodging on map" — [candidates] arrives
+/// already filtered by [_LodgingSectionState]'s type chips, so this dialog
+/// draws exactly the overlays the Author asked to see and nothing else.
+/// Reuses [CandidateMap] (the Curation Workspace's own candidate rendering)
+/// rather than a second marker implementation, the same reuse #325's rest-day
+/// location redesign calls for.
+class _LodgingMapDialog extends StatelessWidget {
+  const _LodgingMapDialog({required this.candidates});
+  final List<Candidate> candidates;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: SizedBox(
+        width: 640,
+        height: 480,
+        child: Stack(
+          children: [
+            CandidateMap(
+              candidates: candidates,
+              onCandidateTap: (c) => Navigator.pop(context, c),
+            ),
+            Positioned(
+              top: PlotSpacing.s3,
+              right: PlotSpacing.s3,
+              child: IconButton(
+                tooltip: 'Close',
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            if (candidates.isEmpty)
+              Positioned(
+                left: PlotSpacing.s3,
+                bottom: PlotSpacing.s3,
+                child: Text(
+                  'No lodging of the selected type in the trip area.',
+                  style: PlotTypography.small(PlotColors.of(context).textMuted),
+                ),
+              ),
+          ],
         ),
       ),
-      actions: [
-        PlotButton(
-          label: 'Cancel',
-          variant: PlotButtonVariant.ghost,
-          onPressed: () => Navigator.pop(context),
-        ),
-        PlotButton(
-          label: 'Save',
-          onPressed: _picked == null ? null : () => Navigator.pop(context, _picked),
-        ),
-      ],
     );
   }
 }

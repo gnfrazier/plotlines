@@ -49,6 +49,51 @@ void main() {
       expect(day.copyWith(clearLocation: true).location, isNull);
     });
 
+    test('clearLocation also clears locationLabel — a label with no coordinate is meaningless '
+        '(issue #325)', () {
+      final day = Day(
+        id: 'd1', index: 1, kind: 'rest',
+        location: const [1.0, 2.0], locationLabel: 'Grand Hotel',
+      );
+      final cleared = day.copyWith(clearLocation: true);
+      expect(cleared.location, isNull);
+      expect(cleared.locationLabel, isNull);
+    });
+
+    test('clearLocationLabel clears the label without touching the coordinate', () {
+      final day = Day(
+        id: 'd1', index: 1, kind: 'rest',
+        location: const [1.0, 2.0], locationLabel: 'Grand Hotel',
+      );
+      final cleared = day.copyWith(clearLocationLabel: true);
+      expect(cleared.location, const [1.0, 2.0]);
+      expect(cleared.locationLabel, isNull);
+    });
+
+    test('like every other field here, an unspecified locationLabel is left unchanged when '
+        'location moves — staleness prevention is the caller\'s job', () {
+      // `CurrentTripNotifier.setDayLocation` (issue #325) is the caller that
+      // always passes `clearLocationLabel` alongside a location change with
+      // no new label — see current_trip_provider_day_lifecycle_test.dart's
+      // "a new location with no label clears any stale label from the
+      // previous one". At this level, `copyWith` keeps its ordinary
+      // contract: nothing is cleared unless a caller says so.
+      final day = Day(
+        id: 'd1', index: 1, kind: 'rest',
+        location: const [1.0, 2.0], locationLabel: 'Grand Hotel',
+      );
+      final moved = day.copyWith(location: const [3.0, 4.0]);
+      expect(moved.location, const [3.0, 4.0]);
+      expect(moved.locationLabel, 'Grand Hotel');
+    });
+
+    test('setting a new location with an explicit label carries both together', () {
+      final day = Day(id: 'd1', index: 1, kind: 'rest');
+      final moved = day.copyWith(location: const [3.0, 4.0], locationLabel: 'Pine Camp');
+      expect(moved.location, const [3.0, 4.0]);
+      expect(moved.locationLabel, 'Pine Camp');
+    });
+
     test('setting a new value while another field clears leaves the new value in place', () {
       final day = Day(id: 'd1', index: 1, kind: 'rest', title: 'Old title', note: 'Old note');
       final result = day.copyWith(title: 'New title', clearNote: true);
@@ -224,6 +269,7 @@ void main() {
         index: 2,
         kind: 'rest',
         location: const [-105.30, 40.00],
+        locationLabel: 'Historic District Inn',
         title: 'Wander the historic district',
       );
 
@@ -245,6 +291,7 @@ void main() {
       expect(decoded.anchors.single.area, isNotNull);
       expect(decoded.days.single.isRest, isTrue);
       expect(decoded.days.single.location, const [-105.30, 40.00]);
+      expect(decoded.days.single.locationLabel, 'Historic District Inn');
     });
   });
 }

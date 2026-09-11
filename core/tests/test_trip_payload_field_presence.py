@@ -175,7 +175,7 @@ def _day() -> P.Day:
     return P.Day(
         index=1, kind="riding", id="d1", roles=["driver"], date="2026-09-02",
         title="Day one", note="Day note.", media=[_media()],
-        location=[-105.26, 40.02], segments=[_segment()],
+        location=[-105.26, 40.02], location_label="Test Rest Stop", segments=[_segment()],
         transitions=[_transition()], nodes=[_node()], hazards=[_hazard()],
         limits={"cycling": {"min_m": 10000.0, "max_m": 90000.0}},
         weights=_weight_profile(), metrics=_roll_up(), cue_sheet=_cue_sheet(),
@@ -199,6 +199,7 @@ def _trip() -> P.Trip:
                                        credit="\u00a9 OpenStreetMap contributors",
                                        url="https://osm.org/copyright")],
         ),
+        offline_buffer_m=8000.0,
     )
 
 
@@ -307,7 +308,8 @@ def test_a_populated_collection_is_not_emitted_empty(cls, instance):
 def test_every_populated_trip_field_survives_to_dict():
     emitted = _trip().to_dict()
     for key in ("schema_version", "id", "title", "created_at", "updated_at",
-                "duration", "defaults", "days", "metrics", "provenance"):
+                "duration", "defaults", "days", "metrics", "provenance",
+                "offline_buffer_m"):
         assert key in emitted and emitted[key] is not None, f"trip.{key} vanished"
 
     assert emitted["defaults"]["weights"] is not None
@@ -367,7 +369,19 @@ def test_the_trip_root_prunes_its_nulls_entirely():
     emitted = P.Trip(title="Bare", id="t", created_at="x", updated_at="y").to_dict()
     assert "metrics" not in emitted
     assert "provenance" not in emitted
+    assert "offline_buffer_m" not in emitted
     assert emitted["title"] == "Bare"
+
+
+def test_offline_buffer_m_zero_is_distinguishable_from_unset():
+    # FR35 / C14 — a deliberate "route only, no surrounding context" choice
+    # (0.0) must not read the same as "the Author never set one" (absent).
+    unset = P.Trip(title="Bare", id="t", created_at="x", updated_at="y")
+    assert "offline_buffer_m" not in unset.to_dict()
+
+    zeroed = P.Trip(title="Bare", id="t", created_at="x", updated_at="y",
+                    offline_buffer_m=0.0)
+    assert zeroed.to_dict()["offline_buffer_m"] == 0.0
 
 
 # ── the emitted shape agrees with the schema's vocabulary ───────────────

@@ -1,9 +1,10 @@
-// K10 / FR86, FR95, FR101, and issue #269 — `aboutStaticAttribution` is the
-// offline/lightest-surface fallback for `GET /about`'s dynamic attribution
-// list. It must carry exactly the three always-owed obligations (elevation
-// CC BY, basemap ODbL, routing graph ODbL) with the exact strings the Python
-// side's `test_web_about.py` pins, so neither side drifts from the other
-// without both failing.
+// K10 / FR86, FR95, FR101, issue #269, and issue #296 — `aboutStaticAttribution`
+// is the offline/lightest-surface fallback for `GET /about`'s dynamic
+// attribution list. It must carry exactly the four always-owed obligations
+// (elevation CC BY, basemap ODbL, routing graph ODbL, Nominatim's own
+// display-attribution credit) with the exact strings the Python side's
+// `test_web_about.py` pins, so neither side drifts from the other without
+// both failing.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -11,9 +12,9 @@ import 'package:plotlines_client/domain/attribution_line.dart';
 
 void main() {
   group('aboutStaticAttribution', () {
-    test('carries exactly the three always-owed obligations', () {
+    test('carries exactly the four always-owed obligations', () {
       final layers = aboutStaticAttribution.map((a) => a.layer).toList();
-      expect(layers, ['elevation', 'basemap', 'graph']);
+      expect(layers, ['elevation', 'basemap', 'graph', 'geocode']);
     });
 
     test('the graph credit is a separate ODbL obligation from the basemap\'s',
@@ -40,6 +41,26 @@ void main() {
       // entry — this fails the moment someone edits the list back down to
       // two.
       expect(aboutStaticAttribution.any((a) => a.layer == 'graph'), isTrue);
+    });
+
+    test('the geocode credit names Nominatim and shares no text with the '
+        'graph credit', () {
+      // Issue #296: Nominatim's display-attribution obligation was unmet —
+      // this pins the fix so it cannot silently regress.
+      final graph =
+          aboutStaticAttribution.firstWhere((a) => a.layer == 'graph');
+      final geocode =
+          aboutStaticAttribution.firstWhere((a) => a.layer == 'geocode');
+
+      expect(geocode.attribution, contains('Nominatim'));
+      expect(geocode.attribution, nominatimSearchAttribution);
+      expect(geocode.attribution, isNot(graph.attribution));
+      expect(geocode.builtin, isTrue);
+    });
+
+    test('removing the geocode credit is a test failure, not a silent drop',
+        () {
+      expect(aboutStaticAttribution.any((a) => a.layer == 'geocode'), isTrue);
     });
   });
 
