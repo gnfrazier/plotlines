@@ -58,7 +58,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Roster membership'), findsOneWidget);
-    expect(find.textContaining('Days, passages, anchors, and content'), findsOneWidget);
+    expect(find.textContaining('Days, passages, anchors, permits, and content'), findsOneWidget);
     expect(find.textContaining('starts trip initiation'), findsOneWidget);
   });
 

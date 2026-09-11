@@ -324,6 +324,96 @@ void main() {
     });
   });
 
+  group('Role.provision — ProvisionDetail (FR25 / C9)', () {
+    test('round-trips a potable water source through JSON', () {
+      final role = Role(
+        id: 'r1',
+        kind: RoleKind.provision,
+        provision: ProvisionDetail(water: WaterSource(potable: true)),
+      );
+      final decoded = Role.fromJson(role.toJson()).provision!;
+      expect(decoded.water!.potable, isTrue);
+      expect(decoded.resupply, isNull);
+    });
+
+    test('round-trips a filter-required water source through JSON', () {
+      final role = Role(
+        id: 'r1', kind: RoleKind.provision,
+        provision: ProvisionDetail(water: WaterSource(potable: false)),
+      );
+      expect(Role.fromJson(role.toJson()).provision!.water!.potable, isFalse);
+    });
+
+    test('round-trips resupply hours and notes through JSON', () {
+      final role = Role(
+        id: 'r1', kind: RoleKind.provision,
+        provision: ProvisionDetail(resupply: ResupplyInfo(hours: 'Mon-Sat 8-6', notes: 'Cash only')),
+      );
+      final decoded = Role.fromJson(role.toJson()).provision!.resupply!;
+      expect(decoded.hours, 'Mon-Sat 8-6');
+      expect(decoded.notes, 'Cash only');
+    });
+
+    test('may carry both water and resupply on the same role', () {
+      final role = Role(
+        id: 'r1', kind: RoleKind.provision,
+        provision: ProvisionDetail(
+          water: WaterSource(potable: true), resupply: ResupplyInfo(hours: 'daylight hours'),
+        ),
+      );
+      final decoded = Role.fromJson(role.toJson()).provision!;
+      expect(decoded.water!.potable, isTrue);
+      expect(decoded.resupply!.hours, 'daylight hours');
+    });
+
+    test('defaults to null and is absent from JSON', () {
+      final role = Role(id: 'r1', kind: RoleKind.provision);
+      expect(role.provision, isNull);
+      expect(role.toJson().containsKey('provision'), isFalse);
+    });
+
+    test('provision detail on a non-provision role is rejected (FR25)', () {
+      for (final kind in [RoleKind.narrative, RoleKind.station]) {
+        expect(
+          () => Role(
+            id: 'r1', kind: kind,
+            provision: ProvisionDetail(water: WaterSource(potable: true)),
+          ),
+          throwsArgumentError,
+          reason: kind.wireValue,
+        );
+      }
+    });
+
+    test('an empty ProvisionDetail is rejected', () {
+      expect(() => ProvisionDetail(), throwsArgumentError);
+    });
+
+    test('an empty ResupplyInfo is rejected', () {
+      expect(() => ResupplyInfo(), throwsArgumentError);
+    });
+
+    test('copyWith preserves provision by default and clears it via clearProvision', () {
+      final role = Role(
+        id: 'r1', kind: RoleKind.provision,
+        provision: ProvisionDetail(water: WaterSource(potable: true)),
+      );
+      expect(role.copyWith(title: 'x').provision!.water!.potable, isTrue);
+      expect(role.copyWith(clearProvision: true).provision, isNull);
+    });
+
+    test('coexists with reveal and arc on the same provision role', () {
+      final role = Role(
+        id: 'r1', kind: RoleKind.provision, reveal: RevealPolicy.alwaysVisible, arc: ArcStage.rising,
+        provision: ProvisionDetail(water: WaterSource(potable: true)),
+      );
+      final decoded = Role.fromJson(role.toJson());
+      expect(decoded.reveal, RevealPolicy.alwaysVisible);
+      expect(decoded.arc, ArcStage.rising);
+      expect(decoded.provision!.water!.potable, isTrue);
+    });
+  });
+
   group('Role.note / Role.title clear flags (FR37 / E1)', () {
     test('copyWith preserves title/note by default and clears them via clearTitle/clearNote', () {
       final role = Role(id: 'r1', kind: RoleKind.narrative, title: 'The Overlook', note: 'A vista.');

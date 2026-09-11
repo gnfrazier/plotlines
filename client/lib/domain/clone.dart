@@ -114,7 +114,7 @@ CloneManifest describeClone(CloneScope scope, {CloneParts parts = const ClonePar
   final carried = <String>[
     if (carriesAuthored) ...[
       'The authored trip — bbox, layers, anchors, roles, reveal settings, '
-          'passages, days, and arc',
+          'passages, days, permits, and arc',
       'Declared travel modes',
     ],
     if (carriesRoster) ...[
@@ -131,8 +131,8 @@ CloneManifest describeClone(CloneScope scope, {CloneParts parts = const ClonePar
   final notCarried = <String>[
     ..._consentAndLayerExclusions,
     if (!carriesAuthored)
-      'Days, passages, anchors, and content — you set the location, area, and '
-          'modes fresh',
+      'Days, passages, anchors, permits, and content — you set the location, '
+          'area, and modes fresh',
     if (!carriesRoster)
       'The roster — this clone starts with nobody on it; anything assigned to '
           'a person (groups, shared gear, meals) is dropped, not left dangling',
