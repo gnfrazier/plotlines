@@ -17,7 +17,7 @@ import pytest
 
 from plotlines_core.cache_layout import CacheLayout, trip_bbox_key
 from plotlines_core.curation import providers as providers_mod
-from plotlines_core.curation.notability import RawFeature
+from plotlines_core.curation.notability import RULESET_VERSION, RawFeature
 from plotlines_core.curation.providers import (
     LAYER_SET_VERSION,
     BBox,
@@ -134,7 +134,7 @@ def test_the_persisted_file_records_both_versions(tmp_path):
 
     doc = json.loads(layout.candidate_set(_KEY).read_text())
     assert doc["layer_set_version"] == LAYER_SET_VERSION
-    assert doc["ruleset_version"] == "1.2.0"
+    assert doc["ruleset_version"] == RULESET_VERSION
     assert doc["bbox"] == list(_KEY)
     assert {f["id"] for f in doc["features"]} == {"n/1", "n/2", "w/3"}
 
@@ -151,7 +151,7 @@ def test_a_corrupt_file_is_ignored_and_rebuilt(tmp_path):
     assert len(engine.calls) == 1
     assert [f.id for f in got] == ["n/1", "n/2", "w/3"]
     # the rebuild overwrote the corrupt file with a valid one
-    assert json.loads(entry.read_text())["ruleset_version"] == "1.2.0"
+    assert json.loads(entry.read_text())["ruleset_version"] == RULESET_VERSION
 
 
 def test_without_a_cache_layout_the_behaviour_is_l1_only(tmp_path):

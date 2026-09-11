@@ -23,7 +23,12 @@ from .taxonomy import TypeTaxonomy, TAXONOMY, match_in, weight_for
 #           now gates on denotation *value*; man_made=bridge gated;
 #           natural=peak weight 0.8→0.55; added leisure=nature_reserve and
 #           amenity=place_of_worship.
-RULESET_VERSION = "1.2.0"
+#   1.3.0 — Story C7 (issue #43): added the lodging/campground types
+#           (tourism=hotel/hostel/camp_site/alpine_hut/wilderness_hut) under
+#           the "amenity" layer with role_affinity="station" — a place a
+#           Character stops and stays, not a sight or a utility. No existing
+#           row moved; the golden set is unchanged except this version stamp.
+RULESET_VERSION = "1.3.0"
 
 
 @dataclass(frozen=True)

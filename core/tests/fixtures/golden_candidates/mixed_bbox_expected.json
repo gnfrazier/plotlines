@@ -1,5 +1,5 @@
 {
-  "ruleset_version": "1.2.0",
+  "ruleset_version": "1.3.0",
   "note": "SPIKE-A (#158) golden candidate set. Regenerate with regen.py.",
   "candidate_count": 23,
   "candidates": [

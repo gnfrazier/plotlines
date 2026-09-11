@@ -258,6 +258,29 @@ TAXONOMY: tuple[TypeRule, ...] = (
     TypeRule(layer="sight", key="amenity", value="place_of_worship", base_weight=0.45,
               role_affinity="narrative",
               qualification=Qualification(requires_any=("heritage", "wikidata", "wikipedia"))),
+    # Story C7 (issue #43, FR23) — lodging and campground types, for
+    # "Authors filter and place lodging/campground options on the planning
+    # map by type." These carry `role_affinity="station"` rather than
+    # "provision": a hotel or campsite is not a utility a passing group
+    # stops at, it is where the day ends and the Character stays for a
+    # while — the same shape FR109/O4 gives climbing or a hot spring. Kept
+    # under the "amenity" layer (no new top-level layer, per this file's own
+    # "extending coverage means adding rows here, never branching code") —
+    # OSM's own `tourism=*` key is what distinguishes them from every other
+    # amenity row above, not a separate Plotlines layer id. No qualification
+    # gate: unlike street trees or generic "attraction" pins, lodging is
+    # low-density in a trip-sized bbox and every instance is something an
+    # Author filtering by type actually wants to see.
+    TypeRule(layer="amenity", key="tourism", value="hotel", base_weight=0.55,
+              role_affinity="station"),
+    TypeRule(layer="amenity", key="tourism", value="hostel", base_weight=0.55,
+              role_affinity="station"),
+    TypeRule(layer="amenity", key="tourism", value="camp_site", base_weight=0.55,
+              role_affinity="station"),
+    TypeRule(layer="amenity", key="tourism", value="alpine_hut", base_weight=0.5,
+              role_affinity="station"),
+    TypeRule(layer="amenity", key="tourism", value="wilderness_hut", base_weight=0.5,
+              role_affinity="station"),
 )
 
 

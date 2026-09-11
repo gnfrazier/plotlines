@@ -18,16 +18,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../../domain/candidate.dart' show Candidate;
 import '../../../domain/domain.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../../state/settings_provider.dart';
+import '../../../state/trip_candidates_provider.dart';
+import '../../map/candidate_map.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/alternate_editor_dialog.dart';
 import '../../widgets/day_removal_prompt.dart';
 import '../../widgets/gear_section.dart';
 import '../../widgets/plot_date_range_picker.dart';
+import '../../widgets/plot_toggle_chip.dart';
+
+const _uuid = Uuid();
 
 class LogisticsTab extends ConsumerWidget {
   const LogisticsTab({super.key, required this.trip, required this.onOpenSegment});
@@ -345,6 +352,8 @@ class _DayCard extends ConsumerWidget {
               _DayLimitEditor(day: day),
             ],
             if (day.isRest) _RestDayDetails(day: day),
+            const SizedBox(height: PlotSpacing.s3),
+            _LodgingSection(day: day),
           ],
         ),
       ),
@@ -882,6 +891,157 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
           onPressed: _picked == null ? null : () => Navigator.pop(context, _picked),
         ),
       ],
+    );
+  }
+}
+
+/// Story C7 (issue #43, FR23) — "Authors filter and place lodging/campground
+/// options on the planning map by type." One per day, route or rest alike:
+/// a route day still ends somewhere the Character sleeps, so this is not
+/// rest-day-only the way [_RestDayDetails]'s bare location is.
+///
+/// Reads the trip-wide [tripCandidatesProvider] (the same warmed candidate
+/// set the Layers tab's `_FindCandidatesButton` fills) rather than running
+/// its own extraction — one candidate set per trip, per ARCH §4.1, not a
+/// second extraction path for one placement flow. [_typeFilter] narrows
+/// which of those candidates are lodging-relevant *and* match the selected
+/// types; the map dialog only ever sees that filtered list, so "overlays
+/// update with filters" (the AC) is true by construction rather than a
+/// second filter re-implemented inside the dialog.
+class _LodgingSection extends ConsumerStatefulWidget {
+  const _LodgingSection({required this.day});
+  final Day day;
+
+  @override
+  ConsumerState<_LodgingSection> createState() => _LodgingSectionState();
+}
+
+class _LodgingSectionState extends ConsumerState<_LodgingSection> {
+  Set<LodgingType> _typeFilter = LodgingType.values.toSet();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final candidatesState = ref.watch(tripCandidatesProvider);
+    final lodgingCandidates = candidatesState.candidates
+        .where((cand) => _typeFilter.contains(lodgingTypeOfCandidate(cand)))
+        .toList();
+    final placed = widget.day.nodes.where(isLodgingNode).toList();
+    final everFetched = candidatesState.fetchedFor != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('LODGING', style: PlotTypography.eyebrow(c.textMuted)),
+        const SizedBox(height: PlotSpacing.s2),
+        Wrap(
+          spacing: PlotSpacing.s2,
+          runSpacing: PlotSpacing.s2,
+          children: [
+            for (final type in LodgingType.values)
+              PlotToggleChip(
+                label: type.label,
+                selected: _typeFilter.contains(type),
+                onTap: () => setState(() {
+                  _typeFilter = _typeFilter.contains(type)
+                      ? (_typeFilter.toSet()..remove(type))
+                      : (_typeFilter.toSet()..add(type));
+                }),
+              ),
+          ],
+        ),
+        if (placed.isNotEmpty) ...[
+          const SizedBox(height: PlotSpacing.s2),
+          Wrap(
+            spacing: PlotSpacing.s2,
+            runSpacing: PlotSpacing.s2,
+            children: [
+              for (final node in placed)
+                Chip(
+                  label: Text(node.title ?? (node.poiType ?? 'Lodging')),
+                  onDeleted: () =>
+                      ref.read(currentTripProvider.notifier).removeNodesById({node.id}),
+                ),
+            ],
+          ),
+        ],
+        const SizedBox(height: PlotSpacing.s2),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: PlotButton(
+            label: 'Place lodging on map',
+            variant: PlotButtonVariant.ghost,
+            icon: Icons.hotel_outlined,
+            onPressed: !everFetched
+                ? null
+                : () => _openMap(context, lodgingCandidates),
+          ),
+        ),
+        if (!everFetched)
+          Text(
+            'Find candidates on the Layers tab first — lodging is filtered '
+            'from the same candidate set.',
+            style: PlotTypography.small(c.textMuted),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _openMap(BuildContext context, List<Candidate> candidates) async {
+    final picked = await showDialog<Candidate>(
+      context: context,
+      builder: (_) => _LodgingMapDialog(candidates: candidates),
+    );
+    if (picked == null || !mounted) return;
+    final node = lodgingNodeFromCandidate(picked, id: _uuid.v4());
+    if (node == null) return;
+    ref.read(currentTripProvider.notifier).promoteCandidate(widget.day.id, node);
+  }
+}
+
+/// The map surface behind "Place lodging on map" — [candidates] arrives
+/// already filtered by [_LodgingSectionState]'s type chips, so this dialog
+/// draws exactly the overlays the Author asked to see and nothing else.
+/// Reuses [CandidateMap] (the Curation Workspace's own candidate rendering)
+/// rather than a second marker implementation, the same reuse #325's rest-day
+/// location redesign calls for.
+class _LodgingMapDialog extends StatelessWidget {
+  const _LodgingMapDialog({required this.candidates});
+  final List<Candidate> candidates;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: SizedBox(
+        width: 640,
+        height: 480,
+        child: Stack(
+          children: [
+            CandidateMap(
+              candidates: candidates,
+              onCandidateTap: (c) => Navigator.pop(context, c),
+            ),
+            Positioned(
+              top: PlotSpacing.s3,
+              right: PlotSpacing.s3,
+              child: IconButton(
+                tooltip: 'Close',
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            if (candidates.isEmpty)
+              Positioned(
+                left: PlotSpacing.s3,
+                bottom: PlotSpacing.s3,
+                child: Text(
+                  'No lodging of the selected type in the trip area.',
+                  style: PlotTypography.small(PlotColors.of(context).textMuted),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

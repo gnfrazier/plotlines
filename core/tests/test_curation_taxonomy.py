@@ -1,5 +1,7 @@
 """Unit tests for `plotlines_core.curation.taxonomy` (PRD FR97/FR98)."""
 
+import pytest
+
 from plotlines_core.curation.taxonomy import LAYERS, Qualification, match, weight_for
 
 
@@ -96,3 +98,32 @@ def test_bridge_needs_a_heritage_signal_not_just_a_name():
     assert rule.qualification.satisfied_by({"man_made": "bridge", "name": "Gould Avenue"}, None) is False
     assert rule.qualification.satisfied_by(
         {"man_made": "bridge", "name": "Colorado Street Bridge", "heritage": "2"}, None) is True
+
+
+# --- Story C7 (issue #43, FR23) — lodging/campground types -----------------
+
+
+@pytest.mark.parametrize("value", ["hotel", "hostel", "camp_site", "alpine_hut", "wilderness_hut"])
+def test_lodging_types_match_under_the_amenity_layer_with_station_affinity(value):
+    rule = match({"tourism": value})
+    assert rule is not None
+    assert rule.layer == "amenity"
+    assert rule.role_affinity == "station"
+
+
+def test_lodging_types_carry_no_qualification_gate():
+    # Unlike street trees or a generic "attraction" pin, lodging is
+    # low-density in a trip-sized bbox — every instance is something an
+    # Author filtering by type wants to see, so nothing gates it.
+    for value in ("hotel", "hostel", "camp_site", "alpine_hut", "wilderness_hut"):
+        rule = match({"tourism": value})
+        assert rule.qualification.satisfied_by({"tourism": value}, None) is True
+
+
+def test_lodging_never_collides_with_the_existing_sight_tourism_rows():
+    # `tourism=viewpoint`/`museum` are narrative "sight" rows already in the
+    # taxonomy — the new lodging rows must not shadow or be shadowed by them.
+    viewpoint = match({"tourism": "viewpoint"})
+    hotel = match({"tourism": "hotel"})
+    assert viewpoint.layer == "sight" and viewpoint.role_affinity == "narrative"
+    assert hotel.layer == "amenity" and hotel.role_affinity == "station"
