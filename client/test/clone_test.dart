@@ -87,7 +87,7 @@ void main() {
       final m = describeClone(CloneScope.rosterOnly);
       expect(m.carried, contains('Roster membership'));
       expect(m.carried, isNot(contains(startsWith('The authored trip'))));
-      expect(m.notCarried, contains(startsWith('Days, passages, anchors, and content')));
+      expect(m.notCarried, contains(startsWith('Days, passages, anchors, permits, and content')));
       expect(m.runsTripInitiation, isTrue);
     });
 

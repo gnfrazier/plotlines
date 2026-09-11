@@ -31,6 +31,8 @@ import '../../map/candidate_map.dart';
 import '../../widgets/alternate_editor_dialog.dart';
 import '../../widgets/day_removal_prompt.dart';
 import '../../widgets/gear_section.dart';
+import '../../widgets/meal_section.dart';
+import '../../widgets/permit_section.dart';
 import '../../widgets/plot_date_range_picker.dart';
 import '../../widgets/plot_toggle_chip.dart';
 import '../rest_day_location_screen.dart';
@@ -45,6 +47,9 @@ class LogisticsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final staleCount = tripStaleCount(trip);
+    // FR25 / C9 — collected once per build (not per day card) so every day's
+    // water-carry legs are computed against the same anchor set.
+    final waterSources = collectWaterSources(trip);
     return Column(
       children: [
         Expanded(
@@ -72,7 +77,8 @@ class LogisticsTab extends ConsumerWidget {
               const SizedBox(height: PlotSpacing.s3),
               _OfflineBufferCard(trip: trip),
               const SizedBox(height: PlotSpacing.s3),
-              for (final day in trip.days) _DayCard(day: day, onOpenSegment: onOpenSegment),
+              for (final day in trip.days)
+                _DayCard(day: day, onOpenSegment: onOpenSegment, waterSources: waterSources),
               const SizedBox(height: PlotSpacing.s4),
               const Divider(height: 1),
               const SizedBox(height: PlotSpacing.s4),
@@ -80,6 +86,19 @@ class LogisticsTab extends ConsumerWidget {
               // Shared Group Gear assigned to the roster. Reads the roster
               // layer, so it lives here rather than on the payload-only tab.
               GearSection(trip: trip),
+              const SizedBox(height: PlotSpacing.s4),
+              const Divider(height: 1),
+              const SizedBox(height: PlotSpacing.s4),
+              // FR25 / C9 — group meals and who is responsible for each.
+              // Roster-scoped for the same reason GearSection is.
+              MealSection(trip: trip),
+              const SizedBox(height: PlotSpacing.s4),
+              const Divider(height: 1),
+              const SizedBox(height: PlotSpacing.s4),
+              // FR26 / C10 — permits, land-access rules, and parking passes,
+              // and the pre-trip checklist built from them. Payload-scoped
+              // (`Trip.permits`), unlike the two sections above.
+              PermitSection(trip: trip),
             ],
           ),
         ),
@@ -330,9 +349,13 @@ class _OfflineBufferCardState extends ConsumerState<_OfflineBufferCard> {
 }
 
 class _DayCard extends ConsumerWidget {
-  const _DayCard({required this.day, required this.onOpenSegment});
+  const _DayCard({required this.day, required this.onOpenSegment, required this.waterSources});
   final Day day;
   final void Function(String dayId, String segmentId) onOpenSegment;
+
+  /// FR25 / C9 — every water-source anchor on the trip; this card projects
+  /// them onto its own day's route to find the legs that belong to it.
+  final List<WaterCarrySource> waterSources;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -433,6 +456,7 @@ class _DayCard extends ConsumerWidget {
               ),
               const SizedBox(height: PlotSpacing.s3),
               _DayLimitEditor(day: day),
+              _WaterCarrySection(day: day, waterSources: waterSources),
             ],
             if (day.isRest) _RestDayDetails(day: day),
             const SizedBox(height: PlotSpacing.s3),
@@ -818,6 +842,60 @@ class _DayLimitRowState extends ConsumerState<_DayLimitRow> {
           onPressed: _remove,
         ),
       ],
+    );
+  }
+}
+
+/// FR25 / C9 — "itineraries show water-carry distance between sources." One
+/// row per gap between consecutive on-route water sources, in route order.
+/// Renders nothing when the day has fewer than two on-route sources — the
+/// common case, and not an error (mirrors [_AlternatesSection]'s empty
+/// handling: no card at all rather than an empty one).
+class _WaterCarrySection extends ConsumerWidget {
+  const _WaterCarrySection({required this.day, required this.waterSources});
+  final Day day;
+  final List<WaterCarrySource> waterSources;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final report = waterCarryForDay(day, waterSources);
+    if (report.legs.isEmpty) return const SizedBox.shrink();
+    final c = PlotColors.of(context);
+    final df = ref.watch(displayFormatProvider);
+    return Padding(
+      padding: const EdgeInsets.only(top: PlotSpacing.s3),
+      child: PlotCard(
+        sunk: true,
+        padding: const EdgeInsets.all(PlotSpacing.s3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.water_drop_outlined, size: 14, color: c.textMuted),
+                const SizedBox(width: PlotSpacing.s1),
+                Text('WATER CARRY', style: PlotTypography.data(c.textMuted)),
+              ],
+            ),
+            for (final leg in report.legs)
+              Padding(
+                padding: const EdgeInsets.only(top: PlotSpacing.s1),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${leg.fromTitle ?? 'Source'} → ${leg.toTitle ?? 'Source'}',
+                        style: PlotTypography.body(c.textSecondary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(df.formatDistance(leg.distanceM), style: PlotTypography.data(c.textPrimary)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

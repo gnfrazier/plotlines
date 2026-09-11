@@ -91,7 +91,7 @@ from plotlines_core.content.anchor import Anchor
 #: confirmed place instead of a bare coordinate. Additive: an absent
 #: label means the location was hand-placed with no resolvable name,
 #: which every day written before this bump already reads as.
-SCHEMA_VERSION = "1.11.0"
+SCHEMA_VERSION = "1.12.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -513,6 +513,65 @@ class Hazard:
         }
 
 
+#: FR26 / C10 — where a permit stands. `required` is the Author flagging it
+#: needed with nothing done yet; `applied` is submitted/requested; `confirmed`
+#: is in hand; `denied` is a rejected application — a reason to change the
+#: route, not a state a checklist can quietly drop.
+PERMIT_STATUSES = ("required", "applied", "confirmed", "denied")
+
+
+@dataclass
+class Permit:
+    """FR26 / C10 — a permit, land-access rule, or parking pass the Author
+    attaches to a passage or a promoted anchor, surfaced to Characters as a
+    pre-trip checklist.
+
+    Trip-scoped (`Trip.permits`), not nested under a day or segment — mirrors
+    `Trip.anchors` rather than `Segment.hazards`, because a checklist reads
+    the whole trip in one pass (`trips.permits.collect_permits`) and a permit
+    is not itself a point on a route the way a hazard's `distance_along_m`
+    can be.
+
+    `segment_id` / `anchor_id` are optional and independently so — an
+    all-trip obligation (a state-park annual pass covering every day) is
+    neither. When both are set the model is contradictory (a permit pinned to
+    two different things), the same posture `Hazard.node_id`/`anchor_id`
+    takes.
+    """
+
+    title: str
+    id: str = field(default_factory=new_id)
+    status: str = "required"
+    confirmation_number: str | None = None
+    link: str | None = None
+    note: str | None = None
+    documents: list[MediaRef] = field(default_factory=list)
+    segment_id: str | None = None
+    anchor_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.title, str) or not self.title.strip():
+            raise ValueError("permit title must be a non-empty string")
+        if self.status not in PERMIT_STATUSES:
+            raise ValueError(f"permit status {self.status!r} not in {PERMIT_STATUSES}")
+        if self.segment_id is not None and self.anchor_id is not None:
+            raise ValueError(
+                f"permit {self.id}: segment_id and anchor_id are mutually exclusive — "
+                "a permit is anchored to one thing, not both"
+            )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id, "title": self.title, "status": self.status,
+            "confirmation_number": self.confirmation_number,
+            "link": self.link,
+            "note": self.note,
+            "documents": [d.to_dict() for d in self.documents] or None,
+            "segment_id": self.segment_id,
+            "anchor_id": self.anchor_id,
+        }
+
+
 @dataclass
 class LineString:
     coordinates: list[Coord]
@@ -897,6 +956,8 @@ class Trip:
     day_limits: dict[str, dict[str, float]] = field(default_factory=dict)
     days: list[Day] = field(default_factory=list)
     anchors: list[Anchor] = field(default_factory=list)
+    #: FR26 / C10 — trip-scoped, like `anchors` (see `Permit`'s own doc for why).
+    permits: list[Permit] = field(default_factory=list)
     metrics: RollUp | None = None
     provenance: Provenance | None = None
     schema_version: str = SCHEMA_VERSION
@@ -921,6 +982,7 @@ class Trip:
             "defaults": defaults,
             "days": [d.to_dict() for d in self.days],
             "anchors": [a.to_dict() for a in self.anchors] or None,
+            "permits": [p.to_dict() for p in self.permits] or None,
             "metrics": self.metrics.to_dict() if self.metrics else None,
             "provenance": self.provenance.to_dict() if self.provenance else None,
             "offline_buffer_m": f(self.offline_buffer_m) if self.offline_buffer_m is not None else None,

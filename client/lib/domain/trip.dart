@@ -5,6 +5,7 @@ library;
 import 'anchor.dart';
 import 'day.dart';
 import 'json_utils.dart';
+import 'permit.dart';
 import 'route_metrics.dart';
 import 'weight_profile.dart';
 
@@ -43,7 +44,14 @@ import 'weight_profile.dart';
 // day card shows a confirmed place rather than a bare coordinate. Additive:
 // an absent label means the location was hand-placed with no resolvable
 // name, which every day written before this bump already reads as.
-const String tripSchemaVersion = '1.11.0';
+// Bumped to 1.12.0 by issues #45/#46: `role.provision` arrived (Story C9,
+// FR25 — water/resupply detail, valid only on a `provision`-kind role) and
+// the trip gains an optional top-level `permits` array (Story C10, FR26).
+// Additive both ways: an absent `role.provision` means no structured
+// water/resupply detail yet, and an absent/empty `permits` means the trip
+// carries none, which is how every trip written before this bump already
+// reads.
+const String tripSchemaVersion = '1.12.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {
@@ -155,6 +163,7 @@ class Trip {
     this.dayLimits = const {},
     this.days = const [],
     this.anchors = const [],
+    this.permits = const [],
     this.metrics,
     this.provenance,
     this.declaredModes = const {},
@@ -189,6 +198,12 @@ class Trip {
   /// "anchors view" — ordinary working state, not an error).
   final List<Anchor> anchors;
 
+  /// FR26 / C10 — permits, land-access rules, and parking passes attached to
+  /// a passage or a promoted anchor, trip-scoped like [anchors] rather than
+  /// nested under one day (`plotlines_core.trips.permits`'s own doc explains
+  /// why: a pre-trip checklist reads the whole trip in one pass).
+  final List<Permit> permits;
+
   /// FR31 / D1 — trip totals, derived from the days and stored so G2a's
   /// list surface can show them without re-deriving.
   final RollUp? metrics;
@@ -214,6 +229,7 @@ class Trip {
     }
     final days = f.takeList('days', Day.fromJson);
     final anchors = f.takeList('anchors', Anchor.fromJson);
+    final permits = f.takeList('permits', Permit.fromJson);
     final metrics = f.takeObject('metrics', RollUp.fromJson);
     final provenance = f.takeObject('provenance', Provenance.fromJson);
     final offlineBufferM = f.takeNum('offline_buffer_m');
@@ -230,6 +246,7 @@ class Trip {
       dayLimits: dayLimits,
       days: days,
       anchors: anchors,
+      permits: permits,
       metrics: metrics,
       provenance: provenance,
     );
@@ -258,6 +275,7 @@ class Trip {
     // see the class doc comment for the payload.py disagreement this guards against.
     out['days'] = days.map((d) => d.toJson()).toList();
     if (anchors.isNotEmpty) out['anchors'] = anchors.map((a) => a.toJson()).toList();
+    if (permits.isNotEmpty) out['permits'] = permits.map((p) => p.toJson()).toList();
     return out;
   }
 
@@ -297,6 +315,7 @@ class Trip {
     Map<String, DayLimit>? dayLimits,
     List<Day>? days,
     List<Anchor>? anchors,
+    List<Permit>? permits,
     RollUp? metrics,
     Provenance? provenance,
     Set<String>? declaredModes,
@@ -314,6 +333,7 @@ class Trip {
         dayLimits: dayLimits ?? this.dayLimits,
         days: days ?? this.days,
         anchors: anchors ?? this.anchors,
+        permits: permits ?? this.permits,
         metrics: metrics ?? this.metrics,
         provenance: provenance ?? this.provenance,
         declaredModes: declaredModes ?? this.declaredModes,

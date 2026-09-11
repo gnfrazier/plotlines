@@ -279,6 +279,90 @@ class StationActivity {
       });
 }
 
+/// FR25 / C9 — "water points tagged potable or filter-required." A binary tag,
+/// not a free-text quality note: `false` means filter/treatment required.
+class WaterSource {
+  const WaterSource({required this.potable});
+
+  final bool potable;
+
+  factory WaterSource.fromJson(Map<String, dynamic> json) {
+    final f = JsonFields(json, 'water_source');
+    final w = WaterSource(potable: f.takeBool('potable')!);
+    f.done();
+    return w;
+  }
+
+  Map<String, dynamic> toJson() => {'potable': potable};
+}
+
+/// FR25 / C9 — "resupply points with hours and notes." [hours] is free text
+/// (an OSM-style `opening_hours` string or the Author's own note), never
+/// parsed here — [ScheduledWindow] (`node.dart`) is the object for a
+/// machine-checkable time window; this is not that.
+class ResupplyInfo {
+  ResupplyInfo({this.hours, this.notes}) {
+    if (hours == null && notes == null) {
+      throw ArgumentError('resupply info needs at least one of hours/notes');
+    }
+  }
+
+  final String? hours;
+  final String? notes;
+
+  factory ResupplyInfo.fromJson(Map<String, dynamic> json) {
+    final f = JsonFields(json, 'resupply_info');
+    final r = ResupplyInfo(hours: f.takeString('hours'), notes: f.takeString('notes'));
+    f.done();
+    return r;
+  }
+
+  Map<String, dynamic> toJson() => pruneJson({'hours': hours, 'notes': notes});
+}
+
+/// FR25 / C9 — structured detail for a [RoleKind.provision] role: a water
+/// source, a resupply point, or both on the same anchor (a trailhead store
+/// that also has a tap). Mirrors [StationActivity]'s shape and guard: valid
+/// only on a provision role, rejected on any other by [Role]'s constructor.
+/// An empty [ProvisionDetail] (neither set) is meaningless, so it is rejected
+/// here rather than constructed as a bare, contentless object.
+class ProvisionDetail {
+  ProvisionDetail({this.water, this.resupply}) {
+    if (water == null && resupply == null) {
+      throw ArgumentError('provision detail needs at least one of water/resupply');
+    }
+  }
+
+  final WaterSource? water;
+  final ResupplyInfo? resupply;
+
+  ProvisionDetail copyWith({
+    WaterSource? water,
+    bool clearWater = false,
+    ResupplyInfo? resupply,
+    bool clearResupply = false,
+  }) =>
+      ProvisionDetail(
+        water: clearWater ? null : (water ?? this.water),
+        resupply: clearResupply ? null : (resupply ?? this.resupply),
+      );
+
+  factory ProvisionDetail.fromJson(Map<String, dynamic> json) {
+    final f = JsonFields(json, 'provision_detail');
+    final p = ProvisionDetail(
+      water: f.takeObject('water', WaterSource.fromJson),
+      resupply: f.takeObject('resupply', ResupplyInfo.fromJson),
+    );
+    f.done();
+    return p;
+  }
+
+  Map<String, dynamic> toJson() => pruneJson({
+        'water': water?.toJson(),
+        'resupply': resupply?.toJson(),
+      });
+}
+
 /// FR106, FR107, FR110 / O1, O2 — one entry in an anchor's role set. [reveal] and
 /// content ([title]/[note]/[media]) may be left unset at promotion and decided
 /// later (O1's AC: "set here or later"); nothing here defaults [reveal] on the
@@ -311,6 +395,9 @@ class StationActivity {
 /// [activity] (FR109, FR16b, FR24 / O4) is a [StationActivity] on a
 /// [RoleKind.station] role and `null` on any other — the constructor rejects it
 /// on a narrative or provision role, mirroring the hazard/`onArrival` guard.
+///
+/// [provision] (FR25 / C9) is a [ProvisionDetail] on a [RoleKind.provision]
+/// role and `null` on any other — the same guard shape as [activity].
 class Role {
   Role({
     required this.kind,
@@ -324,6 +411,7 @@ class Role {
     this.hazard = false,
     this.arc,
     this.activity,
+    this.provision,
   }) {
     if (hazard && reveal == RevealPolicy.onArrival) {
       throw ArgumentError(
@@ -333,6 +421,10 @@ class Role {
     if (activity != null && kind != RoleKind.station) {
       throw ArgumentError(
           'role $id: FR109 puts an activity on a station role only — got ${kind.wireValue}');
+    }
+    if (provision != null && kind != RoleKind.provision) {
+      throw ArgumentError(
+          'role $id: FR25 puts provision detail on a provision role only — got ${kind.wireValue}');
     }
   }
 
@@ -347,6 +439,7 @@ class Role {
   final bool hazard;
   final ArcStage? arc;
   final StationActivity? activity;
+  final ProvisionDetail? provision;
 
   Role copyWith({
     RoleKind? kind,
@@ -366,6 +459,8 @@ class Role {
     bool clearArc = false,
     StationActivity? activity,
     bool clearActivity = false,
+    ProvisionDetail? provision,
+    bool clearProvision = false,
   }) =>
       Role(
         id: id,
@@ -379,6 +474,7 @@ class Role {
         hazard: hazard ?? this.hazard,
         arc: clearArc ? null : (arc ?? this.arc),
         activity: clearActivity ? null : (activity ?? this.activity),
+        provision: clearProvision ? null : (provision ?? this.provision),
       );
 
   factory Role.fromJson(Map<String, dynamic> json) {
@@ -390,6 +486,7 @@ class Role {
     final rawReveal = f.takeString('reveal');
     final rawArc = f.takeString('arc');
     final activity = f.takeObject('activity', StationActivity.fromJson);
+    final provision = f.takeObject('provision', ProvisionDetail.fromJson);
     final r = Role(
       id: id,
       kind: kind,
@@ -402,6 +499,7 @@ class Role {
       hazard: f.takeBool('hazard') ?? false,
       arc: rawArc == null ? null : ArcStage.fromWire(rawArc),
       activity: activity,
+      provision: provision,
     );
     f.done();
     return r;
@@ -422,6 +520,7 @@ class Role {
         'hazard': hazard,
         'arc': arc?.wireValue,
         'activity': activity?.toJson(),
+        'provision': provision?.toJson(),
       });
 }
 

@@ -91,6 +91,24 @@ MAPPING: list[dict] = [
      "status": "mapped", "pointer": "/$defs/node_kind"},
     {"fr": "FR27", "story": "C11", "what": "hazard and crux warnings",
      "status": "mapped", "pointer": "/$defs/hazard"},
+    {"fr": "FR25", "story": "C9", "what": "water sources (potable/filter) and resupply "
+                                          "points (hours, notes)",
+     "status": "mapped", "pointer": "/$defs/provision_detail",
+     "note": "On a `provision`-kind role only (role `allOf`), the same shape "
+             "`station_activity` uses. Water-carry distance between sources "
+             "(`trips.water_carry`) is derived by projecting each anchor onto the "
+             "day's solved route, not a stored field. Group-meal responsibility "
+             "assignment is roster-layer (`client/lib/domain/roster.dart`'s "
+             "`MealResponsibility`), out of the payload for the same reason FR24's "
+             "gear checklist is — the load-bearing half is who on the roster carries "
+             "it, not trip data."},
+    {"fr": "FR26", "story": "C10", "what": "permits, land-access rules, and parking passes",
+     "status": "mapped", "pointer": "/$defs/permit",
+     "note": "Trip-scoped (`Trip.permits`), not nested under a day or segment — a "
+             "pre-trip checklist (`trips.permits.permit_checklist`) reads the whole "
+             "trip in one pass. `segment_id`/`anchor_id` are optional and not "
+             "mutually required — a trip-wide obligation (an annual park pass) "
+             "attaches to neither."},
     {"fr": "FR109", "story": "O4", "what": "station activity (type, duration, gear, difficulty)",
      "status": "mapped", "pointer": "/$defs/station_activity",
      "note": "On a `station`-kind role only (role `allOf`). Duration feeds day "

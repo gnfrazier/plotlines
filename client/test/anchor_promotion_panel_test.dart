@@ -478,6 +478,108 @@ void main() {
     });
   });
 
+  // FR25 / C9 — the provision role's water/resupply detail.
+  group('provision detail (FR25 / O1)', () {
+    testWidgets('the water/resupply fields show only for the provision role', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      // narrative — no water/resupply block.
+      await tester.tap(find.byType(Checkbox).at(0));
+      await tester.pump();
+      expect(find.text('WATER & RESUPPLY (FR25)'), findsNothing);
+      await tester.tap(find.byType(Checkbox).at(0)); // deselect narrative
+      await tester.pump();
+
+      // provision (index 1) — the block appears.
+      final provisionCheckbox = find.byType(Checkbox).at(1);
+      await tester.ensureVisible(provisionCheckbox);
+      await tester.tap(provisionCheckbox);
+      await tester.pumpAndSettle();
+      expect(find.text('WATER & RESUPPLY (FR25)'), findsOneWidget);
+    });
+
+    testWidgets('promoting a provision role with a water source shows a badge', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      final provisionCheckbox = find.byType(Checkbox).at(1);
+      await tester.ensureVisible(provisionCheckbox);
+      await tester.tap(provisionCheckbox);
+      await tester.pumpAndSettle();
+
+      final waterCheckbox = find.widgetWithText(CheckboxListTile, 'Water source');
+      await tester.ensureVisible(waterCheckbox);
+      await tester.tap(waterCheckbox);
+      await tester.pumpAndSettle(); // default potable = true
+
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('POTABLE'), findsOneWidget);
+    });
+
+    testWidgets('a provision role with no detail chosen carries none and shows only the kind chip',
+        (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      final provisionCheckbox = find.byType(Checkbox).at(1);
+      await tester.ensureVisible(provisionCheckbox);
+      await tester.tap(provisionCheckbox);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      final anchor = ProviderScope.containerOf(
+        tester.element(find.byType(AnchorPromotionPanel)),
+      ).read(currentTripProvider).anchors.single;
+      expect(anchor.roles.single.kind, RoleKind.provision);
+      expect(anchor.roles.single.provision, isNull);
+    });
+
+    testWidgets('water/resupply detail can be added to an existing provision role from the card',
+        (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Promote a place'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Latitude'), '40.02');
+      await tester.enterText(find.widgetWithText(TextField, 'Longitude'), '-105.27');
+      final provisionCheckbox = find.byType(Checkbox).at(1);
+      await tester.ensureVisible(provisionCheckbox);
+      await tester.tap(provisionCheckbox);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Promote'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Add water/resupply detail'));
+      await tester.pumpAndSettle();
+      expect(find.text('Water & resupply'), findsOneWidget);
+
+      final waterCheckbox = find.widgetWithText(CheckboxListTile, 'Water source');
+      await tester.ensureVisible(waterCheckbox);
+      await tester.tap(waterCheckbox);
+      await tester.pump(); // default potable = true
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final anchor = ProviderScope.containerOf(
+        tester.element(find.byType(AnchorPromotionPanel)),
+      ).read(currentTripProvider).anchors.single;
+      expect(anchor.roles.single.provision!.water!.potable, isTrue);
+      expect(find.text('POTABLE'), findsOneWidget);
+    });
+  });
+
   // O5's AC — "the Author can preview the trip as a Character would see it
   // before departure."
   group('preview as Character (O5 AC)', () {
