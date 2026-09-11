@@ -13,8 +13,10 @@
 // The mutation surface started minimal (G2b / #73 only needed the roster
 // carried, dropped, and rehydrated correctly). C8 (#44) adds the gear
 // checklist editing surface — `addGearItem` / `updateGearItem` /
-// `setGearAssignees` / `removeGearItem`, driven from the Logistics tab. The
-// Character-facing roster runtime is still a later story.
+// `setGearAssignees` / `removeGearItem`. C9 (#45) adds the same shape for
+// group meals — `addMeal` / `updateMeal` / `setMealCooks` / `removeMeal` —
+// both driven from the Logistics tab. The Character-facing roster runtime is
+// still a later story.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,6 +105,46 @@ class CurrentRosterNotifier extends StateNotifier<TripRoster> {
     state = state.copyWith(gear: [
       for (final g in state.gear)
         if (g.id != id) g,
+    ]);
+  }
+
+  // ---- C9 (FR25) — group meals ---------------------------------------------
+
+  /// Append a group meal. [id] is the caller's to generate, like [addGearItem].
+  void addMeal(MealResponsibility meal) {
+    if (state.meals.any((m) => m.id == meal.id)) return;
+    state = state.copyWith(meals: [...state.meals, meal]);
+  }
+
+  /// Edit one meal's label or day pin in place — `cookIds` is
+  /// [setMealCooks]'s job, mirroring [setGearAssignees].
+  void updateMeal(String id, {String? label, String? dayId, bool clearDayId = false}) {
+    state = state.copyWith(meals: [
+      for (final m in state.meals)
+        if (m.id == id)
+          MealResponsibility(
+            id: m.id,
+            label: label ?? m.label,
+            dayId: clearDayId ? null : (dayId ?? m.dayId),
+            cookIds: m.cookIds,
+          )
+        else
+          m,
+    ]);
+  }
+
+  /// Set who carries a group meal — mirrors [setGearAssignees].
+  void setMealCooks(String id, Set<String> cookIds) {
+    state = state.copyWith(meals: [
+      for (final m in state.meals)
+        if (m.id == id) m.withCooks(cookIds) else m,
+    ]);
+  }
+
+  void removeMeal(String id) {
+    state = state.copyWith(meals: [
+      for (final m in state.meals)
+        if (m.id != id) m,
     ]);
   }
 

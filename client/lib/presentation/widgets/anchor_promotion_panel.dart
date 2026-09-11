@@ -463,6 +463,152 @@ class _StationActivityDialogState extends ConsumerState<_StationActivityDialog> 
   }
 }
 
+/// FR25 / C9 — the provision-detail badge label: what a water/resupply role
+/// carries, in the fewest words that still say something ("Potable" reads
+/// differently from "Filter required," and both differ from a resupply-only
+/// stop that carries no water tag at all).
+String _provisionDetailBadge(ProvisionDetail detail) {
+  final parts = <String>[
+    if (detail.water != null) (detail.water!.potable ? 'Potable' : 'Filter required'),
+    if (detail.resupply != null) 'Resupply',
+  ];
+  return parts.join(' · ');
+}
+
+/// FR25 / C9 — set or edit a provision role's [ProvisionDetail] after
+/// promotion (O1's AC: "set here or later"). Mirrors [_editStationActivity].
+Future<void> _editProvisionDetail(
+  BuildContext context,
+  WidgetRef ref, {
+  required String anchorId,
+  required Role role,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (_) => _ProvisionDetailDialog(anchorId: anchorId, role: role),
+  );
+}
+
+class _ProvisionDetailDialog extends ConsumerStatefulWidget {
+  const _ProvisionDetailDialog({required this.anchorId, required this.role});
+  final String anchorId;
+  final Role role;
+
+  @override
+  ConsumerState<_ProvisionDetailDialog> createState() => _ProvisionDetailDialogState();
+}
+
+class _ProvisionDetailDialogState extends ConsumerState<_ProvisionDetailDialog> {
+  late bool _hasWater = widget.role.provision?.water != null;
+  late bool _potable = widget.role.provision?.water?.potable ?? true;
+  late bool _hasResupply = widget.role.provision?.resupply != null;
+  late final _hours = TextEditingController(text: widget.role.provision?.resupply?.hours ?? '');
+  late final _notes = TextEditingController(text: widget.role.provision?.resupply?.notes ?? '');
+
+  @override
+  void dispose() {
+    _hours.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final notifier = ref.read(currentTripProvider.notifier);
+    ResupplyInfo? resupply;
+    if (_hasResupply) {
+      final hours = _hours.text.trim();
+      final notes = _notes.text.trim();
+      if (hours.isNotEmpty || notes.isNotEmpty) {
+        resupply = ResupplyInfo(
+          hours: hours.isEmpty ? null : hours,
+          notes: notes.isEmpty ? null : notes,
+        );
+      }
+    }
+    final water = _hasWater ? WaterSource(potable: _potable) : null;
+    if (water == null && resupply == null) {
+      notifier.updateRole(widget.anchorId, widget.role.id, clearProvision: true);
+    } else {
+      notifier.updateRole(
+        widget.anchorId, widget.role.id,
+        provision: ProvisionDetail(water: water, resupply: resupply),
+      );
+    }
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Water & resupply'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Water source'),
+                value: _hasWater,
+                onChanged: (v) => setState(() => _hasWater = v ?? false),
+              ),
+              if (_hasWater)
+                Padding(
+                  padding: const EdgeInsets.only(left: PlotSpacing.s6, bottom: PlotSpacing.s2),
+                  child: DropdownButton<bool>(
+                    isDense: true,
+                    isExpanded: true,
+                    value: _potable,
+                    items: const [
+                      DropdownMenuItem(value: true, child: Text('Potable')),
+                      DropdownMenuItem(value: false, child: Text('Filter/treatment required')),
+                    ],
+                    onChanged: (v) => setState(() => _potable = v ?? true),
+                  ),
+                ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Resupply point'),
+                value: _hasResupply,
+                onChanged: (v) => setState(() => _hasResupply = v ?? false),
+              ),
+              if (_hasResupply) ...[
+                TextField(
+                  controller: _hours,
+                  decoration: const InputDecoration(
+                    labelText: 'Hours (optional)',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: PlotSpacing.s2),
+                TextField(
+                  controller: _notes,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes (optional)',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: _save, child: const Text('Save')),
+      ],
+    );
+  }
+}
+
 class _RoleChip extends ConsumerWidget {
   const _RoleChip({required this.anchorId, required this.role, this.placeName});
 
@@ -558,6 +704,24 @@ class _RoleChip extends ConsumerWidget {
               constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               padding: EdgeInsets.zero,
               onPressed: () => _editStationActivity(context, ref, anchorId: anchorId, role: role),
+            ),
+          // FR25 / C9 — a provision role that carries structured detail
+          // shows what it is (water tag, resupply, or both).
+          if (role.provision != null)
+            PlotBadge(_provisionDetailBadge(role.provision!), tone: PlotBadgeTone.spruce),
+          // FR25 / C9 — set or edit the provision role's water/resupply detail.
+          if (role.kind == RoleKind.provision)
+            IconButton(
+              tooltip: role.provision == null ? 'Add water/resupply detail' : 'Edit water/resupply detail',
+              icon: Icon(
+                role.provision == null ? Icons.water_drop_outlined : Icons.water_drop,
+                size: 16,
+                color: c.textMuted,
+              ),
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              padding: EdgeInsets.zero,
+              onPressed: () => _editProvisionDetail(context, ref, anchorId: anchorId, role: role),
             ),
           // FR37 / E1 — content (note/media) may be left unset at promotion
           // and decided later (O1's AC); this is that "later." A filled icon
@@ -660,6 +824,14 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
   final _stationDurationMin = TextEditingController();
   final _stationDifficulty = TextEditingController();
   final _stationGear = TextEditingController();
+  // FR25 / C9 — the provision role's water/resupply detail. Plain fields,
+  // not a per-kind map, for the same reason the station fields above are:
+  // FR25 puts this on a provision role and nowhere else.
+  bool _provisionHasWater = false;
+  bool _provisionPotable = true;
+  bool _provisionHasResupply = false;
+  final _provisionHours = TextEditingController();
+  final _provisionNotes = TextEditingController();
   // FR108 / O3 — Flow 3's "Role geometry: point, offset, or area": whether
   // this anchor is a district/block/reserve rather than a pin. Off by
   // default, since most promoted places remain points (O2's AC extended).
@@ -676,6 +848,8 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
     _stationDurationMin.dispose();
     _stationDifficulty.dispose();
     _stationGear.dispose();
+    _provisionHours.dispose();
+    _provisionNotes.dispose();
     for (final controller in _offsetLat.values) {
       controller.dispose();
     }
@@ -808,6 +982,13 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                       _stationDifficulty.clear();
                       _stationGear.clear();
                     }
+                    if (kind == RoleKind.provision) {
+                      _provisionHasWater = false;
+                      _provisionPotable = true;
+                      _provisionHasResupply = false;
+                      _provisionHours.clear();
+                      _provisionNotes.clear();
+                    }
                   }
                 }),
               ),
@@ -916,9 +1097,91 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
           // role; deliberately no Checkbox here — the area checkbox below is
           // found by index.
           if (selected && kind == RoleKind.station) _stationActivityFields(c),
+          // FR25 / C9 — the provision role's water/resupply detail: a
+          // potable/filter-required tag, and hours/notes for a resupply
+          // point. Only shown for the provision role.
+          if (selected && kind == RoleKind.provision) _provisionDetailFields(c),
         ],
       ),
     );
+  }
+
+  Widget _provisionDetailFields(PlotColors c) {
+    return Padding(
+      padding: const EdgeInsets.only(left: PlotSpacing.s6, bottom: PlotSpacing.s2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('WATER & RESUPPLY (FR25)', style: PlotTypography.small(c.textMuted)),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            dense: true,
+            title: const Text('Water source'),
+            value: _provisionHasWater,
+            onChanged: (v) => setState(() => _provisionHasWater = v ?? false),
+          ),
+          if (_provisionHasWater)
+            DropdownButton<bool>(
+              isDense: true,
+              isExpanded: true,
+              value: _provisionPotable,
+              items: const [
+                DropdownMenuItem(value: true, child: Text('Potable')),
+                DropdownMenuItem(value: false, child: Text('Filter/treatment required')),
+              ],
+              onChanged: (v) => setState(() => _provisionPotable = v ?? true),
+            ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            dense: true,
+            title: const Text('Resupply point'),
+            value: _provisionHasResupply,
+            onChanged: (v) => setState(() => _provisionHasResupply = v ?? false),
+          ),
+          if (_provisionHasResupply) ...[
+            TextField(
+              controller: _provisionHours,
+              decoration: const InputDecoration(
+                labelText: 'Hours (optional)',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: PlotSpacing.s2),
+            TextField(
+              controller: _provisionNotes,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Notes (optional)',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// FR25 / C9 — build the provision role's [ProvisionDetail] from the
+  /// fields above, or `null` when the Author picked neither water nor
+  /// resupply (O1's AC — a provision role may carry no structured detail
+  /// yet).
+  ProvisionDetail? _buildProvisionDetail() {
+    ResupplyInfo? resupply;
+    if (_provisionHasResupply) {
+      final hours = _provisionHours.text.trim();
+      final notes = _provisionNotes.text.trim();
+      if (hours.isNotEmpty || notes.isNotEmpty) {
+        resupply = ResupplyInfo(hours: hours.isEmpty ? null : hours, notes: notes.isEmpty ? null : notes);
+      }
+    }
+    final water = _provisionHasWater ? WaterSource(potable: _provisionPotable) : null;
+    if (water == null && resupply == null) return null;
+    return ProvisionDetail(water: water, resupply: resupply);
   }
 
   Widget _stationActivityFields(PlotColors c) {
@@ -1076,6 +1339,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
           hazard: _hazard[entry.key] ?? false,
           arc: _arc[entry.key],
           activity: entry.key == RoleKind.station ? _buildStationActivity() : null,
+          provision: entry.key == RoleKind.provision ? _buildProvisionDetail() : null,
         ),
     ];
     // Hand-placed provenance carries no `sourceId`, so `promoteAnchor`'s

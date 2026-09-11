@@ -905,6 +905,11 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     // activity detail does not).
     StationActivity? activity,
     bool clearActivity = false,
+    // FR25 / C9 — a provision role's water/resupply detail, set at
+    // promotion or edited here later. `clearProvision` drops it (the
+    // provision role stays, its structured detail does not).
+    ProvisionDetail? provision,
+    bool clearProvision = false,
   }) {
     final anchors = [
       for (final a in state.anchors)
@@ -920,6 +925,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
                   media: media,
                   activity: activity,
                   clearActivity: clearActivity,
+                  provision: provision,
+                  clearProvision: clearProvision,
                 )
               else
                 r,
@@ -935,6 +942,27 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// working-state tidying, not the destructive case that rule guards.
   void removeAnchor(String anchorId) => state = state.copyWith(
         anchors: state.anchors.where((a) => a.id != anchorId).toList(),
+        updatedAt: _nowIso(),
+      );
+
+  /// FR26 / C10 — a permit, land-access rule, or parking pass, trip-scoped
+  /// like [promoteAnchor]'s anchors rather than nested under a day or
+  /// segment (`Trip.permits`'s own doc explains why).
+  void addPermit(Permit permit) => state = state.copyWith(
+        permits: [...state.permits, permit],
+        updatedAt: _nowIso(),
+      );
+
+  /// FR26 / C10 — the only mutator that edits an existing permit after it is
+  /// added (status changes, a confirmation number arrives, a link gets
+  /// pasted in) — mirrors [updateRole]'s "set here or later" shape.
+  void updatePermit(Permit permit) => state = state.copyWith(
+        permits: [for (final p in state.permits) if (p.id == permit.id) permit else p],
+        updatedAt: _nowIso(),
+      );
+
+  void removePermit(String permitId) => state = state.copyWith(
+        permits: state.permits.where((p) => p.id != permitId).toList(),
         updatedAt: _nowIso(),
       );
 
