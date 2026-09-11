@@ -68,6 +68,16 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   void setDuration(TripDuration duration) =>
       state = state.copyWith(duration: duration, updatedAt: _nowIso());
 
+  /// FR35 / C14 — the offline-package corridor buffer (metres). `null`
+  /// clears it (`Trip.copyWith`'s `clearOfflineBufferM`, the same "a bare
+  /// null would otherwise read as unchanged" reasoning `setDayLocation`
+  /// documents) — distinct from `0.0`, a deliberate route-only choice.
+  void setOfflineBufferM(double? meters) => state = state.copyWith(
+        offlineBufferM: meters,
+        clearOfflineBufferM: meters == null,
+        updatedAt: _nowIso(),
+      );
+
   /// FR144/N0 — the Author's stated set, from the mode-declaration prompt
   /// (trip creation) or a later edit (New Route's "PRIMARY MODES", the
   /// layer picker). "At least one is required" is enforced here too, not

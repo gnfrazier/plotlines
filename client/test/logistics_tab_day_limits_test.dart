@@ -55,8 +55,9 @@ void main() {
   testWidgets('a day with no limits shows no limit rows', (tester) async {
     await _pump(tester, Day(id: 'd1', index: 1, segments: [_leg('s1', 'cycling')]));
     expect(find.text('DAY LIMITS (km)'), findsOneWidget);
-    // Just the trip-length field — no limit row until one is added.
-    expect(find.byType(TextField), findsNWidgets(1));
+    // The trip-length field and the offline-buffer field (issue #51) —
+    // no limit row until one is added.
+    expect(find.byType(TextField), findsNWidgets(2));
   });
 
   testWidgets('an existing per-mode limit shows its own row, labelled by mode', (tester) async {
@@ -88,13 +89,14 @@ void main() {
       ),
     );
 
-    // Trip-length field, then cycling's min/max, then hiking's min/max —
-    // rows sort by mode name, and `_TripDurationCard` renders first.
+    // Trip-length field, the offline-buffer field (issue #51), then
+    // cycling's min/max, then hiking's min/max — rows sort by mode name,
+    // and `_TripDurationCard`/`_OfflineBufferCard` render first.
     final fields = find.byType(TextField);
-    expect(fields, findsNWidgets(5));
+    expect(fields, findsNWidgets(6));
 
-    // Editing hiking's min (index 3) doesn't touch cycling's max.
-    await tester.enterText(fields.at(3), '6');
+    // Editing hiking's min (index 4) doesn't touch cycling's max.
+    await tester.enterText(fields.at(4), '6');
     await tester.pump();
     final limits = container.read(currentTripProvider).days.single.limits;
     expect(limits['hiking']!.minM, 6000);

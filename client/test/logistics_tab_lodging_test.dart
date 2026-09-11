@@ -148,6 +148,8 @@ void main() {
   testWidgets('opening the map shows only lodging candidates, never a plain sight', (tester) async {
     await _pump(tester, Day(id: 'd1', index: 1), candidates: [_hotel, _campsite, _sight]);
 
+    await tester.ensureVisible(find.text('Place lodging on map'));
+    await tester.pump();
     await tester.tap(find.text('Place lodging on map'));
     await _settle(tester);
 
@@ -159,7 +161,11 @@ void main() {
       (tester) async {
     await _pump(tester, Day(id: 'd1', index: 1), candidates: [_hotel, _campsite, _sight]);
 
+    await tester.ensureVisible(find.text('Hotel'));
+    await tester.pump();
     await tester.tap(find.text('Hotel'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Place lodging on map'));
     await tester.pump();
     await tester.tap(find.text('Place lodging on map'));
     await _settle(tester);
@@ -173,6 +179,8 @@ void main() {
     final container =
         await _pump(tester, Day(id: 'd1', index: 1), candidates: [_hotel, _campsite]);
 
+    await tester.ensureVisible(find.text('Place lodging on map'));
+    await tester.pump();
     await tester.tap(find.text('Place lodging on map'));
     await _settle(tester);
 
@@ -202,7 +210,10 @@ void main() {
     );
 
     expect(find.text('Grand Hotel'), findsOneWidget);
-    await tester.tap(find.descendant(of: find.byType(Chip), matching: find.byIcon(Icons.cancel)));
+    final deleteIcon = find.descendant(of: find.byType(Chip), matching: find.byIcon(Icons.cancel));
+    await tester.ensureVisible(deleteIcon);
+    await tester.pump();
+    await tester.tap(deleteIcon);
     await tester.pump();
 
     expect(container.read(currentTripProvider).days.single.nodes, isEmpty);

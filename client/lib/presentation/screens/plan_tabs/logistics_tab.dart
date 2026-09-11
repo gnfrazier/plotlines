@@ -69,6 +69,8 @@ class LogisticsTab extends ConsumerWidget {
                 ),
               _TripDurationCard(trip: trip),
               const SizedBox(height: PlotSpacing.s3),
+              _OfflineBufferCard(trip: trip),
+              const SizedBox(height: PlotSpacing.s3),
               for (final day in trip.days) _DayCard(day: day, onOpenSegment: onOpenSegment),
               const SizedBox(height: PlotSpacing.s4),
               const Divider(height: 1),
@@ -241,6 +243,86 @@ class _TripDurationCardState extends ConsumerState<_TripDurationCard> {
             onPressed: _pickDates,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Story C14 (issue #51), FR35 — "Authors set the offline data buffer
+/// distance (corridor around the finished route) saved as a download
+/// parameter for the adventure package." Trip-scoped, not per-day, since the
+/// buffer sizes one package for the whole finished route.
+///
+/// **Not the trip bbox and not the home region** (ARCH D41) — this value
+/// never bounds candidates, tiles, or elevation during authoring; it is
+/// stored on `Trip.offlineBufferM` purely as a download parameter the
+/// (not-yet-built) offline-package step reads later. Reuses the same
+/// mi/km input convention `_DayLimitRow` already established:
+/// `DisplayFormat.distanceInputValue`/`parseDistanceToMetres` so the field
+/// reads and writes in the Author's active unit while the stored value stays
+/// SI metres (ARCH D49).
+class _OfflineBufferCard extends ConsumerStatefulWidget {
+  const _OfflineBufferCard({required this.trip});
+  final Trip trip;
+
+  @override
+  ConsumerState<_OfflineBufferCard> createState() => _OfflineBufferCardState();
+}
+
+class _OfflineBufferCardState extends ConsumerState<_OfflineBufferCard> {
+  late final _buffer = TextEditingController(text: _asInput(widget.trip.offlineBufferM));
+
+  String _asInput(double? metres) {
+    if (metres == null) return '';
+    final df = ref.read(displayFormatProvider);
+    return df.distanceInputValue(metres, fractionDigits: df.useMiles ? 1 : 0);
+  }
+
+  @override
+  void dispose() {
+    _buffer.dispose();
+    super.dispose();
+  }
+
+  void _emit() {
+    final df = ref.read(displayFormatProvider);
+    final text = _buffer.text.trim();
+    ref.read(currentTripProvider.notifier).setOfflineBufferM(
+          text.isEmpty ? null : df.parseDistanceToMetres(text),
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final df = ref.watch(displayFormatProvider);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: PlotSpacing.s3),
+      child: PlotCard(
+        padding: const EdgeInsets.all(PlotSpacing.s3),
+        child: Row(
+          children: [
+            Icon(Icons.download_outlined, size: 16, color: c.textMuted),
+            const SizedBox(width: PlotSpacing.s2),
+            Expanded(
+              child: Text('Offline buffer around the finished route',
+                  style: PlotTypography.body(c.textSecondary)),
+            ),
+            SizedBox(
+              width: 72,
+              child: TextField(
+                controller: _buffer,
+                textAlign: TextAlign.right,
+                decoration: const InputDecoration(hintText: 'none', isDense: true),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onSubmitted: (_) => _emit(),
+                onChanged: (_) => _emit(),
+              ),
+            ),
+            const SizedBox(width: PlotSpacing.s2),
+            Text(df.distanceUnitLabel, style: PlotTypography.body(c.textMuted)),
+          ],
+        ),
       ),
     );
   }

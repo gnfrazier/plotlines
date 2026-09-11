@@ -42,7 +42,12 @@
       "$ref": "#/$defs/roll_up",
       "description": "FR31 / D1 — trip totals. Derived from the days; stored so a list surface (G2a) can show them without re-deriving."
     },
-    "provenance": { "$ref": "#/$defs/provenance" }
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "offline_buffer_m": {
+      "description": "FR35 / C14 — the corridor buffer around the finished route, saved as a download parameter for the Character's offline package (ARCH §12.3). Metres, per rule 1. Distinct from the trip's authoring bbox (FR120) and from the shipped home region (FR96) — ARCH D41: a third extent, never used to bound candidates, tiles, or elevation during authoring, only to size the package built from the finished route. Absent means the Author has not set one yet, which is not the same as a deliberate zero (route-only, no surrounding context).",
+      "type": "number",
+      "minimum": 0
+    }
   },
 
   "$defs": {

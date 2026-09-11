@@ -77,7 +77,15 @@ from plotlines_core.content.anchor import Anchor
 #: its parent passage stays exactly as solved. Additive: an absent `solve`
 #: means never solved — an Author-drawn line measured off itself — which is
 #: how every alternate written before this bump already read.
-SCHEMA_VERSION = "1.9.0"
+#: Bumped to 1.10.0 by FR35 (Story C14, issue #51): the trip gains an
+#: optional top-level `offline_buffer_m` — the corridor buffer around the
+#: finished route, saved as a download parameter for the Character's
+#: offline package (ARCH §12.3). A third extent, distinct from the trip
+#: bbox (FR120) and the home region (FR96) per D41: never used to bound
+#: candidates, tiles, or elevation during authoring. Additive: an absent
+#: value means the Author has not set one yet, which every trip written
+#: before this bump already reads as.
+SCHEMA_VERSION = "1.10.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -882,6 +890,10 @@ class Trip:
     metrics: RollUp | None = None
     provenance: Provenance | None = None
     schema_version: str = SCHEMA_VERSION
+    #: FR35 / C14 — the offline-package corridor buffer, metres. `None` means
+    #: the Author has not set one yet; distinct from `0.0`, a deliberate
+    #: route-only choice with no surrounding context.
+    offline_buffer_m: float | None = None
 
     def to_dict(self) -> dict:
         defaults = {
@@ -901,6 +913,7 @@ class Trip:
             "anchors": [a.to_dict() for a in self.anchors] or None,
             "metrics": self.metrics.to_dict() if self.metrics else None,
             "provenance": self.provenance.to_dict() if self.provenance else None,
+            "offline_buffer_m": f(self.offline_buffer_m) if self.offline_buffer_m is not None else None,
         })
 
     def to_json(self, *, indent: int | None = None) -> str:
