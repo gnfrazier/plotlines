@@ -9,8 +9,11 @@ from plotlines_core.content.anchor import (
     AnchorProvenance,
     MediaRef,
     Polygon,
+    ProvisionDetail,
+    ResupplyInfo,
     Role,
     StationActivity,
+    WaterSource,
 )
 from plotlines_core.trips.payload import Trip
 
@@ -415,6 +418,78 @@ def test_station_activity_coexists_with_hazard_and_arc_on_the_same_role():
     assert out["hazard"] is True
     assert out["arc"] == "crux"
     assert out["activity"]["activity_type"] == "canyoneering"
+
+
+# --------------------------------------------------------------------------
+# FR25 / C9 — provision detail (water, resupply) on a provision role
+# --------------------------------------------------------------------------
+
+
+def test_provision_water_round_trips_potable():
+    role = Role(kind="provision", provision=ProvisionDetail(water=WaterSource(potable=True)))
+    assert role.to_dict()["provision"] == {"water": {"potable": True}, "resupply": None}
+
+
+def test_provision_water_round_trips_filter_required():
+    role = Role(kind="provision", provision=ProvisionDetail(water=WaterSource(potable=False)))
+    assert role.to_dict()["provision"]["water"] == {"potable": False}
+
+
+def test_provision_resupply_round_trips_hours_and_notes():
+    role = Role(
+        kind="provision",
+        provision=ProvisionDetail(
+            resupply=ResupplyInfo(hours="Mon-Sat 8-6", notes="Cash only, no cards")
+        ),
+    )
+    out = role.to_dict()["provision"]["resupply"]
+    assert out == {"hours": "Mon-Sat 8-6", "notes": "Cash only, no cards"}
+
+
+def test_provision_detail_may_carry_both_water_and_resupply():
+    # A trailhead store that also has a tap — one anchor, one provision role.
+    detail = ProvisionDetail(
+        water=WaterSource(potable=True), resupply=ResupplyInfo(hours="daylight hours"),
+    )
+    out = Role(kind="provision", provision=detail).to_dict()["provision"]
+    assert out["water"] == {"potable": True}
+    assert out["resupply"]["hours"] == "daylight hours"
+
+
+def test_provision_detail_is_omitted_when_absent():
+    before = Role(kind="provision").to_dict()
+    assert before["provision"] is None
+
+
+def test_provision_detail_on_a_non_provision_role_is_rejected():
+    for kind in ("narrative", "station"):
+        with pytest.raises(ValueError, match="provision role only"):
+            Role(kind=kind, provision=ProvisionDetail(water=WaterSource(potable=True)))
+
+
+def test_empty_provision_detail_is_rejected():
+    # Neither water nor resupply set is meaningless — nothing for an
+    # itinerary or a checklist to show.
+    with pytest.raises(ValueError, match="water/resupply"):
+        ProvisionDetail()
+
+
+def test_empty_resupply_info_is_rejected():
+    with pytest.raises(ValueError, match="hours/notes"):
+        ResupplyInfo()
+
+
+def test_provision_detail_coexists_with_reveal_and_arc_on_the_same_role():
+    role = Role(
+        kind="provision",
+        reveal="always_visible",
+        arc="rising",
+        provision=ProvisionDetail(water=WaterSource(potable=True)),
+    )
+    out = role.to_dict()
+    assert out["reveal"] == "always_visible"
+    assert out["arc"] == "rising"
+    assert out["provision"]["water"]["potable"] is True
 
 
 def test_trip_carries_anchors_and_prunes_when_empty():

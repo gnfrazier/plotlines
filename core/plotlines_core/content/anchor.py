@@ -262,6 +262,64 @@ class StationActivity:
 
 
 @dataclass
+class WaterSource:
+    """FR25 / C9 — "water points tagged potable or filter-required." A binary
+    tag, not a free-text quality note: the checklist question an itinerary
+    answers is exactly this one, and a third "unknown" state would just be
+    the field left absent (`ProvisionDetail.water is None`), not a value here."""
+
+    potable: bool
+
+    def to_dict(self) -> dict:
+        return {"potable": bool(self.potable)}
+
+
+@dataclass
+class ResupplyInfo:
+    """FR25 / C9 — "resupply points with hours and notes." `hours` is free
+    text (an OSM-style `opening_hours` string or the Author's own note) and
+    is never parsed here — C12's `ScheduledWindow` is the object for a
+    machine-checkable time window; this is not that."""
+
+    hours: str | None = None
+    notes: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.hours is None and self.notes is None:
+            raise ValueError("resupply info needs at least one of hours/notes")
+
+    def to_dict(self) -> dict:
+        return {"hours": self.hours, "notes": self.notes}
+
+
+@dataclass
+class ProvisionDetail:
+    """FR25 / C9 — structured detail for a `provision`-kind role: a water
+    source, a resupply point, or both on the same anchor (a trailhead store
+    that also has a tap). Mirrors `StationActivity`'s shape and guard: valid
+    only on a `provision`-kind role, rejected on any other by `Role
+    .__post_init__` below. An empty `ProvisionDetail` (neither `water` nor
+    `resupply` set) is meaningless — nothing an itinerary or a checklist
+    could show — so it is rejected here rather than written as a bare `{}`.
+    """
+
+    water: WaterSource | None = None
+    resupply: ResupplyInfo | None = None
+
+    def __post_init__(self) -> None:
+        if self.water is None and self.resupply is None:
+            raise ValueError(
+                "provision detail needs at least one of water/resupply"
+            )
+
+    def to_dict(self) -> dict:
+        return {
+            "water": self.water.to_dict() if self.water else None,
+            "resupply": self.resupply.to_dict() if self.resupply else None,
+        }
+
+
+@dataclass
 class Role:
     """FR106, FR107, FR110 / O1, O2 — one entry in an anchor's role set.
 
@@ -301,6 +359,11 @@ class Role:
     rejects it on a narrative or provision role rather than silently keeping a
     field nothing will read. See `StationActivity` above for what it carries
     and why its logistics fields sit outside the reveal gate.
+
+    `provision` (FR25 / C9) is a `ProvisionDetail` on a `provision`-kind role
+    and `None` on any other, the same guard shape as `activity`/`station`:
+    water-source and resupply detail is logistics, not narrative content, and
+    it stays with the role kind FR114 already tags always-visible by default.
     """
 
     kind: str
@@ -314,6 +377,7 @@ class Role:
     hazard: bool = False
     arc: str | None = None
     activity: StationActivity | None = None
+    provision: ProvisionDetail | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in ROLE_KINDS:
@@ -332,6 +396,11 @@ class Role:
                 f"role {self.id}: FR109 puts an activity on a station role only — "
                 f"got kind {self.kind!r}"
             )
+        if self.provision is not None and self.kind != "provision":
+            raise ValueError(
+                f"role {self.id}: FR25 puts provision detail on a provision role "
+                f"only — got kind {self.kind!r}"
+            )
 
     def to_dict(self) -> dict:
         return {
@@ -349,6 +418,7 @@ class Role:
             "hazard": self.hazard,
             "arc": self.arc,
             "activity": self.activity.to_dict() if self.activity else None,
+            "provision": self.provision.to_dict() if self.provision else None,
         }
 
 

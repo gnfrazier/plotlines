@@ -38,6 +38,12 @@
       "type": "array",
       "items": { "$ref": "#/$defs/anchor" }
     },
+
+    "permits": {
+      "description": "FR26 / C10 — permits, land-access rules, and parking passes the Author has attached to the trip, trip-scoped like `anchors` rather than nested under one day: a permit's checklist reads the whole trip in one pass (`trips.permits.collect_permits`), the same reason `anchors` is not day-scoped either.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/permit" }
+    },
     "metrics": {
       "$ref": "#/$defs/roll_up",
       "description": "FR31 / D1 — trip totals. Derived from the days; stored so a list surface (G2a) can show them without re-deriving."
@@ -409,6 +415,33 @@
       "enum": ["exposition", "rising", "crux", "climax", "resolution"]
     },
 
+    "permit": {
+      "description": "FR26 / C10 — a permit, land-access rule, or parking pass the Author attaches to a passage or a promoted anchor, so Characters arrive with the right permissions. `status` tracks where it stands; `confirmation_number` and `link` carry what a ranger station or a reservation email actually hands back; `documents` are files kept with the trip (a scanned permit, a printable pass). `segment_id` / `anchor_id` are optional and not mutually exclusive with being unset — a trip-wide obligation (a state-park annual pass covering every day) attaches to neither.",
+      "type": "object",
+      "required": ["id", "title", "status"],
+      "additionalProperties": false,
+      "not": {
+        "description": "FR26 / C10 — segment_id and anchor_id are mutually exclusive: a permit is pinned to one thing, not both, mirroring `hazard`'s node_id/anchor_id rule.",
+        "required": ["segment_id", "anchor_id"]
+      },
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 1 },
+        "status": { "$ref": "#/$defs/permit_status" },
+        "confirmation_number": { "type": "string" },
+        "link": { "type": "string", "description": "A URL to the issuing authority's reservation, confirmation, or permit page." },
+        "note": { "$ref": "#/$defs/markdown" },
+        "documents": { "type": "array", "items": { "$ref": "#/$defs/media_ref" }, "description": "Scanned or downloaded permit/pass documents kept with the trip." },
+        "segment_id": { "$ref": "#/$defs/id", "description": "Set when the permit is attached to a passage rather than an anchor or the whole trip." },
+        "anchor_id": { "$ref": "#/$defs/id", "description": "Set when the permit is attached to a promoted anchor rather than a passage or the whole trip. Mutually exclusive with segment_id." }
+      }
+    },
+
+    "permit_status": {
+      "description": "FR26 / C10 — where a permit stands. `required` is the Author flagging it needed with nothing done yet; `applied` is submitted/requested; `confirmed` is in hand; `denied` is a rejected application, which is a reason to change the route, not a state a checklist can quietly drop.",
+      "enum": ["required", "applied", "confirmed", "denied"]
+    },
+
     "role_kind": {
       "description": "FR106 / O1. A role SET, not a type field: an anchor may carry more than one of these at once (the national monument's statue and its restroom are one anchor, two roles).",
       "enum": ["narrative", "provision", "station"]
@@ -432,8 +465,34 @@
       }
     },
 
+    "provision_detail": {
+      "description": "FR25 / C9 — structured detail for a `provision`-kind role: a water source, a resupply point, or both on the same anchor (a trailhead store that also has a tap). Valid only on a `provision`-kind role, the same `allOf`/`if` shape `station_activity` uses for `station`. Absent means neither is set yet (O1's AC — set at promotion or later); an empty object is never written (at least one of `water`/`resupply` must be present).",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "water": {
+          "type": "object",
+          "required": ["potable"],
+          "additionalProperties": false,
+          "properties": {
+            "potable": { "type": "boolean", "description": "FR25 — `true` tags the source potable as-is; `false` tags it filter/treatment-required." }
+          }
+        },
+        "resupply": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "hours": { "type": "string", "description": "FR25 — free text (e.g. an OSM-style opening_hours string or the Author's own note); not parsed or validated." },
+            "notes": { "$ref": "#/$defs/markdown" }
+          }
+        }
+      }
+    },
+
     "role": {
-      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). `hazard` (FR115/O5) flags this role a hazard or technical-crux warning, orthogonal to `kind`; see the `not` clause below for the hard constraint it carries. `arc` (FR38/O6) is this role's stage in the day's story, or absent for a role with no arc beat. `activity` (FR109/O4) is the station activity — type, duration, gear, Author-declared difficulty — and is valid only on a `station`-kind role (the `allOf` below).",
+      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). `hazard` (FR115/O5) flags this role a hazard or technical-crux warning, orthogonal to `kind`; see the `not` clause below for the hard constraint it carries. `arc` (FR38/O6) is this role's stage in the day's story, or absent for a role with no arc beat. `activity` (FR109/O4) is the station activity — type, duration, gear, Author-declared difficulty — and is valid only on a `station`-kind role (the `allOf` below). `provision` (FR25/O1) is the water/resupply detail and is valid only on a `provision`-kind role (the same `allOf` below).",
       "type": "object",
       "required": ["id", "kind"],
       "additionalProperties": false,
@@ -448,7 +507,8 @@
         "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" } },
         "hazard": { "type": "boolean", "description": "FR115 / O5 — hard constraint: `true` marks this role a hazard or technical-crux warning, whose effective reveal is always-visible regardless of `reveal` and cannot be set otherwise by any Author. Defaults to `false` when absent." },
         "arc": { "$ref": "#/$defs/arc_stage", "description": "FR38 / O6 — this role's stage in the day's story. Absent means this role carries no arc beat." },
-        "activity": { "$ref": "#/$defs/station_activity", "description": "FR109, FR16b, FR24 / O4 — present only on a `station`-kind role. Absent means this station carries no activity detail yet (O1's AC — set at promotion or later)." }
+        "activity": { "$ref": "#/$defs/station_activity", "description": "FR109, FR16b, FR24 / O4 — present only on a `station`-kind role. Absent means this station carries no activity detail yet (O1's AC — set at promotion or later)." },
+        "provision": { "$ref": "#/$defs/provision_detail", "description": "FR25 / C9 — present only on a `provision`-kind role. Absent means this provision role carries no structured water/resupply detail yet." }
       },
       "not": {
         "description": "FR115 / O5 — enforced at the wire boundary too, not just by the Dart/Python constructors: a hazard role can never be stored as on_arrival.",
@@ -460,6 +520,11 @@
           "description": "FR109 / O4 — an `activity` belongs to a station role only.",
           "if": { "required": ["activity"] },
           "then": { "properties": { "kind": { "const": "station" } } }
+        },
+        {
+          "description": "FR25 / O1 — `provision` detail belongs to a provision role only.",
+          "if": { "required": ["provision"] },
+          "then": { "properties": { "kind": { "const": "provision" } } }
         }
       ]
     },
