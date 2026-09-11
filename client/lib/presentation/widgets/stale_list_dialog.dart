@@ -14,6 +14,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
+import 'teaching_block.dart';
 
 /// Shows the stale list if [trip] has any stale route, and returns whether
 /// the caller (export, eventually print) should proceed: true immediately
@@ -60,39 +61,54 @@ class _StaleListDialogState extends ConsumerState<_StaleListDialog> {
     return AlertDialog(
       // #344 — a stale item is a passage or one of its alternates, so the
       // heading counts items and each row says which it is.
-      title: Text('${items.length} stale ${items.length == 1 ? 'item needs' : 'items need'} re-solving',
-          style: PlotTypography.title(c.textPrimary)),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('${items.length} stale ${items.length == 1 ? 'item needs' : 'items need'} re-solving',
+              style: PlotTypography.title(c.textPrimary)),
+          const SizedBox(width: PlotSpacing.s1),
+          const TeachingHelpIcon(moment: TeachingMoment.staleRouteIsDeliberate),
+        ],
+      ),
       content: SizedBox(
         width: 460,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'An edit changed what these were asked to solve for. Re-solve all at '
-              'once, or resolve each on its own below.',
-              style: PlotTypography.body(c.textSecondary),
-            ),
-            const SizedBox(height: PlotSpacing.s3),
-            PlotButton(
-              label: _resolvingAll ? 'Re-solving all…' : 'Re-solve all',
-              expand: true,
-              onPressed: _resolvingAll ? null : _resolveAll,
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: PlotSpacing.s2),
-              Text(_error!, style: PlotTypography.small(c.danger)),
-            ],
-            const SizedBox(height: PlotSpacing.s3),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 240),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [for (final item in items) _StaleRow(item: item)],
+        // The teaching block (K12a) adds height on top of what already only
+        // just fit; scrolling the whole dialog body, rather than only the
+        // item list below, keeps a small screen from clipping it.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'An edit changed what these were asked to solve for. Re-solve all at '
+                'once, or resolve each on its own below.',
+                style: PlotTypography.body(c.textSecondary),
+              ),
+              // K12a — a stale item is deliberate, not broken; first-run
+              // teaching for the whole list rather than per row.
+              TeachingBlock(tripId: trip.id, moment: TeachingMoment.staleRouteIsDeliberate),
+              const SizedBox(height: PlotSpacing.s3),
+              PlotButton(
+                label: _resolvingAll ? 'Re-solving all…' : 'Re-solve all',
+                expand: true,
+                onPressed: _resolvingAll ? null : _resolveAll,
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: PlotSpacing.s2),
+                Text(_error!, style: PlotTypography.small(c.danger)),
+              ],
+              const SizedBox(height: PlotSpacing.s3),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 240),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [for (final item in items) _StaleRow(item: item)],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [

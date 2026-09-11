@@ -82,7 +82,9 @@ const Map<TeachingMoment, TeachingCopy> teachingRegistry = {
   ),
   TeachingMoment.staleRouteIsDeliberate: TeachingCopy(
     surface: 'stale_list',
-    message: 'A stale route means an edit invalidated it, not that something is broken — it stays viewable until you resolve it.',
+    // #344 — a stale item is a route or one of its alternates, so the copy
+    // no longer names only "a stale route".
+    message: 'A stale item means an edit invalidated it, not that something is broken — it stays viewable until you resolve it.',
     helpAffordance: 'stale_list_help',
   ),
   TeachingMoment.composeDistanceIsOutcome: TeachingCopy(
