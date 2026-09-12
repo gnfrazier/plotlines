@@ -29,3 +29,11 @@ resolve region geometry, never as a claim about what is actually present.
 Each region's `.md5` file is Geofabrik's published checksum for the
 corresponding `.osm.pbf`, verified at pull time (see MIRROR_STATE.json and
 the pull client in docs/Plotlines_OSM_Acquisition_Review.md §6.6).
+
+The `/clip` endpoint (§6.7) is a second distribution channel and does not
+serve this file: Caddy's `reverse_proxy /clip*` matcher terminates the
+request before the static file server runs. A clipped `.osm.pbf` is an
+extraction, so it is a Derivative Database under ODbL 1.0 §4.3 rather than a
+Produced Work, and it carries the notice above in its own HTTP response
+headers instead. See `clip_licence_headers` in
+service/plotlines_service/mirror_clip.py and issue #364.
