@@ -337,6 +337,138 @@ Both are `mirror_clip.py` CLI flags (`--client-key`,
 hermetically; setting a real key on the live Pi is an operator step, not
 something a hermetic test can exercise.
 
+## Live clip rehearsal — taking the Q1-C numbers (epic #264)
+
+Everything above is hermetic or single-file. This is the operator step that
+closes epic #264's second definition-of-done bullet:
+
+> A trip bbox clipped server-side to an `.osm.pbf`, with wall time, output
+> size and peak RSS recorded — the numbers Q1-C and Q6 both rest on.
+
+The endpoint emits those three on every clip (headers and log, see above),
+but until this runbook has been executed they have only ever been emitted
+against tiny synthetic fixtures. **The mechanism existing is not the same
+as the numbers existing**, and Q1-C — mirror-side clip over client-side
+extract — is a cost argument that currently has no measured cost on either
+side of it.
+
+Same constraint as §6.5's DNS step: this needs LAN access to the Pi and
+cannot be done from a coding-agent sandbox.
+
+### 1. Pull real region extracts
+
+The tree carries only the basemap stand-in until this runs.
+`discover_region_extracts` resolves from `MIRROR_STATE.json`'s
+`geofabrik.pinned_date` + `regions`, so before a pull **every clip 404s as
+`no_mirror_coverage`** — which reads like a broken endpoint rather than an
+empty tree. See "Geofabrik pull client (issue #258)" below for the client's
+own conditional/backoff behaviour.
+
+```
+ssh pi
+cd /opt/plotlines-mirror
+python3 geofabrik_pull.py --root /srv/plotlines-mirror \
+  --region north-america/us/north-carolina \
+  --region north-america/us/tennessee \
+  --pinned-date "$(date -u +%F)" -v
+```
+
+**Two regions on purpose.** North Carolina alone measures the ordinary
+case; NC + TN is §11.7's border case, where a bbox spans two extracts and
+`MergeInputReader` has to id-dedup a border way present whole in both
+regional cuts. That merge is the expensive path, and it is the one Q1-C's
+cost claim actually rests on — a single-extract number alone would
+understate the endpoint. Expect a few hundred MB per region.
+
+Verify the pull landed before going further:
+
+```
+jq '.geofabrik | {pinned_date, regions: (.regions|keys)}' \
+  /srv/plotlines-mirror/MIRROR_STATE.json
+```
+
+### 2. Build and start the clip container
+
+`docker-compose.yml` names `plotlines-mirror-clip:latest`, which is this
+repo's own image rather than a registry pull, and needs both `core/` and
+`service/` as build context:
+
+```
+# on a machine with the full repo checked out
+docker build -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest .
+docker save plotlines-mirror-clip:latest | ssh pi docker load
+
+ssh pi 'cd /opt/plotlines-mirror && docker compose up -d'
+ssh pi 'docker compose ps && curl -s localhost:8095/health | jq'
+```
+
+`/health` must list both regions under `pinned_extracts`. If `caddy` is up
+and `mirror-clip` is not, the image never loaded — compose will not build
+it for you.
+
+### 3. Measure
+
+**The one thing that will silently corrupt the numbers:** `peak_rss_kb` is
+`getrusage(RUSAGE_SELF).ru_maxrss` — a **process-lifetime high-water
+mark**, not a per-request figure. Every run after the first reports the
+largest clip that container has *ever* served, so a series taken without
+restarting reads as monotonically increasing memory that has nothing to do
+with the bbox being measured. Restart between runs:
+
+```
+clip () {  # $1=label  $2=west $3=south $4=east $5=north
+  ssh pi 'cd /opt/plotlines-mirror && docker compose restart mirror-clip' >/dev/null
+  sleep 3
+  curl -s -D "/tmp/$1.hdr" -o "/tmp/$1.osm.pbf" \
+    -H 'Host: tiles.plotlines.app' \
+    "http://<pi-ip>/clip?west=$2&south=$3&east=$4&north=$5"
+  grep -i '^x-plotlines-\|^link:' "/tmp/$1.hdr"
+}
+```
+
+Pass `Host` explicitly. Caddy's site block is host-matched
+(`http://tiles.plotlines.app { ... }`), so any other Host header silently
+returns `200` with `Content-Length: 0` rather than erroring — the same trap
+§6.5's rehearsal documents.
+
+Suggested bboxes, as starting points rather than fixed values — substitute
+a trip you would actually plan:
+
+| Case | bbox (W,S,E,N) | What it exercises |
+|---|---|---|
+| Single extract | `-82.75,35.35,-82.35,35.70` | Asheville–Pisgah; the ordinary case |
+| Border, two extracts | `-83.10,35.65,-82.70,36.00` | Crosses the NC/TN line — merge + dedup |
+| Coverage miss | `-90.0,41.0,-89.6,41.3` | Must 404 `no_mirror_coverage`, never 500 |
+
+Run each **three times**, restarting between, and report a range rather
+than one sample. A23's finding on the osmnx path was that ×21 run-to-run
+variance was the result, not the mean — a single clip timing would repeat
+that mistake in the other direction.
+
+While here, confirm #364's notice headers survive the proxy hop:
+`x-plotlines-data-licence`, `-attribution`, `-terms`, and `link`. That is
+the live check #364 deferred.
+
+### 4. Where the numbers go
+
+- **Epic #264** — primary. This is the DoD bullet holding the epic open, so
+  that comment is the evidence it closes against. Include per-run wall
+  time / output bytes / peak RSS / source regions, the pinned date and
+  region list, and the Pi's hardware and storage context (the numbers mean
+  nothing without the box they were taken on).
+- **#265 (SPIKE-I)** — a pointer. SPIKE-I's item 3 is clip time and
+  strategy on a realistic bbox, and its parity bands are meant to be
+  *pre-registered*. These numbers are what the bands get registered
+  against, so they need to exist before that spike is designed.
+- **#262** — one line. Its close-out says "not tested live against the
+  physical Pi"; a "rehearsed live, numbers on #264" closes that loop for
+  anyone reading the story later.
+
+Do **not** open `spikes/SPIKE-I/results/RESULTS.md` for these. This is a
+first recording under uncontrolled conditions; filing it as the spike's
+results would make it look like the pre-registered measurement it exists to
+precede.
+
 ## `{$MIRROR_ROOT}` / `{$MIRROR_LOG}`
 
 The checked-in `Caddyfile` is otherwise byte-for-byte the §6.4 block, with
