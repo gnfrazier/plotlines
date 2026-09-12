@@ -91,7 +91,12 @@ from plotlines_core.content.anchor import Anchor
 #: confirmed place instead of a bare coordinate. Additive: an absent
 #: label means the location was hand-placed with no resolvable name,
 #: which every day written before this bump already reads as.
-SCHEMA_VERSION = "1.12.0"
+#: Bumped to 1.13.0 by issue #270 (addendum L7): `provenance` gains an
+#: optional `osm_source` — a compact, machine-checkable pin naming which
+#: OSM snapshot the payload's graph/candidates came from, distinct from
+#: `attribution`'s display credit text. Additive: an absent pin means the
+#: payload predates this bump, not that the data has no source.
+SCHEMA_VERSION = "1.13.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -932,6 +937,12 @@ class Provenance:
     produced_by: str | None = None
     app_version: str | None = None
     sidecar_version: str | None = None
+    #: L7 (#270) — a compact, machine-checkable pin naming the OSM snapshot
+    #: this payload's graph/candidates came from (e.g. `"overpass:<fetch
+    #: timestamp>"` in Phase 1, a mirror build id in Phase 3), distinct from
+    #: `attribution`'s free-text display credit. See `trips.provenance.
+    #: build_provenance` / `graph.regions.overpass_source_pin`.
+    osm_source: str | None = None
     attribution: list[Attribution] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -939,6 +950,7 @@ class Provenance:
             "produced_by": self.produced_by,
             "app_version": self.app_version,
             "sidecar_version": self.sidecar_version,
+            "osm_source": self.osm_source,
             "attribution": [a.to_dict() for a in self.attribution] or None,
         }
 

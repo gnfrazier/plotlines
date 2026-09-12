@@ -201,6 +201,13 @@ MAPPING: list[dict] = [
      "note": "The runtime check is against `/health`; what the payload records is "
              "which versions produced these bytes, which is the only way a file found "
              "later can be read with the right expectations."},
+    {"fr": "L7", "story": "K10", "what": "OSM source pin (issue #270)",
+     "status": "mapped", "pointer": "/$defs/provenance/properties/osm_source",
+     "note": "Phase 1's honest value is the transport plus its fetch timestamp "
+             "(Overpass has no versioned snapshot to pin to); Phase 3 (#277) swaps "
+             "in the mirror's own build id once the extract path exists — same "
+             "field, same shape, so nothing downstream branches on which produced "
+             "a given trip."},
     {"fr": "M13", "story": "M13", "what": "error & empty-state taxonomy",
      "status": "out_of_payload", "pointer": None,
      "note": "A handling surface, not stored data. The one place it touches the "
