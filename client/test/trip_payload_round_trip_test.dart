@@ -282,6 +282,57 @@ void main() {
       expect(diagnosis.relaxations.first.metric, 'climb_m');
       _expectSameJson(diagnosis.toJson(), json, 'diagnosis');
     });
+
+    test('a provenance with an osm_source pin round-trips (issue #270)', () {
+      // The committed SPIKE-20 fixtures predate this field (1.13.0), so
+      // `Provenance.osmSource` gets its own case — the "nothing currently
+      // asserts a written payload survives it with provenance intact" gap
+      // addendum L7 names.
+      final json = {
+        'schema_version': '1.13.0',
+        'id': 't1',
+        'title': 'Provenance',
+        'created_at': '2026-09-01T00:00:00Z',
+        'updated_at': '2026-09-01T00:00:00Z',
+        'days': <Map<String, dynamic>>[],
+        'provenance': {
+          'produced_by': 'plotlines-core 1.2.3',
+          'app_version': '1.2.3',
+          'sidecar_version': '1.2.3',
+          'osm_source': 'overpass:2026-09-01T00:00:00Z',
+          'attribution': [
+            {
+              'source': 'graph',
+              'licence': 'ODbL-1.0',
+              'credit': 'Routing data: © OpenStreetMap contributors',
+              'url': 'https://www.openstreetmap.org/copyright',
+            },
+          ],
+        },
+      };
+
+      final trip = Trip.fromJson(Map<String, dynamic>.from(json));
+
+      expect(trip.provenance!.osmSource, 'overpass:2026-09-01T00:00:00Z');
+      expect(trip.provenance!.attribution.single.source, 'graph');
+      _expectSameJson(trip.toJson(), json, 'provenance');
+    });
+
+    test('a provenance with no osm_source still parses (pre-1.13.0 payload)',
+        () {
+      final trip = Trip.fromJson({
+        'schema_version': '1.12.0',
+        'id': 't1',
+        'title': 'Provenance',
+        'created_at': '2026-09-01T00:00:00Z',
+        'updated_at': '2026-09-01T00:00:00Z',
+        'days': <Map<String, dynamic>>[],
+        'provenance': {'app_version': '1.2.3'},
+      });
+
+      expect(trip.provenance!.osmSource, isNull);
+      expect(trip.provenance!.toJson().containsKey('osm_source'), isFalse);
+    });
   });
 
   group('the reader refuses what it cannot faithfully carry', () {

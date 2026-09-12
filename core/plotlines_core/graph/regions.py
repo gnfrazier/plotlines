@@ -204,6 +204,26 @@ def graph_attribution() -> dict:
     }
 
 
+def overpass_source_pin(fetched_at: str) -> str:
+    """L7 (#270) — Phase 1's honest value for `trips.payload.Provenance.
+    osm_source`.
+
+    Overpass answers a live query with no versioned extract to pin to, so
+    the closest honest analogue to a snapshot id is the transport plus the
+    timestamp the payload recording it was written — `fetched_at`, the
+    caller's own clock read (the sidecar passes the trip's own
+    `created_at`), so this stays a pure formatter rather than a second
+    clock. A placeholder or an empty string would both be worse than the
+    gap they fill (addendum L7, item 3).
+
+    Phase 3 (#277) replaces this with an identifier built from
+    `tiles.mirror_state.MIRROR_STATE.json` once the extract path exists —
+    same field, same ``"<transport>:<id>"`` shape, so nothing downstream
+    needs to branch on which transport produced a given trip.
+    """
+    return f"overpass:{fetched_at}"
+
+
 def overpass_endpoints() -> tuple[str, ...]:
     """The ordered Overpass endpoints `ensure_graph` tries. Env override
     `PLOTLINES_OVERPASS_ENDPOINTS` (comma-separated) replaces the built-in

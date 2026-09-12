@@ -853,6 +853,10 @@
         "produced_by": { "type": "string", "description": "e.g. \"plotlines-core 0.0.1\"." },
         "app_version": { "type": "string" },
         "sidecar_version": { "type": "string" },
+        "osm_source": {
+          "type": "string",
+          "description": "L7 (issue #270) — which OSM snapshot this payload's routing graph and candidates were built from, so a trip built off a stale pin is not indistinguishable from a fresh one (§11.3 of the acquisition review). Distinct from `attribution`: this is a compact, machine-checkable pin, not display credit text. Phase 1's honest value is the transport plus its fetch date, because Overpass answers a live query with no versioned extract to pin to — e.g. \"overpass:2026-09-01T12:00:00Z\". Phase 3 (issue #277) swaps in the Plotlines mirror's own build id once the extract path exists, in the same \"<transport>:<id>\" shape, so nothing downstream needs to branch on which transport produced a given trip."
+        },
         "attribution": {
           "description": "FR86 / FR95 / K10 — the licence obligations this payload's data carries, recorded at write time. The About surface reads these rather than hardcoding a list that can silently fall out of date with the data actually used. A missing attribution is a build failure, not a polish item.",
           "type": "array",
