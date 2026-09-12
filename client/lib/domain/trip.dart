@@ -51,7 +51,12 @@ import 'weight_profile.dart';
 // water/resupply detail yet, and an absent/empty `permits` means the trip
 // carries none, which is how every trip written before this bump already
 // reads.
-const String tripSchemaVersion = '1.12.0';
+// Bumped to 1.13.0 by issue #270 (addendum L7): `provenance` gains an
+// optional `osm_source` — a compact, machine-checkable pin naming which
+// OSM snapshot the payload's graph/candidates came from, distinct from
+// `attribution`'s display credit text. Additive: an absent pin means the
+// payload predates this bump, not that the data has no source.
+const String tripSchemaVersion = '1.13.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {
@@ -111,11 +116,23 @@ class Attribution {
 /// bytes, which is the only way a payload found on disk a year later can be
 /// read with the right expectations.
 class Provenance {
-  Provenance({this.producedBy, this.appVersion, this.sidecarVersion, this.attribution = const []});
+  Provenance({
+    this.producedBy,
+    this.appVersion,
+    this.sidecarVersion,
+    this.osmSource,
+    this.attribution = const [],
+  });
 
   final String? producedBy;
   final String? appVersion;
   final String? sidecarVersion;
+
+  /// L7 (issue #270) — a compact, machine-checkable pin naming the OSM
+  /// snapshot this payload's graph/candidates came from (e.g.
+  /// `"overpass:<fetch timestamp>"` in Phase 1, a mirror build id in
+  /// Phase 3), distinct from [attribution]'s free-text display credit.
+  final String? osmSource;
   final List<Attribution> attribution;
 
   factory Provenance.fromJson(Map<String, dynamic> json) {
@@ -124,6 +141,7 @@ class Provenance {
       producedBy: f.takeString('produced_by'),
       appVersion: f.takeString('app_version'),
       sidecarVersion: f.takeString('sidecar_version'),
+      osmSource: f.takeString('osm_source'),
       attribution: f.takeList('attribution', Attribution.fromJson),
     );
     f.done();
@@ -134,6 +152,7 @@ class Provenance {
         'produced_by': producedBy,
         'app_version': appVersion,
         'sidecar_version': sidecarVersion,
+        'osm_source': osmSource,
         'attribution': attribution.isEmpty ? null : attribution.map((a) => a.toJson()).toList(),
       });
 }
