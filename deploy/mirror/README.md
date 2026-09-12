@@ -400,18 +400,46 @@ the state in which every clip correctly 404s.
 repo's own image rather than a registry pull, and needs both `core/` and
 `service/` as build context:
 
-```
-# on a machine with the full repo checked out
-docker build -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest .
-docker save plotlines-mirror-clip:latest | ssh pi docker load
+**The Pi 5 is `aarch64` and the dev box is `x86_64`, so where you build
+matters.** A plain `docker build` on the dev box produces an amd64 image;
+`docker load`ing it on the Pi appears to succeed and then fails at run time
+with `exec format error`. Two ways round that, and the first is the one to
+reach for:
 
+```
+# Simplest — build natively on the Pi. Needs the full repo (core/ + service/),
+# not just this directory.
+ssh pi
+git clone https://github.com/gnfrazier/plotlines.git ~/plotlines   # or pull, if already there
+cd ~/plotlines
+docker build -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest .
+```
+
+```
+# Or cross-build from the dev box, if you'd rather not compile on the Pi.
+# Needs buildx + binfmt/qemu; --load keeps the result in the local daemon.
+docker buildx build --platform linux/arm64 \
+  -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest --load .
+docker save plotlines-mirror-clip:latest | ssh pi docker load
+```
+
+The native build is slower but has no qemu in the loop, which matters here
+for a second reason: this image exists to be *timed*. Keep the thing under
+measurement as close to its production shape as possible.
+
+Then start it and check:
+
+```
 ssh pi 'cd /opt/plotlines-mirror && docker compose up -d'
-ssh pi 'docker compose ps && curl -s localhost:8095/health | python3 -m json.tool'
+ssh pi 'cd /opt/plotlines-mirror && docker compose ps'
+ssh pi 'curl -s localhost:8095/health | python3 -m json.tool'
 ```
 
 `/health` must list both regions under `pinned_extracts`. If `caddy` is up
 and `mirror-clip` is not, the image never loaded — compose will not build
-it for you.
+it for you. `docker compose logs mirror-clip` says which of the two it is:
+a missing image, or an `exec format error` from the architecture mismatch
+above.
 
 ### 3. Measure
 
