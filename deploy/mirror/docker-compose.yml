@@ -39,9 +39,21 @@ services:
     image: plotlines-mirror-clip:latest
     restart: unless-stopped
     # No published host port: only Caddy's reverse_proxy (see Caddyfile)
-    # reaches this container, over compose's own default network — the
-    # posture elevation_proxy.py's own deploy note asks for ("this service
-    # has no auth of its own").
+    # reaches this container, over compose's own default network.
+    #
+    # Issue #263 (review §6.8/1d): the mirror's static files stay open;
+    # this is the one CPU-costing endpoint, so it is the one that is
+    # client-restricted. Set MIRROR_CLIP_CLIENT_KEY in the shell before
+    # `docker compose up` to require it, e.g.:
+    #   MIRROR_CLIP_CLIENT_KEY=... docker compose up -d
+    # Left unset, /clip serves any caller (the correct default for a
+    # local/dev rehearsal only) — see mirror_clip.py's --client-key help
+    # for what "restricted" means here and what it deliberately is not
+    # (not accounts, no per-user state). The rate ceiling below applies
+    # either way.
+    environment:
+      - MIRROR_CLIP_CLIENT_KEY=${MIRROR_CLIP_CLIENT_KEY:-}
+      - MIRROR_CLIP_RATE_LIMIT_PER_MINUTE=${MIRROR_CLIP_RATE_LIMIT_PER_MINUTE:-30}
     volumes:
       - /srv/plotlines-mirror:/srv/plotlines-mirror:ro
 

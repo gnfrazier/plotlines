@@ -391,6 +391,35 @@ unintentional public extract service on our own bandwidth; a restricted one need
 identification story that does not become an auth system. Either answer is defensible; leaving it
 undecided until the first traffic bill is not.
 
+**Decision — adopted 2026-09-12: split, the shape Q1-C already implies.** Plain static payloads
+(region extracts, the basemap archive, `COPYRIGHT.txt`) stay open — that is §6's "stay dumb"
+discipline, and it is bytes, not compute; Caddy's `file_server` route is unchanged. `/clip` is the
+one endpoint Q1-C added that also spends CPU per request ("an open clip endpoint is an open CPU
+endpoint"), so it is the one that is restricted, by two independent mechanisms rather than one:
+
+- **A shared Plotlines-client key**, `X-Plotlines-Client-Key`, checked against `--client-key` /
+  `MIRROR_CLIP_CLIENT_KEY` with a constant-time comparison. This is explicitly **not** an auth
+  system: the key identifies "a Plotlines-built client," never a person, device, or account; there
+  is no signup, no issuance flow, and no per-key state beyond the rate-limit window below. Planning
+  a trip needs no sign-in before or after this change — D41/D57's offline-first posture is
+  untouched. Unset (the default) leaves `/clip` open, which is the correct default for the local
+  Pi rehearsal and for hermetic tests; production sets the env var when the container starts.
+- **A per-client-IP rate ceiling** (`--rate-limit-per-minute`, default 30), enforced on `/clip`
+  regardless of whether a key is configured, since the CPU cost is the same either way. In-memory,
+  fixed-window, single-process (this service never runs with `--workers > 1`, so there is no
+  cross-process state to reconcile) — an operational abuse guard, not per-user tracking: nothing
+  here persists past the rolling window or a process restart, and it is keyed on request IP, never
+  an identity.
+
+Either failure returns immediately as a finished JSON body (`401 unauthorized_client` /
+`429 rate_limited`) — never a hang, never a stack trace — satisfying the acceptance criterion
+independent of which posture a given deployment chooses. Nothing about this touches what the FR138
+privacy statement says leaves the device (#252): no client calls `/clip` yet (that is Phase 3,
+#272), and when one does, the recipient the statement needs to name is "the Plotlines mirror,"
+unchanged by whether that mirror happens to gate the request on a shared key. Implemented in
+`service/plotlines_service/mirror_clip.py`; `service/tests/test_mirror_clip_server.py` covers both
+mechanisms.
+
 ## 7. Phase 2 — Spikes
 
 Two spikes, in this order, plus one build task. Letters continue the punch-list series, which

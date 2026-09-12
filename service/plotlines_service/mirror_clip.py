@@ -45,22 +45,35 @@ BSD-2-Clause). Nothing in this module or its Dockerfile shells out to an
 **Concurrency.** Single process, like `elevation_proxy.py` — the clip's cost
 profile under concurrent requests is exactly what §9 flags as unmeasured,
 so this rehearsal does not guess at one. Do not add `--workers > 1`.
+
+**Reachability (issue #263, §6.8/1d).** Decided split: the mirror's plain
+static files (region extracts, the basemap archive) stay open — that is
+§6's "stay dumb" discipline, and it is bytes, not compute. This module's
+one dynamic endpoint is the CPU-costing one ("an open clip endpoint is an
+open CPU endpoint"), so `/clip` alone is restricted, by two independent,
+deliberately non-account mechanisms: a shared `X-Plotlines-Client-Key`
+header (identifies "a Plotlines-built client," never a person — unset
+leaves the endpoint open, which is correct for local/dev and for the
+hermetic tests below) and a per-client-IP rate ceiling that applies either
+way, since the CPU cost does not depend on whether a key is configured. See
+`_enforce_clip_access` and `_RateLimiter`.
 """
 
 from __future__ import annotations
 
 import argparse
+import hmac
 import logging
 import os
 import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 import osmium
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
@@ -341,6 +354,12 @@ def clip_bbox(
 # HTTP layer
 # --------------------------------------------------------------------------
 
+#: Issue #263 — the shared Plotlines-client key every restricted `/clip`
+#: request carries. Named as a module constant so a future client-side
+#: caller (Phase 3, #272) has one spelling to import rather than a string
+#: to copy.
+CLIENT_KEY_HEADER = "X-Plotlines-Client-Key"
+
 
 class ClipRequestBody(BaseModel):
     west: float
@@ -349,10 +368,93 @@ class ClipRequestBody(BaseModel):
     north: float
 
 
-def create_clip_app(root: Path, *, tmp_dir: Path | None = None) -> FastAPI:
+class _RateLimiter:
+    """Fixed-window per-client-IP ceiling on `/clip`, issue #263's abuse
+    posture — applied whether or not a client key is configured, since the
+    CPU cost of a clip does not depend on that. In-memory and single-
+    process (this service never runs with `--workers > 1`, see the module
+    docstring), so there is no cross-process state to reconcile. Nothing
+    here persists past the rolling window or a process restart, and the key
+    is a request IP, never an identity — an operational abuse guard, not
+    per-user tracking."""
+
+    _WINDOW_S = 60.0
+
+    def __init__(
+        self, limit_per_minute: int, *, time_fn: Callable[[], float] = time.monotonic
+    ):
+        self._limit = limit_per_minute
+        self._time_fn = time_fn
+        self._windows: dict[str, tuple[float, int]] = {}
+
+    def allow(self, key: str) -> bool:
+        if self._limit <= 0:  # 0 or negative disables the ceiling outright
+            return True
+        now = self._time_fn()
+        window_start, count = self._windows.get(key, (now, 0))
+        if now - window_start >= self._WINDOW_S:
+            window_start, count = now, 0
+        count += 1
+        self._windows[key] = (window_start, count)
+        return count <= self._limit
+
+
+def _client_ip(request: Request) -> str:
+    # Caddy's reverse_proxy sets X-Forwarded-For; request.client.host would
+    # otherwise be Caddy's own address, collapsing every real caller onto
+    # one rate-limit bucket.
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def create_clip_app(
+    root: Path,
+    *,
+    tmp_dir: Path | None = None,
+    client_key: str | None = None,
+    rate_limit_per_minute: int = 30,
+    rate_limit_time_fn: Callable[[], float] = time.monotonic,
+) -> FastAPI:
     app = FastAPI(title="plotlines-mirror-clip", version=VERSION)
     work_dir = Path(tmp_dir) if tmp_dir else Path(tempfile.gettempdir())
     work_dir.mkdir(parents=True, exist_ok=True)
+    rate_limiter = _RateLimiter(rate_limit_per_minute, time_fn=rate_limit_time_fn)
+
+    def _enforce_clip_access(request: Request) -> None:
+        """Issue #263: gate the one CPU-costing endpoint, not the static
+        files. Client-key check only runs when a key is configured (unset
+        means open — the correct default for local/dev and these hermetic
+        tests); the rate ceiling always runs, since the cost it bounds does
+        not depend on whether a key is configured."""
+        if client_key is not None:
+            presented = request.headers.get(CLIENT_KEY_HEADER)
+            if presented is None or not hmac.compare_digest(presented, client_key):
+                log.warning(
+                    "clip REFUSED reason=unauthorized_client ip=%s", _client_ip(request)
+                )
+                raise HTTPException(
+                    401,
+                    detail={
+                        "error": "unauthorized_client",
+                        "message": f"this endpoint requires a {CLIENT_KEY_HEADER} header",
+                    },
+                )
+        if not rate_limiter.allow(_client_ip(request)):
+            log.warning(
+                "clip REFUSED reason=rate_limited ip=%s", _client_ip(request)
+            )
+            raise HTTPException(
+                429,
+                detail={
+                    "error": "rate_limited",
+                    "message": (
+                        f"more than {rate_limit_per_minute} /clip requests in "
+                        "the last minute from this address"
+                    ),
+                },
+            )
 
     def _run_clip(bbox: BBox) -> Response:
         fd, out_name = tempfile.mkstemp(
@@ -398,7 +500,7 @@ def create_clip_app(root: Path, *, tmp_dir: Path | None = None) -> FastAPI:
             background=BackgroundTask(result.output_path.unlink, missing_ok=True),
         )
 
-    @app.get("/clip")
+    @app.get("/clip", dependencies=[Depends(_enforce_clip_access)])
     def get_clip(
         west: float = Query(...),
         south: float = Query(...),
@@ -407,7 +509,7 @@ def create_clip_app(root: Path, *, tmp_dir: Path | None = None) -> FastAPI:
     ) -> Response:
         return _run_clip((west, south, east, north))
 
-    @app.post("/clip")
+    @app.post("/clip", dependencies=[Depends(_enforce_clip_access)])
     def post_clip(body: ClipRequestBody) -> Response:
         return _run_clip((body.west, body.south, body.east, body.north))
 
@@ -430,7 +532,9 @@ def main(argv: list[str] | None = None) -> int:
         help="bind address inside the container/host network namespace — "
              "publish only to Caddy's reverse-proxy route at the Docker/"
              "systemd layer, the same posture elevation_proxy.py takes; "
-             "this service has no auth of its own",
+             "this process's own access control is --client-key/"
+             "--rate-limit-per-minute below (issue #263), not the bind "
+             "address",
     )
     parser.add_argument("--port", type=int, default=8095)
     parser.add_argument(
@@ -445,18 +549,44 @@ def main(argv: list[str] | None = None) -> int:
              "past the request it was written for)",
     )
     parser.add_argument(
+        "--client-key", default=os.environ.get("MIRROR_CLIP_CLIENT_KEY"),
+        help="shared Plotlines-client key every /clip request must carry "
+             "in the X-Plotlines-Client-Key header (issue #263, review "
+             "§6.8/1d) — identifies a Plotlines-built client, never a "
+             "person or account. Unset (the default) leaves /clip open, "
+             "which is correct for local/dev; production sets "
+             "MIRROR_CLIP_CLIENT_KEY. The mirror's static files are "
+             "unaffected either way — this only ever gates /clip.",
+    )
+    parser.add_argument(
+        "--rate-limit-per-minute", type=int,
+        default=int(os.environ.get("MIRROR_CLIP_RATE_LIMIT_PER_MINUTE", "30")),
+        help="per-client-IP ceiling on /clip requests per rolling minute "
+             "(issue #263) — enforced regardless of --client-key, since "
+             "the CPU cost this bounds does not depend on whether a key "
+             "is configured. 0 disables the ceiling.",
+    )
+    parser.add_argument(
         "--log-level", default="info", choices=("debug", "info", "warning", "error")
     )
     args = parser.parse_args(argv)
 
     configure_logging(None, args.log_level)  # stderr only — container/systemd journal owns capture
     log.info(
-        "mirror-clip starting version=%s host=%s port=%s root=%s (issue #262, "
-        "epic #264 Phase 1.8 — pyosmium only, no osmium-tool CLI, addendum L1)",
+        "mirror-clip starting version=%s host=%s port=%s root=%s "
+        "client_key_configured=%s rate_limit_per_minute=%s (issue #262/#263, "
+        "epic #264 Phase 1.8/1.9 — pyosmium only, no osmium-tool CLI, "
+        "addendum L1/1d)",
         VERSION, args.host, args.port, args.root,
+        bool(args.client_key), args.rate_limit_per_minute,
     )
 
-    app = create_clip_app(args.root, tmp_dir=args.tmp_dir)
+    app = create_clip_app(
+        args.root,
+        tmp_dir=args.tmp_dir,
+        client_key=args.client_key,
+        rate_limit_per_minute=args.rate_limit_per_minute,
+    )
     config = uvicorn.Config(
         app, host=args.host, port=args.port, log_level=args.log_level, access_log=True
     )

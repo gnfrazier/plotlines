@@ -110,3 +110,134 @@ def test_health_reports_the_pinned_extracts(tmp_path: Path) -> None:
 
     assert resp.status_code == 200
     assert resp.json() == {"ready": True, "root": str(mirror), "pinned_extracts": ["the-region"]}
+
+
+# --------------------------------------------------------------------------
+# Reachability — issue #263, review §6.8/1d
+# --------------------------------------------------------------------------
+
+
+def test_clip_stays_open_when_no_client_key_is_configured(tmp_path: Path) -> None:
+    mirror = _mirror_with_one_region(tmp_path)
+    tc = TestClient(create_clip_app(mirror, tmp_dir=tmp_path / "scratch"))
+
+    resp = tc.get("/clip", params=_BBOX)  # no X-Plotlines-Client-Key header at all
+
+    assert resp.status_code == 200
+
+
+def test_clip_refuses_a_missing_client_key_with_an_honest_401(tmp_path: Path) -> None:
+    mirror = _mirror_with_one_region(tmp_path)
+    tc = TestClient(
+        create_clip_app(mirror, tmp_dir=tmp_path / "scratch", client_key="s3cret")
+    )
+
+    resp = tc.get("/clip", params=_BBOX)
+
+    assert resp.status_code == 401
+    assert resp.json()["detail"]["error"] == "unauthorized_client"
+    assert "Traceback" not in resp.text
+
+
+def test_clip_refuses_a_wrong_client_key(tmp_path: Path) -> None:
+    mirror = _mirror_with_one_region(tmp_path)
+    tc = TestClient(
+        create_clip_app(mirror, tmp_dir=tmp_path / "scratch", client_key="s3cret")
+    )
+
+    resp = tc.get(
+        "/clip", params=_BBOX, headers={"X-Plotlines-Client-Key": "wrong"}
+    )
+
+    assert resp.status_code == 401
+    assert resp.json()["detail"]["error"] == "unauthorized_client"
+
+
+def test_clip_accepts_the_correct_client_key(tmp_path: Path) -> None:
+    mirror = _mirror_with_one_region(tmp_path)
+    tc = TestClient(
+        create_clip_app(mirror, tmp_dir=tmp_path / "scratch", client_key="s3cret")
+    )
+
+    resp = tc.get(
+        "/clip", params=_BBOX, headers={"X-Plotlines-Client-Key": "s3cret"}
+    )
+
+    assert resp.status_code == 200
+
+
+def test_health_needs_no_client_key(tmp_path: Path) -> None:
+    # Ops monitoring must not have to carry the client key just to poll
+    # liveness, and /health costs nothing to serve.
+    mirror = _mirror_with_one_region(tmp_path)
+    tc = TestClient(
+        create_clip_app(mirror, tmp_dir=tmp_path / "scratch", client_key="s3cret")
+    )
+
+    resp = tc.get("/health")
+
+    assert resp.status_code == 200
+
+
+def test_clip_rate_limits_per_caller_regardless_of_client_key(tmp_path: Path) -> None:
+    mirror = _mirror_with_one_region(tmp_path)
+    clock = [0.0]
+    tc = TestClient(
+        create_clip_app(
+            mirror,
+            tmp_dir=tmp_path / "scratch",
+            rate_limit_per_minute=1,
+            rate_limit_time_fn=lambda: clock[0],
+        )
+    )
+
+    first = tc.get("/clip", params=_BBOX)
+    second = tc.get("/clip", params=_BBOX)
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["detail"]["error"] == "rate_limited"
+    assert "Traceback" not in second.text
+
+
+def test_clip_rate_limit_window_resets(tmp_path: Path) -> None:
+    mirror = _mirror_with_one_region(tmp_path)
+    clock = [0.0]
+    tc = TestClient(
+        create_clip_app(
+            mirror,
+            tmp_dir=tmp_path / "scratch",
+            rate_limit_per_minute=1,
+            rate_limit_time_fn=lambda: clock[0],
+        )
+    )
+
+    first = tc.get("/clip", params=_BBOX)
+    clock[0] = 61.0  # past the 60s window
+    second = tc.get("/clip", params=_BBOX)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+
+def test_clip_rate_limit_tracks_callers_independently_by_forwarded_ip(
+    tmp_path: Path,
+) -> None:
+    mirror = _mirror_with_one_region(tmp_path)
+    clock = [0.0]
+    tc = TestClient(
+        create_clip_app(
+            mirror,
+            tmp_dir=tmp_path / "scratch",
+            rate_limit_per_minute=1,
+            rate_limit_time_fn=lambda: clock[0],
+        )
+    )
+
+    a1 = tc.get("/clip", params=_BBOX, headers={"X-Forwarded-For": "10.0.0.1"})
+    b1 = tc.get("/clip", params=_BBOX, headers={"X-Forwarded-For": "10.0.0.2"})
+    a2 = tc.get("/clip", params=_BBOX, headers={"X-Forwarded-For": "10.0.0.1"})
+
+    assert a1.status_code == 200
+    assert b1.status_code == 200  # a different caller, not throttled by A's usage
+    assert a2.status_code == 429  # A's own second request in the same window
