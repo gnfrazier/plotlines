@@ -21,7 +21,7 @@ it were guaranteed present on the Pi).
 ## Deploying to the Pi
 
 ```
-ssh pi 'mkdir -p /opt/plotlines-mirror'
+ssh pi 'sudo mkdir -p /opt/plotlines-mirror && sudo chown "$(id -un)":"$(id -gn)" /opt/plotlines-mirror'
 scp -r deploy/mirror/. pi:/opt/plotlines-mirror/
 scp spikes/SPIKE-14/tiles/wnc-corridor.pmtiles pi:/opt/plotlines-mirror/wnc-corridor.pmtiles
 ssh pi
@@ -31,21 +31,39 @@ sudo ./copy_basemap_standin.sh /srv/plotlines-mirror ./wnc-corridor.pmtiles
 docker compose up -d
 ```
 
-The `mkdir` first and the trailing `/.` on the source matter. Modern
-OpenSSH `scp` (the SFTP-based implementation, default since ~9.0 and what
-current Raspberry Pi OS/Debian ship) `stat`s the destination before a
-recursive copy and, unlike the old SCP-protocol `scp`, does **not**
-auto-create a nonexistent top-level destination — a bare
-`scp -r deploy/mirror pi:/opt/plotlines-mirror` against a Pi that has
-never had that directory fails with `scp: stat remote: No such file or
-directory` before anything is copied. Creating the directory first and
-copying `deploy/mirror`'s *contents* into it (`/.` on the source, trailing
-`/` on the destination) avoids the stat entirely and also avoids nesting
-a `mirror/` subdirectory inside `/opt/plotlines-mirror` the way a bare
-`scp -r deploy/mirror pi:/opt/plotlines-mirror` would if the destination
-already existed. If you'd rather keep the original one-line form, forcing
-the legacy protocol works too: `scp -O -r deploy/mirror pi:/opt/plotlines-mirror`
-— but it needs `scp` on the Pi's end as well, which is standard on
+The `mkdir`/`chown` first and the trailing `/.` on the source both
+matter, for two independent reasons:
+
+- **Modern OpenSSH `scp`** (the SFTP-based implementation, default since
+  ~9.0 and what current Raspberry Pi OS/Debian ship) `stat`s the
+  destination before a recursive copy and, unlike the old SCP-protocol
+  `scp`, does **not** auto-create a nonexistent top-level destination — a
+  bare `scp -r deploy/mirror pi:/opt/plotlines-mirror` against a Pi that
+  has never had that directory fails with `scp: stat remote: No such
+  file or directory` before anything is copied. Creating the directory
+  first and copying `deploy/mirror`'s *contents* into it (`/.` on the
+  source, trailing `/` on the destination) avoids the stat entirely and
+  also avoids nesting a `mirror/` subdirectory inside
+  `/opt/plotlines-mirror` the way a bare
+  `scp -r deploy/mirror pi:/opt/plotlines-mirror` would if the
+  destination already existed.
+- **`/opt` is root-owned** on a stock Debian/Raspberry Pi OS install
+  (typically `root:root`, mode `755`), so a non-root user can't create
+  anything under it — `mkdir -p /opt/plotlines-mirror` as an ordinary
+  login user fails with `Permission denied` before `scp` even runs, and
+  every subsequent file upload fails the same way. The `sudo mkdir` +
+  `sudo chown` hands the freshly-created directory to your login user so
+  the plain (non-root) `scp` that follows can write into it. This
+  doesn't weaken anything later: `build_tree.sh` and
+  `copy_basemap_standin.sh` still run under `sudo` explicitly for the
+  part that actually needs root — writing under `/srv/plotlines-mirror`.
+
+If you'd rather keep the original one-line form (skipping the
+`mkdir`/`chown` step), forcing the legacy protocol works too —
+`scp -O -r deploy/mirror pi:/opt/plotlines-mirror` — but it still needs
+`/opt/plotlines-mirror` to be writable by whoever is running it (so
+either run it as root, or `sudo chown` the directory first as above),
+and it needs `scp` on the Pi's end as well, which is standard on
 Raspberry Pi OS but not guaranteed on a minimal image.
 
 `build_tree.sh` is idempotent — re-running it never overwrites
