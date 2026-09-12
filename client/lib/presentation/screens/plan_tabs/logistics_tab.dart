@@ -22,6 +22,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../domain/candidate.dart' show Candidate;
 import '../../../domain/domain.dart';
+import '../../../state/current_roster_provider.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../../state/providers.dart';
@@ -459,6 +460,11 @@ class _DayCard extends ConsumerWidget {
               _WaterCarrySection(day: day, waterSources: waterSources),
             ],
             if (day.isRest) _RestDayDetails(day: day),
+            // FR25 / C9 — meals pinned to this day, shown where the day
+            // itself is rather than only in the standalone MEALS list at
+            // the bottom of the tab. Not `!day.isRest`-gated like the water
+            // carry section above it — a rest day gets fed too.
+            _DayMealsSection(day: day),
             const SizedBox(height: PlotSpacing.s3),
             _LodgingSection(day: day),
           ],
@@ -891,6 +897,54 @@ class _WaterCarrySection extends ConsumerWidget {
                     ),
                     Text(df.formatDistance(leg.distanceM), style: PlotTypography.data(c.textPrimary)),
                   ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// FR25 / C9 — meals pinned to this day ([MealResponsibility.dayId]), so a
+/// Day-2 dinner shows on Day 2's own card rather than only in the standalone
+/// MEALS list at the bottom of the tab (the same "found where the day is"
+/// treatment [_WaterCarrySection] gets). Renders nothing when this day has
+/// no pinned meals — the common case, and not an error.
+class _DayMealsSection extends ConsumerWidget {
+  const _DayMealsSection({required this.day});
+  final Day day;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final roster = ref.watch(currentRosterProvider);
+    final meals = [for (final m in roster.meals) if (m.dayId == day.id) m];
+    if (meals.isEmpty) return const SizedBox.shrink();
+    final c = PlotColors.of(context);
+    final nameById = {for (final e in roster.entries) e.characterId: e.name};
+    return Padding(
+      padding: const EdgeInsets.only(top: PlotSpacing.s3),
+      child: PlotCard(
+        sunk: true,
+        padding: const EdgeInsets.all(PlotSpacing.s3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.restaurant_outlined, size: 14, color: c.textMuted),
+                const SizedBox(width: PlotSpacing.s1),
+                Text('MEALS', style: PlotTypography.data(c.textMuted)),
+              ],
+            ),
+            for (final meal in meals)
+              Padding(
+                padding: const EdgeInsets.only(top: PlotSpacing.s1),
+                child: Text(
+                  meal.cookIds.isEmpty
+                      ? meal.label
+                      : '${meal.label} — ${meal.cookIds.map((id) => nameById[id] ?? id).join(', ')}',
+                  style: PlotTypography.body(c.textSecondary),
                 ),
               ),
           ],

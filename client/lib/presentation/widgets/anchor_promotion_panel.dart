@@ -33,6 +33,7 @@ import '../../state/current_trip_provider.dart';
 import '../../state/messages_provider.dart';
 import '../map/tap_to_pick_map.dart';
 import 'note_media_editor.dart';
+import 'permit_section.dart' show permitStatusLabel, permitStatusTone;
 
 const _resolver = RevealResolver();
 
@@ -127,7 +128,18 @@ class _AnchorPromotionPanelState extends ConsumerState<AnchorPromotionPanel> {
                 runSpacing: PlotSpacing.s2,
                 children: [
                   for (final anchor in widget.trip.anchors)
-                    _AnchorCard(anchor: anchor, previewAsCharacter: _previewAsCharacter),
+                    _AnchorCard(
+                      anchor: anchor,
+                      previewAsCharacter: _previewAsCharacter,
+                      // FR26 / C10 — the reverse link: a permit is authored
+                      // from the PERMITS section with the anchor it pins to
+                      // picked from a dropdown, so nothing on the anchor's
+                      // own card said one pointed back at it until now.
+                      permits: [
+                        for (final p in widget.trip.permits)
+                          if (p.anchorId == anchor.id) p,
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -145,9 +157,14 @@ class _AnchorPromotionPanelState extends ConsumerState<AnchorPromotionPanel> {
 }
 
 class _AnchorCard extends ConsumerWidget {
-  const _AnchorCard({required this.anchor, required this.previewAsCharacter});
+  const _AnchorCard({required this.anchor, required this.previewAsCharacter, this.permits = const []});
   final Anchor anchor;
   final bool previewAsCharacter;
+
+  /// FR26 / C10 — every `Trip.permits` entry whose `anchorId` points at this
+  /// anchor, so the Author can see "a permit references this place" from the
+  /// place itself, not only from the PERMITS section's own list.
+  final List<Permit> permits;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -219,6 +236,30 @@ class _AnchorCard extends ConsumerWidget {
                     : _RoleChip(anchorId: anchor.id, role: role, placeName: anchor.title),
             ],
           ),
+          // FR26 / C10 — a permit pinned to this anchor, never gated by
+          // preview mode: a permit carries no reveal field (mirrors
+          // `Hazard`), so there is no policy to withhold it under.
+          if (permits.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: PlotSpacing.s1),
+              child: Wrap(
+                spacing: PlotSpacing.s1,
+                runSpacing: PlotSpacing.s1,
+                children: [
+                  for (final permit in permits)
+                    Tooltip(
+                      message: permit.confirmationNumber == null
+                          ? permit.title
+                          : '${permit.title} · # ${permit.confirmationNumber}',
+                      child: PlotBadge(
+                        '${permit.title} · ${permitStatusLabel(permit.status)}',
+                        tone: permitStatusTone(permit.status),
+                        solid: permit.status == 'denied',
+                      ),
+                    ),
+                ],
+              ),
+            ),
           // FR107 / O2 — a role offset renders as its own line so it reads
           // as a distinct place on the ground, not a property of the pin;
           // an anchor with no offsets (O2's AC) adds nothing here. Withheld

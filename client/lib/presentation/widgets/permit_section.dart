@@ -33,7 +33,10 @@ import '../../state/current_trip_provider.dart';
 
 const _uuid = Uuid();
 
-String _statusLabel(String status) => switch (status) {
+/// Public — `anchor_promotion_panel.dart`'s anchor card shares this vocabulary
+/// for the reverse "a permit references this place" badge, so the same status
+/// never reads as two different labels on two different surfaces.
+String permitStatusLabel(String status) => switch (status) {
       'required' => 'Required',
       'applied' => 'Applied',
       'confirmed' => 'Confirmed',
@@ -41,7 +44,7 @@ String _statusLabel(String status) => switch (status) {
       _ => status,
     };
 
-PlotBadgeTone _statusTone(String status) => switch (status) {
+PlotBadgeTone permitStatusTone(String status) => switch (status) {
       'denied' => PlotBadgeTone.ember,
       'required' => PlotBadgeTone.gold,
       'applied' => PlotBadgeTone.slate,
@@ -139,8 +142,8 @@ class _PermitRow extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 2, right: PlotSpacing.s2),
-            child: PlotBadge(_statusLabel(permit.status).toUpperCase(),
-                tone: _statusTone(permit.status), solid: permit.status == 'denied'),
+            child: PlotBadge(permitStatusLabel(permit.status).toUpperCase(),
+                tone: permitStatusTone(permit.status), solid: permit.status == 'denied'),
           ),
           Expanded(
             child: Column(
@@ -259,7 +262,7 @@ class _PermitDialogState extends State<_PermitDialog> {
                 decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
                 items: [
                   for (final status in kPermitStatuses)
-                    DropdownMenuItem(value: status, child: Text(_statusLabel(status))),
+                    DropdownMenuItem(value: status, child: Text(permitStatusLabel(status))),
                 ],
                 onChanged: (v) => setState(() => _status = v ?? 'required'),
               ),
