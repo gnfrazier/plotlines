@@ -277,6 +277,29 @@ still filed, not run) is where those numbers get pre-registered parity
 bands and a real trip bbox against the actual pulled extracts, not a
 synthetic fixture.
 
+**The licence notice travels with the clip (issue #364).** `COPYRIGHT.txt`
+puts the obligation on "the distribution channel, not the presence of a file
+on disk", and `/clip` is a second channel — Caddy's `reverse_proxy /clip*`
+matcher terminates the request before `file_server` runs, so a caller here
+never reads that file. A clip is an *extraction*, so its output is a
+**Derivative** Database under ODbL §4.3 rather than a Produced Work. Every
+`/clip` 200 therefore carries its own notice:
+
+```
+X-Plotlines-Data-Licence:     ODbL-1.0
+X-Plotlines-Data-Attribution: (c) OpenStreetMap contributors
+X-Plotlines-Data-Terms:       https://www.openstreetmap.org/copyright
+Link:                         <https://opendatacommons.org/licenses/odbl/1-0/>; rel="license"
+```
+
+`GET /health` on the clip service reports the same four facts as JSON. The
+header credit is ASCII (`(c)`, not `©`) on purpose: Starlette emits header
+values as latin-1, so the typographic glyph goes out as a byte that isn't
+valid UTF-8 and breaks a client decoding headers before it ever reaches the
+body. `/health`'s JSON and the `COPYRIGHT.txt` files carry the typographic
+form; `test_mirror_clip_licence_notice.py` pins the two together and asserts
+every header value stays ASCII.
+
 `service/tests/test_mirror_clip.py` and `test_mirror_clip_server.py` cover
 the clip logic and the HTTP contract hermetically, against tiny synthetic
 `.osm.pbf` fixtures (`service/tests/mirror_clip_fixtures.py`) — including

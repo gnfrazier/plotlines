@@ -381,6 +381,18 @@ Two constraints on it from day one:
   wheel (or build it once in the image) rather than fighting apt/pip on the Pi directly; Docker is
   already this box's operating pattern by the time #262 lands.
 
+- **The licence notice travels with the clip** *(issue #364)*. `COPYRIGHT.txt` states the notice
+  obligation as attaching to "the distribution channel, not to the presence of a file on disk" —
+  and `/clip` is a **second channel**: Caddy's `reverse_proxy /clip*` matcher terminates the
+  request before `file_server` runs, so a caller here never reads that file. A clip is an
+  *extraction*, which makes its output a **Derivative** Database under ODbL (§4.3), not a Produced
+  Work like the basemap archive. Every `/clip` 200 therefore carries the licence id, the
+  attribution, and the terms URL in its own headers, plus a standard `Link: …; rel="license"`;
+  `/health` states the same. Header values stay US-ASCII (`(c)`, not `©`) — Starlette emits header
+  values as latin-1, so the typographic glyph goes out as a byte that is not valid UTF-8 and breaks
+  a client decoding headers before it sees the body. **Phase 4's hosted clip (§9, #280) inherits
+  this**: it is the same Derivative Database over the same kind of channel.
+
 The clip's cost profile — CPU, disk IO, and behaviour under concurrency — is exactly what §9 says
 Phase 3 does *not* prove for free. Rehearsing it here is how that stops being a surprise.
 

@@ -57,6 +57,14 @@ leaves the endpoint open, which is correct for local/dev and for the
 hermetic tests below) and a per-client-IP rate ceiling that applies either
 way, since the CPU cost does not depend on whether a key is configured. See
 `_enforce_clip_access` and `_RateLimiter`.
+
+**The licence notice travels with the clip (issue #364).** `/clip` is a
+second distribution channel alongside the static tree — Caddy's
+`reverse_proxy /clip*` matcher terminates before `file_server`, so a caller
+here never reads `COPYRIGHT.txt` — and a bbox clip is an extraction, making
+its output a *Derivative* Database under ODbL rather than a Produced Work.
+Every 200 therefore carries the notice in its own headers. See
+`clip_licence_headers`.
 """
 
 from __future__ import annotations
@@ -95,6 +103,62 @@ log = logging.getLogger("plotlines.mirror_clip")
 #: (west, south, east, north) in degrees — the order every bbox in this
 #: codebase uses (cache_layout.py, tiles/extract.py, curation/providers.py).
 BBox = tuple[float, float, float, float]
+
+#: The ODbL notice every `/clip` response carries (issue #364).
+#:
+#: A clip is an **extraction from** an OSM database, so its output is a
+#: *Derivative* Database — not a Produced Work like the basemap archive —
+#: and ODbL §4.3 wants the notice to travel with it. `deploy/mirror/
+#: COPYRIGHT.txt` states the obligation as attaching to "the distribution
+#: channel, not to the presence of a file on disk", and `/clip` is a second
+#: channel: Caddy's `reverse_proxy /clip*` matcher terminates the request
+#: before `file_server` ever runs, so a consumer that only ever calls
+#: `/clip` never reads `osm/COPYRIGHT.txt` at all.
+#:
+#: Deliberately not routed through `web.about.about_attributions` — that
+#: gate covers the *app's* About and export surfaces, and this service is
+#: not the app (it never imports `app.py`, by #262's freeze isolation). The
+#: notice here is the mirror's own redistribution obligation, the exact
+#: parallel of the `COPYRIGHT.txt` files, so it is pinned to that file's
+#: wording by `test_mirror_clip_licence_notice.py` rather than to a core
+#: constant that serves a different surface.
+CLIP_LICENCE_ID = "ODbL-1.0"
+#: The canonical credit, matching `osm/COPYRIGHT.txt` and
+#: `tiles.mirror.BASEMAP_ATTRIBUTION` byte for byte. JSON-safe, so this is
+#: the form `/health` reports and the form any display surface should use.
+CLIP_ATTRIBUTION = "© OpenStreetMap contributors"
+#: The same credit for an HTTP *header*, where `©` cannot go. RFC 9110
+#: field values are US-ASCII; Starlette emits them as latin-1, which makes
+#: U+00A9 a byte (0xA9) that is not valid UTF-8 on the wire — a real client
+#: decoding headers as UTF-8 fails on it, which is how this was caught here
+#: rather than on the Pi. RFC 8187's `field*=UTF-8''…` encoding would carry
+#: the glyph, but it buys nothing a reader of a licence notice needs, so the
+#: header carries the unambiguous ASCII transliteration and `/health` plus
+#: `osm/COPYRIGHT.txt` carry the typographic one.
+CLIP_ATTRIBUTION_HEADER = "(c) OpenStreetMap contributors"
+CLIP_TERMS_URL = "https://www.openstreetmap.org/copyright"
+CLIP_LICENCE_URL = "https://opendatacommons.org/licenses/odbl/1-0/"
+
+
+def clip_licence_headers() -> dict[str, str]:
+    """The notice headers attached to every `/clip` 200.
+
+    `Link: …; rel="license"` is the registered (RFC 8288) way to say this,
+    so a generic HTTP client finds it without knowing Plotlines exists; the
+    `X-Plotlines-Data-*` group carries the same facts in the parsed-field
+    shape the rest of this response already uses (`X-Plotlines-Clip-*`).
+    Both, rather than either: the standard header is the one an auditor or
+    a third-party tool will look for, and the explicit group is the one
+    Phase 3's client can read without parsing a `Link` value.
+
+    Every value here must stay US-ASCII — see `CLIP_ATTRIBUTION_HEADER`.
+    """
+    return {
+        "X-Plotlines-Data-Licence": CLIP_LICENCE_ID,
+        "X-Plotlines-Data-Attribution": CLIP_ATTRIBUTION_HEADER,
+        "X-Plotlines-Data-Terms": CLIP_TERMS_URL,
+        "Link": f'<{CLIP_LICENCE_URL}>; rel="license"',
+    }
 
 
 class NoMirrorCoverage(ValueError):
@@ -492,6 +556,7 @@ def create_clip_app(
             "X-Plotlines-Clip-Peak-Rss-Kb": (
                 str(result.peak_rss_kb) if result.peak_rss_kb is not None else "unknown"
             ),
+            **clip_licence_headers(),
         }
         return Response(
             content=body,
@@ -520,6 +585,15 @@ def create_clip_app(
             "ready": True,
             "root": str(root),
             "pinned_extracts": [e.region for e in extracts],
+            # Issue #364 — what this service serves is ODbL-licensed, and an
+            # operator probing /health should be able to see that the notice
+            # is wired rather than having to fetch a clip to find out.
+            "licence": {
+                "licence": CLIP_LICENCE_ID,
+                "attribution": CLIP_ATTRIBUTION,
+                "terms_url": CLIP_TERMS_URL,
+                "licence_url": CLIP_LICENCE_URL,
+            },
         }
 
     return app

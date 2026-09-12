@@ -109,7 +109,14 @@ def test_health_reports_the_pinned_extracts(tmp_path: Path) -> None:
     resp = tc.get("/health")
 
     assert resp.status_code == 200
-    assert resp.json() == {"ready": True, "root": str(mirror), "pinned_extracts": ["the-region"]}
+    body = resp.json()
+    assert body["ready"] is True
+    assert body["root"] == str(mirror)
+    assert body["pinned_extracts"] == ["the-region"]
+    # Still an exact key set, so a field cannot appear or vanish here
+    # unnoticed — but the `licence` block's *values* belong to
+    # test_mirror_clip_licence_notice.py (#364), not restated here.
+    assert set(body) == {"ready", "root", "pinned_extracts", "licence"}
 
 
 # --------------------------------------------------------------------------
