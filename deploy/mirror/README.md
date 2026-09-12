@@ -203,6 +203,89 @@ hostname-only; running the two steps against the live Pi is what proves
 the *deployment* exercises `resolve_upstream`'s shipped path instead of
 the dev escape hatch.
 
+## The mirror-side bbox clip (issue #262, §6.7)
+
+Q1-C: the client never resolves a covering set or sees a region extract —
+it sends a trip bbox and gets back one clipped `.osm.pbf`. That's the one
+dynamic endpoint the mirror grows, `POST`/`GET /clip`, implemented in
+`service/plotlines_service/mirror_clip.py` and proxied to from the
+Caddyfile's `reverse_proxy /clip*` (before its `file_server` catch-all —
+`service/tests/test_mirror_clip_deploy_config.py` pins the ordering).
+
+**Why it isn't in `deploy/mirror/` alongside `geofabrik_pull.py`.** That
+script is stdlib-only so it deploys as a standalone file with no `pip
+install`. The clip needs `pyosmium` — a C++ extension — so it's built as a
+proper container from the full repo instead, the same pattern
+`service/Dockerfile.elevation-proxy` already established for a different
+native dependency (rasterio/GDAL):
+
+```
+docker build -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest .
+docker save plotlines-mirror-clip:latest | ssh pi docker load
+```
+
+(or clone the full repo onto the Pi and build there directly). Then
+`docker compose up -d` from this directory starts both `caddy` and
+`mirror-clip` — see `docker-compose.yml`. `mirror-clip` publishes no host
+port; only Caddy's `reverse_proxy` reaches it, over compose's own default
+network (service-name DNS resolves `mirror-clip` — no extra `networks:`
+block needed).
+
+**No GPL-licensed binary anywhere in this path (addendum L1).** The clip
+goes through pyosmium's Python API only (`osmium.SimpleHandler`,
+`osmium.BackReferenceWriter`, `osmium.MergeInputReader`) — never the
+`osmium` CLI (`osmium-tool` is GPL-3.0; pyosmium/libosmium are
+BSD-2-Clause). `osmium` is declared as the `mirror-clip` **extra** in
+`service/pyproject.toml`, not a base dependency of `plotlines-service` —
+kept out of `packaging/build_sidecar.sh`'s frozen client binary, since
+SPIKE-J (#266) hasn't yet measured whether pyosmium survives a PyInstaller
+freeze on all four client targets. Reintroducing that dependency into every
+desktop/mobile build ahead of that measurement would undo exactly what
+Q1-C's "no client-side native clip dependency" was for.
+
+**What it implements.** One completeness strategy — the pyosmium-native
+equivalent of osmium-tool's `complete_ways`: any way with at least one node
+in the requested bbox is written whole (not severed at the boundary, per
+§11.7), completed via `osmium.BackReferenceWriter`; a relation is kept when
+it references an included way or node. `simple` (truncate at the boundary)
+and `smart` (multipolygon repair, nested-relation completion) are not
+implemented — SPIKE-I (#265) is where that trade-off gets evidence rather
+than a guess. The bbox-spans-two-extracts case (Buncombe County is ~30 km
+from Tennessee) merges the covering extracts with `osmium.MergeInputReader`
+first, deduplicating a border way that's present, whole, in both regional
+cuts, before clipping.
+
+**Coverage resolution reads only what's on disk.** `mirror_clip.py` never
+consults the mirrored `index-v1.json` — that's Phase 3's job
+(§8: "resolve trip bbox → covering set of extracts, from the mirrored
+`index-v1.json`"), not this endpoint's. Instead it reads each pinned
+extract's own PBF header box (real Geofabrik extracts always declare one)
+and keeps any extract whose declared coverage might overlap the request —
+treating a missing header box as *unknown, so kept* rather than excluded. A
+bbox that matches no pinned extract's coverage, or matches one but selects
+zero real features from it, is `NoMirrorCoverage` — a 404 with a
+`{"error": "no_mirror_coverage", "message": "..."}` body, never a stack
+trace (acceptance criterion 5).
+
+**What's recorded, not yet what SPIKE-I measures.** Every successful clip
+logs, and returns as response headers, wall time, output size, peak RSS
+(`resource.getrusage(...).ru_maxrss` — process-lifetime, not perfectly
+request-isolated; a controlled per-request measurement is SPIKE-I's job,
+not this rehearsal's), and which region(s) it drew from. This satisfies
+"the numbers Q1-C and Q6 both rest on" for a first look; SPIKE-I (#265,
+still filed, not run) is where those numbers get pre-registered parity
+bands and a real trip bbox against the actual pulled extracts, not a
+synthetic fixture.
+
+`service/tests/test_mirror_clip.py` and `test_mirror_clip_server.py` cover
+the clip logic and the HTTP contract hermetically, against tiny synthetic
+`.osm.pbf` fixtures (`service/tests/mirror_clip_fixtures.py`) — including
+the two-extract merge/dedup case and both coverage-miss paths. What they
+cannot cover from this sandbox, the same way §6.5's DNS-override step
+can't: an actual Caddy container proxying to an actual `mirror-clip`
+container over the real Pi's Docker network, against the real pulled NC
+extract. That's a live-Pi rehearsal, not a hermetic test's job.
+
 ## `{$MIRROR_ROOT}` / `{$MIRROR_LOG}`
 
 The checked-in `Caddyfile` is otherwise byte-for-byte the §6.4 block, with

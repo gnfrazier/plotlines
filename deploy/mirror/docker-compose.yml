@@ -1,11 +1,21 @@
 # Runs the Plotlines mirror's Caddy front end containerized (issue #256,
 # §6.4: "run Caddy containerized, not as a native package install" — same
 # reasoning as the Pi5 elevation QA proxy, sidestepping apt-managed version
-# drift rather than fighting it).
+# drift rather than fighting it), plus the mirror-clip service (issue #262,
+# §6.7) Caddy proxies /clip* to.
 #
 # On the Pi:
 #   sudo ./build_tree.sh /srv/plotlines-mirror
 #   docker compose up -d
+#
+# Unlike caddy's image, plotlines-mirror-clip is not pulled from a public
+# registry — it's this repo's own service/Dockerfile.mirror-clip, which
+# needs core/ and service/ as build context. Build it on a machine with the
+# full repo checked out and load the result here, e.g.:
+#   docker build -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest .
+#   docker save plotlines-mirror-clip:latest | ssh pi docker load
+# or clone the repo onto the Pi itself and build there directly. See
+# deploy/mirror/README.md for the full walkthrough.
 services:
   caddy:
     image: caddy:2.11.4
@@ -22,6 +32,18 @@ services:
     # (/srv/plotlines-mirror, /var/log/caddy/mirror.log). Override only for a
     # local dry run, e.g.:
     #   MIRROR_ROOT=/tmp/scratch-mirror MIRROR_LOG=/dev/stdout docker compose up
+    depends_on:
+      - mirror-clip
+
+  mirror-clip:
+    image: plotlines-mirror-clip:latest
+    restart: unless-stopped
+    # No published host port: only Caddy's reverse_proxy (see Caddyfile)
+    # reaches this container, over compose's own default network — the
+    # posture elevation_proxy.py's own deploy note asks for ("this service
+    # has no auth of its own").
+    volumes:
+      - /srv/plotlines-mirror:/srv/plotlines-mirror:ro
 
 volumes:
   caddy_data:
