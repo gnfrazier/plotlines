@@ -417,15 +417,25 @@ docker build -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest .
 
 ```
 # Or cross-build from the dev box, if you'd rather not compile on the Pi.
-# Needs buildx + binfmt/qemu; --load keeps the result in the local daemon.
-docker buildx build --platform linux/arm64 \
-  -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest --load .
+# One-time setup: the default `docker` driver refuses --platform with
+# "Multi-platform build is not supported for the docker driver."
+docker buildx create --use
+docker run --privileged --rm tonistiigi/binfmt --install arm64
+
+# Kept on one line on purpose: pasted a line at a time, a `\`-continued
+# form loses the trailing `.` and buildx fails with the unhelpful
+# "docker buildx build requires 1 argument". Run it from the repo root —
+# `.` is the build context and must contain both core/ and service/.
+docker buildx build --platform linux/arm64 -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest --load .
+
 docker save plotlines-mirror-clip:latest | ssh pi docker load
 ```
 
 The native build is slower but has no qemu in the loop, which matters here
 for a second reason: this image exists to be *timed*. Keep the thing under
-measurement as close to its production shape as possible.
+measurement as close to its production shape as possible — and note the
+cross-build's one-time buildx/binfmt setup above is most of the reason the
+native route is listed first.
 
 Then start it and check:
 
