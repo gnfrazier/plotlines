@@ -32,44 +32,22 @@ bool _mountsBlockAndHelpIcon(String momentName) {
   return hasBlock && hasIcon;
 }
 
-/// Unmounted today for reasons unrelated to #347 — filed as their own defect
-/// (#353) rather than fixed here, since #347's scope is `staleRouteIsDeliberate`
-/// only. This carve-out is what makes the debt visible instead of silently
-/// masking it: shrink it only by actually mounting the moment removed from
-/// it, never by widening the check.
-const _mountedElsewhereTodo = {
-  TeachingMoment.promotionNotIntoDay,
-  TeachingMoment.revealIsRoleProperty,
-  TeachingMoment.composeDistanceIsOutcome,
-};
-
 void main() {
   test('every TeachingMoment naming a surface is actually mounted there', () {
+    // #353 — the last three of K12a's four original moments (plus #347's
+    // `staleRouteIsDeliberate` before them) were registered, copied, and
+    // asserted complete by the tests below while mounted nowhere. No
+    // allowlist here now: every moment must clear this check.
     for (final moment in TeachingMoment.values) {
-      if (_mountedElsewhereTodo.contains(moment)) continue;
       expect(
         _mountsBlockAndHelpIcon(moment.name),
         isTrue,
         reason: '$moment has a registry entry but no TeachingBlock/TeachingHelpIcon pair found in '
             'presentation/ referencing it — a complete, well-formed entry can still be dead on '
-            'its surface (#347).',
+            'its surface (#347, #353).',
       );
     }
   });
-
-  test('the known-unmounted carve-out names only moments actually still unmounted (#353)', () {
-    // Guards the carve-out itself from going stale: once a listed moment is
-    // mounted, it must come out of `_mountedElsewhereTodo` in the same change.
-    for (final moment in _mountedElsewhereTodo) {
-      expect(
-        _mountsBlockAndHelpIcon(moment.name),
-        isFalse,
-        reason: '$moment is mounted now — remove it from _mountedElsewhereTodo (and close #353 '
-            'if that was the last one).',
-      );
-    }
-  });
-
 
   test('every TeachingMoment has a registry entry with a help affordance', () {
     expect(teachingMomentsMissingHelpAffordance(), isEmpty);

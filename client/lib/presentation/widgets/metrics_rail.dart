@@ -13,6 +13,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../data/sidecar_manager.dart' show CapabilityStatus;
 import '../../domain/domain.dart';
 import 'error_states.dart' show CapabilityWarmingNotice;
+import 'teaching_block.dart';
 
 class MetricsRail extends StatelessWidget {
   const MetricsRail({
@@ -219,6 +220,7 @@ class MetricsRail extends StatelessWidget {
                   if (composeItinerary != null) ...[
                     const SizedBox(height: PlotSpacing.s4),
                     _ComposeItinerarySection(
+                      tripId: trip.id,
                       itinerary: composeItinerary!,
                       displayFormat: displayFormat,
                     ),
@@ -362,9 +364,11 @@ class _ViaAnchorSummary extends StatelessWidget {
 /// organised around its places, not a target distance.
 class _ComposeItinerarySection extends StatelessWidget {
   const _ComposeItinerarySection({
+    required this.tripId,
     required this.itinerary,
     required this.displayFormat,
   });
+  final String tripId;
   final ComposeItinerary itinerary;
   final DisplayFormat displayFormat;
 
@@ -379,10 +383,19 @@ class _ComposeItinerarySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'COMPOSE ITINERARY',
-          style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700),
+        Row(
+          children: [
+            Text(
+              'COMPOSE ITINERARY',
+              style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(width: PlotSpacing.s1),
+            const TeachingHelpIcon(moment: TeachingMoment.composeDistanceIsOutcome),
+          ],
         ),
+        // K12a — in Compose mode the Author picks places, not a distance; the
+        // stat and deviation line right below are that reported outcome.
+        TeachingBlock(tripId: tripId, moment: TeachingMoment.composeDistanceIsOutcome),
         const SizedBox(height: PlotSpacing.s2),
         _StatCard(label: 'DAY DISTANCE', value: _dist(distance.realisedM)),
         if (distance.hasTarget && dev != null) ...[

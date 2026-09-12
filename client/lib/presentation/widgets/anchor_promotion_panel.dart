@@ -34,6 +34,7 @@ import '../../state/messages_provider.dart';
 import '../map/tap_to_pick_map.dart';
 import 'note_media_editor.dart';
 import 'permit_section.dart' show permitStatusLabel, permitStatusTone;
+import 'teaching_block.dart';
 
 const _resolver = RevealResolver();
 
@@ -941,6 +942,21 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                   style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: PlotSpacing.s2),
               for (final kind in RoleKind.values) _roleRow(c, kind),
+              // K12a / FR114 — each role row above sets its own reveal; this
+              // is the only place reveal is set, so it is where the "reveal
+              // is a role's property, not the place's" model needs saying.
+              // Placed (help icon included) after the role rows, not before,
+              // for the same reason the area-geometry section below is:
+              // `find.byType(Checkbox)` indices for the role set must stay
+              // put, and the header text above must keep its own wrap.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TeachingHelpIcon(moment: TeachingMoment.revealIsRoleProperty),
+              ),
+              TeachingBlock(
+                tripId: ref.read(currentTripProvider).id,
+                moment: TeachingMoment.revealIsRoleProperty,
+              ),
               const SizedBox(height: PlotSpacing.s2),
               // FR108 / O3 — Flow 3's "Role geometry: point, offset, or
               // area." Placed after the role checkboxes (not before) so
