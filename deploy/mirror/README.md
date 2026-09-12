@@ -383,9 +383,16 @@ understate the endpoint. Expect a few hundred MB per region.
 Verify the pull landed before going further:
 
 ```
-jq '.geofabrik | {pinned_date, regions: (.regions|keys)}' \
-  /srv/plotlines-mirror/MIRROR_STATE.json
+python3 -c 'import json; g=json.load(open("/srv/plotlines-mirror/MIRROR_STATE.json"))["geofabrik"]; print("pinned_date:", g["pinned_date"]); print("regions:", sorted(g["regions"]))'
 ```
+
+`python3`, not `jq`, throughout this section — `jq` is not installed on a
+stock Raspberry Pi OS image and is not a dependency of anything else here,
+which is the same reason `copy_basemap_standin.sh` shells out to `python3`
+to merge its one JSON key.
+
+Before any pull this prints `pinned_date: None` and `regions: []`; that is
+the state in which every clip correctly 404s.
 
 ### 2. Build and start the clip container
 
@@ -399,7 +406,7 @@ docker build -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest .
 docker save plotlines-mirror-clip:latest | ssh pi docker load
 
 ssh pi 'cd /opt/plotlines-mirror && docker compose up -d'
-ssh pi 'docker compose ps && curl -s localhost:8095/health | jq'
+ssh pi 'docker compose ps && curl -s localhost:8095/health | python3 -m json.tool'
 ```
 
 `/health` must list both regions under `pinned_extracts`. If `caddy` is up
