@@ -98,6 +98,7 @@ from plotlines_core.trips.spine import (
     spine_cues,
     spine_legs_from_polyline,
 )
+from plotlines_core.trips.provenance import build_provenance
 from plotlines_core.trips.payload import Day as PayloadDay
 from plotlines_core.trips.payload import Segment as PayloadSegment
 from plotlines_core.trips.payload import Transition as PayloadTransition
@@ -1854,6 +1855,16 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                               default_weights=default_weights)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+        # L7 (issue #270) — every payload plotlines-core writes carries a
+        # populated `Provenance`: who/what produced it, and the attribution
+        # list actually in force (derived, never hardcoded — `about_
+        # attributions` is the one dynamic source `GET /about` also reads).
+        trip.provenance = build_provenance(
+            app.state.layer_registry,
+            app_version=VERSION,
+            sidecar_version=VERSION if mode == "sidecar" else None,
+            fetched_at=trip.created_at,
+        )
         result = trip.to_dict()
         # C11 / FR27 / FR115 — the trip-wide hazard roll-up and the worst-first
         # sync-alert set ride *alongside* the payload, not inside it: the payload
