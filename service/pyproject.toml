@@ -9,6 +9,19 @@ dependencies = [
     "uvicorn",
 ]
 
+[project.optional-dependencies]
+# Issue #262 (epic #264 Phase 1.8, review §6.7, addendum L1): pyosmium is
+# BSD-2-Clause, never the GPL-3 `osmium` CLI. Kept out of the base
+# `dependencies` above — and therefore out of `packaging/build_sidecar.sh`'s
+# frozen sidecar, since nothing there imports `mirror_clip.py` — because
+# SPIKE-J (#266) has not yet measured whether pyosmium survives a
+# PyInstaller freeze on all four client targets. This extra is installed
+# only in `Dockerfile.mirror-clip`'s image, which is the one place this
+# code runs.
+mirror-clip = [
+    "osmium>=4.3,<5",
+]
+
 [project.scripts]
 # Same entrypoint the frozen binary exposes, so a source run and a frozen run are
 # invoked identically (ARCH §7.3's spawn contract).
@@ -25,6 +38,9 @@ build-backend = "hatchling.build"
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
+    # Exercises mirror_clip.py's real pyosmium behaviour in tests — see the
+    # mirror-clip extra above for why this isn't a base dependency.
+    "osmium>=4.3,<5",
 ]
 
 [tool.hatch.build.targets.wheel]
