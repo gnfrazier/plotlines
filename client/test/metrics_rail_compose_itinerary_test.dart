@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plotlines_client/data/sidecar_manager.dart' show CapabilityStatus;
@@ -80,19 +81,24 @@ Map<String, dynamic> _response({double? targetM}) => {
     };
 
 Future<void> _pump(WidgetTester tester, {ComposeItinerary? itinerary}) async {
-  await tester.pumpWidget(MaterialApp(
-    home: Scaffold(
-      body: MetricsRail(
-        trip: Trip(
-          id: 'trip-1',
-          title: 'Test trip',
-          createdAt: '2026-08-25T00:00:00Z',
-          updatedAt: '2026-08-25T00:00:00Z',
-          days: [Day(id: 'd1', index: 1, segments: const [])],
+  // K12a's `TeachingBlock` (mounted here for `composeDistanceIsOutcome`,
+  // issue #353) reads `teachingDismissalsProvider`, so this surface now
+  // needs a `ProviderScope` the same as any other Riverpod-backed widget.
+  await tester.pumpWidget(ProviderScope(
+    child: MaterialApp(
+      home: Scaffold(
+        body: MetricsRail(
+          trip: Trip(
+            id: 'trip-1',
+            title: 'Test trip',
+            createdAt: '2026-08-25T00:00:00Z',
+            updatedAt: '2026-08-25T00:00:00Z',
+            days: [Day(id: 'd1', index: 1, segments: const [])],
+          ),
+          selectedSegment: null,
+          elevationCapability: const CapabilityStatus(ready: true),
+          composeItinerary: itinerary,
         ),
-        selectedSegment: null,
-        elevationCapability: const CapabilityStatus(ready: true),
-        composeItinerary: itinerary,
       ),
     ),
   ));

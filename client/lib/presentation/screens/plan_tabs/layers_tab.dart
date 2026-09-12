@@ -28,6 +28,7 @@ import '../../../state/trip_candidates_provider.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/desktop_error_surface.dart';
 import '../../widgets/layer_picker.dart';
+import '../../widgets/teaching_block.dart';
 import '../../../data/curation_client.dart' show LayerCatalog;
 import 'proposals_view.dart';
 
@@ -430,6 +431,25 @@ class _AnchorsViewState extends ConsumerState<AnchorsView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              PlotSpacing.s3, PlotSpacing.s3, PlotSpacing.s3, 0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('ANCHORS', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(width: PlotSpacing.s1),
+              const TeachingHelpIcon(moment: TeachingMoment.promotionNotIntoDay),
+            ],
+          ),
+        ),
+        // K12a — promoting a candidate parks it here; it still needs placing
+        // into a day, which this view's own attached/unattached split makes
+        // visible but does not itself explain.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3),
+          child: TeachingBlock(tripId: widget.trip.id, moment: TeachingMoment.promotionNotIntoDay),
+        ),
         Padding(
           padding: const EdgeInsets.all(PlotSpacing.s3),
           child: Wrap(
