@@ -98,6 +98,75 @@ silent empty archive — against a small synthetic stand-in rather than the
 real 118 MB archive, which is gitignored and not something CI can depend
 on being present.
 
+## Pointing the sidecar at the mirror by name (issue #261, §6.5)
+
+`classify_upstream` (`core/plotlines_core/tiles/mirror.py`) matches on
+**hostname only and is scheme-agnostic** — this is asserted, not just
+observed, in `core/tests/test_tiles_mirror.py`
+(`test_the_mirror_host_classifies_as_mirror_over_plain_http_no_tls`,
+`test_a_lan_style_mirror_url_resolves_with_no_dev_flag`,
+`test_hotlink_refusal_is_unaffected_by_the_mirror_being_scheme_agnostic`).
+What's left is exercising that against the real Pi — two steps, in order,
+run **on a machine on the Pi's LAN** (not in CI, and not from this
+sandbox, which has no route to the Pi):
+
+**1. Low-friction form first — the flag path.** Both flags already exist
+in `service/plotlines_service/__main__.py`:
+
+```
+plotlines-sidecar --cache-dir /tmp/plotlines-cache --port 8765 \
+    --tiles-upstream http://pi.local/basemap/protomaps/20250101-wnc/corridor.pmtiles \
+    --allow-unmirrored-tiles
+```
+
+Then drive a region build against it (a bbox inside `WNC_CORRIDOR_BBOX`,
+`-83.6, 35.2, -81.0, 36.4`) the same way the client would, and confirm the
+tiles come from the Pi rather than the committed home-region archive.
+
+**2. Then the DNS override, once step 1 is boring.** Add a local DNS
+record (or an `/etc/hosts` line on the dev box — the zero-infrastructure
+fallback) pointing `tiles.plotlines.app` at the Pi's LAN address, then
+re-run **without** `--allow-unmirrored-tiles`:
+
+```
+plotlines-sidecar --cache-dir /tmp/plotlines-cache --port 8765 \
+    --tiles-upstream http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles
+```
+
+The same region build must complete with no dev flags at all. Confirm in
+a Python shell on that box that the real code path — not just the unit
+test's synthetic assertion — agrees:
+
+```
+python3 -c "
+from plotlines_core.tiles.mirror import classify_upstream, UpstreamKind
+url = 'http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles'
+kind = classify_upstream(url)
+assert kind is UpstreamKind.MIRROR, kind
+print('classify_upstream:', kind)
+"
+```
+
+Last, confirm the gate isn't weakened: a genuine third-party host must
+still be refused from that same box —
+
+```
+python3 -c "
+from plotlines_core.tiles.mirror import resolve_upstream
+resolve_upstream('http://tile.openstreetmap.org/planet.pmtiles')
+"
+```
+
+— must raise `HotlinkRefused`.
+
+Both steps require the physical Pi (built per §6.2-§6.4 / issue #256) and
+a LAN or DNS override this repo's CI/dev sandbox has no path to — they are
+a manual rehearsal, not something a hermetic test can stand in for. The
+unit tests above prove the *code* is already scheme-agnostic and
+hostname-only; running the two steps against the live Pi is what proves
+the *deployment* exercises `resolve_upstream`'s shipped path instead of
+the dev escape hatch.
+
 ## `{$MIRROR_ROOT}` / `{$MIRROR_LOG}`
 
 The checked-in `Caddyfile` is otherwise byte-for-byte the §6.4 block, with

@@ -46,6 +46,36 @@ def test_a_third_party_tile_host_classifies_as_foreign():
     assert classify_upstream("https://build.protomaps.com/planet.pmtiles") is UpstreamKind.FOREIGN
 
 
+# --------------------------------------------------------------- issue #261: the mirror hostname
+# rehearsal (review §6.5, checklist items 16-17). `classify_upstream` matches on hostname only and
+# is scheme-agnostic *by construction* — pointing `MIRROR_HOST` at a LAN box in local DNS (or
+# `/etc/hosts`) makes a bare `http://` URL classify as MIRROR with no TLS, no
+# `--allow-unmirrored-tiles`, and no code change. These pin that property with an assertion rather
+# than leaving it as something only observed by hand against the real Pi.
+
+def test_the_mirror_host_classifies_as_mirror_over_plain_http_no_tls():
+    # The DNS-override rehearsal never gets TLS (Caddy's `http://` prefix, §6.4) — if this ever
+    # required https, the whole point of exercising the real `resolve_upstream` path over the
+    # dev escape hatch would be lost.
+    assert classify_upstream(f"http://{MIRROR_HOST}/basemap/protomaps/20250101-wnc/corridor.pmtiles") \
+        is UpstreamKind.MIRROR
+
+
+def test_a_lan_style_mirror_url_resolves_with_no_dev_flag():
+    # Once local DNS (or /etc/hosts) points MIRROR_HOST at the Pi, resolve_upstream must accept
+    # it with allow_unmirrored left at its default (False) — the DNS override, not the escape
+    # hatch, is what makes this work (§6.5).
+    url = f"http://{MIRROR_HOST}/basemap/protomaps/20250101-wnc/corridor.pmtiles"
+    assert resolve_upstream(url) == url
+
+
+def test_hotlink_refusal_is_unaffected_by_the_mirror_being_scheme_agnostic():
+    # The gate is not weakened by MIRROR_HOST matching over plain http: a *different* host must
+    # still be refused over http, exactly as it is over https.
+    with pytest.raises(HotlinkRefused):
+        resolve_upstream("http://tile.openstreetmap.org/planet.pmtiles")
+
+
 def test_resolve_passes_a_local_path_through_unchanged():
     p = Path("/tmp/x.pmtiles")
     assert resolve_upstream(p) == p
