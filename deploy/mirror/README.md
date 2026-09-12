@@ -439,17 +439,56 @@ native route is listed first.
 
 Then start it and check:
 
+**First, make sure the deploy itself is current.** `/opt/plotlines-mirror`
+is a copy of this directory taken at deploy time, so a Pi provisioned
+before #262 has a `docker-compose.yml` with no `mirror-clip` service and a
+`Caddyfile` with no `/clip*` route. The symptom is quiet rather than loud —
+`docker compose up -d` reports `up 1/1` and `ps` lists only caddy, because
+compose is not failing to find the image, it does not know the service
+exists:
+
 ```
-ssh pi 'cd /opt/plotlines-mirror && docker compose up -d'
-ssh pi 'cd /opt/plotlines-mirror && docker compose ps'
-ssh pi 'curl -s localhost:8095/health | python3 -m json.tool'
+cd /opt/plotlines-mirror
+grep -c mirror-clip docker-compose.yml   # 0 means the deploy predates #262
+grep -c clip Caddyfile                   # ditto
+
+# refresh from the repo checkout on the Pi (or scp -r from the dev box)
+cd ~/plotlines && git pull
+cp -r deploy/mirror/. /opt/plotlines-mirror/
+cd /opt/plotlines-mirror && sudo ./build_tree.sh /srv/plotlines-mirror
 ```
 
-`/health` must list both regions under `pinned_extracts`. If `caddy` is up
-and `mirror-clip` is not, the image never loaded — compose will not build
-it for you. `docker compose logs mirror-clip` says which of the two it is:
-a missing image, or an `exec format error` from the architecture mismatch
-above.
+Re-running `build_tree.sh` is safe with data in place — it only creates
+directories and rewrites the two `COPYRIGHT.txt` files, and skips
+`MIRROR_STATE.json` when it exists — and it is what refreshes the served
+notice to the post-#364 text.
+
+Then start it and check:
+
+```
+cd /opt/plotlines-mirror
+sudo docker compose up -d
+sudo docker compose restart caddy   # bind-mounted Caddyfile: `up -d` won't reload it
+sudo docker compose ps
+sudo docker compose exec mirror-clip \
+  python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8095/health').read().decode())"
+```
+
+**Check health from inside the container**, as above. `mirror-clip`
+publishes no host port on purpose (only Caddy reaches it, over the compose
+network) and Caddy proxies only `/clip*`, so `/health` is not reachable
+from the Pi's own shell by either route — `curl localhost:8095/health`
+fails identically whether the service is healthy or dead, which makes it
+worse than useless as a check.
+
+`/health` must list both regions under `pinned_extracts`, plus the
+`licence` block (#364). If `caddy` is up and `mirror-clip` is missing or
+`Restarting`, `docker compose logs mirror-clip` distinguishes the cases: no
+such service (stale compose file, above), `exec format error` (architecture
+mismatch, above), or an `ImportError` on a shared library (#369 — the
+pyosmium wheel links `libexpat.so.1` from the system, which
+`python:3.12-slim` does not ship; fixed in the Dockerfile, but an image
+built before that fix will crash-loop until rebuilt).
 
 ### 3. Measure
 
