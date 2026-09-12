@@ -1,0 +1,35 @@
+# Plotlines mirror-side bbox clip — issue #262 (Phase 1.8 of epic #264,
+# docs/Plotlines_OSM_Acquisition_Review.md §6.7). Runs on the Pi5 mirror
+# host, containerized for the same reason Dockerfile.elevation-proxy is:
+# pyosmium is a C++ extension (libosmium) — exactly the class of aarch64
+# packaging risk a pinned base image with a known-good wheel sidesteps,
+# rather than fighting apt/pip on the Pi directly.
+#
+# Build from the repo root (needs both core/ and service/):
+#   docker build -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip .
+#
+# pyosmium publishes manylinux wheels for x86_64 and aarch64 (confirmed
+# against 4.3.1, the version pinned in service/pyproject.toml's `mirror-clip`
+# extra), so a plain slim Python image needs no compiler and no separate
+# libosmium apt install.
+#
+# No GPL-licensed binary anywhere in this image (addendum L1): the
+# `mirror-clip` extra installs `osmium` (pyosmium, BSD-2-Clause) only —
+# never `osmium-tool` (GPL-3.0), which is not installed here and not shelled
+# out to anywhere in plotlines_service/mirror_clip.py.
+FROM python:3.12-slim
+
+RUN pip install --no-cache-dir uv
+
+WORKDIR /app
+COPY core/ /app/core/
+COPY service/ /app/service/
+
+WORKDIR /app/service
+RUN uv sync --no-dev --extra mirror-clip
+
+# Single process, like Dockerfile.elevation-proxy: the clip's behaviour
+# under concurrent requests is exactly what §9 names as unmeasured, so this
+# rehearsal does not guess at a worker count. Do not add --workers here.
+ENTRYPOINT ["uv", "run", "python", "-m", "plotlines_service.mirror_clip"]
+CMD ["--host", "0.0.0.0", "--port", "8095", "--root", "/srv/plotlines-mirror"]

@@ -17,8 +17,18 @@
 ## while letting a local run point at a scratch tree without editing this
 ## file — the same "swap is a hostname/root change, nothing else" discipline
 ## §6.0 (Q6) asks of the tree itself.
+##
+## Issue #262 (Q1-C, §6.7): the one dynamic endpoint the mirror grows — bbox
+## in, clipped .osm.pbf out — proxied to the mirror-clip container (see
+## docker-compose.yml) so the client only ever needs this one hostname.
+## `reverse_proxy`'s own path matcher terminates the request before
+## `file_server` below ever sees a /clip request; everything else here stays
+## plain static files, per §6.7's "everything else stays dumb."
 http://tiles.plotlines.app {
 	root * {$MIRROR_ROOT:/srv/plotlines-mirror}
+
+	reverse_proxy /clip* {$MIRROR_CLIP_UPSTREAM:mirror-clip:8095}
+
 	file_server
 
 	# Build-pinned paths are immutable.
