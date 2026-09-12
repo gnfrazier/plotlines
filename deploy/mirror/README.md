@@ -337,6 +337,222 @@ Both are `mirror_clip.py` CLI flags (`--client-key`,
 hermetically; setting a real key on the live Pi is an operator step, not
 something a hermetic test can exercise.
 
+## Live clip rehearsal — taking the Q1-C numbers (epic #264)
+
+Everything above is hermetic or single-file. This is the operator step that
+closes epic #264's second definition-of-done bullet:
+
+> A trip bbox clipped server-side to an `.osm.pbf`, with wall time, output
+> size and peak RSS recorded — the numbers Q1-C and Q6 both rest on.
+
+The endpoint emits those three on every clip (headers and log, see above),
+but until this runbook has been executed they have only ever been emitted
+against tiny synthetic fixtures. **The mechanism existing is not the same
+as the numbers existing**, and Q1-C — mirror-side clip over client-side
+extract — is a cost argument that currently has no measured cost on either
+side of it.
+
+Same constraint as §6.5's DNS step: this needs LAN access to the Pi and
+cannot be done from a coding-agent sandbox.
+
+### 1. Pull real region extracts
+
+The tree carries only the basemap stand-in until this runs.
+`discover_region_extracts` resolves from `MIRROR_STATE.json`'s
+`geofabrik.pinned_date` + `regions`, so before a pull **every clip 404s as
+`no_mirror_coverage`** — which reads like a broken endpoint rather than an
+empty tree. See "Geofabrik pull client (issue #258)" below for the client's
+own conditional/backoff behaviour.
+
+```
+ssh pi
+cd /opt/plotlines-mirror
+python3 geofabrik_pull.py --root /srv/plotlines-mirror \
+  --region north-america/us/north-carolina \
+  --region north-america/us/tennessee \
+  --pinned-date "$(date -u +%F)" -v
+```
+
+**Two regions on purpose.** North Carolina alone measures the ordinary
+case; NC + TN is §11.7's border case, where a bbox spans two extracts and
+`MergeInputReader` has to id-dedup a border way present whole in both
+regional cuts. That merge is the expensive path, and it is the one Q1-C's
+cost claim actually rests on — a single-extract number alone would
+understate the endpoint. Expect a few hundred MB per region.
+
+Verify the pull landed before going further:
+
+```
+python3 -c 'import json; g=json.load(open("/srv/plotlines-mirror/MIRROR_STATE.json"))["geofabrik"]; print("pinned_date:", g["pinned_date"]); print("regions:", sorted(g["regions"]))'
+```
+
+`python3`, not `jq`, throughout this section — `jq` is not installed on a
+stock Raspberry Pi OS image and is not a dependency of anything else here,
+which is the same reason `copy_basemap_standin.sh` shells out to `python3`
+to merge its one JSON key.
+
+Before any pull this prints `pinned_date: None` and `regions: []`; that is
+the state in which every clip correctly 404s.
+
+### 2. Build and start the clip container
+
+`docker-compose.yml` names `plotlines-mirror-clip:latest`, which is this
+repo's own image rather than a registry pull, and needs both `core/` and
+`service/` as build context:
+
+**The Pi 5 is `aarch64` and the dev box is `x86_64`, so where you build
+matters.** A plain `docker build` on the dev box produces an amd64 image;
+`docker load`ing it on the Pi appears to succeed and then fails at run time
+with `exec format error`. Two ways round that, and the first is the one to
+reach for:
+
+```
+# Simplest — build natively on the Pi. Needs the full repo (core/ + service/),
+# not just this directory.
+ssh pi
+git clone https://github.com/gnfrazier/plotlines.git ~/plotlines   # or pull, if already there
+cd ~/plotlines
+docker build -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest .
+```
+
+```
+# Or cross-build from the dev box, if you'd rather not compile on the Pi.
+# One-time setup: the default `docker` driver refuses --platform with
+# "Multi-platform build is not supported for the docker driver."
+docker buildx create --use
+docker run --privileged --rm tonistiigi/binfmt --install arm64
+
+# Kept on one line on purpose: pasted a line at a time, a `\`-continued
+# form loses the trailing `.` and buildx fails with the unhelpful
+# "docker buildx build requires 1 argument". Run it from the repo root —
+# `.` is the build context and must contain both core/ and service/.
+docker buildx build --platform linux/arm64 -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip:latest --load .
+
+docker save plotlines-mirror-clip:latest | ssh pi docker load
+```
+
+The native build is slower but has no qemu in the loop, which matters here
+for a second reason: this image exists to be *timed*. Keep the thing under
+measurement as close to its production shape as possible — and note the
+cross-build's one-time buildx/binfmt setup above is most of the reason the
+native route is listed first.
+
+Then start it and check:
+
+**First, make sure the deploy itself is current.** `/opt/plotlines-mirror`
+is a copy of this directory taken at deploy time, so a Pi provisioned
+before #262 has a `docker-compose.yml` with no `mirror-clip` service and a
+`Caddyfile` with no `/clip*` route. The symptom is quiet rather than loud —
+`docker compose up -d` reports `up 1/1` and `ps` lists only caddy, because
+compose is not failing to find the image, it does not know the service
+exists:
+
+```
+cd /opt/plotlines-mirror
+grep -c mirror-clip docker-compose.yml   # 0 means the deploy predates #262
+grep -c clip Caddyfile                   # ditto
+
+# refresh from the repo checkout on the Pi (or scp -r from the dev box)
+cd ~/plotlines && git pull
+cp -r deploy/mirror/. /opt/plotlines-mirror/
+cd /opt/plotlines-mirror && sudo ./build_tree.sh /srv/plotlines-mirror
+```
+
+Re-running `build_tree.sh` is safe with data in place — it only creates
+directories and rewrites the two `COPYRIGHT.txt` files, and skips
+`MIRROR_STATE.json` when it exists — and it is what refreshes the served
+notice to the post-#364 text.
+
+Then start it and check:
+
+```
+cd /opt/plotlines-mirror
+sudo docker compose up -d
+sudo docker compose restart caddy   # bind-mounted Caddyfile: `up -d` won't reload it
+sudo docker compose ps
+sudo docker compose exec mirror-clip \
+  python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8095/health').read().decode())"
+```
+
+**Check health from inside the container**, as above. `mirror-clip`
+publishes no host port on purpose (only Caddy reaches it, over the compose
+network) and Caddy proxies only `/clip*`, so `/health` is not reachable
+from the Pi's own shell by either route — `curl localhost:8095/health`
+fails identically whether the service is healthy or dead, which makes it
+worse than useless as a check.
+
+`/health` must list both regions under `pinned_extracts`, plus the
+`licence` block (#364). If `caddy` is up and `mirror-clip` is missing or
+`Restarting`, `docker compose logs mirror-clip` distinguishes the cases: no
+such service (stale compose file, above), `exec format error` (architecture
+mismatch, above), or an `ImportError` on a shared library (#369 — the
+pyosmium wheel links `libexpat.so.1` from the system, which
+`python:3.12-slim` does not ship; fixed in the Dockerfile, but an image
+built before that fix will crash-loop until rebuilt).
+
+### 3. Measure
+
+**The one thing that will silently corrupt the numbers:** `peak_rss_kb` is
+`getrusage(RUSAGE_SELF).ru_maxrss` — a **process-lifetime high-water
+mark**, not a per-request figure. Every run after the first reports the
+largest clip that container has *ever* served, so a series taken without
+restarting reads as monotonically increasing memory that has nothing to do
+with the bbox being measured. Restart between runs:
+
+```
+clip () {  # $1=label  $2=west $3=south $4=east $5=north
+  ssh pi 'cd /opt/plotlines-mirror && docker compose restart mirror-clip' >/dev/null
+  sleep 3
+  curl -s -D "/tmp/$1.hdr" -o "/tmp/$1.osm.pbf" \
+    -H 'Host: tiles.plotlines.app' \
+    "http://<pi-ip>/clip?west=$2&south=$3&east=$4&north=$5"
+  grep -i '^x-plotlines-\|^link:' "/tmp/$1.hdr"
+}
+```
+
+Pass `Host` explicitly. Caddy's site block is host-matched
+(`http://tiles.plotlines.app { ... }`), so any other Host header silently
+returns `200` with `Content-Length: 0` rather than erroring — the same trap
+§6.5's rehearsal documents.
+
+Suggested bboxes, as starting points rather than fixed values — substitute
+a trip you would actually plan:
+
+| Case | bbox (W,S,E,N) | What it exercises |
+|---|---|---|
+| Single extract | `-82.75,35.35,-82.35,35.70` | Asheville–Pisgah; the ordinary case |
+| Border, two extracts | `-83.10,35.65,-82.70,36.00` | Crosses the NC/TN line — merge + dedup |
+| Coverage miss | `-90.0,41.0,-89.6,41.3` | Must 404 `no_mirror_coverage`, never 500 |
+
+Run each **three times**, restarting between, and report a range rather
+than one sample. A23's finding on the osmnx path was that ×21 run-to-run
+variance was the result, not the mean — a single clip timing would repeat
+that mistake in the other direction.
+
+While here, confirm #364's notice headers survive the proxy hop:
+`x-plotlines-data-licence`, `-attribution`, `-terms`, and `link`. That is
+the live check #364 deferred.
+
+### 4. Where the numbers go
+
+- **Epic #264** — primary. This is the DoD bullet holding the epic open, so
+  that comment is the evidence it closes against. Include per-run wall
+  time / output bytes / peak RSS / source regions, the pinned date and
+  region list, and the Pi's hardware and storage context (the numbers mean
+  nothing without the box they were taken on).
+- **#265 (SPIKE-I)** — a pointer. SPIKE-I's item 3 is clip time and
+  strategy on a realistic bbox, and its parity bands are meant to be
+  *pre-registered*. These numbers are what the bands get registered
+  against, so they need to exist before that spike is designed.
+- **#262** — one line. Its close-out says "not tested live against the
+  physical Pi"; a "rehearsed live, numbers on #264" closes that loop for
+  anyone reading the story later.
+
+Do **not** open `spikes/SPIKE-I/results/RESULTS.md` for these. This is a
+first recording under uncontrolled conditions; filing it as the spike's
+results would make it look like the pre-registered measurement it exists to
+precede.
+
 ## `{$MIRROR_ROOT}` / `{$MIRROR_LOG}`
 
 The checked-in `Caddyfile` is otherwise byte-for-byte the §6.4 block, with
