@@ -195,6 +195,7 @@ def _trip() -> P.Trip:
         provenance=P.Provenance(
             produced_by="plotlines-core", app_version="0.0.1",
             sidecar_version="0.0.1",
+            osm_source="overpass:2026-09-01T00:00:00Z",
             attribution=[P.Attribution(source="osm", licence="ODbL",
                                        credit="\u00a9 OpenStreetMap contributors",
                                        url="https://osm.org/copyright")],
@@ -233,6 +234,7 @@ _POPULATED = {
                                  url="https://osm.org"),
     P.Provenance: P.Provenance(produced_by="p", app_version="1",
                                sidecar_version="1",
+                               osm_source="overpass:2026-09-01T00:00:00Z",
                                attribution=[P.Attribution(source="osm",
                                                           licence="ODbL",
                                                           credit="c")]),
