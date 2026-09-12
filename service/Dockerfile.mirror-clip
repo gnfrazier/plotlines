@@ -10,14 +10,36 @@
 #
 # pyosmium publishes manylinux wheels for x86_64 and aarch64 (confirmed
 # against 4.3.1, the version pinned in service/pyproject.toml's `mirror-clip`
-# extra), so a plain slim Python image needs no compiler and no separate
-# libosmium apt install.
+# extra), so this image needs no compiler and no libosmium apt install — but
+# it does need one runtime library, and getting that wrong builds cleanly and
+# then crash-loops (issue #369).
+#
+# A manylinux wheel vendors only what policy does *not* allowlist. Measured
+# against the 4.3.1 wheel (`objdump -p` on every .so in the package — they
+# all report the same list):
+#
+#   libz.so.1                      from the system  — present in slim
+#   libstdc++.so.6                 from the system  — present in slim
+#   libexpat.so.1                  from the system  — NOT present in slim
+#   liblz4-c23f16fe.so.1.8.3       vendored in osmium.libs/
+#   libbz2-a1e77c99.so.1.0.6       vendored in osmium.libs/
+#
+# So exactly one apt package is required: libexpat1. libosmium links expat
+# unconditionally for OSM **XML** parsing, so `import osmium` fails at import
+# time even though this service only ever reads .osm.pbf — the format is
+# never reached. Do not add libbz2/liblz4 alongside it: they are vendored in
+# the wheel, and installing them would assert a dependency that isn't real.
 #
 # No GPL-licensed binary anywhere in this image (addendum L1): the
 # `mirror-clip` extra installs `osmium` (pyosmium, BSD-2-Clause) only —
 # never `osmium-tool` (GPL-3.0), which is not installed here and not shelled
-# out to anywhere in plotlines_service/mirror_clip.py.
+# out to anywhere in plotlines_service/mirror_clip.py. libexpat1 is MIT and
+# does not disturb that posture.
 FROM python:3.12-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libexpat1 \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir uv
 
