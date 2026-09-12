@@ -286,6 +286,34 @@ can't: an actual Caddy container proxying to an actual `mirror-clip`
 container over the real Pi's Docker network, against the real pulled NC
 extract. That's a live-Pi rehearsal, not a hermetic test's job.
 
+## Reachability: open or client-restricted (issue #263, §6.8/1d)
+
+Decided split. The mirror's plain static files (region extracts, the
+basemap archive, the `COPYRIGHT.txt` notices) stay open — unchanged, no
+config needed, that's what `file_server` in the Caddyfile already does.
+`/clip` is the one endpoint that also spends CPU per request, so it alone
+is restricted, by two independent mechanisms in `mirror_clip.py`:
+
+- **A shared client key.** Set `MIRROR_CLIP_CLIENT_KEY` in the shell before
+  `docker compose up` and every `/clip` request must carry it in the
+  `X-Plotlines-Client-Key` header, or get an honest `401
+  unauthorized_client`. This is deliberately not an account system — the
+  key identifies "a Plotlines-built client," never a person, and there is
+  no signup or per-key state. Left unset, `/clip` is open — the correct
+  default for this local/dev rehearsal.
+- **A per-client-IP rate ceiling**, `MIRROR_CLIP_RATE_LIMIT_PER_MINUTE`
+  (default 30), enforced on `/clip` either way, since the CPU cost does not
+  depend on whether a key is configured. In-memory, single-process, past
+  it a caller gets an honest `429 rate_limited`.
+
+Both are `mirror_clip.py` CLI flags (`--client-key`,
+`--rate-limit-per-minute`) wired through `docker-compose.yml`'s
+`mirror-clip.environment` block. See the module's own docstring and
+`docs/Plotlines_OSM_Acquisition_Review.md` §6.8 for the full reasoning.
+`service/tests/test_mirror_clip_server.py` covers both mechanisms
+hermetically; setting a real key on the live Pi is an operator step, not
+something a hermetic test can exercise.
+
 ## `{$MIRROR_ROOT}` / `{$MIRROR_LOG}`
 
 The checked-in `Caddyfile` is otherwise byte-for-byte the §6.4 block, with

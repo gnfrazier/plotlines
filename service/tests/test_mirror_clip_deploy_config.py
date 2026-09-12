@@ -55,9 +55,10 @@ def test_docker_compose_defines_the_mirror_clip_service() -> None:
 
 
 def test_mirror_clip_service_publishes_no_host_port() -> None:
-    # #262's "no auth of its own" posture (mirror_clip.py's --host argparse
-    # help) only holds if nothing outside Caddy's reverse_proxy can reach
-    # this container directly.
+    # Only Caddy's reverse_proxy should be able to reach this container
+    # directly — #263's client-key/rate-limit gate (mirror_clip.py's
+    # --client-key argparse help) is this service's own access control,
+    # but it's still a second layer on top of "nothing else can dial in."
     _, clip_block = _COMPOSE_CONFIG.split("\n  mirror-clip:\n", 1)
     assert "ports:" not in clip_block
 
