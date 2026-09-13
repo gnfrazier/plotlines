@@ -71,6 +71,22 @@ Usage::
 
 Run this by hand to bootstrap a new region, or from cron/#260's monthly pin
 bump — the etiquette above holds regardless of how often it is invoked.
+
+**`--precut-wnc-corridor` (issue #375)** clips the freshly-pulled full-state
+extracts above down to the WNC corridor bbox and pins the (few-MB, rather
+than few-hundred-MB) result instead, since `/clip`'s wall time scales with
+the size of the pinned extract it has to scan, not the trip bbox, and
+Geofabrik publishes no sub-state cuts for these states. See
+`precut_region`'s docstring below. This one needs `plotlines-service`'s
+`mirror-clip` extra (pyosmium) installed wherever it runs — deliberately
+not a base dependency of this otherwise-standalone script, so a plain
+`--region` pull with no `--precut-*` flag still needs nothing beyond the
+standard library::
+
+    ./geofabrik_pull.py --root /srv/plotlines-mirror \\
+        --region north-america/us/north-carolina \\
+        --region north-america/us/tennessee \\
+        --precut-wnc-corridor
 """
 
 from __future__ import annotations
@@ -436,6 +452,93 @@ def pull_index(
     return PullResult("index-v1.json", "pulled", new_etag or "")
 
 
+def precut_region(
+    *,
+    root: Path,
+    pinned_date: str,
+    state: dict,
+    dest_region: str,
+    source_regions: list[str],
+    bbox: tuple[float, float, float, float],
+    replace_sources: bool = True,
+) -> PullResult:
+    """Issue #375: `/clip`'s wall time is O(the pinned region extract), not
+    O(the trip bbox) — every request scans the *whole* source extract
+    regardless of how small the requested bbox is, because a PBF stores
+    data in id order, not spatial order (measured on the live Pi: 627-640s
+    against a 60s outer band). Geofabrik publishes no sub-state extracts
+    for the states this mirror pins (`north-carolina`, `tennessee` both
+    say "No sub regions are defined for this region"), so the "smaller
+    pinned extracts" lever the issue names has to be produced locally
+    rather than downloaded.
+
+    This clips whichever already-pulled `source_regions` are on this
+    mirror down to `bbox` **once**, at pin time, and pins the (much
+    smaller — a few MB rather than a few hundred) result as `dest_region`
+    instead. `/clip` itself is unchanged: it still scans whatever extracts
+    `MIRROR_STATE.json` names, so the entire wall-time win comes from what
+    gets pinned, not from any request-path logic. `replace_sources=True`
+    (the default) removes `source_regions` from `MIRROR_STATE.json` so a
+    request for `bbox` scans only the small precut extract rather than
+    both it and the sources it was cut from — appropriate exactly because
+    WNC is the only region this mirror actually serves today (the
+    basemap's own `WNC_CORRIDOR_*` stand-in already scopes to it, not a
+    full-state build). The source `.osm.pbf` files themselves are left on
+    disk either way; only their `MIRROR_STATE.json` registration changes.
+
+    Reuses `plotlines_service.mirror_clip.clip_bbox` — the exact algorithm
+    `/clip` runs per request — so the precut result is what a live request
+    against the un-cut sources would already have produced, computed once
+    instead of on every request. Requires `plotlines-service` installed
+    with its `mirror-clip` extra (pyosmium); this is not something the Pi
+    itself needs to run, so import it lazily rather than making a normal
+    `--region` pull depend on it.
+    """
+    try:
+        from plotlines_service.mirror_clip import clip_bbox
+    except ImportError as exc:
+        raise SystemExit(
+            "error: --precut-wnc-corridor requires plotlines-service "
+            "installed with its mirror-clip extra (pyosmium) — run this on "
+            "a machine that has that installed (`uv sync --extra "
+            "mirror-clip` in service/), not necessarily the Pi itself"
+        ) from exc
+
+    regions = state.setdefault("geofabrik", {}).setdefault("regions", {})
+    missing = [r for r in source_regions if r not in regions]
+    if missing:
+        raise SystemExit(
+            f"error: --precut source region(s) not pulled yet: {missing} "
+            f"— pull them with --region first (in this invocation or a "
+            f"prior one)"
+        )
+
+    dest_path = root / "osm" / "geofabrik" / pinned_date / f"{dest_region}.osm.pbf"
+    LOG.info("precut %s: clipping %s to bbox=%s", dest_region, source_regions, bbox)
+    result = clip_bbox(bbox, root=root, dest=dest_path, tmp_dir=dest_path.parent)
+
+    if set(result.source_regions) != set(source_regions):
+        raise SystemExit(
+            f"error: precut actually drew from {sorted(result.source_regions)}, "
+            f"not the declared --precut-source {sorted(source_regions)} — "
+            f"refusing to guess which MIRROR_STATE.json entries to replace"
+        )
+
+    digest = _file_md5(dest_path)
+    regions[dest_region] = {
+        "precut_from": list(source_regions),
+        "precut_bbox": list(bbox),
+        "pulled_at": _iso(_utcnow()),
+        "md5": digest,
+    }
+    if replace_sources:
+        for region in source_regions:
+            regions.pop(region, None)
+    LOG.info("precut %s: pulled %s -> %s (replace_sources=%s)",
+              dest_region, digest, dest_path, replace_sources)
+    return PullResult(dest_region, "precut", digest)
+
+
 def load_state(state_path: Path) -> dict:
     with open(state_path) as f:
         return json.load(f)
@@ -454,7 +557,11 @@ def run(
     min_interval: timedelta = DEFAULT_MIN_INTERVAL,
     now: Callable[[], datetime] = _utcnow,
     pull_index_too: bool = False,
+    precut: dict | None = None,
 ) -> list[PullResult]:
+    """`precut`, when given, is
+    `{"dest_region", "bbox", "replace_sources"}` (issue #375) — applied
+    after every region pull succeeds, never against a partial pull."""
     state_path = root / "MIRROR_STATE.json"
     if not state_path.exists():
         raise SystemExit(
@@ -475,6 +582,13 @@ def run(
         results.append(pull_index(root=root, pinned_date=pinned_date, state=state,
                                    base_url=base_url, min_interval=min_interval,
                                    now=now))
+        save_state(state_path, state)
+    if precut is not None and not any(r.action == "failed" for r in results):
+        results.append(precut_region(
+            root=root, pinned_date=pinned_date, state=state,
+            dest_region=precut["dest_region"], source_regions=regions,
+            bbox=precut["bbox"], replace_sources=precut["replace_sources"],
+        ))
         save_state(state_path, state)
     return results
 
@@ -506,6 +620,33 @@ def main(argv: list[str] | None = None) -> int:
              "default; opt in explicitly rather than fetching a 3-4 MB file "
              "nobody asked for on every region-bootstrap invocation.",
     )
+    parser.add_argument(
+        "--precut-wnc-corridor", action="store_true",
+        help="Issue #375: after the --region pulls above succeed, clip "
+             "them down to the WNC corridor bbox (plotlines_core.tiles."
+             "mirror.WNC_CORRIDOR_BBOX — the same corridor the basemap "
+             "stand-in already serves) and pin the smaller result, since "
+             "/clip's wall time scales with the pinned extract's size, "
+             "not the trip bbox's, and Geofabrik publishes no sub-state "
+             "extracts for these regions. Requires plotlines-service's "
+             "mirror-clip extra (pyosmium) installed on this machine — "
+             "not necessarily the Pi. Removes the --region sources from "
+             "MIRROR_STATE.json by default; pass --precut-keep-sources to "
+             "keep both (their .osm.pbf files stay on disk either way).",
+    )
+    parser.add_argument(
+        "--precut-dest-region", default=None,
+        help="Region name the precut result is pinned under (default: "
+             "plotlines_core.tiles.mirror.WNC_CORRIDOR_REGION_NAME).",
+    )
+    parser.add_argument(
+        "--precut-keep-sources", action="store_true",
+        help="With --precut-wnc-corridor, keep the --region sources "
+             "registered in MIRROR_STATE.json alongside the precut result "
+             "instead of replacing them — accepts paying for a full scan "
+             "of each source on every request that also matches the "
+             "precut's header box (see #375's 'not fixed here' note).",
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args(argv)
 
@@ -514,12 +655,33 @@ def main(argv: list[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(message)s",
     )
 
+    precut = None
+    if args.precut_wnc_corridor:
+        try:
+            from plotlines_core.tiles.mirror import (
+                WNC_CORRIDOR_BBOX,
+                WNC_CORRIDOR_REGION_NAME,
+            )
+        except ImportError as exc:
+            raise SystemExit(
+                "error: --precut-wnc-corridor requires plotlines-core "
+                "installed (it ships with plotlines-service, which also "
+                "needs its mirror-clip extra for this flag) — run this on "
+                "a machine that has that, not necessarily the Pi itself"
+            ) from exc
+        precut = {
+            "dest_region": args.precut_dest_region or WNC_CORRIDOR_REGION_NAME,
+            "bbox": WNC_CORRIDOR_BBOX,
+            "replace_sources": not args.precut_keep_sources,
+        }
+
     pinned_date = args.pinned_date or _utcnow().strftime("%Y-%m-%d")
     results = run(
         args.regions, root=args.root, pinned_date=pinned_date,
         base_url=args.base_url,
         min_interval=timedelta(hours=args.min_interval_hours),
         pull_index_too=args.pull_index_too,
+        precut=precut,
     )
     failed = [r for r in results if r.action == "failed"]
     return 1 if failed else 0
