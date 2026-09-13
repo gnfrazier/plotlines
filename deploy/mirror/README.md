@@ -251,9 +251,13 @@ it references an included way or node. `simple` (truncate at the boundary)
 and `smart` (multipolygon repair, nested-relation completion) are not
 implemented — SPIKE-I (#265) is where that trade-off gets evidence rather
 than a guess. The bbox-spans-two-extracts case (Buncombe County is ~30 km
-from Tennessee) merges the covering extracts with `osmium.MergeInputReader`
-first, deduplicating a border way that's present, whole, in both regional
-cuts, before clipping.
+from Tennessee) clips each covering extract *first* and only then merges the
+small clipped outputs with `osmium.MergeInputReader`, deduplicating a border
+way that's present, whole, in both. Issue #376: merging the raw extracts
+first — the original order — OOM-killed the process in ~9s, since
+`MergeInputReader` buffers every object from every input in memory before
+writing anything; two full state extracts is several GB of objects, two
+clipped outputs is ~3-6 MB each.
 
 **Coverage resolution reads only what's on disk.** `mirror_clip.py` never
 consults the mirrored `index-v1.json` — that's Phase 3's job
@@ -376,9 +380,11 @@ python3 geofabrik_pull.py --root /srv/plotlines-mirror \
 **Two regions on purpose.** North Carolina alone measures the ordinary
 case; NC + TN is §11.7's border case, where a bbox spans two extracts and
 `MergeInputReader` has to id-dedup a border way present whole in both
-regional cuts. That merge is the expensive path, and it is the one Q1-C's
-cost claim actually rests on — a single-extract number alone would
-understate the endpoint. Expect a few hundred MB per region.
+regional cuts. Since #376, that merge runs on the two small clipped
+outputs, not the raw extracts, so the expensive part is the **two full
+per-extract scans**, not the merge — and that doubled scan cost is the one
+Q1-C's cost claim for a two-extract bbox actually rests on. Expect a few
+hundred MB per region.
 
 Verify the pull landed before going further:
 

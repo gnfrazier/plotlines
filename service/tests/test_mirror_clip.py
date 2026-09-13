@@ -219,6 +219,101 @@ class TestTwoExtractSpan:
         assert set(result.source_regions) == {"west-region", "east-region"}
 
 
+class TestTwoExtractMergeInversion:
+    """Issue #376: `MergeInputReader` buffers every object from every input
+    file in memory, so it must only ever run on small, already-clipped
+    outputs — never on the raw region extracts, which is what OOM-killed
+    the process on the Pi in ~9s. These tests pin the inversion itself
+    (what `_merge_extracts` is actually called with), not just the output
+    `TestTwoExtractSpan` already covers."""
+
+    def test_merge_only_ever_sees_clipped_outputs_not_the_raw_extracts(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import plotlines_service.mirror_clip as mc
+
+        west_region = write_pbf(
+            tmp_path / "west.osm.pbf",
+            nodes=[node(1, -82.5, 35.2), node(2, -82.35, 35.25)],
+            ways=[way(10, [1, 2], tags={"highway": "path"})],
+            box=(-83.0, 35.0, -82.35, 35.5),
+        )
+        east_region = write_pbf(
+            tmp_path / "east.osm.pbf",
+            nodes=[
+                node(1, -82.5, 35.2),
+                node(2, -82.35, 35.25),
+                node(3, -82.2, 35.3, {"amenity": "drinking_water"}),
+            ],
+            ways=[way(10, [1, 2], tags={"highway": "path"})],
+            box=(-82.35, 35.0, -81.9, 35.5),
+        )
+        mirror = build_mirror_tree(
+            tmp_path / "mirror",
+            regions={"west-region": west_region, "east-region": east_region},
+        )
+        raw_extract_paths = {
+            (mirror / "osm" / "geofabrik" / "2026-09-01" / f"{name}.osm.pbf").resolve()
+            for name in ("west-region", "east-region")
+        }
+
+        captured: dict[str, list[Path]] = {}
+        original_merge = mc._merge_extracts
+
+        def _spy(paths: list[Path], dest: Path) -> None:
+            captured["paths"] = [p.resolve() for p in paths]
+            captured["sizes"] = [p.stat().st_size for p in paths]
+            original_merge(paths, dest)
+
+        monkeypatch.setattr(mc, "_merge_extracts", _spy)
+
+        mc.clip_bbox((-83.0, 35.0, -81.9, 35.5), root=mirror, dest=tmp_path / "out.osm.pbf")
+
+        assert "paths" in captured, "the merge path must have run for a two-extract bbox"
+        assert not raw_extract_paths & set(captured["paths"]), (
+            "merge must never see a raw region extract path — that's the OOM"
+        )
+        # Each already-clipped partial is no larger than its raw source —
+        # at real Geofabrik scale this is a multi-hundred-MB-to-few-MB drop.
+        for merged_path, size in zip(captured["paths"], captured["sizes"]):
+            assert size <= max(west_region.stat().st_size, east_region.stat().st_size)
+
+    def test_a_header_only_over_selection_skips_the_merge_entirely(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The common WNC-style case: two extracts' header boxes both
+        overlap the query bbox, but only one actually has a feature there.
+        No merge is needed at all — just the one contributing clip."""
+        import plotlines_service.mirror_clip as mc
+
+        has_data = write_pbf(
+            tmp_path / "has_data.osm.pbf",
+            nodes=[node(1, -82.2, 35.2, {"natural": "peak"})],
+            box=(-83.0, 35.0, -81.9, 35.5),
+        )
+        no_data_here = write_pbf(
+            tmp_path / "no_data_here.osm.pbf",
+            nodes=[node(9, -70.0, 40.0)],  # real feature, but outside the query bbox
+            box=(-83.0, 35.0, -81.9, 35.5),  # declared coverage still overlaps
+        )
+        mirror = build_mirror_tree(
+            tmp_path / "mirror",
+            regions={"has-data": has_data, "no-data-here": no_data_here},
+        )
+
+        def _explode(paths: list[Path], dest: Path) -> None:
+            raise AssertionError("merge must not run when only one extract contributed")
+
+        monkeypatch.setattr(mc, "_merge_extracts", _explode)
+
+        result = mc.clip_bbox(
+            (-82.6, 34.9, -81.9, 35.6), root=mirror, dest=tmp_path / "out.osm.pbf"
+        )
+
+        out = _read_back(result.output_path)
+        assert out["n"][1] == {"natural": "peak"}
+
+
 class TestNoMirrorCoverage:
     def test_no_pinned_extracts_at_all_raises_no_mirror_coverage(self, tmp_path: Path) -> None:
         (tmp_path / "mirror").mkdir()
