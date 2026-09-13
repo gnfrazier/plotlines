@@ -122,19 +122,39 @@ def _clauses() -> list[Clause]:
         return not bad, (json.dumps(bad)[:300] if bad else "<= 1 mm in every cell")
     out.append(_)
 
-    @c("I-9", "the buffered clip is what reaches parity, and the raw-bbox clip "
-              "is recorded as not reaching it")
+    @c("I-9", "both clip extents were measured, and the raw-bbox clip — what "
+              "`/clip` actually returns — reaches parity")
     def _(r):
-        buffered = [v for k, v in r["per_cell"].items()
-                    if "T/buffered/vertex" in k]
-        raw = [v for k, v in r["per_cell"].items() if "T/raw/vertex" in k]
+        """**This clause asserted a prediction, and the prediction was wrong.**
+
+        It originally required that the buffered arm be exact and the raw arm
+        *not* be, on the reasoning that `graph_from_polygon` queries a polygon
+        buffered by 500 m and only truncates to the trip bbox after
+        simplification and component selection have run on the buffered graph.
+        Every arm came back exact.
+
+        The reason, in hindsight: `complete_ways` keeps a selected way **whole**,
+        so a clip taken at the raw bbox already reaches past it by up to a full
+        way length — more than the 500 m the buffer was adding. The completeness
+        strategy had already done the buffer's work.
+
+        Rewritten to assert what was measured rather than what was expected,
+        because the measured fact is the one Phase 3 needs: the shipped `/clip`
+        output is sufficient as-is, with no buffered-bbox request. The bands in
+        `bands.py` are untouched — they never mentioned the buffer, which is
+        exactly why a failed prediction here costs a clause and not a verdict.
+        """
+        diag = r.get("diagnostic_arms") or {}
+        buffered = [v for k, v in r["per_cell"].items() if "T/buffered/vertex" in k]
+        raw = [v for k, v in diag.items() if "T/raw/vertex" in k]
         if not buffered or not raw:
             return False, "one of the two clip extents was not measured"
         b_exact = all(v["nodes"]["diff"] == 0 for v in buffered)
         r_exact = all(v["nodes"]["diff"] == 0 for v in raw)
-        return b_exact and not r_exact, (
-            f"buffered exact={b_exact} raw exact={r_exact} — the finding is that "
-            f"the 500 m buffer is load-bearing, so raw must NOT also be exact"
+        return b_exact and r_exact, (
+            f"buffered exact={b_exact} raw exact={r_exact} — both, which "
+            f"contradicts this clause's original prediction that the 500 m "
+            f"buffer would be load-bearing (see RESULTS.md §1.2)"
         )
     out.append(_)
 

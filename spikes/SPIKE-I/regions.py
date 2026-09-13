@@ -158,6 +158,60 @@ CELLS: tuple[Cell, ...] = (
 
 CELLS_BY_KEY = {c.key: c for c in CELLS}
 
+
+#: Leg 3's cells, and they are **not** the parity cells.
+#:
+#: The parity matrix above needs Colorado/California/Wisconsin/Wyoming because
+#: that is where the shared fixture bboxes are. The mirror pins what Phase 1
+#: actually pulled — `north-carolina` and `tennessee` — and leg 3 measures the
+#: clip *as deployed*, so it asks the mirror for bboxes the mirror can serve
+#: rather than reshaping the mirror to match the parity matrix. Pulling two more
+#: states onto the Pi to make the two tables match would be measuring a mirror
+#: nobody runs.
+#:
+#: The three cells are chosen to separate three things a single WNC bbox would
+#: confound:
+#:
+#:   `raleigh`   far enough east (lon -78.7) to fall outside Tennessee's header
+#:               box, so exactly one extract is selected. The single-extract
+#:               baseline, and the only cell whose cost is attributable to the
+#:               clip alone.
+#:   `asheville` the product's flagship region, and geographically nowhere near
+#:               Tennessee — but inside Tennessee's *rectangular* header box, so
+#:               `select_covering_extracts` returns both and the merge path fires
+#:               anyway. This cell exists to show that §11.7's "border case" is
+#:               not an edge case on this mirror; it is the default for WNC.
+#:   `nc-tn`     a genuine state-line straddle on the Appalachian crest — the
+#:               review's own §11.7 example, where ways really are cut in two.
+MIRROR_CELLS: tuple[Cell, ...] = (
+    Cell(
+        key="raleigh",
+        bbox=(-78.70, 35.75, -78.60, 35.82),
+        network_type="bike",
+        extracts=(Extract("north-america/us/north-carolina"),),
+        note="single-extract baseline — east of Tennessee's header box",
+    ),
+    Cell(
+        key="asheville",
+        bbox=(-82.60, 35.55, -82.50, 35.62),
+        network_type="bike",
+        extracts=(Extract("north-america/us/north-carolina"),
+                  Extract("north-america/us/tennessee")),
+        note="WNC, entirely within NC, but inside TN's rectangular header box — "
+             "the merge fires on the product's flagship region",
+    ),
+    Cell(
+        key="nc-tn",
+        bbox=(-83.10, 35.65, -82.70, 36.00),
+        network_type="bike",
+        extracts=(Extract("north-america/us/north-carolina"),
+                  Extract("north-america/us/tennessee")),
+        note="§11.7 proper: a real state-line straddle, ways cut in two",
+    ),
+)
+
+MIRROR_CELLS_BY_KEY = {c.key: c for c in MIRROR_CELLS}
+
 #: Every distinct extract the matrix needs, deduplicated — `colorado` serves
 #: three cells.
 ALL_EXTRACTS: tuple[Extract, ...] = tuple(

@@ -1,0 +1,10 @@
+{
+  "criterion": "addendum L1 / checklist 2a: the clip is performed with no GPL-licensed binary in the shipped artifact",
+  "checked_on": "the running mirror-clip container on argon-robot, not on source inspection",
+  "osmium_tool_binary_on_path": null,
+  "osmium_executables_found_anywhere": [],
+  "pyosmium_version": "4.3.1",
+  "pyosmium_declared_licence": "BSD-2-Clause",
+  "verdict": "met",
+  "note": "osmium-tool is GPL-3.0 and libosmium/pyosmium are BSD-2-Clause. `command -v osmium` returns nothing and a filesystem-wide search for an executable named `osmium` finds none, so the clip cannot be shelling out to the CLI even by accident. This is the check L1 asked SPIKE-I to carry as an explicit acceptance criterion."
+}

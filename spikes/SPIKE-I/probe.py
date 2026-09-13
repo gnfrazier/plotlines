@@ -312,13 +312,38 @@ def probe_cell(cell: R.Cell, *, strategies=None) -> dict[str, Any]:
                 # ceiling in clip.py — "this strategy does not fit on this
                 # extract" is exactly the kind of thing §6.7 says Phase 3 must
                 # not discover in production.
-                out["clips"][label] = {
+                print(f"  clip {label}: FAILED {repr(exc)[:200]}")
+                dest.unlink(missing_ok=True)
+                failure = {
                     "bbox": list(bbox), "strategy": strategy,
                     "error": repr(exc)[:600],
                     "source_bytes": source.stat().st_size,
                 }
-                print(f"  clip {label}: FAILED {repr(exc)[:200]}")
-                dest.unlink(missing_ok=True)
+                out["clips"][label] = failure
+
+                # The parity question is separate from the memory question, and
+                # losing the first must not cost us the second. If the shipped
+                # in-memory strategy cannot fit this extract, retry with the
+                # file-backed node index so the cell still produces a clip for
+                # path T to be graded on — recorded explicitly as a fallback, so
+                # the write-up cannot later read as though the shipped strategy
+                # succeeded here.
+                if strategy != "complete_ways":
+                    continue
+                print(f"  clip {label}: retrying with a file-backed node index")
+                try:
+                    m = C.run_clip("complete_ways_diskidx", bbox, source, dest)
+                except Exception as exc2:  # noqa: BLE001
+                    failure["fallback_error"] = repr(exc2)[:600]
+                    print(f"  clip {label}: fallback also FAILED {repr(exc2)[:160]}")
+                    dest.unlink(missing_ok=True)
+                    continue
+                failure["fallback_strategy"] = "complete_ways_diskidx"
+                failure["fallback_wall_s"] = round(m.wall_s, 2)
+                failure["fallback_peak_rss_mb"] = round(m.peak_rss_mb, 1)
+                failure["fallback_output_bytes"] = m.output_bytes
+                print(f"  clip {label}: fallback OK {m.wall_s:.1f}s "
+                      f"rss {m.peak_rss_mb:.0f} MB")
                 continue
             out["clips"][label] = {
                 "bbox": list(bbox),

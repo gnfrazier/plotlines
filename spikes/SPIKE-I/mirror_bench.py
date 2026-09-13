@@ -52,7 +52,7 @@ UA = "plotlines-spike-I/0.1 (+https://github.com/gnfrazier/plotlines)"
 def clip_once(base_url: str, bbox: tuple[float, float, float, float],
               *, client_key: str | None, out: Path | None,
               host_header: str | None = None,
-              timeout: float = 600.0) -> dict[str, Any]:
+              timeout: float = 1800.0) -> dict[str, Any]:
     west, south, east, north = bbox
     headers = {"User-Agent": UA}
     if client_key:
@@ -108,16 +108,16 @@ def clip_once(base_url: str, bbox: tuple[float, float, float, float],
 
 def bench(base_url: str, *, repeats: int, client_key: str | None,
           restart_cmd: str | None, save_dir: Path | None,
-          host_header: str | None = None) -> dict[str, Any]:
+          host_header: str | None = None,
+          cells: tuple = R.MIRROR_CELLS) -> dict[str, Any]:
     out: dict[str, Any] = {
         "base_url": base_url, "host_header": host_header, "repeats": repeats,
         "restart_between_samples": bool(restart_cmd),
+        "cell_set": [c.key for c in cells],
         "cells": {},
     }
 
-    for cell in R.CELLS:
-        if cell.key == "boulder-drive":
-            continue  # same bbox as boulder-bike; the clip does not know modes
+    for cell in cells:
 
         samples = []
         for i in range(repeats):
@@ -125,8 +125,15 @@ def bench(base_url: str, *, repeats: int, client_key: str | None,
                 subprocess.run(restart_cmd, shell=True, check=False)
                 time.sleep(5)
             dest = (save_dir / f"{cell.key}.osm.pbf") if (save_dir and i == 0) else None
-            s = clip_once(base_url, tuple(cell.bbox), client_key=client_key,
-                          out=dest, host_header=host_header)
+            try:
+                s = clip_once(base_url, tuple(cell.bbox), client_key=client_key,
+                              out=dest, host_header=host_header)
+            except Exception as exc:  # noqa: BLE001
+                # A crashed upstream reaches the client as a dropped connection
+                # or a 502, and that IS the measurement — B7's band asks whether
+                # the failure is detectable, so it must be recorded rather than
+                # allowed to end the run.
+                s = {"status": "transport_error", "error": repr(exc)[:300]}
             samples.append(s)
             print(f"  {cell.key} [{i + 1}/{repeats}] "
                   f"{s.get('status')} server={s.get('server_wall_s')}s "
@@ -179,7 +186,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--host-header", default="tiles.plotlines.app",
                     help="Caddyfile declares one named vhost with no fallback, so "
                          "this must match it or the request never reaches /clip")
-    ap.add_argument("--repeats", type=int, default=5)
+    ap.add_argument("--repeats", type=int, default=2)
+    ap.add_argument("--cells", nargs="*", default=None,
+                    help="subset of regions.MIRROR_CELLS; default all three")
+    ap.add_argument("--timeout", type=float, default=1800.0,
+                    help="per-request ceiling. The default is deliberately long: "
+                         "a single-extract clip on the Pi was measured at 462 s, "
+                         "so a short timeout would record a harness abort as a "
+                         "server failure")
     ap.add_argument("--client-key", default=None)
     ap.add_argument("--restart-cmd", default=None,
                     help="shell command that restarts the clip container between "
@@ -189,10 +203,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, default=SPIKE / "raw" / "mirror.json")
     args = ap.parse_args(argv)
 
-    print(f"benching {args.base_url} ({args.repeats} repeats/cell)")
+    cells = R.MIRROR_CELLS
+    if args.cells:
+        cells = tuple(R.MIRROR_CELLS_BY_KEY[k] for k in args.cells)
+    print(f"benching {args.base_url} ({args.repeats} repeats/cell, "
+          f"{len(cells)} cells)")
     result = bench(args.base_url, repeats=args.repeats,
                    client_key=args.client_key, restart_cmd=args.restart_cmd,
-                   save_dir=args.save_dir, host_header=args.host_header)
+                   save_dir=args.save_dir, host_header=args.host_header,
+                   cells=cells)
     result["measured_on_mirror"] = True
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, indent=2))

@@ -297,9 +297,106 @@ def _count_output(path: Path) -> tuple[int, int, int]:
     return c.nodes, c.ways, c.relations
 
 
+# ----------------------------------------------- complete_ways, disk-backed idx
+
+
+class _CompleteWaysDiskSelector(osmium.SimpleHandler):
+    """`complete_ways` again, but with the node-location index on disk.
+
+    This is **not** the shipped code and is not offered as parity evidence — it
+    exists because the shipped strategy's memory turned out to scale with the
+    *source extract* rather than with the bbox, and a finding that expensive
+    deserves a measured remedy rather than a suggested one.
+
+    `apply_file(..., locations=True)` defaults to `idx='flex_mem'`, an in-memory
+    node-location table sized by the whole input file: 2.8 GB for a 381 MB
+    Colorado extract, for a 2.9 MB output. pyosmium also ships file-backed
+    tables (`osmium.index.map_types()`), and `sparse_file_array,<path>` swaps
+    that RAM for disk at the cost of IO — which is the right trade on a Pi 5 that
+    has 8 GB and also serves the static tree, and which is exactly §11.3's
+    availability worry in its concrete form.
+
+    Reported as a **candidate Phase 3 change with a number attached**, not as
+    something this spike applied.
+    """
+
+    def __init__(self, writer, box: osmium.osm.Box):
+        super().__init__()
+        self._writer = writer
+        self._box = box
+        self._way_ids: set[int] = set()
+        self._node_ids: set[int] = set()
+        self.selected = 0
+
+    def node(self, n) -> None:
+        if n.location.valid() and self._box.contains(n.location):
+            self._node_ids.add(n.id)
+            self._writer.add_node(n)
+            self.selected += 1
+
+    def way(self, w) -> None:
+        if any(nr.location.valid() and self._box.contains(nr.location)
+               for nr in w.nodes):
+            self._way_ids.add(w.id)
+            self._writer.add_way(w)
+            self.selected += 1
+
+    def relation(self, r) -> None:
+        # Identical to the shipped `_CompleteWaysSelector.relation`, deliberately.
+        # The first version of this class omitted it and produced a 27% smaller
+        # output, which read as an index difference and was really a missing
+        # relation pass — a reminder that a "same but for one parameter"
+        # comparison is only same if it is actually same.
+        if any(
+            (m.type == "w" and m.ref in self._way_ids)
+            or (m.type == "n" and m.ref in self._node_ids)
+            for m in r.members
+        ):
+            self._writer.add_relation(r)
+            self.selected += 1
+
+
+def _clip_complete_ways_idx(bbox: BBox, source: Path, dest: Path,
+                            idx: str) -> tuple[int, int, int, int]:
+    import tempfile
+
+    box = _box(bbox)
+    with tempfile.TemporaryDirectory(prefix="spike-i-idx-") as tmp:
+        spec = idx if "," not in idx else f"{idx.split(',')[0]},{tmp}/nodes.idx"
+        with osmium.BackReferenceWriter(
+            str(dest), str(source), overwrite=True, remove_tags=False
+        ) as writer:
+            sel = _CompleteWaysDiskSelector(writer, box)
+            sel.apply_file(str(source), locations=True, idx=spec)
+    nodes, ways, relations = _count_output(dest)
+    return nodes, ways, relations, 0
+
+
+def clip_complete_ways_diskidx(bbox: BBox, source: Path,
+                               dest: Path) -> tuple[int, int, int, int]:
+    """`sparse_file_array` — indexes only the node ids actually seen."""
+    return _clip_complete_ways_idx(bbox, source, dest, "sparse_file_array,")
+
+
+def clip_complete_ways_densefile(bbox: BBox, source: Path,
+                                 dest: Path) -> tuple[int, int, int, int]:
+    """`dense_file_array` — a flat array over the id range.
+
+    Worth measuring alongside the sparse one because OSM node ids in a regional
+    extract are *not* sparse in the sense the sparse table is optimised for:
+    Geofabrik cuts a contiguous region out of a planet whose ids run to ~1.2e10,
+    so a dense array over the observed range can be either much better or much
+    worse than the sparse one depending on how much of that range the extract
+    actually spans. Guessing which would be guessing.
+    """
+    return _clip_complete_ways_idx(bbox, source, dest, "dense_file_array,")
+
+
 _CLIPPERS = {
     "simple": clip_simple,
     "complete_ways": clip_complete_ways,
+    "complete_ways_diskidx": clip_complete_ways_diskidx,
+    "complete_ways_densefile": clip_complete_ways_densefile,
     "smart": clip_smart,
 }
 

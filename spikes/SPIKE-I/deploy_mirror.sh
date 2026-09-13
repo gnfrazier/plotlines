@@ -46,8 +46,15 @@ ssh "$HOST" "sudo mkdir -p $REMOTE && sudo chown \"\$(id -un)\":\"\$(id -gn)\" $
 scp -q -r "$REPO/deploy/mirror/." "$HOST:$REMOTE/"
 
 echo "==> copying the build context (core/ + service/) for the clip image"
+# rsync with excludes rather than `scp -r`: `core/` carries a 400 MB local
+# `.venv` that has x86 wheels in it, and shipping those to an aarch64 box would
+# be slow, useless, and — if the Dockerfile's `uv sync` ever saw them — actively
+# wrong. The image resolves its own dependencies from pyproject.toml.
 ssh "$HOST" "mkdir -p $REMOTE/src"
-scp -q -r "$REPO/core" "$REPO/service" "$HOST:$REMOTE/src/"
+rsync -a --delete \
+	--exclude '.venv/' --exclude '__pycache__/' --exclude '.pytest_cache/' \
+	--exclude '*.pyc' --exclude '.mypy_cache/' \
+	"$REPO/core" "$REPO/service" "$HOST:$REMOTE/src/"
 
 echo "==> scaffolding the §6.3 tree"
 ssh "$HOST" "cd $REMOTE && sudo ./build_tree.sh /srv/plotlines-mirror \
