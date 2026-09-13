@@ -339,8 +339,27 @@ class ClipResult:
     output_path: Path
     wall_time_s: float
     output_bytes: int
-    peak_rss_kb: int | None
+    #: `ru_maxrss` under `RUSAGE_SELF` at the moment this clip finished — a
+    #: **process-lifetime** watermark, not a per-clip figure (issue #374):
+    #: it never decreases, so on a long-lived service every clip after the
+    #: largest one reports that one's number. Useful as "how much memory has
+    #: this process ever needed," not as this clip's own cost — that's
+    #: `clip_rss_delta_kb` below.
+    service_peak_rss_kb: int | None
+    #: `service_peak_rss_kb` sampled before this clip started, subtracted
+    #: from the value after — issue #374's "measure the delta" option. Since
+    #: `ru_maxrss` only ever increases, this is always >= 0, and it is
+    #: **honest about its own limit**: a clip that doesn't push the process
+    #: watermark any higher than a previous, larger clip already did reports
+    #: 0 here, rather than inheriting that earlier clip's number under this
+    #: clip's name. 0 means "no new high water reached," not "no memory
+    #: used."
+    clip_rss_delta_kb: int | None
     source_regions: tuple[str, ...]
+
+
+def _current_rss_kb() -> int | None:
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else None
 
 
 def clip_bbox(
@@ -353,6 +372,7 @@ def clip_bbox(
     that might have produced literally nothing."""
     validate_bbox(bbox)
     started = time.monotonic()
+    started_rss_kb = _current_rss_kb()
 
     extracts = discover_region_extracts(root)
     if not extracts:
@@ -397,19 +417,24 @@ def clip_bbox(
         )
 
     wall_time_s = time.monotonic() - started
-    peak_rss_kb = (
-        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else None
+    service_peak_rss_kb = _current_rss_kb()
+    clip_rss_delta_kb = (
+        service_peak_rss_kb - started_rss_kb
+        if service_peak_rss_kb is not None and started_rss_kb is not None
+        else None
     )
     log.info(
-        "clip bbox=%s sources=%s wall_time_s=%.2f output_bytes=%d peak_rss_kb=%s",
+        "clip bbox=%s sources=%s wall_time_s=%.2f output_bytes=%d "
+        "service_peak_rss_kb=%s clip_rss_delta_kb=%s",
         bbox, [c.region for c in candidates], wall_time_s, dest.stat().st_size,
-        peak_rss_kb,
+        service_peak_rss_kb, clip_rss_delta_kb,
     )
     return ClipResult(
         output_path=dest,
         wall_time_s=wall_time_s,
         output_bytes=dest.stat().st_size,
-        peak_rss_kb=peak_rss_kb,
+        service_peak_rss_kb=service_peak_rss_kb,
+        clip_rss_delta_kb=clip_rss_delta_kb,
         source_regions=tuple(c.region for c in candidates),
     )
 
@@ -583,8 +608,17 @@ def create_clip_app(
             "X-Plotlines-Clip-Wall-Time-Ms": str(round(result.wall_time_s * 1000)),
             "X-Plotlines-Clip-Output-Bytes": str(result.output_bytes),
             "X-Plotlines-Clip-Source-Regions": ",".join(result.source_regions),
-            "X-Plotlines-Clip-Peak-Rss-Kb": (
-                str(result.peak_rss_kb) if result.peak_rss_kb is not None else "unknown"
+            # Issue #374: renamed from `X-Plotlines-Clip-Peak-Rss-Kb` because
+            # it is a process-lifetime watermark, not a per-clip figure — see
+            # `ClipResult.service_peak_rss_kb`. `Clip-Rss-Delta-Kb` is the new,
+            # honestly-imperfect per-clip figure the rename makes room for.
+            "X-Plotlines-Service-Peak-Rss-Kb": (
+                str(result.service_peak_rss_kb)
+                if result.service_peak_rss_kb is not None else "unknown"
+            ),
+            "X-Plotlines-Clip-Rss-Delta-Kb": (
+                str(result.clip_rss_delta_kb)
+                if result.clip_rss_delta_kb is not None else "unknown"
             ),
             **clip_licence_headers(),
         }

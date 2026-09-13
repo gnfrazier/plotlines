@@ -93,8 +93,13 @@ def clip_once(base_url: str, bbox: tuple[float, float, float, float],
         "server_wall_s": (int(h["X-Plotlines-Clip-Wall-Time-Ms"]) / 1000.0
                           if "X-Plotlines-Clip-Wall-Time-Ms" in h else None),
         "output_bytes": int(h.get("X-Plotlines-Clip-Output-Bytes", len(body))),
-        "peak_rss_kb": (int(h["X-Plotlines-Clip-Peak-Rss-Kb"])
-                        if h.get("X-Plotlines-Clip-Peak-Rss-Kb", "unknown").isdigit()
+        # #374 renamed this header (after this harness ran) from
+        # X-Plotlines-Clip-Peak-Rss-Kb to X-Plotlines-Service-Peak-Rss-Kb —
+        # same process-lifetime watermark, honestly named. Kept reading the
+        # new name so this harness still works if it's ever run again; the
+        # first-after-restart methodology below is unaffected either way.
+        "peak_rss_kb": (int(h["X-Plotlines-Service-Peak-Rss-Kb"])
+                        if h.get("X-Plotlines-Service-Peak-Rss-Kb", "unknown").isdigit()
                         else None),
         "source_regions": h.get("X-Plotlines-Clip-Source-Regions", ""),
         # #364: the notice has to travel with a Derivative Database, and the
