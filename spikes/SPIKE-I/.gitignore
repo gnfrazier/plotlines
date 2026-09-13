@@ -1,0 +1,23 @@
+# The 2.1 GB of Geofabrik extracts and the local mirror tree they live in.
+# Pulled by deploy/mirror/geofabrik_pull.py (see README.md) — never committed:
+# they are upstream bytes, they are pinned by date rather than by content here,
+# and ODbL redistribution of a mirrored extract is a deliberate act with its own
+# licence artifacts (deploy/mirror/), not something a spike directory does by
+# accident.
+mirror/
+
+# The venv this spike needs (osmnx + pyosmium + pyrosm in one place, which no
+# existing project venv provides).
+.venv/
+
+# osmnx's own Overpass response cache. Large, regenerable, and the attic-dated
+# queries are reproducible from probe.py.
+raw/overpass/
+
+# Run logs.
+raw/probe-run*.log
+
+# The merged two-extract source the §11.7 border cell builds before clipping
+# (~475 MB). probe.py deletes it on the way out; this catches the case where a
+# run is interrupted mid-cell and leaves it behind.
+raw/clips/*-merged.osm.pbf
