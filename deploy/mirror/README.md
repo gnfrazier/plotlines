@@ -437,9 +437,8 @@ measurement as close to its production shape as possible — and note the
 cross-build's one-time buildx/binfmt setup above is most of the reason the
 native route is listed first.
 
-Then start it and check:
-
-**First, make sure the deploy itself is current.** `/opt/plotlines-mirror`
+**Before starting it, make sure the deploy itself is current.**
+`/opt/plotlines-mirror`
 is a copy of this directory taken at deploy time, so a Pi provisioned
 before #262 has a `docker-compose.yml` with no `mirror-clip` service and a
 `Caddyfile` with no `/clip*` route. The symptom is quiet rather than loud —
@@ -499,18 +498,33 @@ largest clip that container has *ever* served, so a series taken without
 restarting reads as monotonically increasing memory that has nothing to do
 with the bbox being measured. Restart between runs:
 
+Run this **on the Pi** — it is where the container, the extracts and the
+`sudo` already are, and it keeps the network out of a wall-time figure that
+is supposed to be measuring a clip:
+
 ```
 clip () {  # $1=label  $2=west $3=south $4=east $5=north
-  ssh pi 'cd /opt/plotlines-mirror && docker compose restart mirror-clip' >/dev/null
+  ( cd /opt/plotlines-mirror && sudo docker compose restart mirror-clip ) >/dev/null
   sleep 3
   curl -s -D "/tmp/$1.hdr" -o "/tmp/$1.osm.pbf" \
     -H 'Host: tiles.plotlines.app' \
-    "http://<pi-ip>/clip?west=$2&south=$3&east=$4&north=$5"
+    "http://127.0.0.1/clip?west=$2&south=$3&east=$4&north=$5"
   grep -i '^x-plotlines-\|^link:' "/tmp/$1.hdr"
+  ls -l "/tmp/$1.osm.pbf"
 }
 ```
 
-Pass `Host` explicitly. Caddy's site block is host-matched
+Paste the whole function in one go — a shell function pasted line by line
+leaves the shell at a `>` continuation prompt.
+
+From the dev box instead, swap `127.0.0.1` for the Pi's LAN address and the
+restart line for `ssh pi 'cd /opt/plotlines-mirror && sudo docker compose
+restart mirror-clip'`. Then say so when reporting the numbers: the wall
+time is still server-side (the header is measured inside the handler), but
+the download is not, so a large clip's apparent duration will include the
+LAN transfer.
+
+Pass `Host` explicitly either way. Caddy's site block is host-matched
 (`http://tiles.plotlines.app { ... }`), so any other Host header silently
 returns `200` with `Content-Length: 0` rather than erroring — the same trap
 §6.5's rehearsal documents.
