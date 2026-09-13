@@ -425,6 +425,34 @@ def clip_bbox(
 CLIENT_KEY_HEADER = "X-Plotlines-Client-Key"
 
 
+def normalize_client_key(raw: str | None) -> str | None:
+    """Issue #371: collapse "no key configured" onto exactly one value.
+
+    `deploy/mirror/docker-compose.yml` passes
+    `MIRROR_CLIP_CLIENT_KEY=${MIRROR_CLIP_CLIENT_KEY:-}`, so an operator
+    who leaves the variable unset — the documented default, and the one
+    `--client-key --help` calls "leaves /clip open" — does not get an
+    absent variable. Compose sets it to the empty string, `os.environ.get`
+    returns `""` rather than `None`, and an `is not None` test arms the
+    gate with a key no honest caller can present: 401 for everyone, while
+    `hmac.compare_digest("", "")` would let a caller sending the header
+    with an empty value straight through. Both halves of that come from
+    treating `""` as a configured key, so it is fixed here once rather
+    than at each reader.
+
+    Whitespace is stripped for the same class of reason one step further
+    out: a key sourced from a file or a heredoc arrives with a trailing
+    newline attached, which is a deployment accident every time and a
+    deliberate key never.
+
+    Idempotent, so applying it at both the argparse and the app-
+    construction boundary is safe.
+    """
+    if raw is None:
+        return None
+    return raw.strip() or None
+
+
 class ClipRequestBody(BaseModel):
     west: float
     south: float
@@ -485,16 +513,18 @@ def create_clip_app(
     work_dir = Path(tmp_dir) if tmp_dir else Path(tempfile.gettempdir())
     work_dir.mkdir(parents=True, exist_ok=True)
     rate_limiter = _RateLimiter(rate_limit_per_minute, time_fn=rate_limit_time_fn)
+    configured_key = normalize_client_key(client_key)
 
     def _enforce_clip_access(request: Request) -> None:
         """Issue #263: gate the one CPU-costing endpoint, not the static
         files. Client-key check only runs when a key is configured (unset
-        means open — the correct default for local/dev and these hermetic
-        tests); the rate ceiling always runs, since the cost it bounds does
-        not depend on whether a key is configured."""
-        if client_key is not None:
+        — or empty, per #371's `normalize_client_key` — means open, the
+        correct default for local/dev and these hermetic tests); the rate
+        ceiling always runs, since the cost it bounds does not depend on
+        whether a key is configured."""
+        if configured_key is not None:
             presented = request.headers.get(CLIENT_KEY_HEADER)
-            if presented is None or not hmac.compare_digest(presented, client_key):
+            if presented is None or not hmac.compare_digest(presented, configured_key):
                 log.warning(
                     "clip REFUSED reason=unauthorized_client ip=%s", _client_ip(request)
                 )
@@ -627,8 +657,11 @@ def main(argv: list[str] | None = None) -> int:
         help="shared Plotlines-client key every /clip request must carry "
              "in the X-Plotlines-Client-Key header (issue #263, review "
              "§6.8/1d) — identifies a Plotlines-built client, never a "
-             "person or account. Unset (the default) leaves /clip open, "
-             "which is correct for local/dev; production sets "
+             "person or account. Unset — or set to an empty/whitespace "
+             "value, which is what docker-compose.yml's "
+             "${MIRROR_CLIP_CLIENT_KEY:-} expands to when the operator "
+             "sets nothing (#371) — leaves /clip open, which is correct "
+             "for local/dev; production sets "
              "MIRROR_CLIP_CLIENT_KEY. The mirror's static files are "
              "unaffected either way — this only ever gates /clip.",
     )
@@ -645,6 +678,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    # #371: normalise before the log line, not just before create_clip_app.
+    # The two disagreeing is what hid this bug on the Pi — the log reported
+    # `bool("")` as client_key_configured=False while the gate was armed and
+    # 401-ing every request, so the one diagnostic an operator reaches for
+    # denied the thing that was happening.
+    client_key = normalize_client_key(args.client_key)
+
     configure_logging(None, args.log_level)  # stderr only — container/systemd journal owns capture
     log.info(
         "mirror-clip starting version=%s host=%s port=%s root=%s "
@@ -652,13 +692,13 @@ def main(argv: list[str] | None = None) -> int:
         "epic #264 Phase 1.8/1.9 — pyosmium only, no osmium-tool CLI, "
         "addendum L1/1d)",
         VERSION, args.host, args.port, args.root,
-        bool(args.client_key), args.rate_limit_per_minute,
+        bool(client_key), args.rate_limit_per_minute,
     )
 
     app = create_clip_app(
         args.root,
         tmp_dir=args.tmp_dir,
-        client_key=args.client_key,
+        client_key=client_key,
         rate_limit_per_minute=args.rate_limit_per_minute,
     )
     config = uvicorn.Config(
