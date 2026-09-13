@@ -256,11 +256,19 @@ def select_covering_extracts(
 
 
 def _merge_extracts(paths: list[Path], dest: Path) -> None:
-    """The bbox-spans-two-extracts case: combine the covering extracts into
-    one id-deduplicated, correctly-ordered stream before clipping, so a
-    border way present (whole) in both regional cuts is written once, not
-    twice. `osmium.MergeInputReader` is pyosmium's own `osmium merge`
-    equivalent — still pyosmium's Python API, not the CLI (L1)."""
+    """Combine already-clipped outputs into one id-deduplicated, correctly-
+    ordered stream, so a border way present (whole) in both regional cuts is
+    written once, not twice. `osmium.MergeInputReader` is pyosmium's own
+    `osmium merge` equivalent — still pyosmium's Python API, not the CLI
+    (L1).
+
+    Issue #376: `paths` must be small, already-clipped bbox outputs, never
+    raw region extracts — `MergeInputReader.add_file` buffers every object
+    from every input **in memory** before writing anything, and two full
+    Geofabrik state extracts (hundreds of MB each) expand to several GB of
+    in-memory objects, which is what killed the process in ~9s on the Pi.
+    `clip_bbox` below only ever calls this on the small (~3-6 MB) per-
+    extract clip outputs, not on `RegionExtract.path` directly."""
     reader = osmium.MergeInputReader()
     for path in paths:
         reader.add_file(str(path))
@@ -386,27 +394,50 @@ def clip_bbox(
         )
 
     tmp_dir = tmp_dir or dest.parent
-    merged_tmp: Path | None = None
-    try:
-        if len(candidates) == 1:
-            source = candidates[0].path
-        else:
-            fd, merged_name = tempfile.mkstemp(
-                dir=tmp_dir, prefix=".mirror-clip-merge-", suffix=".osm.pbf"
-            )
-            os.close(fd)
-            merged_tmp = Path(merged_name)
-            log.info(
-                "clip bbox=%s spans %d extracts (%s) — merging before clip",
-                bbox, len(candidates), ", ".join(c.region for c in candidates),
-            )
-            _merge_extracts([c.path for c in candidates], merged_tmp)
-            source = merged_tmp
 
-        selected = _select_and_write(bbox, source, dest)
-    finally:
-        if merged_tmp is not None and merged_tmp.exists():
-            merged_tmp.unlink()
+    if len(candidates) == 1:
+        selected = _select_and_write(bbox, candidates[0].path, dest)
+    else:
+        # Issue #376: clip each covering extract *first*, then merge the
+        # small clipped outputs — never merge the raw extracts. The old
+        # order ran `MergeInputReader` over the full multi-hundred-MB
+        # Geofabrik extracts, which buffers every object from every input in
+        # memory before writing anything; for a real NC+TN pair that was
+        # ~3.9 GB in five seconds and the OOM killer took the process in
+        # ~9s. A clipped output is ~3-6 MB, so merging *those* costs nothing
+        # by comparison — the inversion the issue calls "obvious."
+        log.info(
+            "clip bbox=%s spans %d extracts (%s) — clipping each before merging",
+            bbox, len(candidates), ", ".join(c.region for c in candidates),
+        )
+        partial_paths: list[Path] = []
+        selected = 0
+        try:
+            for candidate in candidates:
+                fd, partial_name = tempfile.mkstemp(
+                    dir=tmp_dir, prefix=".mirror-clip-partial-", suffix=".osm.pbf"
+                )
+                os.close(fd)
+                partial_path = Path(partial_name)
+                partial_path.unlink()  # BackReferenceWriter refuses an existing file
+                count = _select_and_write(bbox, candidate.path, partial_path)
+                selected += count
+                if count > 0:
+                    partial_paths.append(partial_path)
+                else:
+                    partial_path.unlink(missing_ok=True)
+
+            if len(partial_paths) == 1:
+                # The common over-selection case (e.g. a WNC bbox matching
+                # both NC's and TN's header box while only NC actually has
+                # data there): nothing to merge, and no second full pass.
+                partial_paths[0].replace(dest)
+                partial_paths.clear()
+            elif len(partial_paths) > 1:
+                _merge_extracts(partial_paths, dest)
+        finally:
+            for partial_path in partial_paths:
+                partial_path.unlink(missing_ok=True)
 
     if selected == 0:
         dest.unlink(missing_ok=True)
