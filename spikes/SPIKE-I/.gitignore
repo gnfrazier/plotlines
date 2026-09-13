@@ -1,0 +1,43 @@
+# The 2.1 GB of Geofabrik extracts and the local mirror tree they live in.
+# Pulled by deploy/mirror/geofabrik_pull.py (see README.md) — never committed:
+# they are upstream bytes, they are pinned by date rather than by content here,
+# and ODbL redistribution of a mirrored extract is a deliberate act with its own
+# licence artifacts (deploy/mirror/), not something a spike directory does by
+# accident.
+mirror/
+
+# The venv this spike needs (osmnx + pyosmium + pyrosm in one place, which no
+# existing project venv provides).
+.venv/
+
+# osmnx's own Overpass response cache. Large, regenerable, and the attic-dated
+# queries are reproducible from probe.py.
+raw/overpass/
+
+# Run logs.
+raw/probe-run*.log
+
+# The merged two-extract source the §11.7 border cell builds before clipping
+# (~475 MB). probe.py deletes it on the way out; this catches the case where a
+# run is interrupted mid-cell and leaves it behind.
+raw/clips/*-merged.osm.pbf
+
+# The bbox clips themselves (~26 MB). Deliberately NOT committed, for two
+# independent reasons:
+#
+#  - They are not needed to reproduce anything published. `analyze.py` and
+#    `run.py` read `raw/probe.json.gz` (16 KB) and `raw/mirror.json` (4 KB) and
+#    nothing else, so every number in results/ re-derives offline from committed
+#    bytes — SPIKE-E's discipline, met without the payload. Re-running the
+#    *builds* needs the clips, and `probe.py` regenerates them from the pinned
+#    extracts.
+#  - A bbox clip is an **extraction from** an OSM database, which makes it a
+#    *Derivative* Database under ODbL rather than a Produced Work — that is
+#    exactly the reasoning issue #364 applied to the `/clip` endpoint. Committing
+#    one to the repo is a redistribution event carrying its own notice
+#    obligations, and a spike directory is not the place to take that on.
+raw/clips/
+
+# The clip the mirror returned, saved for inspection — same ODbL reasoning as
+# raw/clips/ above.
+raw/mirror-clips/
