@@ -491,12 +491,20 @@ built before that fix will crash-loop until rebuilt).
 
 ### 3. Measure
 
-**The one thing that will silently corrupt the numbers:** `peak_rss_kb` is
+**The one thing that will silently corrupt the numbers, and issue #374's
+fix for it:** `X-Plotlines-Service-Peak-Rss-Kb` (renamed from the
+misleadingly-named `X-Plotlines-Clip-Peak-Rss-Kb`) is
 `getrusage(RUSAGE_SELF).ru_maxrss` — a **process-lifetime high-water
 mark**, not a per-request figure. Every run after the first reports the
 largest clip that container has *ever* served, so a series taken without
 restarting reads as monotonically increasing memory that has nothing to do
-with the bbox being measured. Restart between runs:
+with the bbox being measured. `X-Plotlines-Clip-Rss-Delta-Kb` is the new,
+per-clip companion field — this clip's own contribution to that watermark,
+always >= 0, and honestly 0 (not a stale inherited figure) when this clip
+didn't set a new high. Restarting between runs is still the right call
+when you want the *watermark* itself to mean something for a given run,
+since the delta alone cannot recover a clip's true peak once a larger one
+has already run in the same process:
 
 Run this **on the Pi** — it is where the container, the extracts and the
 `sudo` already are, and it keeps the network out of a wall-time figure that
