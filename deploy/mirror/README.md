@@ -694,6 +694,41 @@ JSON" stands in for the `.md5` match as the verify-before-publish gate.
 both regions and the index — against a real (loopback) HTTP server and its
 own request log, not against an internal "would have skipped" flag.
 
+### `--precut-wnc-corridor` (issue #375)
+
+`/clip`'s wall time scales with the size of the *pinned extract* it has to
+scan, not the trip bbox — measured at 627-640s against a 60s outer band on
+the live Pi, because a PBF stores data in id order and every request scans
+the whole file regardless of bbox size. Geofabrik publishes no sub-state
+cuts for the states this mirror pins ("No sub regions are defined for this
+region," confirmed for both `north-carolina` and `tennessee`), so a smaller
+pinned extract has to be produced locally rather than downloaded.
+
+`--precut-wnc-corridor`, passed alongside `--region`, clips the extracts
+that pull just pulled down to the WNC corridor bbox
+(`plotlines_core.tiles.mirror.WNC_CORRIDOR_BBOX` — the same corridor the
+basemap stand-in already serves) and pins the smaller result — a few MB
+rather than a few hundred — under `wnc-corridor` in place of the full-state
+sources (`--precut-keep-sources` keeps both, at the cost of every matching
+request still paying for a full scan of each source too). It reuses
+`plotlines_service.mirror_clip.clip_bbox`, the exact algorithm `/clip` runs
+per request, so the precut result is what a live request against the un-cut
+sources would already have produced — computed once at pin time instead of
+on every request. This is the one piece of `geofabrik_pull.py` that isn't
+stdlib-only: it needs `plotlines-service` installed with its `mirror-clip`
+extra (pyosmium) wherever it runs, which is not necessarily the Pi itself —
+see the "Verifying a bump" section of `docs/Plotlines_Release_Checklist.md`
+for what that means operationally today.
+
+**Not fixed by this flag:** rectangle-based coverage over-selection (a WNC
+bbox still matches both NC's and TN's header box even after this precut is
+pinned, since both extracts are still valid candidates by header — #376's
+merge-inversion fix keeps that path from crashing, but a request that also
+matches a full-state source still pays for scanning it). `--precut-keep-
+sources` off (the default) avoids this by removing the full-state entries
+this precut was drawn from, which is the intended steady state for a mirror
+that only serves the WNC corridor today.
+
 ## Staleness monitor, cadence, and ownership (issue #260)
 
 §11.3 names the cost the mirror takes on: "we become the availability." A cron that silently
