@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plotlines_client/domain/domain.dart';
+import 'package:plotlines_client/presentation/map/arc_stage_marker.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/content_tab.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
@@ -89,5 +90,27 @@ void main() {
 
     expect(find.text('PASSAGE & DAY CONTENT'), findsOneWidget);
     expect(find.text('PASSAGE & DAY CONTENT (empty)'), findsNothing);
+  });
+
+  // FR38 / O6, issue #392 — a node's own arc stage reaches the Content tab's
+  // map the same way it reaches the Route tab's (`route_tab_marker_points_test.dart`).
+  testWidgets('a segment node carrying an arc stage draws its badge on the map', (tester) async {
+    final container = await _pump(tester);
+    container.read(currentTripProvider.notifier).addNodeToSegment(
+          'day-1',
+          'seg-1',
+          Node(
+            id: 'n1',
+            kind: NodeKind.poi,
+            coord: const [-105.24, 40.03],
+            arcStage: 'exposition',
+          ),
+        );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.byType(ArcStageBadge), findsOneWidget);
+    expect(find.byIcon(arcStageIcon('exposition')!), findsOneWidget);
   });
 }

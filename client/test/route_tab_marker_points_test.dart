@@ -18,6 +18,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/domain/domain.dart';
+import 'package:plotlines_client/presentation/map/arc_stage_marker.dart';
 import 'package:plotlines_client/presentation/map/node_marker_role.dart';
 import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/route_tab.dart';
@@ -143,6 +144,47 @@ void main() {
       expect(points, hasLength(1));
       expect(points.single.coord, const [-105.05, 40.05]);
       expect(points.single.role, markerForNodeKind(NodeKind.poi));
+    });
+
+    // FR38 / O6, issue #392 — the map's own per-point arc-stage carrier, so
+    // `TapToPickMap` has something to badge a story beat with. Endpoints
+    // (`start`/`finish`) carry no arc of their own — `Segment.arcStage` is
+    // the passage's, drawn separately as `polylineArcStage` — only an
+    // authored node's own `arcStage` travels here.
+    test('an authored node\'s arc stage travels onto its marker point', () {
+      final trip = Trip(
+        id: 't7',
+        title: 'One segment, one arc-tagged node',
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+        days: [
+          Day(id: 'day-1', index: 1, segments: [
+            Segment(
+              id: 'seg-1',
+              mode: 'hiking',
+              shape: 'point_to_point',
+              start: const [-105.000, 40.000],
+              end: const [-105.004, 40.004],
+              nodes: [
+                Node(
+                  id: 'n1',
+                  kind: NodeKind.poi,
+                  coord: const [-105.001, 40.001],
+                  arcStage: 'crux',
+                ),
+              ],
+            ),
+          ]),
+        ],
+      );
+
+      final points = routeTabMarkerPoints(trip);
+      final start = points.firstWhere((p) => p.role == NodeMarkerType.start);
+      final finish = points.firstWhere((p) => p.role == NodeMarkerType.finish);
+      final node = points.firstWhere((p) => p.coord[0] == -105.001);
+      expect(start.arcStage, isNull);
+      expect(finish.arcStage, isNull);
+      expect(node.arcStage, 'crux');
     });
 
     test('a lone start is a start and nothing else', () {
@@ -335,6 +377,125 @@ void main() {
     test('a null or stale id resolves to nothing', () {
       expect(nodeCoordById(trip, null), isNull);
       expect(nodeCoordById(trip, 'gone'), isNull);
+    });
+  });
+
+  // FR38 / O6, issue #392 — "distinguished on map and timeline": before this,
+  // `TapToPickMap` had no per-point styling hook at all, so an arc stage set
+  // on a node or a passage reached the timeline (`day_timeline_strip.dart`)
+  // but never the map.
+  group('arc stage on the map (#392)', () {
+    testWidgets('a node carrying an arc stage draws its badge; one without does not',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: TapToPickMap(
+                points: const [
+                  (
+                    coord: [-105.001, 40.001],
+                    role: NodeMarkerType.plot,
+                    arcStage: 'climax',
+                  ),
+                  (coord: [-105.002, 40.002], role: NodeMarkerType.waypoint, arcStage: null),
+                ],
+                center: const [-105.0015, 40.0015],
+                initialZoom: 14,
+              ),
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.byType(ArcStageBadge), findsOneWidget);
+      expect(find.byIcon(arcStageIcon('climax')!), findsOneWidget);
+    });
+
+    testWidgets('a focused (highlighted) node keeps its arc badge', (tester) async {
+      const coord = [-105.001, 40.001];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: TapToPickMap(
+                points: const [
+                  (coord: coord, role: NodeMarkerType.plot, arcStage: 'resolution'),
+                ],
+                focusCoord: coord,
+                center: coord,
+                initialZoom: 14,
+              ),
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.byType(ArcStageBadge), findsOneWidget);
+    });
+
+    testWidgets('a passage\'s own arc stage badges the drawn line\'s midpoint',
+        (tester) async {
+      const line = [
+        [-105.010, 40.0],
+        [-105.005, 40.0],
+        [-105.000, 40.0],
+      ];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: TapToPickMap(
+                polyline: line,
+                polylineArcStage: 'rising',
+                center: const [-105.005, 40.0],
+                initialZoom: 12,
+              ),
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.byType(ArcStageBadge), findsOneWidget);
+      expect(find.byIcon(arcStageIcon('rising')!), findsOneWidget);
+    });
+
+    testWidgets('no polylineArcStage ⇒ no badge on the line', (tester) async {
+      const line = [
+        [-105.010, 40.0],
+        [-105.000, 40.0],
+      ];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: TapToPickMap(
+                polyline: line,
+                center: const [-105.005, 40.0],
+                initialZoom: 12,
+              ),
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.byType(ArcStageBadge), findsNothing);
     });
   });
 }
