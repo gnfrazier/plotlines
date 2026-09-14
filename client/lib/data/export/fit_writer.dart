@@ -20,17 +20,19 @@
 // already visible to them. The byte-level reveal assertions in punch-list
 // §6A.2 gate the Character-facing surfaces, which this is not.
 //
-// **FR45 plot-point notes: trip-scoped `Anchor` narrative roles are
-// GPX/GeoJSON-only, matching `tcx_writer.dart`'s own scope note for the same
-// reason.** `course_point`s here need a `distance_m`/synthetic clock inside
-// one day's track, exactly like TCX's `<CoursePoint>`; an anchor carries
-// neither a day nor a route-relative distance, and borrowing one arbitrarily
-// would duplicate the point across every `_exportPerDay` split file. Core's
-// `fit.py`/`CourseExport` models a role-shaped `CoursePoint` for a future
-// `Trip -> CourseExport` reduction that has a real answer for this (PR #195's
-// own "not in scope" note); this Dart writer reduces `Trip` directly instead
-// (issue #211) and inherits the same day-linkage gap `itinerary.dart` and
-// `cues.py`'s node-based pipeline already have.
+// **FR45 plot-point notes: an attached narrative role emits a
+// `course_point`; an unattached one is still omitted, not a gap** — matching
+// `tcx_writer.dart`'s own note for the same reason. A `course_point` needs a
+// `distance_m`/synthetic clock inside one day's track. Issue #384 gave a role
+// a real, optional `dayId`/`segmentId` attachment to the trip's route
+// (`anchor.dart`'s doc comment); a role with `dayId` set now has that. This
+// Dart writer keeps reducing `Trip` directly (issue #211) rather than
+// routing through core's `fit.py`/`CourseExport` (which models the same
+// role-shaped `CoursePoint` for a future `Trip -> CourseExport` reduction,
+// PR #195's own "not in scope" note — still not built, so still not the
+// path). `dayId == null` (the ordinary, unattached state — FR139/Q2) is
+// still omitted: borrowing an arbitrary day would duplicate the point across
+// every `_exportPerDay` split file.
 //
 // **Synthetic trackpoint time.** Like TCX, a FIT course needs a timestamp on
 // every record and course point (that is how a head unit paces a virtual
@@ -125,6 +127,17 @@ Uint8List tripToFit(Trip trip, {ExportOptions options = const ExportOptions()}) 
         for (final node in segment.nodes) {
           coursePoints.add(_coursePointForNode(node, segBaseM, coords));
         }
+        // Issue #386 (FR45) — a narrative role attached to this exact
+        // segment (dayId/segmentId both matching) gets a course point at its
+        // own geometry, positioned along this segment's own distance.
+        for (final anchor in trip.anchors) {
+          for (final role in anchor.roles) {
+            if (role.kind != RoleKind.narrative) continue;
+            if (role.dayId == day.id && role.segmentId == segment.id) {
+              coursePoints.add(_coursePointForRole(anchor, role, segBaseM, coords));
+            }
+          }
+        }
         // Hazards ride as `danger` course points — the format has a native
         // slot and a hazard is never withheld (PRD §1.5). Same gate as the
         // GeoJSON writer: they travel with the waypoint toggle.
@@ -162,6 +175,17 @@ Uint8List tripToFit(Trip trip, {ExportOptions options = const ExportOptions()}) 
     if (options.includeWaypoints) {
       for (final node in day.nodes) {
         coursePoints.add(_coursePointForNode(node, cumulativeM, const []));
+      }
+      // Issue #386 (FR45) — a narrative role attached to this day but no
+      // particular segment (dayId set, segmentId null) gets the same
+      // running-total placement as a day-scoped node, for the same reason.
+      for (final anchor in trip.anchors) {
+        for (final role in anchor.roles) {
+          if (role.kind != RoleKind.narrative) continue;
+          if (role.dayId == day.id && role.segmentId == null) {
+            coursePoints.add(_coursePointForRole(anchor, role, cumulativeM, const []));
+          }
+        }
       }
     }
   }
@@ -282,6 +306,27 @@ _CoursePoint _coursePointForNode(Node node, double baseM, List<Coord> coords) {
     name: _fitCueName(node.title ?? node.kind.wireValue, node.note),
     lat: node.coord[1],
     lon: node.coord[0],
+    distanceM: distanceM,
+  );
+}
+
+/// Issue #386 (FR45) — an attached narrative role as a `course_point`, at
+/// its own geometry ([Anchor.roleGeometry] — the role's coord offset if it
+/// has one, else the anchor's own coord, FR107/O2). Distance mirrors
+/// [_coursePointForNode]'s own fallback: nearest-vertex distance along
+/// [coords] when there is a line to measure against, else [baseM] itself
+/// (the day-scoped case, where [coords] is empty by the caller's choice).
+_CoursePoint _coursePointForRole(
+    Anchor anchor, Role role, double baseM, List<Coord> coords) {
+  final at = anchor.roleGeometry(role);
+  final distanceM = coords.isEmpty ? baseM : baseM + _distanceAtCoord(coords, at);
+  return _CoursePoint(
+    // A hazard role is never withheld and gets the format's native warning
+    // slot (PRD §1.5) — same rule already applied to segment hazards below.
+    type: role.hazard ? 'danger' : 'generic',
+    name: _fitCueName(role.title ?? anchor.title ?? 'Plot point', role.note),
+    lat: at[1],
+    lon: at[0],
     distanceM: distanceM,
   );
 }
