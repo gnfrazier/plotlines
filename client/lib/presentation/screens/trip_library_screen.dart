@@ -142,9 +142,20 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
         color: c.surfaceSunk,
         child: tripsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
+        // #390 — same class of defect #317 fixed on the Layers tab: `err`
+        // (a drift/sqlite3 exception) used to be interpolated straight into
+        // a user-visible Text, whose toString() is a class name and a raw
+        // driver message. `_LibraryLoadFailed`'s own doc comment explains
+        // why this is a purpose-built treatment rather than a route through
+        // DesktopErrorSurface.
         error: (err, _) => Center(
-          child: Text('Couldn\'t open the local trip library: $err',
-              style: PlotTypography.body(c.danger)),
+          child: Padding(
+            padding: const EdgeInsets.all(PlotSpacing.s6),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: _LibraryLoadFailed(onRetry: () => ref.invalidate(tripLibraryProvider)),
+            ),
+          ),
         ),
         data: (trips) => trips.isEmpty
             ? _EmptyLibrary(
@@ -283,6 +294,45 @@ class _FilterBar extends StatelessWidget {
                 ),
               ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// #390 — a local drift-DB read failure has no home in M13's typed state
+/// enum (`domain/desktop_error_state.dart`): all twelve of its states are
+/// sidecar/routing/layer/export conditions, pinned to exactly that count by
+/// `desktop_error_state_test.dart`, and none names "the local trip database
+/// didn't open." #317 fixed the same class of defect (the caught
+/// exception's `toString()` reaching the Author verbatim) on the Layers tab
+/// by routing through `DesktopErrorSurface`; here that surface has no
+/// matching state to hand it, so this is a small, purpose-built treatment
+/// in the same what/why/retry shape instead — never the caught error
+/// itself.
+class _LibraryLoadFailed extends StatelessWidget {
+  const _LibraryLoadFailed({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return PlotCard(
+      padding: const EdgeInsets.all(PlotSpacing.s4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 32, color: c.danger),
+          const SizedBox(height: PlotSpacing.s3),
+          Text('The trip library didn\'t open',
+              textAlign: TextAlign.center, style: PlotTypography.title(c.textPrimary)),
+          const SizedBox(height: PlotSpacing.s2),
+          Text('The local trip database couldn\'t be read.',
+              textAlign: TextAlign.center, style: PlotTypography.body(c.textSecondary)),
+          const SizedBox(height: PlotSpacing.s3),
+          PlotButton(label: 'Retry', variant: PlotButtonVariant.secondary, onPressed: onRetry),
         ],
       ),
     );
