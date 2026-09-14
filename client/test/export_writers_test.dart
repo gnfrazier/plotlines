@@ -470,4 +470,179 @@ void main() {
       expect(xml.XmlDocument.parse(tcx).findAllElements('CoursePoint'), isEmpty);
     });
   });
+
+  // Issue #386 — #384 gave a role a real, optional dayId/segmentId
+  // attachment; TCX/FIT can now place a `<CoursePoint>`/`course_point` for an
+  // attached role, inside the day's course it's attached to, and must still
+  // omit an unattached one (same precedent the group above already covers).
+  group('Issue #386: an attached narrative role emits a CoursePoint/course_point', () {
+    Day dayWithSegment() => Day(id: 'day-1', index: 1, kind: 'route', segments: [
+          Segment(
+            id: 'seg-1',
+            mode: 'cycling',
+            shape: 'point_to_point',
+            geometry: LineString(
+              coordinates: [
+                [-105.2705, 40.0150],
+                [-105.2800, 40.0200],
+              ],
+              source: 'solved',
+            ),
+            metrics: RouteMetrics(distanceM: 1200.0, movingTimeS: 300.0),
+          ),
+        ]);
+
+    Trip tripWithAttachedRole({String? dayId, String? segmentId, bool hazard = false}) => Trip(
+          id: 'trip-attached',
+          title: 'Attached Ride',
+          createdAt: '2026-08-17T00:00:00Z',
+          updatedAt: '2026-08-17T00:00:00Z',
+          days: [dayWithSegment()],
+          anchors: [
+            Anchor(
+              id: 'a1',
+              coord: const [-105.28, 40.02],
+              title: 'The Old Mill',
+              roles: [
+                Role(
+                  id: 'r1',
+                  kind: RoleKind.narrative,
+                  note: 'The old mill site.',
+                  dayId: dayId,
+                  segmentId: segmentId,
+                  hazard: hazard,
+                  reveal: hazard ? null : RevealPolicy.onArrival,
+                ),
+              ],
+            ),
+          ],
+        );
+
+    test('TCX: attached to the day and its segment', () {
+      final tcx = tripToTcx(tripWithAttachedRole(dayId: 'day-1', segmentId: 'seg-1'));
+      final points = xml.XmlDocument.parse(tcx).findAllElements('CoursePoint').toList();
+      expect(points, hasLength(1));
+      expect(points.single.findElements('Name').single.innerText, 'The Old Mill');
+      expect(points.single.findElements('Notes').single.innerText, 'The old mill site.');
+      expect(points.single.findElements('PointType').single.innerText, 'Generic');
+    });
+
+    test('TCX: attached to the day only (no segment) still emits a CoursePoint', () {
+      final tcx = tripToTcx(tripWithAttachedRole(dayId: 'day-1'));
+      final points = xml.XmlDocument.parse(tcx).findAllElements('CoursePoint').toList();
+      expect(points, hasLength(1));
+      expect(points.single.findElements('Name').single.innerText, 'The Old Mill');
+    });
+
+    test('TCX: a hazard role uses the Danger PointType (PRD §1.5, never withheld)', () {
+      final tcx = tripToTcx(tripWithAttachedRole(dayId: 'day-1', segmentId: 'seg-1', hazard: true));
+      final point = xml.XmlDocument.parse(tcx).findAllElements('CoursePoint').single;
+      expect(point.findElements('PointType').single.innerText, 'Danger');
+    });
+
+    test('TCX: attached to a day that is not in the export still omits the point '
+        '(no arbitrary-day guess)', () {
+      final tcx = tripToTcx(tripWithAttachedRole(dayId: 'day-does-not-exist'));
+      expect(xml.XmlDocument.parse(tcx).findAllElements('CoursePoint'), isEmpty);
+    });
+
+    test('FIT: attached to the day and its segment carries the note in the course_point name', () {
+      final fit = tripToFit(tripWithAttachedRole(dayId: 'day-1', segmentId: 'seg-1'));
+      final text = utf8.decode(fit, allowMalformed: true);
+      // Combined name+note exceeds the 30-char cue-name cap, so it's
+      // word-clipped with an ellipsis (`_fitCueName`, already covered on its
+      // own by the "long plot-point note" test above) — assert on the
+      // surviving prefix rather than the untruncated string.
+      expect(text, contains('The Old Mill — The old mill'));
+    });
+
+    test('FIT: attached to the day only (no segment) still carries the note', () {
+      final fit = tripToFit(tripWithAttachedRole(dayId: 'day-1'));
+      final text = utf8.decode(fit, allowMalformed: true);
+      expect(text, contains('The Old Mill — The old mill'));
+    });
+
+    test('FIT: an unattached role (dayId null) is omitted, not guessed onto the only day', () {
+      final withAttachment = tripToFit(tripWithAttachedRole(dayId: 'day-1', segmentId: 'seg-1'));
+      final unattached = tripToFit(tripWithAttachedRole());
+      final unattachedText = utf8.decode(unattached, allowMalformed: true);
+      expect(unattachedText, isNot(contains('The Old Mill')));
+      expect(unattached.length, lessThan(withAttachment.length));
+    });
+  });
+
+  group('Issue #386: GeoJSON carries a role\'s day/segment attachment', () {
+    test('an anchor feature carries index-aligned day_ids/segment_ids across its roles', () {
+      final trip = Trip(
+        id: 'trip-geojson-attach',
+        title: 'Attach Export',
+        createdAt: '2026-08-17T00:00:00Z',
+        updatedAt: '2026-08-17T00:00:00Z',
+        days: const [],
+        anchors: [
+          Anchor(
+            id: 'a1',
+            coord: const [-105.28, 40.02],
+            roles: [
+              Role(id: 'r1', kind: RoleKind.narrative, dayId: 'day-1', segmentId: 'seg-1'),
+              Role(id: 'r2', kind: RoleKind.provision, reveal: RevealPolicy.alwaysVisible),
+            ],
+          ),
+        ],
+      );
+      final decoded = jsonDecode(tripToGeoJson(trip)) as Map<String, dynamic>;
+      final features = (decoded['features'] as List).cast<Map<String, dynamic>>();
+      final anchor = features.firstWhere((f) => f['properties']['kind'] == 'anchor');
+      expect(anchor['properties']['day_ids'], ['day-1', null]);
+      expect(anchor['properties']['segment_ids'], ['seg-1', null]);
+    });
+
+    test('an anchor with no role attachments carries neither property', () {
+      final trip = Trip(
+        id: 'trip-geojson-unattached',
+        title: 'Unattached Export',
+        createdAt: '2026-08-17T00:00:00Z',
+        updatedAt: '2026-08-17T00:00:00Z',
+        days: const [],
+        anchors: [
+          Anchor(id: 'a1', coord: const [0.0, 0.0], roles: [Role(id: 'r1', kind: RoleKind.provision)]),
+        ],
+      );
+      final decoded = jsonDecode(tripToGeoJson(trip)) as Map<String, dynamic>;
+      final features = (decoded['features'] as List).cast<Map<String, dynamic>>();
+      final anchor = features.firstWhere((f) => f['properties']['kind'] == 'anchor');
+      expect(anchor['properties'].containsKey('day_ids'), isFalse);
+      expect(anchor['properties'].containsKey('segment_ids'), isFalse);
+    });
+
+    test('a role_offset feature carries its own day_id/segment_id', () {
+      final trip = Trip(
+        id: 'trip-geojson-offset-attach',
+        title: 'Offset Attach Export',
+        createdAt: '2026-08-17T00:00:00Z',
+        updatedAt: '2026-08-17T00:00:00Z',
+        days: const [],
+        anchors: [
+          Anchor(
+            id: 'a1',
+            coord: const [-105.28, 40.02],
+            roles: [
+              Role(
+                id: 'r1',
+                kind: RoleKind.narrative,
+                coord: const [-105.30, 40.05],
+                dayId: 'day-1',
+                segmentId: 'seg-1',
+              ),
+            ],
+          ),
+        ],
+      );
+      final decoded = jsonDecode(tripToGeoJson(trip)) as Map<String, dynamic>;
+      final features = (decoded['features'] as List).cast<Map<String, dynamic>>();
+      final offset = features.firstWhere((f) => f['properties']['kind'] == 'role_offset');
+      expect(offset['properties']['day_id'], 'day-1');
+      expect(offset['properties']['segment_id'], 'seg-1');
+    });
+  });
 }
