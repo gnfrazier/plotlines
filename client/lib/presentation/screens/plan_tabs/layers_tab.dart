@@ -387,16 +387,17 @@ enum _AttachFilter { all, attached, unattached }
 class _AnchorsViewState extends ConsumerState<AnchorsView> {
   _AttachFilter _filter = _AttachFilter.all;
 
-  /// An anchor is "attached" if any day's node carries its id as a POI type
-  /// hint or title match — best-effort on this build, where passages do not
-  /// yet reference anchor ids directly.
-  bool _isAttached(String anchorId, String? title) {
-    for (final day in widget.trip.days) {
-      for (final node in day.nodes) {
-        if (node.title != null && title != null && node.title == title) return true;
-      }
-    }
-    return false;
+  void _attach(String anchorId, String roleId, {required String dayId, String? segmentId}) {
+    ref.read(currentTripProvider.notifier).updateRole(
+          anchorId,
+          roleId,
+          dayId: dayId,
+          segmentId: segmentId,
+        );
+  }
+
+  void _detach(String anchorId, String roleId) {
+    ref.read(currentTripProvider.notifier).updateRole(anchorId, roleId, clearDayId: true);
   }
 
   @override
@@ -418,9 +419,12 @@ class _AnchorsViewState extends ConsumerState<AnchorsView> {
       );
     }
 
+    // FR142b, K12 / N4a (issue #384) — attachment is [Role.dayId], a real
+    // structural link, never a title guess: an anchor is attached when any
+    // one of its roles carries a day.
     final rows = [
       for (final a in anchors)
-        (anchor: a, attached: _isAttached(a.id, a.title)),
+        (anchor: a, attached: a.roles.any((role) => role.dayId != null)),
     ];
     final filtered = switch (_filter) {
       _AttachFilter.all => rows,
@@ -478,31 +482,106 @@ class _AnchorsViewState extends ConsumerState<AnchorsView> {
               final r = filtered[i];
               return PlotCard(
                 padding: const EdgeInsets.all(PlotSpacing.s3),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(r.anchor.title ?? 'Untitled anchor',
-                              style: PlotTypography.title(c.textPrimary)),
-                          const SizedBox(height: PlotSpacing.s1),
-                          Text(
-                            r.anchor.roles.map((role) => role.kind.name).join(' · ').toUpperCase(),
-                            style: PlotTypography.data(c.textMuted),
-                          ),
-                        ],
+                    Text(r.anchor.title ?? 'Untitled anchor',
+                        style: PlotTypography.title(c.textPrimary)),
+                    const SizedBox(height: PlotSpacing.s2),
+                    // Attachment is a role property (FR106 — roles are
+                    // independent), so it's shown and set per role, never
+                    // rolled up to one anchor-wide status. A plain status
+                    // line, never an error badge on the unattached ones.
+                    for (final role in r.anchor.roles)
+                      Padding(
+                        padding: const EdgeInsets.only(top: PlotSpacing.s1),
+                        child: _RoleAttachRow(
+                          trip: widget.trip,
+                          role: role,
+                          onAttach: (dayId, segmentId) =>
+                              _attach(r.anchor.id, role.id, dayId: dayId, segmentId: segmentId),
+                          onDetach: () => _detach(r.anchor.id, role.id),
+                        ),
                       ),
-                    ),
-                    // Attachment is shown as a plain status, never as an error
-                    // badge on the unattached ones.
-                    Text(r.attached ? 'attached' : 'unattached',
-                        style: PlotTypography.small(c.textMuted)),
                   ],
                 ),
               );
             },
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// FR142b, K12 / N4a (issue #384) — one role's attachment status, plus the
+/// attach/detach affordance that makes an unattached anchor **re-attachable**
+/// (N4a's own AC), not merely findable. Attachment is [Role.dayId] /
+/// [Role.segmentId] — a real structural link set here, never inferred from a
+/// title match.
+class _RoleAttachRow extends StatelessWidget {
+  const _RoleAttachRow({
+    required this.trip,
+    required this.role,
+    required this.onAttach,
+    required this.onDetach,
+  });
+
+  final Trip trip;
+  final Role role;
+  final void Function(String dayId, String? segmentId) onAttach;
+  final VoidCallback onDetach;
+
+  Day? get _attachedDay =>
+      role.dayId == null ? null : trip.days.where((d) => d.id == role.dayId).firstOrNull;
+
+  Segment? get _attachedSegment {
+    final day = _attachedDay;
+    if (day == null || role.segmentId == null) return null;
+    return day.segments.where((s) => s.id == role.segmentId).firstOrNull;
+  }
+
+  String _dayLabel(Day day) => day.title == null ? 'Day ${day.index}' : 'Day ${day.index} — ${day.title}';
+
+  String _segmentLabel(Segment s) => s.title ?? travelModeLabel(s.mode);
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final day = _attachedDay;
+    final segment = _attachedSegment;
+    final statusText = day == null
+        ? 'Unattached'
+        : (segment == null ? _dayLabel(day) : '${_dayLabel(day)} · ${_segmentLabel(segment)}');
+
+    return Row(
+      children: [
+        PlotBadge(role.kind.name.toUpperCase()),
+        const SizedBox(width: PlotSpacing.s2),
+        Expanded(child: Text(statusText, style: PlotTypography.small(c.textMuted))),
+        PopupMenuButton<void>(
+          tooltip: day == null ? 'Attach to a day' : 'Change attachment',
+          icon: Icon(Icons.link, size: 18, color: c.textMuted),
+          itemBuilder: (_) => [
+            for (final d in trip.days) ...[
+              PopupMenuItem<void>(
+                child: Text(_dayLabel(d)),
+                onTap: () => onAttach(d.id, null),
+              ),
+              for (final s in d.segments)
+                PopupMenuItem<void>(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: PlotSpacing.s3),
+                    child: Text('${_dayLabel(d)} · ${_segmentLabel(s)}'),
+                  ),
+                  onTap: () => onAttach(d.id, s.id),
+                ),
+            ],
+            if (day != null) ...[
+              const PopupMenuDivider(),
+              PopupMenuItem<void>(onTap: onDetach, child: const Text('Detach')),
+            ],
+          ],
         ),
       ],
     );
