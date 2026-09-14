@@ -37,6 +37,19 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
           'anchor_id': anchor.id,
           if (anchor.title != null) 'title': anchor.title,
           'role_kinds': [for (final role in anchor.roles) role.kind.wireValue],
+          // FR45 — the narrative role's own note is the "plot-point note"
+          // PRD v2.0 §4.3 means (an Anchor's narrative role, not a Node).
+          // Scoped to narrative roles only: a provision role's note (e.g. a
+          // water source's own text) is a different obligation, not a plot
+          // point, and joining the two would conflate them on one property.
+          // Where more than one narrative role carries a note (rare — an
+          // anchor usually carries at most one), join in role order rather
+          // than picking one arbitrarily.
+          if (anchor.roles.any((r) => r.kind == RoleKind.narrative && r.note != null))
+            'note': anchor.roles
+                .where((r) => r.kind == RoleKind.narrative && r.note != null)
+                .map((r) => r.note)
+                .join(' / '),
         },
       ));
       // FR108 / O3 — the anchor's own area, when it has one, exports as a
@@ -65,6 +78,8 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
               'role_id': role.id,
               'role_kind': role.kind.wireValue,
               if (role.title != null) 'title': role.title,
+              // FR45 — this role's own plot-point note.
+              if (role.note != null) 'note': role.note,
             },
           ));
         }

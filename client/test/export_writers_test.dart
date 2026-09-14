@@ -400,4 +400,74 @@ void main() {
       expect(wpt.findElements('desc').single.innerText, 'Wait for the whole group');
     });
   });
+
+  // F3/FR45 remaining gap — PRD v2.0 §4.3 defines "plot point" as an
+  // Anchor's narrative role, not a Node; GPX and GeoJSON are the two formats
+  // with a native standalone-point construct, so they carry it. TCX/FIT's
+  // day-scoped `<CoursePoint>`/`course_point` cannot place a trip-scoped
+  // anchor without either an arbitrary day guess or duplicating it across
+  // every per-day split file — see the scope notes atop `tcx_writer.dart`
+  // and `fit_writer.dart`.
+  group('FR45: anchor narrative-role (plot point) notes', () {
+    Trip tripWithAnchor({RevealPolicy? reveal, Coord? roleCoord, String? note = 'The old mill site.'}) =>
+        Trip(
+          id: 'trip-anchor',
+          title: 'Anchored Ride',
+          createdAt: '2026-08-17T00:00:00Z',
+          updatedAt: '2026-08-17T00:00:00Z',
+          days: const [],
+          anchors: [
+            Anchor(
+              id: 'a1',
+              coord: const [-105.28, 40.02],
+              title: 'The Old Mill',
+              roles: [
+                Role(id: 'r1', kind: RoleKind.narrative, coord: roleCoord, reveal: reveal, note: note),
+                Role(id: 'r2', kind: RoleKind.provision, reveal: RevealPolicy.alwaysVisible, note: 'Water.'),
+              ],
+            ),
+          ],
+        );
+
+    test('GPX: a narrative role exports as a <wpt> with its note as <desc>, '
+        'reveal not applied (the Author sees their own trip)', () {
+      final gpx = tripToGpx(tripWithAnchor(reveal: RevealPolicy.onArrival));
+      final doc = xml.XmlDocument.parse(gpx);
+      final wpts = doc.findAllElements('wpt').toList();
+      // Only the narrative role — the provision role on the same anchor is
+      // not a plot point and does not get its own waypoint here.
+      expect(wpts, hasLength(1));
+      final wpt = wpts.single;
+      expect(wpt.getAttribute('lat'), '40.02');
+      expect(wpt.getAttribute('lon'), '-105.28');
+      expect(wpt.findElements('name').single.innerText, 'The Old Mill');
+      expect(wpt.findElements('desc').single.innerText, 'The old mill site.');
+    });
+
+    test('GPX: a role offset (FR107) positions the waypoint at the role\'s own coord', () {
+      final gpx = tripToGpx(tripWithAnchor(roleCoord: const [-105.30, 40.05]));
+      final wpt = xml.XmlDocument.parse(gpx).findAllElements('wpt').single;
+      expect(wpt.getAttribute('lat'), '40.05');
+      expect(wpt.getAttribute('lon'), '-105.3');
+    });
+
+    test('GPX: a narrative role with no note emits no empty <desc>', () {
+      final gpx = tripToGpx(tripWithAnchor(note: null));
+      final wpt = xml.XmlDocument.parse(gpx).findAllElements('wpt').single;
+      expect(wpt.findElements('desc'), isEmpty);
+    });
+
+    test('GeoJSON: the anchor feature carries the narrative role\'s note', () {
+      final geojson = tripToGeoJson(tripWithAnchor());
+      final decoded = jsonDecode(geojson) as Map<String, dynamic>;
+      final features = (decoded['features'] as List).cast<Map<String, dynamic>>();
+      final anchor = features.firstWhere((f) => f['properties']['kind'] == 'anchor');
+      expect(anchor['properties']['note'], 'The old mill site.');
+    });
+
+    test('TCX: no CoursePoint is fabricated for a trip-scoped anchor with no routed day', () {
+      final tcx = tripToTcx(tripWithAnchor());
+      expect(xml.XmlDocument.parse(tcx).findAllElements('CoursePoint'), isEmpty);
+    });
+  });
 }

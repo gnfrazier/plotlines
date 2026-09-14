@@ -26,6 +26,21 @@ String tripToGpx(Trip trip, {ExportOptions options = const ExportOptions()}) {
       'http://www.topografix.com/GPX/1/1/gpx.xsd">');
   buffer.writeln('  <metadata><name>${_esc(trip.title)}</name></metadata>');
 
+  // FR45 — plot-point notes: PRD v2.0 §4.3 defines "plot point" as an
+  // Anchor's narrative role, not a Node, so preserving them natively means
+  // exporting `trip.anchors`, not only `Day.nodes`. Reveal is not applied
+  // (matching every writer in this file and `geojson_writer.dart`'s own
+  // anchor export): this is the Author exporting their own trip, where
+  // nothing is hidden from them.
+  if (options.includeWaypoints) {
+    for (final anchor in trip.anchors) {
+      for (final role in anchor.roles) {
+        if (role.kind != RoleKind.narrative) continue;
+        buffer.writeln(_anchorWaypoint(anchor, role));
+      }
+    }
+  }
+
   for (final day in trip.days) {
     if (day.segments.isEmpty) continue;
     buffer.writeln('  <trk>');
@@ -92,6 +107,22 @@ String _waypoint(Node node) {
       '<name>${_esc(name)}</name>'
       '${note != null && note.isNotEmpty ? '<desc>${_esc(note)}</desc>' : ''}'
       '<type>${_esc(node.kind.wireValue)}</type>'
+      '</wpt>';
+}
+
+/// FR45 / PRD §4.3 — one narrative role as a `<wpt>`: the role's own
+/// position ([Anchor.roleGeometry], which falls back to the anchor's own
+/// coord when the role carries no offset — FR107/O2), its title (or the
+/// anchor's, when the role left one unset), and its note in `<desc>`, the
+/// same element every other waypoint in this file carries its note in.
+String _anchorWaypoint(Anchor anchor, Role role) {
+  final at = anchor.roleGeometry(role);
+  final name = role.title ?? anchor.title ?? 'Plot point';
+  final note = role.note;
+  return '  <wpt lat="${at[1]}" lon="${at[0]}">'
+      '<name>${_esc(name)}</name>'
+      '${note != null && note.isNotEmpty ? '<desc>${_esc(note)}</desc>' : ''}'
+      '<type>plot_point</type>'
       '</wpt>';
 }
 
