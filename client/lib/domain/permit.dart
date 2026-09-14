@@ -61,6 +61,11 @@ class Permit {
 
   bool get needsAttention => status != 'confirmed';
 
+  /// #388's [clearAnchorId]/[clearSegmentId] detach a dangling reference when
+  /// the anchor or passage this permit was attached to is removed — the
+  /// permit itself survives (it is authored work, never destroyed by a
+  /// dangling pointer) and becomes trip-wide-only, same as an unset
+  /// attachment at creation.
   Permit copyWith({
     String? title,
     String? status,
@@ -71,6 +76,8 @@ class Permit {
     String? note,
     bool clearNote = false,
     List<MediaRef>? documents,
+    bool clearAnchorId = false,
+    bool clearSegmentId = false,
   }) =>
       Permit(
         id: id,
@@ -81,8 +88,8 @@ class Permit {
         link: clearLink ? null : (link ?? this.link),
         note: clearNote ? null : (note ?? this.note),
         documents: documents ?? this.documents,
-        segmentId: segmentId,
-        anchorId: anchorId,
+        segmentId: clearSegmentId ? null : segmentId,
+        anchorId: clearAnchorId ? null : anchorId,
       );
 
   factory Permit.fromJson(Map<String, dynamic> json) {
