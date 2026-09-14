@@ -565,4 +565,84 @@ void main() {
       expect(pointOnlyAnchor.roleArea(pointOnlyAnchor.roles.single), isNull);
     });
   });
+
+  // FR142b, K12 / N4a (issue #384) — a role's real, structural attachment to
+  // the trip's route, replacing the anchors view's old title-string guess.
+  group('day_id / segment_id attachment', () {
+    test('defaults to null and round-trips unattached', () {
+      final role = Role(id: 'r1', kind: RoleKind.narrative);
+      expect(role.dayId, isNull);
+      expect(role.segmentId, isNull);
+      final decoded = Role.fromJson(role.toJson());
+      expect(decoded.dayId, isNull);
+      expect(decoded.segmentId, isNull);
+    });
+
+    test('day_id round-trips through JSON without a segment', () {
+      final role = Role(id: 'r1', kind: RoleKind.narrative, dayId: 'day-1');
+      final decoded = Role.fromJson(role.toJson());
+      expect(decoded.dayId, 'day-1');
+      expect(decoded.segmentId, isNull);
+    });
+
+    test('day_id and segment_id round-trip together', () {
+      final role =
+          Role(id: 'r1', kind: RoleKind.narrative, dayId: 'day-1', segmentId: 'seg-1');
+      final decoded = Role.fromJson(role.toJson());
+      expect(decoded.dayId, 'day-1');
+      expect(decoded.segmentId, 'seg-1');
+    });
+
+    test('segment_id without day_id is rejected', () {
+      expect(
+        () => Role(id: 'r1', kind: RoleKind.narrative, segmentId: 'seg-1'),
+        throwsArgumentError,
+      );
+    });
+
+    test('roles on the same anchor attach independently (FR106)', () {
+      final anchor = Anchor(id: 'a1', coord: [0.0, 0.0], roles: [
+        Role(id: 'r1', kind: RoleKind.narrative, dayId: 'day-1'),
+        Role(id: 'r2', kind: RoleKind.provision, dayId: 'day-3'),
+      ]);
+      expect(anchor.roles[0].dayId, 'day-1');
+      expect(anchor.roles[1].dayId, 'day-3');
+    });
+
+    test('copyWith(dayId: ...) drops a stale segment_id', () {
+      final role =
+          Role(id: 'r1', kind: RoleKind.narrative, dayId: 'day-1', segmentId: 'seg-1');
+      final movedDay = role.copyWith(dayId: 'day-2');
+      expect(movedDay.dayId, 'day-2');
+      expect(movedDay.segmentId, isNull);
+
+      final movedWithNewSegment = role.copyWith(dayId: 'day-2', segmentId: 'seg-9');
+      expect(movedWithNewSegment.dayId, 'day-2');
+      expect(movedWithNewSegment.segmentId, 'seg-9');
+    });
+
+    test('copyWith(clearDayId: true) detaches both fields', () {
+      final role =
+          Role(id: 'r1', kind: RoleKind.narrative, dayId: 'day-1', segmentId: 'seg-1');
+      final detached = role.copyWith(clearDayId: true);
+      expect(detached.dayId, isNull);
+      expect(detached.segmentId, isNull);
+    });
+
+    test('copyWith(clearSegmentId: true) narrows back to the whole day', () {
+      final role =
+          Role(id: 'r1', kind: RoleKind.narrative, dayId: 'day-1', segmentId: 'seg-1');
+      final wholeDay = role.copyWith(clearSegmentId: true);
+      expect(wholeDay.dayId, 'day-1');
+      expect(wholeDay.segmentId, isNull);
+    });
+
+    test('copyWith with neither param leaves attachment unchanged', () {
+      final role =
+          Role(id: 'r1', kind: RoleKind.narrative, dayId: 'day-1', segmentId: 'seg-1');
+      final untouched = role.copyWith(title: 'New title');
+      expect(untouched.dayId, 'day-1');
+      expect(untouched.segmentId, 'seg-1');
+    });
+  });
 }
