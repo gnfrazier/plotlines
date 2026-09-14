@@ -19,6 +19,7 @@ import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
 import '../../domain/home_region.dart';
 import '../../state/providers.dart';
+import 'arc_stage_marker.dart';
 import 'map_attribution.dart';
 import 'map_label_scale.dart';
 import 'no_basemap_notice.dart';
@@ -31,7 +32,11 @@ typedef LatLonPoint = List<double>; // [lon, lat]
 /// point's index in a concatenated list, so a day-2 start was drawn as the
 /// narrative `plot` marker and the very first point as a concentric-ring
 /// target — role read from position instead of from role.
-typedef MapMarkerPoint = ({LatLonPoint coord, NodeMarkerType role});
+///
+/// [arcStage] (FR38 / O6, issue #392) is the point's own `Node.arcStage`
+/// wire string, when it carries a story beat — a corner [ArcStageBadge] on
+/// top of the role's own [NodeMarker], never a replacement for it.
+typedef MapMarkerPoint = ({LatLonPoint coord, NodeMarkerType role, String? arcStage});
 
 /// #322 — a thin connector from an authored node to its nearest point on the
 /// route, drawn when the node sits off the line so its relationship to the
@@ -240,11 +245,21 @@ class TapToPickMap extends ConsumerStatefulWidget {
     this.focusCoord,
     this.initialZoom = 13,
     this.outline,
+    this.polylineArcStage,
   });
 
   final List<MapMarkerPoint> points;
   final void Function(LatLonPoint)? onTap;
   final List<LatLonPoint> polyline;
+
+  /// FR38 / O6, issue #392 — [polyline]'s own arc stage, when the passage it
+  /// draws carries one (`Segment.arcStage`): the "stretches of route" half of
+  /// the AC's "arc roles attach to anchors and passages both", drawn as an
+  /// [ArcStageBadge] at the line's midpoint. `TapToPickMap` draws one
+  /// passage's solved line at a time (the caller's currently selected
+  /// segment), so one stage is enough — this is not a per-vertex styling API,
+  /// which the widget's flat [LatLonPoint] list has no hook for.
+  final String? polylineArcStage;
 
   /// #322 — off-route node → nearest-point-on-line connectors, drawn muted and
   /// dashed beneath the markers.
@@ -411,6 +426,22 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                       strokeWidth: 4,
                     ),
                   ]),
+                // FR38 / O6, issue #392 — the drawn passage's own arc stage,
+                // the "stretches of route" half of the AC that never reached
+                // the map before this: a badge at the line's midpoint, the
+                // same mark a carrying node gets below.
+                if (widget.polylineArcStage != null && widget.polyline.length >= 2)
+                  MarkerLayer(markers: [
+                    Marker(
+                      point: () {
+                        final mid = widget.polyline[(widget.polyline.length - 1) ~/ 2];
+                        return ll.LatLng(mid[1], mid[0]);
+                      }(),
+                      width: 22,
+                      height: 22,
+                      child: ArcStageBadge(widget.polylineArcStage!, size: 20),
+                    ),
+                  ]),
                 // #344 — every other alternate on this passage, so the day's
                 // divergences are visible while one of them is being worked on.
                 if (widget.alternateLines.isNotEmpty)
@@ -455,16 +486,26 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                     if (_sameCoord(p.coord, widget.focusCoord))
                       Marker(
                         point: ll.LatLng(p.coord[1], p.coord[0]),
-                        width: 44,
-                        height: 44,
-                        child: _HighlightedMarker(role: p.role, halo: c.primary),
+                        width: p.arcStage == null ? 44 : 50,
+                        height: p.arcStage == null ? 44 : 50,
+                        child: p.arcStage == null
+                            ? _HighlightedMarker(role: p.role, halo: c.primary)
+                            : _WithArcBadge(
+                                arcStage: p.arcStage!,
+                                child: _HighlightedMarker(role: p.role, halo: c.primary),
+                              ),
                       )
                     else
                       Marker(
                         point: ll.LatLng(p.coord[1], p.coord[0]),
-                        width: 28,
-                        height: 28,
-                        child: NodeMarker(p.role),
+                        width: p.arcStage == null ? 28 : 34,
+                        height: p.arcStage == null ? 28 : 34,
+                        child: p.arcStage == null
+                            ? NodeMarker(p.role)
+                            : _WithArcBadge(
+                                arcStage: p.arcStage!,
+                                child: NodeMarker(p.role),
+                              ),
                       ),
                   // #324 — fork and rejoin marks sit above the node markers:
                   // while a divergence is being drawn they are what the
@@ -499,6 +540,32 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
           ],
         );
       },
+    );
+  }
+}
+
+/// FR38 / O6, issue #392 — [child] (a [NodeMarker] or [_HighlightedMarker])
+/// centred in the box, with an [ArcStageBadge] tucked in the bottom-right
+/// corner. A corner tag rather than a halo: arc is an attribute of the point,
+/// and the point's own role marker has to keep reading as itself.
+class _WithArcBadge extends StatelessWidget {
+  const _WithArcBadge({required this.arcStage, required this.child});
+
+  final String arcStage;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(child: Center(child: child)),
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: ArcStageBadge(arcStage, size: 14),
+        ),
+      ],
     );
   }
 }
