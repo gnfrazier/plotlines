@@ -15,6 +15,7 @@ import 'planner_ui_state.dart'
         composeItineraryProvider,
         dayPlanningModeProvider,
         hasTargetDistanceControl,
+        nodeKindIsRoutingConstraint,
         resetSegmentPlanningControls,
         selectedSegmentProvider,
         targetDistanceForViaCount,
@@ -1056,8 +1057,21 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// act, never a side effect of resizing (that file's own doc comment);
   /// this is what actually carries it out, across every day's and
   /// segment's nodes.
+  ///
+  /// #389 — removing a routing-constraint node (`via` / `start` / `finish` /
+  /// either portage end, `nodeKindIsRoutingConstraint`) invalidates a
+  /// segment's solved geometry exactly as placing, moving, or retyping one
+  /// does (`node_editor_sheet.dart`'s `_save`, #322/Q3/FR140): mark the
+  /// segment stale, never silently re-solve. A plain annotation node
+  /// (`poi`, `waypoint`, ...) carries no such consequence.
   void removeNodesById(Set<String> ids) {
     if (ids.isEmpty) return;
+    final staleTargets = <(String, String)>{
+      for (final day in state.days)
+        for (final s in day.segments)
+          if (s.nodes.any((n) => ids.contains(n.id) && nodeKindIsRoutingConstraint(n.kind)))
+            (day.id, s.id),
+    };
     state = state.copyWith(
       updatedAt: _nowIso(),
       days: [
@@ -1071,6 +1085,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           ),
       ],
     );
+    for (final (dayId, segmentId) in staleTargets) {
+      markSegmentStale(dayId, segmentId);
+    }
   }
 
   void replaceNodeInSegment(String dayId, String segmentId, Node node) {
