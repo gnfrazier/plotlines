@@ -40,6 +40,23 @@ class Hazard {
   /// than a node or a point. Mutually exclusive with [nodeId].
   final String? anchorId;
 
+  /// #388 — detaches a dangling [anchorId]/[nodeId] when the anchor or node
+  /// this hazard was pinned to is removed. The hazard itself survives —
+  /// FR115 never lets one be hidden or dropped — and simply becomes
+  /// unattached, the same "survives unattached" shape [Role]'s
+  /// `anchorId`/`segmentId` already takes (issue #384).
+  Hazard copyWith({bool clearAnchorId = false, bool clearNodeId = false}) => Hazard(
+        id: id,
+        severity: severity,
+        title: title,
+        safetyNote: safetyNote,
+        requiredGear: requiredGear,
+        coord: coord,
+        distanceAlongM: distanceAlongM,
+        nodeId: clearNodeId ? null : nodeId,
+        anchorId: clearAnchorId ? null : anchorId,
+      );
+
   factory Hazard.fromJson(Map<String, dynamic> json) {
     final f = JsonFields(json, 'hazard');
     final rawCoord = f.takeCoord('coord');

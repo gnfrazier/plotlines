@@ -175,11 +175,87 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ];
   }
 
-  void removeDay(String dayId) => state = state.copyWith(
-        days: state.days.where((d) => d.id != dayId).toList(),
-        anchors: _detachRolesReferencing(dayIds: {dayId}),
-        updatedAt: _nowIso(),
+  /// #388 — a [Hazard]'s `anchorId`/`nodeId` is an attachment pointer, the
+  /// same shape [Role]'s `dayId`/`segmentId` already is (issue #384).
+  /// Removing the anchor or node it names detaches the pointer rather than
+  /// leaving it dangling or destroying the hazard — FR115 never lets a
+  /// hazard be hidden or dropped, only ever unpinned. Scans every day's own
+  /// hazards and every segment's, since a hazard can live at either level.
+  List<Day> _detachHazardsReferencing({
+    Set<String> anchorIds = const {},
+    Set<String> nodeIds = const {},
+    List<Day>? from,
+  }) {
+    final days = from ?? state.days;
+    if (anchorIds.isEmpty && nodeIds.isEmpty) return days;
+    Hazard detach(Hazard h) {
+      if (h.anchorId != null && anchorIds.contains(h.anchorId)) {
+        return h.copyWith(clearAnchorId: true);
+      }
+      if (h.nodeId != null && nodeIds.contains(h.nodeId)) {
+        return h.copyWith(clearNodeId: true);
+      }
+      return h;
+    }
+
+    return [
+      for (final d in days)
+        d.copyWith(
+          hazards: [for (final h in d.hazards) detach(h)],
+          segments: [
+            for (final s in d.segments)
+              s.copyWith(hazards: [for (final h in s.hazards) detach(h)]),
+          ],
+        ),
+    ];
+  }
+
+  /// #388 — the same detachment as [_detachHazardsReferencing], for a
+  /// [Permit]'s `anchorId`/`segmentId`. Trip-scoped (`Trip.permits`), so
+  /// this is a flat scan rather than a day/segment walk.
+  List<Permit> _detachPermitsReferencing({
+    Set<String> anchorIds = const {},
+    Set<String> segmentIds = const {},
+    List<Permit>? from,
+  }) {
+    final permits = from ?? state.permits;
+    if (anchorIds.isEmpty && segmentIds.isEmpty) return permits;
+    return [
+      for (final p in permits)
+        if (p.anchorId != null && anchorIds.contains(p.anchorId))
+          p.copyWith(clearAnchorId: true)
+        else if (p.segmentId != null && segmentIds.contains(p.segmentId))
+          p.copyWith(clearSegmentId: true)
+        else
+          p,
+    ];
+  }
+
+  /// #388 — the node/segment ids a day carries, so a caller about to remove
+  /// it can detach any [Hazard]/[Permit] elsewhere in the trip that points
+  /// at content the removal is about to take with it.
+  ({Set<String> nodeIds, Set<String> segmentIds}) _contentIdsOf(Day day) => (
+        nodeIds: {
+          for (final n in day.nodes) n.id,
+          for (final s in day.segments)
+            for (final n in s.nodes) n.id,
+        },
+        segmentIds: {for (final s in day.segments) s.id},
       );
+
+  void removeDay(String dayId) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final content = _contentIdsOf(day);
+    state = state.copyWith(
+      days: _detachHazardsReferencing(
+        nodeIds: content.nodeIds,
+        from: state.days.where((d) => d.id != dayId).toList(),
+      ),
+      anchors: _detachRolesReferencing(dayIds: {dayId}),
+      permits: _detachPermitsReferencing(segmentIds: content.segmentIds),
+      updatedAt: _nowIso(),
+    );
+  }
 
   /// FR139/Q1 — "days may be inserted mid-trip, not only appended, with
   /// subsequent days renumbering and their content moving with them."
@@ -213,14 +289,23 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// no-prompt empty-day carve-out.
   void _removeDaysAndRenumber(Set<String> dayIds) {
     if (dayIds.isEmpty) return;
+    final removedNodeIds = <String>{};
+    final removedSegmentIds = <String>{};
+    for (final d in state.days) {
+      if (!dayIds.contains(d.id)) continue;
+      final content = _contentIdsOf(d);
+      removedNodeIds.addAll(content.nodeIds);
+      removedSegmentIds.addAll(content.segmentIds);
+    }
     final remaining = state.days.where((d) => !dayIds.contains(d.id)).toList()
       ..sort((a, b) => a.index.compareTo(b.index));
     final renumbered = [
       for (var i = 0; i < remaining.length; i++) remaining[i].copyWith(index: i + 1),
     ];
     state = state.copyWith(
-      days: renumbered,
+      days: _detachHazardsReferencing(nodeIds: removedNodeIds, from: renumbered),
       anchors: _detachRolesReferencing(dayIds: dayIds),
+      permits: _detachPermitsReferencing(segmentIds: removedSegmentIds),
       updatedAt: _nowIso(),
     );
   }
@@ -305,6 +390,11 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     // gone, so those roles detach fully, same as [removeDay].
     final redirect = <String, String>{};
     final removedOutright = <String>{};
+    // #388 — content ids of any day removed outright, so a Hazard/Permit
+    // elsewhere in the trip that pointed at them can be detached rather
+    // than left dangling, same as [removeDay]/[_removeDaysAndRenumber].
+    final removedOutrightNodeIds = <String>{};
+    final removedOutrightSegmentIds = <String>{};
     for (final id in orderedIds) {
       final pos = days.indexWhere((d) => d.id == id);
       if (pos == -1) continue;
@@ -312,6 +402,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       final targetPos = pos > 0 ? pos - 1 : (days.length > 1 ? 1 : -1);
       if (targetPos == -1) {
         removedOutright.add(day.id);
+        final content = _contentIdsOf(day);
+        removedOutrightNodeIds.addAll(content.nodeIds);
+        removedOutrightSegmentIds.addAll(content.segmentIds);
         days.removeAt(pos);
         continue;
       }
@@ -347,7 +440,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         ]),
     ];
     final renumbered = [for (var i = 0; i < days.length; i++) days[i].copyWith(index: i + 1)];
-    state = state.copyWith(days: renumbered, anchors: anchors, updatedAt: _nowIso());
+    state = state.copyWith(
+      days: _detachHazardsReferencing(nodeIds: removedOutrightNodeIds, from: renumbered),
+      anchors: anchors,
+      permits: _detachPermitsReferencing(segmentIds: removedOutrightSegmentIds),
+      updatedAt: _nowIso(),
+    );
   }
 
   /// C2 — mark a day Start / End / Rest. A rest day carries no segments.
@@ -479,7 +577,13 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     // FR139/Q2 (issue #384) — a role scoped to this passage (`segment_id`)
     // detaches with it, same as the day-removal case: "anchors survive
     // unattached," never left pointing at a passage that's gone.
-    state = state.copyWith(anchors: _detachRolesReferencing(segmentIds: {segmentId}));
+    // #388 — a Permit's `segmentId` gets the same treatment; the segment's
+    // own hazards go with it (they're embedded, not dangling), but the
+    // segment's nodes move to the day (below), so no hazard.nodeId dangles.
+    state = state.copyWith(
+      anchors: _detachRolesReferencing(segmentIds: {segmentId}),
+      permits: _detachPermitsReferencing(segmentIds: {segmentId}),
+    );
     _replaceDay(day.copyWith(
       segments: day.segments.where((s) => s.id != segmentId).toList(),
       nodes: [...day.nodes, ...removed.nodes],
@@ -1025,8 +1129,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// FR139's carve-out applies here without a prompt: an anchor that holds
   /// no authored content and is not yet attached to anything is ordinary
   /// working-state tidying, not the destructive case that rule guards.
+  ///
+  /// #388 — a [Hazard] or [Permit] pinned to this anchor (`anchorId`)
+  /// detaches rather than dangling: neither is destroyed by the anchor's
+  /// removal (a hazard is never dropped, FR115; a permit is authored work),
+  /// they simply lose that attachment, same shape as a [Role]'s `dayId`.
   void removeAnchor(String anchorId) => state = state.copyWith(
         anchors: state.anchors.where((a) => a.id != anchorId).toList(),
+        days: _detachHazardsReferencing(anchorIds: {anchorId}),
+        permits: _detachPermitsReferencing(anchorIds: {anchorId}),
         updatedAt: _nowIso(),
       );
 
@@ -1064,6 +1175,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// does (`node_editor_sheet.dart`'s `_save`, #322/Q3/FR140): mark the
   /// segment stale, never silently re-solve. A plain annotation node
   /// (`poi`, `waypoint`, ...) carries no such consequence.
+  ///
+  /// #388 — a [Hazard] pinned to one of [ids] (`nodeId`) detaches rather
+  /// than dangling, run over the post-removal tree so the check reflects
+  /// what's actually still there.
   void removeNodesById(Set<String> ids) {
     if (ids.isEmpty) return;
     final staleTargets = <(String, String)>{
@@ -1072,18 +1187,19 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           if (s.nodes.any((n) => ids.contains(n.id) && nodeKindIsRoutingConstraint(n.kind)))
             (day.id, s.id),
     };
+    final withNodesRemoved = [
+      for (final day in state.days)
+        day.copyWith(
+          nodes: [for (final n in day.nodes) if (!ids.contains(n.id)) n],
+          segments: [
+            for (final s in day.segments)
+              s.copyWith(nodes: [for (final n in s.nodes) if (!ids.contains(n.id)) n]),
+          ],
+        ),
+    ];
     state = state.copyWith(
       updatedAt: _nowIso(),
-      days: [
-        for (final day in state.days)
-          day.copyWith(
-            nodes: [for (final n in day.nodes) if (!ids.contains(n.id)) n],
-            segments: [
-              for (final s in day.segments)
-                s.copyWith(nodes: [for (final n in s.nodes) if (!ids.contains(n.id)) n]),
-            ],
-          ),
-      ],
+      days: _detachHazardsReferencing(nodeIds: ids, from: withNodesRemoved),
     );
     for (final (dayId, segmentId) in staleTargets) {
       markSegmentStale(dayId, segmentId);
