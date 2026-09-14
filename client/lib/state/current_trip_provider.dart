@@ -147,8 +147,36 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     state = state.copyWith(days: days, declaredModes: declaredModes, updatedAt: _nowIso());
   }
 
+  /// FR139/Q2 — a [Role.dayId]/[Role.segmentId] link (issue #384) must never
+  /// dangle: removing the day or passage it names must not leave the role
+  /// pointing at something gone, so every day/segment removal path in this
+  /// notifier runs its outcome through here first. The FR139 target state is
+  /// "anchors survive unattached," not "attached to whatever's left," so
+  /// this always fully detaches (clears both fields) rather than trying to
+  /// fall back from a removed segment to its still-live day.
+  List<Anchor> _detachRolesReferencing({
+    Set<String> dayIds = const {},
+    Set<String> segmentIds = const {},
+    List<Anchor>? from,
+  }) {
+    final anchors = from ?? state.anchors;
+    if (dayIds.isEmpty && segmentIds.isEmpty) return anchors;
+    return [
+      for (final a in anchors)
+        a.copyWith(roles: [
+          for (final r in a.roles)
+            if ((r.dayId != null && dayIds.contains(r.dayId)) ||
+                (r.segmentId != null && segmentIds.contains(r.segmentId)))
+              r.copyWith(clearDayId: true)
+            else
+              r,
+        ]),
+    ];
+  }
+
   void removeDay(String dayId) => state = state.copyWith(
         days: state.days.where((d) => d.id != dayId).toList(),
+        anchors: _detachRolesReferencing(dayIds: {dayId}),
         updatedAt: _nowIso(),
       );
 
@@ -189,7 +217,11 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final renumbered = [
       for (var i = 0; i < remaining.length; i++) remaining[i].copyWith(index: i + 1),
     ];
-    state = state.copyWith(days: renumbered, updatedAt: _nowIso());
+    state = state.copyWith(
+      days: renumbered,
+      anchors: _detachRolesReferencing(dayIds: dayIds),
+      updatedAt: _nowIso(),
+    );
   }
 
   /// FR139/Q1 — drops every trailing day beyond [targetCount] that holds no
@@ -261,12 +293,24 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       for (final d in days.reversed)
         if (dayIds.contains(d.id)) d.id,
     ];
+    // FR139/Q2 (issue #384) — a merged-away day's content moves onto its
+    // target rather than disappearing, so a role attached to it (`day_id`)
+    // moves too instead of detaching: `redirect` tracks each source day's
+    // ultimate surviving id, chased through a chain when several adjacent
+    // days merge in the same call (day 3 into day 2, then day 2 into day 1
+    // — day 3's content lands on day 1, so its role should too).
+    // `removedOutright` is the one case with no target at all (merging the
+    // trip down to a single remaining day) — that content is genuinely
+    // gone, so those roles detach fully, same as [removeDay].
+    final redirect = <String, String>{};
+    final removedOutright = <String>{};
     for (final id in orderedIds) {
       final pos = days.indexWhere((d) => d.id == id);
       if (pos == -1) continue;
       final day = days[pos];
       final targetPos = pos > 0 ? pos - 1 : (days.length > 1 ? 1 : -1);
       if (targetPos == -1) {
+        removedOutright.add(day.id);
         days.removeAt(pos);
         continue;
       }
@@ -277,10 +321,32 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         hazards: [...target.hazards, ...day.hazards],
         transitions: [...target.transitions, ...day.transitions],
       );
+      redirect[day.id] = target.id;
       days.removeAt(pos);
     }
+    String resolveDayId(String id) {
+      var current = id;
+      while (redirect.containsKey(current)) {
+        current = redirect[current]!;
+      }
+      return current;
+    }
+    final detached = _detachRolesReferencing(dayIds: removedOutright);
+    final anchors = [
+      for (final a in detached)
+        a.copyWith(roles: [
+          for (final r in a.roles)
+            if (r.dayId != null && redirect.containsKey(r.dayId))
+              // The segment itself didn't move away — only its parent day
+              // did — so [segmentId] is re-passed explicitly (`copyWith`'s
+              // default when only `dayId` changes is to drop it as stale).
+              r.copyWith(dayId: resolveDayId(r.dayId!), segmentId: r.segmentId)
+            else
+              r,
+        ]),
+    ];
     final renumbered = [for (var i = 0; i < days.length; i++) days[i].copyWith(index: i + 1)];
-    state = state.copyWith(days: renumbered, updatedAt: _nowIso());
+    state = state.copyWith(days: renumbered, anchors: anchors, updatedAt: _nowIso());
   }
 
   /// C2 — mark a day Start / End / Rest. A rest day carries no segments.
@@ -409,6 +475,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   void removeSegment(String dayId, String segmentId) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final removed = day.segments.firstWhere((s) => s.id == segmentId);
+    // FR139/Q2 (issue #384) — a role scoped to this passage (`segment_id`)
+    // detaches with it, same as the day-removal case: "anchors survive
+    // unattached," never left pointing at a passage that's gone.
+    state = state.copyWith(anchors: _detachRolesReferencing(segmentIds: {segmentId}));
     _replaceDay(day.copyWith(
       segments: day.segments.where((s) => s.id != segmentId).toList(),
       nodes: [...day.nodes, ...removed.nodes],
@@ -886,11 +956,17 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
 
   /// FR37 / E1 — a role's own content: [Role.title]/[Role.note]/[Role.media]
   /// may be left unset at promotion and decided later (O1's AC), and this is
-  /// that "later" — the only mutator that edits an existing anchor's role
-  /// after promotion (every other anchor/role field is currently set once,
-  /// at [promoteAnchor] time). [RevealResolver] (`data/reveal_resolver.dart`)
-  /// is what gates this content by [Role.reveal] on every read surface —
-  /// nothing here decides visibility.
+  /// that "later" — the mutator that edits an existing anchor's role after
+  /// promotion. [RevealResolver] (`data/reveal_resolver.dart`) is what gates
+  /// this content by [Role.reveal] on every read surface — nothing here
+  /// decides visibility.
+  ///
+  /// [dayId]/[segmentId] (FR142b, K12 / N4a — issue #384) are this role's
+  /// real attachment into the trip's route, set here by N4a's Anchors-view
+  /// attach action — this is the one mutator [AnchorsView] uses in place of
+  /// the title-string "attached" guess it used to compute. `clearDayId`
+  /// detaches (and always clears [segmentId] with it, since a segment with
+  /// no day is the invalid state [Role]'s constructor rejects).
   void updateRole(
     String anchorId,
     String roleId, {
@@ -910,6 +986,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     // provision role stays, its structured detail does not).
     ProvisionDetail? provision,
     bool clearProvision = false,
+    String? dayId,
+    bool clearDayId = false,
+    String? segmentId,
+    bool clearSegmentId = false,
   }) {
     final anchors = [
       for (final a in state.anchors)
@@ -927,6 +1007,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
                   clearActivity: clearActivity,
                   provision: provision,
                   clearProvision: clearProvision,
+                  dayId: dayId,
+                  clearDayId: clearDayId,
+                  segmentId: segmentId,
+                  clearSegmentId: clearSegmentId,
                 )
               else
                 r,

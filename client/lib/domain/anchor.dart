@@ -398,6 +398,16 @@ class ProvisionDetail {
 ///
 /// [provision] (FR25 / C9) is a [ProvisionDetail] on a [RoleKind.provision]
 /// role and `null` on any other — the same guard shape as [activity].
+///
+/// [dayId]/[segmentId] (FR142b, K12 / N4a — issue #384) are this role's real,
+/// structural attachment to the trip's route: `null` means unattached, which
+/// is ordinary working state, not an error (FR139/Q2) — N4a's Anchors view
+/// finds and re-attaches these, it never flags them. Attachment lives on the
+/// role rather than the anchor because roles are independent (FR106): one
+/// anchor's provision role can sit on Day 3's route while its narrative role
+/// is read at Day 1's rest stop. [segmentId] is never set without [dayId] —
+/// the constructor rejects that combination — since a segment belongs to a
+/// day.
 class Role {
   Role({
     required this.kind,
@@ -412,6 +422,8 @@ class Role {
     this.arc,
     this.activity,
     this.provision,
+    this.dayId,
+    this.segmentId,
   }) {
     if (hazard && reveal == RevealPolicy.onArrival) {
       throw ArgumentError(
@@ -425,6 +437,10 @@ class Role {
     if (provision != null && kind != RoleKind.provision) {
       throw ArgumentError(
           'role $id: FR25 puts provision detail on a provision role only — got ${kind.wireValue}');
+    }
+    if (segmentId != null && dayId == null) {
+      throw ArgumentError(
+          'role $id: segmentId requires dayId — a segment belongs to a day (issue #384)');
     }
   }
 
@@ -440,6 +456,8 @@ class Role {
   final ArcStage? arc;
   final StationActivity? activity;
   final ProvisionDetail? provision;
+  final String? dayId;
+  final String? segmentId;
 
   Role copyWith({
     RoleKind? kind,
@@ -461,6 +479,10 @@ class Role {
     bool clearActivity = false,
     ProvisionDetail? provision,
     bool clearProvision = false,
+    String? dayId,
+    bool clearDayId = false,
+    String? segmentId,
+    bool clearSegmentId = false,
   }) =>
       Role(
         id: id,
@@ -475,6 +497,15 @@ class Role {
         arc: clearArc ? null : (arc ?? this.arc),
         activity: clearActivity ? null : (activity ?? this.activity),
         provision: clearProvision ? null : (provision ?? this.provision),
+        dayId: clearDayId ? null : (dayId ?? this.dayId),
+        // Clearing or changing the day clears the segment too, unless the
+        // caller names the new one explicitly — a segment scoped to a day
+        // this role no longer sits on is the invalid state the constructor
+        // guard rejects. Mirrors `Day.copyWith`'s location/locationLabel
+        // coupling.
+        segmentId: (clearDayId || clearSegmentId)
+            ? null
+            : (segmentId ?? (dayId != null ? null : this.segmentId)),
       );
 
   factory Role.fromJson(Map<String, dynamic> json) {
@@ -500,6 +531,8 @@ class Role {
       arc: rawArc == null ? null : ArcStage.fromWire(rawArc),
       activity: activity,
       provision: provision,
+      dayId: f.takeString('day_id'),
+      segmentId: f.takeString('segment_id'),
     );
     f.done();
     return r;
@@ -521,6 +554,8 @@ class Role {
         'arc': arc?.wireValue,
         'activity': activity?.toJson(),
         'provision': provision?.toJson(),
+        'day_id': dayId,
+        'segment_id': segmentId,
       });
 }
 

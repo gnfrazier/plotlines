@@ -56,7 +56,14 @@ import 'weight_profile.dart';
 // OSM snapshot the payload's graph/candidates came from, distinct from
 // `attribution`'s display credit text. Additive: an absent pin means the
 // payload predates this bump, not that the data has no source.
-const String tripSchemaVersion = '1.13.0';
+// Bumped to 1.14.0 by issue #384: `role` gains optional `day_id`/`segment_id`
+// — a role's real, structural attachment to the trip's route (FR142b, K12 /
+// N4a), replacing the anchors view's title-string "attached" guess with a
+// link that actually survives a rename. `segment_id` is never set without
+// `day_id`. Additive: an absent `day_id` still parses as unattached, which
+// is how every role written before this bump already reads (ordinary
+// working state, not an error, per FR139/Q2).
+const String tripSchemaVersion = '1.14.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {
