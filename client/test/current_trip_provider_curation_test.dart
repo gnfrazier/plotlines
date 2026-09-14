@@ -96,6 +96,62 @@ void main() {
     expect(trip.updatedAt, before);
   });
 
+  // #389 — orphan cleanup (`removeNodesById`) dropping a routing-constraint
+  // node used to leave the segment's solved geometry looking current when it
+  // no longer matched what the remaining authored inputs would produce.
+  // `node_editor_sheet.dart`'s save path already marks stale for the same
+  // kinds on add/move/retype (#322/Q3/FR140); this is the deletion path.
+  Trip tripWithOneSolvedSegment(ProviderContainer container, {required List<Node> nodes}) {
+    final segment = Segment(
+      id: 'seg-1',
+      mode: 'cycling',
+      shape: 'point_to_point',
+      start: const [-105.27, 40.02],
+      end: const [-105.20, 40.05],
+      nodes: nodes,
+      solve: SolveProvenance(solvedAt: '2026-01-01T00:00:00Z'),
+    );
+    final day = Day(id: 'day-1', index: 1, segments: [segment]);
+    container.read(currentTripProvider.notifier).open(
+          Trip(
+            id: 't1',
+            title: 'Test trip',
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+            days: [day],
+          ),
+        );
+    return container.read(currentTripProvider);
+  }
+
+  test('removeNodesById marks the segment stale when it drops a routing-constraint node', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    tripWithOneSolvedSegment(container, nodes: [
+      Node(id: 'via-1', kind: NodeKind.via, coord: const [-105.24, 40.03]),
+    ]);
+
+    container.read(currentTripProvider.notifier).removeNodesById({'via-1'});
+
+    final segment = container.read(currentTripProvider).days.single.segments.single;
+    expect(segment.nodes, isEmpty);
+    expect(segment.solve?.stale, isTrue);
+  });
+
+  test('removeNodesById leaves a solved segment fresh when it only drops an annotation node', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    tripWithOneSolvedSegment(container, nodes: [
+      Node(id: 'poi-1', kind: NodeKind.poi, coord: const [-105.24, 40.03]),
+    ]);
+
+    container.read(currentTripProvider.notifier).removeNodesById({'poi-1'});
+
+    final segment = container.read(currentTripProvider).days.single.segments.single;
+    expect(segment.nodes, isEmpty);
+    expect(segment.solve?.stale, isNot(isTrue));
+  });
+
   // FR106, FR110 (Story O1) — promoteAnchor/removeAnchor, the trip-scoped
   // Anchor/role model promoteCandidate's own doc comment says this call
   // site hasn't been migrated onto yet.
