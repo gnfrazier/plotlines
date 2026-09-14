@@ -24,6 +24,7 @@ import '../../../domain/promote.dart' show roleKindFromAffinity, DuplicatePromot
 import '../../../domain/trip.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/proposals_provider.dart';
+import '../../../state/settings_provider.dart' show displayFormatProvider;
 import '../../../state/trip_bbox_provider.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/proposal_card.dart';
@@ -319,6 +320,7 @@ class _Body extends ConsumerWidget {
           proposal: p,
           selected: state.selectedId == p.id,
           deferred: state.deferredIds.contains(p.id),
+          displayFormat: ref.watch(displayFormatProvider),
           onSelect: () => notifier.select(p.id),
           onDefer: () => state.deferredIds.contains(p.id)
               ? notifier.undefer(p.id)

@@ -30,6 +30,7 @@ import '../../domain/home_region.dart';
 import '../../state/current_roster_provider.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
+import '../../state/settings_provider.dart' show displayFormatProvider;
 import '../../state/trip_authoring_meta_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import '../../state/trip_candidates_provider.dart';
@@ -469,9 +470,10 @@ class _TripCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
+    final displayFormat = ref.watch(displayFormatProvider);
     return TripCard(
       title: trip.title,
-      stats: _stats(),
+      stats: _stats(displayFormat),
       modeTag: trip.modes.isEmpty ? null : trip.modes.join('+').toUpperCase(),
       badge: PlotBadge(trip.syncBadge.label, tone: PlotBadgeTone.spruce, solid: true),
       trailing: Material(
@@ -500,13 +502,15 @@ class _TripCard extends ConsumerWidget {
   /// group size, from the denormalized summary (no payload decode). Grouped
   /// into at most three short mono chips so the card stays legible — the
   /// brand `TripCard` is built for a couple of stats, not a table.
-  List<String> _stats() {
+  List<String> _stats(DisplayFormat displayFormat) {
     final s = trip.summary;
     final out = <String>['Updated ${_relativeDay(trip.updatedAt)}'];
 
     final route = <String>[
-      if (s.distanceM != null) '${(s.distanceM! / 1000).toStringAsFixed(0)} KM',
-      if (s.ascentM != null) '↑ ${s.ascentM!.toStringAsFixed(0)} M',
+      if (s.distanceM != null)
+        displayFormat.formatDistance(s.distanceM!, fractionDigits: 0).toUpperCase(),
+      if (s.ascentM != null)
+        '↑ ${displayFormat.formatElevation(s.ascentM!).toUpperCase()}',
     ];
     if (route.isNotEmpty) out.add(route.join('  '));
 
