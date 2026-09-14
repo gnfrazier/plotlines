@@ -50,7 +50,7 @@ class ExportTab extends ConsumerWidget {
             padding: const EdgeInsets.all(PlotSpacing.s5),
             children: [
               _ItinerarySection(trip: trip),
-              for (final day in trip.days) _DayCueSection(day: day),
+              for (final day in trip.days) DayCueSection(day: day),
               if (trip.days.every((d) => d.segments.isEmpty))
                 Padding(
                   padding: const EdgeInsets.all(PlotSpacing.s5),
@@ -511,15 +511,19 @@ _CueEntry _cueEntryForNode(Node node, {required double distanceAlongM}) {
   );
 }
 
-class _DayCueSection extends ConsumerStatefulWidget {
-  const _DayCueSection({required this.day});
+/// Public (H13, issue #87) — `character_read_screen.dart` reuses this
+/// unchanged rather than re-deriving cues a second time; the Character
+/// reading surface needs the exact same per-day sheet the Export tab already
+/// shows the Author, not a parallel implementation that could drift from it.
+class DayCueSection extends ConsumerStatefulWidget {
+  const DayCueSection({super.key, required this.day});
   final Day day;
 
   @override
-  ConsumerState<_DayCueSection> createState() => _DayCueSectionState();
+  ConsumerState<DayCueSection> createState() => DayCueSectionState();
 }
 
-class _DayCueSectionState extends ConsumerState<_DayCueSection> {
+class DayCueSectionState extends ConsumerState<DayCueSection> {
   late Future<List<_CueEntry>> _future = _load();
 
   Future<List<_CueEntry>> _load() async {
@@ -547,7 +551,7 @@ class _DayCueSectionState extends ConsumerState<_DayCueSection> {
   }
 
   @override
-  void didUpdateWidget(covariant _DayCueSection oldWidget) {
+  void didUpdateWidget(covariant DayCueSection oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.day != widget.day) {
       setState(() => _future = _load());
