@@ -25,8 +25,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:plotlines_ui/plotlines_ui.dart';
 import 'package:printing/printing.dart';
 
+import '../../data/character_journey.dart';
 import '../../data/routing_client.dart';
 import '../../domain/attribution_line.dart';
+import '../../domain/domain.dart' show ArcStage;
 import '../../domain/stale_work.dart';
 
 /// The vendored brand faces (`plotlines_ui`'s own asset registration —
@@ -98,10 +100,22 @@ sealed class PrintDocument {
 /// F2 (FR48) — the master or an individual itinerary, in the same
 /// narrative-register paragraphs the on-screen preview and the Markdown
 /// export both read from (`domain/itinerary.dart`'s `Itinerary`).
+///
+/// [plotPoints] (H13, FR132/FR116) is the reading surface's reveal-gated
+/// "plot points" list — [CharacterJourney] builds it via
+/// [buildPlotPoints]/[PlotPointEntry], never a raw [Role], so a withheld
+/// plot point prints as a placeholder rather than as whatever it holds.
+/// Empty by default: the itinerary's other two callers (F2's Author preview
+/// and export) carry no plot points at all.
 class ItineraryPrintDocument extends PrintDocument {
-  const ItineraryPrintDocument({required super.title, required this.sections});
+  const ItineraryPrintDocument({
+    required super.title,
+    required this.sections,
+    this.plotPoints = const [],
+  });
 
   final List<ProseSection> sections;
+  final List<PlotPointEntry> plotPoints;
 }
 
 /// F1 (FR46) — one day's cue sheet, in the same reveal-safe `entries` the
@@ -267,7 +281,7 @@ List<pw.Widget> _content(
   required pw.Font fallback,
 }) =>
     switch (document) {
-      ItineraryPrintDocument(:final sections) => [
+      ItineraryPrintDocument(:final sections, :final plotPoints) => [
           for (final section in sections) ...[
             pw.Text(section.heading, style: const pw.TextStyle(fontSize: 14)),
             pw.SizedBox(height: 6),
@@ -278,11 +292,60 @@ List<pw.Widget> _content(
               ),
             pw.SizedBox(height: 10),
           ],
+          if (plotPoints.isNotEmpty) ..._plotPointsSection(plotPoints),
         ],
       CueSheetPrintDocument(:final lines) => [
           for (var i = 0; i < lines.length; i++)
             _cueLineRow(lines[i], mono: mono, fallback: fallback, divider: i < lines.length - 1),
         ],
+    };
+
+/// H13 (FR132, FR116) — the plot-points section: arc stage always shown (it
+/// is never withheld), title/note shown only when [PlotPointEntry.visible] —
+/// a held one prints as "Held for arrival," never its title or note, which
+/// is what "the paper copy cannot spoil the trip" means on paper.
+List<pw.Widget> _plotPointsSection(List<PlotPointEntry> plotPoints) => [
+      pw.Text('Plot points', style: const pw.TextStyle(fontSize: 14)),
+      pw.SizedBox(height: 6),
+      for (final point in plotPoints)
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 8),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Row(
+                children: [
+                  pw.Text(
+                    point.visible ? (point.title ?? 'Plot point') : 'Held for arrival',
+                    style: const pw.TextStyle(fontSize: 11),
+                  ),
+                  if (point.arcStage != null) ...[
+                    pw.SizedBox(width: 8),
+                    pw.Text('(${_arcStageLabel(point.arcStage!)})',
+                        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+                  ],
+                  if (point.hazard) ...[
+                    pw.SizedBox(width: 8),
+                    pw.Text('HAZARD',
+                        style: pw.TextStyle(
+                            fontSize: 9, color: PdfColors.red800, fontWeight: pw.FontWeight.bold)),
+                  ],
+                ],
+              ),
+              if (point.visible && point.note != null)
+                pw.Text(point.note!, style: const pw.TextStyle(fontSize: 10)),
+            ],
+          ),
+        ),
+      pw.SizedBox(height: 10),
+    ];
+
+String _arcStageLabel(ArcStage stage) => switch (stage) {
+      ArcStage.exposition => 'exposition',
+      ArcStage.rising => 'rising action',
+      ArcStage.crux => 'crux',
+      ArcStage.climax => 'climax',
+      ArcStage.resolution => 'resolution',
     };
 
 pw.Widget _cueLineRow(

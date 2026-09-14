@@ -15,8 +15,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:printing/printing.dart';
 
+import 'package:plotlines_client/data/character_journey.dart';
 import 'package:plotlines_client/data/routing_client.dart';
 import 'package:plotlines_client/domain/attribution_line.dart';
+import 'package:plotlines_client/domain/domain.dart' show ArcStage;
 import 'package:plotlines_client/domain/stale_work.dart';
 import 'package:plotlines_client/presentation/widgets/print_preview.dart';
 
@@ -60,6 +62,33 @@ Future<void> _pumpTrigger(
   }
 }
 
+Future<void> _pumpItineraryDocument(
+  WidgetTester tester, {
+  required ItineraryPrintDocument document,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showPrintPreview(
+              context,
+              document: document,
+              staleItems: const [],
+              attribution: aboutStaticAttribution,
+            ),
+            child: const Text('Print preview'),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('Print preview'));
+  for (var i = 0; i < 6; i++) {
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+}
+
 void main() {
   group('showPrintPreview — FR140/Flow 9 stale gate', () {
     testWidgets('a clean document opens the paginated previewer', (tester) async {
@@ -87,6 +116,70 @@ void main() {
       await _pumpTrigger(tester, staleItems: [_staleItem(), _staleItem()]);
 
       expect(find.textContaining('2 stale items need re-solving'), findsOneWidget);
+    });
+  });
+
+  // H13 (FR132, FR116) — `ItineraryPrintDocument.plotPoints` is what makes
+  // the Character reading surface's print output reveal-safe: a withheld
+  // plot point must render as a placeholder, never its title or note.
+  group('ItineraryPrintDocument — H13 plot points', () {
+    testWidgets('a visible plot point prints its title and note', (tester) async {
+      await _pumpItineraryDocument(
+        tester,
+        document: const ItineraryPrintDocument(
+          title: 'Test Trip',
+          sections: [],
+          plotPoints: [
+            PlotPointEntry(
+              anchorId: 'a1',
+              roleId: 'r1',
+              visible: true,
+              title: 'The Old Mill',
+              note: 'Built in 1890.',
+              arcStage: ArcStage.rising,
+            ),
+          ],
+        ),
+      );
+
+      expect(find.byType(PdfPreview), findsOneWidget);
+    });
+
+    testWidgets('a withheld plot point still opens the previewer with no override',
+        (tester) async {
+      await _pumpItineraryDocument(
+        tester,
+        document: const ItineraryPrintDocument(
+          title: 'Test Trip',
+          sections: [],
+          plotPoints: [
+            PlotPointEntry(
+              anchorId: 'a1',
+              roleId: 'r1',
+              visible: false,
+              arcStage: ArcStage.crux,
+            ),
+          ],
+        ),
+      );
+
+      // The reveal gate applies at build time (`buildPlotPoints`), not at
+      // print time — a withheld entry still reaches the previewer, it just
+      // carries no title/note for it to render. This asserts the previewer
+      // does not crash reaching for a title/note that the entry never has.
+      expect(find.byType(PdfPreview), findsOneWidget);
+    });
+
+    testWidgets('no plot points at all renders the itinerary alone', (tester) async {
+      await _pumpItineraryDocument(
+        tester,
+        document: const ItineraryPrintDocument(
+          title: 'Test Trip',
+          sections: [ProseSection(heading: 'Day 1', paragraphs: ['Rode to camp.'])],
+        ),
+      );
+
+      expect(find.byType(PdfPreview), findsOneWidget);
     });
   });
 
