@@ -502,3 +502,47 @@ def test_trip_carries_anchors_and_prunes_when_empty():
     out = trip.to_dict()
     assert len(out["anchors"]) == 1
     assert out["anchors"][0]["roles"][0]["kind"] == "narrative"
+
+
+# --- FR142b, K12 / N4a (issue #384) — day_id/segment_id real attachment --
+
+
+def test_role_day_id_defaults_to_none_and_is_omitted():
+    role = Role(kind="narrative")
+    assert role.day_id is None
+    assert role.to_dict()["day_id"] is None
+    assert role.to_dict()["segment_id"] is None
+
+
+def test_role_day_id_round_trips_without_a_segment():
+    role = Role(kind="narrative", day_id="day-1")
+    out = role.to_dict()
+    assert out["day_id"] == "day-1"
+    assert out["segment_id"] is None
+
+
+def test_role_day_id_and_segment_id_round_trip_together():
+    role = Role(kind="narrative", day_id="day-1", segment_id="seg-1")
+    out = role.to_dict()
+    assert out["day_id"] == "day-1"
+    assert out["segment_id"] == "seg-1"
+
+
+def test_role_segment_id_without_day_id_is_rejected():
+    # A segment belongs to a day — pinning to one without the other is the
+    # exact invalid state a segment-scoped attachment could otherwise carry.
+    with pytest.raises(ValueError, match="segment_id requires day_id"):
+        Role(kind="narrative", segment_id="seg-1")
+
+
+def test_role_attachment_is_independent_per_role_on_the_same_anchor():
+    # The national-monument case, restated for attachment: a narrative role
+    # read at Day 1's rest stop, a provision role sitting on Day 3's route —
+    # one anchor, two roles, two different days.
+    anchor = Anchor(coord=[0.0, 0.0], roles=[
+        Role(kind="narrative", id="r1", day_id="day-1"),
+        Role(kind="provision", id="r2", day_id="day-3"),
+    ])
+    by_id = {r.id: r for r in anchor.roles}
+    assert by_id["r1"].day_id == "day-1"
+    assert by_id["r2"].day_id == "day-3"

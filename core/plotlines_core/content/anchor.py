@@ -364,6 +364,14 @@ class Role:
     and `None` on any other, the same guard shape as `activity`/`station`:
     water-source and resupply detail is logistics, not narrative content, and
     it stays with the role kind FR114 already tags always-visible by default.
+
+    `day_id`/`segment_id` (FR142b, K12 / N4a — issue #384) are this role's
+    real, structural attachment to the trip's route: `None` means unattached,
+    which is ordinary working state, not an error (FR139/Q2). Attachment
+    lives on the role rather than the anchor because roles are independent
+    (FR106) — an anchor's provision role can sit on Day 3's route while its
+    narrative role is read at Day 1's rest stop. `segment_id` is never set
+    without `day_id`, since a segment belongs to a day.
     """
 
     kind: str
@@ -378,6 +386,8 @@ class Role:
     arc: str | None = None
     activity: StationActivity | None = None
     provision: ProvisionDetail | None = None
+    day_id: str | None = None
+    segment_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in ROLE_KINDS:
@@ -401,6 +411,11 @@ class Role:
                 f"role {self.id}: FR25 puts provision detail on a provision role "
                 f"only — got kind {self.kind!r}"
             )
+        if self.segment_id is not None and self.day_id is None:
+            raise ValueError(
+                f"role {self.id}: segment_id requires day_id — a segment belongs to a day "
+                "(issue #384)"
+            )
 
     def to_dict(self) -> dict:
         return {
@@ -419,6 +434,8 @@ class Role:
             "arc": self.arc,
             "activity": self.activity.to_dict() if self.activity else None,
             "provision": self.provision.to_dict() if self.provision else None,
+            "day_id": self.day_id,
+            "segment_id": self.segment_id,
         }
 
 

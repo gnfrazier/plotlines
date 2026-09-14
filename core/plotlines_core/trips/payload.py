@@ -96,7 +96,15 @@ from plotlines_core.content.anchor import Anchor
 #: OSM snapshot the payload's graph/candidates came from, distinct from
 #: `attribution`'s display credit text. Additive: an absent pin means the
 #: payload predates this bump, not that the data has no source.
-SCHEMA_VERSION = "1.13.0"
+#: Bumped to 1.14.0 by issue #384: `role` gains optional `day_id`/`segment_id`
+#: — a role's real, structural attachment to the trip's route (FR142b, K12 /
+#: N4a), replacing the client's title-string "attached" guess with a link
+#: that actually survives a rename. `segment_id` is never set without
+#: `day_id` (`dependentRequired` at the wire boundary). Additive: an absent
+#: `day_id` means unattached, which is how every role written before this
+#: bump already reads (and remains ordinary working state, not an error,
+#: per FR139/Q2).
+SCHEMA_VERSION = "1.14.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
