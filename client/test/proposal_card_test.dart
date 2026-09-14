@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import 'package:plotlines_client/domain/cluster_proposal.dart';
+import 'package:plotlines_client/domain/display_format.dart';
 import 'package:plotlines_client/presentation/widgets/proposal_card.dart';
 
 ClusterProposal _proposal() => ClusterProposal.fromJson({
@@ -61,6 +62,26 @@ void main() {
     expect(find.text('72%'), findsOneWidget);
     expect(find.text('50%'), findsOneWidget);
     expect(find.text('NEW'), findsOneWidget);
+  });
+
+  // Issue #391 — #312 wired `displayFormatProvider` through most of the Trip
+  // Shell but left this card's EXTENT/OFF ROUTE numbers hardcoded to M/KM;
+  // this pins the same acceptance clause here.
+  testWidgets('extent and off-route distance follow the display-unit preference (#391)',
+      (tester) async {
+    await _pump(
+      tester,
+      ProposalCard(
+        proposal: _proposal(),
+        selected: false,
+        deferred: false,
+        displayFormat: const DisplayFormat(useMiles: true),
+      ),
+    );
+
+    expect(find.textContaining('EXTENT 138 FT'), findsOneWidget); // 42 m
+    expect(find.textContaining('OFF ROUTE 0.9 MI'), findsOneWidget); // 1450 m
+    expect(find.textContaining('KM'), findsNothing);
   });
 
   testWidgets('the three actions each fire in one gesture', (tester) async {

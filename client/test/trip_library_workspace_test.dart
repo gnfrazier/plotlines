@@ -15,6 +15,7 @@ import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_client/presentation/screens/trip_library_screen.dart';
 import 'package:plotlines_client/state/providers.dart';
+import 'support/display_units.dart';
 
 class _FakeSidecarManager extends SidecarManager {
   @override
@@ -23,7 +24,13 @@ class _FakeSidecarManager extends SidecarManager {
   SidecarStatus get status => const SidecarStatus(SidecarState.ready);
 }
 
-Widget _harness(AppDatabase db) {
+// K5 / FR79 (issue #391) — `displayFormatProvider` resolves from the OS
+// locale when nothing is stored, and `flutter_test`'s default locale
+// (en_US) resolves to miles/feet (see test/support/display_units.dart).
+// These card-face assertions are about the KM/M convention itself, not the
+// unit preference, so the harness pins metric explicitly rather than
+// leaving it to fall out of the test locale.
+Widget _harness(AppDatabase db, {Override? unit}) {
   final router = GoRouter(
     initialLocation: '/',
     routes: [
@@ -36,6 +43,7 @@ Widget _harness(AppDatabase db) {
     overrides: [
       sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
       appDatabaseProvider.overrideWithValue(db),
+      unit ?? metricUnits(),
     ],
     child: MaterialApp.router(routerConfig: router),
   );
@@ -80,6 +88,20 @@ void main() {
     // FR76 — single-device build: every trip badges as This device
     // (PlotBadge renders the label upper-cased).
     expect(find.text('THIS DEVICE'), findsWidgets);
+  });
+
+  // Issue #391 — #312 wired `displayFormatProvider` into MetricsRail and its
+  // siblings but left the library card's own distance/ascent chips
+  // hardcoded to KM/M; this pins the same acceptance clause here.
+  testWidgets('cards follow the display-unit preference (#391)', (tester) async {
+    final db = await _seed();
+    addTearDown(db.close);
+    await tester.pumpWidget(_harness(db, unit: imperialUnits()));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('36 MI'), findsOneWidget); // 58000 m
+    expect(find.textContaining('↑ 3937 FT'), findsOneWidget); // 1200 m
+    expect(find.textContaining('KM'), findsNothing);
   });
 
   testWidgets('filter by mode narrows the grid', (tester) async {
