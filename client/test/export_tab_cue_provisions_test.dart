@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:printing/printing.dart';
 
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/export_tab.dart';
@@ -109,7 +110,7 @@ void main() {
     expect(find.text('ON ROUTE'), findsNWidgets(2));
   });
 
-  testWidgets('the day cue section offers a print preview showing the same entries', (tester) async {
+  testWidgets('the day cue section opens the shared previewer (issue #326)', (tester) async {
     final day = Day(id: 'day-1', index: 1, segments: [
       Segment(
         id: 'seg-1',
@@ -130,10 +131,46 @@ void main() {
     ]);
     await _pump(tester, day);
 
-    await tester.tap(find.text('Print preview').first);
+    await tester.tap(find.text('Print preview').last);
+    // Not `pumpAndSettle`: the previewer's rasterizing spinner never settles
+    // under this harness (no platform channel to answer it) — bounded pumps
+    // clear the attribution fetch, the two vendored-font asset reads, and the
+    // page-route transition instead.
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+
+    // The previewer is now `print_preview.dart`'s shared, paginated `PdfPreview`
+    // (issue #326) rather than a `SelectableText` echo in a bare `Dialog` — the
+    // content itself is a rendered PDF page, not a widget-tree string, so the
+    // regression this suite guards against is the wiring (right day, right
+    // surface), which the on-screen cue-list assertions above already cover
+    // for the entries themselves.
+    expect(find.byType(PdfPreview), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Day 1'), findsOneWidget);
+  });
+
+  testWidgets(
+      "a day's own print preview blocks with no override while its route is stale (FR140/Flow 9)",
+      (tester) async {
+    final day = Day(id: 'day-1', index: 1, segments: [
+      Segment(
+        id: 'seg-1',
+        mode: 'cycling',
+        shape: 'point_to_point',
+        metrics: RouteMetrics(distanceM: 12000),
+        solve: SolveProvenance(stale: true),
+      ),
+    ]);
+    await _pump(tester, day);
+
+    await tester.tap(find.text('Print preview').last);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Overlook Camp — water'), findsWidgets);
-    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.textContaining('stale'), findsWidgets);
+    expect(find.byType(PdfPreview), findsNothing);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
   });
 }

@@ -9,6 +9,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:printing/printing.dart';
 
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/export_tab.dart';
@@ -110,17 +111,51 @@ void main() {
   });
 
   group('ItinerarySection — print preview', () {
-    testWidgets('opens a chrome-free document with the same narrative content', (tester) async {
+    testWidgets('opens the shared previewer (issue #326), not a dialog of its own',
+        (tester) async {
       await _pump(tester, _twoDayTrip());
 
       // F1 (issue #67) added a second "Print preview" button per day's cue
       // section, below the itinerary's own — `.first` is the itinerary's.
       await tester.tap(find.text('Print preview').first);
+      // Not `pumpAndSettle`: the previewer's rasterizing spinner never settles
+      // under this harness (no platform channel to answer it) — bounded pumps
+      // clear the attribution fetch, the two vendored-font asset reads, and
+      // the page-route transition instead.
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+
+      // `print_preview.dart`'s shared, paginated `PdfPreview` (issue #326)
+      // renders formatted prose, not the Markdown source `_export` writes —
+      // the content itself is a rendered PDF page, not a widget-tree string,
+      // so this guards the wiring (right trip title reaches the previewer)
+      // rather than re-asserting the prose itself, which
+      // `previews every day's heading and narrative account` above already
+      // covers for the on-screen reading.
+      expect(find.byType(PdfPreview), findsOneWidget);
+      expect(find.widgetWithText(AppBar, 'Test trip'), findsOneWidget);
+    });
+
+    testWidgets('blocks with no override while any included day is stale (FR140/Flow 9)',
+        (tester) async {
+      await _pump(tester, [
+        Day(id: 'd1', index: 1, title: 'To the Gap', segments: [
+          Segment(
+            id: 's1',
+            mode: 'cycling',
+            shape: 'point_to_point',
+            metrics: RouteMetrics(distanceM: 42000),
+            solve: SolveProvenance(stale: true),
+          ),
+        ]),
+      ]);
+
+      await tester.tap(find.text('Print preview').first);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('# Test trip'), findsOneWidget);
-      expect(find.textContaining('## Day 1 — To the Gap'), findsOneWidget);
-      expect(find.textContaining('Ride (42.0 km)'), findsWidgets);
+      expect(find.textContaining('stale'), findsWidgets);
+      expect(find.byType(PdfPreview), findsNothing);
     });
   });
 

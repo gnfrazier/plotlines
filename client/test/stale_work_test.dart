@@ -163,4 +163,33 @@ void main() {
       expect(tripStaleCount(trip), 2);
     });
   });
+
+  // Issue #326 — the per-day slice `showPrintPreview` gates a single day's
+  // cue-sheet print on, so a stale route on one day doesn't need the whole
+  // trip pulled in to name it.
+  group('dayStaleItems', () {
+    test('matches tripStaleItems scoped to that one day', () {
+      final day1 = Day(id: 'd1', index: 1, segments: [segment('s1', stale: true), segment('s2')]);
+      final day2 = Day(id: 'd2', index: 2, segments: [segment('s3', stale: true)]);
+      final trip = Trip(
+        id: 't1',
+        title: 'Trip',
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+        days: [day1, day2],
+      );
+
+      expect(dayStaleItems(day1).map((i) => i.segmentId), ['s1']);
+      expect(dayStaleItems(day2).map((i) => i.segmentId), ['s3']);
+      expect(
+        tripStaleItems(trip).map((i) => i.segmentId),
+        [...dayStaleItems(day1), ...dayStaleItems(day2)].map((i) => i.segmentId),
+      );
+    });
+
+    test('a day with nothing stale reports nothing', () {
+      final day = Day(id: 'd1', index: 1, segments: [segment('s1')]);
+      expect(dayStaleItems(day), isEmpty);
+    });
+  });
 }
