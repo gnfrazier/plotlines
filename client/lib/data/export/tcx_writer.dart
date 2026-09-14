@@ -8,6 +8,20 @@
 // break, so a day's segments are laid end-to-end in one `<Track>`), one
 // `<CoursePoint>` per curated node.
 //
+// **FR45 plot-point notes: trip-scoped `Anchor` narrative roles are
+// GPX/GeoJSON-only here, not a gap.** `gpx_writer.dart` and
+// `geojson_writer.dart` export `trip.anchors`' narrative-role notes as
+// standalone points — PRD v2.0 §4.3 defines a "plot point" as exactly that
+// role, not a `Node`. TCX has no standalone-point construct: a
+// `<CoursePoint>` only exists inside a `<Course>`'s own timeline, and an
+// anchor is trip-scoped with no day of its own to borrow one from
+// (`itinerary.dart`'s doc comment records the same missing linkage). Placing
+// one on an arbitrary "first day" would silently duplicate it into every
+// split file `_exportPerDay` produces (each day is "first" within its own
+// `trip.copyWith(days: [day])`), which is worse than omitting it — mirrors
+// `fit.py`'s own precedent of naming a format's real geometry limits
+// (FR108's area anchors) rather than forcing a point in anyway.
+//
 // **`<Trackpoint><Time>` is synthetic, not measured.** The TCX schema
 // requires a timestamp per trackpoint (that's how a Garmin device paces a
 // virtual partner against the course), but the payload has no per-vertex

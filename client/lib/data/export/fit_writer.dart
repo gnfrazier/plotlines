@@ -20,6 +20,18 @@
 // already visible to them. The byte-level reveal assertions in punch-list
 // §6A.2 gate the Character-facing surfaces, which this is not.
 //
+// **FR45 plot-point notes: trip-scoped `Anchor` narrative roles are
+// GPX/GeoJSON-only, matching `tcx_writer.dart`'s own scope note for the same
+// reason.** `course_point`s here need a `distance_m`/synthetic clock inside
+// one day's track, exactly like TCX's `<CoursePoint>`; an anchor carries
+// neither a day nor a route-relative distance, and borrowing one arbitrarily
+// would duplicate the point across every `_exportPerDay` split file. Core's
+// `fit.py`/`CourseExport` models a role-shaped `CoursePoint` for a future
+// `Trip -> CourseExport` reduction that has a real answer for this (PR #195's
+// own "not in scope" note); this Dart writer reduces `Trip` directly instead
+// (issue #211) and inherits the same day-linkage gap `itinerary.dart` and
+// `cues.py`'s node-based pipeline already have.
+//
 // **Synthetic trackpoint time.** Like TCX, a FIT course needs a timestamp on
 // every record and course point (that is how a head unit paces a virtual
 // partner). The payload has no per-vertex time, so times are backfilled from
