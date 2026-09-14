@@ -33,6 +33,7 @@ import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
 import '../../../state/trip_bbox_provider.dart';
 import '../../widgets/error_states.dart';
+import '../../widgets/print_preview.dart';
 import '../../widgets/stale_list_dialog.dart';
 
 class ExportTab extends ConsumerWidget {
@@ -241,27 +242,28 @@ class _ItinerarySectionState extends ConsumerState<_ItinerarySection> {
     }
   }
 
-  /// "Printable" (FR48) with no PDF/printing dependency in this app yet
-  /// (`pubspec.yaml` carries none): a chrome-free, letter-proportioned view
-  /// of the exact document `_export` writes, which the desktop OS's own
-  /// print command can act on. A real "Print" button that talks to a
-  /// printer driver needs a printing package added as its own decision —
-  /// flagging that rather than reaching for a new dependency here.
-  Future<void> _showPrintPreview(Itinerary itinerary) {
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        child: SizedBox(
-          width: 640,
-          height: 800,
-          child: Padding(
-            padding: const EdgeInsets.all(PlotSpacing.s5),
-            child: SingleChildScrollView(
-              child: SelectableText(itineraryToMarkdown(itinerary)),
-            ),
-          ),
-        ),
+  /// Issue #326 — the shared previewer (`presentation/widgets/print_preview.dart`)
+  /// rather than a Markdown-echoing dialog of its own: [itinerary]'s own
+  /// heading/paragraphs render as formatted prose, on a real paginated page
+  /// with attribution and a print action, blocked outright (FR140/Flow 9) if
+  /// any of its days carry stale derived work.
+  Future<void> _showPrintPreview(Itinerary itinerary) async {
+    final dayIds = itinerary.days.map((e) => e.day.id).toSet();
+    final staleItems =
+        tripStaleItems(widget.trip).where((i) => dayIds.contains(i.dayId)).toList();
+    final attribution = await fetchPrintAttribution(ref.read(routingClientProvider));
+    if (!mounted) return;
+    await showPrintPreview(
+      context,
+      document: ItineraryPrintDocument(
+        title: itinerary.title,
+        sections: [
+          for (final entry in itinerary.days)
+            ProseSection(heading: entry.heading, paragraphs: entry.paragraphs),
+        ],
       ),
+      staleItems: staleItems,
+      attribution: attribution,
     );
   }
 }
@@ -628,36 +630,34 @@ class _DayCueSectionState extends ConsumerState<_DayCueSection> {
     );
   }
 
-  /// FR46 — "viewable in-app and printable." Same no-PDF-dependency
-  /// reasoning as the itinerary's own print preview
-  /// (`_ItinerarySectionState._showPrintPreview`): a chrome-free view of
-  /// exactly what's on screen, for the desktop OS's own print command to
-  /// act on. FR116's "print inherits reveal policy" is satisfied by
-  /// construction here — this reads the same [entries] the on-screen list
-  /// does, so there is no second, unguarded path for content to leak
-  /// through.
-  Future<void> _showPrintPreview(List<_CueEntry> entries) {
+  /// FR46 — "viewable in-app and printable," through the shared previewer
+  /// (issue #326) rather than a dialog of its own. FR116's "print inherits
+  /// reveal policy" is satisfied by construction here — this reads the same
+  /// [entries] the on-screen `CueSheetRow` list does, so there is no second,
+  /// unguarded path for content to leak through. FR140/Flow 9's "print
+  /// blocks with no override" gates on this day's own stale items, not the
+  /// whole trip's — a cue sheet only ever covers one day.
+  Future<void> _showPrintPreview(List<_CueEntry> entries) async {
     final day = widget.day;
     final df = ref.read(displayFormatProvider);
-    final lines = [
-      'Day ${day.index}${day.title != null ? ' — ${day.title}' : ''}',
-      '',
-      for (final e in entries)
-        '${df.formatDistance(e.distanceAlongM)}  ${e.glyph}  ${e.label}'
-            '${e.tag != null ? '  [${e.tag}]' : ''}',
-    ];
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        child: SizedBox(
-          width: 640,
-          height: 800,
-          child: Padding(
-            padding: const EdgeInsets.all(PlotSpacing.s5),
-            child: SingleChildScrollView(child: SelectableText(lines.join('\n'))),
-          ),
-        ),
+    final attribution = await fetchPrintAttribution(ref.read(routingClientProvider));
+    if (!mounted) return;
+    await showPrintPreview(
+      context,
+      document: CueSheetPrintDocument(
+        title: 'Day ${day.index}${day.title != null ? ' — ${day.title}' : ''}',
+        lines: [
+          for (final e in entries)
+            CueLine(
+              distance: df.formatDistance(e.distanceAlongM),
+              glyph: e.glyph,
+              label: e.label,
+              tag: e.tag,
+            ),
+        ],
       ),
+      staleItems: dayStaleItems(day),
+      attribution: attribution,
     );
   }
 }
