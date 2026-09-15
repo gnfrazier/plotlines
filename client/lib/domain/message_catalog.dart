@@ -252,6 +252,7 @@ const Map<MessageId, String> baseLocalePatterns = {
 
   // Lists.
   MessageId.declaredModes: 'Modes {modes}',
+  MessageId.layersOnMap: 'On the map: {layers}.',
 
   // Spoken lead-ins.
   MessageId.spokenRoleIntroduction: 'Reaching {role}.',

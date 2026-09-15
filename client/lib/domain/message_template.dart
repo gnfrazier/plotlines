@@ -462,6 +462,7 @@ enum MessageId {
 
   // ── Lists (joined by the locale's list rule) ────────────────────────────
   declaredModes,
+  layersOnMap,
 
   // ── Spoken (H2a) — the lead-in a content utterance follows ──────────────
   spokenRoleIntroduction,
@@ -692,6 +693,10 @@ const Map<MessageId, MessageTemplate> messageTemplates = {
       id: MessageId.declaredModes,
       slots: [MessageSlot('modes', SlotType.nameList)],
       usage: 'FR144 / N0 — the modes declared at trip initiation'),
+  MessageId.layersOnMap: MessageTemplate(
+      id: MessageId.layersOnMap,
+      slots: [MessageSlot('layers', SlotType.nameList)],
+      usage: '#415 — the "what still works" line under layers partially served: which layers did serve'),
 
   // Spoken lead-ins (H2a). The content itself is never a slot here — it is a
   // separate SpokenContent part (`data/speech.dart`).

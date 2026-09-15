@@ -419,6 +419,13 @@
       "modes": {"type": "String", "x-slot-type": "nameList"}
     }
   },
+  "layersOnMap": "On the map: {layers}.",
+  "@layersOnMap": {
+    "description": "#415 — the \"what still works\" line under layers partially served: which layers did serve",
+    "placeholders": {
+      "layers": {"type": "String", "x-slot-type": "nameList"}
+    }
+  },
   "spokenRoleIntroduction": "Reaching {role}.",
   "@spokenRoleIntroduction": {
     "description": "FR40a / H2a — what the engine says before released content",
