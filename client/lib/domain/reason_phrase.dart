@@ -59,6 +59,7 @@ enum ReasonCode {
   exportFailed,
   capabilityWarming,
   layerExtractionFailed,
+  layersPartiallyServed,
   pluginLayerUnloadableOnLicence,
   noClustersFoundInBbox,
 
@@ -102,6 +103,8 @@ const Map<ReasonCode, ReasonPhrase> reasonPhrases = {
       ReasonPhrase(phrase: MessageId.reasonCapabilityWarming, reasonClass: ReasonClass.pending),
   ReasonCode.layerExtractionFailed:
       ReasonPhrase(phrase: MessageId.reasonLayerExtractionFailed, reasonClass: ReasonClass.failure),
+  ReasonCode.layersPartiallyServed:
+      ReasonPhrase(phrase: MessageId.reasonLayersPartiallyServed, reasonClass: ReasonClass.failure),
   ReasonCode.pluginLayerUnloadableOnLicence:
       ReasonPhrase(phrase: MessageId.reasonPluginLayerUnloadableOnLicence, reasonClass: ReasonClass.failure),
 
@@ -118,9 +121,11 @@ const Map<ReasonCode, ReasonPhrase> reasonPhrases = {
 };
 
 /// M13's typed state enum, verbatim from that story's acceptance criteria —
-/// the eight original desktop states plus the four added in v2.0. Held here
-/// as names rather than as an import because M13 is not built; the moment it
-/// is, this list is what pins the two enums together.
+/// the eight original desktop states plus the four added in v2.0 — and the
+/// fifth v2.0 state SPIKE-D surfaced after the AC was written (#400,
+/// `layersPartiallyServed`). Held here as names rather than as an import
+/// because M13 is not built; the moment it is, this list is what pins the
+/// two enums together.
 const List<String> m13States = [
   'sidecarStarting',
   'sidecarWontStart',
@@ -132,9 +137,28 @@ const List<String> m13States = [
   'exportFailed',
   'capabilityWarming',
   'layerExtractionFailed',
+  'layersPartiallyServed',
   'pluginLayerUnloadableOnLicence',
   'noClustersFoundInBbox',
 ];
+
+/// Issue #400 — the cause behind one layer `GET /candidates` did not serve.
+///
+/// The partial-success state names each unavailable layer *and its reason*
+/// (SPIKE-D #159), and under FR145 a reason is a [ReasonCode], never the
+/// wire string. The sidecar reports one of three values per layer
+/// (`registry.fetch_candidates_all`): `loading` — the layer is still
+/// warming and will settle on its own; `failed:<reason>` — its extraction
+/// raised, with the exception's class name after the colon; and
+/// `unknown_layer` — the client asked for a layer the sidecar does not
+/// register. The text after `failed:` is a Python class name
+/// (`failed:TimeoutError`) and is exactly what [looksLikeRawDiagnostic]
+/// exists to keep out of user copy, so it is dropped here rather than
+/// interpolated: an unknown layer reads as a failed one, because from the
+/// Author's side it is — a layer they chose is not on the map and a retry
+/// is the honest offer either way.
+ReasonCode unavailableLayerReason(String wireReason) =>
+    wireReason.trim() == 'loading' ? ReasonCode.capabilityWarming : ReasonCode.layerExtractionFailed;
 
 /// The two causes that must never reach M13's failure surface (ARCH D53).
 const List<ReasonCode> reasonCodesOutsideM13 = [

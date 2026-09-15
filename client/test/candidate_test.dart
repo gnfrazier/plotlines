@@ -61,4 +61,45 @@ void main() {
       );
     });
   });
+
+  group('CandidateExtraction.fromJson (#415)', () {
+    test('carries layers_served and layers_unavailable alongside the candidates', () {
+      final x = CandidateExtraction.fromJson({
+        'candidates': [
+          {
+            'id': 'n1',
+            'coord': [-105.2, 40.0],
+            'layer': 'sight',
+            'salience': 0.8,
+            'role_affinity': 'narrative',
+          },
+        ],
+        'layers_served': ['sight', 'natural'],
+        'layers_unavailable': {'plugin_crags': 'failed:TimeoutError', 'historic': 'loading'},
+      });
+      expect(x.candidates.map((c) => c.id), ['n1']);
+      expect(x.layersServed, ['sight', 'natural']);
+      expect(x.layersUnavailable, {'plugin_crags': 'failed:TimeoutError', 'historic': 'loading'});
+      expect(x.isPartial, isTrue);
+      expect(x.isTotalFailure, isFalse);
+    });
+
+    test('a response with only candidates (older sidecar) is neither partial nor failed', () {
+      final x = CandidateExtraction.fromJson({'candidates': []});
+      expect(x.layersServed, isEmpty);
+      expect(x.layersUnavailable, isEmpty);
+      expect(x.isPartial, isFalse);
+      expect(x.isTotalFailure, isFalse);
+    });
+
+    test('nothing served and something unavailable is the total case, not the partial one', () {
+      final x = CandidateExtraction.fromJson({
+        'candidates': [],
+        'layers_served': [],
+        'layers_unavailable': {'sight': 'failed:ConnectionError', 'natural': 'failed:ConnectionError'},
+      });
+      expect(x.isPartial, isFalse);
+      expect(x.isTotalFailure, isTrue);
+    });
+  });
 }

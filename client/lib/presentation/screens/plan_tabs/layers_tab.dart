@@ -165,6 +165,15 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                       left: PlotSpacing.s3,
                       right: PlotSpacing.s3,
                       child: _ErrorBanner(message: candidatesState.error!),
+                    )
+                  else if (candidatesState.layersUnavailable.isNotEmpty)
+                    Positioned(
+                      bottom: PlotSpacing.s3,
+                      left: PlotSpacing.s3,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 460),
+                        child: _unavailableLayersSurface(candidatesState, live),
+                      ),
                     ),
                 ],
               ),
@@ -258,6 +267,50 @@ class _LayersTabState extends ConsumerState<LayersTab> {
             ),
           ],
         );
+  }
+
+  /// #400 / #415 — `GET /candidates` served some of the live layers and not
+  /// others (or none of them, through a 200 rather than an exception). The
+  /// candidates that did arrive stay on the map; this card sits beside
+  /// them, names each missing layer with a bounded cause, and retries just
+  /// those. With nothing served it is `layerExtractionFailed` — the total
+  /// case — and the retry is the whole run.
+  Widget _unavailableLayersSurface(TripCandidatesState candidatesState, Set<String> live) {
+    final messages = ref.watch(messagesProvider);
+    final partial = candidatesState.isPartiallyServed;
+    final state = partial
+        ? DesktopErrorState.layersPartiallyServed
+        : DesktopErrorState.layerExtractionFailed;
+    final details = [
+      for (final entry in candidatesState.layersUnavailable.entries)
+        messages.resolve(MessageId.layerUnavailableBecause, {
+          'layer': NameSlot(layerLabels[entry.key] ?? entry.key, source: NameSource.layerName),
+          'reason': ReasonSlot(unavailableLayerReason(entry.value)),
+        }),
+    ];
+    return DesktopErrorSurface(
+      state: state,
+      content: DesktopErrorContent(
+        headline: partial ? 'Some layers are missing' : 'The candidates didn\'t load',
+        why: messages.reason(desktopErrorTreatments[state]!.reason),
+        details: details,
+        whatStillWorks: [
+          if (partial) ...[
+            messages.resolve(MessageId.candidateCount,
+                {'count': CountSlot(candidatesState.candidates.length)}),
+            messages.resolve(MessageId.layersOnMap, {
+              'layers': NameListSlot(
+                  [for (final l in candidatesState.layersServed) layerLabels[l] ?? l],
+                  source: NameSource.layerName),
+            }),
+          ],
+        ],
+        retryLabel: partial ? 'Retry those layers' : 'Retry',
+        onRetry: partial
+            ? () => ref.read(tripCandidatesProvider.notifier).retryUnavailable()
+            : () => _fetchCandidates(live),
+      ),
+    );
   }
 
   void _fetchCandidates(Set<String> liveLayers) {

@@ -12,7 +12,7 @@
 // the workspace showing the previous trip's candidates.
 library;
 
-import 'package:flutter/foundation.dart' show listEquals, setEquals;
+import 'package:flutter/foundation.dart' show listEquals, mapEquals, setEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/candidate.dart';
@@ -39,11 +39,26 @@ class TripCandidatesState {
     this.loading = false,
     this.error,
     this.fetchedFor,
+    this.layersServed = const [],
+    this.layersUnavailable = const {},
   });
 
   final List<Candidate> candidates;
   final bool loading;
   final String? error;
+
+  /// #415 — what the last run served and what it could not, straight from
+  /// `GET /candidates`. [layersUnavailable] is layer id → wire reason
+  /// (`loading` / `failed:<reason>` / `unknown_layer`); the tab maps each
+  /// through `unavailableLayerReason` to a bounded cause. Non-empty with a
+  /// non-empty [layersServed] is M13's `layersPartiallyServed` (#400);
+  /// non-empty with nothing served is `layerExtractionFailed` reached
+  /// through a 200 rather than an exception.
+  final List<String> layersServed;
+  final Map<String, String> layersUnavailable;
+
+  bool get isPartiallyServed => layersUnavailable.isNotEmpty && layersServed.isNotEmpty;
+  bool get isTotalFailure => layersUnavailable.isNotEmpty && layersServed.isEmpty;
 
   /// Null until the first run completes (successfully or not).
   final CandidateFetchKey? fetchedFor;
@@ -58,12 +73,16 @@ class TripCandidatesState {
     String? error,
     bool clearError = false,
     CandidateFetchKey? fetchedFor,
+    List<String>? layersServed,
+    Map<String, String>? layersUnavailable,
   }) =>
       TripCandidatesState(
         candidates: candidates ?? this.candidates,
         loading: loading ?? this.loading,
         error: clearError ? null : (error ?? this.error),
         fetchedFor: fetchedFor ?? this.fetchedFor,
+        layersServed: layersServed ?? this.layersServed,
+        layersUnavailable: layersUnavailable ?? this.layersUnavailable,
       );
 
   @override
@@ -72,10 +91,13 @@ class TripCandidatesState {
       listEquals(other.candidates, candidates) &&
       other.loading == loading &&
       other.error == error &&
-      other.fetchedFor == fetchedFor;
+      other.fetchedFor == fetchedFor &&
+      listEquals(other.layersServed, layersServed) &&
+      mapEquals(other.layersUnavailable, layersUnavailable);
 
   @override
-  int get hashCode => Object.hash(Object.hashAll(candidates), loading, error, fetchedFor);
+  int get hashCode => Object.hash(Object.hashAll(candidates), loading, error, fetchedFor,
+      Object.hashAll(layersServed), Object.hashAll(layersUnavailable.entries));
 }
 
 class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
@@ -100,13 +122,15 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
     if (state.loading) return;
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final candidates = await _ref
+      final result = await _ref
           .read(curationClientProvider)
           .candidatesForBbox(bbox: bbox, liveLayers: liveLayers);
       state = state.copyWith(
-        candidates: candidates,
+        candidates: result.candidates,
         loading: false,
         fetchedFor: CandidateFetchKey(bbox: bbox, liveLayers: liveLayers),
+        layersServed: result.layersServed,
+        layersUnavailable: result.layersUnavailable,
       );
     } catch (e) {
       state = state.copyWith(
@@ -114,6 +138,37 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
         error: e.toString(),
         fetchedFor: CandidateFetchKey(bbox: bbox, liveLayers: liveLayers),
       );
+    }
+  }
+
+  /// #415 — the partial-success state's retry: re-requests **only** the
+  /// layers the last run could not serve, against the same bbox, and merges
+  /// what comes back into the warmed set. The layers that already served
+  /// are not re-fetched — their candidates are on the map and the Author
+  /// may be mid-promotion; re-running the whole extraction would cost the
+  /// 15.8–178.5 s SPIKE-D measured to recover one layer. A no-op when
+  /// nothing is unavailable or a run is in flight.
+  Future<void> retryUnavailable() async {
+    final key = state.fetchedFor;
+    final retry = state.layersUnavailable.keys.toSet();
+    if (state.loading || key == null || retry.isEmpty) return;
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      final result = await _ref
+          .read(curationClientProvider)
+          .candidatesForBbox(bbox: key.bbox, liveLayers: retry);
+      state = state.copyWith(
+        candidates: [
+          for (final c in state.candidates)
+            if (!retry.contains(c.layer)) c,
+          ...result.candidates,
+        ],
+        loading: false,
+        layersServed: [...state.layersServed, ...result.layersServed],
+        layersUnavailable: result.layersUnavailable,
+      );
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
     }
   }
 }

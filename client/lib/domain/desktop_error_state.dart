@@ -10,7 +10,10 @@
 /// data for the area, elevation void or missing tile, external provider
 /// unreachable, export failed — plus capability-warming (FR121),
 /// layer-extraction-failed, plugin-layer-unloadable-on-licence (FR101), and
-/// no-clusters-found-in-bbox (FR102).
+/// no-clusters-found-in-bbox (FR102). **Plus the fifth v2.0 state SPIKE-D
+/// surfaced** (#159 → #400): layers-partially-served — extraction succeeded
+/// for some of the requested layers and not others, which the AC's
+/// all-or-nothing pair (`layerExtractionFailed` / success) could not name.
 ///
 /// **What is deliberately *not* here** (ARCH D53; FR118, FR140a): compose-mode
 /// distance deviation and stale derived work. Both are things the Author
@@ -72,6 +75,19 @@ enum DesktopErrorState {
   /// A layer's extraction did not finish (a tiled query timed out). The
   /// other layers stay live and usable; retry just this one.
   layerExtractionFailed,
+
+  /// Issue #400 (SPIKE-D #159) — extraction served **some** of the requested
+  /// layers and not others: `GET /candidates` came back 200 with candidates,
+  /// `layers_served` naming what arrived and `layers_unavailable` mapping
+  /// each missing layer to its reason. Not a failure from the Author's side
+  /// — the map has real candidates and the workspace is usable — but not
+  /// success either, because what they are looking at is missing a layer
+  /// they asked for, and silently showing fewer candidates reads as an empty
+  /// area. Distinct from [layerExtractionFailed], which is the total case.
+  /// The surface names every unavailable layer with its reason
+  /// (`unavailableLayerReason`, `MessageId.layerUnavailableBecause`) and
+  /// offers to retry just those.
+  layersPartiallyServed,
 
   /// FR101 — a plugin layer declares no usable licence, so it is refused at
   /// registration rather than warned about later: its data would reach
@@ -227,6 +243,17 @@ const Map<DesktopErrorState, DesktopErrorTreatment> desktopErrorTreatments = {
   DesktopErrorState.layerExtractionFailed: DesktopErrorTreatment(
     presentation: ErrorSurfacePresentation.inlineCard,
     reason: ReasonCode.layerExtractionFailed,
+    blocksApp: false,
+    retryable: true,
+    preservesPrimaryWork: true,
+    optionalEnrichment: true,
+  ),
+  // #400 — a card, not a notice: the state carries a per-layer list and a
+  // retry, which the one-line notice has no room for. It sits beside the
+  // candidates that did arrive, never in place of them.
+  DesktopErrorState.layersPartiallyServed: DesktopErrorTreatment(
+    presentation: ErrorSurfacePresentation.inlineCard,
+    reason: ReasonCode.layersPartiallyServed,
     blocksApp: false,
     retryable: true,
     preservesPrimaryWork: true,

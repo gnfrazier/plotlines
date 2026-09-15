@@ -42,17 +42,24 @@ void main() {
       expect(m13StatesWithoutReasonCodes(), isEmpty);
     });
 
-    test('M13 carries all twelve of its states — the eight original plus v2.0\'s four', () {
-      expect(m13States.length, 12);
+    test('M13 carries all thirteen of its states — eight original, v2.0\'s four, and SPIKE-D\'s fifth', () {
+      expect(m13States.length, 13);
       expect(
         m13States,
         containsAll([
           'capabilityWarming',
           'layerExtractionFailed',
+          'layersPartiallyServed',
           'pluginLayerUnloadableOnLicence',
           'noClustersFoundInBbox',
         ]),
       );
+    });
+
+    test('layers partially served is a failure-class cause, distinct from layer extraction failed', () {
+      expect(reasonPhrases[ReasonCode.layersPartiallyServed]!.reasonClass, ReasonClass.failure);
+      expect(reasonPhrases[ReasonCode.layersPartiallyServed]!.phrase,
+          isNot(reasonPhrases[ReasonCode.layerExtractionFailed]!.phrase));
     });
 
     test('a sidecar that will not start is a failure; one still starting is not', () {
@@ -84,6 +91,43 @@ void main() {
           expect(phrase, isNot(contains(failureWord)),
               reason: '${code.name} is pending or reported work, not a failure (ARCH D53)');
         }
+      }
+    });
+  });
+
+  group('#400 — an unavailable layer\'s wire reason becomes a bounded cause', () {
+    // `GET /candidates` reports `layers_unavailable: {layer: reason}` with
+    // one of three wire values (service `registry.fetch_candidates_all`).
+    // The partial-success state names each layer *and its reason*, and under
+    // FR145 that reason is a ReasonCode — the exception class after
+    // `failed:` never reaches user copy.
+    test('a layer still loading is warming, not failed', () {
+      expect(unavailableLayerReason('loading'), ReasonCode.capabilityWarming);
+      expect(unavailableLayerReason(' loading '), ReasonCode.capabilityWarming);
+    });
+
+    test('a failed layer maps to layer extraction failed and drops the exception name', () {
+      expect(unavailableLayerReason('failed:TimeoutError'), ReasonCode.layerExtractionFailed);
+      expect(unavailableLayerReason('failed:ConnectionError'), ReasonCode.layerExtractionFailed);
+      const messages = MessageResolver();
+      final line = messages.resolve(MessageId.layerUnavailableBecause, {
+        'layer': const NameSlot('plugin_crags', source: NameSource.layerName),
+        'reason': ReasonSlot(unavailableLayerReason('failed:TimeoutError')),
+      });
+      expect(line, 'plugin_crags — layer extraction did not finish.');
+      expect(line, isNot(contains('TimeoutError')));
+      expect(looksLikeRawDiagnostic(line), isFalse);
+    });
+
+    test('an unknown layer reads as a failed one — a chosen layer is not on the map either way', () {
+      expect(unavailableLayerReason('unknown_layer'), ReasonCode.layerExtractionFailed);
+    });
+
+    test('every wire value maps to a cause on M13\'s surface, never outside it', () {
+      for (final wire in ['loading', 'failed:TimeoutError', 'unknown_layer', '']) {
+        final code = unavailableLayerReason(wire);
+        expect(m13States, contains(code.name), reason: wire);
+        expect(reasonCodesOutsideM13, isNot(contains(code)), reason: wire);
       }
     });
   });

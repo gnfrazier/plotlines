@@ -78,7 +78,12 @@ class CurationClient {
   /// features via the sidecar's built-in LayerProvider and notability-scores
   /// them against [liveLayers] in one call, so a screen doesn't have to
   /// stage its own extraction step first.
-  Future<List<Candidate>> candidatesForBbox({
+  ///
+  /// Returns the whole response, not only the candidates (#415): the
+  /// sidecar serves what it can and names the layers it could not
+  /// (`layers_unavailable`), and a caller that keeps only the list cannot
+  /// tell a partially served bbox from an empty one.
+  Future<CandidateExtraction> candidatesForBbox({
     required TripBbox bbox,
     required Set<String> liveLayers,
   }) async {
@@ -90,10 +95,7 @@ class CurationClient {
       'layers': liveLayers.join(','),
     }));
     _checkOk(resp);
-    final raw = jsonDecode(resp.body) as Map<String, dynamic>;
-    return (raw['candidates'] as List)
-        .map((c) => Candidate.fromJson(c as Map<String, dynamic>))
-        .toList();
+    return CandidateExtraction.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
   }
 
   /// FR102–FR105a (Story N4) — "find the good spots". A **named Author

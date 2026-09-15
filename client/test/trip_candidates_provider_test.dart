@@ -22,33 +22,37 @@ import 'package:plotlines_client/state/trip_candidates_provider.dart';
 
 const _bbox = TripBbox(minLat: 39.9, minLon: -105.4, maxLat: 40.1, maxLon: -105.1);
 
-Candidate _c(String id) => Candidate(
+Candidate _c(String id, {String layer = 'sight'}) => Candidate(
       id: id,
       coord: const [-105.2, 40.0],
-      layer: 'sight',
+      layer: layer,
       salience: 0.5,
       roleAffinity: RoleAffinity.narrative,
     );
 
 /// Fake whose `candidatesForBbox` is scripted per test: it either returns a
-/// fixed list, blocks on a completer, or throws.
+/// fixed list, blocks on a completer, or throws. [extraction], when set,
+/// wins over [result] so a test can script the served/unavailable lists.
 class _FakeCurationClient extends CurationClient {
   _FakeCurationClient() : super('http://fake');
 
   int calls = 0;
+  List<Set<String>> requestedLayers = [];
   List<Candidate> result = const [];
+  CandidateExtraction? extraction;
   Object? throwThis;
   Completer<void>? gate;
 
   @override
-  Future<List<Candidate>> candidatesForBbox({
+  Future<CandidateExtraction> candidatesForBbox({
     required TripBbox bbox,
     required Set<String> liveLayers,
   }) async {
     calls++;
+    requestedLayers.add(liveLayers);
     if (gate != null) await gate!.future;
     if (throwThis != null) throw throwThis!;
-    return result;
+    return extraction ?? CandidateExtraction(candidates: result, layersServed: liveLayers.toList());
   }
 }
 
@@ -125,5 +129,120 @@ void main() {
     await first;
     expect(client.calls, 1);
     expect(container.read(tripCandidatesProvider).candidates.map((c) => c.id), ['a']);
+  });
+
+  group('#415 — a partially served run', () {
+    test('keeps the served candidates and records which layers did not arrive', () async {
+      final client = _FakeCurationClient()
+        ..extraction = CandidateExtraction(
+          candidates: [_c('a')],
+          layersServed: const ['sight'],
+          layersUnavailable: const {'plugin_crags': 'failed:TimeoutError'},
+        );
+      final container = _container(client);
+      await container
+          .read(tripCandidatesProvider.notifier)
+          .fetch(bbox: _bbox, liveLayers: {'sight', 'plugin_crags'});
+
+      final state = container.read(tripCandidatesProvider);
+      expect(state.candidates.map((c) => c.id), ['a']);
+      expect(state.error, isNull, reason: 'a 200 with a missing layer is not an exception');
+      expect(state.layersServed, ['sight']);
+      expect(state.layersUnavailable, {'plugin_crags': 'failed:TimeoutError'});
+      expect(state.isPartiallyServed, isTrue);
+      expect(state.isTotalFailure, isFalse);
+    });
+
+    test('nothing served is the total case', () async {
+      final client = _FakeCurationClient()
+        ..extraction = const CandidateExtraction(
+          candidates: [],
+          layersServed: [],
+          layersUnavailable: {'sight': 'failed:ConnectionError'},
+        );
+      final container = _container(client);
+      await container.read(tripCandidatesProvider.notifier).fetch(bbox: _bbox, liveLayers: {'sight'});
+
+      final state = container.read(tripCandidatesProvider);
+      expect(state.isPartiallyServed, isFalse);
+      expect(state.isTotalFailure, isTrue);
+    });
+
+    test('retryUnavailable re-requests only the missing layers and merges the result', () async {
+      final client = _FakeCurationClient()
+        ..extraction = CandidateExtraction(
+          candidates: [_c('a')],
+          layersServed: const ['sight'],
+          layersUnavailable: const {'plugin_crags': 'failed:TimeoutError', 'historic': 'loading'},
+        );
+      final container = _container(client);
+      final notifier = container.read(tripCandidatesProvider.notifier);
+      await notifier.fetch(bbox: _bbox, liveLayers: {'sight', 'plugin_crags', 'historic'});
+
+      // The retry serves historic and still cannot serve the plugin layer.
+      client.extraction = CandidateExtraction(
+        candidates: [_c('h1', layer: 'historic')],
+        layersServed: const ['historic'],
+        layersUnavailable: const {'plugin_crags': 'failed:TimeoutError'},
+      );
+      await notifier.retryUnavailable();
+
+      expect(client.calls, 2);
+      expect(client.requestedLayers.last, {'plugin_crags', 'historic'},
+          reason: 'the served layer is not re-fetched — its candidates are already on the map');
+      final state = container.read(tripCandidatesProvider);
+      expect(state.candidates.map((c) => c.id), ['a', 'h1']);
+      expect(state.layersServed, ['sight', 'historic']);
+      expect(state.layersUnavailable, {'plugin_crags': 'failed:TimeoutError'});
+      expect(state.isPartiallyServed, isTrue);
+      // The fetch key still describes the whole live set the workspace asked for.
+      expect(state.isCurrentFor(_bbox, {'sight', 'plugin_crags', 'historic'}), isTrue);
+    });
+
+    test('a retry that serves everything clears the partial state', () async {
+      final client = _FakeCurationClient()
+        ..extraction = CandidateExtraction(
+          candidates: [_c('a')],
+          layersServed: const ['sight'],
+          layersUnavailable: const {'historic': 'loading'},
+        );
+      final container = _container(client);
+      final notifier = container.read(tripCandidatesProvider.notifier);
+      await notifier.fetch(bbox: _bbox, liveLayers: {'sight', 'historic'});
+
+      client.extraction = CandidateExtraction(
+        candidates: [_c('h1', layer: 'historic')],
+        layersServed: const ['historic'],
+      );
+      await notifier.retryUnavailable();
+
+      final state = container.read(tripCandidatesProvider);
+      expect(state.layersUnavailable, isEmpty);
+      expect(state.isPartiallyServed, isFalse);
+      expect(state.candidates.map((c) => c.id), ['a', 'h1']);
+    });
+
+    test('retryUnavailable is a no-op with nothing unavailable, and keeps the set on failure', () async {
+      final client = _FakeCurationClient()..result = [_c('a')];
+      final container = _container(client);
+      final notifier = container.read(tripCandidatesProvider.notifier);
+      await notifier.fetch(bbox: _bbox, liveLayers: {'sight'});
+      await notifier.retryUnavailable();
+      expect(client.calls, 1);
+
+      client.extraction = CandidateExtraction(
+          candidates: [_c('a')],
+          layersServed: const ['sight'],
+          layersUnavailable: const {'historic': 'loading'},
+        );
+      await notifier.fetch(bbox: _bbox, liveLayers: {'sight', 'historic'});
+      client.throwThis = StateError('sidecar down');
+      await notifier.retryUnavailable();
+
+      final state = container.read(tripCandidatesProvider);
+      expect(state.candidates.map((c) => c.id), ['a']);
+      expect(state.layersUnavailable, {'historic': 'loading'});
+      expect(state.error, contains('sidecar down'));
+    });
   });
 }
