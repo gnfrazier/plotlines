@@ -227,7 +227,8 @@ flowchart TD
 | No route possible | FR9 | A6, M13 | Names the conflict; offers relaxations. |
 | No data for the area | — | M13 | |
 | Elevation void / missing tile | FR88 | M10, M13 | Resolves to `0.0`, logged once per raster. Never raises, never blocks. |
-| Layer extraction failed | — | M13 | **New v2.0 state.** |
+| Layer extraction failed | — | M13 | **New v2.0 state.** The total case — nothing served. |
+| Layers partially served | — | M13, N2 | **New v2.0 state (SPIKE-D #159, #400).** Some requested layers served, others not; names each missing layer and its reason. Never reads as an empty area. |
 | Plugin layer unloadable on licence | FR101 | N5, M13 | Refused at **registration**, not warned at render. |
 | No clusters found in bbox | FR102 | N4, N4a, M13 | Says so, and suggests widening layers or bbox. |
 | Export failed | — | M13 | |
@@ -235,7 +236,7 @@ flowchart TD
 
 **Two things sit deliberately outside this surface, and they are the same mistake in different clothes.** Compose-mode distance deviation (FR118) and **stale derived work** (FR140a, flow 9). Both are states the Author caused on purpose, and both carry their own resolution. Routing either through M13's typed enum teaches the Author that ordinary work produces errors.
 
-**Gap:** "no data for the area", "layer extraction failed", and "export failed" have **no FR** — they exist only as entries in M13's state enum. Acceptable if M13 is treated as their requirement; worth an FR if not.
+**Gap:** "no data for the area", "layer extraction failed", "layers partially served", and "export failed" have **no FR** — they exist only as entries in M13's state enum. Acceptable if M13 is treated as their requirement; worth an FR if not.
 
 ---
 
