@@ -1,0 +1,115 @@
+name: SPIKE-J freeze matrix (#266)
+
+# Manual only — this is spike infrastructure, not a standing CI gate. Triggered
+# on demand while running SPIKE-J because the local machine only has Linux
+# available (Windows build deps unsatisfied locally, no macOS hardware at all).
+# GitHub-hosted runners stand in for the three targets that can't be tested
+# locally; see spikes/SPIKE-J/README.md for why hosted runners were chosen over
+# acquiring hardware. Linux is measured locally and not repeated here.
+on:
+  workflow_dispatch: {}
+  # workflow_dispatch needs this file merged to the default branch before
+  # GitHub will let it be dispatched on any ref — a chicken-and-egg for a
+  # not-yet-merged spike branch. This push trigger, scoped to this spike's own
+  # branch name, is how the matrix actually runs before that merge; safe to
+  # drop once main has this file and workflow_dispatch works directly.
+  push:
+    branches:
+      - spike/266-freeze-native-osm-dependency
+
+jobs:
+  freeze:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows-x86_64
+          # macos-13 was the first choice; GitHub retired that image in
+          # Dec 2025 and the job sat "queued" for 24h until auto-cancelled
+          # (run 34771996128, both attempts). macos-15-intel is the one
+          # remaining Intel image in the hosted pool.
+          - os: macos-15-intel
+            label: macos-x86_64
+          - os: macos-14
+            label: macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
+
+      - name: Locate the venv's python (Scripts/ on Windows, bin/ elsewhere)
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "VENV_PY=.venv/Scripts/python.exe" >> "$GITHUB_ENV"
+          else
+            echo "VENV_PY=.venv/bin/python" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build the packaging venv
+        shell: bash
+        run: |
+          uv venv .venv
+          uv pip install --python "$VENV_PY" -e ./core -e ./service pyinstaller
+          uv pip install --python "$VENV_PY" 'osmium>=4.3,<5'
+
+      - name: Build baseline sidecar (today's real build, same-day control)
+        shell: bash
+        run: ./packaging/build_sidecar.sh pyinstaller-onedir
+
+      - name: Build SPIKE-J probe (baseline + osmium)
+        shell: bash
+        run: ./spikes/SPIKE-J/build_probe.sh
+
+      - name: Generate the synthetic fixture
+        shell: bash
+        run: '"$VENV_PY" spikes/SPIKE-J/fixture.py fixture.osm.pbf'
+
+      - name: Run the frozen probe — launch / read / build
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN=spikes/SPIKE-J/dist/probe/plotlines-spike-j-probe/plotlines-spike-j-probe
+          [[ "${{ runner.os }}" == "Windows" ]] && BIN="${BIN}.exe"
+          "./$BIN" --pbf fixture.osm.pbf --bbox=-105.30,40.00,-105.25,40.05 --network-type bike \
+            | tee probe_result.json
+
+      - name: Assert no GPL-licensed binary (addendum 2a / L1)
+        shell: bash
+        run: |
+          "$VENV_PY" spikes/SPIKE-J/check_no_gpl.py \
+            --venv .venv \
+            --dist spikes/SPIKE-J/dist/probe/plotlines-spike-j-probe
+
+      - name: Record sizes (baseline vs. probe, same day / same runner)
+        shell: bash
+        run: |
+          "$VENV_PY" - <<'PY'
+          import json
+          from pathlib import Path
+
+          def dir_bytes(p: Path) -> int:
+              return sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+
+          base = dir_bytes(Path("packaging/dist/pyinstaller-onedir/plotlines-sidecar"))
+          probe = dir_bytes(Path("spikes/SPIKE-J/dist/probe/plotlines-spike-j-probe"))
+          Path("sizes.json").write_text(json.dumps({
+              "target": "${{ matrix.label }}",
+              "baseline_bytes": base,
+              "probe_bytes": probe,
+              "delta_bytes": probe - base,
+          }, indent=2))
+          PY
+          cat sizes.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spike-j-${{ matrix.label }}
+          path: |
+            probe_result.json
+            sizes.json
+          if-no-files-found: warn

@@ -1,0 +1,14 @@
+{
+  "target": "linux-x86_64",
+  "run_at": "2026-09-13",
+  "probe_result": {"ok": true, "ways_considered": 2, "elements_read": 7, "nodes": 4, "edges": 6, "read_s": 0.0126, "build_s": 0.002, "plotlines_way_tags_count": 15, "plotlines_node_tags_count": 1, "frozen": true},
+  "sizes": {
+    "baseline_uncompressed_bytes": 288226082,
+    "probe_uncompressed_bytes": 292915607,
+    "delta_uncompressed_bytes": 4689525,
+    "baseline_compressed_bytes": 80866584,
+    "probe_compressed_bytes": 81901236,
+    "delta_compressed_bytes": 1034652
+  },
+  "no_gpl_check": "pass (2 false positives found and fixed in check_no_gpl.py before this pass — see RESULTS.md #2)"
+}

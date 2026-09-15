@@ -1,0 +1,6 @@
+{
+  "target": "macos-x86_64",
+  "baseline_bytes": 245348359,
+  "probe_bytes": 249014081,
+  "delta_bytes": 3665722
+}

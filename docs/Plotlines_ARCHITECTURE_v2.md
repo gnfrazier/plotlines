@@ -1445,7 +1445,7 @@ Carried risks are abbreviated where unchanged; **v2.0 additions are A20–A25.**
 | A2 | **Paddling data quality** | **HIGH → partly realised** | SPIKE-04/SPIKE-19: network and gauge solid (USGS); class ratings do not exist. Provider isolation absorbed a change of national data product without touching the core. Residual is **timing**: tested regions still read `workunitid = NHD`, so re-open when elevation-derived hydrography lands. |
 | A3 | **Field Runtime battery cost** | **HIGH** | Adaptive-accuracy controller (FR54a); SPIKE-07 measures the saving. **v2.0 adds reveal and arrival triggers to the same budget** — they ride the existing proximity check rather than adding a second one, but SPIKE-07 should measure with them present. |
 | A4 | **Backgrounded GPS-triggered audio** may not survive screen-lock | **HIGH** | SPIKE-06 on real hardware before the field tier is committed. |
-| A5 | Frozen binary (150–300 MB) stacks on heavier packages | Medium | Strip deps; budget via SPIKE-10; **v2.0 adds unrevealed content to the package** (§12.3). |
+| A5 | Frozen binary (150–300 MB) stacks on heavier packages | Medium | Strip deps; budget via SPIKE-10; **v2.0 adds unrevealed content to the package** (§12.3). **Measured 2026-09-15 (SPIKE-J):** sidecar with the PBF reader in is 214 / 226 / 237 / 279 MB uncompressed (Win / macOS arm / macOS x86 / Linux) — inside the range; pyosmium is 1.5–1.9 % of it, the geospatial stack is the rest. |
 | A6 | Sidecar lifecycle bugs | Medium | §8.4's explicit protocol. |
 | A7 | `plotlines-core` drifts toward web-awareness | Medium | CI lint. |
 | A8 | Two core deployments drift to different versions | Medium | Version-pin; surface both in `/health`; refuse to run mismatched. |

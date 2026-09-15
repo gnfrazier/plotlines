@@ -13,11 +13,12 @@ dependencies = [
 # Issue #262 (epic #264 Phase 1.8, review §6.7, addendum L1): pyosmium is
 # BSD-2-Clause, never the GPL-3 `osmium` CLI. Kept out of the base
 # `dependencies` above — and therefore out of `packaging/build_sidecar.sh`'s
-# frozen sidecar, since nothing there imports `mirror_clip.py` — because
-# SPIKE-J (#266) has not yet measured whether pyosmium survives a
-# PyInstaller freeze on all four client targets. This extra is installed
-# only in `Dockerfile.mirror-clip`'s image, which is the one place this
-# code runs.
+# frozen sidecar, since nothing there imports `mirror_clip.py`. SPIKE-J
+# (#266, 2026-09-15) measured that pyosmium *does* survive a PyInstaller
+# freeze on all four client targets at +3.4–4.5 MB, so this is no longer
+# the reason; it stays an extra until Phase 3 (#272) gives the sidecar
+# something that imports it. Today this extra is installed only in
+# `Dockerfile.mirror-clip`'s image, which is the one place this code runs.
 mirror-clip = [
     "osmium>=4.3,<5",
 ]
