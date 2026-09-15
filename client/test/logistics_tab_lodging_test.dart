@@ -42,11 +42,11 @@ class _FakeCurationClient extends CurationClient {
   List<Candidate> result = const [];
 
   @override
-  Future<List<Candidate>> candidatesForBbox({
+  Future<CandidateExtraction> candidatesForBbox({
     required TripBbox bbox,
     required Set<String> liveLayers,
   }) async =>
-      result;
+      CandidateExtraction(candidates: result);
 }
 
 const _hotel = Candidate(

@@ -75,11 +75,11 @@ class _FlakyCurationClient extends CurationClient {
   }
 
   @override
-  Future<List<Candidate>> candidatesForBbox({
+  Future<CandidateExtraction> candidatesForBbox({
     required TripBbox bbox,
     required Set<String> liveLayers,
   }) async =>
-      const [];
+      const CandidateExtraction(candidates: []);
 }
 
 /// The bounded cause phrase for `layerExtractionFailed`

@@ -56,3 +56,44 @@ class Candidate {
             const {},
       );
 }
+
+/// Issue #415 (SPIKE-D #159, N2) — the whole of a `GET /candidates`
+/// response, not just its candidates. **One failing layer never fails the
+/// request**: the sidecar returns what every layer that served produced,
+/// [layersServed] naming them and [layersUnavailable] mapping each layer
+/// that did not to its wire reason (`loading` / `failed:<reason>` /
+/// `unknown_layer`). Dropping the two lists on the floor is what made a
+/// partially served bbox render as an empty one — an Author whose plugin
+/// layer timed out saw fewer candidates and no notice.
+class CandidateExtraction {
+  const CandidateExtraction({
+    required this.candidates,
+    this.layersServed = const [],
+    this.layersUnavailable = const {},
+  });
+
+  final List<Candidate> candidates;
+  final List<String> layersServed;
+
+  /// Layer id → wire reason. Never shown as-is: the presentation layer maps
+  /// it through `unavailableLayerReason` to a bounded `ReasonCode` (FR145).
+  final Map<String, String> layersUnavailable;
+
+  /// Some requested layers served and some did not — M13's
+  /// `layersPartiallyServed` state (#400).
+  bool get isPartial => layersUnavailable.isNotEmpty && layersServed.isNotEmpty;
+
+  /// Nothing requested served — M13's `layerExtractionFailed`, the total
+  /// case, reached through a 200 rather than an exception.
+  bool get isTotalFailure => layersUnavailable.isNotEmpty && layersServed.isEmpty;
+
+  factory CandidateExtraction.fromJson(Map<String, dynamic> json) => CandidateExtraction(
+        candidates: (json['candidates'] as List)
+            .map((c) => Candidate.fromJson(c as Map<String, dynamic>))
+            .toList(),
+        layersServed: (json['layers_served'] as List?)?.cast<String>() ?? const [],
+        layersUnavailable:
+            (json['layers_unavailable'] as Map?)?.map((k, v) => MapEntry(k as String, '$v')) ??
+                const {},
+      );
+}

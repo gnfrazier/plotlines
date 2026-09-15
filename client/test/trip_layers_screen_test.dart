@@ -58,13 +58,13 @@ class _FakeCurationClient extends CurationClient {
   }
 
   @override
-  Future<List<Candidate>> candidatesForBbox({
+  Future<CandidateExtraction> candidatesForBbox({
     required TripBbox bbox,
     required Set<String> liveLayers,
   }) async {
     candidateCalls++;
     lastLiveLayers = liveLayers;
-    return const [];
+    return const CandidateExtraction(candidates: []);
   }
 }
 
