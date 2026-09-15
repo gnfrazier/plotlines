@@ -106,14 +106,20 @@ def load_mirror_state(source: str | Path, *, timeout_s: float = 5.0) -> dict:
 
 def basemap_health(state: dict, *, now: datetime,
                     max_age_days: float = MAX_PIN_AGE_DAYS) -> dict:
-    """Staleness of `state["basemap"]` (`copy_basemap_standin.sh`, #257).
-    There is no per-pull `checked_at` here — the basemap copy is a manual
-    step, not a polled sync — so age is read off the build id's own leading
-    date, the same literal `mirror.py`'s `PROTOMAPS_BASEMAP_BUILD` is."""
+    """Staleness of `state["basemap"]`. `deploy/mirror/protomaps_extract.py`
+    (#394) writes a real `extracted_at` pull timestamp, which is preferred
+    here when present — the honest answer to "when did this last actually
+    run" rather than a date parsed out of a path literal. Older state
+    written by the manual `copy_basemap_standin.sh` stand-in copy (#257)
+    carries no `extracted_at`, so age falls back to the build id's own
+    leading date, the same literal `mirror.py`'s `PROTOMAPS_BASEMAP_BUILD`
+    is — that fallback is what made this a "manual step, not a polled sync"
+    before #394."""
     basemap = state.get("basemap") or {}
     build_id = basemap.get("build_id")
+    extracted_at = _parse_iso(basemap.get("extracted_at"))
     build_date = _parse_pin_date(build_id)
-    age = _age_days(build_date, now)
+    age = _age_days(extracted_at, now) if extracted_at is not None else _age_days(build_date, now)
     return {
         "build_id": build_id,
         "age_days": None if age is None else round(age, 1),

@@ -59,6 +59,26 @@ def test_basemap_health_missing_build_id_is_stale():
     }
 
 
+def test_basemap_health_prefers_extracted_at_over_the_build_id_date():
+    # deploy/mirror/protomaps_extract.py (#394) writes a real pull
+    # timestamp — age should read off that, not the build id literal, so a
+    # fresh automated pull under an old-looking build id doesn't read stale.
+    state = {"basemap": {
+        "build_id": "20250101-wnc",
+        "extracted_at": _iso(_NOW - timedelta(days=2)),
+    }}
+    health = basemap_health(state, now=_NOW)
+    assert health == {"build_id": "20250101-wnc", "age_days": 2.0, "stale": False}
+
+
+def test_basemap_health_falls_back_to_build_id_when_extracted_at_absent():
+    # The manual copy_basemap_standin.sh stand-in path (#257) carries no
+    # extracted_at — this is the behaviour test_basemap_health_fresh_build_
+    # is_not_stale already covers; this test names the fallback explicitly.
+    state = {"basemap": {"build_id": "20260901-wnc"}}
+    assert basemap_health(state, now=_NOW)["age_days"] == 5.0
+
+
 def test_basemap_health_missing_basemap_key_is_stale():
     assert basemap_health({}, now=_NOW)["stale"] is True
 
