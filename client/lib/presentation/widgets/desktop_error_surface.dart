@@ -2,7 +2,7 @@
 //
 // "Same shape whatever failed: what, why, what still works, what to do"
 // (Author Flows, Flow 8 §02). `DesktopErrorSurface` renders that shape for
-// any of M13's twelve typed states, choosing its container from the state's
+// any of M13's thirteen typed states, choosing its container from the state's
 // entry in `desktopErrorTreatments` — full-screen block, banner over the
 // still-usable app, inline card, inline notice, or (export only) a dialog.
 //
@@ -29,6 +29,7 @@ class DesktopErrorContent {
   const DesktopErrorContent({
     required this.headline,
     required this.why,
+    this.details = const [],
     this.whatStillWorks = const [],
     this.onRetry,
     this.retryLabel = 'Retry',
@@ -42,6 +43,13 @@ class DesktopErrorContent {
   /// The "why" — one already-resolved line from `reason_phrase.dart`'s
   /// bounded table.
   final String why;
+
+  /// Zero or more already-resolved lines that itemise the "why" — for
+  /// `layersPartiallyServed` (#400), one `layerUnavailableBecause` line per
+  /// layer that did not arrive, each naming the layer and its bounded
+  /// reason. Rendered directly under [why]; empty for a state with nothing
+  /// to itemise.
+  final List<String> details;
 
   /// The "what still works" — zero or more already-resolved lines. Empty is
   /// fine for the pre-sidecar states, where nothing is up yet.
@@ -91,6 +99,10 @@ class DesktopErrorSurface extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(content.why),
+            for (final line in content.details) ...[
+              const SizedBox(height: PlotSpacing.s1),
+              Text(line),
+            ],
             for (final line in content.whatStillWorks) ...[
               const SizedBox(height: PlotSpacing.s2),
               Text(line),
@@ -150,6 +162,31 @@ class DesktopErrorSurface extends StatelessWidget {
     );
   }
 
+  Widget _details(BuildContext context) {
+    if (content.details.isEmpty) return const SizedBox.shrink();
+    final c = PlotColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: PlotSpacing.s2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final line in content.details)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.remove, size: 14, color: c.textMuted),
+                  const SizedBox(width: PlotSpacing.s2),
+                  Expanded(child: Text(line, style: PlotTypography.small(c.textSecondary))),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _whatStillWorks(BuildContext context) {
     if (content.whatStillWorks.isEmpty) return const SizedBox.shrink();
     final c = PlotColors.of(context);
@@ -199,6 +236,7 @@ class DesktopErrorSurface extends StatelessWidget {
                 const SizedBox(height: PlotSpacing.s2),
                 Text(content.why,
                     textAlign: TextAlign.center, style: PlotTypography.body(c.textSecondary)),
+                _details(context),
                 if (!blocking) _whatStillWorks(context),
                 _retryAndActions(context),
               ],
@@ -229,6 +267,8 @@ class DesktopErrorSurface extends StatelessWidget {
                     style: PlotTypography.small(c.textPrimary)
                         .copyWith(fontWeight: FontWeight.w700)),
                 Text(content.why, style: PlotTypography.small(c.textPrimary)),
+                for (final line in content.details)
+                  Text(line, style: PlotTypography.small(c.textPrimary)),
                 for (final line in content.whatStillWorks)
                   Text(line, style: PlotTypography.small(c.textSecondary)),
               ],
@@ -264,6 +304,7 @@ class DesktopErrorSurface extends StatelessWidget {
           ),
           const SizedBox(height: PlotSpacing.s2),
           Text(content.why, style: PlotTypography.body(c.textSecondary)),
+          _details(context),
           _whatStillWorks(context),
           _retryAndActions(context),
         ],

@@ -240,6 +240,10 @@
   "@reasonLayerExtractionFailed": {
     "description": "M13 state: layer extraction failed"
   },
+  "reasonLayersPartiallyServed": "not every requested layer is in these results",
+  "@reasonLayersPartiallyServed": {
+    "description": "M13 state: layers partially served (SPIKE-D, #400) — distinct from layer extraction failed"
+  },
   "reasonPluginLayerUnloadableOnLicence": "this plugin layer cannot be loaded under its licence",
   "@reasonPluginLayerUnloadableOnLicence": {
     "description": "M13 state: plugin layer unloadable on licence (FR101)"
@@ -415,6 +419,13 @@
       "modes": {"type": "String", "x-slot-type": "nameList"}
     }
   },
+  "layersOnMap": "On the map: {layers}.",
+  "@layersOnMap": {
+    "description": "#415 — the \"what still works\" line under layers partially served: which layers did serve",
+    "placeholders": {
+      "layers": {"type": "String", "x-slot-type": "nameList"}
+    }
+  },
   "spokenRoleIntroduction": "Reaching {role}.",
   "@spokenRoleIntroduction": {
     "description": "FR40a / H2a — what the engine says before released content",
@@ -448,6 +459,14 @@
     "description": "FR121 — which capability, and why it is not ready",
     "placeholders": {
       "capability": {"type": "String", "x-slot-type": "term"},
+      "reason": {"type": "String", "x-slot-type": "reason"}
+    }
+  },
+  "layerUnavailableBecause": "{layer} — {reason}.",
+  "@layerUnavailableBecause": {
+    "description": "#400 — one line per layer the partial-success state names: which layer, and why",
+    "placeholders": {
+      "layer": {"type": "String", "x-slot-type": "name"},
       "reason": {"type": "String", "x-slot-type": "reason"}
     }
   }

@@ -421,6 +421,7 @@ enum MessageId {
   reasonExportFailed,
   reasonCapabilityWarming,
   reasonLayerExtractionFailed,
+  reasonLayersPartiallyServed,
   reasonPluginLayerUnloadableOnLicence,
   reasonNoClustersFoundInBbox,
   // Deliberately outside M13 (FR118, FR140a, ARCH D53).
@@ -461,6 +462,7 @@ enum MessageId {
 
   // ── Lists (joined by the locale's list rule) ────────────────────────────
   declaredModes,
+  layersOnMap,
 
   // ── Spoken (H2a) — the lead-in a content utterance follows ──────────────
   spokenRoleIntroduction,
@@ -470,6 +472,7 @@ enum MessageId {
   controlDisabledBecause,
   operationFailedBecause,
   capabilityUnavailableBecause,
+  layerUnavailableBecause,
 }
 
 const String _slotCount = 'count';
@@ -583,6 +586,9 @@ const Map<MessageId, MessageTemplate> messageTemplates = {
       MessageTemplate(id: MessageId.reasonCapabilityWarming, usage: 'M13 state: capability warming (FR121)'),
   MessageId.reasonLayerExtractionFailed:
       MessageTemplate(id: MessageId.reasonLayerExtractionFailed, usage: 'M13 state: layer extraction failed'),
+  MessageId.reasonLayersPartiallyServed: MessageTemplate(
+      id: MessageId.reasonLayersPartiallyServed,
+      usage: 'M13 state: layers partially served (SPIKE-D, #400) — distinct from layer extraction failed'),
   MessageId.reasonPluginLayerUnloadableOnLicence: MessageTemplate(
       id: MessageId.reasonPluginLayerUnloadableOnLicence,
       usage: 'M13 state: plugin layer unloadable on licence (FR101)'),
@@ -687,6 +693,10 @@ const Map<MessageId, MessageTemplate> messageTemplates = {
       id: MessageId.declaredModes,
       slots: [MessageSlot('modes', SlotType.nameList)],
       usage: 'FR144 / N0 — the modes declared at trip initiation'),
+  MessageId.layersOnMap: MessageTemplate(
+      id: MessageId.layersOnMap,
+      slots: [MessageSlot('layers', SlotType.nameList)],
+      usage: '#415 — the "what still works" line under layers partially served: which layers did serve'),
 
   // Spoken lead-ins (H2a). The content itself is never a slot here — it is a
   // separate SpokenContent part (`data/speech.dart`).
@@ -712,6 +722,10 @@ const Map<MessageId, MessageTemplate> messageTemplates = {
       id: MessageId.capabilityUnavailableBecause,
       slots: [MessageSlot('capability', SlotType.term), MessageSlot('reason', SlotType.reason)],
       usage: 'FR121 — which capability, and why it is not ready'),
+  MessageId.layerUnavailableBecause: MessageTemplate(
+      id: MessageId.layerUnavailableBecause,
+      slots: [MessageSlot('layer', SlotType.name), MessageSlot('reason', SlotType.reason)],
+      usage: '#400 — one line per layer the partial-success state names: which layer, and why'),
 };
 
 /// Substrings that must never name a slot or a [SlotType] member —
