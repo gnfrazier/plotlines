@@ -142,3 +142,25 @@ jobs:
       - run: flutter pub get
         working-directory: client
       - run: tools/ci/client_test_shard.sh ${{ matrix.shard }} 4
+
+  client-tests-gate:
+    # The name the branch ruleset pins as a required check. Sharding split the
+    # one "client tests" check into four matrix checks, so the context the
+    # ruleset waits on stopped being reported and every PR sat on an expected
+    # check that could never arrive. This job restores that one fixed name
+    # without re-coupling it to the shard count (#235 C): it runs no tests,
+    # it only reports whether every shard passed, so changing the matrix
+    # never means editing the ruleset.
+    #
+    # `if: always()` matters — without it a failed shard leaves this job
+    # skipped, and a skipped required check is never satisfied either.
+    name: "client tests"
+    runs-on: ubuntu-latest
+    needs: client-tests
+    if: always()
+    steps:
+      - name: Fail unless every client shard passed
+        run: |
+          result='${{ needs.client-tests.result }}'
+          echo "client shards: $result"
+          test "$result" = success
