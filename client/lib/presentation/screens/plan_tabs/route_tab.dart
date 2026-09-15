@@ -15,6 +15,7 @@ import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
+import '../../display_format_of.dart';
 import '../../map/alternate_markers.dart';
 import '../../map/node_marker_role.dart';
 import '../../map/route_geometry.dart';
@@ -451,7 +452,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
           selectedSegment: selectedSegment,
           elevationCapability: _elevationCapability,
           composeItinerary: composeItinerary,
-          displayFormat: ref.watch(displayFormatProvider),
+          displayFormat: displayFormatOf(context, ref),
         ),
       ],
     );

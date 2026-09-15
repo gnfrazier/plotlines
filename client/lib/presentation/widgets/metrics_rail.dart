@@ -27,9 +27,11 @@ class MetricsRail extends StatelessWidget {
   final Trip trip;
   final Segment? selectedSegment;
 
-  /// K5 / FR79 (issue #312) — the active display units. `RouteTab` passes the
-  /// resolved [displayFormatProvider]; the metric default keeps this rail's
-  /// numbers in km/m when a caller has no preference to hand it.
+  /// K5 / FR79 (issues #312, #399) — the active display units and clock.
+  /// `RouteTab` passes `displayFormatOf(context, ref)` so the EST. ARRIVAL
+  /// stamp follows the 12/24-hour preference (and, on `inherit`, the
+  /// device's clock); the metric default keeps this rail's numbers in km/m
+  /// and 24-hour when a caller has no preference to hand it.
   final DisplayFormat displayFormat;
 
   /// E3 / FR39 / FR117 / FR118 (issue #214) — the active day's compose-mode
@@ -201,7 +203,7 @@ class MetricsRail extends StatelessWidget {
                             label: 'EST. ARRIVAL',
                             value: dashboard.tripEta == null
                                 ? '—'
-                                : _formatEta(dashboard.tripEta!),
+                                : formatEta(dashboard.tripEta!, displayFormat),
                             muted: dashboard.tripEta == null,
                           ),
                         ),
@@ -304,15 +306,20 @@ String _formatDuration(double seconds) {
   return h == 0 ? '${m}m' : '${h}h ${m}m';
 }
 
-/// An ETA stamp (`2026-09-01T14:30:00Z` from `build_dashboard`) as `14:30`.
-/// Falls back to the raw stamp if it is not the shape the model emits.
-String _formatEta(String iso) {
+/// An ETA stamp (`2026-09-01T14:30:00Z` from `build_dashboard`) as a clock
+/// time in the Author's 12/24-hour form (`14:30` / `2:30 PM`, FR79 via
+/// issue #399). Falls back to the raw stamp if it is not the shape the
+/// model emits. Rendered in UTC, as the model emits it: nothing in the
+/// client sends `trip_start_at` yet, so which zone an Author's start time
+/// is declared in is a contract still to be made, and converting here
+/// would pre-empt it. Public only so the clock form can be asserted: the
+/// local `TripDashboard.fromTrip` never fills `tripEta`, so no widget test
+/// can reach this branch through the rail yet.
+@visibleForTesting
+String formatEta(String iso, DisplayFormat displayFormat) {
   final parsed = DateTime.tryParse(iso);
   if (parsed == null) return iso;
-  final t = parsed.toUtc();
-  final hh = t.hour.toString().padLeft(2, '0');
-  final mm = t.minute.toString().padLeft(2, '0');
-  return '$hh:$mm';
+  return displayFormat.formatTime(parsed.toUtc());
 }
 
 /// A9/FR8a — the via-anchor AC an Author cannot see just by looking at the

@@ -139,6 +139,68 @@ class DisplayFormat {
   /// `<date> <time>` in the reader's chosen forms.
   String formatDateTime(DateTime d) => '${formatDate(d)} ${formatTime(d)}';
 
+  /// A calendar span (`start`..`end`, inclusive) in the reader's date form.
+  ///
+  /// One place decides how a range compacts, rather than each chip and label
+  /// doing it by hand with a hard-coded `MMM d` (issue #399). A missing or
+  /// same-day [end] renders as a single date. The two prose patterns
+  /// collapse a shared month/year the way the wireframes read
+  /// (`Sep 12–15, 2026`, `12–15 Sep 2026`) and a shared year alone keeps one
+  /// year (`Sep 12 – Oct 2, 2026`); the numeric patterns and an inherited
+  /// platform pattern are opaque to compaction, so both ends render in full
+  /// either side of a spaced en dash.
+  String formatDateRange(DateTime start, DateTime? end) {
+    if (end == null || _sameDay(start, end)) return formatDate(start);
+    final sameYear = start.year == end.year;
+    final sameMonth = sameYear && start.month == end.month;
+    switch (datePref) {
+      case DateFormatPref.monDayYear:
+        final mon = _monthAbbr[start.month - 1];
+        if (sameMonth) return '$mon ${start.day}–${end.day}, ${_pad4(end.year)}';
+        if (sameYear) {
+          return '$mon ${start.day} – ${_monthAbbr[end.month - 1]} ${end.day}, '
+              '${_pad4(end.year)}';
+        }
+      case DateFormatPref.dayMonYear:
+        final endMon = _monthAbbr[end.month - 1];
+        if (sameMonth) return '${start.day}–${end.day} $endMon ${_pad4(end.year)}';
+        if (sameYear) {
+          return '${start.day} ${_monthAbbr[start.month - 1]} – ${end.day} $endMon '
+              '${_pad4(end.year)}';
+        }
+      case DateFormatPref.inherit:
+      case DateFormatPref.iso8601:
+      case DateFormatPref.us:
+      case DateFormatPref.uk:
+      case DateFormatPref.europeanDot:
+      case DateFormatPref.eastAsia:
+        break;
+    }
+    return '${formatDate(start)} – ${formatDate(end)}';
+  }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// The same preferences with the device's *current* `inherit` answers
+  /// attached — the step a surface that renders a date or a clock time takes
+  /// at render time (`presentation/display_format_of.dart`), so the stored
+  /// preference and the platform answer are combined in exactly one place
+  /// rather than at each call site. Distance and temperature are untouched:
+  /// they carry no `inherit` and need no platform.
+  DisplayFormat withPlatform({
+    String Function(DateTime)? dateFormatter,
+    bool? uses24Hour,
+  }) =>
+      DisplayFormat(
+        datePref: datePref,
+        clockPref: clockPref,
+        temperatureUnit: temperatureUnit,
+        useMiles: useMiles,
+        platformDateFormatter: dateFormatter,
+        platformUses24Hour: uses24Hour,
+      );
+
   /// Canonical Celsius → the reader's scale, as a number (no rounding).
   double temperatureValue(double celsius) =>
       temperatureUnit == TemperatureUnit.fahrenheit

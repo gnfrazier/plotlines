@@ -15,10 +15,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/logistics_tab.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'package:plotlines_client/state/settings_provider.dart';
 import 'support/display_units.dart';
 
-Future<ProviderContainer> _pump(WidgetTester tester, List<Day> days, {TripDuration? duration}) async {
-  final container = ProviderContainer(overrides: [metricUnits()]);
+Future<ProviderContainer> _pump(WidgetTester tester, List<Day> days,
+    {TripDuration? duration, Override? displayFormat}) async {
+  final container = ProviderContainer(overrides: [displayFormat ?? metricUnits()]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(
         Trip(
@@ -68,7 +70,30 @@ void main() {
       [Day(id: 'd1', index: 1)],
       duration: TripDuration(startDate: '2026-09-12', endDate: '2026-09-15'),
     );
-    expect(find.text('Sep 12 – Sep 15, 2026'), findsOneWidget);
+    // `inherit` (the default) resolves against the device — en_US under
+    // flutter_test — rather than a pattern hard-coded on this tab (#399).
+    expect(find.text('Sep 12, 2026 – Sep 15, 2026'), findsOneWidget);
+  });
+
+  testWidgets('the date range reads in the Author\'s chosen date format (FR79, #399)',
+      (tester) async {
+    await _pump(
+      tester,
+      [Day(id: 'd1', index: 1)],
+      duration: TripDuration(startDate: '2026-09-12', endDate: '2026-09-15'),
+      displayFormat: displayFormatProvider.overrideWithValue(
+          const DisplayFormat(datePref: DateFormatPref.uk)),
+    );
+    expect(find.text('12/09/2026 – 15/09/2026'), findsOneWidget);
+
+    await _pump(
+      tester,
+      [Day(id: 'd1', index: 1)],
+      duration: TripDuration(startDate: '2026-09-12', endDate: '2026-09-15'),
+      displayFormat: displayFormatProvider.overrideWithValue(
+          const DisplayFormat(datePref: DateFormatPref.monDayYear)),
+    );
+    expect(find.text('Sep 12–15, 2026'), findsOneWidget);
   });
 
   testWidgets('raising the day count appends blank route days', (tester) async {

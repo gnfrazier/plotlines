@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
+import 'package:plotlines_client/domain/display_format.dart';
 import 'package:plotlines_client/presentation/widgets/plot_date_range_picker.dart';
 
 /// Opens the picker and leaves it open, so a test can inspect it without
@@ -18,6 +19,7 @@ Future<void> _open(
   DateTimeRange? initial,
   DateTime? first,
   DateTime? last,
+  DisplayFormat displayFormat = const DisplayFormat(),
 }) async {
   await tester.pumpWidget(MaterialApp(
     theme: PlotTheme.light(),
@@ -30,6 +32,7 @@ Future<void> _open(
               firstDate: first ?? DateTime(2026, 1, 1),
               lastDate: last ?? DateTime(2027, 12, 31),
               initialRange: initial,
+              displayFormat: displayFormat,
             ),
             child: const Text('open'),
           ),
@@ -60,7 +63,28 @@ void main() {
     // C2's "no link back to trip length": the picker says how long the trip
     // it is describing actually is.
     expect(find.textContaining('3 days'), findsOneWidget);
-    expect(find.textContaining('Sep 5'), findsOneWidget);
+    // No preference handed in → the safe ISO 8601 fallback, both ends.
+    expect(find.textContaining('2026-09-05 – 2026-09-07'), findsOneWidget);
+  });
+
+  testWidgets('the header reads the range in the Author\'s date format (FR79, #399)',
+      (tester) async {
+    await _open(tester,
+        initial: DateTimeRange(start: DateTime(2026, 9, 5), end: DateTime(2026, 9, 7)),
+        displayFormat: const DisplayFormat(datePref: DateFormatPref.monDayYear));
+    expect(find.textContaining('Sep 5–7, 2026'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    await _open(tester,
+        initial: DateTimeRange(start: DateTime(2026, 9, 5), end: DateTime(2026, 9, 7)),
+        displayFormat: const DisplayFormat(datePref: DateFormatPref.europeanDot));
+    expect(find.textContaining('05.09.2026 – 07.09.2026'), findsOneWidget);
+    // and the one-end-chosen prompt uses the same form
+    await tester.tap(find.text('10').first);
+    await tester.pump();
+    expect(find.text('10.09.2026 — pick the last day'), findsOneWidget);
   });
 
   testWidgets('picking two days returns exactly that range', (tester) async {
