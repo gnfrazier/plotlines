@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# Copies the SPIKE-14 WNC-corridor archive into the §6.3 mirror tree under
-# its own honest build id, and records which region it covers in
-# MIRROR_STATE.json's `basemap` section (issue #257, Phase 1.3 of epic #264;
+# Copies a local .pmtiles file into the §6.3 mirror tree under its own
+# honest build id, and records which region it covers in MIRROR_STATE.json's
+# `basemap` section (issue #257, Phase 1.3 of epic #264;
 # docs/Plotlines_OSM_Acquisition_Review.md §6.2/§6.3, addendum finding G3/1b,
 # checklist item 13).
+#
+# `protomaps_extract.py` (issue #394) is the primary way to populate the
+# basemap now — it fetches a real extract from Protomaps' hosted planet
+# build rather than copying in a pre-built local file. This script still
+# works exactly as before, for an offline dry run, CI, or restoring a known
+# local .pmtiles without a network fetch.
 #
 # This is a *stand-in* for the real Protomaps planet build
 # (plotlines_core.tiles.mirror.MIRROR_ARCHIVE_URL) — the mirror does not

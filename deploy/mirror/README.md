@@ -71,18 +71,36 @@ Raspberry Pi OS but not guaranteed on a minimal image.
 #258/#260's job), and only ever (re)writes Plotlines' own static
 `COPYRIGHT.txt` files and creates directories.
 
-`copy_basemap_standin.sh` (#257) must run after `build_tree.sh` — it copies
-the SPIKE-14 corridor archive in under its own honest build id
-(`basemap/protomaps/20250101-wnc/corridor.pmtiles`, never `planet.pmtiles`)
-and merges `basemap.build_id`/`basemap.covered_regions` into
-`MIRROR_STATE.json`, leaving its `geofabrik` key untouched. It's also
-idempotent: re-running it overwrites the corridor file and the `basemap`
-key cleanly, and errors clearly rather than guessing if `MIRROR_STATE.json`
-doesn't exist yet or the source archive isn't where it was told to look.
-`spikes/SPIKE-14/tiles/` is gitignored (a locally-built spike artifact), so
-it has to be copied onto the Pi separately from `deploy/mirror` itself, as
-above. Geofabrik payload files themselves are pulled in by #258/#260 —
-neither script here reaches the network.
+**`protomaps_extract.py` (#394) is now the primary way to populate the
+basemap** — it runs after `build_tree.sh`, on a machine with the `pmtiles`
+CLI installed (not necessarily the Pi), and writes directly into `--root`
+(point it at the mounted mirror tree, or a scratch dir to copy over
+afterward):
+
+```
+./protomaps_extract.py --root /srv/plotlines-mirror
+```
+
+It extracts a **real** corridor archive from Protomaps' own hosted daily
+planet build (`pmtiles extract` against `build.protomaps.com` — measured: 95
+requests, 124 MB transferred, ~11s) and publishes it under the same honest
+path `copy_basemap_standin.sh` used, merging the same
+`basemap.build_id`/`basemap.covered_regions` shape into `MIRROR_STATE.json`
+plus a `source`/`extracted_at` provenance record, leaving `geofabrik`
+untouched. See its module docstring for why the CLI tool is required rather
+than reusing `plotlines_core.tiles.extract.extract_bbox` (that path is fine
+for a live per-trip request, but re-walks the archive per tile with no
+request coalescing — measured too slow for a 43k-tile regional pull).
+
+`copy_basemap_standin.sh` (#257) still works exactly as before — copying in
+a local archive file (the gitignored SPIKE-14 synthetic fixture, or any
+other pre-built `.pmtiles`) rather than fetching one — useful for an
+offline dry run or CI, or to restore a specific known-good file without
+re-pulling from Protomaps. Both scripts write the same `basemap` shape into
+`MIRROR_STATE.json`, so whichever ran most recently wins; don't run them
+back-to-back expecting the first one's content to survive. Geofabrik payload
+files themselves are pulled in by #258/#260 — neither basemap script here
+reaches that part of the tree.
 
 ## Verifying it
 
