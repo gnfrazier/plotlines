@@ -25,7 +25,11 @@ jobs:
         include:
           - os: windows-latest
             label: windows-x86_64
-          - os: macos-13
+          # macos-13 was the first choice; GitHub retired that image in
+          # Dec 2025 and the job sat "queued" for 24h until auto-cancelled
+          # (run 34771996128, both attempts). macos-15-intel is the one
+          # remaining Intel image in the hosted pool.
+          - os: macos-15-intel
             label: macos-x86_64
           - os: macos-14
             label: macos-arm64
