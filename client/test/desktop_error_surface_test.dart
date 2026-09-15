@@ -1,4 +1,4 @@
-// M13 (issue #143) — DesktopErrorSurface renders any of the twelve typed
+// M13 (issue #143) — DesktopErrorSurface renders any of the thirteen typed
 // states through one shape ("what, why, what still works, what to do"),
 // choosing its container from the state's treatment.
 
@@ -114,6 +114,55 @@ void main() {
     );
     expect(find.byType(PlotCard), findsOneWidget);
     expect(find.text('The other four layers are live'), findsOneWidget);
+  });
+
+  testWidgets('layers-partially-served (#400) names each missing layer with its reason, beside a retry',
+      (tester) async {
+    var retried = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: PlotTheme.light(),
+        home: Scaffold(
+          body: DesktopErrorSurface(
+            state: DesktopErrorState.layersPartiallyServed,
+            content: DesktopErrorContent(
+              headline: 'Some layers are missing',
+              why: 'not every requested layer is in these results',
+              details: const [
+                'plugin_crags — layer extraction did not finish.',
+                'historic — it is still being prepared.',
+              ],
+              whatStillWorks: const ['Candidates from the other layers are on the map'],
+              onRetry: () => retried++,
+              retryLabel: 'Retry those layers',
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.byType(PlotCard), findsOneWidget);
+    expect(find.text('not every requested layer is in these results'), findsOneWidget);
+    expect(find.text('plugin_crags — layer extraction did not finish.'), findsOneWidget);
+    expect(find.text('historic — it is still being prepared.'), findsOneWidget);
+    expect(find.text('Candidates from the other layers are on the map'), findsOneWidget);
+    await tester.tap(find.text('Retry those layers'));
+    expect(retried, 1);
+  });
+
+  testWidgets('details lines render under the cause in every container that has room', (tester) async {
+    for (final state in [
+      DesktopErrorState.sidecarWontStart, // full-screen block
+      DesktopErrorState.sidecarDiedMidSession, // banner
+      DesktopErrorState.noRoutePossible, // inline card
+    ]) {
+      await pump(tester, state,
+          content: const DesktopErrorContent(
+            headline: 'h',
+            why: 'w',
+            details: ['detail line'],
+          ));
+      expect(find.text('detail line'), findsOneWidget, reason: state.name);
+    }
   });
 
   testWidgets('an inline-notice state renders the cause quietly', (tester) async {
