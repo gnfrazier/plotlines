@@ -85,3 +85,39 @@ List<PlotPointEntry> buildPlotPoints(
   }
   return entries;
 }
+
+/// Issue #393 — the day-scoped counterpart to [buildPlotPoints], now that a
+/// role can actually name its day (`Role.dayId`, issue #384). Returns plain,
+/// already-reveal-resolved title strings grouped by `dayId` rather than a
+/// richer type, deliberately: `domain/itinerary.dart`'s [buildItinerary]
+/// weaves this into a day's prose account (FR133), and Domain may not import
+/// [RevealResolver] (ARCH §10.1's Presentation → State → Domain → Data
+/// layering — Data depends on Domain, never the reverse). A withheld role
+/// contributes nothing here rather than a placeholder string: FR116
+/// withholds a plot point's *content*, not the fact that other, revealed
+/// content exists on the same day, and the arc-preserving placeholder
+/// ("Held for arrival") already has a home in [buildPlotPoints]'s own list.
+///
+/// Segment-scoped roles (`Role.segmentId`) are folded in here too — day
+/// prose has no finer position to place them at than "this day" — while the
+/// per-segment cue sheet (`export_tab.dart`) reads `segmentId` itself for a
+/// tighter placement.
+Map<String, List<String>> revealedAnchorTitlesByDay(
+  Trip trip, {
+  bool Function(String anchorId)? hasArrived,
+}) {
+  const resolver = RevealResolver();
+  final byDay = <String, List<String>>{};
+  for (final anchor in trip.anchors) {
+    final arrived = hasArrived?.call(anchor.id) ?? false;
+    for (final role in anchor.roles) {
+      if (role.kind != RoleKind.narrative || role.dayId == null) continue;
+      final revealed = resolver.resolve(role, hasArrived: arrived, anchorCoord: anchor.coord);
+      if (!revealed.visible) continue;
+      final title = revealed.title ?? anchor.title;
+      if (title == null) continue;
+      (byDay[role.dayId!] ??= <String>[]).add(title);
+    }
+  }
+  return byDay;
+}

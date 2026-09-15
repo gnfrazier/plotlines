@@ -48,7 +48,14 @@ class CharacterReadScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
-    final itinerary = buildItinerary(trip, format: ref.watch(displayFormatProvider));
+    final itinerary = buildItinerary(
+      trip,
+      format: ref.watch(displayFormatProvider),
+      // No `hasArrived` override here — same "never arrived" placeholder
+      // policy `buildPlotPoints` below already applies for this Character
+      // surface (issue #101 owns the real arrival signal).
+      anchorTitlesByDayId: revealedAnchorTitlesByDay(trip),
+    );
     final plotPoints = buildPlotPoints(trip);
 
     // No Scaffold/AppBar of its own — this mounts as a Trip Shell tab
@@ -105,7 +112,8 @@ class CharacterReadScreen extends ConsumerWidget {
           ),
           const SizedBox(height: PlotSpacing.s5),
         ],
-        for (final day in trip.days) DayCueSection(key: ValueKey(day.id), day: day),
+        for (final day in trip.days)
+          DayCueSection(key: ValueKey(day.id), day: day, trip: trip),
       ],
     );
   }

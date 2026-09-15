@@ -9,10 +9,18 @@
 // F2 (FR48, FR133) adds `_ItinerarySection`, above the per-day cue sheets:
 // the master (every day) or an individual (attended-days-only) itinerary,
 // previewed in the same narrative register it prints/exports in. See
-// `domain/itinerary.dart` for why "places" reads from `Node`s rather than
-// the promoted `Anchor`/`Role` layer, and why reveal policy isn't applied
-// here (neither is it on the cue-sheet preview below, which reads the same
-// day-scoped nodes).
+// `domain/itinerary.dart` for why the day account's own prose stays
+// reveal-agnostic — it reads `Node`s directly (never gated) plus an
+// already-resolved anchor-title map this file builds and hands it.
+//
+// Issue #393 gives both this section and the per-day cue sheet below their
+// first rendering of a promoted `Anchor`'s narrative role, now that
+// `Role.dayId`/`Role.segmentId` (issue #384) says which day/segment it
+// belongs to. `DayCueSection` is shared with the Character-facing read
+// screen (H13, issue #87), so its anchor entries *are* reveal-gated
+// (`RevealResolver`, via the section's `hasArrived` parameter) even though
+// the Day-node entries beside them never were — this file's Export tab use
+// passes the Author "preview-as-self" mode, seeing everything.
 library;
 
 import 'dart:io';
@@ -22,12 +30,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
+import '../../../data/character_journey.dart';
 import '../../../data/export/export_options.dart';
 import '../../../data/export/fit_writer.dart';
 import '../../../data/export/geojson_writer.dart';
 import '../../../data/export/gpx_writer.dart';
 import '../../../data/export/itinerary_writer.dart';
 import '../../../data/export/tcx_writer.dart';
+import '../../../data/reveal_resolver.dart';
 import '../../../domain/domain.dart';
 import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
@@ -50,7 +60,8 @@ class ExportTab extends ConsumerWidget {
             padding: const EdgeInsets.all(PlotSpacing.s5),
             children: [
               _ItinerarySection(trip: trip),
-              for (final day in trip.days) DayCueSection(day: day),
+              for (final day in trip.days)
+                DayCueSection(day: day, trip: trip, hasArrived: (_) => true),
               if (trip.days.every((d) => d.segments.isEmpty))
                 Padding(
                   padding: const EdgeInsets.all(PlotSpacing.s5),
@@ -108,6 +119,11 @@ class _ItinerarySectionState extends ConsumerState<_ItinerarySection> {
             ? _labelController.text.trim()
             : null,
         format: ref.read(displayFormatProvider),
+        // The Author's own itinerary preview, not a Character's — `hasArrived:
+        // (_) => true` is `RevealResolver`'s documented "preview-as-self" mode
+        // (`data/reveal_resolver.dart`), matching this section's own existing
+        // non-reveal-gated treatment of `Day.nodes`.
+        anchorTitlesByDayId: revealedAnchorTitlesByDay(widget.trip, hasArrived: (_) => true),
       );
 
   @override
@@ -328,19 +344,25 @@ _CueEntry _modeChangeEntry(ModeChangeEntry change, {required double distanceAlon
   );
 }
 
-List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
+List<_CueEntry> _entriesFromCueSheets(
+  Day day,
+  List<CueSheet> sheets,
+  Trip trip, {
+  bool Function(String anchorId)? hasArrived,
+}) {
   final entries = <_CueEntry>[];
   final modeChanges = {
     for (final change in dayModeChanges(day)) change.transition.toSegmentId: change,
   };
   var offset = 0.0;
   for (var i = 0; i < day.segments.length; i++) {
-    final change = modeChanges[day.segments[i].id];
+    final segment = day.segments[i];
+    final change = modeChanges[segment.id];
     if (change != null) entries.add(_modeChangeEntry(change, distanceAlongM: offset));
     // FR128 / A11 — the dismount/gate/ford edges this passage rolls over. The
     // engine reports them in path order without a distance-along, so they land
     // at the passage's start (this list is built in reading order, not sorted).
-    for (final sc in day.segments[i].surfacedConstraints) {
+    for (final sc in segment.surfacedConstraints) {
       entries.add(
         _CueEntry(
           distanceAlongM: offset,
@@ -375,7 +397,15 @@ List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
         ),
       );
     }
-    offset += day.segments[i].metrics?.distanceM ?? 0;
+    offset += segment.metrics?.distanceM ?? 0;
+    // Issue #393 — a narrative anchor role attached to this segment
+    // (`Role.segmentId`, issue #384) lands right after the cues that
+    // segment itself produced; nothing here projects its coordinate onto
+    // the route the way `cues.node_cues` does server-side (core, not this
+    // client, holds the routing graph), so "end of the segment it's pinned
+    // to" is the position, not a distance measured along it.
+    entries.addAll(_anchorEntriesForSegment(trip, segment.id,
+        distanceAlongM: offset, hasArrived: hasArrived));
   }
   // FR133 — day-scoped nodes (a rest day's POIs, and lodging/campground
   // choices placed at the day level — Story C7, issue #43) have no route
@@ -385,7 +415,97 @@ List<_CueEntry> _entriesFromCueSheets(Day day, List<CueSheet> sheets) {
   for (var i = 0; i < day.nodes.length; i++) {
     entries.add(_cueEntryForNode(day.nodes[i], distanceAlongM: offset + i + 1));
   }
+  entries.addAll(_anchorEntriesForDayOnly(trip, day,
+      startOffset: offset + day.nodes.length + 1, hasArrived: hasArrived));
   return entries;
+}
+
+/// Issue #393 (FR108/FR126's "timeline, cue sheet" AC; issue #384's
+/// `Role.dayId`/`Role.segmentId`) — the first cue-sheet rendering of a
+/// promoted anchor's narrative role. Reveal-resolved here rather than
+/// server-side: a `CueSheet` is a *derived* document with no reveal concept
+/// of its own (`core/plotlines_core/trips/cues.py` only ever sees `Node`s,
+/// which are never reveal-gated), and baking a role's title into it directly
+/// would leak withheld content into every consumer of that sheet — export,
+/// print, a Character who has not arrived — bypassing the one boundary P11
+/// requires (`RevealResolver`). Scoped to `RoleKind.narrative` only, matching
+/// `buildPlotPoints`'s own scope (`data/character_journey.dart`) — a
+/// provision/station role's content already has its own surfaces
+/// (C5 amenities on `Node`, O4's station dashboard).
+List<_CueEntry> _anchorEntriesForSegment(
+  Trip trip,
+  String segmentId, {
+  required double distanceAlongM,
+  required bool Function(String anchorId)? hasArrived,
+}) {
+  final entries = <_CueEntry>[];
+  for (final anchor in trip.anchors) {
+    for (final role in anchor.roles) {
+      if (role.kind != RoleKind.narrative || role.segmentId != segmentId) continue;
+      entries.add(_cueEntryForAnchorRole(anchor, role,
+          distanceAlongM: distanceAlongM, hasArrived: hasArrived));
+    }
+  }
+  return entries;
+}
+
+/// The day-only half of [_anchorEntriesForSegment]'s scope: a role that
+/// names [day] but no segment within it has no route position at all — the
+/// same shortfall [_dayNodeEntries] documents for `Day.nodes` — so these are
+/// placed after everything else, in encounter order.
+List<_CueEntry> _anchorEntriesForDayOnly(
+  Trip trip,
+  Day day, {
+  required double startOffset,
+  required bool Function(String anchorId)? hasArrived,
+}) {
+  final entries = <_CueEntry>[];
+  var index = 0;
+  for (final anchor in trip.anchors) {
+    for (final role in anchor.roles) {
+      if (role.kind != RoleKind.narrative || role.dayId != day.id || role.segmentId != null) {
+        continue;
+      }
+      entries.add(_cueEntryForAnchorRole(anchor, role,
+          distanceAlongM: startOffset + index, hasArrived: hasArrived));
+      index++;
+    }
+  }
+  return entries;
+}
+
+/// A day with no segments and no `Day.nodes` used to render an empty
+/// section, so `DayCueSection.build` short-circuited to nothing rather than
+/// mount one — a rest day composed *entirely* of area/point anchors (FR108's
+/// own "rest days can be composed primarily of area anchors") would now
+/// silently drop its only content without this check (issue #393).
+bool _dayHasAttachedNarrativeAnchors(Trip trip, String dayId) => trip.anchors.any(
+      (anchor) => anchor.roles.any((role) => role.kind == RoleKind.narrative && role.dayId == dayId),
+    );
+
+/// One [_CueEntry] for a narrative anchor role, resolved through
+/// [RevealResolver] — the only sanctioned reader of `Role.title`/`.note`
+/// (gate 1, `tools/ci/reveal_gate_lint.sh`). A withheld role reads "Held for
+/// arrival," matching `character_read_screen.dart`'s `_PlotPointRow`; the
+/// arc stage and the hazard flag are role *metadata* (never gated, per that
+/// same gate's own carve-out) and always show via [_CueEntry.tag].
+_CueEntry _cueEntryForAnchorRole(
+  Anchor anchor,
+  Role role, {
+  required double distanceAlongM,
+  required bool Function(String anchorId)? hasArrived,
+}) {
+  const resolver = RevealResolver();
+  final revealed = resolver.resolve(role,
+      hasArrived: hasArrived?.call(anchor.id) ?? false, anchorCoord: anchor.coord);
+  final label =
+      revealed.visible ? (revealed.title ?? anchor.title ?? 'Plot point') : 'Held for arrival';
+  return _CueEntry(
+    distanceAlongM: distanceAlongM,
+    label: label,
+    glyph: role.hazard ? '⚠' : '★',
+    tag: role.hazard ? 'HAZARD' : role.arc?.wireValue.toUpperCase(),
+  );
 }
 
 /// FR128 / A11 — the raw OSM-shaped `key=value` flags as a Character reads
@@ -396,7 +516,11 @@ String _surfacedConstraintLabel(List<String> flags) =>
 
 /// The pre-F1 proxy: authored stops only, no derived turns. Used when the
 /// real cue derivation call fails.
-List<_CueEntry> _entriesFromAuthoredContent(Day day) {
+List<_CueEntry> _entriesFromAuthoredContent(
+  Day day,
+  Trip trip, {
+  bool Function(String anchorId)? hasArrived,
+}) {
   final entries = <_CueEntry>[];
   // Placed at the preceding passage's own finish distance, which is the frame
   // this fallback measures in (each passage restarts at zero here).
@@ -456,8 +580,18 @@ List<_CueEntry> _entriesFromAuthoredContent(Day day) {
         ),
       );
     }
+    // Issue #393 — same segment attachment as `_entriesFromCueSheets`, at
+    // this fallback's own "Finish" distance since it has no route to
+    // project a finer position onto either.
+    entries.addAll(_anchorEntriesForSegment(trip, segment.id,
+        distanceAlongM: segment.metrics?.distanceM ?? 0, hasArrived: hasArrived));
   }
   entries.addAll(_dayNodeEntries(day, after: entries));
+  entries.addAll(_anchorEntriesForDayOnly(trip, day,
+      startOffset: entries.isEmpty
+          ? 0
+          : entries.map((e) => e.distanceAlongM).reduce((a, b) => a > b ? a : b),
+      hasArrived: hasArrived));
   entries.sort((a, b) => a.distanceAlongM.compareTo(b.distanceAlongM));
   return entries;
 }
@@ -516,8 +650,17 @@ _CueEntry _cueEntryForNode(Node node, {required double distanceAlongM}) {
 /// reading surface needs the exact same per-day sheet the Export tab already
 /// shows the Author, not a parallel implementation that could drift from it.
 class DayCueSection extends ConsumerStatefulWidget {
-  const DayCueSection({super.key, required this.day});
+  const DayCueSection({super.key, required this.day, required this.trip, this.hasArrived});
   final Day day;
+  final Trip trip;
+
+  /// Issue #393 — how a narrative anchor role attached to this day resolves
+  /// through `RevealResolver`. `null` (the default; `character_read_screen.dart`'s
+  /// use) resolves every role as not-yet-arrived, the same placeholder
+  /// policy `data/character_journey.dart`'s `buildPlotPoints` applies until a
+  /// real arrival signal exists (issue #101). The Export tab passes
+  /// `(_) => true` — `RevealResolver`'s documented "Author preview-as-self."
+  final bool Function(String anchorId)? hasArrived;
 
   @override
   ConsumerState<DayCueSection> createState() => DayCueSectionState();
@@ -528,7 +671,7 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
 
   Future<List<_CueEntry>> _load() async {
     if (widget.day.segments.every((s) => s.start == null)) {
-      return _entriesFromAuthoredContent(widget.day);
+      return _entriesFromAuthoredContent(widget.day, widget.trip, hasArrived: widget.hasArrived);
     }
     final client = ref.read(routingClientProvider);
     // FR120/D41, issue #154 — cues re-solve against the region-scoped graph;
@@ -536,7 +679,9 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
     // a drive to the trailhead ensures one region per distinct `network_type`
     // and each segment's cues come off its own mode's graph.
     final bbox = ref.read(tripBboxProvider);
-    if (bbox == null) return _entriesFromAuthoredContent(widget.day);
+    if (bbox == null) {
+      return _entriesFromAuthoredContent(widget.day, widget.trip, hasArrived: widget.hasArrived);
+    }
     final regionByNetworkType = <String, String>{};
     for (final networkType
         in widget.day.segments.map((s) => networkTypeForMode(s.mode)).toSet()) {
@@ -547,13 +692,13 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
       widget.day.segments.map((s) => client.cuesFor(s,
           region: regionByNetworkType[networkTypeForMode(s.mode)]!)),
     );
-    return _entriesFromCueSheets(widget.day, sheets);
+    return _entriesFromCueSheets(widget.day, sheets, widget.trip, hasArrived: widget.hasArrived);
   }
 
   @override
   void didUpdateWidget(covariant DayCueSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.day != widget.day) {
+    if (oldWidget.day != widget.day || oldWidget.trip != widget.trip) {
       setState(() => _future = _load());
     }
   }
@@ -562,7 +707,9 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final df = ref.watch(displayFormatProvider);
-    if (widget.day.segments.isEmpty && widget.day.nodes.isEmpty) {
+    if (widget.day.segments.isEmpty &&
+        widget.day.nodes.isEmpty &&
+        !_dayHasAttachedNarrativeAnchors(widget.trip, widget.day.id)) {
       return const SizedBox.shrink();
     }
 
@@ -587,8 +734,9 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
-              final entries =
-                  snapshot.data ?? _entriesFromAuthoredContent(widget.day);
+              final entries = snapshot.data ??
+                  _entriesFromAuthoredContent(widget.day, widget.trip,
+                      hasArrived: widget.hasArrived);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
