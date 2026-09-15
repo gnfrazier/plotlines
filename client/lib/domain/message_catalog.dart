@@ -211,6 +211,7 @@ const Map<MessageId, String> baseLocalePatterns = {
   MessageId.reasonExportFailed: 'the export could not be written',
   MessageId.reasonCapabilityWarming: 'it is still being prepared',
   MessageId.reasonLayerExtractionFailed: 'layer extraction did not finish',
+  MessageId.reasonLayersPartiallyServed: 'not every requested layer is in these results',
   MessageId.reasonPluginLayerUnloadableOnLicence: 'this plugin layer cannot be loaded under its licence',
   MessageId.reasonNoClustersFoundInBbox: 'no clusters were found in this area',
   MessageId.reasonComposeDistanceIsAnOutcome: 'in Compose mode the distance is what the places add up to',
@@ -260,6 +261,7 @@ const Map<MessageId, String> baseLocalePatterns = {
   MessageId.controlDisabledBecause: 'Unavailable — {reason}.',
   MessageId.operationFailedBecause: 'That did not finish — {reason}.',
   MessageId.capabilityUnavailableBecause: '{capability} is not ready — {reason}.',
+  MessageId.layerUnavailableBecause: '{layer} — {reason}.',
 };
 
 /// Resolves a [MessageId] plus typed slots into text for one locale and one

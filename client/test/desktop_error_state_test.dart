@@ -1,7 +1,8 @@
 // M13 (issue #143) — the typed state enum behind the one shared error
 // surface, and the three properties its AC turns on:
-//   1. it covers exactly the twelve states M13 names (eight original + four
-//      v2.0), each with a defined treatment;
+//   1. it covers exactly the thirteen states M13 names (eight original + four
+//      v2.0 + the fifth v2.0 state SPIKE-D surfaced, #400), each with a
+//      defined treatment;
 //   2. a failure in an optional enrichment never blocks the app or lets the
 //      Author's primary work be discarded;
 //   3. compose-mode distance deviation and stale derived work are NOT states
@@ -15,9 +16,9 @@ import 'package:plotlines_client/domain/desktop_error_state.dart';
 import 'package:plotlines_client/domain/reason_phrase.dart';
 
 void main() {
-  group('the enum covers exactly M13\'s twelve states, each with a treatment', () {
-    test('twelve states, no more, no fewer', () {
-      expect(DesktopErrorState.values.length, 12);
+  group('the enum covers exactly M13\'s thirteen states, each with a treatment', () {
+    test('thirteen states, no more, no fewer', () {
+      expect(DesktopErrorState.values.length, 13);
     });
 
     test('every state has a defined treatment', () {
@@ -43,6 +44,11 @@ void main() {
           'noClustersFoundInBbox',
         ]),
       );
+    });
+
+    test('the fifth v2.0 state — layers partially served (SPIKE-D, #400) — is present', () {
+      final names = {for (final s in DesktopErrorState.values) s.name};
+      expect(names, contains('layersPartiallyServed'));
     });
 
     test('the eight original states are present', () {
@@ -110,6 +116,7 @@ void main() {
         DesktopErrorState.externalProviderUnreachable,
         DesktopErrorState.capabilityWarming,
         DesktopErrorState.layerExtractionFailed,
+        DesktopErrorState.layersPartiallyServed,
         DesktopErrorState.pluginLayerUnloadableOnLicence,
         DesktopErrorState.noClustersFoundInBbox,
       });
@@ -155,6 +162,24 @@ void main() {
       expect(desktopErrorTreatments[DesktopErrorState.layerExtractionFailed]!.retryable, isTrue);
       expect(desktopErrorTreatments[DesktopErrorState.pluginLayerUnloadableOnLicence]!.retryable,
           isFalse);
+    });
+
+    test('layers-partially-served (#400) is its own state, distinct from layer-extraction-failed', () {
+      final partial = desktopErrorTreatments[DesktopErrorState.layersPartiallyServed]!;
+      final total = desktopErrorTreatments[DesktopErrorState.layerExtractionFailed]!;
+      // Two states, two reason codes, two phrases — an Author reading either
+      // can tell whether the map is missing one layer or all of them.
+      expect(partial.reason, ReasonCode.layersPartiallyServed);
+      expect(partial.reason, isNot(total.reason));
+      expect(reasonPhrases[partial.reason]!.phrase, isNot(reasonPhrases[total.reason]!.phrase));
+      // The workspace is usable: candidates from the served layers are on
+      // the map, so this never blocks and never discards them; the retry is
+      // for the layers that did not arrive.
+      expect(partial.presentation, ErrorSurfacePresentation.inlineCard);
+      expect(partial.blocksApp, isFalse);
+      expect(partial.preservesPrimaryWork, isTrue);
+      expect(partial.optionalEnrichment, isTrue);
+      expect(partial.retryable, isTrue);
     });
 
     test('no-route-possible is an inline card, not a blocking screen (FR9 relaxations)', () {
