@@ -28,6 +28,7 @@ import '../../../state/planner_ui_state.dart';
 import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
 import '../../../state/trip_candidates_provider.dart';
+import '../../display_format_of.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/alternate_editor_dialog.dart';
 import '../../widgets/day_removal_prompt.dart';
@@ -168,13 +169,14 @@ class _TripDurationCardState extends ConsumerState<_TripDurationCard> {
     super.dispose();
   }
 
-  String _dateRangeLabel() {
+  // FR79 (issue #399) — the stored dates are ISO 8601; how they read is the
+  // Author's date preference, `inherit` resolved against the device.
+  String _dateRangeLabel(DisplayFormat df) {
     final duration = widget.trip.duration;
     final start = duration?.startDate == null ? null : DateTime.tryParse(duration!.startDate!);
     final end = duration?.endDate == null ? null : DateTime.tryParse(duration!.endDate!);
     if (start == null) return 'No dates set';
-    if (end == null || DateUtils.isSameDay(start, end)) return DateFormat('MMM d, y').format(start);
-    return '${DateFormat('MMM d').format(start)} – ${DateFormat('MMM d, y').format(end)}';
+    return df.formatDateRange(start, end);
   }
 
   Future<void> _pickDates() async {
@@ -193,8 +195,11 @@ class _TripDurationCardState extends ConsumerState<_TripDurationCard> {
         start: initialStart,
         end: initialEnd.isBefore(initialStart) ? initialStart : initialEnd,
       ),
+      displayFormat: displayFormatOf(context, ref),
     );
     if (range == null) return;
+    // The stored form is ISO 8601 regardless of how the label above reads
+    // (ARCH D49).
     ref.read(currentTripProvider.notifier).setDuration(TripDuration(
           startDate: DateFormat('yyyy-MM-dd').format(range.start),
           endDate: DateFormat('yyyy-MM-dd').format(range.end),
@@ -254,7 +259,7 @@ class _TripDurationCardState extends ConsumerState<_TripDurationCard> {
               style: PlotTypography.body(c.textSecondary)),
           const SizedBox(width: PlotSpacing.s4),
           Expanded(
-            child: Text(_dateRangeLabel(),
+            child: Text(_dateRangeLabel(displayFormatOf(context, ref)),
                 textAlign: TextAlign.right, style: PlotTypography.body(c.textSecondary)),
           ),
           const SizedBox(width: PlotSpacing.s2),

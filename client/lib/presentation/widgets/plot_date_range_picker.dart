@@ -31,12 +31,20 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
+import '../../domain/display_format.dart';
+
 /// Picks a start/end date pair. Returns null if the Author cancelled.
+///
+/// [displayFormat] governs how the chosen range reads in the header (FR79,
+/// issue #399) — callers pass `displayFormatOf(context, ref)`. The month
+/// names and the per-day semantics label are calendar chrome, not a date
+/// value in one of FR79's forms, and stay as they are.
 Future<DateTimeRange?> showPlotDateRangePicker(
   BuildContext context, {
   required DateTime firstDate,
   required DateTime lastDate,
   DateTimeRange? initialRange,
+  DisplayFormat displayFormat = const DisplayFormat(),
 }) {
   return showDialog<DateTimeRange>(
     context: context,
@@ -44,6 +52,7 @@ Future<DateTimeRange?> showPlotDateRangePicker(
       firstDate: DateUtils.dateOnly(firstDate),
       lastDate: DateUtils.dateOnly(lastDate),
       initialRange: initialRange,
+      displayFormat: displayFormat,
     ),
   );
 }
@@ -52,11 +61,13 @@ class _PlotDateRangeDialog extends StatefulWidget {
   const _PlotDateRangeDialog({
     required this.firstDate,
     required this.lastDate,
+    required this.displayFormat,
     this.initialRange,
   });
 
   final DateTime firstDate;
   final DateTime lastDate;
+  final DisplayFormat displayFormat;
   final DateTimeRange? initialRange;
 
   @override
@@ -109,9 +120,10 @@ class _PlotDateRangeDialogState extends State<_PlotDateRangeDialog> {
     final start = _start;
     if (start == null) return 'Pick the first day';
     final end = _end;
-    if (end == null) return '${DateFormat('MMM d').format(start)} — pick the last day';
+    final df = widget.displayFormat;
+    if (end == null) return '${df.formatDate(start)} — pick the last day';
     final days = end.difference(start).inDays + 1;
-    return '${DateFormat('MMM d').format(start)} – ${DateFormat('MMM d, y').format(end)}'
+    return '${df.formatDateRange(start, end)}'
         '   ·   $days ${days == 1 ? 'day' : 'days'}';
   }
 

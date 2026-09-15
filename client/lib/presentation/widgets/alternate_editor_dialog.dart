@@ -30,6 +30,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/settings_provider.dart';
+import '../display_format_of.dart';
 import 'teaching_block.dart';
 
 /// PRD §1.4–1.5, and the model itself: no Author setting hides a hazard. Said
@@ -377,7 +378,9 @@ class _AlternateCardState extends ConsumerState<AlternateCard> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final trip = ref.watch(currentTripProvider);
-    final df = ref.watch(displayFormatProvider);
+    // The SOLVED stamp below is a date and a clock time, so `inherit`
+    // resolves against the device here (FR79, issue #399).
+    final df = displayFormatOf(context, ref);
     final a = _find(trip);
     if (a == null) {
       // Deleted underneath the open card — nothing to inspect.

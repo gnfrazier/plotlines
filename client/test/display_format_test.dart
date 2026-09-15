@@ -169,4 +169,77 @@ void main() {
     );
     expect(f.formatDateTime(sample), 'Aug 20, 2026 3:07 PM');
   });
+
+  group('formatDateRange decides compaction once (#399)', () {
+    final sep12 = DateTime(2026, 9, 12);
+    final sep15 = DateTime(2026, 9, 15);
+    final oct2 = DateTime(2026, 10, 2);
+    final jan3 = DateTime(2027, 1, 3);
+
+    test('a missing or same-day end is a single date', () {
+      final f = DisplayFormat(datePref: DateFormatPref.us);
+      expect(f.formatDateRange(sep12, null), '09/12/2026');
+      expect(f.formatDateRange(sep12, DateTime(2026, 9, 12, 18)), '09/12/2026');
+    });
+
+    test('the prose patterns collapse a shared month and a shared year', () {
+      final mdy = DisplayFormat(datePref: DateFormatPref.monDayYear);
+      expect(mdy.formatDateRange(sep12, sep15), 'Sep 12–15, 2026');
+      expect(mdy.formatDateRange(sep12, oct2), 'Sep 12 – Oct 2, 2026');
+      expect(mdy.formatDateRange(sep12, jan3), 'Sep 12, 2026 – Jan 3, 2027');
+
+      final dmy = DisplayFormat(datePref: DateFormatPref.dayMonYear);
+      expect(dmy.formatDateRange(sep12, sep15), '12–15 Sep 2026');
+      expect(dmy.formatDateRange(sep12, oct2), '12 Sep – 2 Oct 2026');
+      expect(dmy.formatDateRange(sep12, jan3), '12 Sep 2026 – 3 Jan 2027');
+    });
+
+    test('the numeric patterns never compact — both ends in full', () {
+      const numeric = {
+        DateFormatPref.iso8601: '2026-09-12 – 2026-09-15',
+        DateFormatPref.us: '09/12/2026 – 09/15/2026',
+        DateFormatPref.uk: '12/09/2026 – 15/09/2026',
+        DateFormatPref.europeanDot: '12.09.2026 – 15.09.2026',
+        DateFormatPref.eastAsia: '2026/09/12 – 2026/09/15',
+      };
+      numeric.forEach((pref, expected) {
+        expect(DisplayFormat(datePref: pref).formatDateRange(sep12, sep15), expected,
+            reason: pref.name);
+      });
+    });
+
+    test('an inherited platform pattern is opaque, so both ends go through it', () {
+      final f = DisplayFormat(platformDateFormatter: (d) => 'P${d.day}');
+      expect(f.formatDateRange(sep12, sep15), 'P12 – P15');
+      // and with no platform answer, ISO on both ends
+      expect(const DisplayFormat().formatDateRange(sep12, sep15),
+          '2026-09-12 – 2026-09-15');
+    });
+  });
+
+  group('withPlatform attaches the device answers and nothing else (#399)', () {
+    test('an inherit pair picks up the closures; explicit prefs ignore them', () {
+      const stored = DisplayFormat(
+        temperatureUnit: TemperatureUnit.fahrenheit,
+        useMiles: true,
+      );
+      final resolved = stored.withPlatform(
+        dateFormatter: (d) => 'DEVICE-${d.day}',
+        uses24Hour: false,
+      );
+      expect(resolved.formatDate(sample), 'DEVICE-20');
+      expect(resolved.formatTime(sample), '3:07 PM');
+      expect(resolved.dateIsInherited, isTrue);
+      // preferences carried through untouched
+      expect(resolved.useMiles, isTrue);
+      expect(resolved.temperatureUnit, TemperatureUnit.fahrenheit);
+
+      final explicit = DisplayFormat(
+        datePref: DateFormatPref.iso8601,
+        clockPref: ClockPref.hour24,
+      ).withPlatform(dateFormatter: (d) => 'DEVICE', uses24Hour: false);
+      expect(explicit.formatDate(sample), '2026-08-20');
+      expect(explicit.formatTime(sample), '15:07');
+    });
+  });
 }
