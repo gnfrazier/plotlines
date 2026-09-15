@@ -227,13 +227,13 @@ void main() {
   // line." A grep over the Presentation layer, no toolchain — the same shape
   // as `reveal_gate_lint_test.dart`.
   //
-  // One line is knowingly still on the old pattern and is out of scope for
-  // #317: `trip_library_screen.dart`, a local-DB read failure with no clean
-  // M13 state to route to. It is filed separately; when that lands, delete it
-  // from this allowlist.
+  // #390 fixed the one line that was knowingly still on the old pattern —
+  // `trip_library_screen.dart`, a local-DB read failure with no clean M13
+  // state to route to (see that file's `_LibraryLoadFailed` doc comment) —
+  // so the allowlist this group used to carry for it is gone; the scan now
+  // covers the whole Presentation layer with no exception.
   group('no exception object is interpolated into a user-visible Text', () {
     final presentationDir = Directory('lib/presentation');
-    const allowlist = {'lib/presentation/screens/trip_library_screen.dart'};
 
     // A `Text(...)` on one line that interpolates a caught error object —
     // `$err` / `${error}` / `$exception` / `$ex` / `$stackTrace`. Apostrophes
@@ -243,12 +243,11 @@ void main() {
       r'''Text\([^\n]*\$\{?(?:err|error|exception|ex|stackTrace)''',
     );
 
-    test('lib/presentation carries no new occurrences', () {
+    test('lib/presentation carries no occurrences', () {
       final hits = <String>[];
       for (final entity in presentationDir.listSync(recursive: true)) {
         if (entity is! File || !entity.path.endsWith('.dart')) continue;
         final rel = entity.path.replaceAll(r'\', '/');
-        if (allowlist.contains(rel)) continue;
         final lines = entity.readAsLinesSync();
         for (var i = 0; i < lines.length; i++) {
           if (offenders.hasMatch(lines[i])) {
@@ -257,17 +256,9 @@ void main() {
         }
       }
       expect(hits, isEmpty,
-          reason: 'route the failure through DesktopErrorSurface with a bounded '
-              'cause phrase instead of interpolating the caught error:\n${hits.join('\n')}');
-    });
-
-    test('the allowlisted debt still exists (delete the entry when it is fixed)', () {
-      for (final rel in allowlist) {
-        final f = File(rel);
-        expect(f.existsSync(), isTrue, reason: '$rel moved — update the allowlist');
-        expect(offenders.hasMatch(f.readAsStringSync()), isTrue,
-            reason: '$rel no longer matches — remove it from the allowlist');
-      }
+          reason: 'route the failure through DesktopErrorSurface (or, where no M13 state '
+              'fits, a purpose-built treatment) instead of interpolating the caught '
+              'error:\n${hits.join('\n')}');
     });
   });
 }

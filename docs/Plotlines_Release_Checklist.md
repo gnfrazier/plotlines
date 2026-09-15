@@ -29,14 +29,27 @@ a role rather than a person is the failure mode this checklist exists to prevent
 - [ ] **Geofabrik mirror pin** — `MIRROR_STATE.json`'s `geofabrik.pinned_date`, bumped by running
       `deploy/mirror/geofabrik_pull.py --pinned-date <today>` for every mirrored region (issue #258;
       cadence and monitor: issue #260). Monthly, or sooner if an Author-visible defect traces to
-      stale OSM data.
+      stale OSM data. **Pass `--precut-wnc-corridor` on this run** (issue #375) — it re-clips the
+      freshly-pulled full-state extracts down to the WNC corridor and re-pins the smaller result;
+      skipping it on a bump silently regresses `/clip`'s wall time back to a full-state scan.
 
 ## Verifying a bump
 
 ```
 python3 deploy/mirror/geofabrik_pull.py --root /srv/plotlines-mirror \
-    --region north-america/us/north-carolina --pinned-date $(date -u +%F) --pull-index
+    --region north-america/us/north-carolina --region north-america/us/tennessee \
+    --pinned-date $(date -u +%F) --pull-index --precut-wnc-corridor
 ```
+
+`--precut-wnc-corridor` needs `plotlines-service` installed with its `mirror-clip`
+extra (pyosmium) wherever this runs — the plain `--region`/`--pull-index` pulls above
+need nothing beyond the standard library, so this is the one part of the command that
+cannot simply run as bare `python3` on the Pi's own OS today. Run it from a machine
+that has `uv sync --extra mirror-clip` against `service/`, with access to the same
+`--root` tree (the mirror-clip container already carries this dependency for `/clip`
+itself, but does not currently mount `deploy/mirror/geofabrik_pull.py` or a writable
+mirror root — wiring that up, if it's the preferred way to run this monthly, is
+separate from this checklist item).
 
 Then confirm the monitor agrees the mirror is current:
 

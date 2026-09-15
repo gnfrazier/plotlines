@@ -11,6 +11,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../domain/candidate.dart' show RoleAffinity;
 import '../../domain/cluster_proposal.dart';
+import '../../domain/display_format.dart';
 
 String roleAffinityLabel(RoleAffinity a) => switch (a) {
       RoleAffinity.narrative => 'narrative',
@@ -34,6 +35,7 @@ class ProposalCard extends StatelessWidget {
     this.onPromote,
     this.onReject,
     this.onDefer,
+    this.displayFormat = const DisplayFormat(),
   });
 
   final ClusterProposal proposal;
@@ -43,6 +45,12 @@ class ProposalCard extends StatelessWidget {
   final VoidCallback? onPromote;
   final VoidCallback? onReject;
   final VoidCallback? onDefer;
+
+  /// K5 / FR79 (issue #391, following #312) — the active display units. The
+  /// caller passes the resolved `displayFormatProvider`; the metric default
+  /// keeps this card's extent/off-route numbers in km/m when a caller has no
+  /// preference to hand it.
+  final DisplayFormat displayFormat;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +98,7 @@ class ProposalCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: PlotSpacing.s3),
-              _MetricsLine(proposal: p),
+              _MetricsLine(proposal: p, displayFormat: displayFormat),
               const SizedBox(height: PlotSpacing.s3),
               // Contributing features, listed individually.
               Text('CONTRIBUTING (${p.members.length})',
@@ -128,8 +136,9 @@ class ProposalCard extends StatelessWidget {
 }
 
 class _MetricsLine extends StatelessWidget {
-  const _MetricsLine({required this.proposal});
+  const _MetricsLine({required this.proposal, required this.displayFormat});
   final ClusterProposal proposal;
+  final DisplayFormat displayFormat;
 
   @override
   Widget build(BuildContext context) {
@@ -138,16 +147,18 @@ class _MetricsLine extends StatelessWidget {
     final parts = <String>[
       'SALIENCE ${(p.salienceScore * 100).round()}%',
       'TIGHTNESS ${(p.tightness * 100).round()}%',
-      'EXTENT ${p.extentM.round()} M',
+      'EXTENT ${displayFormat.formatSmallLength(p.extentM).toUpperCase()}',
       if (p.distanceToRouteM != null)
-        'OFF ROUTE ${_dist(p.distanceToRouteM!)}',
+        'OFF ROUTE ${_dist(displayFormat, p.distanceToRouteM!)}',
     ];
     // Data is always mono so it "looks accountable" (brand rule).
     return Text(parts.join('   ·   '), style: PlotTypography.data(c.textSecondary));
   }
 
-  static String _dist(double m) =>
-      m >= 1000 ? '${(m / 1000).toStringAsFixed(1)} KM' : '${m.round()} M';
+  static String _dist(DisplayFormat displayFormat, double m) => (m >= 1000
+          ? displayFormat.formatDistance(m)
+          : displayFormat.formatSmallLength(m))
+      .toUpperCase();
 }
 
 class _MemberRow extends StatelessWidget {

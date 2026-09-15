@@ -43,6 +43,10 @@ def test_get_clip_returns_a_valid_pbf_with_metadata_headers(tmp_path: Path) -> N
     assert int(resp.headers["x-plotlines-clip-output-bytes"]) == len(resp.content)
     assert resp.headers["x-plotlines-clip-source-regions"] == "the-region"
     assert float(resp.headers["x-plotlines-clip-wall-time-ms"]) >= 0.0
+    # Issue #374: renamed from the misleading X-Plotlines-Clip-Peak-Rss-Kb
+    # (a process watermark, not per-clip) plus the new honest delta field.
+    assert int(resp.headers["x-plotlines-service-peak-rss-kb"]) >= 0
+    assert int(resp.headers["x-plotlines-clip-rss-delta-kb"]) >= 0
 
     out_path = tmp_path / "roundtrip.osm.pbf"
     out_path.write_bytes(resp.content)

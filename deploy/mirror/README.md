@@ -71,18 +71,36 @@ Raspberry Pi OS but not guaranteed on a minimal image.
 #258/#260's job), and only ever (re)writes Plotlines' own static
 `COPYRIGHT.txt` files and creates directories.
 
-`copy_basemap_standin.sh` (#257) must run after `build_tree.sh` — it copies
-the SPIKE-14 corridor archive in under its own honest build id
-(`basemap/protomaps/20250101-wnc/corridor.pmtiles`, never `planet.pmtiles`)
-and merges `basemap.build_id`/`basemap.covered_regions` into
-`MIRROR_STATE.json`, leaving its `geofabrik` key untouched. It's also
-idempotent: re-running it overwrites the corridor file and the `basemap`
-key cleanly, and errors clearly rather than guessing if `MIRROR_STATE.json`
-doesn't exist yet or the source archive isn't where it was told to look.
-`spikes/SPIKE-14/tiles/` is gitignored (a locally-built spike artifact), so
-it has to be copied onto the Pi separately from `deploy/mirror` itself, as
-above. Geofabrik payload files themselves are pulled in by #258/#260 —
-neither script here reaches the network.
+**`protomaps_extract.py` (#394) is now the primary way to populate the
+basemap** — it runs after `build_tree.sh`, on a machine with the `pmtiles`
+CLI installed (not necessarily the Pi), and writes directly into `--root`
+(point it at the mounted mirror tree, or a scratch dir to copy over
+afterward):
+
+```
+./protomaps_extract.py --root /srv/plotlines-mirror
+```
+
+It extracts a **real** corridor archive from Protomaps' own hosted daily
+planet build (`pmtiles extract` against `build.protomaps.com` — measured: 95
+requests, 124 MB transferred, ~11s) and publishes it under the same honest
+path `copy_basemap_standin.sh` used, merging the same
+`basemap.build_id`/`basemap.covered_regions` shape into `MIRROR_STATE.json`
+plus a `source`/`extracted_at` provenance record, leaving `geofabrik`
+untouched. See its module docstring for why the CLI tool is required rather
+than reusing `plotlines_core.tiles.extract.extract_bbox` (that path is fine
+for a live per-trip request, but re-walks the archive per tile with no
+request coalescing — measured too slow for a 43k-tile regional pull).
+
+`copy_basemap_standin.sh` (#257) still works exactly as before — copying in
+a local archive file (the gitignored SPIKE-14 synthetic fixture, or any
+other pre-built `.pmtiles`) rather than fetching one — useful for an
+offline dry run or CI, or to restore a specific known-good file without
+re-pulling from Protomaps. Both scripts write the same `basemap` shape into
+`MIRROR_STATE.json`, so whichever ran most recently wins; don't run them
+back-to-back expecting the first one's content to survive. Geofabrik payload
+files themselves are pulled in by #258/#260 — neither basemap script here
+reaches that part of the tree.
 
 ## Verifying it
 
@@ -251,9 +269,13 @@ it references an included way or node. `simple` (truncate at the boundary)
 and `smart` (multipolygon repair, nested-relation completion) are not
 implemented — SPIKE-I (#265) is where that trade-off gets evidence rather
 than a guess. The bbox-spans-two-extracts case (Buncombe County is ~30 km
-from Tennessee) merges the covering extracts with `osmium.MergeInputReader`
-first, deduplicating a border way that's present, whole, in both regional
-cuts, before clipping.
+from Tennessee) clips each covering extract *first* and only then merges the
+small clipped outputs with `osmium.MergeInputReader`, deduplicating a border
+way that's present, whole, in both. Issue #376: merging the raw extracts
+first — the original order — OOM-killed the process in ~9s, since
+`MergeInputReader` buffers every object from every input in memory before
+writing anything; two full state extracts is several GB of objects, two
+clipped outputs is ~3-6 MB each.
 
 **Coverage resolution reads only what's on disk.** `mirror_clip.py` never
 consults the mirrored `index-v1.json` — that's Phase 3's job
@@ -376,9 +398,11 @@ python3 geofabrik_pull.py --root /srv/plotlines-mirror \
 **Two regions on purpose.** North Carolina alone measures the ordinary
 case; NC + TN is §11.7's border case, where a bbox spans two extracts and
 `MergeInputReader` has to id-dedup a border way present whole in both
-regional cuts. That merge is the expensive path, and it is the one Q1-C's
-cost claim actually rests on — a single-extract number alone would
-understate the endpoint. Expect a few hundred MB per region.
+regional cuts. Since #376, that merge runs on the two small clipped
+outputs, not the raw extracts, so the expensive part is the **two full
+per-extract scans**, not the merge — and that doubled scan cost is the one
+Q1-C's cost claim for a two-extract bbox actually rests on. Expect a few
+hundred MB per region.
 
 Verify the pull landed before going further:
 
@@ -491,12 +515,20 @@ built before that fix will crash-loop until rebuilt).
 
 ### 3. Measure
 
-**The one thing that will silently corrupt the numbers:** `peak_rss_kb` is
+**The one thing that will silently corrupt the numbers, and issue #374's
+fix for it:** `X-Plotlines-Service-Peak-Rss-Kb` (renamed from the
+misleadingly-named `X-Plotlines-Clip-Peak-Rss-Kb`) is
 `getrusage(RUSAGE_SELF).ru_maxrss` — a **process-lifetime high-water
 mark**, not a per-request figure. Every run after the first reports the
 largest clip that container has *ever* served, so a series taken without
 restarting reads as monotonically increasing memory that has nothing to do
-with the bbox being measured. Restart between runs:
+with the bbox being measured. `X-Plotlines-Clip-Rss-Delta-Kb` is the new,
+per-clip companion field — this clip's own contribution to that watermark,
+always >= 0, and honestly 0 (not a stale inherited figure) when this clip
+didn't set a new high. Restarting between runs is still the right call
+when you want the *watermark* itself to mean something for a given run,
+since the delta alone cannot recover a clip's true peak once a larger one
+has already run in the same process:
 
 Run this **on the Pi** — it is where the container, the extracts and the
 `sudo` already are, and it keeps the network out of a wall-time figure that
@@ -693,6 +725,41 @@ JSON" stands in for the `.md5` match as the verify-before-publish gate.
 `service/tests/test_geofabrik_pull.py` proves the etiquette above — for
 both regions and the index — against a real (loopback) HTTP server and its
 own request log, not against an internal "would have skipped" flag.
+
+### `--precut-wnc-corridor` (issue #375)
+
+`/clip`'s wall time scales with the size of the *pinned extract* it has to
+scan, not the trip bbox — measured at 627-640s against a 60s outer band on
+the live Pi, because a PBF stores data in id order and every request scans
+the whole file regardless of bbox size. Geofabrik publishes no sub-state
+cuts for the states this mirror pins ("No sub regions are defined for this
+region," confirmed for both `north-carolina` and `tennessee`), so a smaller
+pinned extract has to be produced locally rather than downloaded.
+
+`--precut-wnc-corridor`, passed alongside `--region`, clips the extracts
+that pull just pulled down to the WNC corridor bbox
+(`plotlines_core.tiles.mirror.WNC_CORRIDOR_BBOX` — the same corridor the
+basemap stand-in already serves) and pins the smaller result — a few MB
+rather than a few hundred — under `wnc-corridor` in place of the full-state
+sources (`--precut-keep-sources` keeps both, at the cost of every matching
+request still paying for a full scan of each source too). It reuses
+`plotlines_service.mirror_clip.clip_bbox`, the exact algorithm `/clip` runs
+per request, so the precut result is what a live request against the un-cut
+sources would already have produced — computed once at pin time instead of
+on every request. This is the one piece of `geofabrik_pull.py` that isn't
+stdlib-only: it needs `plotlines-service` installed with its `mirror-clip`
+extra (pyosmium) wherever it runs, which is not necessarily the Pi itself —
+see the "Verifying a bump" section of `docs/Plotlines_Release_Checklist.md`
+for what that means operationally today.
+
+**Not fixed by this flag:** rectangle-based coverage over-selection (a WNC
+bbox still matches both NC's and TN's header box even after this precut is
+pinned, since both extracts are still valid candidates by header — #376's
+merge-inversion fix keeps that path from crashing, but a request that also
+matches a full-state source still pays for scanning it). `--precut-keep-
+sources` off (the default) avoids this by removing the full-state entries
+this precut was drawn from, which is the intended steady state for a mirror
+that only serves the WNC corridor today.
 
 ## Staleness monitor, cadence, and ownership (issue #260)
 

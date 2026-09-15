@@ -58,6 +58,8 @@ dependencies:
   win32: ^5.5.0
   ffi: ^2.1.0
   window_manager: ^0.5.2
+  printing: ^5.15.0
+  pdf: ^3.13.0
 
 dev_dependencies:
   flutter_test:

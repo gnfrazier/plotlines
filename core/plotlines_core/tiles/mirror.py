@@ -44,15 +44,25 @@ MIRROR_ARCHIVE_URL = (
     f"https://{MIRROR_HOST}/basemap/protomaps/{PROTOMAPS_BASEMAP_BUILD}/planet.pmtiles"
 )
 
-#: The SPIKE-14 WNC-corridor archive is what the mirror actually carries
-#: today — the full Protomaps planet build `MIRROR_ARCHIVE_URL` names has not
-#: been acquired (issue #257; review §6.2/§6.3, addendum finding G3/1b). It
-#: gets its own honest build id and filename rather than being copied in
-#: under the `planet.pmtiles` name: a file named for content it doesn't
-#: contain turns every bbox outside WNC into a silent miss that looks like a
-#: mirror bug, and makes "build-pinned paths are immutable" untrue for the
-#: one file most likely to be swapped later. Do not point a default upstream
-#: at this constant — it is a stand-in, not the production basemap.
+#: The WNC-corridor archive is what the mirror actually carries today — the
+#: full Protomaps planet build `MIRROR_ARCHIVE_URL` names is still
+#: unacquired, and review §6.2 forbids putting one on the Pi at all ("do not
+#: put a planet archive on it — regional extracts only"); §6.0/Q6 defers the
+#: full build to zero-egress object storage "later," unprovisioned as of
+#: issue #394. It gets its own honest build id and filename rather than being
+#: copied in under the `planet.pmtiles` name: a file named for content it
+#: doesn't contain turns every bbox outside WNC into a silent miss that looks
+#: like a mirror bug, and makes "build-pinned paths are immutable" untrue for
+#: the one file most likely to be swapped later. Do not point a default
+#: upstream at this constant — it is one region's coverage, not the
+#: production (whole-planet) basemap.
+#:
+#: The archive's *content* was originally issue #257's synthetic SPIKE-14
+#: test fixture; issue #394's `deploy/mirror/protomaps_extract.py` replaces
+#: that with a real extract cut from Protomaps' own hosted daily planet
+#: build (`pmtiles extract` against `https://build.protomaps.com/<date>.
+#: pmtiles`, measured: 95 requests, 124 MB transferred, ~11s) — same honest
+#: path, real OSM-derived tiles instead of test data.
 WNC_CORRIDOR_BUILD_ID = f"{PROTOMAPS_BASEMAP_BUILD}-wnc"
 MIRROR_WNC_CORRIDOR_URL = (
     f"https://{MIRROR_HOST}/basemap/protomaps/{WNC_CORRIDOR_BUILD_ID}/corridor.pmtiles"

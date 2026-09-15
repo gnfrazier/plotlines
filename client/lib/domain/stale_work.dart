@@ -15,6 +15,7 @@
 /// its own rather than a flag borrowed from its parent.
 library;
 
+import 'day.dart';
 import 'trip.dart';
 
 /// One stale item in the list: named by what it is and which day it's on, per
@@ -79,30 +80,35 @@ class StaleItem {
 /// never solved; for an alternate it means an Author-drawn line whose distances
 /// are measured off the line itself and say so — there is no derived work to
 /// invalidate, so moving it owes no re-solve and must not block an export.
-List<StaleItem> tripStaleItems(Trip trip) => [
-      for (final day in trip.days)
-        for (final s in day.segments) ...[
-          if (s.solve?.stale ?? false)
+List<StaleItem> dayStaleItems(Day day) => [
+      for (final s in day.segments) ...[
+        if (s.solve?.stale ?? false)
+          StaleItem(
+            dayId: day.id,
+            dayIndex: day.index,
+            segmentId: s.id,
+            mode: s.mode,
+            shape: s.shape,
+          ),
+        for (final a in s.alternates)
+          if (a.solve?.stale ?? false)
             StaleItem(
               dayId: day.id,
               dayIndex: day.index,
               segmentId: s.id,
               mode: s.mode,
               shape: s.shape,
+              alternateId: a.id,
+              alternateLabel: a.label,
+              alternateIsBranch: a.isBranch,
             ),
-          for (final a in s.alternates)
-            if (a.solve?.stale ?? false)
-              StaleItem(
-                dayId: day.id,
-                dayIndex: day.index,
-                segmentId: s.id,
-                mode: s.mode,
-                shape: s.shape,
-                alternateId: a.id,
-                alternateLabel: a.label,
-                alternateIsBranch: a.isBranch,
-              ),
-        ],
+      ],
+    ];
+
+/// Every currently-stale item in [trip], across every day, in day order —
+/// see [dayStaleItems] for what "stale" means for one day.
+List<StaleItem> tripStaleItems(Trip trip) => [
+      for (final day in trip.days) ...dayStaleItems(day),
     ];
 
 /// Q3's AC: "while planning this is passive only — a marker on the object
@@ -110,6 +116,9 @@ List<StaleItem> tripStaleItems(Trip trip) => [
 int tripStaleCount(Trip trip) => tripStaleItems(trip).length;
 
 /// Q3's AC: "a stale route stays viewable but is not exportable or
-/// printable" — export and print both gate on this before proceeding;
-/// whichever finds it false opens the stale list instead of erroring.
+/// printable." Export gates on this and, finding it false, opens the
+/// resolvable stale list (`ensureNoStaleWork`). Print (issue #326) gates on
+/// the same items but blocks outright instead — FR140/Flow 9's "print
+/// blocks with no override," since a stale printed page is believed for
+/// hours with nothing to re-check it against (`showPrintPreview`).
 bool tripReadyToExport(Trip trip) => tripStaleItems(trip).isEmpty;

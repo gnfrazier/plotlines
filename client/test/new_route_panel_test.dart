@@ -366,4 +366,31 @@ void main() {
 
     expect(client.disciplines, ['gravel']);
   });
+
+  // ---- #399: the DATES chip reads in the Author's date format --------------
+
+  testWidgets('the DATES chip renders the picked range in the date preference',
+      (tester) async {
+    await _pumpPanel(tester, extraOverrides: [
+      displayFormatProvider.overrideWithValue(
+          const DisplayFormat(datePref: DateFormatPref.uk)),
+    ]);
+    expect(find.text('Set dates'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Set dates'));
+    await tester.tap(find.text('Set dates'));
+    await _settle(tester);
+    // The picker opens on today's month; pick two days inside the left pane.
+    await tester.tap(find.text('10').first);
+    await tester.pump();
+    await tester.tap(find.text('12').first);
+    await tester.pump();
+    await tester.tap(find.text('Use these dates'));
+    await _settle(tester);
+
+    final now = DateTime.now();
+    final mm = now.month.toString().padLeft(2, '0');
+    // Numeric patterns never compact: both ends in full, and never `MMM d`.
+    expect(find.text('10/$mm/${now.year} – 12/$mm/${now.year}'), findsOneWidget);
+  });
 }

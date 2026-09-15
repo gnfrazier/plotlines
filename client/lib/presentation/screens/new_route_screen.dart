@@ -44,6 +44,7 @@ import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
 import '../../state/trip_authoring_meta_provider.dart';
 import '../../state/trip_bbox_provider.dart';
+import '../display_format_of.dart';
 import '../map/tap_to_pick_map.dart';
 import '../widgets/error_states.dart';
 import '../widgets/plot_date_range_picker.dart';
@@ -236,11 +237,11 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                 TapToPickMap(
                   points: [
                     if (_start != null)
-                      (coord: _start!, role: NodeMarkerType.start),
+                      (coord: _start!, role: NodeMarkerType.start, arcStage: null),
                     for (final v in _via)
-                      (coord: v, role: NodeMarkerType.waypoint),
+                      (coord: v, role: NodeMarkerType.waypoint, arcStage: null),
                     if (_shape != 'loop' && _end != null)
-                      (coord: _end!, role: NodeMarkerType.finish),
+                      (coord: _end!, role: NodeMarkerType.finish, arcStage: null),
                   ],
                   onTap: (point) => setState(() => _handleTap(point)),
                   center: widget.initialCenter,
@@ -343,7 +344,14 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                         children: [
                           Icon(Icons.calendar_today_outlined, size: 16, color: c.textSecondary),
                           const SizedBox(width: PlotSpacing.s2),
-                          Text(_dateRangeLabel(), style: PlotTypography.body(c.textPrimary)),
+                          // Bounded: a numeric or device-inherited pattern
+                          // shows both ends in full, which is wider than the
+                          // wireframe's `Sep 12–15`.
+                          Expanded(
+                            child: Text(_dateRangeLabel(displayFormatOf(context, ref)),
+                                overflow: TextOverflow.ellipsis,
+                                style: PlotTypography.body(c.textPrimary)),
+                          ),
                         ],
                       ),
                     ),
@@ -735,6 +743,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
         start: initialStart,
         end: initialEnd.isBefore(initialStart) ? initialStart : initialEnd,
       ),
+      displayFormat: displayFormatOf(context, ref),
     );
     if (range == null) return;
     setState(() {
@@ -745,16 +754,15 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   }
 
   // Wireframe screen 00's DATES field shows a formatted range ("Sep 12–15"),
-  // not the raw ISO strings the two source fields hold.
-  String _dateRangeLabel() {
+  // not the raw ISO strings the two source fields hold. The range reads in
+  // the Author's date preference (FR79, issue #399): the wireframe's
+  // compaction is what `formatDateRange` does for the prose patterns, and
+  // a numeric or device-inherited pattern shows both ends in full.
+  String _dateRangeLabel(DisplayFormat df) {
     final start = DateTime.tryParse(_startDateController.text);
     final end = DateTime.tryParse(_endDateController.text);
     if (start == null) return 'Set dates';
-    if (end == null || DateUtils.isSameDay(start, end)) return DateFormat('MMM d').format(start);
-    if (start.month == end.month) {
-      return '${DateFormat('MMM d').format(start)}–${DateFormat('d').format(end)}';
-    }
-    return '${DateFormat('MMM d').format(start)} – ${DateFormat('MMM d').format(end)}';
+    return df.formatDateRange(start, end);
   }
 
   void _createBlank() {

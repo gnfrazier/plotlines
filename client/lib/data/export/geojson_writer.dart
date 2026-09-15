@@ -37,6 +37,31 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
           'anchor_id': anchor.id,
           if (anchor.title != null) 'title': anchor.title,
           'role_kinds': [for (final role in anchor.roles) role.kind.wireValue],
+          // Issue #386 — a role's real day/segment attachment (#384),
+          // index-aligned with `role_kinds` (`null` for an unattached role —
+          // the ordinary state, FR139/Q2): roles are independent, so one
+          // anchor's provision role can sit on Day 3 while its narrative
+          // role sits on Day 1 (`anchor.dart`'s own doc comment), and a
+          // single flat field would conflate them. Included only when at
+          // least one role carries one — useful for a GIS viewer grouping by
+          // day, not a re-implementation of the schema.
+          if (anchor.roles.any((r) => r.dayId != null))
+            'day_ids': [for (final role in anchor.roles) role.dayId],
+          if (anchor.roles.any((r) => r.segmentId != null))
+            'segment_ids': [for (final role in anchor.roles) role.segmentId],
+          // FR45 — the narrative role's own note is the "plot-point note"
+          // PRD v2.0 §4.3 means (an Anchor's narrative role, not a Node).
+          // Scoped to narrative roles only: a provision role's note (e.g. a
+          // water source's own text) is a different obligation, not a plot
+          // point, and joining the two would conflate them on one property.
+          // Where more than one narrative role carries a note (rare — an
+          // anchor usually carries at most one), join in role order rather
+          // than picking one arbitrarily.
+          if (anchor.roles.any((r) => r.kind == RoleKind.narrative && r.note != null))
+            'note': anchor.roles
+                .where((r) => r.kind == RoleKind.narrative && r.note != null)
+                .map((r) => r.note)
+                .join(' / '),
         },
       ));
       // FR108 / O3 — the anchor's own area, when it has one, exports as a
@@ -65,6 +90,11 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
               'role_id': role.id,
               'role_kind': role.kind.wireValue,
               if (role.title != null) 'title': role.title,
+              // FR45 — this role's own plot-point note.
+              if (role.note != null) 'note': role.note,
+              // Issue #386 — this role's own day/segment attachment (#384).
+              if (role.dayId != null) 'day_id': role.dayId,
+              if (role.segmentId != null) 'segment_id': role.segmentId,
             },
           ));
         }
@@ -77,6 +107,8 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
               'role_id': role.id,
               'role_kind': role.kind.wireValue,
               if (role.title != null) 'title': role.title,
+              if (role.dayId != null) 'day_id': role.dayId,
+              if (role.segmentId != null) 'segment_id': role.segmentId,
             },
           ));
         }

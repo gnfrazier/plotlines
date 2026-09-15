@@ -84,7 +84,7 @@ class _ContentTabState extends ConsumerState<ContentTab> {
               TapToPickMap(
                 points: [
                   for (final n in segment.nodes)
-                    (coord: n.coord, role: markerForNodeKind(n.kind)),
+                    (coord: n.coord, role: markerForNodeKind(n.kind), arcStage: n.arcStage),
                 ],
                 center: segment.start,
                 onTap: (point) => setState(() {

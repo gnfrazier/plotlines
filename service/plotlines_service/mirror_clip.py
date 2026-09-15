@@ -256,11 +256,19 @@ def select_covering_extracts(
 
 
 def _merge_extracts(paths: list[Path], dest: Path) -> None:
-    """The bbox-spans-two-extracts case: combine the covering extracts into
-    one id-deduplicated, correctly-ordered stream before clipping, so a
-    border way present (whole) in both regional cuts is written once, not
-    twice. `osmium.MergeInputReader` is pyosmium's own `osmium merge`
-    equivalent — still pyosmium's Python API, not the CLI (L1)."""
+    """Combine already-clipped outputs into one id-deduplicated, correctly-
+    ordered stream, so a border way present (whole) in both regional cuts is
+    written once, not twice. `osmium.MergeInputReader` is pyosmium's own
+    `osmium merge` equivalent — still pyosmium's Python API, not the CLI
+    (L1).
+
+    Issue #376: `paths` must be small, already-clipped bbox outputs, never
+    raw region extracts — `MergeInputReader.add_file` buffers every object
+    from every input **in memory** before writing anything, and two full
+    Geofabrik state extracts (hundreds of MB each) expand to several GB of
+    in-memory objects, which is what killed the process in ~9s on the Pi.
+    `clip_bbox` below only ever calls this on the small (~3-6 MB) per-
+    extract clip outputs, not on `RegionExtract.path` directly."""
     reader = osmium.MergeInputReader()
     for path in paths:
         reader.add_file(str(path))
@@ -339,8 +347,27 @@ class ClipResult:
     output_path: Path
     wall_time_s: float
     output_bytes: int
-    peak_rss_kb: int | None
+    #: `ru_maxrss` under `RUSAGE_SELF` at the moment this clip finished — a
+    #: **process-lifetime** watermark, not a per-clip figure (issue #374):
+    #: it never decreases, so on a long-lived service every clip after the
+    #: largest one reports that one's number. Useful as "how much memory has
+    #: this process ever needed," not as this clip's own cost — that's
+    #: `clip_rss_delta_kb` below.
+    service_peak_rss_kb: int | None
+    #: `service_peak_rss_kb` sampled before this clip started, subtracted
+    #: from the value after — issue #374's "measure the delta" option. Since
+    #: `ru_maxrss` only ever increases, this is always >= 0, and it is
+    #: **honest about its own limit**: a clip that doesn't push the process
+    #: watermark any higher than a previous, larger clip already did reports
+    #: 0 here, rather than inheriting that earlier clip's number under this
+    #: clip's name. 0 means "no new high water reached," not "no memory
+    #: used."
+    clip_rss_delta_kb: int | None
     source_regions: tuple[str, ...]
+
+
+def _current_rss_kb() -> int | None:
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else None
 
 
 def clip_bbox(
@@ -353,6 +380,7 @@ def clip_bbox(
     that might have produced literally nothing."""
     validate_bbox(bbox)
     started = time.monotonic()
+    started_rss_kb = _current_rss_kb()
 
     extracts = discover_region_extracts(root)
     if not extracts:
@@ -366,27 +394,50 @@ def clip_bbox(
         )
 
     tmp_dir = tmp_dir or dest.parent
-    merged_tmp: Path | None = None
-    try:
-        if len(candidates) == 1:
-            source = candidates[0].path
-        else:
-            fd, merged_name = tempfile.mkstemp(
-                dir=tmp_dir, prefix=".mirror-clip-merge-", suffix=".osm.pbf"
-            )
-            os.close(fd)
-            merged_tmp = Path(merged_name)
-            log.info(
-                "clip bbox=%s spans %d extracts (%s) — merging before clip",
-                bbox, len(candidates), ", ".join(c.region for c in candidates),
-            )
-            _merge_extracts([c.path for c in candidates], merged_tmp)
-            source = merged_tmp
 
-        selected = _select_and_write(bbox, source, dest)
-    finally:
-        if merged_tmp is not None and merged_tmp.exists():
-            merged_tmp.unlink()
+    if len(candidates) == 1:
+        selected = _select_and_write(bbox, candidates[0].path, dest)
+    else:
+        # Issue #376: clip each covering extract *first*, then merge the
+        # small clipped outputs — never merge the raw extracts. The old
+        # order ran `MergeInputReader` over the full multi-hundred-MB
+        # Geofabrik extracts, which buffers every object from every input in
+        # memory before writing anything; for a real NC+TN pair that was
+        # ~3.9 GB in five seconds and the OOM killer took the process in
+        # ~9s. A clipped output is ~3-6 MB, so merging *those* costs nothing
+        # by comparison — the inversion the issue calls "obvious."
+        log.info(
+            "clip bbox=%s spans %d extracts (%s) — clipping each before merging",
+            bbox, len(candidates), ", ".join(c.region for c in candidates),
+        )
+        partial_paths: list[Path] = []
+        selected = 0
+        try:
+            for candidate in candidates:
+                fd, partial_name = tempfile.mkstemp(
+                    dir=tmp_dir, prefix=".mirror-clip-partial-", suffix=".osm.pbf"
+                )
+                os.close(fd)
+                partial_path = Path(partial_name)
+                partial_path.unlink()  # BackReferenceWriter refuses an existing file
+                count = _select_and_write(bbox, candidate.path, partial_path)
+                selected += count
+                if count > 0:
+                    partial_paths.append(partial_path)
+                else:
+                    partial_path.unlink(missing_ok=True)
+
+            if len(partial_paths) == 1:
+                # The common over-selection case (e.g. a WNC bbox matching
+                # both NC's and TN's header box while only NC actually has
+                # data there): nothing to merge, and no second full pass.
+                partial_paths[0].replace(dest)
+                partial_paths.clear()
+            elif len(partial_paths) > 1:
+                _merge_extracts(partial_paths, dest)
+        finally:
+            for partial_path in partial_paths:
+                partial_path.unlink(missing_ok=True)
 
     if selected == 0:
         dest.unlink(missing_ok=True)
@@ -397,19 +448,24 @@ def clip_bbox(
         )
 
     wall_time_s = time.monotonic() - started
-    peak_rss_kb = (
-        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else None
+    service_peak_rss_kb = _current_rss_kb()
+    clip_rss_delta_kb = (
+        service_peak_rss_kb - started_rss_kb
+        if service_peak_rss_kb is not None and started_rss_kb is not None
+        else None
     )
     log.info(
-        "clip bbox=%s sources=%s wall_time_s=%.2f output_bytes=%d peak_rss_kb=%s",
+        "clip bbox=%s sources=%s wall_time_s=%.2f output_bytes=%d "
+        "service_peak_rss_kb=%s clip_rss_delta_kb=%s",
         bbox, [c.region for c in candidates], wall_time_s, dest.stat().st_size,
-        peak_rss_kb,
+        service_peak_rss_kb, clip_rss_delta_kb,
     )
     return ClipResult(
         output_path=dest,
         wall_time_s=wall_time_s,
         output_bytes=dest.stat().st_size,
-        peak_rss_kb=peak_rss_kb,
+        service_peak_rss_kb=service_peak_rss_kb,
+        clip_rss_delta_kb=clip_rss_delta_kb,
         source_regions=tuple(c.region for c in candidates),
     )
 
@@ -583,8 +639,17 @@ def create_clip_app(
             "X-Plotlines-Clip-Wall-Time-Ms": str(round(result.wall_time_s * 1000)),
             "X-Plotlines-Clip-Output-Bytes": str(result.output_bytes),
             "X-Plotlines-Clip-Source-Regions": ",".join(result.source_regions),
-            "X-Plotlines-Clip-Peak-Rss-Kb": (
-                str(result.peak_rss_kb) if result.peak_rss_kb is not None else "unknown"
+            # Issue #374: renamed from `X-Plotlines-Clip-Peak-Rss-Kb` because
+            # it is a process-lifetime watermark, not a per-clip figure — see
+            # `ClipResult.service_peak_rss_kb`. `Clip-Rss-Delta-Kb` is the new,
+            # honestly-imperfect per-clip figure the rename makes room for.
+            "X-Plotlines-Service-Peak-Rss-Kb": (
+                str(result.service_peak_rss_kb)
+                if result.service_peak_rss_kb is not None else "unknown"
+            ),
+            "X-Plotlines-Clip-Rss-Delta-Kb": (
+                str(result.clip_rss_delta_kb)
+                if result.clip_rss_delta_kb is not None else "unknown"
             ),
             **clip_licence_headers(),
         }

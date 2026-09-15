@@ -354,9 +354,11 @@ final settingsProvider =
 /// what the planning, logistics, export and itinerary surfaces read so a
 /// Miles/feet choice in Preferences reaches every distance they render.
 ///
-/// Date/time `inherit` resolves to ISO 8601 / 24-hour here — a surface that
-/// needs the platform's own date pattern builds its own [DisplayFormat] via
-/// [DisplaySettings.resolveFormat] with the device closures. Distance and
-/// length carry no such platform fallback, so this is complete for them.
+/// Date/time `inherit` resolves to ISO 8601 / 24-hour here, because a
+/// provider has no `BuildContext` to ask. A surface that renders a date or a
+/// clock time reads `displayFormatOf(context, ref)`
+/// (`presentation/display_format_of.dart`, issue #399) instead, which is
+/// this value with the device's answers attached. Distance and temperature
+/// carry no `inherit`, so this is complete for them.
 final displayFormatProvider = Provider<DisplayFormat>(
     (ref) => ref.watch(settingsProvider).resolveFormat());

@@ -15,6 +15,7 @@ import 'planner_ui_state.dart'
         composeItineraryProvider,
         dayPlanningModeProvider,
         hasTargetDistanceControl,
+        nodeKindIsRoutingConstraint,
         resetSegmentPlanningControls,
         selectedSegmentProvider,
         targetDistanceForViaCount,
@@ -147,10 +148,114 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     state = state.copyWith(days: days, declaredModes: declaredModes, updatedAt: _nowIso());
   }
 
-  void removeDay(String dayId) => state = state.copyWith(
-        days: state.days.where((d) => d.id != dayId).toList(),
-        updatedAt: _nowIso(),
+  /// FR139/Q2 — a [Role.dayId]/[Role.segmentId] link (issue #384) must never
+  /// dangle: removing the day or passage it names must not leave the role
+  /// pointing at something gone, so every day/segment removal path in this
+  /// notifier runs its outcome through here first. The FR139 target state is
+  /// "anchors survive unattached," not "attached to whatever's left," so
+  /// this always fully detaches (clears both fields) rather than trying to
+  /// fall back from a removed segment to its still-live day.
+  List<Anchor> _detachRolesReferencing({
+    Set<String> dayIds = const {},
+    Set<String> segmentIds = const {},
+    List<Anchor>? from,
+  }) {
+    final anchors = from ?? state.anchors;
+    if (dayIds.isEmpty && segmentIds.isEmpty) return anchors;
+    return [
+      for (final a in anchors)
+        a.copyWith(roles: [
+          for (final r in a.roles)
+            if ((r.dayId != null && dayIds.contains(r.dayId)) ||
+                (r.segmentId != null && segmentIds.contains(r.segmentId)))
+              r.copyWith(clearDayId: true)
+            else
+              r,
+        ]),
+    ];
+  }
+
+  /// #388 — a [Hazard]'s `anchorId`/`nodeId` is an attachment pointer, the
+  /// same shape [Role]'s `dayId`/`segmentId` already is (issue #384).
+  /// Removing the anchor or node it names detaches the pointer rather than
+  /// leaving it dangling or destroying the hazard — FR115 never lets a
+  /// hazard be hidden or dropped, only ever unpinned. Scans every day's own
+  /// hazards and every segment's, since a hazard can live at either level.
+  List<Day> _detachHazardsReferencing({
+    Set<String> anchorIds = const {},
+    Set<String> nodeIds = const {},
+    List<Day>? from,
+  }) {
+    final days = from ?? state.days;
+    if (anchorIds.isEmpty && nodeIds.isEmpty) return days;
+    Hazard detach(Hazard h) {
+      if (h.anchorId != null && anchorIds.contains(h.anchorId)) {
+        return h.copyWith(clearAnchorId: true);
+      }
+      if (h.nodeId != null && nodeIds.contains(h.nodeId)) {
+        return h.copyWith(clearNodeId: true);
+      }
+      return h;
+    }
+
+    return [
+      for (final d in days)
+        d.copyWith(
+          hazards: [for (final h in d.hazards) detach(h)],
+          segments: [
+            for (final s in d.segments)
+              s.copyWith(hazards: [for (final h in s.hazards) detach(h)]),
+          ],
+        ),
+    ];
+  }
+
+  /// #388 — the same detachment as [_detachHazardsReferencing], for a
+  /// [Permit]'s `anchorId`/`segmentId`. Trip-scoped (`Trip.permits`), so
+  /// this is a flat scan rather than a day/segment walk.
+  List<Permit> _detachPermitsReferencing({
+    Set<String> anchorIds = const {},
+    Set<String> segmentIds = const {},
+    List<Permit>? from,
+  }) {
+    final permits = from ?? state.permits;
+    if (anchorIds.isEmpty && segmentIds.isEmpty) return permits;
+    return [
+      for (final p in permits)
+        if (p.anchorId != null && anchorIds.contains(p.anchorId))
+          p.copyWith(clearAnchorId: true)
+        else if (p.segmentId != null && segmentIds.contains(p.segmentId))
+          p.copyWith(clearSegmentId: true)
+        else
+          p,
+    ];
+  }
+
+  /// #388 — the node/segment ids a day carries, so a caller about to remove
+  /// it can detach any [Hazard]/[Permit] elsewhere in the trip that points
+  /// at content the removal is about to take with it.
+  ({Set<String> nodeIds, Set<String> segmentIds}) _contentIdsOf(Day day) => (
+        nodeIds: {
+          for (final n in day.nodes) n.id,
+          for (final s in day.segments)
+            for (final n in s.nodes) n.id,
+        },
+        segmentIds: {for (final s in day.segments) s.id},
       );
+
+  void removeDay(String dayId) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final content = _contentIdsOf(day);
+    state = state.copyWith(
+      days: _detachHazardsReferencing(
+        nodeIds: content.nodeIds,
+        from: state.days.where((d) => d.id != dayId).toList(),
+      ),
+      anchors: _detachRolesReferencing(dayIds: {dayId}),
+      permits: _detachPermitsReferencing(segmentIds: content.segmentIds),
+      updatedAt: _nowIso(),
+    );
+  }
 
   /// FR139/Q1 — "days may be inserted mid-trip, not only appended, with
   /// subsequent days renumbering and their content moving with them."
@@ -184,12 +289,25 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// no-prompt empty-day carve-out.
   void _removeDaysAndRenumber(Set<String> dayIds) {
     if (dayIds.isEmpty) return;
+    final removedNodeIds = <String>{};
+    final removedSegmentIds = <String>{};
+    for (final d in state.days) {
+      if (!dayIds.contains(d.id)) continue;
+      final content = _contentIdsOf(d);
+      removedNodeIds.addAll(content.nodeIds);
+      removedSegmentIds.addAll(content.segmentIds);
+    }
     final remaining = state.days.where((d) => !dayIds.contains(d.id)).toList()
       ..sort((a, b) => a.index.compareTo(b.index));
     final renumbered = [
       for (var i = 0; i < remaining.length; i++) remaining[i].copyWith(index: i + 1),
     ];
-    state = state.copyWith(days: renumbered, updatedAt: _nowIso());
+    state = state.copyWith(
+      days: _detachHazardsReferencing(nodeIds: removedNodeIds, from: renumbered),
+      anchors: _detachRolesReferencing(dayIds: dayIds),
+      permits: _detachPermitsReferencing(segmentIds: removedSegmentIds),
+      updatedAt: _nowIso(),
+    );
   }
 
   /// FR139/Q1 — drops every trailing day beyond [targetCount] that holds no
@@ -261,12 +379,32 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       for (final d in days.reversed)
         if (dayIds.contains(d.id)) d.id,
     ];
+    // FR139/Q2 (issue #384) — a merged-away day's content moves onto its
+    // target rather than disappearing, so a role attached to it (`day_id`)
+    // moves too instead of detaching: `redirect` tracks each source day's
+    // ultimate surviving id, chased through a chain when several adjacent
+    // days merge in the same call (day 3 into day 2, then day 2 into day 1
+    // — day 3's content lands on day 1, so its role should too).
+    // `removedOutright` is the one case with no target at all (merging the
+    // trip down to a single remaining day) — that content is genuinely
+    // gone, so those roles detach fully, same as [removeDay].
+    final redirect = <String, String>{};
+    final removedOutright = <String>{};
+    // #388 — content ids of any day removed outright, so a Hazard/Permit
+    // elsewhere in the trip that pointed at them can be detached rather
+    // than left dangling, same as [removeDay]/[_removeDaysAndRenumber].
+    final removedOutrightNodeIds = <String>{};
+    final removedOutrightSegmentIds = <String>{};
     for (final id in orderedIds) {
       final pos = days.indexWhere((d) => d.id == id);
       if (pos == -1) continue;
       final day = days[pos];
       final targetPos = pos > 0 ? pos - 1 : (days.length > 1 ? 1 : -1);
       if (targetPos == -1) {
+        removedOutright.add(day.id);
+        final content = _contentIdsOf(day);
+        removedOutrightNodeIds.addAll(content.nodeIds);
+        removedOutrightSegmentIds.addAll(content.segmentIds);
         days.removeAt(pos);
         continue;
       }
@@ -277,10 +415,37 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         hazards: [...target.hazards, ...day.hazards],
         transitions: [...target.transitions, ...day.transitions],
       );
+      redirect[day.id] = target.id;
       days.removeAt(pos);
     }
+    String resolveDayId(String id) {
+      var current = id;
+      while (redirect.containsKey(current)) {
+        current = redirect[current]!;
+      }
+      return current;
+    }
+    final detached = _detachRolesReferencing(dayIds: removedOutright);
+    final anchors = [
+      for (final a in detached)
+        a.copyWith(roles: [
+          for (final r in a.roles)
+            if (r.dayId != null && redirect.containsKey(r.dayId))
+              // The segment itself didn't move away — only its parent day
+              // did — so [segmentId] is re-passed explicitly (`copyWith`'s
+              // default when only `dayId` changes is to drop it as stale).
+              r.copyWith(dayId: resolveDayId(r.dayId!), segmentId: r.segmentId)
+            else
+              r,
+        ]),
+    ];
     final renumbered = [for (var i = 0; i < days.length; i++) days[i].copyWith(index: i + 1)];
-    state = state.copyWith(days: renumbered, updatedAt: _nowIso());
+    state = state.copyWith(
+      days: _detachHazardsReferencing(nodeIds: removedOutrightNodeIds, from: renumbered),
+      anchors: anchors,
+      permits: _detachPermitsReferencing(segmentIds: removedOutrightSegmentIds),
+      updatedAt: _nowIso(),
+    );
   }
 
   /// C2 — mark a day Start / End / Rest. A rest day carries no segments.
@@ -409,6 +574,16 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   void removeSegment(String dayId, String segmentId) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final removed = day.segments.firstWhere((s) => s.id == segmentId);
+    // FR139/Q2 (issue #384) — a role scoped to this passage (`segment_id`)
+    // detaches with it, same as the day-removal case: "anchors survive
+    // unattached," never left pointing at a passage that's gone.
+    // #388 — a Permit's `segmentId` gets the same treatment; the segment's
+    // own hazards go with it (they're embedded, not dangling), but the
+    // segment's nodes move to the day (below), so no hazard.nodeId dangles.
+    state = state.copyWith(
+      anchors: _detachRolesReferencing(segmentIds: {segmentId}),
+      permits: _detachPermitsReferencing(segmentIds: {segmentId}),
+    );
     _replaceDay(day.copyWith(
       segments: day.segments.where((s) => s.id != segmentId).toList(),
       nodes: [...day.nodes, ...removed.nodes],
@@ -886,11 +1061,17 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
 
   /// FR37 / E1 — a role's own content: [Role.title]/[Role.note]/[Role.media]
   /// may be left unset at promotion and decided later (O1's AC), and this is
-  /// that "later" — the only mutator that edits an existing anchor's role
-  /// after promotion (every other anchor/role field is currently set once,
-  /// at [promoteAnchor] time). [RevealResolver] (`data/reveal_resolver.dart`)
-  /// is what gates this content by [Role.reveal] on every read surface —
-  /// nothing here decides visibility.
+  /// that "later" — the mutator that edits an existing anchor's role after
+  /// promotion. [RevealResolver] (`data/reveal_resolver.dart`) is what gates
+  /// this content by [Role.reveal] on every read surface — nothing here
+  /// decides visibility.
+  ///
+  /// [dayId]/[segmentId] (FR142b, K12 / N4a — issue #384) are this role's
+  /// real attachment into the trip's route, set here by N4a's Anchors-view
+  /// attach action — this is the one mutator [AnchorsView] uses in place of
+  /// the title-string "attached" guess it used to compute. `clearDayId`
+  /// detaches (and always clears [segmentId] with it, since a segment with
+  /// no day is the invalid state [Role]'s constructor rejects).
   void updateRole(
     String anchorId,
     String roleId, {
@@ -910,6 +1091,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     // provision role stays, its structured detail does not).
     ProvisionDetail? provision,
     bool clearProvision = false,
+    String? dayId,
+    bool clearDayId = false,
+    String? segmentId,
+    bool clearSegmentId = false,
   }) {
     final anchors = [
       for (final a in state.anchors)
@@ -927,6 +1112,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
                   clearActivity: clearActivity,
                   provision: provision,
                   clearProvision: clearProvision,
+                  dayId: dayId,
+                  clearDayId: clearDayId,
+                  segmentId: segmentId,
+                  clearSegmentId: clearSegmentId,
                 )
               else
                 r,
@@ -940,8 +1129,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// FR139's carve-out applies here without a prompt: an anchor that holds
   /// no authored content and is not yet attached to anything is ordinary
   /// working-state tidying, not the destructive case that rule guards.
+  ///
+  /// #388 — a [Hazard] or [Permit] pinned to this anchor (`anchorId`)
+  /// detaches rather than dangling: neither is destroyed by the anchor's
+  /// removal (a hazard is never dropped, FR115; a permit is authored work),
+  /// they simply lose that attachment, same shape as a [Role]'s `dayId`.
   void removeAnchor(String anchorId) => state = state.copyWith(
         anchors: state.anchors.where((a) => a.id != anchorId).toList(),
+        days: _detachHazardsReferencing(anchorIds: {anchorId}),
+        permits: _detachPermitsReferencing(anchorIds: {anchorId}),
         updatedAt: _nowIso(),
       );
 
@@ -972,21 +1168,42 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// act, never a side effect of resizing (that file's own doc comment);
   /// this is what actually carries it out, across every day's and
   /// segment's nodes.
+  ///
+  /// #389 — removing a routing-constraint node (`via` / `start` / `finish` /
+  /// either portage end, `nodeKindIsRoutingConstraint`) invalidates a
+  /// segment's solved geometry exactly as placing, moving, or retyping one
+  /// does (`node_editor_sheet.dart`'s `_save`, #322/Q3/FR140): mark the
+  /// segment stale, never silently re-solve. A plain annotation node
+  /// (`poi`, `waypoint`, ...) carries no such consequence.
+  ///
+  /// #388 — a [Hazard] pinned to one of [ids] (`nodeId`) detaches rather
+  /// than dangling, run over the post-removal tree so the check reflects
+  /// what's actually still there.
   void removeNodesById(Set<String> ids) {
     if (ids.isEmpty) return;
+    final staleTargets = <(String, String)>{
+      for (final day in state.days)
+        for (final s in day.segments)
+          if (s.nodes.any((n) => ids.contains(n.id) && nodeKindIsRoutingConstraint(n.kind)))
+            (day.id, s.id),
+    };
+    final withNodesRemoved = [
+      for (final day in state.days)
+        day.copyWith(
+          nodes: [for (final n in day.nodes) if (!ids.contains(n.id)) n],
+          segments: [
+            for (final s in day.segments)
+              s.copyWith(nodes: [for (final n in s.nodes) if (!ids.contains(n.id)) n]),
+          ],
+        ),
+    ];
     state = state.copyWith(
       updatedAt: _nowIso(),
-      days: [
-        for (final day in state.days)
-          day.copyWith(
-            nodes: [for (final n in day.nodes) if (!ids.contains(n.id)) n],
-            segments: [
-              for (final s in day.segments)
-                s.copyWith(nodes: [for (final n in s.nodes) if (!ids.contains(n.id)) n]),
-            ],
-          ),
-      ],
+      days: _detachHazardsReferencing(nodeIds: ids, from: withNodesRemoved),
     );
+    for (final (dayId, segmentId) in staleTargets) {
+      markSegmentStale(dayId, segmentId);
+    }
   }
 
   void replaceNodeInSegment(String dayId, String segmentId, Node node) {

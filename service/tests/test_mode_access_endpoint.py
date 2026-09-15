@@ -14,8 +14,8 @@ the solve, and whether `_loop_to_dict`/`Segment.to_dict()` actually carry
 `surfaced_constraints` over the wire rather than computing it and dropping it,
 the same class of gap A9 (issue #26) found in the overlap-split fields.
 
-Reuses `test_segment_shape.py`'s pattern of pre-seeding the committed
-SPIKE-00 Boulder fixture graph for a real, ready region, then swaps in a
+Starts from `conftest.py`'s `boulder_region` (the committed SPIKE-00 Boulder
+fixture graph, pre-seeded) for a real, ready region, then swaps in a
 small synthetic graph with known routability tags — hunting for real-world
 coordinates that happen to cross a `bicycle=no`/`dismount` way in the Boulder
 extract would make this test fragile against fixture regeneration; a
@@ -24,47 +24,14 @@ synthetic graph makes the constraint's presence and effect exact.
 
 from __future__ import annotations
 
-import shutil
-import time
-from pathlib import Path
-
 import networkx as nx
-import pytest
 from fastapi.testclient import TestClient
 
-from plotlines_core.graph import regions as region_lib
 from plotlines_core.graph.loader import LoadedGraph
-from plotlines_service.app import create_app
 
-_FIXTURE_GRAPH = (Path(__file__).resolve().parents[2] / "spikes" / "SPIKE-00" / "fixtures"
-                  / "boulder_bike.graphml")
-_BOULDER_BBOX = [-105.30, 39.99, -105.25, 40.03]  # SPIKE-00's own fixture bbox
-
-pytestmark = pytest.mark.skipif(
-    not _FIXTURE_GRAPH.exists(),
-    reason="SPIKE-00 fixture graph not present in this checkout",
-)
 
 _START = {"lat": 40.0000, "lon": -105.3000}
 _END = {"lat": 40.0000, "lon": -105.2985}
-
-
-def _client_with_boulder_region(tmp_path: Path) -> tuple[TestClient, str]:
-    key = region_lib.region_key(tuple(_BOULDER_BBOX), "bike")
-    dest = tmp_path / "regions" / key / "graph.graphml"
-    dest.parent.mkdir(parents=True)
-    shutil.copy(_FIXTURE_GRAPH, dest)
-
-    client = TestClient(create_app(tmp_path))
-    got_key = client.post("/regions", json={"bbox": _BOULDER_BBOX}).json()["region"]
-    assert got_key == key
-
-    deadline = time.perf_counter() + 20.0
-    while not client.get("/health").json()["capabilities"]["routing"]["regions"][key]["ready"]:
-        if time.perf_counter() > deadline:
-            raise AssertionError("Boulder region never became ready")
-        time.sleep(0.02)
-    return client, key
 
 
 def _two_route_graph(bicycle_tag: str) -> nx.MultiDiGraph:
@@ -92,8 +59,8 @@ def _swap_in_graph(client: TestClient, key: str, graph: nx.MultiDiGraph) -> None
     region.graph = LoadedGraph(graph=graph, source=region.graph.source, load_seconds=0.0)
 
 
-def test_segments_generate_detours_a_cyclist_around_a_bicycle_no_edge(tmp_path: Path) -> None:
-    client, key = _client_with_boulder_region(tmp_path)
+def test_segments_generate_detours_a_cyclist_around_a_bicycle_no_edge(boulder_region) -> None:
+    client, key = boulder_region
     _swap_in_graph(client, key, _two_route_graph(bicycle_tag="no"))
 
     resp = client.post("/segments/generate", json={
@@ -106,10 +73,8 @@ def test_segments_generate_detours_a_cyclist_around_a_bicycle_no_edge(tmp_path: 
     assert body["surfaced_constraints"] == []
 
 
-def test_segments_generate_takes_the_direct_edge_for_a_mode_it_does_not_restrict(
-    tmp_path: Path,
-) -> None:
-    client, key = _client_with_boulder_region(tmp_path)
+def test_segments_generate_takes_the_direct_edge_for_a_mode_it_does_not_restrict(boulder_region) -> None:
+    client, key = boulder_region
     _swap_in_graph(client, key, _two_route_graph(bicycle_tag="no"))
 
     resp = client.post("/segments/generate", json={
@@ -120,8 +85,8 @@ def test_segments_generate_takes_the_direct_edge_for_a_mode_it_does_not_restrict
     assert resp.json()["node_count"] == 2  # foot=no was never set
 
 
-def test_segments_generate_surfaces_a_dismount_edge_over_the_wire(tmp_path: Path) -> None:
-    client, key = _client_with_boulder_region(tmp_path)
+def test_segments_generate_surfaces_a_dismount_edge_over_the_wire(boulder_region) -> None:
+    client, key = boulder_region
     _swap_in_graph(client, key, _two_route_graph(bicycle_tag="dismount"))
 
     resp = client.post("/segments/generate", json={
@@ -136,13 +101,11 @@ def test_segments_generate_surfaces_a_dismount_edge_over_the_wire(tmp_path: Path
     ]
 
 
-def test_segments_generate_loop_response_carries_surfaced_constraints_field(
-    tmp_path: Path,
-) -> None:
+def test_segments_generate_loop_response_carries_surfaced_constraints_field(boulder_region) -> None:
     # Regression guard on `_loop_to_dict`, the same class of gap A9 found:
     # the field must reach the wire even when it's empty, not be silently
     # dropped by the response shaper.
-    client, key = _client_with_boulder_region(tmp_path)
+    client, key = boulder_region
     resp = client.post("/segments/generate", json={
         "region": key, "start": {"lat": 40.0175, "lon": -105.2797},
         "shape": "loop", "target_m": 2000.0, "mode": "cycling", "theme": "balanced",
@@ -154,12 +117,12 @@ def test_segments_generate_loop_response_carries_surfaced_constraints_field(
 # --- B1 / FR130 / #315 — a discipline is configuration, over the wire ------
 
 
-def test_segments_generate_takes_a_discipline_and_echoes_it(tmp_path: Path) -> None:
+def test_segments_generate_takes_a_discipline_and_echoes_it(boulder_region) -> None:
     """#315 — a `cycling` passage with the `mountain` discipline solves on the
     profile that discipline carries (the one `mountain_biking` used to carry as
     a mode), with no second scorer, and the response echoes `discipline` the
     way it echoes `mode`/`theme`."""
-    client, key = _client_with_boulder_region(tmp_path)
+    client, key = boulder_region
     resp = client.post("/segments/generate", json={
         "region": key, "start": {"lat": 40.0175, "lon": -105.2797},
         "shape": "loop", "target_m": 2000.0,
@@ -169,11 +132,11 @@ def test_segments_generate_takes_a_discipline_and_echoes_it(tmp_path: Path) -> N
     assert resp.json()["discipline"] == "mountain"
 
 
-def test_a_discipline_name_also_works_as_a_theme_string(tmp_path: Path) -> None:
+def test_a_discipline_name_also_works_as_a_theme_string(boulder_region) -> None:
     """A discipline is nameable as a `theme` too, and so is a `travel_mode`
     value #315 removed — `theme="mountain_biking"` resolves to the `mountain`
     discipline's profile, so an un-migrated request still weights correctly."""
-    client, key = _client_with_boulder_region(tmp_path)
+    client, key = boulder_region
     for theme in ("mountain", "mountain_biking"):
         resp = client.post("/segments/generate", json={
             "region": key, "start": {"lat": 40.0175, "lon": -105.2797},
@@ -182,8 +145,8 @@ def test_a_discipline_name_also_works_as_a_theme_string(tmp_path: Path) -> None:
         assert resp.status_code == 200, theme
 
 
-def test_a_string_that_is_neither_a_theme_nor_a_mode_is_still_422(tmp_path: Path) -> None:
-    client, key = _client_with_boulder_region(tmp_path)
+def test_a_string_that_is_neither_a_theme_nor_a_mode_is_still_422(boulder_region) -> None:
+    client, key = boulder_region
     resp = client.post("/segments/generate", json={
         "region": key, "start": {"lat": 40.0175, "lon": -105.2797},
         "shape": "loop", "target_m": 2000.0, "mode": "cycling", "theme": "teleportation",
@@ -191,13 +154,11 @@ def test_a_string_that_is_neither_a_theme_nor_a_mode_is_still_422(tmp_path: Path
     assert resp.status_code == 422
 
 
-def test_a_legacy_mountain_biking_mode_inherits_cyclings_legality_over_the_wire(
-    tmp_path: Path,
-) -> None:
+def test_a_legacy_mountain_biking_mode_inherits_cyclings_legality_over_the_wire(boulder_region) -> None:
     """#315 — an un-migrated `mode="mountain_biking"` is folded onto `cycling`
     by the request validator, so `bicycle=no` still closes the direct edge to
     it, with no `mountain_biking` row in `MODE_CONSTRAINTS`."""
-    client, key = _client_with_boulder_region(tmp_path)
+    client, key = boulder_region
     _swap_in_graph(client, key, _two_route_graph(bicycle_tag="no"))
 
     resp = client.post("/segments/generate", json={

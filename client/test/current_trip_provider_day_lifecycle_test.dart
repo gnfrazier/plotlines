@@ -33,6 +33,28 @@ void main() {
         nodes: [Node(id: '$id-node', kind: NodeKind.poi, coord: const [0, 0])],
       );
 
+  ProviderContainer containerWithDaysAndAnchors(List<Day> days, List<Anchor> anchors) {
+    final container = ProviderContainer();
+    container.read(currentTripProvider.notifier).open(
+          Trip(
+            id: 't1',
+            title: 'Test trip',
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+            days: days,
+            anchors: anchors,
+          ),
+        );
+    return container;
+  }
+
+  Role roleAt(ProviderContainer container, {String anchorId = 'a1', String roleId = 'r1'}) => container
+      .read(currentTripProvider)
+      .anchors
+      .firstWhere((a) => a.id == anchorId)
+      .roles
+      .firstWhere((r) => r.id == roleId);
+
   group('insertDayAt', () {
     test('inserting mid-trip renumbers subsequent days and moves their content along', () {
       final container = containerWithDays([
@@ -359,6 +381,115 @@ void main() {
       final merged = trip.days.single;
       expect(merged.id, 'd1');
       expect(merged.segments.map((s) => s.id).toSet(), {'s1', 's2', 's3'});
+    });
+  });
+
+  // FR139/Q2 (issue #384) — a role's day_id/segment_id link must never
+  // dangle: removing what it names must land the role back at "unattached"
+  // (never a reference to something gone), and a merge that moves content
+  // rather than discarding it must move the link with it.
+  group('day_id / segment_id detachment on day/segment removal', () {
+    test('removeDay detaches a role attached to that day', () {
+      final container = containerWithDaysAndAnchors(
+        [Day(id: 'd1', index: 1), Day(id: 'd2', index: 2)],
+        [
+          Anchor(id: 'a1', coord: const [0, 0], roles: [
+            Role(id: 'r1', kind: RoleKind.narrative, dayId: 'd1'),
+          ]),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).removeDay('d1');
+
+      expect(roleAt(container).dayId, isNull);
+    });
+
+    test('removeDaysExplicitly detaches roles attached to the removed days', () {
+      final container = containerWithDaysAndAnchors(
+        [Day(id: 'd1', index: 1), Day(id: 'd2', index: 2), Day(id: 'd3', index: 3)],
+        [
+          Anchor(id: 'a1', coord: const [0, 0], roles: [
+            Role(id: 'r1', kind: RoleKind.narrative, dayId: 'd2'),
+          ]),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).removeDaysExplicitly({'d2'});
+
+      expect(roleAt(container).dayId, isNull);
+    });
+
+    test('removeSegment detaches a role scoped to that passage but leaves day-level attachment alone', () {
+      final container = containerWithDaysAndAnchors(
+        [Day(id: 'd1', index: 1, segments: [segmentWithNode('s1')])],
+        [
+          Anchor(id: 'a1', coord: const [0, 0], roles: [
+            Role(id: 'r1', kind: RoleKind.narrative, dayId: 'd1', segmentId: 's1'),
+          ]),
+          Anchor(id: 'a2', coord: const [0, 0], roles: [
+            Role(id: 'r1', kind: RoleKind.provision, dayId: 'd1'),
+          ]),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).removeSegment('d1', 's1');
+
+      final detached = roleAt(container, anchorId: 'a1');
+      expect(detached.dayId, isNull);
+      expect(detached.segmentId, isNull);
+      // A role attached to the day itself (not this passage) is untouched.
+      final untouched = roleAt(container, anchorId: 'a2');
+      expect(untouched.dayId, 'd1');
+    });
+
+    test('mergeDaysIntoAdjacent moves a role\'s attachment onto the surviving day', () {
+      final container = containerWithDaysAndAnchors(
+        [
+          Day(id: 'd1', index: 1, segments: [segmentWithNode('s1')]),
+          Day(id: 'd2', index: 2, segments: [segmentWithNode('s2')]),
+        ],
+        [
+          Anchor(id: 'a1', coord: const [0, 0], roles: [
+            Role(id: 'r1', kind: RoleKind.narrative, dayId: 'd2', segmentId: 's2'),
+          ]),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(currentTripProvider.notifier).mergeDaysIntoAdjacent({'d2'});
+
+      final role = roleAt(container);
+      // s2 (and its content) moved onto d1; the role's link follows it
+      // rather than being left pointing at the day that's now gone.
+      expect(role.dayId, 'd1');
+      expect(role.segmentId, 's2');
+    });
+
+    test('mergeDaysIntoAdjacent chases a redirect chain to the final surviving day', () {
+      final container = containerWithDaysAndAnchors(
+        [
+          Day(id: 'd1', index: 1),
+          Day(id: 'd2', index: 2),
+          Day(id: 'd3', index: 3),
+        ],
+        [
+          Anchor(id: 'a1', coord: const [0, 0], roles: [
+            Role(id: 'r1', kind: RoleKind.narrative, dayId: 'd3'),
+          ]),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // d3 merges into d2, then d2 merges into d1 — a role that started on
+      // d3 must end up on d1, not on d2 (which no longer exists either).
+      container.read(currentTripProvider.notifier).mergeDaysIntoAdjacent({'d2', 'd3'});
+
+      final trip = container.read(currentTripProvider);
+      expect(trip.days.map((d) => d.id).toList(), ['d1']);
+      expect(roleAt(container).dayId, 'd1');
     });
   });
 }

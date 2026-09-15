@@ -30,6 +30,7 @@ import '../../domain/home_region.dart';
 import '../../state/current_roster_provider.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
+import '../../state/settings_provider.dart' show displayFormatProvider;
 import '../../state/trip_authoring_meta_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import '../../state/trip_candidates_provider.dart';
@@ -142,9 +143,20 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
         color: c.surfaceSunk,
         child: tripsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
+        // #390 — same class of defect #317 fixed on the Layers tab: `err`
+        // (a drift/sqlite3 exception) used to be interpolated straight into
+        // a user-visible Text, whose toString() is a class name and a raw
+        // driver message. `_LibraryLoadFailed`'s own doc comment explains
+        // why this is a purpose-built treatment rather than a route through
+        // DesktopErrorSurface.
         error: (err, _) => Center(
-          child: Text('Couldn\'t open the local trip library: $err',
-              style: PlotTypography.body(c.danger)),
+          child: Padding(
+            padding: const EdgeInsets.all(PlotSpacing.s6),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: _LibraryLoadFailed(onRetry: () => ref.invalidate(tripLibraryProvider)),
+            ),
+          ),
         ),
         data: (trips) => trips.isEmpty
             ? _EmptyLibrary(
@@ -289,6 +301,45 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
+/// #390 — a local drift-DB read failure has no home in M13's typed state
+/// enum (`domain/desktop_error_state.dart`): all twelve of its states are
+/// sidecar/routing/layer/export conditions, pinned to exactly that count by
+/// `desktop_error_state_test.dart`, and none names "the local trip database
+/// didn't open." #317 fixed the same class of defect (the caught
+/// exception's `toString()` reaching the Author verbatim) on the Layers tab
+/// by routing through `DesktopErrorSurface`; here that surface has no
+/// matching state to hand it, so this is a small, purpose-built treatment
+/// in the same what/why/retry shape instead — never the caught error
+/// itself.
+class _LibraryLoadFailed extends StatelessWidget {
+  const _LibraryLoadFailed({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return PlotCard(
+      padding: const EdgeInsets.all(PlotSpacing.s4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 32, color: c.danger),
+          const SizedBox(height: PlotSpacing.s3),
+          Text('The trip library didn\'t open',
+              textAlign: TextAlign.center, style: PlotTypography.title(c.textPrimary)),
+          const SizedBox(height: PlotSpacing.s2),
+          Text('The local trip database couldn\'t be read.',
+              textAlign: TextAlign.center, style: PlotTypography.body(c.textSecondary)),
+          const SizedBox(height: PlotSpacing.s3),
+          PlotButton(label: 'Retry', variant: PlotButtonVariant.secondary, onPressed: onRetry),
+        ],
+      ),
+    );
+  }
+}
+
 /// FR142(c) / K12 and Flow 8 §04 (issue #230 B2) — an empty view names the
 /// next action rather than explaining the implementation.
 ///
@@ -419,9 +470,10 @@ class _TripCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
+    final displayFormat = ref.watch(displayFormatProvider);
     return TripCard(
       title: trip.title,
-      stats: _stats(),
+      stats: _stats(displayFormat),
       modeTag: trip.modes.isEmpty ? null : trip.modes.join('+').toUpperCase(),
       badge: PlotBadge(trip.syncBadge.label, tone: PlotBadgeTone.spruce, solid: true),
       trailing: Material(
@@ -450,13 +502,15 @@ class _TripCard extends ConsumerWidget {
   /// group size, from the denormalized summary (no payload decode). Grouped
   /// into at most three short mono chips so the card stays legible — the
   /// brand `TripCard` is built for a couple of stats, not a table.
-  List<String> _stats() {
+  List<String> _stats(DisplayFormat displayFormat) {
     final s = trip.summary;
     final out = <String>['Updated ${_relativeDay(trip.updatedAt)}'];
 
     final route = <String>[
-      if (s.distanceM != null) '${(s.distanceM! / 1000).toStringAsFixed(0)} KM',
-      if (s.ascentM != null) '↑ ${s.ascentM!.toStringAsFixed(0)} M',
+      if (s.distanceM != null)
+        displayFormat.formatDistance(s.distanceM!, fractionDigits: 0).toUpperCase(),
+      if (s.ascentM != null)
+        '↑ ${displayFormat.formatElevation(s.ascentM!).toUpperCase()}',
     ];
     if (route.isNotEmpty) out.add(route.join('  '));
 

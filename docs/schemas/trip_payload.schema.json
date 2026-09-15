@@ -492,7 +492,7 @@
     },
 
     "role": {
-      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). `hazard` (FR115/O5) flags this role a hazard or technical-crux warning, orthogonal to `kind`; see the `not` clause below for the hard constraint it carries. `arc` (FR38/O6) is this role's stage in the day's story, or absent for a role with no arc beat. `activity` (FR109/O4) is the station activity — type, duration, gear, Author-declared difficulty — and is valid only on a `station`-kind role (the `allOf` below). `provision` (FR25/O1) is the water/resupply detail and is valid only on a `provision`-kind role (the same `allOf` below).",
+      "description": "FR106, FR107, FR110, FR108 / O1, O2, O3 — one entry in an anchor's role set. `reveal` and content may be set at promotion or left for later (O1's AC). `coord` (FR107/O2) is the role's optional point offset from its anchor — absent means the role sits at the anchor's own coord, which is what lets an anchor with no offsets behave exactly as a single point (O2's AC). `area` (FR108/O3) is the role's own optional polygon offset — the same fallback shape as `coord`, for a role whose own extent differs from its anchor's (the picnic area role covering only the west lawn of a park anchor). `hazard` (FR115/O5) flags this role a hazard or technical-crux warning, orthogonal to `kind`; see the `not` clause below for the hard constraint it carries. `arc` (FR38/O6) is this role's stage in the day's story, or absent for a role with no arc beat. `activity` (FR109/O4) is the station activity — type, duration, gear, Author-declared difficulty — and is valid only on a `station`-kind role (the `allOf` below). `provision` (FR25/O1) is the water/resupply detail and is valid only on a `provision`-kind role (the same `allOf` below). `day_id`/`segment_id` (FR142b, K12 / N4a — issue #384) are this role's real, structural attachment to the trip's route: absent means unattached (N4a's ordinary working state, PRD FR139), and because attachment lives on the role rather than the anchor, one anchor's provision role can sit on Day 3's route while its narrative role is read at Day 1's rest stop (roles are independent, FR106).",
       "type": "object",
       "required": ["id", "kind"],
       "additionalProperties": false,
@@ -508,12 +508,17 @@
         "hazard": { "type": "boolean", "description": "FR115 / O5 — hard constraint: `true` marks this role a hazard or technical-crux warning, whose effective reveal is always-visible regardless of `reveal` and cannot be set otherwise by any Author. Defaults to `false` when absent." },
         "arc": { "$ref": "#/$defs/arc_stage", "description": "FR38 / O6 — this role's stage in the day's story. Absent means this role carries no arc beat." },
         "activity": { "$ref": "#/$defs/station_activity", "description": "FR109, FR16b, FR24 / O4 — present only on a `station`-kind role. Absent means this station carries no activity detail yet (O1's AC — set at promotion or later)." },
-        "provision": { "$ref": "#/$defs/provision_detail", "description": "FR25 / C9 — present only on a `provision`-kind role. Absent means this provision role carries no structured water/resupply detail yet." }
+        "provision": { "$ref": "#/$defs/provision_detail", "description": "FR25 / C9 — present only on a `provision`-kind role. Absent means this provision role carries no structured water/resupply detail yet." },
+        "day_id": { "$ref": "#/$defs/id", "description": "FR142b, K12 / N4a (issue #384) — the day this role is attached to, set by promotion-into-a-day or by N4a's anchors-view attach action. Absent means unattached." },
+        "segment_id": { "$ref": "#/$defs/id", "description": "N4a (issue #384) — optionally narrows attachment to one passage within `day_id`. Never set without `day_id` (see `dependentRequired` below) — a segment belongs to a day, so pinning to one without the other is meaningless." }
       },
       "not": {
         "description": "FR115 / O5 — enforced at the wire boundary too, not just by the Dart/Python constructors: a hazard role can never be stored as on_arrival.",
         "properties": { "hazard": { "const": true }, "reveal": { "const": "on_arrival" } },
         "required": ["hazard", "reveal"]
+      },
+      "dependentRequired": {
+        "segment_id": ["day_id"]
       },
       "allOf": [
         {

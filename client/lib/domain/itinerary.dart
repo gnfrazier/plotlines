@@ -13,18 +13,15 @@
 /// logistics as a disjoint panel fails the AC even if every fact in it is
 /// correct.
 ///
-/// **Scope note:** promoted [Anchor]s (`anchor.dart`) carry no day/segment
-/// linkage anywhere in the current object model — promotion is trip-scoped
-/// (`Trip.anchors`), not day-scoped, and nothing records which day an anchor
-/// sits on. "Places" here is therefore built from [Day.nodes] /
-/// [Segment.nodes], the same day-scoped source the Export tab's existing
-/// cue-sheet fallback (`export_tab.dart`'s `_entriesFromAuthoredContent`)
-/// already reads for exactly this purpose, and — matching that same existing
-/// surface — is not run through `RevealResolver`: nothing in the codebase
-/// reveal-gates `Node` content today (only `Role` content is reveal-gated,
-/// per O5/P11), and anchors have no day association to resolve against in
-/// the first place. Wiring the anchor/role narrative layer into a day's
-/// account is real future work, gated on that linkage existing.
+/// **Anchors, since issue #393.** A promoted [Anchor]'s narrative role can now
+/// name its day (`Role.dayId`/`Role.segmentId`, issue #384), so "places" here
+/// is [Day.nodes]/[Segment.nodes] (never reveal-gated — only `Role` content
+/// is, per O5/P11) *plus* whichever of that day's anchor titles are
+/// reveal-visible. This function stays reveal-agnostic on purpose — Domain
+/// may not import `RevealResolver` (ARCH §10.1's layering: Data depends on
+/// Domain, not the reverse) — so [buildItinerary] takes the already-resolved
+/// [anchorTitlesByDayId] map rather than resolving anything itself; callers
+/// build it with `data/character_journey.dart`'s `revealedAnchorTitlesByDay`.
 library;
 
 import 'day.dart';
@@ -78,6 +75,7 @@ Itinerary buildItinerary(
   Set<String>? attendedDayIds,
   String? characterLabel,
   DisplayFormat format = const DisplayFormat(),
+  Map<String, List<String>> anchorTitlesByDayId = const {},
 }) {
   final days = attendedDayIds == null
       ? trip.days
@@ -85,29 +83,37 @@ Itinerary buildItinerary(
   return Itinerary(
     title: characterLabel == null ? trip.title : '${trip.title} — $characterLabel',
     isIndividual: attendedDayIds != null,
-    days: [for (final day in days) _buildDayEntry(day, format)],
+    days: [
+      for (final day in days)
+        _buildDayEntry(day, format, anchorTitlesByDayId[day.id] ?? const []),
+    ],
   );
 }
 
-ItineraryDayEntry _buildDayEntry(Day day, DisplayFormat format) {
+ItineraryDayEntry _buildDayEntry(Day day, DisplayFormat format, List<String> anchorTitles) {
   final heading = 'Day ${day.index}${day.title != null ? ' — ${day.title}' : ''}';
   return ItineraryDayEntry(
     day: day,
     heading: heading,
-    paragraphs: day.isRest ? [_restDayAccount(day)] : _routeDayAccount(day, format),
+    paragraphs: day.isRest
+        ? [_restDayAccount(day, anchorTitles)]
+        : _routeDayAccount(day, format, anchorTitles),
   );
 }
 
-String _restDayAccount(Day day) {
+String _restDayAccount(Day day, List<String> anchorTitles) {
   final sentences = <String>[if (day.note != null) day.note! else 'A rest day, no route.'];
-  final agenda = day.nodes.where((n) => n.title != null).map((n) => n.title!).toList();
+  final agenda = [
+    ...day.nodes.where((n) => n.title != null).map((n) => n.title!),
+    ...anchorTitles,
+  ];
   if (agenda.isNotEmpty) {
     sentences.add('On the agenda: ${agenda.join(', ')}.');
   }
   return sentences.join(' ');
 }
 
-List<String> _routeDayAccount(Day day, DisplayFormat format) {
+List<String> _routeDayAccount(Day day, DisplayFormat format, List<String> anchorTitles) {
   final paragraphs = <String>[];
 
   final legs = <String>[];
@@ -134,6 +140,7 @@ List<String> _routeDayAccount(Day day, DisplayFormat format) {
         if (node.title != null) node.title!,
     for (final node in day.nodes)
       if (node.title != null) node.title!,
+    ...anchorTitles,
   ];
   if (places.isNotEmpty) {
     paragraphs.add('Along the way: ${places.join(', ')}.');

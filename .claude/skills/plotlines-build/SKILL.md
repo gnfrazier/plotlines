@@ -142,8 +142,12 @@ Where they live, and what to run — these are exactly the CI jobs in `.github/w
 | | Tests | Command |
 |---|---|---|
 | core | `core/tests/test_*.py` | `cd core && uv run --frozen pytest` |
-| service | `service/tests/test_*.py` | `cd service && uv run --frozen pytest` |
+| service | `service/tests/test_*.py` | `cd service && uv run --frozen pytest -n auto` |
 | client | `client/test/*_test.dart` | `cd client && flutter test` |
+
+`tools/test_all.sh` runs all three concurrently plus the three gates below, so a full pre-push run costs the client suite's wall time rather than the sum. For the inner loop point the tool at one file (`pytest tests/test_x.py`, `flutter test test/x_test.dart`); the full run is for before you push. CI shards the client suite by file across four runners (`tools/ci/client_test_shard.sh`), which changes nothing about what is run — a shard is a plain `flutter test` over a quarter of the files.
+
+Two things the service suite's `conftest.py` does for every test, because the test that leaks is never the one that fails: it joins the worker pools `create_app` starts, and it restores the root logger (a CLI test that calls `configure_logging` under `capsys` otherwise leaves a handler on a closed stream, and the next log record anywhere in the process prints `--- Logging error ---` into some other test's stderr). Route-solving tests take the `boulder_region` fixture rather than seeding the fixture graph by hand — it is the same pre-seeded SPIKE-00 Boulder region, parsed once per session instead of once per test.
 
 Plus three gates that need no toolchain and are cheap to run before you push:
 

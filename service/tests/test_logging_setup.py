@@ -5,19 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import pytest
-
 from plotlines_service.logging_setup import configure_logging, default_log_file
-
-
-@pytest.fixture(autouse=True)
-def _restore_root_logger():
-    root = logging.getLogger()
-    saved_handlers = root.handlers[:]
-    saved_level = root.level
-    yield
-    root.handlers[:] = saved_handlers
-    root.setLevel(saved_level)
 
 
 def test_default_log_file_is_under_the_cache_dir():

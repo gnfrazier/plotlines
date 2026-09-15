@@ -39,6 +39,11 @@ build-backend = "hatchling.build"
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
+    # `-n auto` in CI and `tools/test_all.sh`. Every test here is `tmp_path`-
+    # scoped and nothing binds a real socket (`test_sidecar_entrypoint.py`
+    # stubs `uvicorn.Server`), so workers do not share state; the suite is
+    # CPU-bound on the route solves and splits cleanly.
+    "pytest-xdist>=3.6",
     # Exercises mirror_clip.py's real pyosmium behaviour in tests — see the
     # mirror-clip extra above for why this isn't a base dependency.
     "osmium>=4.3,<5",

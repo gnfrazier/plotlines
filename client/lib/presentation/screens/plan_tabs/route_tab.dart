@@ -15,6 +15,7 @@ import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
+import '../../display_format_of.dart';
 import '../../map/alternate_markers.dart';
 import '../../map/node_marker_role.dart';
 import '../../map/route_geometry.dart';
@@ -41,15 +42,15 @@ import '../../widgets/weights_rail.dart';
 List<MapMarkerPoint> routeTabMarkerPoints(Trip trip) => [
       for (final d in trip.days) ...[
         for (final s in d.segments) ...[
-          if (s.start != null) (coord: s.start!, role: NodeMarkerType.start),
-          if (s.end != null) (coord: s.end!, role: NodeMarkerType.finish),
+          if (s.start != null) (coord: s.start!, role: NodeMarkerType.start, arcStage: null),
+          if (s.end != null) (coord: s.end!, role: NodeMarkerType.finish, arcStage: null),
           for (final n in s.nodes)
-            (coord: n.coord, role: markerForNodeKind(n.kind)),
+            (coord: n.coord, role: markerForNodeKind(n.kind), arcStage: n.arcStage),
         ],
         // Day-scoped nodes — a rest day's POIs and scheduled events, which no
         // segment owns.
         for (final n in d.nodes)
-          (coord: n.coord, role: markerForNodeKind(n.kind)),
+          (coord: n.coord, role: markerForNodeKind(n.kind), arcStage: n.arcStage),
       ],
     ];
 
@@ -301,6 +302,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                     TapToPickMap(
                       points: routeTabMarkerPoints(widget.trip),
                       polyline: routeCoords ?? const [],
+                      polylineArcStage: selectedSegment?.arcStage,
                       leaderLines: routeTabLeaderLines(selectedSegment),
                       // #324 — the divergence as it is being drawn or moved:
                       // the path dashed, the stretch of the day it stands in
@@ -450,7 +452,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
           selectedSegment: selectedSegment,
           elevationCapability: _elevationCapability,
           composeItinerary: composeItinerary,
-          displayFormat: ref.watch(displayFormatProvider),
+          displayFormat: displayFormatOf(context, ref),
         ),
       ],
     );
