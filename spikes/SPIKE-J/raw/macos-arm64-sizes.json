@@ -1,0 +1,6 @@
+{
+  "target": "macos-arm64",
+  "baseline_bytes": 233136501,
+  "probe_bytes": 236724382,
+  "delta_bytes": 3587881
+}

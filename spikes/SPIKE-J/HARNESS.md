@@ -18,7 +18,9 @@ and both narrow the question rather than widen it:
   unsatisfied on this machine and there is no macOS hardware at all. The three
   targets this can't reach locally run on GitHub-hosted `windows-latest`,
   `macos-13` (x86_64) and `macos-14` (arm64) runners instead — see `README.md`
-  for why hosted runners rather than acquired hardware. Every band below
+  for why hosted runners rather than acquired hardware. *(Amended 2026-09-15,
+  runner label only, no band changed: `macos-13` is retired and never
+  scheduled; the x86_64 leg ran on `macos-15-intel`. `RESULTS.md` §3.)* Every band below
   applies identically to a locally-run leg and a CI-run leg.
 
 ## 1. What gets measured, and how

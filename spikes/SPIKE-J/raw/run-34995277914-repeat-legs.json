@@ -1,0 +1,47 @@
+{
+  "run": 34995277914,
+  "run_at": "2026-09-15",
+  "note": "Repeat of the 2026-09-13 windows/arm64 legs (run 34771996128 attempt 1), triggered by the macos-13 -> macos-15-intel swap. Deltas reproduced byte-for-byte; baselines drifted ~17 KB.",
+  "legs": {
+    "windows-x86_64": {
+      "sizes": {
+        "target": "windows-x86_64",
+        "baseline_bytes": 220419568,
+        "probe_bytes": 224767707,
+        "delta_bytes": 4348139
+      },
+      "probe_result": {
+        "ok": true,
+        "ways_considered": 2,
+        "elements_read": 7,
+        "nodes": 4,
+        "edges": 6,
+        "read_s": 0.016,
+        "build_s": 0.0,
+        "plotlines_way_tags_count": 15,
+        "plotlines_node_tags_count": 1,
+        "frozen": true
+      }
+    },
+    "macos-arm64": {
+      "sizes": {
+        "target": "macos-arm64",
+        "baseline_bytes": 233153301,
+        "probe_bytes": 236741182,
+        "delta_bytes": 3587881
+      },
+      "probe_result": {
+        "ok": true,
+        "ways_considered": 2,
+        "elements_read": 7,
+        "nodes": 4,
+        "edges": 6,
+        "read_s": 0.0427,
+        "build_s": 0.0017,
+        "plotlines_way_tags_count": 15,
+        "plotlines_node_tags_count": 1,
+        "frozen": true
+      }
+    }
+  }
+}

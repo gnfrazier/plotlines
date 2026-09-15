@@ -9,10 +9,12 @@
 
 This spike needs four targets (Linux, Windows, macOS x86, macOS arm) and the
 local machine has one of them — Windows build dependencies are unsatisfied
-locally, and there is no macOS hardware at all. `windows-latest`, `macos-13`
+locally, and there is no macOS hardware at all. `windows-latest`, `macos-15-intel`
 and `macos-14` GitHub-hosted runners stand in for the other three
 (`.github/workflows/spike-266-freeze-matrix.yml`, `workflow_dispatch` only —
-this is spike infrastructure, not a standing CI gate):
+this is spike infrastructure, not a standing CI gate — plus a push trigger scoped
+to this spike's own branch, because `workflow_dispatch` only works once the file
+is on `main`):
 
 - **No setup cost.** A GitHub-hosted runner is a `runs-on:` value, not
   infrastructure to install or register — unlike a self-hosted runner, which
@@ -46,7 +48,7 @@ without touching the shipped entry point.
 | `probe_entry.py` | the frozen entry point: reads the fixture with pyosmium, builds a graph via osmnx's own pipeline |
 | `build_probe.sh` | fork of `packaging/build_sidecar.sh` — same flags, +osmium, +the matching `--add-data` |
 | `check_no_gpl.py` | mechanical assert-the-absence check for addendum 2a / L1 |
-| `.github/workflows/spike-266-freeze-matrix.yml` | drives the same three steps on `windows-latest` / `macos-13` / `macos-14` |
+| `.github/workflows/spike-266-freeze-matrix.yml` | drives the same three steps on `windows-latest` / `macos-15-intel` / `macos-14` (`macos-13` is retired — see `results/RESULTS.md` §3) |
 | `results/RESULTS.md` | the four-target verdict |
 
 ## Running it
