@@ -458,6 +458,11 @@ PyInstaller freeze survival for pyosmium/pyrosm on **all four targets**: Linux, 
 macOS arm, Windows. Risk **A5**. See §11.2 — this is the item most likely to consume a week
 unexpectedly, and it is independent of 7.1, so it can run in parallel.
 
+> **Run 2026-09-13/15 — PARITY on all four targets.** pyosmium (the only candidate left after
+> SPIKE-I rejected pyrosm) freezes, launches, reads and builds a graph on Linux, Windows,
+> macOS x86 and macOS arm, at **+3.4–4.5 MB uncompressed per platform**; the no-GPL-binary check
+> passes on each. §11.2's week was not consumed. `spikes/SPIKE-J/results/RESULTS.md`.
+
 ## 8. Phase 3 — Desktop and mobile extract path
 
 Replaces the *transport*, not the interfaces: `ensure_graph(region, cache_dir)` keeps its
@@ -538,6 +543,9 @@ assertion catches. Budget for re-validation against a golden set.
 **11.2 The native dependency lands on risk A5.** pyosmium is a C++ extension (libosmium, protozero,
 expat, bz2), needed frozen on four targets. Native extensions are where cross-platform freezes
 break, and A5 already flags 150–300 MB per platform stacking on offline packages.
+*(Measured by SPIKE-J, 2026-09-15: it survives on all four targets, and it costs 1.5–1.9 % of
+the sidecar — A5's 150–300 MB is confirmed with osmium in, not widened; the pressure is the
+geospatial stack.)*
 
 **11.3 We become the availability.** Today an Overpass outage is someone else's problem and it is
 loud and transient. After, a mirror cron that silently stopped three months ago looks identical to a
@@ -642,9 +650,9 @@ it unnecessary to check.
 
 21. ~~File~~ and run **SPIKE-I** (parity, tags, clip strategy, sizes), with its parity bands
     pre-registered and the clip measured **server-side**. *(§7.1, 2b, 2c — filed as #265)*
-22. ~~File~~ and run **SPIKE-J** (freeze matrix) — **filed as #266**, in parallel with 21, and much smaller than first
-    drafted: Q1-C removes the client-side native clip dependency, so what remains is whatever the
-    frozen client still needs. *(§7.2, 2a)*
+22. ~~File and run **SPIKE-J** (freeze matrix)~~ — **run 2026-09-13/15, PARITY on all four targets** (#266). Much smaller than first
+    drafted: Q1-C removes the client-side native clip dependency, so what remained was the reader, and
+    it freezes everywhere at +3.4–4.5 MB. *(§7.2, 2a)*
 23. Confirm the §12 answers against the spike evidence — in particular whether offline
     bbox-editing forces Q1's D fallback, and Q6's egress arithmetic.
 
