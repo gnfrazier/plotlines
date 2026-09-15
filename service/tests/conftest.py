@@ -23,6 +23,7 @@ surfaces somewhere else entirely (#235 C).
 
 from __future__ import annotations
 
+import logging
 import shutil
 import time
 from pathlib import Path
@@ -47,6 +48,38 @@ def _stub_overpass_connect_probe(monkeypatch):
     probe is exactly what it was before #245.
     """
     monkeypatch.setattr(region_lib, "probe_endpoint", lambda *_a, **_kw: None)
+
+
+@pytest.fixture(autouse=True)
+def _restore_root_logger():
+    """Put the root logger back the way the test found it.
+
+    `configure_logging` (issue #232) attaches a `StreamHandler(sys.stderr)` to
+    the root logger, and every CLI entrypoint calls it — `diagnose_region.main`,
+    `elevation_proxy.main`, `mirror_clip.main`, `__main__.main`. A test that
+    drives one of those under `capsys` therefore leaves a root handler bound to
+    a capture buffer pytest closes at teardown, and every later log record in
+    the same process trips `ValueError: I/O operation on closed file` inside
+    `Handler.emit`, which logging reports as `--- Logging error ---` on
+    whatever `sys.stderr` is current — some other test's `capsys`.
+
+    Serially the alphabetical file order hid it; `pytest tests/
+    test_diagnose_region_cli.py tests/test_sidecar_entrypoint.py` fails on
+    `err.startswith("refusing:")` every time, and under `-n auto` the same pair
+    lands on one worker about one run in three. Same shape as the pool leak
+    below (#235 C): invisible in the test that causes it, surfaces somewhere
+    else. Handlers a test added are closed, not just dropped, so a file handler
+    releases its `tmp_path` file too.
+    """
+    root = logging.getLogger()
+    saved_handlers = root.handlers[:]
+    saved_level = root.level
+    yield
+    for handler in root.handlers:
+        if handler not in saved_handlers:
+            handler.close()
+    root.handlers[:] = saved_handlers
+    root.setLevel(saved_level)
 
 
 @pytest.fixture(autouse=True)
