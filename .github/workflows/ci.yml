@@ -100,22 +100,45 @@ jobs:
       # checkout above is enough for `uv sync` to resolve it.
       - run: uv sync --frozen
         working-directory: service
-      - run: uv run --frozen pytest
+      # `-n auto` (pytest-xdist, one worker per runner vCPU): the suite is
+      # CPU-bound on route solves against the Boulder fixture and shares no
+      # state between tests — every fixture is `tmp_path`-scoped and the CLI
+      # tests stub `uvicorn.Server`. Measured 80 s single-process on this
+      # runner; the conftest restores the root logger and joins worker pools
+      # after every test precisely so that order no longer matters.
+      - run: uv run --frozen pytest -n auto
         working-directory: service
 
   client-tests:
-    name: "client tests"
+    # The critical-path job. Before sharding, `flutter test` alone took ~200 s
+    # on the 4-vCPU runner, and the SDK download another ~55 s in front of
+    # it, so the whole workflow's wall time was this job's. The cost is not in
+    # the tests — two thirds of them finish inside 50 ms — it's ~800 s of CPU
+    # split roughly 60/40 between per-file compile/isolate spawn and test
+    # bodies, and that divides cleanly by *file* (not by test — see the
+    # script for why `--total-shards` is the wrong tool). Four file-level
+    # shards, each on its own runner, with the SDK cached across runs.
+    #
+    # Shard count is a matrix constant, not a test count (#235 C): adding
+    # files rebalances the shards on its own, and nothing here has to be
+    # updated when the suite grows. Any one shard is a real `flutter test`
+    # run, so a failure still points at a file.
+    name: "client tests (shard ${{ matrix.shard }} of 4)"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: "3.44.5"
+          cache: true
       # Flutter widget/unit suite. Runs on the Dart VM (no device, no display),
       # so plain `flutter test` is all that's needed. Version pinned to the
       # toolchain client/ currently targets (Dart SDK ^3.12.2).
       - run: flutter pub get
         working-directory: client
-      - run: flutter test
-        working-directory: client
+      - run: tools/ci/client_test_shard.sh ${{ matrix.shard }} 4
