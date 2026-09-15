@@ -137,4 +137,117 @@ void main() {
       expect(buildPlotPoints(_tripWithAnchors(const [])), isEmpty);
     });
   });
+
+  group('revealedAnchorTitlesByDay', () {
+    test('a day-attached, always-visible narrative role\'s title lands under its day id '
+        '(issue #384\'s Role.dayId; issue #393)', () {
+      final trip = _tripWithAnchors([
+        Anchor(id: 'a1', coord: const [0.0, 0.0], roles: [
+          Role(
+            id: 'r1',
+            kind: RoleKind.narrative,
+            reveal: RevealPolicy.alwaysVisible,
+            title: 'The Old Mill',
+            dayId: 'd1',
+          ),
+        ]),
+      ]);
+
+      expect(revealedAnchorTitlesByDay(trip), {
+        'd1': ['The Old Mill'],
+      });
+    });
+
+    test('a role attached to no day contributes nothing, even when visible', () {
+      final trip = _tripWithAnchors([
+        Anchor(id: 'a1', coord: const [0.0, 0.0], roles: [
+          Role(id: 'r1', kind: RoleKind.narrative, reveal: RevealPolicy.alwaysVisible, title: 'Unattached'),
+        ]),
+      ]);
+
+      expect(revealedAnchorTitlesByDay(trip), isEmpty);
+    });
+
+    test('provision/station roles are excluded, matching buildPlotPoints\' own scope', () {
+      final trip = _tripWithAnchors([
+        Anchor(id: 'a1', coord: const [0.0, 0.0], roles: [
+          Role(
+            id: 'r1',
+            kind: RoleKind.provision,
+            reveal: RevealPolicy.alwaysVisible,
+            title: 'Water',
+            dayId: 'd1',
+          ),
+        ]),
+      ]);
+
+      expect(revealedAnchorTitlesByDay(trip), isEmpty);
+    });
+
+    test('a withheld on_arrival role contributes no title — content stays hidden, '
+        'unlike buildPlotPoints there is no placeholder string to leak here either', () {
+      final trip = _tripWithAnchors([
+        Anchor(id: 'a1', coord: const [0.0, 0.0], roles: [
+          Role(
+            id: 'r1',
+            kind: RoleKind.narrative,
+            reveal: RevealPolicy.onArrival,
+            title: 'The Ambush Site',
+            dayId: 'd1',
+          ),
+        ]),
+      ]);
+
+      expect(revealedAnchorTitlesByDay(trip), isEmpty);
+      expect(revealedAnchorTitlesByDay(trip, hasArrived: (id) => id == 'a1'), {
+        'd1': ['The Ambush Site'],
+      });
+    });
+
+    test('a role with no title of its own falls back to the anchor\'s own place name', () {
+      final trip = _tripWithAnchors([
+        Anchor(id: 'a1', coord: const [0.0, 0.0], title: 'Overlook Point', roles: [
+          Role(id: 'r1', kind: RoleKind.narrative, reveal: RevealPolicy.alwaysVisible, dayId: 'd1'),
+        ]),
+      ]);
+
+      expect(revealedAnchorTitlesByDay(trip), {
+        'd1': ['Overlook Point'],
+      });
+    });
+
+    test('a segment-scoped role still groups under its own day id', () {
+      final trip = _tripWithAnchors([
+        Anchor(id: 'a1', coord: const [0.0, 0.0], roles: [
+          Role(
+            id: 'r1',
+            kind: RoleKind.narrative,
+            reveal: RevealPolicy.alwaysVisible,
+            title: 'Trailhead Overlook',
+            dayId: 'd1',
+            segmentId: 's1',
+          ),
+        ]),
+      ]);
+
+      expect(revealedAnchorTitlesByDay(trip), {
+        'd1': ['Trailhead Overlook'],
+      });
+    });
+
+    test('multiple anchors on the same day accumulate in trip.anchors order', () {
+      final trip = _tripWithAnchors([
+        Anchor(id: 'a1', coord: const [0.0, 0.0], roles: [
+          Role(id: 'r1', kind: RoleKind.narrative, reveal: RevealPolicy.alwaysVisible, title: 'First', dayId: 'd1'),
+        ]),
+        Anchor(id: 'a2', coord: const [1.0, 1.0], roles: [
+          Role(id: 'r2', kind: RoleKind.narrative, reveal: RevealPolicy.alwaysVisible, title: 'Second', dayId: 'd1'),
+        ]),
+      ]);
+
+      expect(revealedAnchorTitlesByDay(trip), {
+        'd1': ['First', 'Second'],
+      });
+    });
+  });
 }

@@ -117,6 +117,43 @@ void main() {
       expect(paragraphs, contains('Along the way: Pine Camp.'));
     });
 
+    test('a resolved anchor title (issue #393) weaves into "Along the way" beside node titles', () {
+      final trip = _trip([
+        Day(id: 'd1', index: 1, segments: [
+          _passage('s1', mode: 'cycling', distanceM: 20000,
+              nodes: [Node(id: 'n1', kind: NodeKind.restStop, coord: const [0, 0], title: 'Creek crossing')]),
+        ]),
+      ]);
+
+      final paragraphs = buildItinerary(trip, anchorTitlesByDayId: {
+        'd1': ['The Old Mill'],
+      }).days.single.paragraphs;
+
+      expect(paragraphs, contains('Along the way: Creek crossing, The Old Mill.'));
+    });
+
+    test('a resolved anchor title on a rest day reads on the agenda too', () {
+      final trip = _trip([Day(id: 'd1', index: 1, kind: 'rest')]);
+
+      final paragraphs = buildItinerary(trip, anchorTitlesByDayId: {
+        'd1': ['Historic District'],
+      }).days.single.paragraphs;
+
+      expect(paragraphs.single, contains('On the agenda: Historic District.'));
+    });
+
+    test('an anchor title mapped to a different day does not leak into this one', () {
+      final trip = _trip([
+        Day(id: 'd1', index: 1, segments: [_passage('s1', mode: 'cycling', distanceM: 20000)]),
+      ]);
+
+      final paragraphs = buildItinerary(trip, anchorTitlesByDayId: {
+        'd2': ['Somewhere else entirely'],
+      }).days.single.paragraphs;
+
+      expect(paragraphs.any((p) => p.contains('Somewhere else entirely')), isFalse);
+    });
+
     test('a mode change between passages reads as a switch, in one flowing sentence', () {
       // `dayTimeline` (which `buildItinerary` reads) only surfaces a mode
       // change when the day carries an explicit `Transition` for that
