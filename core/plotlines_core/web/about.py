@@ -16,7 +16,11 @@ Two obligations meet on one screen:
   :func:`assert_about_attribution_complete` is that release gate, wrapping
   :func:`plotlines_core.curation.attribution.assert_attribution_complete` and
   adding the four always-owed static obligations (elevation, basemap, graph,
-  geocode) to it.
+  geocode) to it. A **separate** ``software_notices`` list (issue #267,
+  addendum L5) carries the licence text owed for the sidecar's own
+  third-party dependencies — a static build artifact
+  (:mod:`plotlines_core.licensing.generate`), never merged into the FR101
+  list above it.
 
 * **K11 / FR138.** A plain-language privacy statement, reachable from the About
   surface on every platform including the lightest (Web guest, the share-token
@@ -46,6 +50,7 @@ from plotlines_core.curation.attribution import (
 )
 from plotlines_core.elevation.region_asset import elevation_attribution
 from plotlines_core.graph.regions import graph_attribution
+from plotlines_core.licensing.software_notices import load_software_notices
 from plotlines_core.osm_identity import nominatim_attribution
 from plotlines_core.tiles.mirror import basemap_attribution
 
@@ -83,6 +88,30 @@ def about_attributions(registry) -> list[dict]:
     ]
     lines += [a.as_dict() for a in attributions_for(registry)]
     return lines
+
+
+# --- software notices (issue #267, addendum L5) ---------------------------
+#
+# Distinct from the FR101 list above on purpose. `attributions` is *data*
+# credit, derived from the loaded layer set at render time and release-gated
+# by `assert_about_attribution_complete`. `software_notices` is the licence
+# text owed for the third-party *code* the frozen sidecar ships — a static
+# artifact of the build (`packaging/generate_third_party_licenses.py` /
+# `licensing.generate.write_bundle`, run from `build_sidecar.sh`), read back
+# here by `licensing.software_notices.load_software_notices`. Merging the two
+# lists would make a missing data attribution indistinguishable from a
+# missing software notice; `about_software_notices` keeps them apart so the
+# About surface can show two sections instead of one conflated list.
+
+
+def about_software_notices() -> tuple[list[dict], bool]:
+    """The software-notice lines for the About surface, and whether a bundle
+    was actually found. A source checkout or an unfrozen test run has none —
+    that is expected, not a build failure; only a **frozen** build shipping
+    with no bundle is (see `packaging/build_sidecar.sh`, which fails the
+    freeze itself rather than leaving that to be discovered here)."""
+    notices, found = load_software_notices()
+    return [n.as_dict() for n in notices], found
 
 
 def assert_about_attribution_complete(registry) -> list[dict]:
@@ -232,6 +261,8 @@ class AboutSurface:
     attribution_complete: bool
     missing_attribution: list[str]
     privacy: list[dict]
+    software_notices: list[dict]
+    software_notices_available: bool
 
     def as_dict(self) -> dict:
         out = {
@@ -241,6 +272,8 @@ class AboutSurface:
             "attribution_complete": self.attribution_complete,
             "missing_attribution": list(self.missing_attribution),
             "privacy": self.privacy,
+            "software_notices": self.software_notices,
+            "software_notices_available": self.software_notices_available,
         }
         # The sidecar version is a desktop-only field — it matches `/health`
         # and only exists where a sidecar is actually running (K10).
@@ -270,6 +303,7 @@ def build_about_surface(
         attributions = about_attributions(registry)
         complete = False
         missing = str(exc).split(": ", 1)[-1].split(", ")
+    software_notices, software_notices_available = about_software_notices()
     return AboutSurface(
         app_version=app_version,
         sidecar_version=sidecar_version,
@@ -278,4 +312,6 @@ def build_about_surface(
         attribution_complete=complete,
         missing_attribution=missing,
         privacy=privacy_statement(),
+        software_notices=software_notices,
+        software_notices_available=software_notices_available,
     )

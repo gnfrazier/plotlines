@@ -22,6 +22,7 @@ from plotlines_core.osm_identity import NOMINATIM_ATTRIBUTION, nominatim_attribu
 from plotlines_core.web.about import (
     PRIVACY_STATEMENT,
     about_attributions,
+    about_software_notices,
     assert_about_attribution_complete,
     build_about_surface,
     privacy_statement,
@@ -210,6 +211,46 @@ def test_build_about_surface_carries_both_versions_on_desktop():
 def test_build_about_surface_omits_sidecar_version_when_there_is_none():
     surface = build_about_surface(_registry(), app_version="1.2.3", mode="hosted")
     assert "sidecar_version" not in surface.as_dict()
+
+
+# --- issue #267: software notices, separate from FR101 data attribution ---
+
+
+def test_software_notices_are_absent_from_an_unfrozen_test_run():
+    # THIRD_PARTY_LICENSES is a build artifact of a frozen sidecar — a
+    # source checkout/pytest run has none, and that is expected, not the
+    # same failure as a frozen build shipping without one.
+    notices, found = about_software_notices()
+    assert notices == []
+    assert found is False
+
+
+def test_software_notices_read_a_bundle_when_one_is_reachable(monkeypatch):
+    from plotlines_core.licensing.software_notices import SoftwareNotice
+
+    import plotlines_core.web.about as about_module
+
+    fixture = [SoftwareNotice(name="widget", version="1.0", licence_id="MIT", text="MIT text")]
+    monkeypatch.setattr(about_module, "load_software_notices", lambda: (fixture, True))
+
+    notices, found = about_software_notices()
+    assert found is True
+    assert notices[0]["name"] == "widget"
+    assert notices[0]["licence"] == "MIT"
+
+
+def test_build_about_surface_carries_the_software_notices_section_distinct_from_attributions():
+    # Two lists, one screen (addendum L5, item 5) — never folded into
+    # `attributions`, which stays the FR101 gate's dynamic per-layer list.
+    surface = build_about_surface(_registry(), app_version="1.2.3")
+    d = surface.as_dict()
+    assert "software_notices" in d
+    assert "software_notices_available" in d
+    assert d["software_notices"] == []  # unfrozen test run
+    assert d["software_notices_available"] is False
+    # Never merged into the FR101 list — that stays layer/attribution-shaped,
+    # never carrying a software notice's `text` field.
+    assert all("text" not in a for a in d["attributions"])
 
 
 # --- K11: privacy statement ---------------------------------------------

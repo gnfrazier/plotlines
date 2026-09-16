@@ -1271,7 +1271,13 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
 
         `attribution_complete` is the release-gate answer; a missing credit is
         a build failure (the build check calls `assert_about_attribution_complete`
-        directly and raises)."""
+        directly and raises). `software_notices` (issue #267) is a separate
+        section — the licence texts owed for the sidecar's own third-party
+        dependencies, a static bundle generated at freeze time
+        (`packaging/generate_third_party_licenses.py`) rather than a
+        request-time gate; `software_notices_available` is false whenever no
+        such bundle exists (an unfrozen source run), which is expected, not
+        a build failure the way an empty `attributions` list would be."""
         registry = app.state.layer_registry
         return build_about_surface(
             registry,
