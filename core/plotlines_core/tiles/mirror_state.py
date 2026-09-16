@@ -175,6 +175,27 @@ def geofabrik_health(state: dict, *, now: datetime,
     }
 
 
+def pin_age_days(pin: str | None, *, now: datetime | None = None) -> float | None:
+    """Age in days of a Geofabrik-style pin (a bare ``pinned_date`` or a
+    build id starting with one, e.g. ``20250101-wnc``) — the same parsing
+    `geofabrik_health` uses internally, exposed so a second caller does not
+    reinvent the leading-date regex.
+
+    Issue #274 (`graph.extract_fetch.find_reusable_extract`, review §11.5)
+    is that second caller: the client-side extract cache's "reuse a pin
+    within *N* days" check wants the identical notion of pin age this
+    module already uses for the mirror's own staleness monitor, so the two
+    thresholds (`MAX_PIN_AGE_DAYS` here, `extract_fetch.
+    EXTRACT_STALE_AFTER_DAYS` there) are directly comparable numbers rather
+    than two independent guesses that happen to look similar.
+
+    `None` when `pin` is `None`/empty or does not start with a parseable
+    date — the caller's job to treat that as "unknown age", same as
+    `geofabrik_health`'s own `age is None` branch.
+    """
+    return _age_days(_parse_pin_date(pin), now or datetime.now(timezone.utc))
+
+
 def mirror_health(state: dict, *, now: datetime | None = None,
                    max_age_days: float = MAX_PIN_AGE_DAYS) -> dict:
     """The `/health` staleness summary — §11.3's "we become the
