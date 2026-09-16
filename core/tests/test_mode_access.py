@@ -308,13 +308,42 @@ def test_climbing_access_closed_checks_every_value_in_a_merged_list():
 
 def test_flags_along_walk_reports_only_the_flagged_hops_in_order():
     walk = [
-        (1, 2, {"_pl_access_flags": ["bicycle=dismount"]}),
-        (2, 3, {}),
-        (3, 4, {"_pl_access_flags": ["barrier=gate"]}),
+        (1, 2, {"_pl_access_flags": ["bicycle=dismount"], "length": 40.0}),
+        (2, 3, {"length": 100.0}),
+        (3, 4, {"_pl_access_flags": ["barrier=gate"], "length": 12.5}),
     ]
     assert flags_along_walk(walk) == [
-        {"from": 1, "to": 2, "flags": ["bicycle=dismount"]},
-        {"from": 3, "to": 4, "flags": ["barrier=gate"]},
+        {"from": 1, "to": 2, "flags": ["bicycle=dismount"],
+         "distance_along_m": 0.0, "length_m": 40.0},
+        {"from": 3, "to": 4, "flags": ["barrier=gate"],
+         "distance_along_m": 140.0, "length_m": 12.5},
+    ]
+
+
+def test_flags_along_walk_measures_distance_along_from_the_walk_start():
+    # Issue #401 — the distance is to the flagged hop's *entry*, accumulated
+    # over every hop before it (flagged or not), in the same per-passage frame
+    # a cue or a hazard's `distance_along_m` uses. Before #401 the entry
+    # carried no distance at all and the client anchored every row at 0.
+    walk = [
+        (1, 2, {"length": 300.0}),
+        (2, 3, {"length": 250.0}),
+        (3, 4, {"_pl_access_flags": ["ford=yes"], "length": 8.0}),
+        (4, 5, {"length": 100.0}),
+        (5, 6, {"_pl_access_flags": ["bicycle=dismount"], "length": 60.0}),
+    ]
+    out = flags_along_walk(walk)
+    assert [c["distance_along_m"] for c in out] == [550.0, 658.0]
+    assert [c["length_m"] for c in out] == [8.0, 60.0]
+
+
+def test_flags_along_walk_tolerates_a_hop_with_no_length():
+    # A synthetic graph without `length` (some unit fixtures) still reports
+    # the flag; distance falls back to what was measurable, never raises.
+    walk = [(1, 2, {"_pl_access_flags": ["barrier=gate"]})]
+    assert flags_along_walk(walk) == [
+        {"from": 1, "to": 2, "flags": ["barrier=gate"],
+         "distance_along_m": 0.0, "length_m": 0.0},
     ]
 
 
@@ -468,8 +497,38 @@ def test_generate_segment_surfaces_a_dismount_edge_it_actually_used():
     segment = generate_segment(graph, _START_XY, _END_XY, profile, mode="cycling")
     assert segment.node_count == 2  # still routable, just flagged
     assert segment.surfaced_constraints == [
-        {"from": 0, "to": 1, "flags": ["bicycle=dismount"]}
+        {"from": 0, "to": 1, "flags": ["bicycle=dismount"],
+         "distance_along_m": 0.0, "length_m": 10.0}
     ]
+
+
+def test_generate_segment_places_a_mid_route_constraint_by_distance_along():
+    # Issue #401 — through the real solve, not just the helper: a dismount on
+    # the second of three hops is reported at the first hop's length, with the
+    # hop's own length alongside, so a cue sheet can put the row where the
+    # Character actually meets it instead of at the passage's start.
+    g = nx.MultiDiGraph()
+    g.add_node(1, y=40.0000, x=-105.3000, elevation=100.0)
+    g.add_node(2, y=40.0000, x=-105.2990, elevation=100.0)
+    g.add_node(3, y=40.0000, x=-105.2980, elevation=100.0)
+    g.add_node(4, y=40.0000, x=-105.2970, elevation=100.0)
+    for a, b, length, tags in (
+        (1, 2, 85.0, {}),
+        (2, 3, 30.0, {"bicycle": "dismount"}),
+        (3, 4, 85.0, {}),
+    ):
+        g.add_edge(a, b, length=length, highway="residential", **tags)
+        g.add_edge(b, a, length=length, highway="residential", **tags)
+    profile = WeightProfile("balanced")
+    segment = generate_segment(g, (40.0, -105.3), (40.0, -105.297), profile,
+                               mode="cycling")
+    assert segment.node_count == 4
+    assert segment.surfaced_constraints == [
+        {"from": 2, "to": 3, "flags": ["bicycle=dismount"],
+         "distance_along_m": 85.0, "length_m": 30.0}
+    ]
+    # The reported position lies inside the segment it describes.
+    assert 0.0 < 85.0 + 30.0 <= segment.distance_m
 
 
 def test_generate_segment_honours_contraflow_a_raw_one_way_graph_would_block():
