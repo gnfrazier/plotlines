@@ -60,8 +60,14 @@ void main() {
   test('surfaced_constraints on the response land on Segment.surfacedConstraints in order', () async {
     sidecar = _FakeSidecar();
     await sidecar.start(() => _pointToPointResponse(surfacedConstraints: [
-          {'from': 101, 'to': 102, 'flags': ['bicycle=dismount']},
-          {'from': 102, 'to': 205, 'flags': ['barrier=gate', 'ford=yes']},
+          {
+            'from': 101, 'to': 102, 'flags': ['bicycle=dismount'],
+            'distance_along_m': 850.0, 'length_m': 30.0,
+          },
+          {
+            'from': 102, 'to': 205, 'flags': ['barrier=gate', 'ford=yes'],
+            'distance_along_m': 2310.5, 'length_m': 4.0,
+          },
         ]));
     final client = RoutingClient(sidecar.baseUrl);
 
@@ -79,6 +85,12 @@ void main() {
     expect(segment.surfacedConstraints[1].from, 102);
     expect(segment.surfacedConstraints[1].to, 205);
     expect(segment.surfacedConstraints[1].flags, ['barrier=gate', 'ford=yes']);
+    // Issue #401 — the engine's distance-along rides through, so the cue
+    // sheet can place the row rather than anchoring it at the passage start.
+    expect(segment.surfacedConstraints[0].distanceAlongM, 850.0);
+    expect(segment.surfacedConstraints[0].lengthM, 30.0);
+    expect(segment.surfacedConstraints[1].distanceAlongM, 2310.5);
+    expect(segment.surfacedConstraints[1].lengthM, 4.0);
   });
 
   test('a response with an empty surfaced_constraints list leaves the segment list empty', () async {

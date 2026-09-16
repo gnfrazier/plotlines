@@ -648,6 +648,19 @@
       ]
     },
 
+    "surfaced_constraint": {
+      "description": "FR128 / A11 — one hop of a solved route that a mode may legally traverse but that is worth naming (`bicycle=dismount`, `barrier=gate`, `ford=yes`, …), as `routing/access.py`'s `flags_along_walk` reports it. `from`/`to` are the routing graph's node ids for the hop — provenance for the engine, not a reference the client can resolve, and not a link into the graph cache that has to survive a rebuild; `flags` are the raw OSM-shaped `key=value` values, shown as sent rather than mapped through a lookup that could silently drop one. `distance_along_m` (issue #401) is metres from this passage's start to the hop's entry, in the same per-passage frame `cue.distance_along_m` and `hazard.distance_along_m` use; `length_m` is the hop's own length, so a consumer can show a dismount section rather than a point. Both absent on a constraint recorded before 1.15.0, which a consumer places at the passage start.",
+      "type": "object",
+      "required": ["from", "to", "flags"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "integer" },
+        "to": { "type": "integer" },
+        "flags": { "type": "array", "items": { "type": "string" } },
+        "distance_along_m": { "$ref": "#/$defs/metres" },
+        "length_m": { "$ref": "#/$defs/metres" }
+      }
+    },
     "solve_provenance": {
       "description": "How this geometry came to exist. Kept per geometry-bearing object rather than per trip because a multimodal day mixes solved and Author-drawn legs, and a trip-level stamp would claim engine authority for a line someone drew with a mouse. Carried by `segment` and — since issue #344 — by `alternate`, for the same reason one step down: an alternate's `geometry`/`metrics`/`elevation` can go stale while its parent passage's are untouched.",
       "type": "object",
@@ -706,6 +719,7 @@
         "alternates": { "type": "array", "items": { "$ref": "#/$defs/alternate" } },
         "hazards": { "type": "array", "items": { "$ref": "#/$defs/hazard" } },
         "portages": { "type": "array", "items": { "$ref": "#/$defs/portage" } },
+        "surfaced_constraints": { "type": "array", "items": { "$ref": "#/$defs/surfaced_constraint" }, "description": "FR128 / A11 (issue #401) — the mode-legal but noteworthy edges this passage's solved geometry rolls over, in path order, as the engine reported them. Derived by a solve, like `metrics` and `geometry`: a re-solve replaces the list, an Author never edits it, and an Author-drawn leg carries none. Absent on a leg solved before 1.15.0." },
         "solve": { "$ref": "#/$defs/solve_provenance" },
         "arc_stage": { "$ref": "#/$defs/arc_stage", "description": "FR38 / O6 — this passage's own arc stage. Absent means this segment carries no arc beat of its own." },
         "note": { "$ref": "#/$defs/markdown", "description": "FR37 / E1 — rich notes/instructions attached to this passage itself, distinct from any role's own note. Absent means nothing authored here yet." },

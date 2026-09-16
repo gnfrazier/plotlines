@@ -333,6 +333,62 @@ void main() {
       expect(trip.provenance!.osmSource, isNull);
       expect(trip.provenance!.toJson().containsKey('osm_source'), isFalse);
     });
+
+    test('a segment with surfaced_constraints round-trips in path order (issue #401)',
+        () {
+      // The committed SPIKE-20 fixtures predate this field (1.15.0). Before
+      // #401 the client dropped the list on every save — #216 had nowhere in
+      // `$defs/segment` to put it — so this is the assertion that a saved
+      // trip now keeps the engine's order and the distance-along it measured.
+      final json = {
+        'schema_version': '1.15.0',
+        'id': 't1',
+        'title': 'Dismount',
+        'created_at': '2026-09-01T00:00:00Z',
+        'updated_at': '2026-09-01T00:00:00Z',
+        'days': [
+          {
+            'id': 'd1',
+            'index': 1,
+            'kind': 'route',
+            'segments': [
+              {
+                'id': 's1',
+                'mode': 'cycling',
+                'shape': 'loop',
+                'surfaced_constraints': [
+                  {
+                    'from': 101,
+                    'to': 102,
+                    'flags': ['bicycle=dismount'],
+                    'distance_along_m': 850.0,
+                    'length_m': 30.0,
+                  },
+                  {
+                    'from': 205,
+                    'to': 206,
+                    'flags': ['barrier=gate', 'ford=yes'],
+                    'distance_along_m': 2310.5,
+                    'length_m': 4.0,
+                  },
+                  // Recorded before the engine measured a position.
+                  {'from': 300, 'to': 301, 'flags': ['ford=yes']},
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      final trip = Trip.fromJson(Map<String, dynamic>.from(json));
+      final constraints = trip.days.single.segments.single.surfacedConstraints;
+
+      expect(constraints.map((c) => c.from), [101, 205, 300]);
+      expect(constraints[0].distanceAlongM, 850.0);
+      expect(constraints[1].lengthM, 4.0);
+      expect(constraints[2].distanceAlongM, isNull);
+      _expectSameJson(trip.toJson(), json, 'surfaced_constraints');
+    });
   });
 
   group('the reader refuses what it cannot faithfully carry', () {

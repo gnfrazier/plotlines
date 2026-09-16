@@ -305,21 +305,41 @@ void main() {
       expect(segment.surfacedConstraints, isEmpty);
     });
 
-    test('is session-only — toJson never emits it, so a save stays schema-clean', () {
+    test('round-trips through JSON in path order (schema 1.15.0, issue #401)', () {
+      // #216 kept this session-only — no `$defs/segment` home — so the list
+      // vanished on every save. It now persists, in the engine's order.
       final segment = Segment(
         id: 's1',
         mode: 'cycling',
         shape: 'loop',
         surfacedConstraints: [
-          SurfacedConstraint(from: 1, to: 2, flags: const ['bicycle=dismount']),
+          SurfacedConstraint(
+              from: 1, to: 2, flags: const ['bicycle=dismount'],
+              distanceAlongM: 350.0, lengthM: 42.0),
+          SurfacedConstraint(from: 7, to: 8, flags: const ['barrier=gate', 'ford=yes']),
         ],
       );
-      // No schema home yet (`$defs/segment` is `additionalProperties: false`),
-      // so `toJson` must not emit it — the domain layer's strict `done()` would
-      // reject the key on the next read.
+      final json = segment.toJson();
+      expect(json['surfaced_constraints'], [
+        {
+          'from': 1, 'to': 2, 'flags': ['bicycle=dismount'],
+          'distance_along_m': 350.0, 'length_m': 42.0,
+        },
+        {'from': 7, 'to': 8, 'flags': ['barrier=gate', 'ford=yes']},
+      ]);
+      final decoded = Segment.fromJson(json).surfacedConstraints;
+      expect(decoded.map((c) => c.from), [1, 7]);
+      expect(decoded[0].distanceAlongM, 350.0);
+      expect(decoded[0].lengthM, 42.0);
+      expect(decoded[1].distanceAlongM, isNull);
+      expect(decoded[1].lengthM, isNull);
+    });
+
+    test('an empty list is absent from JSON, and absent reads as empty', () {
+      final segment = Segment(id: 's1', mode: 'cycling', shape: 'loop');
       expect(segment.toJson().containsKey('surfaced_constraints'), isFalse);
-      // A round trip through the payload drops it, as documented.
-      expect(Segment.fromJson(segment.toJson()).surfacedConstraints, isEmpty);
+      expect(Segment.fromJson({'id': 's1', 'mode': 'cycling', 'shape': 'loop'})
+          .surfacedConstraints, isEmpty);
     });
 
     test('copyWith preserves it by default and replaces it when given', () {
@@ -343,6 +363,19 @@ void main() {
       expect(sc.from, 101);
       expect(sc.to, 102);
       expect(sc.flags, ['barrier=gate', 'ford=yes']);
+      // A constraint from before the engine measured a position (#401).
+      expect(sc.distanceAlongM, isNull);
+      expect(sc.lengthM, isNull);
+    });
+
+    test('SurfacedConstraint.fromJson reads distance_along_m / length_m as num (#401)', () {
+      // Rule 5: a writer may emit `4` where `4.0` was meant.
+      final sc = SurfacedConstraint.fromJson({
+        'from': 1, 'to': 2, 'flags': ['ford=yes'],
+        'distance_along_m': 1200, 'length_m': 8.5,
+      });
+      expect(sc.distanceAlongM, 1200.0);
+      expect(sc.lengthM, 8.5);
     });
   });
 }

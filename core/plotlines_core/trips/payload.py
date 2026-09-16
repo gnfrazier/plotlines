@@ -104,7 +104,16 @@ from plotlines_core.content.anchor import Anchor
 #: `day_id` means unattached, which is how every role written before this
 #: bump already reads (and remains ordinary working state, not an error,
 #: per FR139/Q2).
-SCHEMA_VERSION = "1.14.0"
+#: Bumped to 1.15.0 by issue #401: `segment` gains optional
+#: `surfaced_constraints` — the FR128/A11 dismount/gate/ford hops the solved
+#: geometry rolls over, which #216 had surfaced in the client but could not
+#: persist (`$defs/segment` is `additionalProperties: false`), so the list
+#: vanished on every save. Each entry now also carries `distance_along_m` /
+#: `length_m` from `routing.access.flags_along_walk`. Additive: an absent
+#: list means the leg is Author-drawn or was solved before this bump, and an
+#: entry without a distance is placed at the passage start — exactly what
+#: every consumer did before.
+SCHEMA_VERSION = "1.15.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -596,6 +605,39 @@ class LineString:
 
 
 @dataclass
+class SurfacedConstraint:
+    """FR128 / A11 (issue #401) — one mode-legal but noteworthy hop of a solved
+    route (`bicycle=dismount`, `barrier=gate`, `ford=yes`, …), the shape
+    `routing.access.flags_along_walk` emits and `$defs/surfaced_constraint`
+    persists. Derived by a solve, never authored: a re-solve replaces the whole
+    list on its segment.
+
+    `from_node`/`to_node` are the graph's node ids for the hop — the engine's
+    provenance, not a reference the payload depends on (a graph rebuild does
+    not invalidate a saved trip). `distance_along_m` is metres from the
+    passage's start to the hop's entry, `length_m` the hop's own length; both
+    `None` on a constraint recorded before schema 1.15.0.
+    """
+
+    from_node: int
+    to_node: int
+    flags: list[str] = field(default_factory=list)
+    distance_along_m: float | None = None
+    length_m: float | None = None
+
+    def to_dict(self) -> dict:
+        # `from`/`to` on the wire: the engine's own key names, and what the
+        # client's `SurfacedConstraint.fromJson` has read since #216.
+        return {
+            "from": self.from_node, "to": self.to_node,
+            "flags": list(self.flags),
+            "distance_along_m": (None if self.distance_along_m is None
+                                 else round(f(self.distance_along_m), 1)),
+            "length_m": None if self.length_m is None else round(f(self.length_m), 1),
+        }
+
+
+@dataclass
 class Portage:
     geometry: LineString
     id: str = field(default_factory=new_id)
@@ -823,6 +865,10 @@ class Segment:
     alternates: list[Alternate] = field(default_factory=list)
     hazards: list[Hazard] = field(default_factory=list)
     portages: list[Portage] = field(default_factory=list)
+    #: FR128 / A11 (issue #401) — the dismount/gate/ford hops the solved
+    #: geometry rolls over, in path order. Derived by a solve, like `metrics`;
+    #: empty for an Author-drawn leg or one solved before schema 1.15.0.
+    surfaced_constraints: list[SurfacedConstraint] = field(default_factory=list)
     solve: SolveProvenance | None = None
     arc_stage: str | None = None
     note: str | None = None
@@ -849,6 +895,8 @@ class Segment:
             "alternates": [a.to_dict() for a in self.alternates] or None,
             "hazards": [h.to_dict() for h in self.hazards] or None,
             "portages": [p.to_dict() for p in self.portages] or None,
+            "surfaced_constraints": ([c.to_dict() for c in self.surfaced_constraints]
+                                     or None),
             "solve": self.solve.to_dict() if self.solve else None,
             "arc_stage": self.arc_stage,
             "note": self.note,
