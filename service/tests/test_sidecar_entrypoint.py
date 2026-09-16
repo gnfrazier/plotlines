@@ -291,6 +291,33 @@ def test_the_tile_flags_reach_create_app_unchanged(monkeypatch, tmp_path):
     assert seen["mode"] == "sidecar"
 
 
+def test_the_mirror_clip_flags_reach_create_app_unchanged(monkeypatch, tmp_path):
+    """Issue #274 — `RegionState.build` only ever attempts an extract
+    download when `--mirror-clip-url` was actually given; the entrypoint's
+    job is just to pass through what the operator asked for, same as the
+    tile flags above."""
+    seen = {}
+    monkeypatch.setattr(entry, "configure_logging", lambda *_a: None)
+    monkeypatch.setattr(entry, "create_app",
+                        lambda **kwargs: seen.update(kwargs) or object())
+    monkeypatch.setattr(entry.uvicorn, "Config", lambda app, **kwargs: kwargs)
+    monkeypatch.setattr(entry.uvicorn, "Server",
+                        lambda config: type("S", (), {"run": lambda self: None})())
+
+    entry.main([f"--cache-dir={tmp_path}",
+                "--mirror-clip-url=https://mirror.example/clip",
+                "--mirror-clip-client-key=s3cr3t"])
+
+    assert seen["mirror_clip_url"] == "https://mirror.example/clip"
+    assert seen["mirror_clip_client_key"] == "s3cr3t"
+
+
+def test_the_mirror_clip_flags_default_to_unset(tmp_path):
+    args = _args(f"--cache-dir={tmp_path}")
+    assert args.mirror_clip_url is None
+    assert args.mirror_clip_client_key is None
+
+
 # ── graceful stop (ARCH §7.3) ────────────────────────────────────────────
 
 

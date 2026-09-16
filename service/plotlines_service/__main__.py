@@ -66,6 +66,25 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "capabilities.mirror = {'configured': False} rather "
                              "than a stale-looking reading for a source nobody "
                              "named.")
+    parser.add_argument("--mirror-clip-url", default=None,
+                        help="issue #274 (Phase 3.2, epic #272): base URL of the "
+                             "Plotlines mirror's /clip endpoint "
+                             "(plotlines_service.mirror_clip) — when set, drawing "
+                             "or revising a trip bbox (POST /regions) also "
+                             "downloads that bbox's clipped .osm.pbf into "
+                             "CacheLayout's extract slot, reported through "
+                             "GET /health's capabilities.extract. Independent of "
+                             "--tiles-upstream and --mirror-state-url. Absent "
+                             "(the default until #275 wires the region graph to "
+                             "consume this extract) makes no request at all — no "
+                             "eager, unconfigured download (FR120/D41/D57).")
+    parser.add_argument("--mirror-clip-client-key", default=None,
+                        help="the X-Plotlines-Client-Key header to send with "
+                             "every --mirror-clip-url request (issue #263, review "
+                             "§6.8/1d) — must match the mirror's own "
+                             "--client-key/MIRROR_CLIP_CLIENT_KEY. Unset (the "
+                             "default) sends no key, which only works against a "
+                             "mirror configured to leave /clip open (local/dev).")
     parser.add_argument("--web-domain", default=None,
                         help="hosted mode only: the registrable parent domain "
                              "(e.g. plotlines.app) that app.<domain> and "
@@ -126,7 +145,9 @@ def main(argv: list[str] | None = None) -> int:
                          allow_unmirrored_tiles=args.allow_unmirrored_tiles,
                          web_domain=args.web_domain,
                          elevation_upstream=args.elevation_upstream,
-                         mirror_state_url=args.mirror_state_url)
+                         mirror_state_url=args.mirror_state_url,
+                         mirror_clip_url=args.mirror_clip_url,
+                         mirror_clip_client_key=args.mirror_clip_client_key)
     except ValueError as exc:
         print(f"refusing: {exc}", file=sys.stderr)
         return 2

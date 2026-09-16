@@ -59,6 +59,7 @@ from plotlines_core.elevation.interface import (
 )
 from plotlines_core.elevation.qa_proxy_client import qa_proxy_fetch
 from plotlines_core.elevation.sampler import ElevationSampler
+from plotlines_core.graph import extract_fetch
 from plotlines_core.graph import regions as region_lib
 from plotlines_core.multimodal.disciplines import DISCIPLINES
 from plotlines_core.multimodal.legacy import (
@@ -315,6 +316,11 @@ class RegionState:
         self.network_type = network_type
         self.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
         self.graph: LoadedGraph | None = None
+        # Issue #274 — the mirror-clip download's own FR121 capability,
+        # independent of graph_state (see `build`'s extract step below).
+        # Byte-observed, not time-estimated — see `extract_fetch.
+        # DownloadProgress`'s docstring for why it isn't a `CapabilityState`.
+        self.extract_state = extract_fetch.DownloadProgress()
         self.sampler: ElevationSampler | None = None  # never populated (see module docstring)
         self.tiles_archive: Archive | None = None
         # Build telemetry (issue #232) — every attempt this session, the last
@@ -354,6 +360,15 @@ class RegionState:
         if not self.graph_state.ready:
             d["attempts"] = self.build_attempts
         return d
+
+    def extract_capability(self) -> dict:
+        """`capabilities.extract.regions[key]` — issue #274. Only
+        meaningful when a mirror is configured at all
+        (`Readiness.extract_capabilities` gates that); when it is, this
+        reports `self.extract_state`'s pending/downloading/ready/failed
+        lifecycle exactly like `routing_capability` does for the graph,
+        just with observed bytes instead of a time estimate."""
+        return self.extract_state.to_dict()
 
     def requeue_cooldown_remaining(self, now: float) -> float:
         """Seconds left on the post-failure cooldown (issue #247), 0.0 when it
@@ -420,11 +435,47 @@ class RegionState:
 
     def build(self, cache_dir: Path, tiles_upstream: str | Path,
               allow_unmirrored: bool = False,
-              elevation_upstream: str | None = None) -> None:
+              elevation_upstream: str | None = None,
+              mirror_clip_url: str | None = None,
+              mirror_clip_client_key: str | None = None) -> None:
         self.build_attempts += 1
         attempt = self.build_attempts
         self.last_attempt_started_at = time.time()
         self.tiles_error = None  # a retry re-attempts tiles too
+
+        # Issue #274 (Phase 3.2) — request/download the mirror-clipped OSM
+        # extract for this trip bbox, reporting FR121's byte-observed
+        # progress on `self.extract_state`. Deliberately independent of the
+        # graph build below: `ensure_graph` still goes to Overpass, exactly
+        # as before, until #275 points it at this extract instead — so a
+        # failure here (mirror unreachable, no coverage yet) never fails
+        # this region, the same "one capability's failure never blocks
+        # another" discipline the tiles/elevation steps further down use.
+        # Only attempted when a mirror is actually configured
+        # (--mirror-clip-url); unset — the default until #275 lands — this
+        # is skipped outright, never left half-started (FR120/D41/D57: no
+        # eager, unconfigured download).
+        if mirror_clip_url:
+            try:
+                extract_fetch.ensure_extract(
+                    self.bbox, mirror_url=mirror_clip_url, cache_dir=cache_dir,
+                    client_key=mirror_clip_client_key, progress=self.extract_state,
+                    version=VERSION,
+                )
+                log.info("region extract OK key=%s bbox=%s reused=%s",
+                         self.key, self.bbox, self.extract_state.reused)
+            except (extract_fetch.MirrorUnreachable, extract_fetch.NoExtractCoverage) as exc:
+                # Already finished, user-facing sentences (this module's own
+                # #248-style contract) — `ensure_extract` has already set
+                # `self.extract_state` to `failed` with the right reason.
+                log.warning("region extract FAILED key=%s bbox=%s: %s",
+                           self.key, self.bbox, exc)
+            except Exception as exc:  # noqa: BLE001 — best-effort, never fails the region
+                self.extract_state.status = "failed"
+                self.extract_state.detail = f"{type(exc).__name__}: {exc}"
+                log.error("region extract FAILED key=%s bbox=%s: %s",
+                         self.key, self.bbox, exc)
+
         t0 = time.monotonic()
         self.graph_state.start("building graph")
         log.info("region build START key=%s attempt=%d bbox=%s nt=%s",
@@ -562,13 +613,20 @@ class Readiness:
 
     def __init__(self, cache_dir: Path, tiles_upstream: str | Path,
                  allow_unmirrored: bool = False,
-                 elevation_upstream: str | None = None) -> None:
+                 elevation_upstream: str | None = None,
+                 mirror_clip_url: str | None = None,
+                 mirror_clip_client_key: str | None = None) -> None:
         self.cache_dir = cache_dir
         self.tiles_upstream = tiles_upstream
         self.allow_unmirrored = allow_unmirrored
         #: QA/UAT-only (companion to epic #264, not #148). See
         #: `ELEVATION_QA_PROXY_CONFIGURED` and `RegionState.build`.
         self.elevation_upstream = elevation_upstream
+        #: Issue #274 (Phase 3.2) — the mirror's `/clip` base URL. Absent
+        #: (the default until #275 lands) means `RegionState.build` never
+        #: attempts an extract download at all — see `extract_capabilities`.
+        self.mirror_clip_url = mirror_clip_url
+        self.mirror_clip_client_key = mirror_clip_client_key
         self.regions: dict[str, RegionState] = {}
         self._lock = threading.Lock()
         self.started_at = time.perf_counter()
@@ -646,7 +704,8 @@ class Readiness:
         self._build_pool.submit(
             region.build,
             self.cache_dir, self.tiles_upstream, self.allow_unmirrored,
-            self.elevation_upstream,
+            self.elevation_upstream, self.mirror_clip_url,
+            self.mirror_clip_client_key,
         )
 
     def region(self, key: str) -> RegionState | None:
@@ -677,6 +736,20 @@ class Readiness:
         """§8.3's per-region `routing` breakdown — empty until an Author has
         drawn a trip bbox and the client has called `POST /regions`."""
         return {key: region.routing_capability() for key, region in self.snapshot()}
+
+    def extract_capabilities(self) -> dict:
+        """`capabilities.extract` (issue #274). Shaped like `_mirror_
+        capability`'s `{"configured": False}` when no `--mirror-clip-url`
+        was given — the default until #275 lands — rather than a
+        stale-looking `regions: {}` for a download that was never even
+        attempted. When configured, `regions` mirrors `routing_capabilities`'
+        per-bbox shape, one entry per `POST /regions` call."""
+        if not self.mirror_clip_url:
+            return {"configured": False}
+        return {
+            "configured": True,
+            "regions": {key: region.extract_capability() for key, region in self.snapshot()},
+        }
 
 
 class Coordinate(BaseModel):
@@ -1047,7 +1120,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                allow_unmirrored_tiles: bool = False,
                web_domain: str | None = None,
                elevation_upstream: str | None = None,
-               mirror_state_url: str | None = None) -> FastAPI:
+               mirror_state_url: str | None = None,
+               mirror_clip_url: str | None = None,
+               mirror_clip_client_key: str | None = None) -> FastAPI:
     # Issue #241 — stamp the contactable Plotlines UA/referer on every
     # Overpass and Nominatim call this app makes (region graph builds,
     # candidate fetches, and `/geocode`) before the first request goes out.
@@ -1069,7 +1144,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
 
     state = Readiness(cache_dir, tiles_upstream or default_home_region_archive(),
                       allow_unmirrored=allow_unmirrored_tiles,
-                      elevation_upstream=elevation_upstream)
+                      elevation_upstream=elevation_upstream,
+                      mirror_clip_url=mirror_clip_url,
+                      mirror_clip_client_key=mirror_clip_client_key)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -1133,6 +1210,18 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         mirror_health()`'s basemap/Geofabrik pin ages and a single `stale`
         flag, so a cron that silently stopped is loud here rather than
         indistinguishable from a working mirror (§11.3).
+
+        `extract` (issue #274, Phase 3.2) reports `{"configured": False}`
+        when no `--mirror-clip-url` was given — the default until #275
+        wires `ensure_graph` to consume this extract — otherwise
+        `{"configured": True, "regions": {...}}`, one entry per
+        `POST /regions` call, each a byte-observed download progress
+        (`extract_fetch.DownloadProgress.to_dict()`): pending, downloading
+        with `bytes_downloaded`/`total_bytes` when known, ready, or failed
+        with a finished-sentence reason distinguishing an unreachable
+        mirror from a true "no data for this bbox yet" answer. Independent
+        of `routing`: a failure here never touches the region graph, which
+        still comes from Overpass exactly as before until #275.
         """
         registry = app.state.layer_registry
         layers_cap = registry.capability()
@@ -1151,6 +1240,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                     else ELEVATION_NOT_CONFIGURED
                 ),
                 "mirror": _mirror_capability(mirror_state_url),
+                "extract": state.extract_capabilities(),
             },
         }
         # Hosted mode only: the same-site session contract (story M4). A

@@ -133,7 +133,8 @@ def _always_fails(monkeypatch) -> list[int]:
     lock = threading.Lock()
 
     def fake_build(self, cache_dir, tiles_upstream, allow_unmirrored=False,
-                   elevation_upstream=None):
+                   elevation_upstream=None, mirror_clip_url=None,
+                   mirror_clip_client_key=None):
         with lock:
             calls[0] += 1
         self.build_attempts += 1
