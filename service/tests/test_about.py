@@ -128,3 +128,13 @@ def test_about_answers_before_any_region_is_ensured(client: TestClient):
     # with nothing else loaded — it must not depend on routing readiness.
     assert client.get("/health").json()["capabilities"]["routing"] == {"regions": {}}
     assert client.get("/about").status_code == 200
+
+
+def test_about_carries_a_software_notices_section_distinct_from_attributions(client: TestClient):
+    # Issue #267, addendum L5: software notices are a static build artifact,
+    # separate from FR101's dynamic data-attribution list — this test
+    # process isn't a frozen sidecar, so the section is present but empty.
+    body = client.get("/about").json()
+    assert body["software_notices"] == []
+    assert body["software_notices_available"] is False
+    assert "text" not in body["attributions"][0]
