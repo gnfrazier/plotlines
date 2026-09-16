@@ -65,6 +65,16 @@ here never reads `COPYRIGHT.txt` — and a bbox clip is an extraction, making
 its output a *Derivative* Database under ODbL rather than a Produced Work.
 Every 200 therefore carries the notice in its own headers. See
 `clip_licence_headers`.
+
+**The pin travels with the clip too (issue #274).** `core.graph.
+extract_fetch` (Phase 3.2's client-side download) has no way to learn
+which Geofabrik pin a clip was cut from except this response — the mirror
+never hands a client a region extract to inspect — and it needs that pin
+to cache the result under `CacheLayout.osm_extract(bbox, pin)`'s correct
+directory (a wrong or missing pin risks caching an extract under a
+sibling's name, or not caching it safely at all). Every 200 therefore also
+carries `X-Plotlines-Clip-Source-Pin`; see `ClipResult.pin` and
+`current_pinned_date`.
 """
 
 from __future__ import annotations
@@ -197,6 +207,20 @@ def _boxes_intersect(a: "osmium.osm.Box", b: "osmium.osm.Box") -> bool:
 class RegionExtract:
     region: str
     path: Path
+
+
+def current_pinned_date(root: Path) -> str | None:
+    """`MIRROR_STATE.json`'s `geofabrik.pinned_date` — the one value
+    `discover_region_extracts` and `clip_bbox` (for issue #274's
+    `X-Plotlines-Clip-Source-Pin` response header) both need, read once
+    here rather than each re-parsing the state file. `None` when the state
+    file is absent or carries no pin yet."""
+    state_path = root / "MIRROR_STATE.json"
+    if not state_path.exists():
+        return None
+    state = load_mirror_state(state_path)
+    geofabrik = state.get("geofabrik") or {}
+    return geofabrik.get("pinned_date") or None
 
 
 def discover_region_extracts(root: Path) -> list[RegionExtract]:
@@ -364,6 +388,18 @@ class ClipResult:
     #: used."
     clip_rss_delta_kb: int | None
     source_regions: tuple[str, ...]
+    #: The Geofabrik pin (`MIRROR_STATE.json`'s `geofabrik.pinned_date`) the
+    #: source extract(s) were pulled at — issue #274: the client needs this
+    #: to cache the clip under `CacheLayout.osm_extract(bbox, pin)`'s
+    #: correct pin directory, and has no other way to learn it (the mirror
+    #: never returns a region extract for the client to inspect itself).
+    #: Carried on the response as `X-Plotlines-Clip-Source-Pin`. `None` only
+    #: if the pin vanished from `MIRROR_STATE.json` between
+    #: `discover_region_extracts` finding a covering extract and this
+    #: result being built — the extract files themselves don't move, but
+    #: nothing prevents a concurrent pin bump from rewriting the state file
+    #: mid-request.
+    pin: str | None
 
 
 def _current_rss_kb() -> int | None:
@@ -467,6 +503,7 @@ def clip_bbox(
         service_peak_rss_kb=service_peak_rss_kb,
         clip_rss_delta_kb=clip_rss_delta_kb,
         source_regions=tuple(c.region for c in candidates),
+        pin=current_pinned_date(root),
     )
 
 
@@ -633,12 +670,30 @@ def create_clip_app(
                 500, detail={"error": "clip_failed", "message": str(exc)}
             ) from exc
 
+        if result.pin is None:
+            # Issue #274: the client keys its cache on this pin and has no
+            # other way to learn it — a response with no pin is unsafe to
+            # cache, not merely incomplete. Rare: only a `MIRROR_STATE.json`
+            # rewrite landing between `discover_region_extracts` and here
+            # (a pin bump mid-request) produces it.
+            result.output_path.unlink(missing_ok=True)
+            log.error("clip FAILED bbox=%s: source pin vanished mid-request", bbox)
+            raise HTTPException(
+                500,
+                detail={
+                    "error": "clip_failed",
+                    "message": "the mirror's pin changed while preparing this "
+                                "clip — try again",
+                },
+            )
+
         body = result.output_path.read_bytes()
         headers = {
             "Content-Disposition": 'attachment; filename="clip.osm.pbf"',
             "X-Plotlines-Clip-Wall-Time-Ms": str(round(result.wall_time_s * 1000)),
             "X-Plotlines-Clip-Output-Bytes": str(result.output_bytes),
             "X-Plotlines-Clip-Source-Regions": ",".join(result.source_regions),
+            "X-Plotlines-Clip-Source-Pin": result.pin,
             # Issue #374: renamed from `X-Plotlines-Clip-Peak-Rss-Kb` because
             # it is a process-lifetime watermark, not a per-clip figure — see
             # `ClipResult.service_peak_rss_kb`. `Clip-Rss-Delta-Kb` is the new,
