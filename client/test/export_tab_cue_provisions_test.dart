@@ -10,11 +10,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:plotlines_ui/plotlines_ui.dart';
 import 'package:printing/printing.dart';
 
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/export_tab.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'package:plotlines_client/state/settings_provider.dart';
 
 Future<ProviderContainer> _pump(WidgetTester tester, Day day) async {
   final container = ProviderContainer();
@@ -108,6 +110,52 @@ void main() {
     expect(find.text('bicycle dismount'), findsOneWidget);
     expect(find.text('barrier gate, ford yes'), findsOneWidget);
     expect(find.text('ON ROUTE'), findsNWidgets(2));
+  });
+
+  testWidgets('a surfaced constraint sits at its distance-along, not the passage start (issue #401)',
+      (tester) async {
+    final day = Day(id: 'day-1', index: 1, segments: [
+      Segment(
+        id: 'seg-1',
+        mode: 'cycling',
+        shape: 'point_to_point',
+        metrics: RouteMetrics(distanceM: 12000),
+        nodes: [
+          Node(
+            id: 'n1',
+            kind: NodeKind.poi,
+            coord: const [-105.29, 40.0],
+            distanceAlongM: 2000,
+            title: 'Old mill',
+          ),
+        ],
+        surfacedConstraints: [
+          SurfacedConstraint(
+              from: 10, to: 11, flags: const ['bicycle=dismount'],
+              distanceAlongM: 3500, lengthM: 40),
+          // Recorded before the engine measured one: passage start, as before.
+          SurfacedConstraint(from: 40, to: 41, flags: const ['barrier=gate']),
+        ],
+      ),
+    ]);
+    final container = await _pump(tester, day);
+    final df = container.read(displayFormatProvider);
+
+    String mileOf(String instruction) => tester
+        .widget<CueSheetRow>(find.byWidgetPredicate(
+            (w) => w is CueSheetRow && w.instruction == instruction))
+        .mile;
+    expect(mileOf('bicycle dismount'), df.formatDistance(3500));
+    expect(mileOf('barrier gate'), df.formatDistance(0));
+
+    // Reading order follows distance: the mill at 2 km comes before the
+    // dismount at 3.5 km, which #216 had pinned to the passage start.
+    final rows = tester
+        .widgetList<CueSheetRow>(find.byType(CueSheetRow))
+        .map((r) => r.instruction)
+        .toList();
+    expect(rows.indexOf('Old mill'), lessThan(rows.indexOf('bicycle dismount')));
+    expect(rows.indexOf('barrier gate'), lessThan(rows.indexOf('Old mill')));
   });
 
   testWidgets('the day cue section opens the shared previewer (issue #326)', (tester) async {

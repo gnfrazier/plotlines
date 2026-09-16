@@ -381,12 +381,32 @@ def flags_along_walk(walk: list[tuple[int, int, dict]]) -> list[dict]:
     """Surfaced constraints hit along a resolved walk, in path order — A11's
     "surfaced explicitly rather than silently routed through," applied to
     whatever shape (`generate_loop`/`generate_out_and_back`/`generate_segment`)
-    produced the walk."""
+    produced the walk.
+
+    Each entry carries where on the route the constraint sits (issue #401):
+    `distance_along_m` is the metres from the walk's start to the flagged
+    hop's *entry* — the same per-passage frame `Cue.distance_along_m` and
+    `Hazard.distance_along_m` measure in — and `length_m` is the hop's own
+    length, so a consumer can show a dismount *section* rather than a point.
+    The walk is the only place both the flag and the edge lengths are in
+    hand together: the client sees node ids it cannot resolve to coordinates,
+    which is why #216 had to anchor every row at the passage's start.
+
+    Edge length is read the way `_path_length_m` / `scoring.profile.features`
+    read it — the graph's `length` attribute, metres.
+    """
     out = []
+    along = 0.0
     for u, v, data in walk:
+        length = float(data.get("length", 0.0))
         flags = data.get("_pl_access_flags")
         if flags:
-            out.append({"from": u, "to": v, "flags": list(flags)})
+            out.append({
+                "from": u, "to": v, "flags": list(flags),
+                "distance_along_m": round(along, 1),
+                "length_m": round(length, 1),
+            })
+        along += length
     return out
 
 

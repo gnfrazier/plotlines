@@ -109,6 +109,12 @@ def _portage() -> P.Portage:
                      mandatory=True, note="carry past the weir")
 
 
+def _surfaced_constraint() -> P.SurfacedConstraint:
+    return P.SurfacedConstraint(from_node=101, to_node=102,
+                                flags=["bicycle=dismount"],
+                                distance_along_m=350.0, length_m=42.0)
+
+
 def _alternate() -> P.Alternate:
     return P.Alternate(
         kind="variant", geometry=_line_string(), id="alt1", intent="branch",
@@ -160,7 +166,8 @@ def _segment() -> P.Segment:
         violations=[P.Violation(attribute="climb_m", realised=150.0, shortfall=-50.0)],
         weights=_weight_profile(), geometry=_line_string(), metrics=_route_metrics(),
         elevation=_elevation(), nodes=[_node()], alternates=[_alternate()],
-        hazards=[_hazard()], portages=[_portage()], solve=_solve(),
+        hazards=[_hazard()], portages=[_portage()],
+        surfaced_constraints=[_surfaced_constraint()], solve=_solve(),
         arc_stage="rising", note="Passage note.", media=[_media()],
     )
 
@@ -221,6 +228,7 @@ _POPULATED = {
     P.Hazard: _hazard(),
     P.LineString: _line_string(),
     P.Portage: _portage(),
+    P.SurfacedConstraint: _surfaced_constraint(),
     P.Alternate: _alternate(),
     P.SolveProvenance: _solve(),
     P.Cue: _cue(),
@@ -254,6 +262,10 @@ _RENAMED = {
     # dataclass avoids shadowing the builtins.
     (P.Band, "minimum"): "min",
     (P.Band, "maximum"): "max",
+    # The wire keeps the engine's `from`/`to`; the dataclass cannot name a
+    # field `from`.
+    (P.SurfacedConstraint, "from_node"): "from",
+    (P.SurfacedConstraint, "to_node"): "to",
     # `cue_sheet.derived_from` is an object holding both of these.
     (P.CueSheet, "segment_ids"): "derived_from",
     (P.CueSheet, "geometry_digest"): "derived_from",
@@ -340,6 +352,13 @@ def test_a_segments_hazards_bands_violations_and_nodes_all_reach_the_payload():
     assert len(seg["alternates"]) == 1
     assert len(seg["portages"]) == 1
     assert seg["via"] == [[-105.25, 40.02]]
+    # Issue #401 — the engine's `from`/`to` spelling survives the rename
+    # from the dataclass's `from_node`/`to_node`, and the distance rides
+    # along; this is the list #216 lost on every save.
+    assert seg["surfaced_constraints"] == [{
+        "from": 101, "to": 102, "flags": ["bicycle=dismount"],
+        "distance_along_m": 350.0, "length_m": 42.0,
+    }]
 
 
 def test_a_hazard_survives_the_whole_way_to_the_serialised_trip():
@@ -361,7 +380,7 @@ def test_an_empty_collection_is_omitted_rather_than_emitted_as_an_empty_list():
     bare = P.Segment(id="s", mode="cycling", shape="loop", start=[0.0, 0.0])
     emitted = bare.to_dict()
     for key in ("via", "bands", "violations", "nodes", "alternates", "hazards",
-                "portages", "media"):
+                "portages", "surfaced_constraints", "media"):
         assert emitted[key] is None, f"empty {key} should be null, got {emitted[key]!r}"
 
 
@@ -399,7 +418,8 @@ def _schema_defs() -> dict:
     (P.TargetDistance, "target_distance"), (P.RouteMetrics, "route_metrics"),
     (P.Elevation, "elevation"), (P.MediaRef, "media_ref"), (P.Narration, "narration"),
     (P.ScheduledWindow, "scheduled_window"), (P.Node, "node"), (P.Hazard, "hazard"),
-    (P.LineString, "line_string"), (P.Portage, "portage"), (P.Alternate, "alternate"),
+    (P.LineString, "line_string"), (P.Portage, "portage"),
+    (P.SurfacedConstraint, "surfaced_constraint"), (P.Alternate, "alternate"),
     (P.SolveProvenance, "solve_provenance"), (P.Cue, "cue"), (P.CueSheet, "cue_sheet"),
     (P.RollUp, "roll_up"), (P.Segment, "segment"), (P.Transition, "transition"),
     (P.Day, "day"), (P.Provenance, "provenance"),

@@ -97,7 +97,8 @@ def test_segments_generate_surfaces_a_dismount_edge_over_the_wire(boulder_region
     body = resp.json()
     assert body["node_count"] == 2  # still routable
     assert body["surfaced_constraints"] == [
-        {"from": 0, "to": 1, "flags": ["bicycle=dismount"]}
+        {"from": 0, "to": 1, "flags": ["bicycle=dismount"],
+         "distance_along_m": 0.0, "length_m": 10.0}
     ]
 
 

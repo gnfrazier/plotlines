@@ -63,7 +63,15 @@ import 'weight_profile.dart';
 // `day_id`. Additive: an absent `day_id` still parses as unattached, which
 // is how every role written before this bump already reads (ordinary
 // working state, not an error, per FR139/Q2).
-const String tripSchemaVersion = '1.14.0';
+// Bumped to 1.15.0 by issue #401: `segment.surfaced_constraints` arrived —
+// the FR128/A11 dismount/gate/ford hops a solved passage rolls over, which
+// #216 surfaced in the client but could not persist (the list vanished on
+// every save). Each entry also carries `distance_along_m` / `length_m`, so a
+// cue sheet can place the row where the Character meets it. Additive: an
+// absent list means Author-drawn or solved before this bump, and an entry
+// without a distance lands at the passage start — what every consumer did
+// before.
+const String tripSchemaVersion = '1.15.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {

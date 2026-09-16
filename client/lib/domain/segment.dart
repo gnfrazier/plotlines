@@ -419,20 +419,33 @@ class SolveProvenance {
 /// routing engine keeps the edge (hard exclusions are dropped server-side so
 /// the route stays legal — `routing/access.py`) and tags it so the response
 /// can name it rather than silently routing through it. [from] and [to] are
-/// the graph node ids of the hop; [flags] are the raw OSM-shaped `key=value`
-/// tag values, in the engine's path order. Filled by the sidecar on every
-/// `/segments/generate` shape; the Author never edits one, so there is no
-/// `copyWith`.
+/// the graph node ids of the hop — the engine's provenance, not something
+/// this client can resolve to a coordinate; [flags] are the raw OSM-shaped
+/// `key=value` tag values, in the engine's path order. Filled by the sidecar
+/// on every `/segments/generate` shape; the Author never edits one, so there
+/// is no `copyWith`. Persisted as `$defs/surfaced_constraint` since schema
+/// 1.15.0 (issue #401).
+///
+/// [distanceAlongM] (issue #401) is metres from the passage's start to the
+/// hop's entry — the same per-passage frame `Cue.distanceAlongM` and
+/// `Hazard.distanceAlongM` use — and [lengthM] is the hop's own length, so a
+/// dismount *section* can read as one. Both are null on a constraint the
+/// engine reported before it measured them (a leg solved before 1.15.0); a
+/// consumer places such a row at the passage start, as every one did before.
 class SurfacedConstraint {
   SurfacedConstraint({
     required this.from,
     required this.to,
     this.flags = const [],
+    this.distanceAlongM,
+    this.lengthM,
   });
 
   final int from;
   final int to;
   final List<String> flags;
+  final double? distanceAlongM;
+  final double? lengthM;
 
   factory SurfacedConstraint.fromJson(Map<String, dynamic> json) {
     final f = JsonFields(json, 'surfaced_constraint');
@@ -440,16 +453,23 @@ class SurfacedConstraint {
       from: f.takeInt('from')!,
       to: f.takeInt('to')!,
       flags: f.takeStrings('flags'),
+      distanceAlongM: f.takeNum('distance_along_m'),
+      lengthM: f.takeNum('length_m'),
     );
     f.done();
     return s;
   }
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson() => pruneJson({
         'from': from,
         'to': to,
         'flags': flags,
-      };
+        'distance_along_m': distanceAlongM == null
+            ? null
+            : finite(distanceAlongM!, 'surfaced_constraint.distance_along_m'),
+        'length_m':
+            lengthM == null ? null : finite(lengthM!, 'surfaced_constraint.length_m'),
+      });
 }
 
 /// FR10 / B1 — one routed (or Author-drawn) leg with a start, an end, and a primary
@@ -523,15 +543,13 @@ class Segment {
 
   /// FR128 / A11 — the mode-legal but noteworthy edges this passage's solved
   /// geometry rolls over (dismount sections, gates, fords), as reported by the
-  /// `/segments/generate` response.
+  /// `/segments/generate` response, in path order.
   ///
-  /// **Session-only, not persisted** — there is no `trip_payload.schema.json`
-  /// home for it yet (`additionalProperties: false` on `$defs/segment`, and
-  /// adding one is a schema version bump, ARCH D28), the same accepted
-  /// limitation `trip_bbox_provider.dart` documents. It survives a re-solve
-  /// (the fresh solve refills it) but not a trip save/reload, which drops it
-  /// until the next solve — the same as `violations` before a solve. Empty for
-  /// an Author-drawn leg or a leg solved before the engine surfaced them.
+  /// Persisted since schema 1.15.0 (issue #401) — before that `$defs/segment`
+  /// had no home for it and the list vanished on every save. Derived by a
+  /// solve, like [metrics] and [geometry]: a re-solve replaces it, the Author
+  /// never edits it. Empty for an Author-drawn leg, or a leg solved before the
+  /// engine surfaced them.
   final List<SurfacedConstraint> surfacedConstraints;
   final SolveProvenance? solve;
 
@@ -577,8 +595,8 @@ class Segment {
       alternates: f.takeList('alternates', Alternate.fromJson),
       hazards: f.takeList('hazards', Hazard.fromJson),
       portages: f.takeList('portages', Portage.fromJson),
-      // `surfacedConstraints` is session-only (see its field doc) — never read
-      // from or written to the persisted payload.
+      surfacedConstraints:
+          f.takeList('surfaced_constraints', SurfacedConstraint.fromJson),
       solve: f.takeObject('solve', SolveProvenance.fromJson),
       arcStage: f.takeString('arc_stage'),
       note: f.takeString('note'),
@@ -608,6 +626,9 @@ class Segment {
         'alternates': alternates.isEmpty ? null : alternates.map((a) => a.toJson()).toList(),
         'hazards': hazards.isEmpty ? null : hazards.map((h) => h.toJson()).toList(),
         'portages': portages.isEmpty ? null : portages.map((p) => p.toJson()).toList(),
+        'surfaced_constraints': surfacedConstraints.isEmpty
+            ? null
+            : surfacedConstraints.map((c) => c.toJson()).toList(),
         'solve': solve?.toJson(),
         'arc_stage': arcStage,
         'note': note,

@@ -359,13 +359,16 @@ List<_CueEntry> _entriesFromCueSheets(
     final segment = day.segments[i];
     final change = modeChanges[segment.id];
     if (change != null) entries.add(_modeChangeEntry(change, distanceAlongM: offset));
-    // FR128 / A11 — the dismount/gate/ford edges this passage rolls over. The
-    // engine reports them in path order without a distance-along, so they land
-    // at the passage's start (this list is built in reading order, not sorted).
+    // FR128 / A11 — the dismount/gate/ford edges this passage rolls over, at
+    // the engine's own distance-along (issue #401) in this preview's
+    // day-cumulative frame. A constraint recorded before the engine measured
+    // one (a leg solved before schema 1.15.0) still lands at the passage's
+    // start rather than at a fabricated position. This list is built in
+    // reading order, not sorted, so the rows sit before the passage's cues.
     for (final sc in segment.surfacedConstraints) {
       entries.add(
         _CueEntry(
-          distanceAlongM: offset,
+          distanceAlongM: offset + (sc.distanceAlongM ?? 0),
           label: _surfacedConstraintLabel(sc.flags),
           glyph: '⚑',
           tag: 'ON ROUTE',
@@ -561,10 +564,13 @@ List<_CueEntry> _entriesFromAuthoredContent(
         ),
       );
     }
+    // Issue #401 — the engine's per-passage distance-along, which is exactly
+    // this fallback's frame (each passage restarts at zero). Null for a
+    // constraint recorded before the engine measured one: passage start.
     for (final sc in segment.surfacedConstraints) {
       entries.add(
         _CueEntry(
-          distanceAlongM: 0,
+          distanceAlongM: sc.distanceAlongM ?? 0,
           label: _surfacedConstraintLabel(sc.flags),
           glyph: '⚑',
           tag: 'ON ROUTE',
