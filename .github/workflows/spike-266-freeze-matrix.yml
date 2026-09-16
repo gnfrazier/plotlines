@@ -7,15 +7,10 @@ name: SPIKE-J freeze matrix (#266)
 # locally; see spikes/SPIKE-J/README.md for why hosted runners were chosen over
 # acquiring hardware. Linux is measured locally and not repeated here.
 on:
+  # The spike branch this file needed a push trigger for (to work around
+  # workflow_dispatch requiring the file on the default branch first) is
+  # merged and deleted; workflow_dispatch works directly now.
   workflow_dispatch: {}
-  # workflow_dispatch needs this file merged to the default branch before
-  # GitHub will let it be dispatched on any ref — a chicken-and-egg for a
-  # not-yet-merged spike branch. This push trigger, scoped to this spike's own
-  # branch name, is how the matrix actually runs before that merge; safe to
-  # drop once main has this file and workflow_dispatch works directly.
-  push:
-    branches:
-      - spike/266-freeze-native-osm-dependency
 
 jobs:
   freeze:
