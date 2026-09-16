@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/data/routing_client.dart';
 import 'package:plotlines_client/presentation/screens/privacy_screen.dart';
 import 'package:plotlines_client/presentation/screens/settings_screen.dart';
+import 'package:plotlines_client/presentation/screens/software_notices_screen.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
@@ -77,6 +78,10 @@ Map<String, dynamic> _fullAbout({bool complete = true}) => {
       'privacy': [
         {'id': 'reveal', 'title': 'Reveal is not a lock', 'body': 'Body.'},
       ],
+      'software_notices': [
+        {'name': 'pyinstaller', 'version': '6.22.3', 'licence': 'GPL-2.0-or-later', 'text': 'full text'},
+      ],
+      'software_notices_available': true,
     };
 
 void main() {
@@ -142,5 +147,39 @@ void main() {
 
     expect(find.byType(PrivacyScreen), findsOneWidget);
     expect(find.text('What Plotlines knows and shares'), findsOneWidget);
+  });
+
+  testWidgets(
+      'software notices are a separate section from data attribution, one tap from About',
+      (tester) async {
+    // Issue #267 — never folded into the DATA & ATTRIBUTION cards above.
+    await _pump(tester, _FakeRoutingClient(_fullAbout));
+
+    expect(find.text('SOFTWARE NOTICES'), findsOneWidget);
+    expect(find.text('Sidecar & core licences'), findsOneWidget);
+    expect(find.text('1 third-party packages'), findsOneWidget);
+    expect(find.text('Plotlines app licences'), findsOneWidget);
+
+    await tester.tap(find.text('Sidecar & core licences'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SoftwareNoticesScreen), findsOneWidget);
+    expect(find.textContaining('pyinstaller'), findsOneWidget);
+  });
+
+  testWidgets('shows an explanatory empty state when no bundle is available',
+      (tester) async {
+    final about = _fullAbout()
+      ..['software_notices'] = <Map<String, dynamic>>[]
+      ..['software_notices_available'] = false;
+    await _pump(tester, _FakeRoutingClient(() => about));
+
+    expect(find.text('Not available in this build (running from source)'),
+        findsOneWidget);
+
+    await tester.tap(find.text('Sidecar & core licences'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('only ships with a'), findsOneWidget);
   });
 }

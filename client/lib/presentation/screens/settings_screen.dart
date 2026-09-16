@@ -13,10 +13,12 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../data/sidecar_manager.dart';
 import '../../domain/attribution_line.dart';
+import '../../domain/software_notice.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
 import 'privacy_screen.dart';
+import 'software_notices_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -297,6 +299,8 @@ class AboutPane extends ConsumerWidget {
         final sidecarVersion = about?['sidecar_version'] as String?;
         final attributionComplete = about?['attribution_complete'] as bool? ?? true;
         final missing = (about?['missing_attribution'] as List?)?.cast<Object?>() ?? const [];
+        final softwareNotices = softwareNoticesFrom(about?['software_notices']);
+        final softwareNoticesAvailable = about?['software_notices_available'] as bool? ?? false;
 
         return ListView(
           padding: const EdgeInsets.all(PlotSpacing.s5),
@@ -349,6 +353,52 @@ class AboutPane extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: (_) => const PrivacyScreen()),
                 ),
+              ),
+            ),
+            const SizedBox(height: PlotSpacing.s6),
+            // Issue #267 — software notices are a distinct obligation from
+            // the data credits above: the licence text owed for the code
+            // Plotlines ships, not the data it displays. Two entry points
+            // because they are two different dependency trees: the sidecar's
+            // (a generated bundle, present only in a frozen build) and the
+            // client app's own pub packages (Flutter's built-in
+            // LicenseRegistry already covers those with no separate
+            // generation step).
+            Text('SOFTWARE NOTICES', style: PlotTypography.eyebrow(c.textMuted)),
+            const SizedBox(height: PlotSpacing.s2),
+            PlotCard(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: PlotSpacing.s4, vertical: PlotSpacing.s1),
+              child: Column(
+                children: [
+                  PlotListTile(
+                    title: 'Sidecar & core licences',
+                    subtitle: softwareNoticesAvailable
+                        ? '${softwareNotices.length} third-party packages'
+                        : 'Not available in this build (running from source)',
+                    trailing: const Icon(Icons.chevron_right),
+                    divider: true,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => SoftwareNoticesScreen(
+                          notices: softwareNotices,
+                          available: softwareNoticesAvailable,
+                        ),
+                      ),
+                    ),
+                  ),
+                  PlotListTile(
+                    title: 'Plotlines app licences',
+                    subtitle: 'Licences for the packages this client is built from.',
+                    trailing: const Icon(Icons.chevron_right),
+                    divider: false,
+                    onTap: () => showLicensePage(
+                      context: context,
+                      applicationName: 'Plotlines',
+                      applicationVersion: resolveClientVersion(),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: PlotSpacing.s5),
