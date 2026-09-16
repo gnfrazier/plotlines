@@ -700,10 +700,10 @@ Three consequences for this tier:
 | Routing endpoints | ✅ | ✅ |
 | **Curation endpoints** ★ | ✅ | ✅ |
 | Auth / sync / share / group-relay | ❌ not registered | ✅ |
-| Tile + elevation **+ candidate** cache | Local disk | Shared server-side (candidate cache: local only, §4.2) |
+| Tile + elevation + candidate **+ OSM extract** cache | Local disk | Shared server-side (candidate cache: local only, §4.2) |
 | CORS | N/A | **N/A** — same-site |
 
-Tile, elevation, **and candidate** caches follow an **identical bbox-scoped, on-demand pattern** (P7, FR94) — same policy, three payloads, not three designs.
+Tile, elevation, candidate, **and OSM extract** caches follow an **identical bbox-scoped, on-demand pattern** (P7, FR94) — same policy, four payloads, not four designs. The extract's cache key stays a pure function of the bbox like the other three; the Geofabrik pin it was clipped under is a path level above the key, not inside it, so a pin bump is a directory removal rather than an overwrite (`plotlines_core.cache_layout`, issue #273).
 
 Mode is selected by an env var at startup. Endpoints not valid for a mode are **not registered**, not merely guarded.
 
