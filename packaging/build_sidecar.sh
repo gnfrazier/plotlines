@@ -68,6 +68,21 @@ EXCLUDE=(pyogrio pandas.tests numpy.tests)
 
 mkdir -p "$DIST" "$WORK"
 
+# Third-party software notices (issue #267, addendum L5) — generated fresh
+# from whatever is actually installed in this venv, never hand-maintained, so
+# a dependency bump cannot leave it stale. Only a pyinstaller-* target embeds
+# PyInstaller's own bootloader (and therefore relies on its GPL bootloader
+# exception); nuitka needs no such check. `generate_third_party_licenses.py`
+# raises on an empty or (where required) PyInstaller-less environment, which
+# `set -euo pipefail` turns into a build failure here — the `-s` check below
+# is a second, cheap belt-and-suspenders gate against a script that somehow
+# exited 0 having written nothing.
+NOTICES="$DIST/THIRD_PARTY_LICENSES"
+NOTICES_ARGS=(--output "$NOTICES")
+[[ "$TARGET" == pyinstaller-* ]] || NOTICES_ARGS+=(--no-require-pyinstaller)
+"$VENV_BIN/python$EXE" "$ROOT/packaging/generate_third_party_licenses.py" "${NOTICES_ARGS[@]}"
+[[ -s "$NOTICES" ]] || { echo "THIRD_PARTY_LICENSES missing or empty — refusing to freeze" >&2; exit 1; }
+
 case "$TARGET" in
   pyinstaller-*)
     args=(--name plotlines-sidecar --noconfirm --clean
@@ -76,7 +91,10 @@ case "$TARGET" in
           # The committed home-region PMTiles archive (FR96, issue #154) —
           # `tiles_paths.py` resolves it under sys._MEIPASS at this same
           # relative path.
-          --add-data "$ROOT/service/plotlines_service/data/home_region.pmtiles${DATA_SEP}plotlines_service/data")
+          --add-data "$ROOT/service/plotlines_service/data/home_region.pmtiles${DATA_SEP}plotlines_service/data"
+          # THIRD_PARTY_LICENSES (issue #267) — `licensing.software_notices`
+          # resolves it under sys._MEIPASS the same way version.lock is read.
+          --add-data "$NOTICES${DATA_SEP}.")
     [[ "$TARGET" == *onefile ]] && args+=(--onefile) || args+=(--onedir)
     for p in "${COLLECT_DATA[@]}";       do args+=(--collect-data "$p"); done
     for p in "${COLLECT_SUBMODULES[@]}"; do args+=(--collect-submodules "$p"); done
@@ -95,6 +113,7 @@ case "$TARGET" in
           --output-dir="$WORK/nuitka" --output-filename="plotlines-sidecar$EXE"
           --include-data-files="$ROOT/packaging/version.lock=version.lock"
           --include-data-files="$ROOT/service/plotlines_service/data/home_region.pmtiles=plotlines_service/data/home_region.pmtiles"
+          --include-data-files="$NOTICES=THIRD_PARTY_LICENSES"
           --nofollow-import-to=tkinter --nofollow-import-to=matplotlib
           # editable installs are resolved by a .pth finder Nuitka does not follow
           --include-package=plotlines_core --include-package=plotlines_service)
