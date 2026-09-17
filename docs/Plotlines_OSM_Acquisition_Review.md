@@ -490,9 +490,9 @@ endpoint"), so it is the one that is restricted, by two independent mechanisms r
 Either failure returns immediately as a finished JSON body (`401 unauthorized_client` /
 `429 rate_limited`) — never a hang, never a stack trace — satisfying the acceptance criterion
 independent of which posture a given deployment chooses. Nothing about this touches what the FR138
-privacy statement says leaves the device (#252): no client calls `/clip` yet (that is Phase 3,
-#272), and when one does, the recipient the statement needs to name is "the Plotlines mirror,"
-unchanged by whether that mirror happens to gate the request on a shared key. Implemented in
+privacy statement says leaves the device (#252): the sidecar became the first caller of `/clip` in
+Phase 3 (#274), and the recipient the statement names is "the Plotlines mirror," unchanged by
+whether that mirror happens to gate the request on a shared key. Implemented in
 `service/plotlines_service/mirror_clip.py`; `service/tests/test_mirror_clip_server.py` covers both
 mechanisms.
 
