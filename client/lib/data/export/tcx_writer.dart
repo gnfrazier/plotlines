@@ -40,6 +40,7 @@
 library;
 
 import '../../domain/domain.dart';
+import 'attribution_notice.dart';
 import 'export_options.dart';
 import 'geo_utils.dart';
 
@@ -68,9 +69,15 @@ String tripToTcx(Trip trip, {ExportOptions options = const ExportOptions()}) {
       'http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">');
   buffer.writeln('  <Courses>');
 
+  // Issue #277 — TCX has no document-level free-text slot (`Author` is a
+  // short application name/version, not a notice field), so the licence
+  // notice rides in the first `<Course>`'s `<Notes>` (a real child of
+  // `Course_t` in the schema) rather than being repeated on every day.
+  var wroteNotice = false;
   for (final day in trip.days) {
     if (day.segments.isEmpty) continue;
-    _writeCourse(buffer, trip, day, options);
+    _writeCourse(buffer, trip, day, options, includeNotice: !wroteNotice);
+    wroteNotice = true;
     if (options.includeAlternates) {
       for (final segment in day.segments) {
         for (final alt in segment.alternates) {
@@ -108,7 +115,8 @@ void _writeAlternateCourse(StringBuffer buffer, Trip trip, Day day, Alternate al
   buffer.writeln('    </Course>');
 }
 
-void _writeCourse(StringBuffer buffer, Trip trip, Day day, ExportOptions options) {
+void _writeCourse(StringBuffer buffer, Trip trip, Day day, ExportOptions options,
+    {bool includeNotice = false}) {
   final name = _esc(day.title ?? '${trip.title} — Day ${day.index}');
   buffer.writeln('    <Course>');
   buffer.writeln('      <Name>$name</Name>');
@@ -187,6 +195,10 @@ void _writeCourse(StringBuffer buffer, Trip trip, Day day, ExportOptions options
     }
   }
   buffer.writeln('      </Track>');
+  if (includeNotice) {
+    final notice = exportAttributionNotice(trip);
+    if (notice.isNotEmpty) buffer.writeln('      <Notes>${_esc(notice)}</Notes>');
+  }
   buffer.writeln('    </Course>');
 }
 

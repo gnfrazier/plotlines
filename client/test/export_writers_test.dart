@@ -210,6 +210,52 @@ void main() {
     expect(double.parse(distance), closeTo(1500.0, 0.1));
   });
 
+  group('Issue #277: attribution/OSM-snapshot notice on every export path', () {
+    test('GPX: the notice rides in <metadata><desc>, still well-formed', () {
+      final doc = xml.XmlDocument.parse(tripToGpx(trip));
+      final desc = doc.findAllElements('metadata').single.findElements('desc').single;
+      expect(desc.innerText, contains('© OpenStreetMap contributors'));
+    });
+
+    test('TCX: the notice rides in the first Course\'s Notes, not repeated on later days', () {
+      final tripWithTwoDays = trip.copyWith(days: [
+        ...trip.days,
+        Day(id: 'day-2', index: 2, kind: 'route', segments: [
+          Segment(
+            id: 'seg-2', mode: 'cycling', shape: 'point_to_point',
+            geometry: LineString(coordinates: [
+              [-105.28, 40.02], [-105.29, 40.03],
+            ], source: 'solved'),
+            metrics: RouteMetrics(distanceM: 800.0),
+          ),
+        ]),
+      ]);
+      final doc = xml.XmlDocument.parse(tripToTcx(tripWithTwoDays));
+      final notesInCourses = doc.findAllElements('Course')
+          .expand((c) => c.findElements('Notes'))
+          .toList();
+      expect(notesInCourses, hasLength(1));
+      expect(notesInCourses.single.innerText, contains('© OpenStreetMap contributors'));
+    });
+
+    test('GeoJSON: the FeatureCollection carries attribution and, when known, osm_source', () {
+      final withPin = Trip(
+        id: 'trip-pin', title: 'Pinned', createdAt: trip.createdAt, updatedAt: trip.updatedAt,
+        days: trip.days,
+        provenance: Provenance(osmSource: 'geofabrik:2026-09-01'),
+      );
+      final decoded = jsonDecode(tripToGeoJson(withPin)) as Map<String, dynamic>;
+      final properties = decoded['properties'] as Map<String, dynamic>;
+      expect(properties['attribution'], contains('© OpenStreetMap contributors'));
+      expect(properties['osm_source'], 'geofabrik:2026-09-01');
+    });
+
+    test('GeoJSON: osm_source is absent, never fabricated, for a trip with no provenance', () {
+      final decoded = jsonDecode(tripToGeoJson(trip)) as Map<String, dynamic>;
+      expect((decoded['properties'] as Map<String, dynamic>).containsKey('osm_source'), isFalse);
+    });
+  });
+
   group('FIT (issue #211 — core ships fit.py, client ports it)', () {
     int u16le(Uint8List b, int at) => b[at] | (b[at + 1] << 8);
     int u32le(Uint8List b, int at) =>

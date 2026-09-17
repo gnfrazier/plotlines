@@ -31,6 +31,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../../data/character_journey.dart';
+import '../../../data/export/attribution_notice.dart';
 import '../../../data/export/export_options.dart';
 import '../../../data/export/fit_writer.dart';
 import '../../../data/export/geojson_writer.dart';
@@ -242,7 +243,8 @@ class _ItinerarySectionState extends ConsumerState<_ItinerarySection> {
   Future<void> _export(Itinerary itinerary) async {
     setState(() => _exporting = true);
     try {
-      final content = itineraryToMarkdown(itinerary);
+      final content = itineraryToMarkdown(itinerary,
+          attributionNotice: exportAttributionNotice(widget.trip));
       final safeName = itinerary.title.replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '').trim();
       final location = await getSaveLocation(
         suggestedName: '${safeName.isEmpty ? 'itinerary' : safeName}.md',
@@ -1070,6 +1072,22 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
   String _safeName(String s) =>
       s.replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '').trim();
 
+  /// Issue #277 (Phase 3.5) — FIT's course message has one free-text slot
+  /// (`course.name`), already spent on the trip title and hard-capped at 64
+  /// bytes by the encoder (`fit_writer.dart`'s port of `fit.py`'s own
+  /// `FIT_NAME_BYTE_CEILING`). An ODbL/CC BY notice plus an OSM snapshot id
+  /// does not fit what's left of that budget, and truncating a licence
+  /// notice is worse than not shipping it in-band at all — the same
+  /// placement decision `core/plotlines_core/export/fit.py` documents for
+  /// its own `FitExport.attribution_sidecar`. So the notice lands in a
+  /// plain `<name>.fit.txt` written beside the `.fit` file, never inside it.
+  /// Skipped entirely when there is nothing to say (never a fabricated line).
+  Future<void> _writeFitAttributionSidecar(String fitPath, Trip trip) async {
+    final notice = exportAttributionNotice(trip);
+    if (notice.isEmpty) return;
+    await File('$fitPath.txt').writeAsString(notice);
+  }
+
   Future<void> _exportSingle(ExportOptions options) async {
     final safeName = _safeName(widget.trip.title);
     final location = await getSaveLocation(
@@ -1078,6 +1096,7 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
     if (location == null) return; // Author cancelled — not a failure.
     if (_isBinary) {
       await File(location.path).writeAsBytes(_writeBytes(widget.trip, options));
+      await _writeFitAttributionSidecar(location.path, widget.trip);
     } else {
       await File(location.path).writeAsString(_write(widget.trip, options));
     }
@@ -1100,6 +1119,7 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
       final file = File('$dirPath/${base}_day${day.index}.$_extension');
       if (_isBinary) {
         await file.writeAsBytes(_writeBytes(dayTrip, options));
+        await _writeFitAttributionSidecar(file.path, dayTrip);
       } else {
         await file.writeAsString(_write(dayTrip, options));
       }

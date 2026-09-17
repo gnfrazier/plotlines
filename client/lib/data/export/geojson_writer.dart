@@ -14,6 +14,7 @@ library;
 import 'dart:convert';
 
 import '../../domain/domain.dart';
+import '../reveal_view.dart';
 import 'export_options.dart';
 import 'geo_utils.dart';
 
@@ -221,6 +222,13 @@ String tripToGeoJson(Trip trip, {ExportOptions options = const ExportOptions()})
       'trip_id': trip.id,
       'trip_title': trip.title,
       'schema_version': trip.schemaVersion,
+      // Issue #277 — the same merged static+dynamic credit list every
+      // writer in this directory carries, plus the OSM snapshot pin when
+      // the trip's own `Provenance` names one. RFC 7946 §6.1 allows
+      // foreign members on the root object, so this needs no `<desc>`-style
+      // workaround the way GPX/TCX do.
+      'attribution': [for (final line in attributionForTrip(trip)) line.attribution],
+      if (trip.provenance?.osmSource != null) 'osm_source': trip.provenance!.osmSource,
     },
     'features': features,
   };

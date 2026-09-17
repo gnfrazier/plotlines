@@ -13,6 +13,7 @@
 library;
 
 import '../../domain/domain.dart';
+import 'attribution_notice.dart';
 import 'export_options.dart';
 import 'geo_utils.dart';
 
@@ -24,7 +25,13 @@ String tripToGpx(Trip trip, {ExportOptions options = const ExportOptions()}) {
       'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
       'xsi:schemaLocation="http://www.topografix.com/GPX/1/1 '
       'http://www.topografix.com/GPX/1/1/gpx.xsd">');
-  buffer.writeln('  <metadata><name>${_esc(trip.title)}</name></metadata>');
+  // Issue #277 — the licence notice rides in `<desc>` (GPX 1.1's one
+  // metadata free-text slot; a `<copyright>` element allows only one
+  // licence and this trip owes several). `<desc>` is optional and simply
+  // omitted when there is nothing to say.
+  final notice = exportAttributionNotice(trip);
+  buffer.writeln('  <metadata><name>${_esc(trip.title)}</name>'
+      '${notice.isEmpty ? '' : '<desc>${_esc(notice)}</desc>'}</metadata>');
 
   // FR45 — plot-point notes: PRD v2.0 §4.3 defines "plot point" as an
   // Anchor's narrative role, not a Node, so preserving them natively means

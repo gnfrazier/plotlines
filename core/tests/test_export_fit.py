@@ -25,6 +25,7 @@ from plotlines_core.export import (
 from plotlines_core.export._fit_encoder import fit_crc16
 from plotlines_core.export._fit_profile import COURSE_POINT_TYPE, degrees
 from plotlines_core.export.fit import FIT_MANUFACTURER, FIT_NAME_BYTE_CEILING
+from plotlines_core.trips.payload import Attribution
 
 _START_UNIX = 1_726_000_000
 _CANARY = "CANARY-6A2 the mash tuns are under the collapsed springhouse floor"
@@ -273,3 +274,47 @@ def test_name_never_exceeds_the_byte_ceiling():
 def test_writer_applies_name_cap_parameter():
     dec = decode(export_course_fit(_course(), name_cap=16).data)
     assert all(len(m.get(6, "")) <= 17 for m in dec.of("course_point"))
+
+
+# --- Issue #277: attribution rides a sidecar, never the FIT bytes --------
+
+def test_attribution_and_osm_source_never_touch_the_encoded_bytes():
+    """The whole point of the sidecar decision: passing attribution/
+    osm_source changes only `FitExport.attribution_sidecar`, never a byte
+    of the FIT stream itself."""
+    plain = export_course_fit(_course())
+    credited = export_course_fit(
+        _course(),
+        attribution=[Attribution(source="graph", licence="ODbL-1.0",
+                                 credit="Routing data: © OpenStreetMap contributors",
+                                 url="https://www.openstreetmap.org/copyright")],
+        osm_source="geofabrik:2026-09-01",
+    )
+    assert credited.data == plain.data
+
+
+def test_attribution_sidecar_carries_every_credit_and_the_snapshot_pin():
+    export = export_course_fit(
+        _course(),
+        attribution=[
+            Attribution(source="graph", licence="ODbL-1.0",
+                       credit="Routing data: © OpenStreetMap contributors",
+                       url="https://www.openstreetmap.org/copyright"),
+            Attribution(source="elevation", licence="CC-BY-4.0",
+                       credit="Elevation: GEDTM30", url=None),
+        ],
+        osm_source="geofabrik:2026-09-01",
+    )
+    lines = export.attribution_sidecar.splitlines()
+    assert "Routing data: © OpenStreetMap contributors " \
+           "(https://www.openstreetmap.org/copyright)" in lines
+    assert "Elevation: GEDTM30" in lines
+    assert "OSM data snapshot: geofabrik:2026-09-01" in lines
+
+
+def test_attribution_sidecar_is_empty_for_a_pre_provenance_trip():
+    """Issue #277 acceptance item 4: a trip with no `Provenance` at all
+    (authored before #270) exports with a defined, honest fallback — no
+    sidecar line is fabricated, and nothing raises."""
+    export = export_course_fit(_course())
+    assert export.attribution_sidecar == ""
