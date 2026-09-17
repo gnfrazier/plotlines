@@ -85,6 +85,16 @@ def test_build_provenance_sidecar_only_desktop():
     assert provenance.sidecar_version is None
 
 
+def test_build_provenance_honours_an_explicit_osm_source():
+    # Issue #277 — a caller that knows a mirror clip built the graph passes
+    # its own pin; build_provenance never recomputes it.
+    provenance = build_provenance(
+        _registry(), app_version="1.0.0", fetched_at="2026-09-01T00:00:00Z",
+        osm_source="geofabrik:2026-09-01",
+    )
+    assert provenance.osm_source == "geofabrik:2026-09-01"
+
+
 def test_build_provenance_attribution_is_derived_not_hardcoded():
     """The attribution list is `web.about.about_attributions`'s own output,
     reshaped into `Attribution` — not a fixed list this module invented. The

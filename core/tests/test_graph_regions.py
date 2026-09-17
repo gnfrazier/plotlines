@@ -1157,6 +1157,52 @@ def test_ensure_graph_local_clip_reproduces_drives_track_and_service_exclusion(
     assert "track" not in highways
 
 
+def test_geofabrik_source_pin_matches_the_transport_id_shape():
+    assert regions.geofabrik_source_pin("2026-09-01") == "geofabrik:2026-09-01"
+
+
+def test_graph_source_pin_reads_the_pin_off_a_local_clip_build(tmp_path, monkeypatch):
+    """Issue #277 — a graph built from a mirror clip records that clip's own
+    pin (the extract's directory name), not the trip's fetch timestamp."""
+    def _blocked(*_a, **_k):
+        raise AssertionError("must not touch Overpass with a clip cached")
+    monkeypatch.setattr(ox, "graph_from_bbox", _blocked)
+
+    _write_clip(
+        tmp_path,
+        nodes=[_clip_node(1, -105.29, 40.00), _clip_node(2, -105.28, 40.01)],
+        ways=[_clip_way(10, [1, 2], {"highway": "residential"})],
+    )
+
+    region = regions.region_for(_CLIP_BBOX, "bike")
+    regions.ensure_graph(region, tmp_path)
+
+    pin = regions.graph_source_pin(region, tmp_path, fetched_at="2026-09-02T00:00:00Z")
+    assert pin == f"geofabrik:{_CLIP_PIN}"
+
+
+def test_graph_source_pin_falls_back_to_overpass_for_an_overpass_built_graph(
+    tmp_path, monkeypatch,
+):
+    monkeypatch.setattr(ox, "graph_from_bbox", _fake_graph)
+    monkeypatch.setattr(ox, "simplify_graph", lambda g, **_: g)
+    monkeypatch.setattr(ox.truncate, "largest_component", lambda g, **_: g)
+
+    region = regions.region_for(_BBOX, "bike")
+    regions.ensure_graph(region, tmp_path)
+
+    pin = regions.graph_source_pin(region, tmp_path, fetched_at="2026-09-02T00:00:00Z")
+    assert pin == "overpass:2026-09-02T00:00:00Z"
+
+
+def test_graph_source_pin_falls_back_to_overpass_when_the_region_was_never_built(tmp_path):
+    # No `source.json` at all — a region that has never had `ensure_graph`
+    # called for it (or a graph cached before issue #277 existed).
+    region = regions.region_for(_BBOX, "bike")
+    pin = regions.graph_source_pin(region, tmp_path, fetched_at="2026-09-02T00:00:00Z")
+    assert pin == "overpass:2026-09-02T00:00:00Z"
+
+
 def test_ensure_graph_falls_back_to_overpass_when_no_local_clip_is_cached(tmp_path, monkeypatch):
     """No mirror configured, or this bbox has not been fetched yet — the
     pre-#275 Overpass transport still runs, unchanged: Phase 3 is additive
