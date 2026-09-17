@@ -19,6 +19,13 @@ dependencies = [
     # `graph/regions.py` catches `requests.exceptions.RequestException` to
     # drive Overpass endpoint failover (issue #229).
     "requests>=2.28",
+    # `graph/pbf_source.py` and `curation/providers.py` read the mirror's
+    # clipped `.osm.pbf` directly (issue #275, Phase 3.3 of epic #272).
+    # pyosmium is BSD-2-Clause, never the GPL-3 `osmium` CLI (addendum L1) —
+    # see `service/pyproject.toml`'s base dependencies for the sidecar-freeze
+    # half of this (SPIKE-J, #266, measured PARITY on all four targets before
+    # this moved out of the `mirror-clip` extra it used to live behind).
+    "osmium>=4.3,<5",
 ]
 
 [build-system]

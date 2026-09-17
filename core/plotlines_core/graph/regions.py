@@ -32,6 +32,7 @@ from urllib.parse import urlparse
 import osmnx as ox
 import requests
 
+from plotlines_core.graph import extract_fetch, pbf_source
 from plotlines_core.osm_identity import apply_osm_http_identity, overpass_settings
 
 log = logging.getLogger("plotlines.regions")
@@ -461,11 +462,31 @@ def fold_node_barriers(graph) -> int:
     return folded
 
 
+def _finish_graph(graph):
+    """The post-download tail shared by every graph transport this module
+    has (Overpass live, and, since issue #275, the local-clip read):
+    simplify (retaining barrier nodes as endpoints so a gate mid-way is not
+    collapsed into edge geometry before it can be folded, issue #206), fold
+    node-tagged `barrier`s onto their incident edges, then prune to the
+    largest *strongly* connected component.
+
+    osmnx's default keeps the largest *weakly* connected component, which is
+    not a routable guarantee (spikes/shared/regions.py:198-203's finding): a
+    node on the far side of a one-way pair can be reachable while nothing is
+    reachable *from* it. Strong connectivity means any anchor can reach any
+    other, which every routing shape (loop/out-and-back/point-to-point) here
+    depends on.
+    """
+    graph = ox.simplify_graph(graph, node_attrs_include=["barrier"])
+    fold_node_barriers(graph)
+    return ox.truncate.largest_component(graph, strongly=True)
+
+
 def _download_region_graph(region: Region):
     """The live half of `ensure_graph`: one Overpass acquisition against
-    whatever `ox.settings.overpass_url` currently points at, plus the
-    simplify / barrier-fold / strong-connectivity prune. Split out so
-    `ensure_graph` can drive it once per endpoint with backoff (issue #229)."""
+    whatever `ox.settings.overpass_url` currently points at, plus
+    `_finish_graph`'s tail. Split out so `ensure_graph` can drive it once per
+    endpoint with backoff (issue #229)."""
     # Simplify by hand rather than letting `graph_from_bbox` do it: osmnx 2.x
     # gives no way to pass `node_attrs_include` through that call, and a barrier
     # node that is not also a junction would be collapsed into edge geometry —
@@ -473,16 +494,27 @@ def _download_region_graph(region: Region):
     graph = ox.graph_from_bbox(
         region.bbox, network_type=region.network_type, simplify=False,
     )
-    graph = ox.simplify_graph(graph, node_attrs_include=["barrier"])
-    fold_node_barriers(graph)
+    return _finish_graph(graph)
 
-    # osmnx's default keeps the largest *weakly* connected component, which is
-    # not a routable guarantee (spikes/shared/regions.py:198-203's finding): a
-    # node on the far side of a one-way pair can be reachable while nothing is
-    # reachable *from* it. Strong connectivity means any anchor can reach any
-    # other, which every routing shape (loop/out-and-back/point-to-point) here
-    # depends on.
-    return ox.truncate.largest_component(graph, strongly=True)
+
+def _build_region_graph_from_pbf(region: Region, pbf_path: Path):
+    """Issue #275's local-clip transport: `pbf_path` (the mirror clip
+    `graph.extract_fetch.ensure_extract`, issue #274, already fetched and
+    cached for this exact bbox) -> a finished graph, via
+    `pbf_source.graph_from_pbf` plus the same `_finish_graph` tail the
+    Overpass transport runs. No network call of any kind.
+
+    A zero-node result (nothing in the clip passed `network_type`'s filter)
+    skips `_finish_graph` rather than feeding it an empty graph — networkx's
+    strong-connectivity check raises `NetworkXPointlessConcept` on the null
+    graph, and `ensure_graph`'s caller-side `number_of_nodes() == 0` check is
+    what turns this into `NoRoutableWaysError`, mirroring the Overpass path's
+    own `InsufficientResponseError` handling.
+    """
+    graph = pbf_source.graph_from_pbf(pbf_path, region.bbox, region.network_type)
+    if graph.number_of_nodes() == 0:
+        return graph
+    return _finish_graph(graph)
 
 
 def ensure_graph(
@@ -527,6 +559,29 @@ def ensure_graph(
     (`overpass_rate_limit`) is left at its configured value for every endpoint
     and every attempt: politeness is not traded for failover latency (#238
     mechanism 3).
+
+    **Issue #275 (Phase 3.3) — the local-clip transport, tried first.** Before
+    any of the above, this checks `cache_dir` for an already-fetched,
+    bbox-scoped mirror clip (`graph.extract_fetch.find_reusable_extract` —
+    the same on-disk file `graph.extract_fetch.ensure_extract`, issue #274,
+    writes, and the one `curation.providers.OsmLayerProvider.fetch` also
+    reads: one clip fetch, both consumers, never a second fetch for the same
+    bbox). When a clip is present, the graph is built from it
+    (`_build_region_graph_from_pbf`, via `pbf_source`) and Overpass is never
+    contacted at all — this is what lets a region graph build with the public
+    Overpass endpoints blocked at the firewall. When no clip is on disk (no
+    mirror configured, or this bbox has not been fetched yet), `ensure_graph`
+    falls through to the Overpass transport below, unchanged: Phase 3 is
+    additive for the length of the acquisition migration, not a hard cutover
+    forced on every deployment the moment this lands.
+
+    **The four Overpass-shaped keyword arguments' stated fate** (`endpoints`,
+    `attempts_per_endpoint`, `backoff_base_s`, `sleep`): they keep their
+    existing, *live* meaning for exactly that Overpass fallback — every one of
+    them still drives the retry/failover loop below whenever a local clip is
+    not yet available, so a caller that sets one is never silently ignored.
+    They stop mattering only on whichever future issue removes the Overpass
+    fallback outright (not this one — see the acquisition review's phasing).
     """
     probe = probe if probe is not None else probe_endpoint
     # Point osmnx's response cache inside `cache_dir` *before* the early
@@ -543,6 +598,38 @@ def ensure_graph(
     if out_path.exists() and not force:
         log.info("ensure_graph key=%s bbox=%s nt=%s cache=hit", region.key,
                  region.bbox, region.network_type)
+        return out_path
+
+    # Issue #275 — the local-clip transport, tried before Overpass. A clip
+    # already on disk (issue #274) means this bbox needs no network call at
+    # all: `find_reusable_extract` is the exact same lookup
+    # `graph.extract_fetch.ensure_extract` uses to decide whether to skip its
+    # own request, so "reusable" means the same thing on both sides of that
+    # fetch/read split.
+    local_pbf = extract_fetch.find_reusable_extract(region.bbox, cache_dir)
+    if local_pbf is not None:
+        log.info("ensure_graph key=%s bbox=%s nt=%s source=local_clip clip=%s",
+                 region.key, region.bbox, region.network_type, local_pbf)
+        started = time.monotonic()
+        graph = _build_region_graph_from_pbf(region, local_pbf)
+        if graph.number_of_nodes() == 0:
+            # A true answer about this bbox/mode (issue #248's contract,
+            # extended to the local transport) — no fallback to Overpass:
+            # the clip already covers this exact bbox, so a second transport
+            # would only re-ask the same question of the same data.
+            log.info(
+                "ensure_graph key=%s source=local_clip: empty result — "
+                "answer about the bbox, not retried", region.key)
+            raise NoRoutableWaysError(
+                "The drawn area has no routable ways for this mode. Try "
+                "a larger area or a different mode."
+            )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        ox.io.save_graphml(graph, out_path)
+        log.info(
+            "ensure_graph key=%s source=local_clip OK: %d nodes, %d edges, "
+            "%.1fs total", region.key, graph.number_of_nodes(),
+            graph.number_of_edges(), time.monotonic() - started)
         return out_path
 
     endpoints = tuple(endpoints) if endpoints is not None else overpass_endpoints()

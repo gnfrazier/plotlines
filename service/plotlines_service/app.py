@@ -1413,7 +1413,10 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
     # Kept for backward compatibility with callers that predate the registry;
     # `/candidates` itself now goes through `app.state.layer_registry` so a
     # single failing layer never aborts the whole extraction (story N2).
-    app.state.layer_provider = OsmLayerProvider()
+    # `cache_layout` wired through for the same reason it is below (issue
+    # #275) — this instance reads the same on-disk mirror clip, when one is
+    # cached, rather than always calling Overpass.
+    app.state.layer_provider = OsmLayerProvider(cache_layout=CacheLayout(cache_dir))
 
     @app.get("/candidates")
     def candidates_extract(west: float, south: float, east: float, north: float,

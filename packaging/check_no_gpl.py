@@ -1,6 +1,11 @@
-"""SPIKE-J (#266) — assert-the-absence check for the addendum's non-negotiable
-acceptance criterion (2a / L1): *no GPL-licensed binary in the shipped
-artifact*. A build failure, not a memory — see the issue body.
+"""Assert-the-absence check for addendum L1 / SPIKE-J's acceptance criterion
+2a: *no GPL-licensed binary in the shipped artifact*. A build failure, not a
+memory. Promoted out of `spikes/SPIKE-J/check_no_gpl.py` (issue #266) into
+`packaging/build_sidecar.sh`'s own packaging step by issue #275 (Phase 3.3 of
+epic #272) — the freeze SPIKE-J measured (pyosmium moving from the
+`mirror-clip` extra into a base dependency, PARITY on all four targets) is
+now the real one, so this check runs on every real freeze rather than only
+the spike's probe build.
 
 Two independent checks, because "no GPL dependency" and "no GPL-tool binary"
 fail differently:
@@ -14,7 +19,7 @@ fail differently:
    venv is the ground truth for what got linked.
 2. **The frozen artifact tree** is scanned for a binary literally named
    `osmium` (or `osmium.exe`) — the GPL-3.0 `osmium-tool` CLI addendum L1
-   names by name. pyosmium (this spike's dependency) ships no such binary;
+   names by name. pyosmium (this project's dependency) ships no such binary;
    finding one would mean something pulled the CLI in transitively.
 
 Exit 0 and print a summary on a clean pass; exit 1 and name the offender
@@ -43,8 +48,7 @@ LGPL_MARKERS = ("LGPL", "GNU LESSER")
 # is GPL-2.0-or-later, and scanning the venv naively flags it on every build
 # this project has ever done. Its actual on-disk footprint in a frozen build
 # is the compiled bootloader stub under the GPL's own bootloader exception —
-# the load-bearing exception issue #267 already names and treats as settled,
-# not something SPIKE-J re-litigates.
+# the load-bearing exception issue #267 already names and treats as settled.
 BUILD_TOOLCHAIN_ONLY = {
     "pyinstaller", "pyinstaller-hooks-contrib", "altgraph", "macholib",
     "pefile", "pywin32-ctypes", "setuptools", "pip", "wheel",
@@ -98,7 +102,7 @@ def scan_venv(venv_site_packages: Path) -> tuple[list[str], list[str]]:
 def scan_binary_tree(dist_dir: Path) -> list[str]:
     """Only a *file* literally named `osmium`/`osmium-tool` is the CLI binary
     addendum L1 means. pyosmium's own package directory is also named
-    `osmium/` (it holds `_osmium*.so`, the compiled extension this spike
+    `osmium/` (it holds `_osmium*.so`, the compiled extension this project
     actually ships) — matching directories would flag every pyosmium build
     that ever passes, which is not a finding."""
     hits = []
@@ -110,7 +114,7 @@ def scan_binary_tree(dist_dir: Path) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--venv", required=True, help="build venv root")
-    parser.add_argument("--dist", required=True, help="frozen onedir tree root")
+    parser.add_argument("--dist", required=True, help="frozen artifact tree root")
     args = parser.parse_args()
 
     venv = Path(args.venv)

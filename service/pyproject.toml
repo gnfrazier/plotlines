@@ -7,19 +7,21 @@ dependencies = [
     "plotlines-core",
     "fastapi",
     "uvicorn",
-]
-
-[project.optional-dependencies]
-# Issue #262 (epic #264 Phase 1.8, review §6.7, addendum L1): pyosmium is
-# BSD-2-Clause, never the GPL-3 `osmium` CLI. Kept out of the base
-# `dependencies` above — and therefore out of `packaging/build_sidecar.sh`'s
-# frozen sidecar, since nothing there imports `mirror_clip.py`. SPIKE-J
-# (#266, 2026-09-15) measured that pyosmium *does* survive a PyInstaller
-# freeze on all four client targets at +3.4–4.5 MB, so this is no longer
-# the reason; it stays an extra until Phase 3 (#272) gives the sidecar
-# something that imports it. Today this extra is installed only in
-# `Dockerfile.mirror-clip`'s image, which is the one place this code runs.
-mirror-clip = [
+    # Issue #262 (epic #264 Phase 1.8, review §6.7, addendum L1) added
+    # pyosmium behind the `mirror-clip` extra, specifically kept out of
+    # `packaging/build_sidecar.sh`'s frozen sidecar until SPIKE-J (#266,
+    # 2026-09-15) measured whether it would survive that freeze — it does,
+    # PARITY on all four client targets at +3.4-4.5 MB (well inside A5's
+    # budget). Issue #275 (Phase 3.3) is what gives the sidecar something
+    # that imports it: `mirror_clip.py` always did, and now
+    # `plotlines_core.graph.pbf_source` / `plotlines_core.curation.providers`
+    # do too (declared again there, since `core` is what actually imports
+    # `osmium`, not `service`) — so this is a base dependency, not an extra,
+    # and `packaging/build_sidecar.sh` collects it like every other native
+    # dependency in `COLLECT_DATA`/`COLLECT_SUBMODULES`/`COPY_METADATA`.
+    # BSD-2-Clause, never the GPL-3 `osmium` CLI (addendum L1) —
+    # `packaging/check_no_gpl.py` (promoted from `spikes/SPIKE-J/`) asserts
+    # that mechanically as part of every freeze.
     "osmium>=4.3,<5",
 ]
 
@@ -44,9 +46,6 @@ dev = [
     # stubs `uvicorn.Server`), so workers do not share state; the suite is
     # CPU-bound on the route solves and splits cleanly.
     "pytest-xdist>=3.6",
-    # Exercises mirror_clip.py's real pyosmium behaviour in tests — see the
-    # mirror-clip extra above for why this isn't a base dependency.
-    "osmium>=4.3,<5",
 ]
 
 [tool.hatch.build.targets.wheel]

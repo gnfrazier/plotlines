@@ -213,20 +213,45 @@ class CandidateFetchUnavailable(RuntimeError):
 
 
 class OsmLayerProvider:
-    """The batched Overpass extraction engine for the six built-in OSM
-    layers. One network call answers every layer asked for in the same
-    `fetch`, so this is *not* one-provider-per-layer — `BuiltinOsmLayerProvider`
-    below wraps it to satisfy §14.2's per-layer `LayerProvider` shape while
-    the six siblings still share one round trip (`SharedOsmFetch`).
+    """The batched OSM extraction engine for the six built-in layers. One
+    call answers every layer asked for in the same `fetch`, so this is *not*
+    one-provider-per-layer — `BuiltinOsmLayerProvider` below wraps it to
+    satisfy §14.2's per-layer `LayerProvider` shape while the six siblings
+    still share one round trip (`SharedOsmFetch`).
 
     `.licence` stays a bare `"ODbL"` string here for backward compatibility
     with callers that predate the reconciliation; `OSM_LICENCE` is the
     `LayerLicence` the registry path uses.
+
+    **Issue #275 (Phase 3.3) — `cache_layout`.** When given, `fetch` first
+    looks for an already-fetched mirror clip covering `bbox`
+    (`graph.extract_fetch.find_reusable_extract` against
+    `cache_layout.root` — the same file `graph.extract_fetch.ensure_extract`,
+    issue #274, wrote, and the one `graph.regions.ensure_graph` also reads:
+    one clip fetch, two readers, never two fetches for one bbox) and, when
+    found, reads candidates from it with no network call at all. With no
+    `cache_layout`, or no clip yet cached for this bbox, `fetch` falls back
+    to the pre-#275 live Overpass call below, unchanged.
     """
 
     licence = "ODbL"
 
+    def __init__(self, cache_layout: "CacheLayout | None" = None) -> None:
+        self._cache_layout = cache_layout
+
     def fetch(self, bbox: BBox, layers: set[str]) -> list[RawFeature]:
+        tags = osm_tags_for(layers)
+        if not tags:
+            return []
+
+        if self._cache_layout is not None:
+            from ..graph.extract_fetch import find_reusable_extract
+
+            bbox_tuple = (bbox.west, bbox.south, bbox.east, bbox.north)
+            clip_path = find_reusable_extract(bbox_tuple, self._cache_layout.root)
+            if clip_path is not None:
+                return self._fetch_from_local_clip(clip_path, bbox_tuple, tags)
+
         import osmnx as ox
         import requests
 
@@ -238,9 +263,6 @@ class OsmLayerProvider:
         # without importing `graph.regions`.
         apply_osm_http_identity()
 
-        tags = osm_tags_for(layers)
-        if not tags:
-            return []
         # Issue #244 / licensing addendum G1: `overpass_url` and
         # `overpass_rate_limit` are process-global and `graph/regions.py`
         # drives them per endpoint during a routing-graph failover. Hold
@@ -277,6 +299,61 @@ class OsmLayerProvider:
                     "the map-data service didn't answer for this layer — "
                     "try again in a moment, or narrow the trip area."
                 ) from exc
+        return [f for f in self._features_from_gdf(gdf) if f is not None]
+
+    def _fetch_from_local_clip(
+        self, clip_path: "Path", bbox_tuple: tuple[float, float, float, float],
+        tags: dict,
+    ) -> list[RawFeature]:
+        """Issue #275: candidates from an already-clipped `.osm.pbf`, no
+        network call. `clip_path` is converted to OSM XML (one pyosmium copy
+        pass — `osmnx.features_from_xml` reads only that format, not `.pbf`
+        directly) and handed to `osmnx.features_from_xml(..., polygon=...,
+        tags=...)`, which calls the exact same internal `_create_gdf(...)`
+        `features_from_bbox` calls for a live Overpass query — so the tag
+        filter and the bbox-polygon clip behave identically to the transport
+        this replaces, the same "swap the download, keep osmnx's own
+        pipeline" discipline `graph.pbf_source` uses for the routing graph.
+        """
+        import os
+        import tempfile
+        from pathlib import Path
+
+        import osmium
+        import osmnx as ox
+        from osmnx import utils_geo
+
+        class _Copier(osmium.SimpleHandler):
+            def __init__(self, writer) -> None:
+                super().__init__()
+                self._writer = writer
+
+            def node(self, n) -> None:
+                self._writer.add_node(n)
+
+            def way(self, w) -> None:
+                self._writer.add_way(w)
+
+            def relation(self, r) -> None:
+                self._writer.add_relation(r)
+
+        fd, xml_name = tempfile.mkstemp(suffix=".osm")
+        os.close(fd)
+        xml_path = Path(xml_name)
+        xml_path.unlink()  # osmium refuses to write over an existing file
+        try:
+            with osmium.SimpleWriter(str(xml_path)) as writer:
+                _Copier(writer).apply_file(str(clip_path), locations=True)
+            polygon = utils_geo.bbox_to_poly(bbox_tuple)
+            try:
+                gdf = ox.features_from_xml(str(xml_path), polygon=polygon, tags=tags)
+            except ox._errors.InsufficientResponseError:
+                # No feature in the clip matches `tags` — a true answer about
+                # this bbox/layer, not an outage, exactly like the Overpass
+                # branch's own `InsufficientResponseError` handling above.
+                return []
+        finally:
+            xml_path.unlink(missing_ok=True)
         return [f for f in self._features_from_gdf(gdf) if f is not None]
 
     @staticmethod
@@ -358,7 +435,12 @@ class SharedOsmFetch:
 
     def __init__(self, engine: "OsmLayerProvider | None" = None, *,
                  cache_layout: "CacheLayout | None" = None) -> None:
-        self._engine = engine or OsmLayerProvider()
+        # Issue #275: the default engine gets the same `cache_layout` this
+        # `SharedOsmFetch` was given, so `OsmLayerProvider.fetch` can find the
+        # mirror clip `graph.extract_fetch.ensure_extract` cached for this
+        # bbox at `cache_layout.root` — the L2 tier below caches the *scored*
+        # candidates; this is what lets the *raw* fetch skip Overpass too.
+        self._engine = engine or OsmLayerProvider(cache_layout=cache_layout)
         self._cache: dict[tuple[float, float, float, float], list[RawFeature]] = {}
         self._disk = cache_layout
 
