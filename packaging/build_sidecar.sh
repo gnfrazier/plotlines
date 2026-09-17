@@ -48,9 +48,18 @@ WORK="${PLOTLINES_BUILD_WORK:-$ROOT/packaging/build}"
 # rasterio and pyproj load Cython submodules dynamically — static analysis misses
 # them (rasterio.serde was the first crash). osmnx reads its own dist metadata at
 # import time, so the .dist-info must ship too.
-COLLECT_DATA=(rasterio pyproj osmnx)
-COLLECT_SUBMODULES=(rasterio pyproj)
-COPY_METADATA=(osmnx click attrs pydantic)
+#
+# osmium (issue #275, Phase 3.3 of epic #272) moved out of service/pyproject
+# .toml's `mirror-clip` extra into a base dependency once SPIKE-J (#266)
+# measured it safe to freeze — PARITY on all four targets at +3.4-4.5 MB. Its
+# compiled extension (libosmium/protozero statically linked in, expat + zlib
+# dynamically) is exactly the class of dependency SPIKE-00 §6 says to treat as
+# guilty until a fresh build proves otherwise, so it gets the same
+# collect-data/collect-submodules/copy-metadata treatment as rasterio/pyproj —
+# these three entries are `spikes/SPIKE-J/build_probe.sh`'s own, unchanged.
+COLLECT_DATA=(rasterio pyproj osmnx osmium)
+COLLECT_SUBMODULES=(rasterio pyproj osmium)
+COPY_METADATA=(osmnx click attrs pydantic osmium)
 
 # pyogrio vendors a SECOND complete GDAL build alongside rasterio's — 87 MB of pure
 # duplication (25% of the unstripped tree). Nothing on the sidecar's path uses it:
@@ -100,7 +109,9 @@ case "$TARGET" in
     for p in "${COLLECT_SUBMODULES[@]}"; do args+=(--collect-submodules "$p"); done
     for p in "${COPY_METADATA[@]}";      do args+=(--copy-metadata "$p"); done
     for p in "${EXCLUDE[@]}";            do args+=(--exclude-module "$p"); done
-    exec "$VENV_BIN/pyinstaller$EXE" "${args[@]}" "$ENTRY"
+    # Not `exec` — the no-GPL-binary gate below (issue #275, addendum 2a/L1)
+    # has to run after the freeze completes, in this same process.
+    "$VENV_BIN/pyinstaller$EXE" "${args[@]}" "$ENTRY"
     ;;
   nuitka)
     # Nuitka standalone shells out to patchelf for ELF builds. The PyPI wheel
@@ -128,3 +139,14 @@ case "$TARGET" in
   *)
     echo "unknown target: $TARGET" >&2; exit 2 ;;
 esac
+
+# No GPL-licensed binary anywhere in the shipped artifact (issue #275,
+# addendum 2a/L1) — mechanical, not remembered: this is what
+# `spikes/SPIKE-J/check_no_gpl.py` proved out before osmium moved into the
+# real freeze above, promoted here to `packaging/check_no_gpl.py` so every
+# freeze runs it, not just the spike's probe build. `$DIST` covers both
+# PyInstaller layouts (`plotlines-sidecar/` for onedir, the bare executable
+# for onefile — the binary-tree scan finds nothing to flag either way,
+# correctly, since neither ships a file literally named `osmium`) and
+# nuitka's standalone tree.
+"$VENV_BIN/python$EXE" "$ROOT/packaging/check_no_gpl.py" --venv "$VENV" --dist "$DIST"

@@ -13,12 +13,46 @@ import threading
 import time
 
 import networkx as nx
+import osmium
 import osmnx as ox
 import pytest
+from osmium.osm import mutable
 
+from plotlines_core.cache_layout import CacheLayout
 from plotlines_core.graph import regions
 
 _BBOX = (-105.30, 39.99, -105.25, 40.03)  # SPIKE-00's Boulder fixture bbox
+
+# Issue #275 (Phase 3.3) — the local-clip fixtures below use their own bbox
+# rather than `_BBOX`, so a clip seeded for one test can never be picked up
+# by an Overpass-path test that also uses `_BBOX` and a fresh `tmp_path`.
+_CLIP_BBOX = (-105.31, 39.99, -105.27, 40.03)
+_CLIP_PIN = "2026-09-01"
+
+
+def _clip_node(id_: int, lon: float, lat: float, tags: dict[str, str] | None = None):
+    return mutable.Node(id=id_, location=(lon, lat), tags=tags or {})
+
+
+def _clip_way(id_: int, node_ids: list[int], tags: dict[str, str] | None = None):
+    return mutable.Way(id=id_, nodes=node_ids, tags=tags or {})
+
+
+def _write_clip(cache_dir, *, nodes=(), ways=(), bbox=_CLIP_BBOX, pin=_CLIP_PIN):
+    """A tiny, fully synthetic `.osm.pbf` at exactly the on-disk location
+    `graph.extract_fetch.ensure_extract` (issue #274) would have written it
+    to — same fixture-building discipline as
+    `service/tests/mirror_clip_fixtures.py::write_pbf`, kept local here since
+    `core/tests` cannot import from `service/tests`."""
+    path = CacheLayout(cache_dir).osm_extract(bbox, pin)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with osmium.SimpleWriter(str(path)) as writer:
+        for n in nodes:
+            writer.add_node(n)
+        for w in ways:
+            writer.add_way(w)
+    return path
+
 
 #: The real connect probe, captured before the autouse stub below replaces the
 #: module attribute — the probe's own unit tests call this directly.
@@ -1000,3 +1034,138 @@ def test_probe_endpoint_ignores_an_endpoint_with_no_host():
     # A malformed `PLOTLINES_OVERPASS_ENDPOINTS` entry is left for osmnx to
     # reject rather than being failed by the probe.
     assert _REAL_PROBE_ENDPOINT("not-a-url") is None
+
+
+# --------------------------------------------------------------------------
+# Issue #275 (Phase 3.3) — building the graph from a local mirror clip
+# --------------------------------------------------------------------------
+
+
+def test_ensure_graph_builds_from_a_local_clip_with_overpass_blocked(tmp_path, monkeypatch):
+    """Acceptance: with the public Overpass endpoints blocked at the
+    firewall, a region graph still builds — because a clip already on disk
+    (issue #274's `extract_fetch.ensure_extract`) means `ensure_graph` never
+    calls Overpass at all."""
+    def _blocked(*_a, **_k):
+        raise AssertionError("ensure_graph must not touch Overpass when a local clip is cached")
+    monkeypatch.setattr(ox, "graph_from_bbox", _blocked)
+
+    _write_clip(
+        tmp_path,
+        nodes=[_clip_node(1, -105.29, 40.00), _clip_node(2, -105.28, 40.01),
+               _clip_node(3, -105.27, 40.02)],
+        ways=[_clip_way(10, [1, 2, 3], {"highway": "residential"})],
+    )
+
+    region = regions.region_for(_CLIP_BBOX, "bike")
+    path = regions.ensure_graph(region, tmp_path)
+
+    assert path == region.graph_path(tmp_path)
+    reloaded = ox.io.load_graphml(path)
+    assert reloaded.number_of_edges() > 0
+
+
+def test_ensure_graph_local_clip_is_cached_like_the_overpass_path(tmp_path, monkeypatch):
+    calls = {"n": 0}
+
+    def _counting_blocked(*_a, **_k):
+        calls["n"] += 1
+        raise AssertionError("must not touch Overpass on a second call either")
+    monkeypatch.setattr(ox, "graph_from_bbox", _counting_blocked)
+
+    _write_clip(
+        tmp_path,
+        nodes=[_clip_node(1, -105.29, 40.00), _clip_node(2, -105.28, 40.01)],
+        ways=[_clip_way(10, [1, 2], {"highway": "residential"})],
+    )
+
+    region = regions.region_for(_CLIP_BBOX, "bike")
+    first = regions.ensure_graph(region, tmp_path)
+    second = regions.ensure_graph(region, tmp_path)
+
+    assert first == second
+    assert calls["n"] == 0
+
+
+def test_ensure_graph_local_clip_empty_result_raises_no_routable_ways(tmp_path, monkeypatch):
+    def _blocked(*_a, **_k):
+        raise AssertionError("must not fall through to Overpass on an empty local result")
+    monkeypatch.setattr(ox, "graph_from_bbox", _blocked)
+
+    # A single tagged node and no ways at all — nothing for `bike` to match.
+    _write_clip(tmp_path, nodes=[_clip_node(1, -105.29, 40.00, {"amenity": "bench"})])
+
+    region = regions.region_for(_CLIP_BBOX, "bike")
+    with pytest.raises(regions.NoRoutableWaysError):
+        regions.ensure_graph(region, tmp_path)
+
+
+def test_ensure_graph_local_clip_keeps_a_way_tag_and_folds_a_barrier(tmp_path, monkeypatch):
+    """Acceptance: `PLOTLINES_WAY_TAGS` and the node `barrier` tag survive
+    the local-clip transport, asserted end to end (build -> simplify -> fold
+    -> graphml round-trip) — the #206 class of defect, on the new transport."""
+    def _blocked(*_a, **_k):
+        raise AssertionError("must not touch Overpass with a clip cached")
+    monkeypatch.setattr(ox, "graph_from_bbox", _blocked)
+
+    _write_clip(
+        tmp_path,
+        nodes=[
+            _clip_node(1, -105.29, 40.00),
+            _clip_node(2, -105.28, 40.01, {"barrier": "gate"}),
+            _clip_node(3, -105.27, 40.02),
+        ],
+        ways=[_clip_way(10, [1, 2, 3], {"highway": "residential", "surface": "gravel"})],
+    )
+
+    region = regions.region_for(_CLIP_BBOX, "bike")
+    path = regions.ensure_graph(region, tmp_path)
+    reloaded = ox.io.load_graphml(path)
+
+    edges = [data for *_uv, data in reloaded.edges(data=True)]
+    assert any(d.get("surface") == "gravel" for d in edges)
+    assert any(d.get("barrier") for d in edges), \
+        "the gate node's tag was not folded onto an edge"
+
+
+def test_ensure_graph_local_clip_reproduces_drives_track_and_service_exclusion(
+    tmp_path, monkeypatch,
+):
+    """SPIKE-E's known `drive` defect (dropping `highway=track`/`service`
+    before a way reaches the graph) must be reproduced by the local-clip
+    transport, not accidentally fixed — parity with a known defect is
+    parity; fixing it is issue #171's to own, not #275's."""
+    def _blocked(*_a, **_k):
+        raise AssertionError("must not touch Overpass with a clip cached")
+    monkeypatch.setattr(ox, "graph_from_bbox", _blocked)
+
+    _write_clip(
+        tmp_path,
+        nodes=[_clip_node(n, -105.30 + n * 0.001, 40.00) for n in range(1, 5)],
+        ways=[
+            _clip_way(10, [1, 2], {"highway": "residential"}),
+            _clip_way(11, [3, 4], {"highway": "track"}),
+        ],
+    )
+
+    region = regions.region_for(_CLIP_BBOX, "drive")
+    path = regions.ensure_graph(region, tmp_path)
+    reloaded = ox.io.load_graphml(path)
+
+    highways = {data.get("highway") for *_uv, data in reloaded.edges(data=True)}
+    assert "residential" in highways
+    assert "track" not in highways
+
+
+def test_ensure_graph_falls_back_to_overpass_when_no_local_clip_is_cached(tmp_path, monkeypatch):
+    """No mirror configured, or this bbox has not been fetched yet — the
+    pre-#275 Overpass transport still runs, unchanged: Phase 3 is additive
+    for the length of the acquisition migration, not a hard cutover."""
+    monkeypatch.setattr(ox, "graph_from_bbox", _fake_graph)
+    monkeypatch.setattr(ox, "simplify_graph", lambda g, **_: g)
+    monkeypatch.setattr(ox.truncate, "largest_component", lambda g, **_: g)
+
+    region = regions.region_for(_BBOX, "bike")
+    path = regions.ensure_graph(region, tmp_path)
+
+    assert path.exists()

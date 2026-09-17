@@ -63,16 +63,21 @@ def test_mirror_clip_service_publishes_no_host_port() -> None:
     assert "ports:" not in clip_block
 
 
-def test_dockerfile_installs_pyosmium_extra_never_the_gpl_cli() -> None:
-    # Addendum L1: pyosmium (BSD-2-Clause) via the `mirror-clip` extra,
-    # never `osmium-tool` (GPL-3.0) via apt or pip.
+def test_dockerfile_installs_pyosmium_never_the_gpl_cli() -> None:
+    # Addendum L1: pyosmium (BSD-2-Clause), never `osmium-tool` (GPL-3.0) via
+    # apt or pip. Issue #275 (Phase 3.3) moved `osmium` out of the
+    # `mirror-clip` extra this test used to name into `service/pyproject
+    # .toml`'s base `dependencies` (SPIKE-J, #266, measured it safe to ship
+    # in the frozen sidecar too) — a plain `uv sync` now installs it, so the
+    # extra flag this asserted on is gone by design, not a regression.
     #
     # This used to also assert `"apt-get" not in _DOCKERFILE_CONFIG`, as a
     # proxy for "no osmium-tool". That proxy was wrong in both directions:
     # it never actually constrained what apt installed, and it forbade the
     # one apt package the image genuinely needs (#369). The real invariant
     # is the package name, so assert that directly.
-    assert "--extra mirror-clip" in _DOCKERFILE_CONFIG
+    assert "uv sync" in _DOCKERFILE_CONFIG
+    assert "--extra mirror-clip" not in _DOCKERFILE_CONFIG
     assert "osmium-tool" not in _DOCKERFILE_CONFIG
 
 

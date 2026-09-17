@@ -76,7 +76,10 @@ jobs:
       - name: Assert no GPL-licensed binary (addendum 2a / L1)
         shell: bash
         run: |
-          "$VENV_PY" spikes/SPIKE-J/check_no_gpl.py \
+          # Promoted to packaging/check_no_gpl.py by issue #275 — the same
+          # script build_sidecar.sh now runs on every real freeze, pointed
+          # here at this spike's probe build instead.
+          "$VENV_PY" packaging/check_no_gpl.py \
             --venv .venv \
             --dist spikes/SPIKE-J/dist/probe/plotlines-spike-j-probe
 

@@ -6,15 +6,37 @@ same split `graph/loader.py` uses to keep geometry math independently
 testable from the disk/network read that feeds it.
 """
 
+import osmium
 import osmnx as ox
 import pytest
 import requests
+from osmium.osm import mutable
 from shapely.geometry import Point, Polygon
 
+from plotlines_core.cache_layout import CacheLayout
 from plotlines_core.curation.providers import (
-    BBox, CandidateFetchUnavailable, OsmLayerProvider, feature_from_geometry,
-    osm_tags_for,
+    BBox, CandidateFetchUnavailable, OsmLayerProvider, SharedOsmFetch,
+    feature_from_geometry, osm_tags_for,
 )
+
+# Issue #275 (Phase 3.3) — local-clip fixtures, same discipline
+# `test_graph_regions.py` uses: a bbox distinct from the other tests' so a
+# clip seeded here can never be picked up by an unrelated Overpass-path test.
+_CLIP_BBOX = (-105.31, 39.99, -105.27, 40.03)
+_CLIP_PIN = "2026-09-01"
+
+
+def _write_clip(cache_dir, *, nodes=(), bbox=_CLIP_BBOX, pin=_CLIP_PIN):
+    path = CacheLayout(cache_dir).osm_extract(bbox, pin)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with osmium.SimpleWriter(str(path)) as writer:
+        for n in nodes:
+            writer.add_node(n)
+    return path
+
+
+def _clip_node(id_: int, lon: float, lat: float, tags: dict[str, str] | None = None):
+    return mutable.Node(id=id_, location=(lon, lat), tags=tags or {})
 
 
 def test_osm_tags_for_wildcard_layer_asks_for_the_whole_key():
@@ -145,3 +167,83 @@ def test_fetch_raises_candidate_fetch_unavailable_on_a_bad_response_status(monke
         OsmLayerProvider().fetch(BBox(0.0, 0.0, 0.01, 0.01), {"historic"})
     assert "502 Bad Gateway" not in str(excinfo.value)
     assert str(excinfo.value)
+
+
+# --------------------------------------------------------------------------
+# Issue #275 (Phase 3.3) — reading candidates from a local mirror clip
+# --------------------------------------------------------------------------
+
+
+def test_fetch_reads_from_a_local_clip_without_touching_overpass(tmp_path):
+    def _blocked(*_a, **_k):
+        raise AssertionError("fetch must not touch Overpass when a local clip is cached")
+
+    layout = CacheLayout(tmp_path)
+    _write_clip(
+        tmp_path,
+        nodes=[
+            _clip_node(1, -105.29, 40.00, {"natural": "peak", "name": "Test Peak"}),
+            _clip_node(2, -105.28, 40.01, {"amenity": "drinking_water"}),
+        ],
+    )
+
+    saved = ox.features_from_bbox
+    ox.features_from_bbox = _blocked
+    try:
+        provider = OsmLayerProvider(cache_layout=layout)
+        feats = provider.fetch(BBox(*_CLIP_BBOX), {"natural"})
+    finally:
+        ox.features_from_bbox = saved
+
+    assert len(feats) == 1
+    assert feats[0].tags["natural"] == "peak"
+    assert feats[0].tags["name"] == "Test Peak"
+
+
+def test_fetch_local_clip_empty_result_is_an_empty_list_not_an_error(tmp_path):
+    layout = CacheLayout(tmp_path)
+    _write_clip(tmp_path, nodes=[_clip_node(1, -105.29, 40.00, {"amenity": "bench"})])
+
+    provider = OsmLayerProvider(cache_layout=layout)
+    assert provider.fetch(BBox(*_CLIP_BBOX), {"natural"}) == []
+
+
+def test_fetch_falls_back_to_overpass_when_no_local_clip_is_cached(tmp_path, monkeypatch):
+    """A `cache_layout` with nothing fetched yet for this bbox — the
+    pre-#275 Overpass transport still runs, unchanged."""
+    import geopandas as gpd
+
+    seen: dict[str, bool] = {}
+
+    def fake_features_from_bbox(*_args, **_kwargs):
+        seen["called"] = True
+        return gpd.GeoDataFrame({"geometry": []})
+
+    monkeypatch.setattr(ox, "features_from_bbox", fake_features_from_bbox)
+
+    layout = CacheLayout(tmp_path)  # nothing written under layout.extracts_dir
+    provider = OsmLayerProvider(cache_layout=layout)
+    assert provider.fetch(BBox(*_CLIP_BBOX), {"natural"}) == []
+    assert seen.get("called") is True
+
+
+def test_shared_osm_fetch_default_engine_reads_the_cache_layout_it_was_given(tmp_path):
+    """`SharedOsmFetch()`'s default-constructed engine gets the same
+    `cache_layout` — this is what lets the registry path (`registry
+    .build_default_registry` -> `builtin_osm_providers`) read a mirror clip
+    with no extra wiring at the call site."""
+    def _blocked(*_a, **_k):
+        raise AssertionError("must not touch Overpass when a local clip is cached")
+
+    layout = CacheLayout(tmp_path)
+    _write_clip(tmp_path, nodes=[_clip_node(1, -105.29, 40.00, {"natural": "peak"})])
+
+    saved = ox.features_from_bbox
+    ox.features_from_bbox = _blocked
+    try:
+        shared = SharedOsmFetch(cache_layout=layout)
+        feats = shared.features_for(BBox(*_CLIP_BBOX), {"natural"})
+    finally:
+        ox.features_from_bbox = saved
+
+    assert len(feats) == 1

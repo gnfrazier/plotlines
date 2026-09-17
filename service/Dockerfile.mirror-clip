@@ -9,10 +9,12 @@
 #   docker build -f service/Dockerfile.mirror-clip -t plotlines-mirror-clip .
 #
 # pyosmium publishes manylinux wheels for x86_64 and aarch64 (confirmed
-# against 4.3.1, the version pinned in service/pyproject.toml's `mirror-clip`
-# extra), so this image needs no compiler and no libosmium apt install — but
-# it does need one runtime library, and getting that wrong builds cleanly and
-# then crash-loops (issue #369).
+# against 4.3.1, the version pinned in service/pyproject.toml's base
+# dependencies — issue #275/Phase 3.3 moved it there from the `mirror-clip`
+# extra this comment used to describe, once SPIKE-J measured it as safe to
+# ship in the frozen sidecar too), so this image needs no compiler and no
+# libosmium apt install — but it does need one runtime library, and getting
+# that wrong builds cleanly and then crash-loops (issue #369).
 #
 # A manylinux wheel vendors only what policy does *not* allowlist. Measured
 # against the 4.3.1 wheel (`objdump -p` on every .so in the package — they
@@ -30,11 +32,11 @@
 # never reached. Do not add libbz2/liblz4 alongside it: they are vendored in
 # the wheel, and installing them would assert a dependency that isn't real.
 #
-# No GPL-licensed binary anywhere in this image (addendum L1): the
-# `mirror-clip` extra installs `osmium` (pyosmium, BSD-2-Clause) only —
-# never `osmium-tool` (GPL-3.0), which is not installed here and not shelled
-# out to anywhere in plotlines_service/mirror_clip.py. libexpat1 is MIT and
-# does not disturb that posture.
+# No GPL-licensed binary anywhere in this image (addendum L1): the base
+# dependency set installs `osmium` (pyosmium, BSD-2-Clause) only — never
+# `osmium-tool` (GPL-3.0), which is not installed here and not shelled out to
+# anywhere in plotlines_service/mirror_clip.py. libexpat1 is MIT and does not
+# disturb that posture.
 FROM python:3.12-slim
 
 RUN apt-get update \
@@ -48,7 +50,7 @@ COPY core/ /app/core/
 COPY service/ /app/service/
 
 WORKDIR /app/service
-RUN uv sync --no-dev --extra mirror-clip
+RUN uv sync --no-dev
 
 # Single process, like Dockerfile.elevation-proxy: the clip's behaviour
 # under concurrent requests is exactly what §9 names as unmeasured, so this
