@@ -32,6 +32,7 @@ def build_provenance(
     fetched_at: str,
     sidecar_version: str | None = None,
     produced_by: str | None = None,
+    osm_source: str | None = None,
 ) -> Provenance:
     """Assemble the `Provenance` for a payload being written right now.
 
@@ -43,13 +44,18 @@ def build_provenance(
     exported cue sheet or FIT course now carries that credit itself
     rather than relying on the About screen alone.
 
-    `osm_source` is Phase 1's honest value
+    `osm_source` defaults to Phase 1's honest value
     (`graph.regions.overpass_source_pin`): Overpass has no versioned
     snapshot to pin to, so the closest honest analogue is the transport
     plus `fetched_at` — the caller's own clock read (the service passes
-    the trip's own `created_at`), which keeps this a pure mapping over
-    its arguments rather than a second clock of its own.
+    the trip's own `created_at`). Issue #277 (Phase 3.5): a caller that
+    knows which region actually built this trip's graph passes its own
+    pin explicitly (`graph.regions.graph_source_pin`) instead, in the
+    same `"<transport>:<id>"` shape — this function stays a pure mapping
+    over its arguments either way, never reaching into a cache or a clock
+    of its own to decide.
     """
+    osm_source = osm_source or overpass_source_pin(fetched_at)
     attribution = [
         Attribution(
             source=line["layer"],
@@ -63,6 +69,6 @@ def build_provenance(
         produced_by=produced_by or f"plotlines-core {app_version}",
         app_version=app_version,
         sidecar_version=sidecar_version,
-        osm_source=overpass_source_pin(fetched_at),
+        osm_source=osm_source,
         attribution=attribution,
     )

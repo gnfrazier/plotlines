@@ -35,4 +35,18 @@ void main() {
     expect(md, contains('_Individual itinerary — attended days only._'));
     expect(md, contains('_No days on this itinerary._'));
   });
+
+  test('issue #277: an attribution notice appends as a trailing section', () {
+    final itinerary = Itinerary(title: 'Blue Ridge Traverse', isIndividual: false, days: []);
+    final md = itineraryToMarkdown(itinerary,
+        attributionNotice: '© OpenStreetMap contributors\nOSM data snapshot: geofabrik:2026-09-01');
+    expect(md, contains('© OpenStreetMap contributors'));
+    expect(md, contains('OSM data snapshot: geofabrik:2026-09-01'));
+  });
+
+  test('issue #277: no attribution section at all when the notice is omitted', () {
+    final itinerary = Itinerary(title: 'Blue Ridge Traverse', isIndividual: false, days: []);
+    final md = itineraryToMarkdown(itinerary);
+    expect(md, isNot(contains('---')));
+  });
 }

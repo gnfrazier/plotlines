@@ -39,6 +39,28 @@ Reveal gate (punch-list §6A.2): an unrevealed narrative course point contribute
 **no `course_point` message and no name string** — the decision is applied before
 a byte is written, so the assertion is on the bytes. Hazards are never withheld
 (PRD §1.5).
+
+**Attribution placement (issue #277, Phase 3.5) — decided here, not left to
+the encoder's convenience.** This module's `MESG`/`FIELDS` sub-profile
+(`_fit_profile.py`) has exactly one free-text slot, `course.name`, already
+spent on the trip title and hard-capped at `FIT_NAME_BYTE_CEILING` (64
+bytes) by SPIKE-16 task 1 above. An ODbL/CC BY notice plus an OSM snapshot
+id does not fit in what's left of that budget, and addendum L7 item 3 is
+explicit that truncating a licence notice is worse than not shipping it
+in-band at all. So a FIT export's attribution and OSM-snapshot pin travel
+in a **sidecar text file placed beside the `.fit` bytes**, never squeezed
+into the course name or spent on a `developer_data`/`field_description`
+message pair this minimal, dependency-free writer does not otherwise carry
+(that machinery exists in the full FIT profile solely to describe custom
+numeric fields — a poor fit for a paragraph of licence text, and its own
+new source of encoder complexity for one string). `export_course_fit`
+returns that text as `FitExport.attribution_sidecar`; the caller (the
+still-unbuilt `Trip -> CourseExport` reduction, F3's remaining piece)
+decides the file name and writes it — this module does no file I/O of its
+own for either output. `attribution_notice` is `""` for a pre-#270 trip
+with no `Provenance` at all (item 4 of #277's acceptance): no sidecar
+line is fabricated, and no exception is raised — an old trip exports
+exactly as honestly as it always could.
 """
 
 from __future__ import annotations
@@ -59,6 +81,7 @@ from plotlines_core.export._fit_profile import (
     fit_time,
     semicircles,
 )
+from plotlines_core.trips.payload import Attribution
 
 #: `file_id.manufacturer`. `255` is FIT's "development / not a real manufacturer"
 #: id; head units accept it. Garmin issues manufacturer ids on request — swap
@@ -156,9 +179,31 @@ class FitExport:
     data: bytes
     withheld: tuple[str, ...] = ()        # course-point ids dropped by the reveal gate
     areas_dropped: tuple[str, ...] = ()   # area-anchor ids with no FIT representation
+    #: Issue #277 — the licence notice this export owes, placed beside the
+    #: `.fit` bytes rather than inside them (see this module's docstring).
+    #: `""` when there was nothing to say (no attribution, no OSM pin) —
+    #: never a fabricated line.
+    attribution_sidecar: str = ""
 
 
 # ------------------------------------------------------------------ helpers
+
+
+def attribution_notice(attribution: list[Attribution], osm_source: str | None) -> str:
+    """The full-text licence notice for a FIT export's sidecar file (issue
+    #277). One line per credit (`Attribution.credit`, with its terms URL
+    appended where one exists), then, when known, the OSM snapshot pin —
+    the machine-checkable value addendum L7 calls "a stronger §4.3 notice
+    than a bare credit". `""` when both inputs are empty (a pre-#270 trip
+    with no `Provenance` at all): a missing notice, not a fabricated one.
+    """
+    lines = [
+        f"{a.credit} ({a.url})" if a.url else a.credit
+        for a in attribution
+    ]
+    if osm_source:
+        lines.append(f"OSM data snapshot: {osm_source}")
+    return "\n".join(lines)
 
 def _is_revealed(*, reveal: str, hazard: bool) -> bool:
     """A course point's content reaches export only if its role's reveal policy
@@ -206,6 +251,8 @@ def export_course_fit(
     contents: ExportContents | None = None,
     name_cap: int = FIT_CUE_NAME_CAP,
     area_centroid_points: bool = False,
+    attribution: list[Attribution] | None = None,
+    osm_source: str | None = None,
 ) -> FitExport:
     """Encode `course` as a FIT course file.
 
@@ -214,6 +261,11 @@ def export_course_fit(
 
         file_id -> file_creator -> course -> event(start)
           -> [record ...] -> [course_point ...] -> lap -> event(stop)
+
+    `attribution`/`osm_source` (issue #277) never touch the FIT bytes
+    themselves — see this module's docstring for why — they only shape
+    `FitExport.attribution_sidecar`, the text the caller writes beside the
+    `.fit` file.
     """
     contents = contents or ExportContents()
     track = course.track
@@ -320,4 +372,5 @@ def export_course_fit(
         data=enc.getvalue(),
         withheld=tuple(withheld),
         areas_dropped=tuple(areas_dropped),
+        attribution_sidecar=attribution_notice(attribution or [], osm_source),
     )

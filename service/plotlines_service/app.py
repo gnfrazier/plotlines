@@ -712,6 +712,37 @@ class Readiness:
         with self._lock:
             return self.regions.get(key)
 
+    def osm_source_pin(self, *, fetched_at: str) -> str:
+        """Issue #277 (Phase 3.5) — the `Provenance.osm_source` value for a
+        trip finishing assembly right now (`POST /trips/split`).
+
+        `TripSplitRequest` carries no bbox of its own — `trips.compose.
+        split_trip` needs none by design, and a trip can be assembled with
+        no region ever built at all (a hand-authored trip with no OSM
+        routing). So this cannot look up "the" region a specific trip
+        routed against; instead it reports the most recently *finished*
+        region build in this sidecar session. D41 holds there is never a
+        second, different extent within one trip's own analysis, and an
+        Author desktop session works one trip's bbox at a time in the
+        overwhelming case, so "the region that finished building most
+        recently" is, in practice, the same region that trip was routed
+        against. Falls back to the Phase 1 Overpass pin
+        (`region_lib.overpass_source_pin`) when no region has ever finished
+        building in this process — never a placeholder (addendum L7 item 3).
+        """
+        with self._lock:
+            candidates = [
+                r for r in self.regions.values()
+                if r.graph_state.ready and r.last_attempt_finished_at is not None
+            ]
+        if not candidates:
+            return region_lib.overpass_source_pin(fetched_at)
+        latest = max(candidates, key=lambda r: r.last_attempt_finished_at)
+        region = region_lib.Region(
+            key=latest.key, bbox=latest.bbox, network_type=latest.network_type)
+        return region_lib.graph_source_pin(
+            region, self.cache_dir, fetched_at=fetched_at)
+
     def snapshot(self) -> list[tuple[str, "RegionState"]]:
         """A point-in-time `(key, region)` list, taken under the lock.
 
@@ -1963,6 +1994,11 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             app_version=VERSION,
             sidecar_version=VERSION if mode == "sidecar" else None,
             fetched_at=trip.created_at,
+            # Issue #277 — the mirror build id when a local clip actually
+            # produced the routing graph in this session; the Phase 1
+            # Overpass pin otherwise (`Readiness.osm_source_pin`'s own
+            # fallback).
+            osm_source=app.state.readiness.osm_source_pin(fetched_at=trip.created_at),
         )
         result = trip.to_dict()
         # C11 / FR27 / FR115 — the trip-wide hazard roll-up and the worst-first

@@ -225,6 +225,50 @@ def overpass_source_pin(fetched_at: str) -> str:
     return f"overpass:{fetched_at}"
 
 
+def geofabrik_source_pin(pin: str) -> str:
+    """Issue #277 (Phase 3.5) — the mirror-clip counterpart to
+    `overpass_source_pin`, same ``"<transport>:<id>"`` shape. `pin` is
+    `MIRROR_STATE.json`'s `geofabrik.pinned_date` verbatim — the exact
+    string carried on `/clip`'s `X-Plotlines-Clip-Source-Pin` header
+    (`service.plotlines_service.mirror_clip`) and used as the on-disk
+    directory name under `CacheLayout.extracts_dir`
+    (`graph.extract_fetch.fetch_extract`). This never re-reads
+    `MIRROR_STATE.json` itself: the pin `graph_source_pin` below passes in
+    is read off the very extract file `ensure_graph` built the graph from,
+    so "one format, two readers" (#260) holds by construction rather than
+    by the two sides agreeing to parse the same file the same way.
+    """
+    return f"geofabrik:{pin}"
+
+
+def _write_graph_source(region: Region, cache_dir: Path, source: dict) -> None:
+    region.graph_source_path(cache_dir).write_text(json.dumps(source))
+
+
+def graph_source_pin(region: Region, cache_dir: Path, *, fetched_at: str) -> str:
+    """Issue #277 — the honest `Provenance.osm_source` value for `region`'s
+    *cached* graph, read back from the sidecar `ensure_graph` wrote when it
+    actually built that file.
+
+    Falls back to `overpass_source_pin(fetched_at)` — Phase 1's value — both
+    when the sidecar records the Overpass transport and when no sidecar
+    exists at all (a graph cached before this issue, or a region that has
+    never been built). Either way a pre-#277 cache degrades to exactly the
+    honest value it would have gotten before this issue existed, never a
+    placeholder and never a guess at a pin that might not match the bytes on
+    disk (addendum L7 item 3's "a field that lies in the interim is worse
+    than the gap it fills").
+    """
+    try:
+        source = json.loads(region.graph_source_path(cache_dir).read_text())
+    except (OSError, ValueError):
+        return overpass_source_pin(fetched_at)
+    pin = source.get("pin")
+    if source.get("transport") == "geofabrik" and pin:
+        return geofabrik_source_pin(pin)
+    return overpass_source_pin(fetched_at)
+
+
 def overpass_endpoints() -> tuple[str, ...]:
     """The ordered Overpass endpoints `ensure_graph` tries. Env override
     `PLOTLINES_OVERPASS_ENDPOINTS` (comma-separated) replaces the built-in
@@ -407,6 +451,18 @@ class Region:
 
     def graph_path(self, cache_dir: Path) -> Path:
         return cache_dir / "regions" / self.key / "graph.graphml"
+
+    def graph_source_path(self, cache_dir: Path) -> Path:
+        """Sibling of `graph_path` — issue #277. Records which transport
+        actually produced the graph cached at that path (`{"transport":
+        "geofabrik", "pin": <mirror pin>}` or `{"transport": "overpass"}`),
+        written once by `ensure_graph` at the moment it builds the file. A
+        cache-hit `ensure_graph` call never touches this, so it always
+        reflects the transport that produced the bytes actually on disk —
+        never whatever transport happens to be available *now*, which could
+        have moved on since (a newer mirror pin, or a clip that only
+        appeared after this graph was built from Overpass)."""
+        return self.graph_path(cache_dir).with_name("source.json")
 
 
 def region_key(bbox: tuple[float, float, float, float], network_type: str = "bike",
@@ -626,6 +682,13 @@ def ensure_graph(
             )
         out_path.parent.mkdir(parents=True, exist_ok=True)
         ox.io.save_graphml(graph, out_path)
+        # Issue #277 — record which pin actually produced this graph. The
+        # extract's own on-disk location names it (`CacheLayout.osm_extract`
+        # files under `extracts_dir/<pin>/...`), so this reads the pin off
+        # the very file just built from rather than re-asking the mirror.
+        _write_graph_source(region, cache_dir, {
+            "transport": "geofabrik", "pin": local_pbf.parent.name,
+        })
         log.info(
             "ensure_graph key=%s source=local_clip OK: %d nodes, %d edges, "
             "%.1fs total", region.key, graph.number_of_nodes(),
@@ -716,6 +779,10 @@ def ensure_graph(
                 continue
             out_path.parent.mkdir(parents=True, exist_ok=True)
             ox.io.save_graphml(graph, out_path)
+            # Issue #277 — symmetric with the local-clip branch above, so a
+            # later `graph_source_pin` read never has to guess which
+            # transport built a given cached graph.
+            _write_graph_source(region, cache_dir, {"transport": "overpass"})
             log.info(
                 "ensure_graph key=%s endpoint=%s attempt=%d OK: %d nodes, "
                 "%d edges, %.1fs total", region.key, endpoint, attempt,

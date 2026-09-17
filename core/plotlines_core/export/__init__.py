@@ -12,6 +12,7 @@ from plotlines_core.export.fit import (
     ExportContents,
     FitExport,
     TrackPoint,
+    attribution_notice,
     export_course_fit,
     fit_cue_name,
 )
@@ -23,6 +24,7 @@ __all__ = [
     "ExportContents",
     "FitExport",
     "TrackPoint",
+    "attribution_notice",
     "export_course_fit",
     "fit_cue_name",
 ]
