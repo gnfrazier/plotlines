@@ -217,3 +217,23 @@ number to re-measure on a release build. Re-measure with `HARNESS.md`.*
   calibrated model, live harness specified.
 * **`Plotlines_MVP_Redirection_Punchlist.md`** — §2A.5 (Q15) and the #161 row:
   resolved; carry the density ceiling and the A16 restatement.
+
+---
+
+## Addendum — issue #276 (2026-09-17): candidate transport swap confirmed no-op
+
+§11.1's acquisition-review worry was that the OSM transport swap (Overpass →
+mirror-clipped `.osm.pbf`, epic #272) would invalidate this spike's density
+model and ~2,800-marker ceiling, since both are calibrated against candidate
+counts osmnx produced. Issue #276 checked this directly rather than by
+argument: `spikes/SPIKE-A/revalidate_clip_candidates.py` built the same
+three SPIKE-A regions' candidate sets two ways — the live-Overpass path and
+the #275 local-clip path (`OsmLayerProvider._fetch_from_local_clip`) — from
+identical fetched bytes, and found **zero** added, dropped, or changed
+candidates in every region
+(`spikes/SPIKE-A/results/REVALIDATION_276.md` §1).
+
+The ceiling and A16's ~1.15 GB figure are **restated unchanged**: they
+calibrate the rendering pipeline's capacity against candidate *density*, and
+the transport that determines that density is now measured, not assumed, to
+be unaffected.
