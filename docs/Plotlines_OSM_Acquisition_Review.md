@@ -396,6 +396,70 @@ Two constraints on it from day one:
 The clip's cost profile — CPU, disk IO, and behaviour under concurrency — is exactly what §9 says
 Phase 3 does *not* prove for free. Rehearsing it here is how that stops being a surprise.
 
+### 6.7a Offline bbox-edit posture — C confirmed, D rejected *(2026-09-17, issue #278)*
+
+SPIKE-I (#265) measured the one thing this section deferred: "Author edits the bbox on a
+mountain with no signal." The two halves of that question point opposite ways, and both are
+now numbers rather than a guess.
+
+**B9 — D's precondition is real.** Against the pre-registered ≥90% "C holds" band, a bbox
+edit distribution fixed before the run (shrink 0.5–0.95, nudge 0–25% of span, grow 1.05–2.0,
+equal weight) found only **38.2–48.2% servable** from the graph the client already holds
+(48.2% urban / 38.0% rural). Shrinks are fully servable (100%); nudges and grows are not
+(13–34% and 1–10%) because the held graph covers only the trip bbox plus osmnx's own ~500 m
+buffer — roughly 7% of a typical trip bbox's span. **So an Author editing the bbox offline
+hits an unservable edit more often than not**, and even a nominally "servable" shrink
+truncates an already-simplified, already-component-pruned graph rather than rebuilding one:
+measured 0.6–1.6% node divergence from a fresh build at the shrunk extent (boulder-bike
+6,371 vs. 6,409 nodes; viroqua-bike 1,491 vs. 1,516).
+
+**§3 rejects D as the answer to it.** D's mechanism is a client-pulled region extract,
+re-clipped locally when the bbox changes offline. The clip it would run is the same one
+measured server-side in §6.7/§3 above: **432–553 s wall time and 1.9–7.2 GB peak RSS on a
+Raspberry Pi 5** — hardware with more headroom than most client devices — with no
+predictable relationship between an extract's size and its memory cost, and a two-extract
+case that pushed the mirror's own process to ~7 GB before #376's fix inverted the merge
+order. Running that same operation on the client, offline, on weaker hardware, in the field,
+is not the "configuration decision later" §6.7 and the addendum's Q1 promised: it reopens
+**L1**'s native pyosmium dependency on every platform and un-freezes **#266**'s freeze
+matrix, for an operation that costs minutes and multiple gigabytes with no way to size it in
+advance from the inputs.
+
+**Decision: C stays as shipped. D is not taken.** Recorded as ARCH **D62**
+(`Plotlines_ARCHITECTURE_v2.md` §18/D-number table). The "D is a configuration decision
+later, not a rebuild" line in the addendum's Q1 section is corrected, not confirmed — it was
+true of *storing pinned extracts as static files*, which the mirror already does and which
+this decision does not touch, and false of *what a client would have to do with one offline*,
+which is the half SPIKE-I actually measured.
+
+**What an Author sees, offline, editing the bbox (FR120, FR121):**
+
+- **Nudging or growing** past the held graph's buffered coverage cannot be served offline —
+  the bytes to serve it do not exist on the device and D is not there to fetch them. This is
+  **already the shipped behaviour**: `RegionState`'s extract/graph capability (#274/#275)
+  reports `failed:<reason>` / not-ready when the mirror is unreachable, exactly FR121's
+  existing disabled-with-reason contract — never a silent failure on click, never a block on
+  the rest of the app. The still-covered portion of the trip — including every
+  already-promoted anchor — remains fully usable. No change is owed here.
+- **Shrinking is where C's offline story is worth improving, and the improvement is decided
+  but not yet built.** SPIKE-I measured that truncating the graph the client already holds
+  serves 100% of shrinks, at a small, disclosed cost (0.6–1.6% node divergence from a fresh
+  build for the new extent). **Decided target:** a shrink truncates the held graph
+  immediately rather than reporting not-ready, with routing/cue-sheet capabilities for the
+  shrunk trip marked **provisional** — the same "stated reason, honest progress" pattern
+  FR121 uses for not-ready, applied to "correct once reconnected" instead of "not yet
+  available" — until a real rebuild completes online. **Today**, before that mechanism is
+  built, a shrink offline behaves identically to a nudge or grow: an honest
+  `failed:<reason>` capability report, not a provisional graph. The truncation mechanism is
+  filed as **#432**. Independent of whether it is built yet, FR120's no-lost-anchor
+  guarantee is unconditional and does not bend for connectivity: any promoted anchor outside
+  the new bounds is shown to the Author, who keeps it (bbox unchanged), moves the bounds, or
+  removes it explicitly — never silently discarded.
+- **On reconnection**, the region-build path already shipped for FR91/FR120 runs for the new
+  extent precisely as it would for any bbox change online: no special-cased "resume," since a
+  bbox edit already means "re-run extraction and enrichment for the changed area" whether or
+  not a provisional graph existed in between.
+
 ### 6.8 Reachability: open or client-restricted *(1d)*
 
 Decide before the mirror is internet-reachable, not after. An open mirror is legal and makes us an
@@ -582,7 +646,7 @@ are the addendum's recommendations, adopted as written.
 
 | | Question | **Decision** | Consequence |
 |---|---|---|---|
-| **Q1** | Extract granularity | **C — mirror-side clip to the trip bbox**, with **D** (mirror states *and* serve clips) as the stated fallback if offline bbox-editing turns out to matter | The client never sees a region extract. Dissolves Q3, removes the client-side native dependency and the GPL question (L1). §6.7 |
+| **Q1** | Extract granularity | **C — mirror-side clip to the trip bbox**, confirmed as final. **D's fallback trigger fired (38–48% of offline bbox edits are unservable) but D itself was rejected on measurement** — the local re-clip it requires costs 432–553 s / 1.9–7.2 GB even server-side on a Raspberry Pi 5 | The client never sees a region extract. Dissolves Q3, removes the client-side native dependency and the GPL question (L1). §6.7, §6.7a, ARCH **D62** — SPIKE-I / #278, 2026-09-17 |
 | **Q2** | Pin cadence and ownership | **B — monthly pin, named owner, release-checklist gate**, with **C's monitoring built anyway** | `MIRROR_STATE.json` + mirror age on the sidecar's per-layer `/health`. §6.6 |
 | **Q3** | Where the covering-set merge happens | **Dissolved by Q1-C** — there is no covering set and no merge | The way-deduplicating merge never lands on the client, which was the plan's hardest correctness surface (§11.7) |
 | **Q4** | ODbL redistribution sign-off | **A — write `docs/Plotlines_Licensing_Position.md`**, decide against the OSMF community guidelines, record as an ARCH D-number | Filed as **#253**, in **Phase 0** — not a Phase 3 gate, because share-alike is already implicated by today's sharing surfaces (addendum L2) |
@@ -672,8 +736,15 @@ it unnecessary to check.
 24a. Re-validate the osmnx-era calibrations — SPIKE-A's golden candidate sets, SPIKE-G's density
     model and its ~2,800-marker ceiling, the scoring weights, SPIKE-21's cue derivation. §11.1 says
     to budget for this; a node-count assertion does not catch it. *(§11.1 — filed as #276)*
-24b. Decide the offline bbox-edit posture on SPIKE-I's evidence: accept Q1-C as shipped, or take
-    Q1's **D** fallback. Shaped as fix-or-record, like #250. *(§6.7, Q1 — filed as #278)*
+24b. ~~Decide the offline bbox-edit posture on SPIKE-I's evidence: accept Q1-C as shipped, or take
+    Q1's **D** fallback.~~ **Decided 2026-09-17: C confirmed, D rejected on measurement** — D's
+    trigger fired (38–48% of offline edits unservable) but its mechanism costs 432–553 s /
+    1.9–7.2 GB even server-side on the Pi mirror; taking it client-side would reopen L1 and
+    #266's freeze matrix for no offline win. Recorded as ARCH **D62** and §6.7a's offline
+    bbox-edit spec: nudge/grow already disable with reason via #274/#275's shipped capability
+    reporting; a shrink's provisional-graph improvement is the decided target, filed as **#432**,
+    not yet built. FR120's no-lost-anchor guarantee holds unconditionally either way.
+    *(§6.7a, Q1 — #278)*
 
 **Then — Phase 5, the policy gate** *(epic #283)*
 
