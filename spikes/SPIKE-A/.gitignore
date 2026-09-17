@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+
+# Issue #276 — synthetic .osm.pbf built from a live Overpass response, used
+# only to drive OsmLayerProvider._fetch_from_local_clip for comparison.
+# Regenerable by revalidate_clip_candidates.py; results/revalidation_276.json
+# holds every number that was measured from it, so nothing here is needed to
+# reproduce the write-up.
+scratch_clip_revalidation/

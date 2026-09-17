@@ -1,0 +1,80 @@
+[
+  {
+    "region": "avl",
+    "name": "Asheville & the French Broad, NC",
+    "raw_elements_fetched": 36992,
+    "current_ruleset_version": "1.3.0",
+    "golden_ruleset_version": "1.2.0",
+    "path_o_candidates": 796,
+    "path_t_candidates": 796,
+    "golden_candidates": 715,
+    "transport_delta_O_vs_T": {
+      "a_count": 796,
+      "b_count": 796,
+      "added": [],
+      "dropped": [],
+      "changed": [],
+      "exact": true
+    },
+    "drift_golden_vs_O": {
+      "a_count": 715,
+      "b_count": 796,
+      "added": 81,
+      "dropped": 0,
+      "changed": 0,
+      "exact": false
+    }
+  },
+  {
+    "region": "lwr",
+    "name": "Lower Wisconsin Riverway (Spring Green - Sauk City)",
+    "raw_elements_fetched": 10488,
+    "current_ruleset_version": "1.3.0",
+    "golden_ruleset_version": "1.2.0",
+    "path_o_candidates": 76,
+    "path_t_candidates": 76,
+    "golden_candidates": 72,
+    "transport_delta_O_vs_T": {
+      "a_count": 76,
+      "b_count": 76,
+      "added": [],
+      "dropped": [],
+      "changed": [],
+      "exact": true
+    },
+    "drift_golden_vs_O": {
+      "a_count": 72,
+      "b_count": 76,
+      "added": 4,
+      "dropped": 0,
+      "changed": 0,
+      "exact": false
+    }
+  },
+  {
+    "region": "sgv",
+    "name": "San Gabriel foothills (Pasadena - Sierra Madre), CA",
+    "raw_elements_fetched": 41400,
+    "current_ruleset_version": "1.3.0",
+    "golden_ruleset_version": "1.2.0",
+    "path_o_candidates": 1294,
+    "path_t_candidates": 1294,
+    "golden_candidates": 1208,
+    "transport_delta_O_vs_T": {
+      "a_count": 1294,
+      "b_count": 1294,
+      "added": [],
+      "dropped": [],
+      "changed": [],
+      "exact": true
+    },
+    "drift_golden_vs_O": {
+      "a_count": 1208,
+      "b_count": 1294,
+      "added": 90,
+      "dropped": 4,
+      "changed": 0,
+      "exact": false
+    }
+  }
+]

@@ -277,3 +277,20 @@ Needs the shared graph fixtures (`.venv/bin/python spikes/shared/regions.py`) an
 recorded, if the Dart SDK is absent. `results.json` holds every number here;
 `samples/*.md` are the nine sheets; `payloads/*.json` are the schema-validated trip
 payloads the sheets live in.
+
+---
+
+## Addendum — issue #276 (2026-09-17): graph transport swap confirmed no-op
+
+Cue derivation splits at intersections and reads edge tags along the solved
+route — it consumes the routing graph only, never the candidate path. SPIKE-I
+(#265) measured the OSM-acquisition transport swap's effect on the graph
+(`graph/pbf_source.py`'s path T, promoted into production by #275) at exact
+parity against a live-Overpass golden on every band: identical node/edge
+sets, 100% edge-key stability, identical largest SCC, 0.0 m max per-edge
+geometry delta, zero tag losses
+(`spikes/SPIKE-I/results/RESULTS.md` §1, §1.3). A cue derivation calibrated
+against a graph that comes out bit-identical from the new transport has
+nothing to re-run. Restated unchanged; see
+`spikes/SPIKE-A/results/REVALIDATION_276.md` for the full accounting across
+all four calibrations §11.1 named.
