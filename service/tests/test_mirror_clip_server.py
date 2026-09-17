@@ -17,7 +17,8 @@ from fastapi.testclient import TestClient
 
 from mirror_clip_fixtures import build_mirror_tree, node, write_pbf
 
-from plotlines_service.mirror_clip import create_clip_app
+from plotlines_service import mirror_clip
+from plotlines_service.mirror_clip import ClipResult, create_clip_app
 
 _BBOX = {"west": -82.6, "south": 34.9, "east": -81.9, "north": 35.6}
 
@@ -42,6 +43,10 @@ def test_get_clip_returns_a_valid_pbf_with_metadata_headers(tmp_path: Path) -> N
     assert 'filename="clip.osm.pbf"' in resp.headers["content-disposition"]
     assert int(resp.headers["x-plotlines-clip-output-bytes"]) == len(resp.content)
     assert resp.headers["x-plotlines-clip-source-regions"] == "the-region"
+    # Issue #274: the client caches the clip under this pin
+    # (`CacheLayout.osm_extract(bbox, pin)`) and has no other way to learn
+    # it — the mirror never hands a client a region extract to inspect.
+    assert resp.headers["x-plotlines-clip-source-pin"] == "2026-09-01"
     assert float(resp.headers["x-plotlines-clip-wall-time-ms"]) >= 0.0
     # Issue #374: renamed from the misleading X-Plotlines-Clip-Peak-Rss-Kb
     # (a process watermark, not per-clip) plus the new honest delta field.
@@ -55,6 +60,39 @@ def test_get_clip_returns_a_valid_pbf_with_metadata_headers(tmp_path: Path) -> N
         "node": lambda self, n: seen.append(n.id)
     })())
     assert seen == [1]
+
+
+def test_a_pin_that_vanishes_mid_request_is_a_finished_500_not_an_unsafe_cache(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    # Issue #274: a client keys its cache entirely on the response's pin
+    # header. If `MIRROR_STATE.json`'s pin gets rewritten between
+    # `discover_region_extracts` finding a covering extract and the result
+    # being built (a pin bump mid-request), returning the clip anyway would
+    # let a client cache it under a guessed or missing pin — refuse instead.
+    mirror = _mirror_with_one_region(tmp_path)
+    real_clip_bbox = mirror_clip.clip_bbox
+
+    def _clip_with_no_pin(*args, **kwargs):
+        result = real_clip_bbox(*args, **kwargs)
+        return ClipResult(
+            output_path=result.output_path,
+            wall_time_s=result.wall_time_s,
+            output_bytes=result.output_bytes,
+            service_peak_rss_kb=result.service_peak_rss_kb,
+            clip_rss_delta_kb=result.clip_rss_delta_kb,
+            source_regions=result.source_regions,
+            pin=None,
+        )
+
+    monkeypatch.setattr(mirror_clip, "clip_bbox", _clip_with_no_pin)
+    tc = TestClient(create_clip_app(mirror, tmp_dir=tmp_path / "scratch"))
+
+    resp = tc.get("/clip", params=_BBOX)
+
+    assert resp.status_code == 500
+    assert resp.json()["detail"]["error"] == "clip_failed"
+    assert "Traceback" not in resp.text
 
 
 def test_post_clip_accepts_the_same_bbox_as_a_json_body(tmp_path: Path) -> None:

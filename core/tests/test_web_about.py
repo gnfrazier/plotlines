@@ -286,6 +286,14 @@ def test_privacy_statement_names_planning_requests_recipients_and_no_identity():
     assert "identity" in body.lower()
 
 
+def test_privacy_statement_names_the_plotlines_mirror():
+    # Issue #274 (Phase 3.2): the first client call to the mirror's /clip
+    # endpoint, so the recipient must be named the moment the call exists —
+    # review §8(6)/FR138, "the sentence changes in the same commit."
+    body = next(p.body for p in PRIVACY_STATEMENT if p.id == "planning_requests")
+    assert "Plotlines-operated OSM mirror" in body
+
+
 def test_privacy_statement_says_reveal_is_not_a_security_boundary():
     body = next(p.body for p in PRIVACY_STATEMENT if p.id == "reveal")
     assert "not a security boundary" in body

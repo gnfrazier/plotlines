@@ -43,6 +43,11 @@ void main() {
       expect(body.toLowerCase(), contains('identity'));
     });
 
+    test('names the Plotlines mirror (issue #274 — the first client call to it)', () {
+      final body = point('planning_requests').body;
+      expect(body, contains('Plotlines-operated OSM mirror'));
+    });
+
     test('says reveal is a product guarantee, not a security boundary', () {
       expect(point('reveal').body, contains('not a security boundary'));
     });

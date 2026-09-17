@@ -148,6 +148,22 @@ class TestCompleteWaysClip:
         out = _read_back(result.output_path)
         assert out["n"][2] == {"natural": "peak", "name": "Test Peak"}
 
+    def test_result_carries_the_mirror_s_pinned_date(self, tmp_path: Path) -> None:
+        # Issue #274: the client-side extract fetch caches under this pin
+        # and has no other way to learn it.
+        src = write_pbf(
+            tmp_path / "src.osm.pbf",
+            nodes=[node(1, -82.2, 35.2)],
+            box=_BBOX,
+        )
+        mirror = build_mirror_tree(
+            tmp_path / "mirror", pinned_date="2026-08-01", regions={"r": src}
+        )
+
+        result = clip_bbox(_BBOX, root=mirror, dest=tmp_path / "out.osm.pbf")
+
+        assert result.pin == "2026-08-01"
+
     def test_a_relation_referencing_an_included_way_is_kept_with_its_members(
         self, tmp_path: Path
     ) -> None:

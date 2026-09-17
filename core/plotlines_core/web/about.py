@@ -183,20 +183,26 @@ PRIVACY_STATEMENT: tuple[PrivacyPoint, ...] = (
             "different — see the next point."
         ),
     ),
-    # Phase 0.12 / addendum P1 (issue #252): today this names Overpass and
-    # Nominatim because that is what actually runs. Phase 1 (#264) moves map
-    # data to a Plotlines-operated mirror — revisit this wording, and its
-    # recipient, when that migration lands.
+    # Phase 0.12 / addendum P1 (issue #252): named Overpass and Nominatim
+    # because that was what actually ran. Issue #274 (Phase 3.2) is the
+    # first client call to the Plotlines mirror's /clip endpoint, so this
+    # now also names that recipient — Overpass and Nominatim stay named
+    # too, because #275 (not this issue) is what actually stops the graph
+    # and candidate paths from calling them. Revisit again once #275 lands
+    # and Overpass drops out of the planning path entirely.
     PrivacyPoint(
         id="planning_requests",
         title="What planning sends, even signed out",
         body=(
             "Drawing an area to plan in sends that area to Overpass, a "
             "volunteer-run map-data lookup — today hosted in Germany or "
-            "Lithuania — so we can show you what is nearby. Typing a place "
-            "to search for it sends that text to Nominatim, the "
-            "OpenStreetMap Foundation's place-name lookup. Neither request "
-            "carries your account, your name, or any other identity."
+            "Lithuania — so we can show you what is nearby, and, once your "
+            "app is pointed at a Plotlines-operated OSM mirror, to that "
+            "mirror as well, to prepare local map data for the area. "
+            "Typing a place to search for it sends that text to Nominatim, "
+            "the OpenStreetMap Foundation's place-name lookup. None of "
+            "these requests carries your account, your name, or any other "
+            "identity."
         ),
     ),
     PrivacyPoint(

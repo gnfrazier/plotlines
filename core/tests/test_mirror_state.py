@@ -28,6 +28,7 @@ from plotlines_core.tiles.mirror_state import (
     geofabrik_pin_credit,
     load_mirror_state,
     mirror_health,
+    pin_age_days,
 )
 
 _NOW = datetime(2026, 9, 6, tzinfo=timezone.utc)
@@ -81,6 +82,24 @@ def test_basemap_health_falls_back_to_build_id_when_extracted_at_absent():
 
 def test_basemap_health_missing_basemap_key_is_stale():
     assert basemap_health({}, now=_NOW)["stale"] is True
+
+
+# --- pin_age_days (issue #274's shared date-parsing rule) -------------------
+
+def test_pin_age_days_reads_a_bare_pinned_date():
+    assert pin_age_days("2026-09-01", now=_NOW) == 5.0
+
+
+def test_pin_age_days_reads_a_build_id_leading_date():
+    assert pin_age_days("20260901-wnc", now=_NOW) == 5.0
+
+
+def test_pin_age_days_is_none_for_no_pin():
+    assert pin_age_days(None, now=_NOW) is None
+
+
+def test_pin_age_days_is_none_for_an_unparseable_pin():
+    assert pin_age_days("not-a-date", now=_NOW) is None
 
 
 # --- geofabrik ---------------------------------------------------------------
