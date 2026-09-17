@@ -14,8 +14,8 @@
     "natural",
     "sight"
   ],
-  "ruleset_version": "1.2.0",
-  "candidate_count": 715,
+  "ruleset_version": "1.3.0",
+  "candidate_count": 796,
   "candidates": [
     {
       "id": "way/1245144392",
@@ -370,6 +370,14 @@
       "title": "Root Down Kitchen @ Salvage Station"
     },
     {
+      "id": "node/10913130105",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "The Restoration Asheville"
+    },
+    {
       "id": "node/11165695050",
       "salience": 0.55,
       "layer": "amenity",
@@ -455,6 +463,14 @@
       "layer": "amenity",
       "role_affinity": "provision",
       "type": "amenity=restaurant",
+      "title": null
+    },
+    {
+      "id": "node/11382306758",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
       "title": null
     },
     {
@@ -746,6 +762,14 @@
       "title": "131 Main"
     },
     {
+      "id": "node/12111494869",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hampton Inn & Suites"
+    },
+    {
       "id": "node/12182083079",
       "salience": 0.55,
       "layer": "amenity",
@@ -848,6 +872,14 @@
       "role_affinity": "provision",
       "type": "amenity=cafe",
       "title": "Starbucks"
+    },
+    {
+      "id": "node/12857302622",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Kimpton"
     },
     {
       "id": "node/13012317601",
@@ -976,6 +1008,14 @@
       "role_affinity": "narrative",
       "type": "natural=peak",
       "title": "Buzzard's Roost"
+    },
+    {
+      "id": "node/13983846054",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Artful Way Hotel"
     },
     {
       "id": "node/14014369774",
@@ -1754,6 +1794,14 @@
       "title": "Starbucks"
     },
     {
+      "id": "node/4247325896",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Firefighter Island Campsite"
+    },
+    {
       "id": "node/4332950479",
       "salience": 0.55,
       "layer": "amenity",
@@ -2000,6 +2048,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Biscuit Head"
+    },
+    {
+      "id": "node/6110125495",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hostel",
+      "title": "Julie"
     },
     {
       "id": "node/6113809092",
@@ -2298,6 +2354,14 @@
       "title": "Pupuseria Patty"
     },
     {
+      "id": "node/6953017043",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Campfire Lodgings"
+    },
+    {
       "id": "node/7133758486",
       "salience": 0.55,
       "layer": "amenity",
@@ -2328,6 +2392,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Early Girl Eatery"
+    },
+    {
+      "id": "node/8814851487",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Sensibilities Day Spa"
     },
     {
       "id": "node/8857633916",
@@ -2400,6 +2472,22 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Benne on Eagle"
+    },
+    {
+      "id": "relation/9506140",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "The Mountaineer Inn"
+    },
+    {
+      "id": "relation/9506141",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "In Town Motor Lodge"
     },
     {
       "id": "way/1074994955",
@@ -2522,6 +2610,14 @@
       "title": "5 Points Restaurant"
     },
     {
+      "id": "way/1082729106",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "TownePlace Suites Asheville Downtown"
+    },
+    {
       "id": "way/1082744184",
       "salience": 0.55,
       "layer": "amenity",
@@ -2584,6 +2680,14 @@
       "role_affinity": "provision",
       "type": "amenity=cafe",
       "title": "Simple Cafe & Juice Bar"
+    },
+    {
+      "id": "way/1106824161",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Lake Powhatan Campground"
     },
     {
       "id": "way/1134139478",
@@ -2658,6 +2762,30 @@
       "title": null
     },
     {
+      "id": "way/1228877147",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Carolina Bed & Breakfast"
+    },
+    {
+      "id": "way/1240038764",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hampton Inn & Suites Asheville Biltmore Area"
+    },
+    {
+      "id": "way/1240071766",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "TownePlace Suites Asheville West"
+    },
+    {
       "id": "way/1245143881",
       "salience": 0.55,
       "layer": "amenity",
@@ -2666,12 +2794,52 @@
       "title": "Abuela's Little Kitchen"
     },
     {
+      "id": "way/1258402304",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Embassy Suites by Hilton Asheville Downtown"
+    },
+    {
+      "id": "way/1303339573",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hostel",
+      "title": "Bon Paul & Sharky's Hostel"
+    },
+    {
+      "id": "way/1327323723",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Tru"
+    },
+    {
+      "id": "way/1327400827",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Days Inn by Wyndham Asheville Downtown North"
+    },
+    {
       "id": "way/1328241110",
       "salience": 0.55,
       "layer": "amenity",
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "The Bywater"
+    },
+    {
+      "id": "way/1352339137",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Wrong Way River Lodge and Cabins"
     },
     {
       "id": "way/1443093069",
@@ -2722,6 +2890,22 @@
       "title": "La Carreta"
     },
     {
+      "id": "way/239019135",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Four Points by Sheraton Asheville Downtown"
+    },
+    {
+      "id": "way/239019219",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Renaissance Asheville Hotel"
+    },
+    {
       "id": "way/241257477",
       "salience": 0.55,
       "layer": "amenity",
@@ -2736,6 +2920,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Mayfel's"
+    },
+    {
+      "id": "way/261447889",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "The Flat Iron Hotel"
     },
     {
       "id": "way/268629447",
@@ -2786,6 +2978,14 @@
       "title": "IHOP"
     },
     {
+      "id": "way/273398306",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Country Inn & Suites"
+    },
+    {
       "id": "way/273398309",
       "salience": 0.55,
       "layer": "amenity",
@@ -2794,12 +2994,36 @@
       "title": "Waffle House"
     },
     {
+      "id": "way/273398803",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hampton"
+    },
+    {
       "id": "way/273398804",
       "salience": 0.55,
       "layer": "amenity",
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Carrabba's Italian Grill"
+    },
+    {
+      "id": "way/273398805",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Courtyard"
+    },
+    {
+      "id": "way/273492801",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Quality Inn"
     },
     {
       "id": "way/273492805",
@@ -2818,6 +3042,38 @@
       "title": "Red Lobster"
     },
     {
+      "id": "way/287712158",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hilton Garden Inn"
+    },
+    {
+      "id": "way/287712160",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Fairfield Inn & Suites"
+    },
+    {
+      "id": "way/287712161",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Holiday Inn Express & Suites"
+    },
+    {
+      "id": "way/287713962",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Country Inn & Suites"
+    },
+    {
       "id": "way/287713966",
       "salience": 0.55,
       "layer": "amenity",
@@ -2832,6 +3088,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Harbor Inn Seafood"
+    },
+    {
+      "id": "way/287713982",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Comfort Suites"
     },
     {
       "id": "way/287713989",
@@ -2872,6 +3136,38 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Stony Knob Cafe"
+    },
+    {
+      "id": "way/321364639",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Extended Stay America"
+    },
+    {
+      "id": "way/339939138",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hotel Indigo Asheville Downtown"
+    },
+    {
+      "id": "way/341701314",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Comfort Inn Biltmore West"
+    },
+    {
+      "id": "way/341701696",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Red Roof Inn Asheville West"
     },
     {
       "id": "way/377617038",
@@ -2922,6 +3218,14 @@
       "title": "Rabbit Hole"
     },
     {
+      "id": "way/378497845",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Downtown Inn and Suites"
+    },
+    {
       "id": "way/379470289",
       "salience": 0.55,
       "layer": "amenity",
@@ -2952,6 +3256,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "The Med"
+    },
+    {
+      "id": "way/380022424",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Haywood Park Hotel and Atrium"
     },
     {
       "id": "way/381114964",
@@ -3002,12 +3314,52 @@
       "title": "Barley's Taproom & Pizzeria"
     },
     {
+      "id": "way/404534046",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "SpringHill Suites"
+    },
+    {
+      "id": "way/405197521",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "DoubleTree"
+    },
+    {
+      "id": "way/405197533",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Baymont Asheville/Biltmore"
+    },
+    {
+      "id": "way/415378402",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "The Residences at Biltmore"
+    },
+    {
       "id": "way/422827172",
       "salience": 0.55,
       "layer": "amenity",
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Mikado"
+    },
+    {
+      "id": "way/428270566",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hilton Asheville Biltmore Park"
     },
     {
       "id": "way/428270568",
@@ -3018,12 +3370,28 @@
       "title": "P.F. Chang's"
     },
     {
+      "id": "way/428606004",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Aloft Asheville Downtown"
+    },
+    {
       "id": "way/435580898",
       "salience": 0.55,
       "layer": "amenity",
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Lioncrest"
+    },
+    {
+      "id": "way/435580899",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "The Inn on Biltmore Estate"
     },
     {
       "id": "way/439828803",
@@ -3048,6 +3416,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Elena's Mexican Grill"
+    },
+    {
+      "id": "way/456113421",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "The Omni Grove Park Inn"
     },
     {
       "id": "way/468621256",
@@ -3106,12 +3482,36 @@
       "title": "Mela Indian Restaurant"
     },
     {
+      "id": "way/490234056",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Cambria Hotel Downtown Asheville"
+    },
+    {
+      "id": "way/490235617",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "The Windsor Boutique Hotel"
+    },
+    {
       "id": "way/490235634",
       "salience": 0.55,
       "layer": "amenity",
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Mellow Mushroom"
+    },
+    {
+      "id": "way/490442423",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "DoubleTree by Hilton Asheville Downtown"
     },
     {
       "id": "way/490448530",
@@ -3162,6 +3562,22 @@
       "title": "Biscuit Head"
     },
     {
+      "id": "way/548423414",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Moxy Asheville"
+    },
+    {
+      "id": "way/596644666",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Clarion Pointe Biltmore Village"
+    },
+    {
       "id": "way/596985071",
       "salience": 0.55,
       "layer": "amenity",
@@ -3176,6 +3592,62 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Juicy Lucy's Burger Bar and Grill"
+    },
+    {
+      "id": "way/597407762",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Grand Bohemian Lodge Asheville, Autograph Collection"
+    },
+    {
+      "id": "way/599422912",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Village Hotel on Biltmore Estate"
+    },
+    {
+      "id": "way/600869302",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Best Western"
+    },
+    {
+      "id": "way/600869303",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Best Western"
+    },
+    {
+      "id": "way/600869304",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/600869305",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Best Western"
+    },
+    {
+      "id": "way/600869308",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Glo Best Western Asheville Tunnel Road"
     },
     {
       "id": "way/604111548",
@@ -3218,6 +3690,14 @@
       "title": "Outback Steakhouse"
     },
     {
+      "id": "way/604398406",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Holiday Inn Express"
+    },
+    {
       "id": "way/604398410",
       "salience": 0.55,
       "layer": "amenity",
@@ -3234,6 +3714,14 @@
       "title": null
     },
     {
+      "id": "way/604398420",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Homewood Suites"
+    },
+    {
       "id": "way/604398422",
       "salience": 0.55,
       "layer": "amenity",
@@ -3248,6 +3736,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "LongHorn Steakhouse"
+    },
+    {
+      "id": "way/604492572",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Home2 Suites by Hilton Asheville Biltmore Village"
     },
     {
       "id": "way/604492583",
@@ -3272,6 +3768,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Cheddar's"
+    },
+    {
+      "id": "way/604810304",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Residence Inn Asheville Biltmore"
     },
     {
       "id": "way/604810311",
@@ -3394,6 +3898,14 @@
       "title": "Farenheight Pizza"
     },
     {
+      "id": "way/625770558",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Holiday Inn Asheville - Biltmore West"
+    },
+    {
       "id": "way/652063139",
       "salience": 0.55,
       "layer": "amenity",
@@ -3432,6 +3944,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Wynn's Diner"
+    },
+    {
+      "id": "way/685020674",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Country Inn & Suites"
     },
     {
       "id": "way/685086919",
@@ -3498,6 +4018,38 @@
       "title": "Farewell"
     },
     {
+      "id": "way/835602562",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Courtyard Asheville Biltmore Village"
+    },
+    {
+      "id": "way/835602564",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Element Asheville Downtown"
+    },
+    {
+      "id": "way/844639283",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "French Broad River Campground"
+    },
+    {
+      "id": "way/893822383",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "AC Hotel by Marriott Asheville Downtown"
+    },
+    {
       "id": "way/897229096",
       "salience": 0.55,
       "layer": "amenity",
@@ -3506,12 +4058,108 @@
       "title": "Iconic"
     },
     {
+      "id": "way/936616567",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Brookstone Lodge Near Biltmore Village, Ascend Hotel Collection"
+    },
+    {
+      "id": "way/936776007",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Comfort Inn Tunnel Road East"
+    },
+    {
+      "id": "way/937003158",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Crowne Plaza Hotels & Resorts Asheville"
+    },
+    {
+      "id": "way/937004805",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "The Foundry Hotel Asheville, Curio Collection by Hilton"
+    },
+    {
+      "id": "way/937056170",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Fairfield Inn & Suites Asheville Tunnel Road"
+    },
+    {
+      "id": "way/937309944",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hilton Garden Inn Asheville Downtown"
+    },
+    {
+      "id": "way/938254045",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Scenic Hotel"
+    },
+    {
+      "id": "way/938256248",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Holiday Inn Asheville East"
+    },
+    {
+      "id": "way/939140395",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "The Log Cabin Motor Court"
+    },
+    {
+      "id": "way/939184198",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "WoodSpring Suites Asheville"
+    },
+    {
       "id": "way/943676307",
       "salience": 0.55,
       "layer": "amenity",
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Elena's Mexican Grill"
+    },
+    {
+      "id": "way/947142257",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Sleep Inn Asheville - Biltmore West"
+    },
+    {
+      "id": "way/947142896",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Country Inn & Suites, Asheville West, NC"
     },
     {
       "id": "way/948027215",

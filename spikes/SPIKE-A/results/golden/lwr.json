@@ -14,8 +14,8 @@
     "natural",
     "sight"
   ],
-  "ruleset_version": "1.2.0",
-  "candidate_count": 72,
+  "ruleset_version": "1.3.0",
+  "candidate_count": 76,
   "candidates": [
     {
       "id": "node/3169833648",
@@ -210,12 +210,28 @@
       "title": "Tower Hill"
     },
     {
+      "id": "node/367811190",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Wintergreen Downhill Ski Lodge"
+    },
+    {
       "id": "node/4695989235",
       "salience": 0.55,
       "layer": "natural",
       "role_affinity": "narrative",
       "type": "natural=peak",
       "title": "Tower Rock"
+    },
+    {
+      "id": "relation/8430803",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": null
     },
     {
       "id": "relation/8555671",
@@ -258,12 +274,28 @@
       "title": "Arthur's Supper Club"
     },
     {
+      "id": "way/752121992",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Spring Valley Inn"
+    },
+    {
       "id": "way/754852124",
       "salience": 0.55,
       "layer": "amenity",
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Grandma Mary's Cafe"
+    },
+    {
+      "id": "way/969590925",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Tower Hill State Park Campground"
     },
     {
       "id": "node/11548202115",

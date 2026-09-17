@@ -14,8 +14,8 @@
     "natural",
     "sight"
   ],
-  "ruleset_version": "1.2.0",
-  "candidate_count": 1208,
+  "ruleset_version": "1.3.0",
+  "candidate_count": 1295,
   "candidates": [
     {
       "id": "relation/14906800",
@@ -914,6 +914,14 @@
       "title": "Anaya's"
     },
     {
+      "id": "node/10702894293",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Idlehour Trail Camp"
+    },
+    {
       "id": "node/10723179205",
       "salience": 0.55,
       "layer": "amenity",
@@ -968,6 +976,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Annapurna Grill"
+    },
+    {
+      "id": "node/1117296759",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Zinkes Drive Inn"
     },
     {
       "id": "node/1120019116",
@@ -1144,6 +1160,22 @@
       "role_affinity": "provision",
       "type": "amenity=cafe",
       "title": "Cafe de Leche"
+    },
+    {
+      "id": "node/11809317201",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Residence Inn"
+    },
+    {
+      "id": "node/11809317202",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "TownePlace Suites"
     },
     {
       "id": "node/12117582305",
@@ -2450,6 +2482,14 @@
       "title": "Bacchus' Kitchen"
     },
     {
+      "id": "node/1768767681",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Quality Inn"
+    },
+    {
       "id": "node/1768773393",
       "salience": 0.55,
       "layer": "amenity",
@@ -2466,6 +2506,14 @@
       "title": "Green Street Restaurant"
     },
     {
+      "id": "node/1774355964",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Mt. Lowe Trail Camp"
+    },
+    {
       "id": "node/1866275214",
       "salience": 0.55,
       "layer": "amenity",
@@ -2480,6 +2528,14 @@
       "role_affinity": "provision",
       "type": "amenity=cafe",
       "title": "Tea Spots"
+    },
+    {
+      "id": "node/1932507519",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Spruce Grove Trail Camp"
     },
     {
       "id": "node/2001906748",
@@ -2680,6 +2736,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Cafe Massilia"
+    },
+    {
+      "id": "node/2343810442",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Aztec Hotel"
     },
     {
       "id": "node/2343942876",
@@ -3242,6 +3306,14 @@
       "title": "El Super Burrito"
     },
     {
+      "id": "node/348342385",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Valley Forge Trail Camp"
+    },
+    {
       "id": "node/3484819287",
       "salience": 0.55,
       "layer": "amenity",
@@ -3258,6 +3330,22 @@
       "title": "Little Flower Candy Company"
     },
     {
+      "id": "node/348842196",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "West Fork Trail Camp"
+    },
+    {
+      "id": "node/348842710",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Devore Trail Camp"
+    },
+    {
       "id": "node/350178095",
       "salience": 0.55,
       "layer": "natural",
@@ -3266,12 +3354,44 @@
       "title": "Strawberry Peak"
     },
     {
+      "id": "node/3513610789",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Hoegee's camp"
+    },
+    {
+      "id": "node/351493860",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Gould Mesa Trail Camp"
+    },
+    {
       "id": "node/351571186",
       "salience": 0.55,
       "layer": "natural",
       "role_affinity": "narrative",
       "type": "natural=peak",
       "title": "Mount Lawlor"
+    },
+    {
+      "id": "node/355584199",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Millard Trail Camp"
+    },
+    {
+      "id": "node/356702775",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Henninger Flats"
     },
     {
       "id": "node/358783388",
@@ -3410,6 +3530,14 @@
       "title": "Eagle Rock"
     },
     {
+      "id": "node/368173868",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Altadena Lodge"
+    },
+    {
       "id": "node/369888531",
       "salience": 0.55,
       "layer": "amenity",
@@ -3464,6 +3592,14 @@
       "role_affinity": "provision",
       "type": "amenity=cafe",
       "title": "Corner Bakery"
+    },
+    {
+      "id": "node/3724149624",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hotel Le Reve Pasadena"
     },
     {
       "id": "node/3909644673",
@@ -3986,6 +4122,14 @@
       "title": "Rice & Nori"
     },
     {
+      "id": "node/589170698",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hilton"
+    },
+    {
       "id": "node/589472942",
       "salience": 0.55,
       "layer": "amenity",
@@ -4232,6 +4376,14 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "IHOP"
+    },
+    {
+      "id": "node/6985556923",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
     },
     {
       "id": "node/7021117459",
@@ -4674,6 +4826,14 @@
       "title": "Starbucks"
     },
     {
+      "id": "node/9212958248",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Oakwilde Trail Camp (not maintained)"
+    },
+    {
       "id": "node/9392748922",
       "salience": 0.55,
       "layer": "amenity",
@@ -4746,12 +4906,52 @@
       "title": "The Coffee Bean & Tea Leaf"
     },
     {
+      "id": "relation/14727242",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Pasadena Hotel & Pool"
+    },
+    {
+      "id": "relation/7938166",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Centennial Place"
+    },
+    {
+      "id": "way/101206954",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Howard Johnsons"
+    },
+    {
+      "id": "way/1057552609",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Le M\u00e9ridien Pasadena Arcadia"
+    },
+    {
       "id": "way/1074789479",
       "salience": 0.55,
       "layer": "historic",
       "role_affinity": "narrative",
       "type": "historic=tomb  (wildcard historic=*)",
       "title": "Mausoleum"
+    },
+    {
+      "id": "way/1190259685",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=camp_site",
+      "title": "Bear Canyon Trail Camp"
     },
     {
       "id": "way/139855979",
@@ -4802,6 +5002,30 @@
       "title": "Alfred Coffee"
     },
     {
+      "id": "way/229509858",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Best Western Pasadena Inn"
+    },
+    {
+      "id": "way/254303134",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Embassy Suites"
+    },
+    {
+      "id": "way/254303135",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Springhill Suites Pasadena Arcadia"
+    },
+    {
       "id": "way/312031634",
       "salience": 0.55,
       "layer": "amenity",
@@ -4826,12 +5050,108 @@
       "title": "Namaste Spiceland"
     },
     {
+      "id": "way/360892419",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Courtyard"
+    },
+    {
+      "id": "way/375100151",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Extended Stay America"
+    },
+    {
+      "id": "way/375100152",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Extended Stay America"
+    },
+    {
+      "id": "way/423010402",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Rose Bowl Motel"
+    },
+    {
+      "id": "way/427572384",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/427572385",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/427572386",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/427572388",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/427572389",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/428613100",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/439093118",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Westin Pasadena"
+    },
+    {
       "id": "way/45095035",
       "salience": 0.55,
       "layer": "amenity",
       "role_affinity": "provision",
       "type": "amenity=cafe",
       "title": "Broad Cafe"
+    },
+    {
+      "id": "way/457601436",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Residence Inn"
     },
     {
       "id": "way/458796575",
@@ -4850,6 +5170,54 @@
       "title": null
     },
     {
+      "id": "way/460125589",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Green Tree Pasadena Inn"
+    },
+    {
+      "id": "way/466829048",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Ramada Pasadena"
+    },
+    {
+      "id": "way/466830254",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hyland Inn"
+    },
+    {
+      "id": "way/467065960",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Holiday Inn Express & Suites Pasadena - Los Angeles"
+    },
+    {
+      "id": "way/470690015",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Extended Stay America"
+    },
+    {
+      "id": "way/470690226",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "DoubleTree"
+    },
+    {
       "id": "way/470703755",
       "salience": 0.55,
       "layer": "amenity",
@@ -4866,12 +5234,196 @@
       "title": "Lord Empanada"
     },
     {
+      "id": "way/471080149",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
       "id": "way/471092928",
       "salience": 0.55,
       "layer": "amenity",
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Tacos Ensenada"
+    },
+    {
+      "id": "way/471232656",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232659",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232662",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232673",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232676",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232682",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232688",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232689",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232691",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232696",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232698",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232708",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hilton Garden Inn"
+    },
+    {
+      "id": "way/471232847",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471232854",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471237459",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471389799",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Quality Inn Near City of Hope"
+    },
+    {
+      "id": "way/471415845",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Courtyard"
+    },
+    {
+      "id": "way/471448864",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471450719",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Best Western Pasadena Royale"
+    },
+    {
+      "id": "way/471457543",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471457569",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471739107",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
     },
     {
       "id": "way/471768081",
@@ -4888,6 +5440,126 @@
       "role_affinity": "provision",
       "type": "amenity=restaurant",
       "title": "Taylor's Steakhouse"
+    },
+    {
+      "id": "way/471775683",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471783133",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471784699",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471784978",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471788775",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471799502",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471824183",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471825133",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471930545",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471932882",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471997395",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/471998061",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/473919118",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": null
+    },
+    {
+      "id": "way/49248607",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hotel Dena"
+    },
+    {
+      "id": "way/49249079",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hampton Inn Los Angeles/Arcadia/Pasadena;Hampton"
     },
     {
       "id": "way/503580930",
@@ -4922,6 +5594,14 @@
       "title": "Brookside Restaurant"
     },
     {
+      "id": "way/87247172",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Rose & Crown Hotel"
+    },
+    {
       "id": "way/875433133",
       "salience": 0.55,
       "layer": "amenity",
@@ -4936,6 +5616,22 @@
       "role_affinity": "provision",
       "type": "amenity=cafe",
       "title": "JPL Building 339"
+    },
+    {
+      "id": "way/933153629",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Hyatt Place Pasadena"
+    },
+    {
+      "id": "way/96082594",
+      "salience": 0.55,
+      "layer": "amenity",
+      "role_affinity": "station",
+      "type": "tourism=hotel",
+      "title": "Travelodge"
     },
     {
       "id": "node/10820786567",
