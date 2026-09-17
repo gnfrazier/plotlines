@@ -423,6 +423,18 @@ immutable files so **D is a configuration decision later, not a rebuild**. The o
 ("Author edits the bbox on a mountain with no signal") is the trigger for D and is a
 **measurement for SPIKE-I**, not a guess. Recorded in the review as §6.7 and §12-Q1.
 
+**Correction — issue #278 (2026-09-17):** SPIKE-I measured both halves. The trigger fired —
+only 38–48% of offline bbox edits are servable from the held graph, well under the
+pre-registered 90% band — so D's precondition is not hypothetical. But the "configuration
+decision later, not a rebuild" line above does not survive: D's mechanism is the same clip
+this section already flags as a real cost, and §3 of SPIKE-I's results measured it at
+432–553 s wall / 1.9–7.2 GB peak RSS **on the mirror's own Raspberry Pi 5** — hardware with
+more headroom than most client devices. Running that clip on the client offline reopens L1's
+native pyosmium dependency and #266's freeze matrix on every platform for an operation with
+no predictable cost from its inputs. **D is rejected, not merely un-triggered.** C stays as
+shipped; the offline-edit experience it implies is specified in the review's §6.7a and
+recorded as ARCH **D62**.
+
 ### Q2 — Pin cadence and ownership
 
 | Option | Pros | Cons |
