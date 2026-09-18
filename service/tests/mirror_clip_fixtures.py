@@ -41,6 +41,26 @@ def write_pbf(
     return path
 
 
+def write_poly(pbf_path: Path, rings: list[list[tuple[float, float]]]) -> Path:
+    """Writes a sibling `.poly` boundary file next to a `.osm.pbf` fixture,
+    Osmosis polygon-filter format — real enough for
+    `mirror_clip.parse_poly`/`_load_region_boundary` to read back, never a
+    real Geofabrik download (issue #402)."""
+    name = pbf_path.name
+    if name.endswith(".osm.pbf"):
+        name = name[: -len(".osm.pbf")]
+    poly_path = pbf_path.with_name(name + ".poly")
+    lines = ["fixture"]
+    for i, ring in enumerate(rings):
+        lines.append(f"ring{i}")
+        for lon, lat in ring:
+            lines.append(f"   {lon:.7f}   {lat:.7f}")
+        lines.append("END")
+    lines.append("END")
+    poly_path.write_text("\n".join(lines) + "\n")
+    return poly_path
+
+
 def node(id_: int, lon: float, lat: float, tags: dict[str, str] | None = None) -> mutable.Node:
     return mutable.Node(id=id_, location=(lon, lat), tags=tags or {})
 

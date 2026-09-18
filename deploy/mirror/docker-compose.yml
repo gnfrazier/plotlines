@@ -54,9 +54,19 @@ services:
     environment:
       - MIRROR_CLIP_CLIENT_KEY=${MIRROR_CLIP_CLIENT_KEY:-}
       - MIRROR_CLIP_RATE_LIMIT_PER_MINUTE=${MIRROR_CLIP_RATE_LIMIT_PER_MINUTE:-30}
+      # Issue #402: the clip cache #262 deliberately shipped without ("the
+      # mirror stays dumb, caches nothing"). Unset (the default) reproduces
+      # that exactly — /srv/plotlines-mirror above stays read-only either
+      # way, so a cache needs its own writable volume, mounted below but
+      # only actually used once MIRROR_CLIP_CACHE_DIR names it:
+      #   MIRROR_CLIP_CACHE_DIR=/var/cache/plotlines-mirror-clip docker compose up -d
+      - MIRROR_CLIP_CACHE_DIR=${MIRROR_CLIP_CACHE_DIR:-}
+      - MIRROR_CLIP_CACHE_MAX_BYTES=${MIRROR_CLIP_CACHE_MAX_BYTES:-0}
     volumes:
       - /srv/plotlines-mirror:/srv/plotlines-mirror:ro
+      - mirror_clip_cache:/var/cache/plotlines-mirror-clip
 
 volumes:
   caddy_data:
   caddy_config:
+  mirror_clip_cache:

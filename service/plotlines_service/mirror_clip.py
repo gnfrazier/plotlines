@@ -17,9 +17,24 @@ measured," and it deliberately implements one completeness strategy
 (`_CompleteWaysClip`, below) rather than osmium-tool's three, per L1's
 finding that `simple`/`complete_ways`/`smart` are CLI concepts with no
 pyosmium equivalent to select — the equivalent behaviour has to be coded,
-not flagged. Not Phase 3's `CacheLayout`-keyed client cache either: this
-service re-clips on every request and caches nothing, because doing less is
-exactly what "the mirror stays dumb" asks for at this phase.
+not flagged. Not Phase 3's `CacheLayout`-keyed client cache either — that
+one lives on the client, keyed on `(bbox, pin)` against the client's own
+disk. This module's `cache_dir` (issue #402) is a *server-side* cache of
+the same shape, opt-in and off by default (`cache_dir=None` reproduces
+§6.7's original "re-clips on every request, caches nothing" decision
+exactly) — added once the wall-time finding below existed to make that
+decision a measured tradeoff rather than a default nobody had numbers for.
+
+**Why the wall-time direction changed.** SPIKE-I (#265) measured this
+endpoint at 627-640s per request against a ~10x smaller outer band,
+because a PBF stores data in id order and a full scan runs regardless of
+bbox size — cost is O(pinned extract), not O(trip bbox). #375 (mechanism)
+/ #402 (this module's remaining share) address that from two directions:
+smaller pinned extracts (`geofabrik_pull.py --precut-wnc-corridor`, which
+this module's own `clip_bbox` computes once at pin time) and everything
+below — `.poly`-narrowed candidate selection, the disk-backed location
+index, and the cache. None of them touch what a `/clip` response actually
+contains; every measured number changes, no correctness surface does.
 
 **Why this lives outside `plotlines-core`.** §6.7 calls this "identical to
 Phase 4's hosted clip" — the algorithm is meant to be reused, which would
@@ -80,9 +95,12 @@ carries `X-Plotlines-Clip-Source-Pin`; see `ClipResult.pin` and
 from __future__ import annotations
 
 import argparse
+import hashlib
 import hmac
+import json
 import logging
 import os
+import shutil
 import tempfile
 import time
 from dataclasses import dataclass
@@ -268,15 +286,188 @@ def select_covering_extracts(
     not a safe-to-exclude, default — excluding it risks silently under-
     covering a real trip bbox). The border case named in the issue —
     Buncombe County ~30 km from Tennessee — is the ordinary case where this
-    returns more than one extract."""
+    returns more than one extract.
+
+    Issue #402 (named but left in #375): the header box is a *rectangle*
+    around the extract's whole declared coverage, not its real shape — a
+    state line runs diagonally, so a query bbox near it routinely sits
+    inside both neighbours' rectangular header boxes while only one of them
+    actually has data there. `_load_region_boundary` reads the extract's
+    real boundary polygon from its sibling `.poly` file (Geofabrik's own
+    Osmosis-format cutline, which `geofabrik_pull.py` now also pulls
+    alongside the `.osm.pbf`) and narrows the header-box result with an
+    actual point-in-polygon / edge-intersection test. This step is
+    exclude-only and keeps the same safe-by-default discipline as the
+    header box above: no `.poly` file on disk, or one that fails to parse,
+    leaves the header box's answer untouched rather than guessing."""
     query_box = _bbox_to_box(bbox)
     kept = []
     for extract in extracts:
         header_box = _header_box(extract.path)
         if header_box is not None and not _boxes_intersect(header_box, query_box):
             continue
+        boundary = _load_region_boundary(extract.path)
+        if boundary is not None and not _polygon_intersects_bbox(boundary, bbox):
+            continue
         kept.append(extract)
     return kept
+
+
+class InvalidPoly(ValueError):
+    """A `.poly` boundary file doesn't parse as the Osmosis polygon-filter
+    format Geofabrik publishes for every region
+    (https://wiki.openstreetmap.org/wiki/Osmosis/Polygon_Filter_File_Format)."""
+
+
+def parse_poly(text: str) -> list[list[tuple[float, float]]]:
+    """Parses an Osmosis `.poly` boundary file into a list of rings, each a
+    list of `(lon, lat)` vertices — the file/polygon name on line 1 is
+    ignored, and the file ends with a bare `END`.
+
+    A ring name prefixed with `!` denotes a *hole* (an inner ring to
+    subtract) in the true multipolygon; this parser drops hole rings
+    entirely rather than subtracting them, so the returned shape is always
+    a **superset** of the real one. That keeps `_polygon_intersects_bbox`
+    on the same "uncertain coverage is kept, never excluded" side
+    `select_covering_extracts` already documents for a missing header box:
+    ignoring a hole can only ever make the test return `True` more often,
+    never `False` where the truth is `True`. Every region this mirror pins
+    today (`north-carolina`, `tennessee`) is a single outer ring with no
+    holes; the hole-dropping fallback exists for whatever region is added
+    next, not a case observed yet.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) < 4 or lines[-1] != "END":
+        raise InvalidPoly("not a well-formed .poly file (missing outer END)")
+    rings: list[list[tuple[float, float]]] = []
+    i = 1  # line 0 is the file/polygon name, ignored
+    while i < len(lines) and lines[i] != "END":
+        is_hole = lines[i].startswith("!")
+        i += 1
+        ring: list[tuple[float, float]] = []
+        while i < len(lines) and lines[i] != "END":
+            parts = lines[i].split()
+            if len(parts) != 2:
+                raise InvalidPoly(f"malformed coordinate line: {lines[i]!r}")
+            try:
+                lon, lat = float(parts[0]), float(parts[1])
+            except ValueError as exc:
+                raise InvalidPoly(f"malformed coordinate line: {lines[i]!r}") from exc
+            ring.append((lon, lat))
+            i += 1
+        if i >= len(lines):
+            raise InvalidPoly("ring not terminated with END")
+        i += 1  # consume the ring's own END
+        if not is_hole and len(ring) >= 3:
+            rings.append(ring)
+    if not rings:
+        raise InvalidPoly("no outer ring found")
+    return rings
+
+
+def _region_poly_path(pbf_path: Path) -> Path:
+    """The sibling `.poly` boundary path for a `<region>.osm.pbf` extract —
+    same directory, same region name, `.poly` in place of `.osm.pbf`."""
+    name = pbf_path.name
+    if name.endswith(".osm.pbf"):
+        name = name[: -len(".osm.pbf")]
+    return pbf_path.with_name(name + ".poly")
+
+
+def _load_region_boundary(pbf_path: Path) -> list[list[tuple[float, float]]] | None:
+    """The extract's real boundary polygon, from its sibling `.poly` file —
+    `None` when that file is absent (an older pin, from before this
+    feature, or a region `geofabrik_pull.py` couldn't fetch one for — see
+    its `_fetch_poly`) or fails to parse. Both collapse to the same
+    'unknown coverage' case `select_covering_extracts` already treats as
+    safe-to-include, never safe-to-exclude."""
+    poly_path = _region_poly_path(pbf_path)
+    if not poly_path.exists():
+        return None
+    try:
+        return parse_poly(poly_path.read_text())
+    except (InvalidPoly, OSError, UnicodeDecodeError) as exc:
+        log.warning("region boundary %s failed to parse: %s", poly_path, exc)
+        return None
+
+
+def _point_in_ring(x: float, y: float, ring: list[tuple[float, float]]) -> bool:
+    """Standard ray-casting point-in-polygon test against one ring."""
+    inside = False
+    x1, y1 = ring[-1]
+    for x2, y2 in ring:
+        if (y1 > y) != (y2 > y):
+            x_at_y = (x2 - x1) * (y - y1) / (y2 - y1) + x1
+            if x < x_at_y:
+                inside = not inside
+        x1, y1 = x2, y2
+    return inside
+
+
+def _ccw(a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]) -> float:
+    return (c[1] - a[1]) * (b[0] - a[0]) - (b[1] - a[1]) * (c[0] - a[0])
+
+
+def _on_segment(
+    a: tuple[float, float], b: tuple[float, float], p: tuple[float, float]
+) -> bool:
+    return min(a[0], b[0]) <= p[0] <= max(a[0], b[0]) and min(a[1], b[1]) <= p[1] <= max(
+        a[1], b[1]
+    )
+
+
+def _segments_intersect(
+    p1: tuple[float, float],
+    p2: tuple[float, float],
+    p3: tuple[float, float],
+    p4: tuple[float, float],
+) -> bool:
+    d1, d2 = _ccw(p3, p4, p1), _ccw(p3, p4, p2)
+    d3, d4 = _ccw(p1, p2, p3), _ccw(p1, p2, p4)
+    if ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0)) and d1 != 0 and d2 != 0:
+        return True
+    # Collinear/touching cases are treated as intersecting — the safe
+    # (keep, don't exclude) side of any ambiguity here.
+    if d1 == 0 and _on_segment(p3, p4, p1):
+        return True
+    if d2 == 0 and _on_segment(p3, p4, p2):
+        return True
+    if d3 == 0 and _on_segment(p1, p2, p3):
+        return True
+    if d4 == 0 and _on_segment(p1, p2, p4):
+        return True
+    return False
+
+
+def _polygon_intersects_bbox(
+    rings: list[list[tuple[float, float]]], bbox: BBox
+) -> bool:
+    """Whether the union of `rings` (a parsed `.poly` boundary, hole rings
+    already dropped by `parse_poly`) intersects `bbox` at all — a plain
+    planar test (no antimeridian handling), matching `_boxes_intersect`'s
+    existing treatment of every bbox in this codebase as (west, south,
+    east, north) degrees. Three cases cover every way two simple polygons
+    can touch: a boundary vertex inside the bbox, a bbox corner inside the
+    boundary, or an edge of one crossing an edge of the other (the case
+    that catches a boundary passing straight through a bbox without either
+    shape containing any of the other's vertices)."""
+    west, south, east, north = bbox
+    corners = [(west, south), (east, south), (east, north), (west, north)]
+    bbox_edges = list(zip(corners, corners[1:] + corners[:1]))
+    for ring in rings:
+        for x, y in ring:
+            if west <= x <= east and south <= y <= north:
+                return True
+        for corner in corners:
+            if _point_in_ring(corner[0], corner[1], ring):
+                return True
+        n = len(ring)
+        for i in range(n):
+            r1, r2 = ring[i], ring[(i + 1) % n]
+            for b1, b2 in bbox_edges:
+                if _segments_intersect(r1, r2, b1, b2):
+                    return True
+    return False
 
 
 def _merge_extracts(paths: list[Path], dest: Path) -> None:
@@ -298,6 +489,46 @@ def _merge_extracts(paths: list[Path], dest: Path) -> None:
         reader.add_file(str(path))
     with osmium.SimpleWriter(str(dest), overwrite=True) as writer:
         reader.apply(writer, simplify=True)
+
+
+def _stamp_header_box(dest: Path, bbox: BBox, *, tmp_dir: Path) -> None:
+    """Defect found live on the Pi while validating #402's precut fix,
+    fixed here because it undermines this same PR's over-selection fix:
+    neither `osmium.BackReferenceWriter` (the single-extract path) nor
+    `_merge_extracts`'s `MergeInputReader`/`SimpleWriter` (the multi-extract
+    path) sets a header box on `dest` — confirmed by reading back a real
+    clip's header on the live mirror and finding it `invalid`. That silently
+    disables `_header_box`'s fast exclude test for *any* clip this module
+    produces that later gets pinned as a source extract — exactly what
+    `precut_region` does. A live coverage-miss bbox nowhere near the WNC
+    corridor was measured taking 100+ seconds (a full scan of the 97 MB
+    precut extract) before correctly 404ing, instead of failing in
+    milliseconds, because `select_covering_extracts` had to fall back to
+    'unknown coverage, keep' with no header box to exclude on — and a
+    `.poly` file doesn't cover this case either, since `precut_region`
+    never writes one for its synthetic `dest_region`.
+
+    Re-reads `dest` and rewrites it with `bbox` (the exact box actually
+    requested, never a looser one) stamped as its header — one extra pass
+    over this clip's own *output*, not its source, so the cost is
+    proportional to what this request already produced rather than to
+    whatever it scanned to produce it. Uses the same `MergeInputReader` /
+    `SimpleWriter` pattern `_merge_extracts` already relies on (a single-
+    file "merge" is just a copy with a new header)."""
+    fd, tmp_name = tempfile.mkstemp(
+        dir=tmp_dir, prefix=".mirror-clip-header-", suffix=".osm.pbf"
+    )
+    os.close(fd)
+    tmp_path = Path(tmp_name)
+    tmp_path.unlink()  # mkstemp creates it; SimpleWriter needs the name free
+    header = osmium.io.Header()
+    west, south, east, north = bbox
+    header.add_box(osmium.osm.Box(west, south, east, north))
+    reader = osmium.MergeInputReader()
+    reader.add_file(str(dest))
+    with osmium.SimpleWriter(str(tmp_path), header=header, overwrite=True) as writer:
+        reader.apply(writer, simplify=True)
+    os.replace(tmp_path, dest)
 
 
 class _CompleteWaysSelector(osmium.SimpleHandler):
@@ -356,14 +587,44 @@ class _CompleteWaysSelector(osmium.SimpleHandler):
             self.selected_count += 1
 
 
-def _select_and_write(bbox: BBox, source: Path, dest: Path) -> int:
+def _select_and_write(bbox: BBox, source: Path, dest: Path, *, tmp_dir: Path) -> int:
+    """Issue #402 (`BackReferenceWriter` memory, named but left in #375):
+    `apply_file`'s location index defaults to `idx="flex_mem"`, an
+    in-process hash map — on the Colorado extract SPIKE-I measured
+    `complete_ways` peaking at 2,842 MB with it. Switching to
+    `sparse_file_array` (a disk-backed table, written to `tmp_dir` so it
+    never lands on a `tmpfs`-mounted `/tmp`) measured 1,770 MB on the same
+    extract with identical output — the location table's memory is a
+    real, available reduction with no correctness or wall-time cost
+    (RESULTS.md §3.3).
+
+    This is **not** the fix for the dominant cost. SPIKE-I found ~77% of
+    `complete_ways`' memory is `BackReferenceWriter`'s own second pass, not
+    the location table, and pyosmium's public API has no lever for that
+    pass itself: `dense_file_array` fails outright here (it allocates
+    across the whole OSM id range) and `smart`'s relation-closure pass
+    costs +54% wall time for exactly one extra node at trip-bbox scale. So
+    this is the real, measured reduction that *is* available — not a full
+    fix for the direction #402 names, which stays open pending a pyosmium
+    API this module doesn't have today."""
     box = _bbox_to_box(bbox)
-    with osmium.BackReferenceWriter(
-        str(dest), str(source), overwrite=True, remove_tags=False
-    ) as writer:
-        selector = _CompleteWaysSelector(writer, box)
-        selector.apply_file(str(source), locations=True)
-    return selector.selected_count
+    fd, index_name = tempfile.mkstemp(
+        dir=tmp_dir, prefix=".mirror-clip-locidx-", suffix=".dat"
+    )
+    os.close(fd)
+    index_path = Path(index_name)
+    index_path.unlink()  # sparse_file_array creates its own backing file
+    try:
+        with osmium.BackReferenceWriter(
+            str(dest), str(source), overwrite=True, remove_tags=False
+        ) as writer:
+            selector = _CompleteWaysSelector(writer, box)
+            selector.apply_file(
+                str(source), locations=True, idx=f"sparse_file_array,{index_path}"
+            )
+        return selector.selected_count
+    finally:
+        index_path.unlink(missing_ok=True)
 
 
 @dataclass(frozen=True)
@@ -400,23 +661,145 @@ class ClipResult:
     #: nothing prevents a concurrent pin bump from rewriting the state file
     #: mid-request.
     pin: str | None
+    #: Issue #402 (clip cache, deliberately excluded at #262's original
+    #: scope). `True` when this result was served from `cache_dir` rather
+    #: than computed — `wall_time_s`/`clip_rss_delta_kb` are then the
+    #: retrieval cost, not a real clip's, so a telemetry consumer must not
+    #: average them together with an uncached clip's numbers.
+    cache_hit: bool = False
 
 
 def _current_rss_kb() -> int | None:
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else None
 
 
+def _cache_key(bbox: BBox) -> str:
+    """Stable across the exact same bbox floats only — deliberately not a
+    quantized/rounded key. Two callers who mean "the same" bbox but arrive
+    at slightly different floats miss the cache and get reclipped, which
+    is always correct; a fuzzy key would trade that for the risk of ever
+    treating two different bboxes as the same cached answer."""
+    canonical = ",".join(repr(v) for v in bbox)
+    return hashlib.sha256(canonical.encode()).hexdigest()[:24]
+
+
+def _cache_paths(cache_dir: Path, pin: str, bbox: BBox) -> tuple[Path, Path]:
+    key = _cache_key(bbox)
+    pin_dir = cache_dir / pin
+    return pin_dir / f"{key}.pbf", pin_dir / f"{key}.json"
+
+
+def _read_cache(cache_dir: Path, pin: str, bbox: BBox, dest: Path) -> ClipResult | None:
+    """A hit copies the cached bytes to `dest` and reports the copy itself
+    as this call's (near-zero) wall time — `ClipResult.cache_hit=True`
+    keeps that from being mistaken for a real scan's cost. Returns `None`
+    on any miss, or on a cache entry that fails to read back cleanly, so a
+    damaged cache degrades to "always miss" rather than failing the
+    request the cache exists to make cheaper."""
+    cached_pbf, cached_meta = _cache_paths(cache_dir, pin, bbox)
+    if not cached_pbf.exists() or not cached_meta.exists():
+        return None
+    started = time.monotonic()
+    try:
+        meta = json.loads(cached_meta.read_text())
+        source_regions = tuple(meta["source_regions"])
+        shutil.copyfile(cached_pbf, dest)
+        cached_pbf.touch()  # LRU freshness for _evict_cache
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        log.warning("clip cache read failed for %s (treating as a miss): %s", cached_pbf, exc)
+        return None
+    return ClipResult(
+        output_path=dest,
+        wall_time_s=time.monotonic() - started,
+        output_bytes=dest.stat().st_size,
+        service_peak_rss_kb=_current_rss_kb(),
+        clip_rss_delta_kb=0,
+        source_regions=source_regions,
+        pin=pin,
+        cache_hit=True,
+    )
+
+
+def _write_cache(
+    cache_dir: Path, pin: str, bbox: BBox, result: ClipResult, max_bytes: int
+) -> None:
+    """Stores a freshly-computed `result` into the cache and evicts down to
+    `max_bytes` afterward. Best-effort: any failure here is logged and
+    swallowed rather than raised — a cache-write problem must never turn an
+    otherwise-successful clip into a failed request."""
+    cached_pbf, cached_meta = _cache_paths(cache_dir, pin, bbox)
+    try:
+        cached_pbf.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(dir=cached_pbf.parent, prefix=".cache-")
+        os.close(fd)
+        shutil.copyfile(result.output_path, tmp_name)
+        os.replace(tmp_name, cached_pbf)
+        cached_meta.write_text(json.dumps({"source_regions": list(result.source_regions)}))
+    except OSError as exc:
+        log.warning("clip cache write failed for %s (serving uncached): %s", cached_pbf, exc)
+        return
+    _evict_cache(cache_dir, max_bytes)
+
+
+def _evict_cache(cache_dir: Path, max_bytes: int) -> None:
+    """Oldest-mtime-first eviction once the cache's total `.pbf` bytes
+    exceed `max_bytes` (0 disables the ceiling). Not race-free under
+    concurrent writers — `create_clip_app`'s handlers run in FastAPI's
+    thread pool even though the process itself stays single (see the
+    module docstring's concurrency note) — but the failure mode of losing
+    that race is a transient overshoot or a redundant eviction, never
+    wrong data: a missing cache entry only ever produces a cache miss."""
+    if max_bytes <= 0:
+        return
+    entries = sorted(cache_dir.glob("*/*.pbf"), key=lambda p: p.stat().st_mtime)
+    total = sum(p.stat().st_size for p in entries)
+    for p in entries:
+        if total <= max_bytes:
+            break
+        total -= p.stat().st_size
+        p.unlink(missing_ok=True)
+        p.with_suffix(".json").unlink(missing_ok=True)
+
+
 def clip_bbox(
-    bbox: BBox, *, root: Path, dest: Path, tmp_dir: Path | None = None
+    bbox: BBox,
+    *,
+    root: Path,
+    dest: Path,
+    tmp_dir: Path | None = None,
+    cache_dir: Path | None = None,
+    cache_max_bytes: int = 0,
 ) -> ClipResult:
     """The one endpoint's whole job: bbox in, clipped `.osm.pbf` at `dest`
     out. Raises `NoMirrorCoverage` (acceptance criterion 5) when nothing
     pinned on this mirror covers `bbox` — either because no extract's
     declared coverage overlaps it, or because a clip against the extracts
-    that might have produced literally nothing."""
+    that might have produced literally nothing.
+
+    Issue #402 (clip cache, deliberately excluded at #262's original scope:
+    "this service re-clips on every request and caches nothing, because
+    doing less is exactly what 'the mirror stays dumb' asks for at this
+    phase" — a decision made before the wall-time finding existed).
+    `cache_dir=None` (the default) reproduces that original behaviour
+    exactly. When given, a cache lookup runs first, keyed on `(pin, bbox)`
+    read from `MIRROR_STATE.json` **before** any extract is touched — the
+    same early-pin-read tradeoff `discover_region_extracts` already makes
+    elsewhere in this function, so a pin bump mid-request costs at most a
+    redundant cache miss, never a wrong-pin hit."""
     validate_bbox(bbox)
     started = time.monotonic()
     started_rss_kb = _current_rss_kb()
+
+    if cache_dir is not None:
+        cache_pin = current_pinned_date(root)
+        if cache_pin is not None:
+            cached = _read_cache(cache_dir, cache_pin, bbox, dest)
+            if cached is not None:
+                log.info(
+                    "clip bbox=%s pin=%s cache_hit=true output_bytes=%d",
+                    bbox, cache_pin, cached.output_bytes,
+                )
+                return cached
 
     extracts = discover_region_extracts(root)
     if not extracts:
@@ -432,7 +815,7 @@ def clip_bbox(
     tmp_dir = tmp_dir or dest.parent
 
     if len(candidates) == 1:
-        selected = _select_and_write(bbox, candidates[0].path, dest)
+        selected = _select_and_write(bbox, candidates[0].path, dest, tmp_dir=tmp_dir)
     else:
         # Issue #376: clip each covering extract *first*, then merge the
         # small clipped outputs — never merge the raw extracts. The old
@@ -456,7 +839,9 @@ def clip_bbox(
                 os.close(fd)
                 partial_path = Path(partial_name)
                 partial_path.unlink()  # BackReferenceWriter refuses an existing file
-                count = _select_and_write(bbox, candidate.path, partial_path)
+                count = _select_and_write(
+                    bbox, candidate.path, partial_path, tmp_dir=tmp_dir
+                )
                 selected += count
                 if count > 0:
                     partial_paths.append(partial_path)
@@ -483,6 +868,8 @@ def clip_bbox(
             f"({checked}) it might have overlapped"
         )
 
+    _stamp_header_box(dest, bbox, tmp_dir=tmp_dir)
+
     wall_time_s = time.monotonic() - started
     service_peak_rss_kb = _current_rss_kb()
     clip_rss_delta_kb = (
@@ -496,7 +883,7 @@ def clip_bbox(
         bbox, [c.region for c in candidates], wall_time_s, dest.stat().st_size,
         service_peak_rss_kb, clip_rss_delta_kb,
     )
-    return ClipResult(
+    result = ClipResult(
         output_path=dest,
         wall_time_s=wall_time_s,
         output_bytes=dest.stat().st_size,
@@ -505,6 +892,13 @@ def clip_bbox(
         source_regions=tuple(c.region for c in candidates),
         pin=current_pinned_date(root),
     )
+    # Store under the pin actually used for this clip (re-read just above,
+    # not the early cache_pin) — the two only ever differ across a mid-
+    # request pin bump, and storing under the freshly-read one keeps a
+    # cache entry always attributable to the extracts that produced it.
+    if cache_dir is not None and result.pin is not None:
+        _write_cache(cache_dir, result.pin, bbox, result, cache_max_bytes)
+    return result
 
 
 # --------------------------------------------------------------------------
@@ -601,6 +995,8 @@ def create_clip_app(
     client_key: str | None = None,
     rate_limit_per_minute: int = 30,
     rate_limit_time_fn: Callable[[], float] = time.monotonic,
+    cache_dir: Path | None = None,
+    cache_max_bytes: int = 0,
 ) -> FastAPI:
     app = FastAPI(title="plotlines-mirror-clip", version=VERSION)
     work_dir = Path(tmp_dir) if tmp_dir else Path(tempfile.gettempdir())
@@ -651,7 +1047,10 @@ def create_clip_app(
         dest = Path(out_name)
         dest.unlink()  # BackReferenceWriter refuses to write over an existing file
         try:
-            result = clip_bbox(bbox, root=root, dest=dest, tmp_dir=work_dir)
+            result = clip_bbox(
+                bbox, root=root, dest=dest, tmp_dir=work_dir,
+                cache_dir=cache_dir, cache_max_bytes=cache_max_bytes,
+            )
         except ValueError as exc:
             dest.unlink(missing_ok=True)
             if isinstance(exc, NoMirrorCoverage):
@@ -706,6 +1105,10 @@ def create_clip_app(
                 str(result.clip_rss_delta_kb)
                 if result.clip_rss_delta_kb is not None else "unknown"
             ),
+            # Issue #402: a cache hit's wall-time/RSS headers above measure
+            # the cache retrieval, not a real clip — this is how a caller or
+            # a bench harness tells the two apart rather than averaging them.
+            "X-Plotlines-Clip-Cache-Hit": "true" if result.cache_hit else "false",
             **clip_licence_headers(),
         }
         return Response(
@@ -793,6 +1196,25 @@ def main(argv: list[str] | None = None) -> int:
              "the CPU cost this bounds does not depend on whether a key "
              "is configured. 0 disables the ceiling.",
     )
+    _cache_dir_env = os.environ.get("MIRROR_CLIP_CACHE_DIR")
+    parser.add_argument(
+        "--cache-dir", type=Path,
+        default=(Path(_cache_dir_env) if _cache_dir_env else None),
+        help="issue #402: cache clip outputs here, keyed on (pin, bbox), "
+             "instead of re-scanning an identical request. Unset (the "
+             "default) reproduces #262's original 'stays dumb, caches "
+             "nothing' behaviour exactly. Deliberately outside --root — "
+             "this is derived, disposable state, not part of the mirror's "
+             "static tree.",
+    )
+    parser.add_argument(
+        "--cache-max-bytes", type=int,
+        default=int(os.environ.get("MIRROR_CLIP_CACHE_MAX_BYTES", "0")),
+        help="oldest-entry-first eviction ceiling for --cache-dir's total "
+             "size, in bytes. 0 (the default) disables eviction — fine "
+             "given the corridor-precut extract's few-MB clips, but an "
+             "operator pinning a much larger area should set one.",
+    )
     parser.add_argument(
         "--log-level", default="info", choices=("debug", "info", "warning", "error")
     )
@@ -820,6 +1242,8 @@ def main(argv: list[str] | None = None) -> int:
         tmp_dir=args.tmp_dir,
         client_key=client_key,
         rate_limit_per_minute=args.rate_limit_per_minute,
+        cache_dir=args.cache_dir,
+        cache_max_bytes=args.cache_max_bytes,
     )
     config = uvicorn.Config(
         app, host=args.host, port=args.port, log_level=args.log_level, access_log=True
