@@ -26,7 +26,7 @@ def test_concurrent_ensure_region_calls_do_not_build_in_parallel(tmp_path, monke
 
     def fake_build(self, cache_dir, tiles_upstream, allow_unmirrored=False,
                    elevation_upstream=None, mirror_clip_url=None,
-                   mirror_clip_client_key=None):
+                   mirror_clip_client_key=None, held_graph_lookup=None):
         nonlocal active, peak
         with lock:
             active += 1
@@ -61,7 +61,7 @@ def test_same_key_ensured_twice_still_builds_once(tmp_path, monkeypatch):
 
     def fake_build(self, cache_dir, tiles_upstream, allow_unmirrored=False,
                    elevation_upstream=None, mirror_clip_url=None,
-                   mirror_clip_client_key=None):
+                   mirror_clip_client_key=None, held_graph_lookup=None):
         nonlocal builds
         with lock:
             builds += 1
@@ -93,7 +93,7 @@ def test_ensure_region_requeues_a_settled_failed_region(tmp_path, monkeypatch):
 
     def fake_build(self, cache_dir, tiles_upstream, allow_unmirrored=False,
                    elevation_upstream=None, mirror_clip_url=None,
-                   mirror_clip_client_key=None):
+                   mirror_clip_client_key=None, held_graph_lookup=None):
         nonlocal attempts
         with lock:
             attempts += 1
