@@ -38,7 +38,10 @@ in designing with this brand.
 Guardrails that matter for this brand: primary (Blaze) buttons need ≥16 bold
 paper-text labels; Gold is a fill/marker color only, never text; every map
 marker must carry a distinct shape + internal mark, not color alone; numbers are
-never fudged and always set in mono.
+never fudged and always set in mono. Ownership and choice are drawn as different
+kinds of control (#319): a set the Author *owns* — the trip's modes — is a row of
+checked chips, and a *pick from* that set — a passage's mode — is a `SegmentedButton`;
+two identically-drawn selectors for those two things is the defect #271 found.
 
 If invoked without guidance, ask what the user wants to build, ask a few focused
 questions, and act as an expert designer who outputs HTML artifacts or Flutter
