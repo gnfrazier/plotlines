@@ -7,9 +7,11 @@ rigorous everywhere data lives.
 
 This system is delivered in two layers:
 
-1. **Flutter package** (`flutter/plotlines_ui/`) — the real, consumable
-   deliverable. Material 3 themed to the brand, adaptive across Android, iOS,
-   web, and desktop, with light / dark / outdoor-high-contrast modes.
+1. **Flutter package** (`flutter/plotlines_ui/`, a symlink to
+   `client/packages/plotlines_ui/` — the package the client actually ships) —
+   the real, consumable deliverable. Material 3 themed to the brand, adaptive
+   across Android, iOS, web, and desktop, with light / dark /
+   outdoor-high-contrast modes.
 2. **HTML reference** — CSS design tokens (`styles.css` + `tokens/`), foundation
    specimen cards, component preview cards, and a full gallery
    (`Plotlines UI Gallery.dc.html`) so the system is reviewable in the browser.
@@ -57,13 +59,14 @@ guide; copy those in from the guide's `assets/` when a mark is needed.
 - `styles.css` — global entry; `@import`s everything in `tokens/`.
 - `tokens/` — `fonts.css`, `colors.css`, `typography.css`, `spacing.css`,
   `radii.css`, `elevation.css`.
-- `flutter/plotlines_ui/` — the Flutter package (see its own `README.md`).
+- `flutter/plotlines_ui/` — symlink to `client/packages/plotlines_ui/`, the
+  Flutter package (see its own `README.md`).
 - `cards/` — foundation + component specimen cards (Design System tab).
 - `Plotlines UI Gallery.dc.html` — full reviewable gallery.
 - `SKILL.md` — downloadable Agent Skill wrapper.
 
 ## Caveats
-- Flutter code was authored here but **not compiled/run** — verify in a real
-  Flutter project.
+- The Flutter package is the production one the client imports; edits to it
+  are client changes and go through the normal client test/PR path.
 - Fonts use `google_fonts` (network fetch on first run); bundle `.ttf`s for
   fully offline field use.

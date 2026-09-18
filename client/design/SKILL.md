@@ -8,7 +8,8 @@ Read `readme.md` in this skill, then explore the other files.
 
 - **Foundations** live in `styles.css` + `tokens/` (colors, type, spacing, radii,
   elevation). The canonical brand reference is `Plotlines Brand Guide.dc.html`.
-- **Flutter components** live in `flutter/plotlines_ui/` — import
+- **Flutter components** live in `flutter/plotlines_ui/` (symlink to
+  `client/packages/plotlines_ui/`, the package the client ships) — import
   `package:plotlines_ui/plotlines_ui.dart` and theme with `PlotTheme.light()` /
   `.dark()` / `.highContrast()`.
 - **HTML specimens** live in `cards/` and `Plotlines UI Gallery.dc.html`.
