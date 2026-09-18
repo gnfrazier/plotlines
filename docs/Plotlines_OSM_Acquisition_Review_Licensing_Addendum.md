@@ -10,6 +10,10 @@ epic #279; Phase 5 as #284–#287 under epic #283. **§6's Phase 3+ block was re
 not Phase 3 work and is now #269 (Phase 0), and 3a split, its schema half landing as #270
 (Phase 1) and its remaining half as #277 (Phase 3). **Every gap this addendum names now has an issue**;
 the per-gap map is in §7.
+**Executed:** Phases 0–3 closed 2026-09-04 / 2026-09-13 / 2026-09-16 / 2026-09-17 respectively; **5d**
+(A23/A23a, 2A.3, the ARCH D-number — recorded as **D63**) closed 2026-09-17 by #287. **L6** (#269) and
+**L7** (#270/#277 — the pin as `Provenance.osm_source`) both confirmed landed in the same pass. Phases 4
+and 5a–5c remain open.
 **Not legal advice.** Clause readings below are engineering readings; §L2/§L3 and open
 question 4 are the two that warrant a real sign-off before they ship.
 
@@ -650,15 +654,19 @@ Phase 3 is one half of one item.
 - **5b.** The capped live-refresh affordance, with **P4**'s four assertable numbers and **P3**'s
   count-in-queries rule, shipped in the same commit. *(P4, P3, Q5-A)* → **#285**
 - **5c.** The give-back: an "improve this in OSM" hand-off, and the sponsorship decision. → **#286**
-- **5d.** Close out **A23**/**A23a** and Punchlist **2A.3**, record the ARCH **D**-number, and land
-  the doc amendments below. *(review checklist item 26)* → **#287**
+- **5d.** ~~Close out **A23**/**A23a** and Punchlist **2A.3**, record the ARCH **D**-number, and
+  land the doc amendments below.~~ **Done 2026-09-17 → #287.** Recorded as ARCH **D63**.
 
-**Doc amendments owed, not issues.** Two ARCH edits fall out of the above and are wording
-changes rather than work: **§12.2 / §13.4** describe attribution as derived from the loaded
-layer set, which is now one of two mechanisms — restate it as one policy over every payload, per
-§8.1's precedent (#269); and **§8** says a trip pins the build it started on without saying the
-pin is *written into the payload*, which is the whole of L7 (#270). Both are owed by decisions
-already taken, not by the issues. **#287 confirms they landed** rather than owning them.
+**Doc amendments owed, not issues.** One ARCH edit and one edit to this review's own document fall
+out of the above and are wording changes rather than work: ARCH **§12.2 / §13.4** describe
+attribution as derived from the loaded layer set, which is now one of two mechanisms — restate it
+as one policy over every payload, per §8.1's precedent (#269); and *this document's* **§8** says a
+trip pins the build it started on without saying the pin is *written into the payload*, which is
+the whole of L7 (#270). Both are owed by decisions already taken, not by the issues. **#287
+confirmed both landed** (ARCH §12.2/§13.4 restated; this document's §8 now names
+`Provenance.osm_source`) rather than owning them, and also corrected ARCH §12's own OSM-services
+table, which still read the pre-SPIKE-D "heavier query" claim and made no mention of the mirror
+clip.
 
 ---
 

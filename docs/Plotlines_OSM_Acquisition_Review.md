@@ -8,6 +8,13 @@ Phase 1 is #255–#263 + #270 under epic **#264**; Phase 2 is #265–#267 under 
 epic **#283**. Every numbered checklist item in §13 now has an issue behind it. The six §12 open questions
 are **answered** — see §12; the answers change §6, and those changes are folded in below rather than left
 as an appendix.
+**Executed:** Phase 0 closed 2026-09-04 (#254, all fourteen mitigations); Phase 1 closed 2026-09-13
+(#264, the mirror, its `/clip` endpoint, the live rehearsal runbook); Phase 2 closed 2026-09-16 (#268,
+SPIKE-I/SPIKE-J, the software-notice bundle); Phase 3 closed 2026-09-17 (#272, the transport swap
+itself — #273–#278 — and reachable from the app since #434); the acquisition decision is recorded as
+ARCH **D63** (#287, 2026-09-17), which also closes out ARCH **A23**/**A23a** and Punchlist **2A.3**.
+**Open:** Phase 4 (#279, hosted) and the rest of Phase 5 (#283 — #284, #285, #286; §10's policy gate and
+give-back are not yet built, though two of its three test gates shipped early as #251).
 **Open issues in view:** [#238](https://github.com/gnfrazier/plotlines/issues/238), [#239](https://github.com/gnfrazier/plotlines/issues/239), [#240](https://github.com/gnfrazier/plotlines/issues/240), [#154](https://github.com/gnfrazier/plotlines/issues/154), [#144](https://github.com/gnfrazier/plotlines/issues/144)
 **Documents in view:** ARCH **A23** / **A23a** / §8.3 / §11 / §12, PRD **FR1** / **FR92** / **FR94** / **FR95** / **FR120** / **FR121**, Punchlist **2A.3**
 
@@ -566,6 +573,13 @@ mid-planning; a new trip gets whatever is current. Same discipline as `PROTOMAPS
 This removes client-side diff application from the plan entirely — diffs are applied server-side to
 keep the mirror current, and clients only ever see a pin.
 
+**The pin is written into the payload (L7, #270/#277).** `trips.provenance.build_provenance` is the
+one producer of `Provenance`; `osm_source` carries `geofabrik:<pin>` off the clip's own directory
+(`Region.graph_source_path`) once a mirror clip exists, and `overpass:<fetch-date>` only on the
+Overpass fallback. A trip built from a stale pin is therefore distinguishable from a fresh one in
+the payload itself, not just on the mirror's own `MIRROR_STATE.json` — which is what keeps a quiet,
+months-old pin (§11.3) from reaching an Author's data as well as ops.
+
 ## 9. Phase 4 — Web and hosted
 
 ARCH §11 has already decided this (line 944):
@@ -769,9 +783,14 @@ it unnecessary to check.
     §10's other two gates already shipped in Phase 0 as #251.)*
 25a. Give back: an "improve this in OSM" hand-off, and the OSMF/Geofabrik sponsorship decision.
     *(§10 closing — filed as #286)*
-26. Revisit ARCH **A23** / **A23a** and Punchlist **2A.3** — mark local extracts measured, and
+26. ~~Revisit ARCH **A23** / **A23a** and Punchlist **2A.3** — mark local extracts measured, and
     record the decision as a new ARCH **D**-number, plus the doc amendments owed by #269, #270 and
-    §12. *(filed as #287)*
+    §12.~~ **Done 2026-09-17 (#287).** A23 restated with SPIKE-I's measured clip cost and its
+    same-day fix (#375/#376), re-rated HIGH → MEDIUM pending #402's live-Pi re-measurement; A23a
+    revisited — the `osmnx` defects are unpatched, only their exposure shrank. Recorded as ARCH
+    **D63**. Punchlist 2A.3 ticked. §12.2/§13.4's attribution wording (#269) and §8's payload-pin
+    note (#270) confirmed landed; ARCH §12's stale "heavier query" claim corrected and pointed at
+    this document instead of restating it. Both review documents carry the execution record above.
 
 **When web is on the table — Phase 4** *(epic #279)*
 
