@@ -3,7 +3,7 @@
 // `summary` carries the denormalized card-face metrics the Trip Library grid
 // reads without decoding a payload per row. Pins their round trip and the
 // old-row defaults the migration relies on, matching the style of
-// `app_database_declared_modes_test.dart`.
+// `app_database_modes_test.dart`.
 library;
 
 import 'package:drift/native.dart';
@@ -20,7 +20,6 @@ void main() {
       id: 'trip-1',
       title: 'Test trip',
       modes: const ['hiking'],
-      declaredModes: const ['hiking'],
       payloadJson: '{"schema_version":"1.4.0"}',
       rosterJson: '{"entries":[{"character_id":"ann","name":"Ann"}]}',
       summaryJson: '{"distance_m":42000,"day_count":3,"group_size":1}',
@@ -41,7 +40,6 @@ void main() {
       id: 'trip-1',
       title: 'Bare',
       modes: const [],
-      declaredModes: const [],
       payloadJson: '{}',
       updatedAt: DateTime.utc(2026, 8, 26),
     );
@@ -58,8 +56,7 @@ void main() {
     await db.saveTrip(
       id: 'with-metrics',
       title: 'Pisgah Loop',
-      modes: const ['cycling'],
-      declaredModes: const ['cycling', 'gravel'],
+      modes: const ['cycling', 'hiking'],
       payloadJson: '{}',
       summaryJson: '{"distance_m":58000,"ascent_m":1200,"day_count":2,"variant_count":0,"group_size":4}',
       updatedAt: DateTime.utc(2026, 8, 27),
@@ -71,8 +68,8 @@ void main() {
     expect(entry.summary.dayCount, 2);
     expect(entry.summary.groupSize, 4);
     expect(entry.syncBadge, TripSyncBadge.thisDevice);
-    // FR74's "filter by mode" matches realised OR declared modes.
-    expect(entry.allModes, {'cycling', 'gravel'});
+    // FR74's "filter by mode" matches the trip's one mode set (#319).
+    expect(entry.modes, ['cycling', 'hiking']);
   });
 
   test('listTrips tolerates a legacy empty summary string', () async {
@@ -83,7 +80,6 @@ void main() {
       id: 'legacy',
       title: 'Old trip',
       modes: const [],
-      declaredModes: const [],
       payloadJson: '{}',
       updatedAt: DateTime.utc(2026, 8, 20),
     );

@@ -88,7 +88,7 @@ Widget _harness(ProviderContainer container) => UncontrolledProviderScope(
               title: 'Test',
               createdAt: '2026-09-15T00:00:00Z',
               updatedAt: '2026-09-15T00:00:00Z',
-              declaredModes: const {'cycling'},
+              modes: const {'cycling'},
             ),
             activeDayId: null,
           ),

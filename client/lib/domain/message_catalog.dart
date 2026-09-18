@@ -214,7 +214,7 @@ const Map<MessageId, String> baseLocalePatterns = {
   MessageId.reasonLayersPartiallyServed: 'not every requested layer is in these results',
   MessageId.reasonPluginLayerUnloadableOnLicence: 'this plugin layer cannot be loaded under its licence',
   MessageId.reasonNoClustersFoundInBbox: 'no clusters were found in this area',
-  MessageId.reasonComposeDistanceIsAnOutcome: 'in Compose mode the distance is what the places add up to',
+  MessageId.reasonComposeDistanceIsAnOutcome: 'in Compose the distance is what the places add up to',
   MessageId.reasonDerivedWorkIsStale: 'an edit invalidated work that has not been re-solved',
 
   // Messages about a role.
@@ -251,7 +251,7 @@ const Map<MessageId, String> baseLocalePatterns = {
   MessageId.coordinateLatLon: '{lat}, {lon}',
 
   // Lists.
-  MessageId.declaredModes: 'Modes {modes}',
+  MessageId.tripModes: 'Modes {modes}',
   MessageId.layersOnMap: 'On the map: {layers}.',
 
   // Spoken lead-ins.

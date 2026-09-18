@@ -17,7 +17,7 @@ Trip _trip({List<Anchor> anchors = const []}) => Trip(
       title: 'Test',
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z',
-      declaredModes: const {'cycling', 'hiking'},
+      modes: const {'cycling', 'hiking'},
       anchors: anchors,
     );
 

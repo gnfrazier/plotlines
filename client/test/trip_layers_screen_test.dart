@@ -6,7 +6,7 @@
 //
 // `CurationClient` has no HTTP-mock convention in this repo
 // (`curation_client_test.dart`'s note); it is faked as in
-// `layers_tab_declared_modes_test.dart`.
+// `layers_tab_modes_test.dart`.
 library;
 
 import 'package:drift/native.dart';
@@ -120,7 +120,7 @@ Widget _harness(ProviderContainer container, {required void Function(Object?) on
 
 Future<void> _openStep(WidgetTester tester, ProviderContainer container,
     {Set<String> modes = const {'hiking'}, void Function(Object?)? onNew}) async {
-  container.read(currentTripProvider.notifier).setDeclaredModes(modes);
+  container.read(currentTripProvider.notifier).setModes(modes);
   await tester.pumpWidget(_harness(container, onNew: onNew ?? (_) {}));
   await tester.tap(find.text('start'));
   await tester.pumpAndSettle();

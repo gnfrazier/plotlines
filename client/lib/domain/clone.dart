@@ -19,8 +19,10 @@
 //     Author-entered profile values
 //     (`roster.dart`). The last two are authored data the Author *holds*
 //     about a person, not consent — a grant is still never carried.
-//   * `declaredModes` — carried with the authored trip; re-declared at trip
-//     initiation when the authored trip is not in scope (FR144).
+//   * `Trip.modes` — the trip's one mode set (#319), carried with the
+//     authored trip; re-declared at trip initiation when the authored trip
+//     is not in scope (FR144). It rides beside the payload, not in it, so
+//     the `toJson()`/`fromJson` round trip below has to carry it by hand.
 //
 // What it deliberately does **not** model, because nothing on the
 // Character-layer allowlist has a home in this client yet: `profile_grant`,
@@ -146,20 +148,18 @@ CloneManifest describeClone(CloneScope scope, {CloneParts parts = const ClonePar
   );
 }
 
-/// The product of a clone: a fresh [Trip], its [TripRoster], the declared
-/// modes it starts with, and whether the caller must now run trip
-/// initiation.
+/// The product of a clone: a fresh [Trip] (its mode set already on it, as
+/// `Trip.modes`), its [TripRoster], and whether the caller must now run
+/// trip initiation.
 class CloneOutcome {
   const CloneOutcome({
     required this.trip,
     required this.roster,
-    required this.declaredModes,
     required this.runsTripInitiation,
   });
 
   final Trip trip;
   final TripRoster roster;
-  final Set<String> declaredModes;
   final bool runsTripInitiation;
 }
 
@@ -170,7 +170,8 @@ class CloneOutcome {
 /// The enumerated copy (ARCH §11.8):
 ///   * authored trip in scope → the payload is copied **in full** via
 ///     `source.toJson()`, with only `id`, `title`, `created_at`, and
-///     `updated_at` replaced;
+///     `updated_at` replaced, and the trip's mode set carried across beside
+///     it (FR144);
 ///   * authored trip out of scope → a blank [Trip] (no days, anchors,
 ///     duration, or weights), and [CloneOutcome.runsTripInitiation] is true;
 ///   * roster in scope → membership, groups, gear, meals, Author notes, and
@@ -185,7 +186,6 @@ class CloneOutcome {
 CloneOutcome cloneTrip({
   required Trip source,
   required TripRoster sourceRoster,
-  required Set<String> sourceDeclaredModes,
   required CloneScope scope,
   required String newId,
   required String nowIso,
@@ -203,7 +203,11 @@ CloneOutcome cloneTrip({
       ..['title'] = newTitle
       ..['created_at'] = nowIso
       ..['updated_at'] = nowIso;
-    clonedTrip = Trip.fromJson(json);
+    // `modes` is not in the payload (`trip.dart`), so it does not survive
+    // the round trip on its own. #315 — fold any pre-migration mode value
+    // carried from the source.
+    clonedTrip = Trip.fromJson(json)
+        .copyWith(modes: {for (final m in source.modes) canonicalMode(m)});
   } else {
     clonedTrip = Trip(
       id: newId,
@@ -233,10 +237,6 @@ CloneOutcome cloneTrip({
   return CloneOutcome(
     trip: clonedTrip,
     roster: clonedRoster,
-    // #315 — fold any pre-migration mode value carried from the source.
-    declaredModes: carriesAuthored
-        ? {for (final m in sourceDeclaredModes) canonicalMode(m)}
-        : const {},
     runsTripInitiation: !carriesAuthored,
   );
 }

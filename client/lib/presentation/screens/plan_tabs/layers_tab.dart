@@ -53,17 +53,13 @@ class _LayersTabState extends ConsumerState<LayersTab> {
   Day? get _activeDay =>
       widget.trip.days.where((d) => d.id == widget.activeDayId).firstOrNull;
 
-  /// FR144/N0 — the trip's declared modes now feed the layer picker's
-  /// defaults directly. A trip saved before N0 (nothing in `declaredModes`
-  /// yet, `app_database.dart`'s migration note) falls back to whatever
-  /// modes are actually realized in its segments, and finally to cycling
-  /// for a brand-new, day-less trip — the same fallback chain
-  /// `Trip.modes`'s own doc comment already draws a line under.
-  Set<String> get _effectiveModes {
-    if (widget.trip.declaredModes.isNotEmpty) return widget.trip.declaredModes;
-    if (widget.trip.modes.isNotEmpty) return widget.trip.modes;
-    return const {'cycling'};
-  }
+  /// FR144/N0, #319 — the trip's one mode set feeds the layer picker's
+  /// defaults directly. No fallback chain: the set is the single source of
+  /// truth and every segment's mode is in it (`Trip.modes`); a pre-#319 row
+  /// had its two columns folded by the v6 migration. `layerModesKey` still
+  /// maps an empty set (a day-less trip saved before N0) to cycling for the
+  /// fetch.
+  Set<String> get _effectiveModes => widget.trip.modes;
 
   String get _dayType => _activeDay?.kind ?? 'route';
 
@@ -101,7 +97,7 @@ class _LayersTabState extends ConsumerState<LayersTab> {
         ),
       ),
       data: (catalog) {
-        // FR144/N0 — reseeds only when the declared set actually changed
+        // FR144/N0 — reseeds only when the mode set actually changed
         // since the last seed (`seedForModes`'s own doc comment); switching
         // the active day (and so `_dayType`) alone never re-triggers this.
         WidgetsBinding.instance.addPostFrameCallback((_) {

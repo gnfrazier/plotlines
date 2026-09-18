@@ -2,7 +2,8 @@
 // discipline row is revealed in the weights rail under the passage's mode
 // category, filtered to `disciplinesForCategory(mode)`, single-select and
 // optional ("CATEGORY DEFAULT" = the category's own profile). Changing it
-// marks the route stale, exactly as the MODE row already does, and
+// does **not** mark the route stale (#319, Q8: a change within a parent mode
+// is not a change of parent mode — PASSAGE MODE is what marks), and
 // tuned-vs-generic is read off `Discipline.tier` rather than chip order.
 library;
 
@@ -81,8 +82,8 @@ void main() {
     expect(find.widgetWithText(ChoiceChip, 'CATEGORY DEFAULT'), findsNothing);
   });
 
-  testWidgets('picking a discipline sets it on the passage and marks the route '
-      'stale', (tester) async {
+  testWidgets('picking a discipline sets it on the passage and leaves the route '
+      'as solved (#319: not stale)', (tester) async {
     await _pump(tester, _segment());
 
     await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'GRAVEL'));
@@ -90,7 +91,7 @@ void main() {
     await tester.pump();
 
     expect(_current(tester).discipline, 'gravel');
-    expect(_current(tester).solve?.stale, isTrue);
+    expect(_current(tester).solve?.stale, isNot(isTrue));
   });
 
   testWidgets('CATEGORY DEFAULT clears a discipline back to the category profile',
@@ -102,7 +103,7 @@ void main() {
     await tester.pump();
 
     expect(_current(tester).discipline, isNull);
-    expect(_current(tester).solve?.stale, isTrue);
+    expect(_current(tester).solve?.stale, isNot(isTrue));
   });
 
   testWidgets('the tuned-vs-generic line is read off the tier, not chip order',

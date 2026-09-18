@@ -51,16 +51,12 @@ class TripLayersScreen extends ConsumerStatefulWidget {
 }
 
 class _TripLayersScreenState extends ConsumerState<TripLayersScreen> {
-  /// FR144/N0 — the declared modes feed the picker's defaults. Same fallback
-  /// chain `layers_tab.dart`'s `_effectiveModes` draws: a trip saved before
-  /// N0 has nothing declared, so fall back to the modes realised in its
-  /// segments, then to cycling for a brand-new, day-less trip.
-  Set<String> get _effectiveModes {
-    final trip = ref.read(currentTripProvider);
-    if (trip.declaredModes.isNotEmpty) return trip.declaredModes;
-    if (trip.modes.isNotEmpty) return trip.modes;
-    return const {'cycling'};
-  }
+  /// FR144/N0, #319 — the trip's one mode set feeds the picker's defaults.
+  /// No fallback chain any more: the set is the single source of truth and
+  /// every segment's mode is in it (`Trip.modes`); a pre-#319 row had its
+  /// two columns folded by the v6 migration. `layerModesKey` still maps an
+  /// empty set (a day-less trip saved before N0) to cycling for the fetch.
+  Set<String> get _effectiveModes => ref.read(currentTripProvider).modes;
 
   void _continue() {
     // Kick candidate extraction off now, on the settled live set, so it is
@@ -125,7 +121,7 @@ class _TripLayersScreenState extends ConsumerState<TripLayersScreen> {
             ),
             data: (catalog) {
               // FR144/N0 — reseed the trip-wide live set from the
-              // mode-derived default, but only when the declared set has
+              // mode-derived default, but only when the mode set has
               // actually changed since the last seed (`seedForModes`'s own
               // contract); an Author who steps back and forward keeps their
               // edits.

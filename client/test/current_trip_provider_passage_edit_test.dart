@@ -86,7 +86,10 @@ void main() {
           solve: SolveProvenance(solvedAt: '2026-01-01T00:00:00Z'),
         );
 
-    test('sets a discipline under the passage\'s mode and marks it stale', () {
+    // #319 (Q8, owner's call) — a change *within* a parent mode is not a
+    // change of parent mode, so the solved route is left standing, not
+    // marked stale; `updateSegmentMode` (above) is the one that marks.
+    test('sets a discipline under the passage\'s mode without marking it stale', () {
       final container = containerWithSegment(cyclingSeg());
       addTearDown(container.dispose);
 
@@ -97,10 +100,10 @@ void main() {
       final updated = container.read(currentTripProvider).days.single.segments.single;
       expect(updated.discipline, 'gravel');
       expect(updated.mode, 'cycling');
-      expect(updated.solve?.stale, isTrue);
+      expect(updated.solve?.stale, isNot(isTrue));
     });
 
-    test('null clears the discipline back to the category profile, marking stale', () {
+    test('null clears the discipline back to the category profile, still not stale', () {
       final container = containerWithSegment(cyclingSeg(discipline: 'mountain'));
       addTearDown(container.dispose);
 
@@ -110,7 +113,7 @@ void main() {
 
       final updated = container.read(currentTripProvider).days.single.segments.single;
       expect(updated.discipline, isNull);
-      expect(updated.solve?.stale, isTrue);
+      expect(updated.solve?.stale, isNot(isTrue));
     });
 
     test('a discipline that does not refine the passage\'s mode is ignored', () {

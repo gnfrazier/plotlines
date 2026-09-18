@@ -6,7 +6,7 @@
 // group "is stored on the trip roster entry, not the account profile" — and
 // it is equally not on the payload. The schema is `additionalProperties:
 // false` and carries no roster, group, gear-assignment, or meal-responsibility
-// field. So this model is persisted the same way `Trip.declaredModes` is:
+// field. So this model is persisted the same way `Trip.modes` is:
 // its own column on the local `Trips` table (`app_database.dart`), alongside
 // (not within) the payload blob. In hosted mode it maps to the `roster_entry`
 // and `author_note` tables (ARCH §11.1), which are likewise separate from
