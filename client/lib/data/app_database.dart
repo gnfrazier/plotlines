@@ -16,20 +16,17 @@ class Trips extends Table {
   TextColumn get id => text()();
   TextColumn get title => text()();
 
-  /// Denormalized comma-joined mode list (e.g. "cycling,hiking") so the
-  /// library list can project it without decoding `payload` per row
-  /// (SPIKE-20: full-row `SELECT *` on 20 trips cost 137ms vs 1.0ms projected).
-  TextColumn get modes => text()();
-
-  /// FR144/N0 — the Author's **declared** modes (`Trip.declaredModes`),
-  /// comma-joined the same way [modes] is. Lives here rather than in
+  /// FR144/N0, issue #319 — the trip's one travel-mode set (`Trip.modes`),
+  /// comma-joined (e.g. "cycling,hiking"). Lives here rather than in
   /// `payload` because `trip_payload.schema.json` is
   /// `additionalProperties: false` and has no such field (`trip.dart`'s doc
-  /// comment on `declaredModes`) — this column is this field's only
-  /// persistence, not a denormalized copy of something the payload also
-  /// carries. Defaulted for old rows written before this column existed;
-  /// those trips simply have nothing declared until reopened and re-set.
-  TextColumn get declaredModes => text().withDefault(const Constant(''))();
+  /// comment on `modes`) — this column is the field's only persistence, and
+  /// the library list projects it without decoding `payload` per row
+  /// (SPIKE-20: full-row `SELECT *` on 20 trips cost 137ms vs 1.0ms
+  /// projected). Before schema v6 this was the segment-derived list and a
+  /// second `declared_modes` column held the Author's set; the v6 migration
+  /// folds the two into this one.
+  TextColumn get modes => text()();
 
   /// Canonical trip_payload.schema.json JSON, as TEXT (SQLite has no JSON type).
   TextColumn get payload => text()();
@@ -37,7 +34,7 @@ class Trips extends Table {
   /// FR134–FR136 / G2b — the trip's roster layer (`TripRoster.toJson()`):
   /// membership, group and sub-group assignments, shared-gear and meal
   /// responsibilities, and Author notes. Kept **beside** [payload], not
-  /// inside it, for the same reason [declaredModes] is: the roster is not a
+  /// inside it, for the same reason [modes] is: the roster is not a
   /// `trip_payload.schema.json` type (FR136 — group "is stored on the trip
   /// roster entry, not the account profile", and equally not on the payload),
   /// and in hosted mode it maps to the separate `roster_entry` / `author_note`
@@ -92,7 +89,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.connection);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -102,7 +99,12 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(rejectedProposals);
           }
           if (from < 3) {
-            await m.addColumn(trips, trips.declaredModes);
+            // FR144/N0 added the Author's declared set as its own column.
+            // Raw SQL rather than `m.addColumn`, because the column is gone
+            // from the table definition since v6 (#319 below) — a v2 file
+            // still has to pass through the v5 fold, which reads it.
+            await m.database.customStatement(
+                "ALTER TABLE trips ADD COLUMN declared_modes TEXT NOT NULL DEFAULT ''");
           }
           if (from < 4) {
             // G2 / G2b — the roster layer and the card-face metrics summary.
@@ -146,6 +148,35 @@ class AppDatabase extends _$AppDatabase {
               );
             }
           }
+          if (from < 6) {
+            // Issue #319 — one trip mode set. `modes` used to be the
+            // segment-derived list and `declared_modes` the Author's stated
+            // set; the stored set is now the single source of truth and
+            // every segment's mode is a member of it (`Trip.modes`). Fold
+            // the two into `modes` — declared first so the Author's own
+            // order survives, then anything only a segment realised — and
+            // drop the second column. Done row-by-row for the same reason
+            // the v5 fold was: the union has to dedupe per row.
+            final rows = await m.database
+                .customSelect('SELECT id, modes, declared_modes FROM trips')
+                .get();
+            for (final row in rows) {
+              final merged = <String>[];
+              for (final csv in [row.read<String>('declared_modes'), row.read<String>('modes')]) {
+                for (final raw in csv.split(',')) {
+                  final v = raw.trim();
+                  if (v.isNotEmpty && !merged.contains(v)) merged.add(v);
+                }
+              }
+              await m.database.customStatement(
+                'UPDATE trips SET modes = ? WHERE id = ?',
+                [merged.join(','), row.read<String>('id')],
+              );
+            }
+            // Recreates `trips` from the current table definition, which no
+            // longer has `declared_modes`, copying every column both share.
+            await m.alterTable(TableMigration(trips));
+          }
         },
       );
 
@@ -168,9 +199,6 @@ class AppDatabase extends _$AppDatabase {
               id: row.id,
               title: row.title,
               modes: row.modes.isEmpty ? const [] : row.modes.split(','),
-              declaredModes: row.declaredModes.isEmpty
-                  ? const []
-                  : row.declaredModes.split(','),
               updatedAt: row.updatedAt,
               summary: TripCardMetrics.fromJsonString(row.summary),
               syncBadge: TripSyncBadge.thisDevice,
@@ -185,7 +213,6 @@ class AppDatabase extends _$AppDatabase {
     required String id,
     required String title,
     required List<String> modes,
-    required List<String> declaredModes,
     required String payloadJson,
     required DateTime updatedAt,
     String rosterJson = '',
@@ -195,7 +222,6 @@ class AppDatabase extends _$AppDatabase {
       id: id,
       title: title,
       modes: modes.join(','),
-      declaredModes: Value(declaredModes.join(',')),
       payload: payloadJson,
       roster: Value(rosterJson),
       summary: Value(summaryJson),
@@ -329,7 +355,6 @@ class TripListEntry {
     required this.title,
     required this.modes,
     required this.updatedAt,
-    this.declaredModes = const [],
     this.summary = TripCardMetrics.empty,
     this.syncBadge = TripSyncBadge.thisDevice,
   });
@@ -337,18 +362,13 @@ class TripListEntry {
   final String id;
   final String title;
 
-  /// Modes realised by the trip's segments.
+  /// The trip's mode set (`Trip.modes`, #319) — what the card's mode tag
+  /// shows and what G2's "filter by mode" matches against (FR74). Every
+  /// segment's mode is a member, so a brand-new trip with no segments yet
+  /// still filters on what it is *for*.
   final List<String> modes;
-
-  /// FR144 — the Author's declared modes; used by G2's "filter by mode" so a
-  /// brand-new trip with no segments yet still filters on what it is *for*.
-  final List<String> declaredModes;
 
   final DateTime updatedAt;
   final TripCardMetrics summary;
   final TripSyncBadge syncBadge;
-
-  /// The union of realised and declared modes — what "filter by mode" matches
-  /// against (FR74).
-  Set<String> get allModes => {...modes, ...declaredModes};
 }

@@ -84,7 +84,7 @@ void main() {
 
     test('a nameList slot resolves through the same rule', () {
       expect(
-        messages.resolve(MessageId.declaredModes, {
+        messages.resolve(MessageId.tripModes, {
           'modes': const NameListSlot(['Ride', 'Paddle'], source: NameSource.capabilityName),
         }),
         'Modes Ride and Paddle',

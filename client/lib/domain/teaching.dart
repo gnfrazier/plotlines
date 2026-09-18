@@ -89,7 +89,7 @@ const Map<TeachingMoment, TeachingCopy> teachingRegistry = {
   ),
   TeachingMoment.composeDistanceIsOutcome: TeachingCopy(
     surface: 'day_view_compose_mode',
-    message: 'In Compose mode you pick the places; the engine connects them, and the resulting distance is reported, not enforced.',
+    message: 'In Compose you pick the places; the engine connects them, and the resulting distance is reported, not enforced.',
     helpAffordance: 'day_view_compose_mode_help',
   ),
   TeachingMoment.branchAnchorsByReference: TeachingCopy(

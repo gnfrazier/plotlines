@@ -1,7 +1,7 @@
 // G2a (FR74a) — the AC's "selecting reopens into the planner with all edits
 // intact — including promoted anchors, roles, and reveal settings". The
 // declared-modes round trip is covered separately
-// (current_trip_provider_persistence_declared_modes_test.dart); this file
+// (current_trip_provider_persistence_modes_test.dart); this file
 // covers the promotion-era object model that FR74a calls out by name:
 // `Trip.anchors`, each `Role`'s kind/reveal/arc, and a role's own point
 // offset — all of which ride inside the JSON `payload` column rather than a

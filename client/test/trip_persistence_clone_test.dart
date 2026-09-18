@@ -26,7 +26,7 @@ ProviderContainer _container(AppDatabase db) {
 Future<String> _seedTrip(ProviderContainer c) async {
   final notifier = c.read(currentTripProvider.notifier);
   notifier.reset();
-  notifier.setDeclaredModes({'hiking'});
+  notifier.setModes({'hiking'});
   notifier.renameTrip('Blue Ridge Traverse');
   notifier.addBlankDay();
   notifier.addBlankDay();
@@ -66,7 +66,7 @@ void main() {
     final freshReader = _container(db);
     await freshReader.read(tripPersistenceProvider).open(outcome.trip.id);
     expect(freshReader.read(currentTripProvider).days, hasLength(2));
-    expect(freshReader.read(currentTripProvider).declaredModes, {'hiking'});
+    expect(freshReader.read(currentTripProvider).modes, {'hiking'});
     final roster = freshReader.read(currentRosterProvider);
     expect(roster.entries.map((e) => e.characterId), ['ann', 'bo']);
     expect(roster.gear.single.assigneeIds, {'ann', 'bo'});
@@ -90,7 +90,7 @@ void main() {
     final reader = _container(db);
     await reader.read(tripPersistenceProvider).open(outcome.trip.id);
     expect(reader.read(currentTripProvider).days, isEmpty);
-    expect(reader.read(currentTripProvider).declaredModes, isEmpty);
+    expect(reader.read(currentTripProvider).modes, isEmpty);
     expect(reader.read(currentRosterProvider).entries, hasLength(2));
 
     // The card summary reflects the carried group size and the empty itinerary.
@@ -137,7 +137,7 @@ void main() {
 
     c.read(tripPersistenceProvider).adopt(outcome);
     expect(c.read(currentTripProvider).id, outcome.trip.id);
-    expect(c.read(currentTripProvider).declaredModes, {'hiking'});
+    expect(c.read(currentTripProvider).modes, {'hiking'});
     expect(c.read(currentRosterProvider).entries, hasLength(2));
   });
 }

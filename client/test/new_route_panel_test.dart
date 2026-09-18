@@ -22,6 +22,7 @@ import 'package:plotlines_client/domain/trip_bbox.dart';
 import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart';
 import 'package:plotlines_client/presentation/screens/new_route_screen.dart';
 import 'package:plotlines_client/presentation/widgets/plot_toggle_chip.dart';
+import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/settings_provider.dart';
 import 'package:plotlines_client/state/trip_bbox_provider.dart';
@@ -93,7 +94,15 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-Future<void> _pumpPanel(WidgetTester tester, {List<Override> extraOverrides = const []}) async {
+/// [modes] — the trip's mode set (#319). A real trip always has one from the
+/// creation prompt; the passage picker offers exactly this, so a test that
+/// picks a passage mode needs it. `{'cycling', 'hiking'}` is the walkthrough's
+/// own trip.
+Future<void> _pumpPanel(
+  WidgetTester tester, {
+  List<Override> extraOverrides = const [],
+  Set<String> modes = const {'cycling', 'hiking'},
+}) async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
   final router = GoRouter(
     initialLocation: '/new',
@@ -112,6 +121,25 @@ Future<void> _pumpPanel(WidgetTester tester, {List<Override> extraOverrides = co
     ],
     child: MaterialApp.router(routerConfig: router),
   ));
+  await _settle(tester);
+  ProviderScope.containerOf(tester.element(find.byType(NewRouteScreen)), listen: false)
+      .read(currentTripProvider.notifier)
+      .setModes(modes);
+  await _settle(tester);
+}
+
+/// The passage-mode control (#319) — a segmented single-select, never the
+/// trip's checked chips — and a segment inside it by label.
+Finder _passagePicker() => find.byType(SegmentedButton<String>);
+Finder _passageSegment(String label) =>
+    find.descendant(of: _passagePicker(), matching: find.text(label));
+
+Set<String> _passageSelection(WidgetTester tester) =>
+    tester.widget<SegmentedButton<String>>(_passagePicker()).selected;
+
+Future<void> _pickPassageMode(WidgetTester tester, String label) async {
+  await tester.ensureVisible(_passageSegment(label));
+  await tester.tap(_passageSegment(label));
   await _settle(tester);
 }
 
@@ -139,14 +167,129 @@ void main() {
     await _pumpPanel(tester);
 
     expect(find.text('PRIMARY MODES · pick any'), findsNothing);
-    // Issue #315 — the trip-level control declares broad categories now.
-    expect(find.text('TRIP CATEGORIES'), findsOneWidget);
-    expect(find.text('MODE FOR THIS ROUTE'), findsOneWidget);
+    // Issue #319 — the trip's one mode set, and the passage's pick from it.
+    expect(find.text('TRIP MODES'), findsOneWidget);
+    expect(find.text('PASSAGE MODE'), findsOneWidget);
+    expect(find.text('TRIP CATEGORIES'), findsNothing);
+    expect(find.text('MODE FOR THIS ROUTE'), findsNothing);
     // Issue #316 — the layer set is chosen on its own step now; this control
     // seeds it rather than claiming the switch happens here.
     expect(find.textContaining('Seeds the trip\'s starting layers'), findsOneWidget);
-    expect(find.textContaining('Which category this first route is solved for'),
+    expect(find.textContaining('Which of the trip\'s modes this first passage is solved for'),
         findsOneWidget);
+    // #319 — the trip set is a limit now, and the copy no longer denies it.
+    expect(find.textContaining('never limits'), findsNothing);
+  });
+
+  // ---- #319: one trip mode set, the passage picks from it ------------------
+
+  testWidgets('the two controls read as different kinds of thing — checked chips '
+      'for the trip set, a segmented single-select for the passage', (tester) async {
+    await _pumpPanel(tester);
+
+    // Multi-select ownership: the trip's modes are `PlotToggleChip`s, and
+    // both members read as checked.
+    PlotToggleChip chip(String label) =>
+        tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, label));
+    expect(chip('Cycle').selected, isTrue);
+    expect(chip('Foot').selected, isTrue);
+    expect(chip('Paddle').selected, isFalse);
+
+    // Single-select pick-from-parent: one segmented control, not a second
+    // row of the same chips.
+    expect(_passagePicker(), findsOneWidget);
+    expect(find.widgetWithText(PlotToggleChip, 'Ride'), findsNothing);
+    expect(find.widgetWithText(PlotToggleChip, 'Hike'), findsNothing);
+  });
+
+  testWidgets('no passage mode is preselected — the Author picks, and Generate says so',
+      (tester) async {
+    await _pumpPanel(tester, extraOverrides: [
+      routingClientProvider.overrideWithValue(_RecordingRoutingClient()),
+      sidecarManagerProvider.overrideWith((ref) => _RoutingReadySidecarManager()),
+      tripBboxProvider.overrideWith((ref) => TripBboxNotifier()
+        ..set(const TripBbox(
+            minLat: 40.0, minLon: -105.3, maxLat: 40.1, maxLon: -105.2))),
+      tripRegionKeyProvider.overrideWith(
+          (ref) => TripRegionKeyNotifier(ref, settleWindow: Duration.zero)),
+    ]);
+    await _settle(tester);
+
+    expect(_passageSelection(tester), isEmpty);
+    // Routing is ready, so the disabled Generate names *this* as the reason,
+    // ahead of the start point.
+    expect(find.textContaining('Pick which of the trip\'s modes this passage'), findsOneWidget);
+    expect(find.textContaining('place a start point'), findsNothing);
+    // And no discipline row until there is a category to refine.
+    expect(find.text('DISCIPLINE'), findsNothing);
+
+    await _pickPassageMode(tester, 'Ride');
+    expect(_passageSelection(tester), {'cycling'});
+    expect(find.textContaining('Pick which of the trip\'s modes this passage'), findsNothing);
+    expect(find.textContaining('place a start point'), findsOneWidget);
+  });
+
+  testWidgets('the passage picker offers only the trip\'s modes, and grows when the '
+      'trip control does', (tester) async {
+    await _pumpPanel(tester, modes: const {'cycling', 'hiking'});
+
+    expect(_passageSegment('Ride'), findsOneWidget);
+    expect(_passageSegment('Hike'), findsOneWidget);
+    // Paddle / Ski / Drive are on the trip control (unchecked), never here.
+    for (final absent in ['Paddle', 'Ski', 'Drive']) {
+      expect(_passageSegment(absent), findsNothing, reason: absent);
+    }
+
+    // "I need Drive for this one passage": add it to the trip first…
+    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Drive'));
+    await tester.tap(find.widgetWithText(PlotToggleChip, 'Drive'));
+    await _settle(tester);
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(NewRouteScreen)), listen: false);
+    expect(container.read(currentTripProvider).modes, {'cycling', 'hiking', 'driving'});
+
+    // …then it is offered for the passage.
+    expect(_passageSegment('Drive'), findsOneWidget);
+    await _pickPassageMode(tester, 'Drive');
+    expect(_passageSelection(tester), {'driving'});
+  });
+
+  testWidgets('the passage control carries its own "add a mode to the trip" affordance, '
+      'which opens the trip-mode prompt preselected to the current set', (tester) async {
+    await _pumpPanel(tester, modes: const {'hiking'});
+
+    await tester.ensureVisible(find.text('Add a mode to the trip'));
+    await tester.tap(find.text('Add a mode to the trip'));
+    await _settle(tester);
+
+    expect(find.text('How will you travel?'), findsOneWidget);
+    // The dialog's own chips: Foot already checked, add Paddle, continue.
+    final dialog = find.byType(AlertDialog);
+    PlotToggleChip dialogChip(String label) => tester.widget<PlotToggleChip>(
+        find.descendant(of: dialog, matching: find.widgetWithText(PlotToggleChip, label)));
+    expect(dialogChip('Foot').selected, isTrue);
+    await tester.tap(find.descendant(of: dialog, matching: find.widgetWithText(PlotToggleChip, 'Paddle')));
+    await _settle(tester);
+    await tester.tap(find.text('Continue'));
+    await _settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(NewRouteScreen)), listen: false);
+    expect(container.read(currentTripProvider).modes, {'hiking', 'paddling'});
+    expect(_passageSegment('Paddle'), findsOneWidget);
+  });
+
+  testWidgets('the trip control never drops its last mode', (tester) async {
+    await _pumpPanel(tester, modes: const {'hiking'});
+
+    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Foot'));
+    await tester.tap(find.widgetWithText(PlotToggleChip, 'Foot'));
+    await _settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(NewRouteScreen)), listen: false);
+    expect(container.read(currentTripProvider).modes, {'hiking'});
+    expect(_passageSegment('Hike'), findsOneWidget);
   });
 
   testWidgets('trip categories are five flat chips, no overflow disclosure',
@@ -284,9 +427,7 @@ void main() {
     await _pumpPanel(tester);
 
     // Pick a category with disciplines (Ride == cycling).
-    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Ride'));
-    await tester.tap(find.widgetWithText(PlotToggleChip, 'Ride'));
-    await _settle(tester);
+    await _pickPassageMode(tester, 'Ride');
 
     expect(find.text('DISCIPLINE'), findsOneWidget);
     expect(find.widgetWithText(PlotToggleChip, 'Category default'), findsOneWidget);
@@ -301,9 +442,7 @@ void main() {
       'and switching category clears it', (tester) async {
     await _pumpPanel(tester);
 
-    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Ride'));
-    await tester.tap(find.widgetWithText(PlotToggleChip, 'Ride'));
-    await _settle(tester);
+    await _pickPassageMode(tester, 'Ride');
 
     PlotToggleChip chip(String label) =>
         tester.widget<PlotToggleChip>(find.widgetWithText(PlotToggleChip, label));
@@ -320,9 +459,7 @@ void main() {
     expect(find.textContaining('tuned and measured against real routes'), findsOneWidget);
 
     // Cross to a category that does not carry `gravel`.
-    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Hike'));
-    await tester.tap(find.widgetWithText(PlotToggleChip, 'Hike'));
-    await _settle(tester);
+    await _pickPassageMode(tester, 'Hike');
 
     expect(find.widgetWithText(PlotToggleChip, 'Gravel'), findsNothing);
     expect(chip('Category default').selected, isTrue);
@@ -353,9 +490,7 @@ void main() {
     map.onTap!(const [-105.20, 40.05]);
     await _settle(tester);
 
-    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Ride'));
-    await tester.tap(find.widgetWithText(PlotToggleChip, 'Ride'));
-    await _settle(tester);
+    await _pickPassageMode(tester, 'Ride');
     await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'Gravel'));
     await tester.tap(find.widgetWithText(PlotToggleChip, 'Gravel'));
     await _settle(tester);

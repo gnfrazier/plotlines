@@ -1,7 +1,7 @@
 // G2a (FR74a) — "a list surface shows title, modes, and last-edited,
 // most-recent-first". `AppDatabase.listTrips()` is the projection that
 // surface reads from; this pins its ordering and field shape directly,
-// which the declared-modes-focused `app_database_declared_modes_test.dart`
+// which the modes-focused `app_database_modes_test.dart`
 // doesn't exercise.
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,7 +17,6 @@ void main() {
       id: 'oldest',
       title: 'Blue Ridge Traverse',
       modes: const ['hiking'],
-      declaredModes: const ['hiking'],
       payloadJson: '{}',
       updatedAt: DateTime.utc(2026, 8, 1),
     );
@@ -25,7 +24,6 @@ void main() {
       id: 'newest',
       title: 'Pisgah Loop',
       modes: const ['cycling', 'paddling'],
-      declaredModes: const ['cycling', 'paddling'],
       payloadJson: '{}',
       updatedAt: DateTime.utc(2026, 8, 25),
     );
@@ -33,7 +31,6 @@ void main() {
       id: 'middle',
       title: 'French Broad Paddle',
       modes: const ['paddling'],
-      declaredModes: const ['paddling'],
       payloadJson: '{}',
       updatedAt: DateTime.utc(2026, 8, 10),
     );
@@ -50,7 +47,7 @@ void main() {
     expect(newest.updatedAt.isAtSameMomentAs(DateTime.utc(2026, 8, 25)), isTrue);
   });
 
-  test('a trip with no realized modes lists with an empty modes list, not [""]', () async {
+  test('a trip with no modes lists with an empty modes list, not [""]', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
@@ -58,7 +55,6 @@ void main() {
       id: 'trip-1',
       title: 'Just Started',
       modes: const [],
-      declaredModes: const ['hiking'],
       payloadJson: '{}',
       updatedAt: DateTime.utc(2026, 8, 26),
     );
@@ -75,7 +71,6 @@ void main() {
       id: 'a',
       title: 'Trip A',
       modes: const [],
-      declaredModes: const [],
       payloadJson: '{}',
       updatedAt: DateTime.utc(2026, 8, 1),
     );
@@ -83,7 +78,6 @@ void main() {
       id: 'b',
       title: 'Trip B',
       modes: const [],
-      declaredModes: const [],
       payloadJson: '{}',
       updatedAt: DateTime.utc(2026, 8, 2),
     );
@@ -93,7 +87,6 @@ void main() {
       id: 'a',
       title: 'Trip A',
       modes: const [],
-      declaredModes: const [],
       payloadJson: '{}',
       updatedAt: DateTime.utc(2026, 8, 3),
     );

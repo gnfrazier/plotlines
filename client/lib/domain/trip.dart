@@ -200,7 +200,7 @@ class Trip {
     this.permits = const [],
     this.metrics,
     this.provenance,
-    this.declaredModes = const {},
+    this.modes = const {},
     this.offlineBufferM,
   });
 
@@ -313,22 +313,19 @@ class Trip {
     return out;
   }
 
-  /// Every mode present anywhere in the trip — the denormalized list G2a's
-  /// list surface projects rather than decoding a payload per row (ARCH §10.3).
-  Set<String> get modes => {
-        for (final d in days)
-          for (final s in d.segments) s.mode,
-      };
-
-  /// FR144/N0 — the Author's **declared** travel modes: stated at trip
-  /// initiation (ahead of the location prompt), editable for the trip's
-  /// life, and never shrunk automatically. Distinct from [modes] above,
-  /// which is *derived* from whatever segments happen to exist and can be
-  /// empty for a brand-new trip with no days yet — the two must not be
-  /// conflated (an empty [modes] on a fresh trip does not mean nothing was
-  /// declared). Declaring is not a constraint (FR144): creating a passage
-  /// in a mode outside this set silently adds it here rather than being
-  /// blocked (`CurrentTripNotifier._replaceDay`), it never removes one.
+  /// FR144/N0, issue #319 — the trip's **one** travel-mode set: the Author's
+  /// stated set, and the only one. Set at trip initiation (ahead of the
+  /// location prompt), editable for the trip's life from the trip-mode
+  /// control on the planning page, and **never shrunk automatically** —
+  /// removing the last passage in a mode leaves the mode on the trip; only
+  /// the Author removes one. It only ever grows on its own: a passage that
+  /// arrives in a mode outside this set (a clone, an older payload) adds
+  /// that mode here rather than being blocked
+  /// (`CurrentTripNotifier._replaceDay`), so every segment's mode is always
+  /// a member — the per-passage picker offers only this set, and there is
+  /// no second, derived "realised modes" list to disagree with it (#319
+  /// retired the stored-declared-set + segment-derived-getter pair in
+  /// favour of this single stored set).
   ///
   /// **Not part of the wire payload.** `trip_payload.schema.json` has no
   /// such field and is `additionalProperties: false` at the top level, so
@@ -336,10 +333,8 @@ class Trip {
   /// reasoning `trip_authoring_meta_provider.dart` already documents for
   /// party size. Unlike that provider's fields, this **is** persisted: as
   /// its own column on the local `Trips` table (`app_database.dart`),
-  /// alongside (not inside) the canonical payload blob, the same way that
-  /// table's `modes` column already denormalizes [modes] outside the
-  /// payload for G2a's list view.
-  final Set<String> declaredModes;
+  /// alongside (not inside) the canonical payload blob.
+  final Set<String> modes;
 
   Trip copyWith({
     String? title,
@@ -352,7 +347,7 @@ class Trip {
     List<Permit>? permits,
     RollUp? metrics,
     Provenance? provenance,
-    Set<String>? declaredModes,
+    Set<String>? modes,
     double? offlineBufferM,
     bool clearOfflineBufferM = false,
   }) =>
@@ -370,7 +365,7 @@ class Trip {
         permits: permits ?? this.permits,
         metrics: metrics ?? this.metrics,
         provenance: provenance ?? this.provenance,
-        declaredModes: declaredModes ?? this.declaredModes,
+        modes: modes ?? this.modes,
         offlineBufferM:
             clearOfflineBufferM ? null : (offlineBufferM ?? this.offlineBufferM),
       );

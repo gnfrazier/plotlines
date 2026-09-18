@@ -6,7 +6,7 @@
 //
 // `CurationClient` has no HTTP-mock convention in this repo
 // (`curation_client_test.dart`'s own note), so it is faked the same way
-// `layers_tab_declared_modes_test.dart` fakes it.
+// `layers_tab_modes_test.dart` fakes it.
 library;
 
 import 'dart:async';

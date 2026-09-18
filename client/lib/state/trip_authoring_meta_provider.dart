@@ -14,11 +14,11 @@
 // that doesn't affect routing.
 //
 // Travel modes used to live here too (`primaryModes`/`togglePrimaryMode`)
-// but FR144/N0 promoted them to `Trip.declaredModes` — unlike party size,
+// but FR144/N0 promoted them to `Trip.modes` — unlike party size,
 // modes need to survive for "the life of the trip" (edit, save, reopen),
 // which this session-only provider can't offer. See `trip.dart`'s
-// `declaredModes` doc comment and `current_trip_provider.dart`'s
-// `setDeclaredModes`/`toggleDeclaredMode`.
+// `modes` doc comment and `current_trip_provider.dart`'s
+// `setModes`/`toggleMode`.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -27,7 +27,7 @@ import '../../state/current_roster_provider.dart';
 const _uuid = Uuid();
 
 /// The GEAR block on the Logistics tab. Reads the roster layer for the open
-/// trip and the trip's declared modes / station activities to offer a scope
+/// trip and the trip's modes / station activities to offer a scope
 /// for every line.
 class GearSection extends ConsumerWidget {
   const GearSection({super.key, required this.trip});
@@ -84,12 +84,12 @@ class GearSection extends ConsumerWidget {
   }
 
   /// Every scope worth offering, in reading order: the whole trip, then each
-  /// declared travel mode, then each station-activity type the trip actually
-  /// uses. Any scope already carried by an existing line is folded in even if
-  /// it is no longer declared/used, so a line never becomes unreachable when
+  /// travel mode on the trip, then each station-activity type the trip
+  /// actually uses. Any scope already carried by an existing line is folded
+  /// in even if it is no longer on the trip/used, so a line never becomes unreachable when
   /// a mode is dropped (FR142(b)).
   static List<GearScope> _orderedScopes(Trip trip, List<GearItem> gear) {
-    final modes = trip.declaredModes.toList()..sort();
+    final modes = trip.modes.toList()..sort();
     final activities = <String>{
       for (final a in trip.anchors)
         for (final r in a.roles)

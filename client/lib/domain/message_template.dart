@@ -461,7 +461,7 @@ enum MessageId {
   coordinateLatLon,
 
   // ── Lists (joined by the locale's list rule) ────────────────────────────
-  declaredModes,
+  tripModes,
   layersOnMap,
 
   // ── Spoken (H2a) — the lead-in a content utterance follows ──────────────
@@ -689,10 +689,10 @@ const Map<MessageId, MessageTemplate> messageTemplates = {
       usage: 'a lat/lon pair, each side rendered by the locale number format'),
 
   // Lists.
-  MessageId.declaredModes: MessageTemplate(
-      id: MessageId.declaredModes,
+  MessageId.tripModes: MessageTemplate(
+      id: MessageId.tripModes,
       slots: [MessageSlot('modes', SlotType.nameList)],
-      usage: 'FR144 / N0 — the modes declared at trip initiation'),
+      usage: 'FR144 / N0 / #319 — the trip\'s mode set'),
   MessageId.layersOnMap: MessageTemplate(
       id: MessageId.layersOnMap,
       slots: [MessageSlot('layers', SlotType.nameList)],

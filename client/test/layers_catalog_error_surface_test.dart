@@ -127,7 +127,7 @@ Widget _layersTabHarness(ProviderContainer container) {
             title: 'Test',
             createdAt: '2026-09-09T00:00:00Z',
             updatedAt: '2026-09-09T00:00:00Z',
-            declaredModes: const {'cycling'},
+            modes: const {'cycling'},
           ),
           activeDayId: null,
         ),
@@ -199,7 +199,7 @@ void main() {
         (tester) async {
       final curation = _FlakyCurationClient();
       final container = _container(curation);
-      container.read(currentTripProvider.notifier).setDeclaredModes({'cycling'});
+      container.read(currentTripProvider.notifier).setModes({'cycling'});
       await tester.pumpWidget(harness(container));
       await tester.pumpAndSettle();
 
@@ -209,7 +209,7 @@ void main() {
     testWidgets('Retry re-runs the catalog fetch and recovers', (tester) async {
       final curation = _FlakyCurationClient();
       final container = _container(curation);
-      container.read(currentTripProvider.notifier).setDeclaredModes({'cycling'});
+      container.read(currentTripProvider.notifier).setModes({'cycling'});
       await tester.pumpWidget(harness(container));
       await tester.pumpAndSettle();
 
