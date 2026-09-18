@@ -29,8 +29,10 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlparse
 
+import networkx as nx
 import osmnx as ox
 import requests
+from shapely.geometry import box
 
 from plotlines_core.graph import extract_fetch, pbf_source
 from plotlines_core.osm_identity import apply_osm_http_identity, overpass_settings
@@ -245,6 +247,20 @@ def _write_graph_source(region: Region, cache_dir: Path, source: dict) -> None:
     region.graph_source_path(cache_dir).write_text(json.dumps(source))
 
 
+def _read_graph_source(region: Region, cache_dir: Path) -> dict | None:
+    """`region`'s `graph_source_path` sibling file, parsed, or `None` when it
+    is missing or unparsable (a pre-#277 cache, or a region never built).
+    Shared by `graph_source_pin` and issue #432's truncation path, which
+    both need to answer "what transport actually produced the bytes this
+    region's graph was built from" without re-asking a mirror or endpoint
+    that may have moved on since.
+    """
+    try:
+        return json.loads(region.graph_source_path(cache_dir).read_text())
+    except (OSError, ValueError):
+        return None
+
+
 def graph_source_pin(region: Region, cache_dir: Path, *, fetched_at: str) -> str:
     """Issue #277 — the honest `Provenance.osm_source` value for `region`'s
     *cached* graph, read back from the sidecar `ensure_graph` wrote when it
@@ -259,9 +275,8 @@ def graph_source_pin(region: Region, cache_dir: Path, *, fetched_at: str) -> str
     disk (addendum L7 item 3's "a field that lies in the interim is worse
     than the gap it fills").
     """
-    try:
-        source = json.loads(region.graph_source_path(cache_dir).read_text())
-    except (OSError, ValueError):
+    source = _read_graph_source(region, cache_dir)
+    if source is None:
         return overpass_source_pin(fetched_at)
     pin = source.get("pin")
     if source.get("transport") == "geofabrik" and pin:
@@ -482,6 +497,122 @@ def region_key(bbox: tuple[float, float, float, float], network_type: str = "bik
 def region_for(bbox: tuple[float, float, float, float], network_type: str = "bike"
               ) -> Region:
     return Region(key=region_key(bbox, network_type), bbox=bbox, network_type=network_type)
+
+
+def bbox_contains(outer: tuple[float, float, float, float],
+                  inner: tuple[float, float, float, float]) -> bool:
+    """True if `inner` (west, south, east, north) lies entirely within
+    `outer` — issue #432's shrink-detection primitive, restated from
+    `spikes/SPIKE-I/offline.py::_contains`. An equal box counts as
+    contained; `bbox_is_shrink` is what excludes that degenerate case."""
+    ow, os_, oe, on = outer
+    iw, is_, ie, inn = inner
+    return ow <= iw and os_ <= is_ and oe >= ie and on >= inn
+
+
+def bbox_is_shrink(prior: tuple[float, float, float, float],
+                   proposed: tuple[float, float, float, float]) -> bool:
+    """True when `proposed` is a strict subset of `prior` — an identical
+    bbox is a rebuild request, not a shrink, and must never be served by
+    "truncating" a graph to itself."""
+    return prior != proposed and bbox_contains(prior, proposed)
+
+
+def bbox_area(bbox: tuple[float, float, float, float]) -> float:
+    """A raw degree² proxy for bbox size — never geodesic, and it does not
+    need to be: it only ever compares two bboxes against each other to pick
+    the *tightest* held superset (`Readiness.find_held_supergraph`,
+    service/plotlines_service/app.py), the same scale SPIKE-I's own harness
+    (`offline.py`'s `_scale`) already reasons about a trip bbox in."""
+    west, south, east, north = bbox
+    return max(0.0, east - west) * max(0.0, north - south)
+
+
+def truncate_graph_to_bbox(graph, bbox: tuple[float, float, float, float]):
+    """Issue #432 / ARCH D62 — SPIKE-I's measured offline bbox-shrink
+    mechanism (`spikes/SPIKE-I/offline.py::truncate_held`), promoted
+    verbatim: cut an already-built graph down to a smaller bbox with no
+    network call.
+
+    Deliberately **not** `_finish_graph`'s full tail. `graph` is already
+    simplified and barrier-folded from whichever transport built it —
+    re-simplifying would only redo work already done to the surviving
+    edges. Only the largest-strongly-connected-component reselection is
+    genuinely new work here: truncation can strand a corridor that was only
+    strongly connected via edges just removed, the same guarantee
+    `_finish_graph` provides for a fresh build.
+
+    Returns a graph with zero nodes, never raises, when nothing in `graph`
+    falls inside `bbox` — the caller (`build_provisional_graph_from_shrink`)
+    treats that as "truncation cannot serve this," not a routable answer.
+    `truncate_graph_polygon` itself raises `ValueError` for that case rather
+    than returning an empty graph; this is the one place that translates it.
+    """
+    west, south, east, north = bbox
+    try:
+        truncated = ox.truncate.truncate_graph_polygon(
+            graph.copy(), box(west, south, east, north)
+        )
+    except ValueError:
+        return nx.MultiDiGraph()
+    if truncated.number_of_nodes() == 0:
+        return truncated
+    return ox.truncate.largest_component(truncated, strongly=True)
+
+
+def build_provisional_graph_from_shrink(
+    shrunk: Region, held: Region, cache_dir: Path,
+) -> Path | None:
+    """Issue #432 / ARCH D62 — serve a bbox shrink offline by truncating
+    `held`'s already-built, on-disk graph to `shrunk`'s smaller bbox,
+    for the case where a fresh build for `shrunk` cannot run at all (the
+    mirror and every Overpass endpoint are unreachable) but `held` — some
+    already-`ready` region, for the same `network_type`, whose own bbox
+    properly contains `shrunk`'s — is on disk from an earlier, wider build
+    in this same session.
+
+    Returns `None`, never raises, when there is nothing to truncate
+    (`held` has no cached graph on disk — a stale in-memory record with no
+    corresponding file) or when the truncated result has zero routable
+    nodes (SPIKE-I's B9 found real shrinks land inside the held coverage
+    100% of the time in its pre-registered distribution, but a corridor
+    right at the buffer's edge could still empty out). Either way the
+    caller's ordinary `failed:<reason>` path is the honest answer, not
+    this fallback — this function never manufactures a worse-than-nothing
+    result.
+
+    On success, writes the truncated graph to `shrunk.graph_path(cache_dir)`
+    exactly as a fresh build would — a later cache-hit `ensure_graph` call
+    for this bbox finds it and has no notion of "provisional"; that
+    bookkeeping belongs to `service.plotlines_service.app.RegionState`,
+    which is what marks the capability provisional and re-attempts a real
+    build once reconnected. The provenance sidecar file is copied forward
+    from `held` (same underlying OSM snapshot, just clipped tighter) rather
+    than reset to a bare `"overpass"` guess, so `graph_source_pin` still
+    reports the truthful transport/pin for a trip finished while offline.
+    """
+    held_path = held.graph_path(cache_dir)
+    if not held_path.exists():
+        return None
+    held_graph = ox.io.load_graphml(held_path)
+    truncated = truncate_graph_to_bbox(held_graph, shrunk.bbox)
+    if truncated.number_of_nodes() == 0:
+        log.info(
+            "build_provisional_graph_from_shrink key=%s held=%s: truncation "
+            "produced zero nodes — not served as provisional",
+            shrunk.key, held.key)
+        return None
+    out_path = shrunk.graph_path(cache_dir)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    ox.io.save_graphml(truncated, out_path)
+    source = _read_graph_source(held, cache_dir) or {"transport": "overpass"}
+    source = dict(source, truncated_from=held.key)
+    _write_graph_source(shrunk, cache_dir, source)
+    log.info(
+        "build_provisional_graph_from_shrink key=%s held=%s OK: %d nodes, "
+        "%d edges", shrunk.key, held.key, truncated.number_of_nodes(),
+        truncated.number_of_edges())
+    return out_path
 
 
 def fold_node_barriers(graph) -> int:

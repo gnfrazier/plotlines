@@ -1215,3 +1215,147 @@ def test_ensure_graph_falls_back_to_overpass_when_no_local_clip_is_cached(tmp_pa
     path = regions.ensure_graph(region, tmp_path)
 
     assert path.exists()
+
+
+# --- issue #432 / ARCH D62 — offline bbox-shrink graph truncation ----------
+
+_WIDE_BBOX = (-105.30, 39.99, -105.10, 40.01)
+_SHRUNK_BBOX = (-105.30, 39.99, -105.27, 40.01)  # west third of _WIDE_BBOX
+
+
+def _line_graph(coords: list[tuple[float, float]]) -> nx.MultiDiGraph:
+    """A simple strongly-connected line of nodes west -> east, matching the
+    shape `truncate_graph_polygon`/`largest_component` expect off a real
+    build (`x`/`y` node attrs, a `crs`, both directions of each edge)."""
+    g = nx.MultiDiGraph()
+    g.graph["crs"] = "epsg:4326"
+    for i, (x, y) in enumerate(coords, start=1):
+        g.add_node(i, x=x, y=y, street_count=2)
+    for i in range(1, len(coords)):
+        g.add_edge(i, i + 1, length=100.0, osmid=i)
+        g.add_edge(i + 1, i, length=100.0, osmid=i)
+    return g
+
+
+def _held_wide_graph() -> nx.MultiDiGraph:
+    """Five nodes spanning the full width of `_WIDE_BBOX`; only the first
+    three fall inside `_SHRUNK_BBOX`."""
+    return _line_graph([
+        (-105.30, 40.00), (-105.29, 40.00), (-105.28, 40.00),
+        (-105.20, 40.00), (-105.10, 40.00),
+    ])
+
+
+def test_bbox_contains_true_for_a_proper_subset():
+    assert regions.bbox_contains(_WIDE_BBOX, _SHRUNK_BBOX)
+
+
+def test_bbox_contains_false_when_inner_extends_past_outer():
+    other = (-105.31, 39.99, -105.27, 40.01)  # west edge outside _WIDE_BBOX
+    assert not regions.bbox_contains(_WIDE_BBOX, other)
+
+
+def test_bbox_contains_true_for_equal_boxes():
+    assert regions.bbox_contains(_WIDE_BBOX, _WIDE_BBOX)
+
+
+def test_bbox_is_shrink_true_for_a_proper_subset():
+    assert regions.bbox_is_shrink(_WIDE_BBOX, _SHRUNK_BBOX)
+
+
+def test_bbox_is_shrink_false_for_an_identical_bbox():
+    # A rebuild request, not a shrink — must never be served by truncating a
+    # graph to itself.
+    assert not regions.bbox_is_shrink(_WIDE_BBOX, _WIDE_BBOX)
+
+
+def test_bbox_is_shrink_false_when_not_a_subset():
+    nudge = (-105.31, 39.99, -105.11, 40.01)
+    assert not regions.bbox_is_shrink(_WIDE_BBOX, nudge)
+
+
+def test_bbox_area_is_width_times_height():
+    assert regions.bbox_area((-1.0, -1.0, 1.0, 2.0)) == pytest.approx(6.0)
+
+
+def test_truncate_graph_to_bbox_drops_nodes_outside_the_new_extent():
+    truncated = regions.truncate_graph_to_bbox(_held_wide_graph(), _SHRUNK_BBOX)
+    assert set(truncated.nodes) == {1, 2, 3}
+
+
+def test_truncate_graph_to_bbox_reselects_the_largest_strongly_connected_component():
+    """A truncation that would strand a node with no way back in (here: an
+    edge only running west-to-east, never returning) must drop it — the same
+    guarantee `_finish_graph` gives a fresh build (issue #154)."""
+    g = nx.MultiDiGraph()
+    g.graph["crs"] = "epsg:4326"
+    for i, (x, y) in enumerate([(-105.30, 40.00), (-105.29, 40.00), (-105.28, 40.00)], start=1):
+        g.add_node(i, x=x, y=y, street_count=2)
+    # One-way only — node 3 is reachable from 1/2 but can't reach them back.
+    g.add_edge(1, 2, length=100.0, osmid=1)
+    g.add_edge(2, 1, length=100.0, osmid=1)
+    g.add_edge(2, 3, length=100.0, osmid=2)
+
+    truncated = regions.truncate_graph_to_bbox(g, _SHRUNK_BBOX)
+
+    assert set(truncated.nodes) == {1, 2}
+
+
+def test_truncate_graph_to_bbox_returns_an_empty_graph_when_nothing_is_inside():
+    g = _line_graph([(-105.20, 40.00), (-105.10, 40.00)])  # entirely east of _SHRUNK_BBOX
+    truncated = regions.truncate_graph_to_bbox(g, _SHRUNK_BBOX)
+    assert truncated.number_of_nodes() == 0
+
+
+def test_truncate_graph_to_bbox_does_not_mutate_the_held_graph():
+    held = _held_wide_graph()
+    before = held.number_of_nodes()
+    regions.truncate_graph_to_bbox(held, _SHRUNK_BBOX)
+    assert held.number_of_nodes() == before
+
+
+def test_build_provisional_graph_from_shrink_writes_a_truncated_graph(tmp_path):
+    held = regions.region_for(_WIDE_BBOX, "bike")
+    ox.io.save_graphml(_held_wide_graph(), held.graph_path(tmp_path))
+    regions._write_graph_source(held, tmp_path, {"transport": "geofabrik", "pin": _CLIP_PIN})
+
+    shrunk = regions.region_for(_SHRUNK_BBOX, "bike")
+    path = regions.build_provisional_graph_from_shrink(shrunk, held, tmp_path)
+
+    assert path == shrunk.graph_path(tmp_path)
+    reloaded = ox.io.load_graphml(path)
+    assert reloaded.number_of_nodes() == 3
+
+
+def test_build_provisional_graph_from_shrink_carries_the_held_graphs_provenance_forward(tmp_path):
+    """A truncated graph is the same underlying OSM snapshot as the held
+    graph it came from — `graph_source_pin` on the shrunk region must report
+    the held region's own pin, never a bare 'overpass' guess (addendum L7)."""
+    held = regions.region_for(_WIDE_BBOX, "bike")
+    ox.io.save_graphml(_held_wide_graph(), held.graph_path(tmp_path))
+    regions._write_graph_source(held, tmp_path, {"transport": "geofabrik", "pin": _CLIP_PIN})
+
+    shrunk = regions.region_for(_SHRUNK_BBOX, "bike")
+    regions.build_provisional_graph_from_shrink(shrunk, held, tmp_path)
+
+    pin = regions.graph_source_pin(shrunk, tmp_path, fetched_at="2026-09-17T00:00:00Z")
+    assert pin == f"geofabrik:{_CLIP_PIN}"
+
+
+def test_build_provisional_graph_from_shrink_returns_none_when_the_held_graph_is_missing(tmp_path):
+    held = regions.region_for(_WIDE_BBOX, "bike")  # never built — no file on disk
+    shrunk = regions.region_for(_SHRUNK_BBOX, "bike")
+    assert regions.build_provisional_graph_from_shrink(shrunk, held, tmp_path) is None
+    assert not shrunk.graph_path(tmp_path).exists()
+
+
+def test_build_provisional_graph_from_shrink_returns_none_on_an_empty_truncation(tmp_path):
+    held = regions.region_for(_WIDE_BBOX, "bike")
+    # Held graph covers only the east end — nothing falls inside the shrunk
+    # (west-side) bbox once truncated.
+    ox.io.save_graphml(
+        _line_graph([(-105.20, 40.00), (-105.10, 40.00)]), held.graph_path(tmp_path))
+
+    shrunk = regions.region_for(_SHRUNK_BBOX, "bike")
+    assert regions.build_provisional_graph_from_shrink(shrunk, held, tmp_path) is None
+    assert not shrunk.graph_path(tmp_path).exists()
