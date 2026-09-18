@@ -184,25 +184,29 @@ PRIVACY_STATEMENT: tuple[PrivacyPoint, ...] = (
         ),
     ),
     # Phase 0.12 / addendum P1 (issue #252): named Overpass and Nominatim
-    # because that was what actually ran. Issue #274 (Phase 3.2) is the
-    # first client call to the Plotlines mirror's /clip endpoint, so this
-    # now also names that recipient — Overpass and Nominatim stay named
-    # too, because #275 (not this issue) is what actually stops the graph
-    # and candidate paths from calling them. Revisit again once #275 lands
-    # and Overpass drops out of the planning path entirely.
+    # because that was what actually ran. Issue #274 (Phase 3.2) added the
+    # Plotlines mirror as a recipient the moment the sidecar could call
+    # its /clip endpoint; #275 made the graph and candidate paths read
+    # that clip and fall through to Overpass only when none is on disk;
+    # and #434 made a stock desktop launch actually pass the mirror URL
+    # to the sidecar. So the order of recipients below is the order the
+    # shipped app tries them: the mirror first, Overpass as the fallback.
+    # This sentence is pinned to behaviour on both sides (test_web_about
+    # and privacy_statement_test.dart) — change the recipient and this
+    # text in the same commit, never afterwards.
     PrivacyPoint(
         id="planning_requests",
         title="What planning sends, even signed out",
         body=(
-            "Drawing an area to plan in sends that area to Overpass, a "
-            "volunteer-run map-data lookup — today hosted in Germany or "
-            "Lithuania — so we can show you what is nearby, and, once your "
-            "app is pointed at a Plotlines-operated OSM mirror, to that "
-            "mirror as well, to prepare local map data for the area. "
-            "Typing a place to search for it sends that text to Nominatim, "
-            "the OpenStreetMap Foundation's place-name lookup. None of "
-            "these requests carries your account, your name, or any other "
-            "identity."
+            "Drawing an area to plan in sends that area to a "
+            "Plotlines-operated OSM mirror, to prepare local map data for "
+            "the area. If the mirror cannot serve it, the same area goes to "
+            "Overpass instead, a volunteer-run map-data lookup — today "
+            "hosted in Germany or Lithuania — so we can still show you what "
+            "is nearby. Typing a place to search for it sends that text to "
+            "Nominatim, the OpenStreetMap Foundation's place-name lookup. "
+            "None of these requests carries your account, your name, or "
+            "any other identity."
         ),
     ),
     PrivacyPoint(

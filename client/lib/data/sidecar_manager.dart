@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'sidecar_process.dart';
 import 'sidecar_registry.dart';
+import 'sidecar_upstreams.dart';
 import '../domain/reason_phrase.dart' show looksLikeRawDiagnostic;
 
 /// M12 — spawn, health-poll to readiness, restart-once, graceful stop, orphan
@@ -272,12 +273,18 @@ String resolveClientVersion() {
 }
 
 class SidecarManager extends ChangeNotifier {
-  SidecarManager({this.cacheDirOverride, this.binaryOverride, SidecarRegistry? registry})
-      : _registryOverride = registry;
+  SidecarManager({
+    this.cacheDirOverride,
+    this.binaryOverride,
+    SidecarRegistry? registry,
+    SidecarUpstreams? upstreams,
+  })  : _registryOverride = registry,
+        _upstreamsOverride = upstreams;
 
   final Directory? cacheDirOverride;
   final String? binaryOverride;
   final SidecarRegistry? _registryOverride;
+  final SidecarUpstreams? _upstreamsOverride;
 
   SidecarProcess? _process;
   int? _port;
@@ -335,6 +342,22 @@ class SidecarManager extends ChangeNotifier {
   }
 
   Duration get _pollTimeout => healthPollTimeout(_capabilities);
+
+  /// Issue #434 — the mirror / elevation upstreams handed to the sidecar at
+  /// spawn. An injected value wins (tests, a build cut off from the mirror);
+  /// otherwise resolved once from the build-time defines and the process
+  /// environment (`SidecarUpstreams.resolve`), so a restart-once relaunch
+  /// spawns with exactly the flags the first launch did.
+  SidecarUpstreams get upstreams =>
+      _upstreamsOverride ?? (_resolvedUpstreams ??= SidecarUpstreams.resolve());
+  SidecarUpstreams? _resolvedUpstreams;
+
+  /// The argv the next [start] will spawn with, given [port] and [cacheDir]
+  /// — [sidecarSpawnArgs] over this manager's [upstreams]. Exposed so the
+  /// lifecycle suite can assert the exact list without a binary.
+  @visibleForTesting
+  List<String> spawnArgsFor({required int port, required Directory cacheDir}) =>
+      sidecarSpawnArgs(port: port, cacheDirPath: cacheDir.path, upstreams: upstreams);
 
   void _set(SidecarState state, {String detail = ''}) {
     _status = SidecarStatus(state, detail: detail, port: _port);
@@ -423,12 +446,14 @@ class SidecarManager extends ChangeNotifier {
     final cacheDir = await _resolveCacheDir();
     _set(SidecarState.starting, detail: 'launching sidecar');
 
-    _process = await SidecarProcess.start(binPath, [
-      '--port=$_port',
-      '--host=127.0.0.1',
-      '--mode=sidecar',
-      '--cache-dir=${cacheDir.path}',
-    ]);
+    // Issue #434 — the four baseline flags plus the mirror/elevation
+    // upstreams. Passing `--mirror-clip-url` here is what makes Phase 3's
+    // transport swap reachable from the app: without it the sidecar never
+    // asks the mirror for a clip and every graph falls through to Overpass.
+    // The URL alone triggers no request — the sidecar contacts the mirror
+    // only when an extent is declared (D41/D57).
+    _process = await SidecarProcess.start(
+        binPath, spawnArgsFor(port: _port!, cacheDir: cacheDir));
     _process!.exitCode.then(_onExit);
     // Record this child *before* the health-poll wait, not fire-and-forget
     // (issue #183): if the client dies during the seconds spent in

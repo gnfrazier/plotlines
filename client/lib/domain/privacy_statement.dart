@@ -46,23 +46,25 @@ const List<PrivacyPoint> privacyStatement = [
         'different — see the next point.',
   ),
   // Phase 0.12 / addendum P1 (issue #252): named Overpass and Nominatim
-  // because that was what actually ran. Issue #274 (Phase 3.2) is the
-  // first client call to the Plotlines mirror's /clip endpoint, so this
-  // now also names that recipient — Overpass and Nominatim stay named
-  // too, because #275 (not this issue) is what actually stops the graph
-  // and candidate paths from calling them. Revisit again once #275 lands
-  // and Overpass drops out of the planning path entirely.
+  // because that was what actually ran. #274 added the Plotlines mirror
+  // the moment the sidecar could call its /clip endpoint; #275 made the
+  // graph and candidate paths read that clip and fall through to Overpass
+  // only when none is on disk; #434 made a stock launch actually pass the
+  // mirror URL to the sidecar (`SidecarUpstreams`). So the recipients are
+  // named in the order the shipped app tries them: mirror first, Overpass
+  // as the fallback. Pinned on both sides — change the recipient and this
+  // text in the same commit.
   PrivacyPoint(
     id: 'planning_requests',
     title: 'What planning sends, even signed out',
-    body: "Drawing an area to plan in sends that area to Overpass, a "
-        "volunteer-run map-data lookup — today hosted in Germany or "
-        "Lithuania — so we can show you what is nearby, and, once your "
-        "app is pointed at a Plotlines-operated OSM mirror, to that "
-        "mirror as well, to prepare local map data for the area. Typing a "
-        "place to search for it sends that text to Nominatim, the "
-        "OpenStreetMap Foundation's place-name lookup. None of these "
-        "requests carries your account, your name, or any other "
+    body: "Drawing an area to plan in sends that area to a "
+        "Plotlines-operated OSM mirror, to prepare local map data for the "
+        "area. If the mirror cannot serve it, the same area goes to "
+        "Overpass instead, a volunteer-run map-data lookup — today hosted "
+        "in Germany or Lithuania — so we can still show you what is "
+        "nearby. Typing a place to search for it sends that text to "
+        "Nominatim, the OpenStreetMap Foundation's place-name lookup. None "
+        "of these requests carries your account, your name, or any other "
         "identity.",
   ),
   PrivacyPoint(
