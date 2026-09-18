@@ -403,6 +403,29 @@ Two constraints on it from day one:
 The clip's cost profile — CPU, disk IO, and behaviour under concurrency — is exactly what §9 says
 Phase 3 does *not* prove for free. Rehearsing it here is how that stops being a surprise.
 
+**Measured — SPIKE-I (2026-09-13) and #402 (2026-09-18).** The rehearsal found two failures this
+section had treated as settled. **Cost was O(region extract), not O(bbox)**: 432 s for a 64 km²
+bbox out of the 428 MB North Carolina extract, 553 s for a 27 km² bbox out of California's
+1.33 GB — a bbox 6× larger costing 6.8% more time, ~7–9× over the pre-registered ≤20 s / ≤60 s
+bands. And **the two-extract path did not complete** (0 of 4): `MergeInputReader` buffered both
+raw extracts, +3.9 GB in 5 s, 502 to the caller — the default path for every western-North-
+Carolina bbox, because rectangular header boxes for NC and TN overlap by 2.7° of longitude. Both
+were fixed the same day and the request path of `mirror_clip.py` was left alone: **#376** clips
+each covering extract first and merges the few-MB outputs (never a raw path, asserted by test);
+**#375** pre-cuts at pin time — `geofabrik_pull.py --precut-wnc-corridor` runs the same
+`clip_bbox` against `WNC_CORRIDOR_BBOX` and pins the result in place of the sources, so the
+per-request scan is already small. **Re-measured on the live Pi under #402**: the same Asheville
+cell went from **617 s on the full-state pin to ~102 s on the precut pin**, an 83% reduction that
+tracks the 6.4× drop in pinned-extract size — the cost is O(pinned extract), and `/clip` is still
+**~1.7× over the ≤60 s outer band** (#439). #402 also narrowed `select_covering_extracts` by each
+extract's real `.poly` boundary (pulled alongside the `.osm.pbf`), cut peak RSS 2,842 → 1,770 MB
+with a disk-backed location index, shipped an opt-in clip cache keyed on `(pin, bbox)`, declined a
+spatial index as engineering for a requirement this one-corridor mirror does not have, and fixed a
+live defect where precut output carried no header box (an out-of-corridor bbox paid a full scan
+before 404-ing; now 2 s). Strategy question answered too: `complete_ways` is the floor, not one of
+three options. The Release Checklist's OSM re-pin carries the `--precut-wnc-corridor` flag for this
+reason — skipping it silently regresses `/clip` to a full-state scan.
+
 ### 6.7a Offline bbox-edit posture — C confirmed, D rejected *(2026-09-17, issue #278)*
 
 SPIKE-I (#265) measured the one thing this section deferred: "Author edits the bbox on a
@@ -539,6 +562,28 @@ ran A–H. **The phase is epic #268.** Both spikes are filed and entered in
    extracts (§11.7).
 4. **Extract size per region**, and what it implies for the mirror and for first-run download.
 
+> **Run 2026-09-13 — RESCOPE, and the failure is not where §11.1 put it.** Bands pre-registered
+> and committed before the first measurement (addendum G5/2b). **Graph parity is exact** through
+> the *transport* swap — clipped `.osm.pbf` → Overpass-shaped elements → osmnx's own
+> `_create_graph`: identical node and edge sets, 100% edge-key stability, identical largest SCC,
+> 0.0 m max per-edge delta, zero `PLOTLINES_WAY_TAGS` losses, on `bike` and on `drive` (where it
+> reproduces SPIKE-E's `track`/`service` drop exactly rather than accidentally fixing it).
+> pyrosm, the *reimplementation*, is 5.6×–16.4× node-inflated and was rejected — so §11.1's
+> re-validation budget was not owed for the graph, and #276 confirmed SPIKE-A's goldens exact on
+> the extract-built graph. **What failed is §6.7's clip**, measured server-side on the Pi 5 per
+> addendum 2c: **432–553 s / 1.9–7.2 GB, O(region extract) not O(bbox)**, and the two-extract
+> border path **0 of 4 completing** (`MergeInputReader` buffering raw extracts, OOM, 502) — which,
+> because `select_covering_extracts` compared rectangular header boxes, was the *default* path
+> for every western-North-Carolina bbox. Both fixed the same day: **#375** pre-cuts pinned
+> extracts to the served corridor at pull time, **#376** merges the few-MB clipped outputs rather
+> than the raw extracts. `complete_ways` is the floor, not one of three options (`smart` +54% for
+> one node; `simple` cannot reach parity because Overpass's `(way…;>;)` returns complete ways).
+> Extract sizes recorded; Q6's egress arithmetic discharged (~325× reduction, a rounding error);
+> the offline bbox-edit measurement fired D's trigger (38–48% servable) and D was rejected on the
+> clip's own cost (§6.7a, D62). **Re-measured on the live Pi 2026-09-18 (#402, PR #438):
+> 617 s → 101.65 s / 101.73 s on the precut pin — 83% off, tracking the 6.4× smaller extract,
+> still ~1.7× over the ≤60 s outer band; residual #439.** `spikes/SPIKE-I/results/RESULTS.md`.
+
 **7.2 SPIKE-J — packaging the native dependency** *(the distribution spike)* — **#266**
 
 PyInstaller freeze survival for pyosmium/pyrosm on **all four targets**: Linux, macOS x86,
@@ -633,6 +678,12 @@ edge keys and geometry need not match. Everything calibrated to date was measure
 SPIKE-A's golden candidate sets, SPIKE-G's density model and its ~2,800-marker ceiling, the scoring
 weights, cue derivation. A structural difference shifts those calibrations in ways no node-count
 assertion catches. Budget for re-validation against a golden set.
+*Measured — SPIKE-I, 2026-09-13:* the risk split in two and answered oppositely. The **transport**
+swap (clip → Overpass-shaped elements → osmnx's own builder) is **bit-exact** on every band, so the
+re-validation was not owed for the graph — #276 confirmed SPIKE-A's goldens exact and SPIKE-G's
+ceiling unchanged on the extract-built graph. The **reimplementation** (pyrosm) is 5.6×–16.4×
+node-inflated and is exactly the graph none of those calibrations were taken against; it was
+rejected and must not return as "a second implementation for comparison."
 
 **11.2 The native dependency lands on risk A5.** pyosmium is a C++ extension (libosmium, protozero,
 expat, bz2), needed frozen on four targets. Native extensions are where cross-platform freezes
@@ -667,6 +718,12 @@ lossless per tile. A road network is connected, so a bbox cut severs ways. `osmi
 `simple` / `complete_ways` / `smart` strategies with real differences in cost and completeness, and
 merging two adjacent extracts means deduplicating ways present in both. Overpass handled this
 invisibly; it is a correctness surface we are taking ownership of.
+*Measured — SPIKE-I, 2026-09-13, with the strategies implemented through pyosmium rather than
+selected by osmium-tool flag (addendum L1):* `complete_ways` is the floor — `simple` leaves dangling
+references and cannot reach parity because Overpass's `(way…;>;)` has been returning complete ways
+all along, and `smart` costs +54% wall time for exactly one extra node. The two-extract merge was
+the surface that actually failed (0 of 4 completing) and #376 owns the fix; #402 then found the
+second defect this paragraph predicts — clipped output with no declared coverage — and fixed it.
 
 ## 12. Open questions — **answered 2026-09-03**
 
@@ -742,13 +799,19 @@ it unnecessary to check.
 
 **Then — Phase 2, the spikes** *(epic #268)*
 
-21. ~~File~~ and run **SPIKE-I** (parity, tags, clip strategy, sizes), with its parity bands
-    pre-registered and the clip measured **server-side**. *(§7.1, 2b, 2c — filed as #265)*
+21. ~~File and run **SPIKE-I** (parity, tags, clip strategy, sizes), with its parity bands
+    pre-registered and the clip measured **server-side**~~ — **run 2026-09-13, RESCOPE in the clip not
+    the graph** (#265): transport-swap parity exact, pyrosm rejected, the clip 432–553 s / O(extract)
+    and the two-extract path dead, both fixed same day (#375/#376) and re-measured live 2026-09-18
+    (#402: ~102 s, residual #439). *(§7.1, 2b, 2c)*
 22. ~~File and run **SPIKE-J** (freeze matrix)~~ — **run 2026-09-13/15, PARITY on all four targets** (#266). Much smaller than first
     drafted: Q1-C removes the client-side native clip dependency, so what remained was the reader, and
     it freezes everywhere at +3.4–4.5 MB. *(§7.2, 2a)*
-23. Confirm the §12 answers against the spike evidence — in particular whether offline
-    bbox-editing forces Q1's D fallback, and Q6's egress arithmetic.
+23. ~~Confirm the §12 answers against the spike evidence — in particular whether offline
+    bbox-editing forces Q1's D fallback, and Q6's egress arithmetic.~~ **Done — Q1 by #278
+    (2026-09-17, item 24b below: C confirmed, D rejected on measurement, ARCH D62); Q6 by SPIKE-I
+    §4 (~325× egress reduction — a rounding error, arithmetic discharged). The other four answers
+    stand unchanged.**
 
 23a. Generate the dependency notice bundle at freeze time — the software-licence counterpart to
     FR101's data-attribution gate, and where SPIKE-J's no-GPL-binary answer lives.
@@ -786,7 +849,8 @@ it unnecessary to check.
 26. ~~Revisit ARCH **A23** / **A23a** and Punchlist **2A.3** — mark local extracts measured, and
     record the decision as a new ARCH **D**-number, plus the doc amendments owed by #269, #270 and
     §12.~~ **Done 2026-09-17 (#287).** A23 restated with SPIKE-I's measured clip cost and its
-    same-day fix (#375/#376), re-rated HIGH → MEDIUM pending #402's live-Pi re-measurement; A23a
+    same-day fix (#375/#376), re-rated HIGH → MEDIUM — #402 then re-measured the fix live 2026-09-18
+    (617 s → ~102 s, still over band, residual #439; A23 stays Medium on that); A23a
     revisited — the `osmnx` defects are unpatched, only their exposure shrank. Recorded as ARCH
     **D63**. Punchlist 2A.3 ticked. §12.2/§13.4's attribution wording (#269) and §8's payload-pin
     note (#270) confirmed landed; ARCH §12's stale "heavier query" claim corrected and pointed at

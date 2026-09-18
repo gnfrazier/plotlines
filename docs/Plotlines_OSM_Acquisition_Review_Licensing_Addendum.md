@@ -437,7 +437,10 @@ more headroom than most client devices. Running that clip on the client offline 
 native pyosmium dependency and #266's freeze matrix on every platform for an operation with
 no predictable cost from its inputs. **D is rejected, not merely un-triggered.** C stays as
 shipped; the offline-edit experience it implies is specified in the review's §6.7a and
-recorded as ARCH **D62**.
+recorded as ARCH **D62**. *(#402's live re-measurement, 2026-09-18 — ~102 s after the #375
+precut — does not reopen this: the precut is a mirror-side, pin-time step against the full-state
+extract, not something a client could run offline, and the clip is still over SPIKE-I's band on
+the mirror's own hardware.)*
 
 ### Q2 — Pin cadence and ownership
 
