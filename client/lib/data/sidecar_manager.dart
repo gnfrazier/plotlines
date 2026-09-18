@@ -83,12 +83,26 @@ class SidecarStatus {
 /// [ready] is false and the capability is actively loading — a settled
 /// capability (ready, or failed) carries neither.
 class CapabilityStatus {
-  const CapabilityStatus({required this.ready, this.reason, this.progress, this.etaS});
+  const CapabilityStatus({
+    required this.ready,
+    this.reason,
+    this.progress,
+    this.etaS,
+    this.provisional = false,
+  });
 
   final bool ready;
   final String? reason;
   final double? progress;
   final double? etaS;
+
+  /// Issue #432 / ARCH D62 — `ready` is true (an Author can route on it
+  /// right now) but it is a locally-truncated stand-in for a bbox shrink
+  /// the sidecar could not rebuild fresh (mirror and Overpass both
+  /// unreachable), not a real build. Only ever true for `routing`, and only
+  /// alongside [ready]; a screen must never fold this into a plain "ready"
+  /// reading — §6.7a's "no silent 'it's just correct now.'"
+  final bool provisional;
 
   /// Stopped trying, one way or another — distinct from `!ready`, which is
   /// also true while still loading. Generalized from a `'failed:'`-prefix
@@ -106,12 +120,19 @@ class CapabilityStatus {
         reason: json['reason'] as String?,
         progress: (json['progress'] as num?)?.toDouble(),
         etaS: (json['eta_s'] as num?)?.toDouble(),
+        provisional: json['provisional'] as bool? ?? false,
       );
 
   /// A human-readable, honest line for a disabled control — never a bare
   /// spinner (ARCH §8.3's "terrain data loading — routing available in
   /// about 3 minutes").
   String describe(String capabilityLabel) {
+    // Issue #432 — ready, but honestly not the final answer: the reason is
+    // already a finished sentence naming the truncation and that a real
+    // rebuild will replace it once reconnected (`CapabilityState
+    // .provisional_ready`), so this surfaces it verbatim rather than the
+    // bare "$capabilityLabel ready" a real build earns.
+    if (ready && provisional) return reason ?? '$capabilityLabel ready (provisional)';
     if (ready) return '$capabilityLabel ready';
     var r = reason ?? 'not ready';
     // The sidecar tags a settled failure `failed:<detail>` (CapabilityState

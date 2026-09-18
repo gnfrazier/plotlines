@@ -615,7 +615,10 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     // surface-level routing failure read as a validation
                     // error on that field. It is its own labelled block,
                     // immediately above the control it explains.
-                    if (!_routingCapability.ready) ...[
+                    // Issue #432 — a provisional capability is `ready` (the
+                    // control below stays enabled) but still earns the
+                    // notice: "visibly distinct from ready" per ARCH D62.
+                    if (!_routingCapability.ready || _routingCapability.provisional) ...[
                       const SizedBox(height: PlotSpacing.s5),
                       _SectionLabel('ROUTING'),
                       CapabilityWarmingNotice(
