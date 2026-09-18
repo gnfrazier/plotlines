@@ -67,6 +67,42 @@ Q4 (freezer) and Q5 (bundle vs. download) were **resolved by SPIKE-00** — see 
 for the calls and their revisit triggers, and `spikes/SPIKE-00/results/RESULTS.md` for the
 measurements behind them.
 
+## Mirror client key (the `/clip` endpoint) — issue #263 / #434
+
+The Plotlines mirror's one dynamic endpoint, `/clip`, is client-restricted by a shared
+`X-Plotlines-Client-Key` (#263: identifies "a Plotlines-built client," never a person; not an
+account system). The sidecar sends whatever `--mirror-clip-client-key` it was started with,
+and since #434 the Flutter client is what starts it, so **the key has to reach the client
+binary at build time** — and it must not be a literal in this repo.
+
+It travels the way any other deploy secret reaches a built artifact: from the builder's
+environment, through `--dart-define`, into `String.fromEnvironment` in
+`client/lib/data/sidecar_upstreams.dart`. That define carries **no `defaultValue`** — a test
+(`client/test/sidecar_upstreams_test.dart`) fails if one is ever added — so a build made
+without the define sends no key, which the mirror answers with an honest `401` rather than
+a hang, and the sidecar then takes the Overpass fallback.
+
+```bash
+# release build: the key comes from the CI/deploy secret store, never from a file in the tree
+flutter build linux --release \
+  --dart-define=PLOTLINES_MIRROR_CLIP_CLIENT_KEY="$PLOTLINES_MIRROR_CLIP_CLIENT_KEY"
+
+# source run against a keyed mirror: the same variable, in the shell, no rebuild
+PLOTLINES_MIRROR_CLIP_CLIENT_KEY=... flutter run -d linux
+```
+
+The value in the built binary is extractable by anyone holding the binary; that is the
+accepted posture of a shared client key (#263 — it bounds bandwidth and CPU spent on
+non-Plotlines callers, it is not a secret in the authentication sense) and the same
+reason it is passed on the sidecar's argv rather than smuggled through the environment.
+Rotating it is a mirror-side `MIRROR_CLIP_CLIENT_KEY` change plus a client rebuild; the
+per-IP rate ceiling holds regardless of the key.
+
+The mirror URL itself (`PLOTLINES_MIRROR_URL`, default `https://tiles.plotlines.app`), the
+staleness-monitor source, and the QA elevation proxy are the other three upstreams the
+same file resolves — see `client/README.md` for the full table and the reason the state URL
+has no default.
+
 ## Elevation API key (OpenTopography) — FR87
 
 Elevation is GEDTM30 via OpenTopography, the **single** source with no fallback (FR85,

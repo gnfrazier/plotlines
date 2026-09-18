@@ -70,6 +70,42 @@ via `POST /regions`, the Author's own trip bbox; panning elsewhere shows an hone
 viewport-based "no basemap tiles here" notice rather than a blank map. No regeneration needed
 to run the app.
 
+## The mirror the sidecar is pointed at (issue #434)
+
+The client spawns the sidecar with the four upstream flags it accepts — `--mirror-clip-url`,
+`--mirror-clip-client-key`, `--mirror-state-url`, `--elevation-upstream` — resolved by
+`lib/data/sidecar_upstreams.dart` from, in precedence order, a **process environment
+variable** at launch, a **`--dart-define`** at build time, and a **built-in default**. Only
+the mirror URL has a default (`https://tiles.plotlines.app`, pinned by test to
+`tiles/mirror.py`'s `MIRROR_HOST`); the other three are unset unless you set them. This is
+what makes Phase 3's transport swap (#272) reachable from the app: with the URL passed, the
+sidecar asks the mirror's `/clip` for the trip bbox **when the Author declares an extent, and
+never before** (D41/D57), builds the region graph and the candidate set from that clip, and
+falls through to Overpass only when the mirror cannot serve it.
+
+| Variable / define | Meaning | Default |
+|---|---|---|
+| `PLOTLINES_MIRROR_URL` | base URL of the Plotlines mirror (`/clip` is appended by the sidecar); the literal `off` disables it | `https://tiles.plotlines.app` |
+| `PLOTLINES_MIRROR_CLIP_CLIENT_KEY` | the `X-Plotlines-Client-Key` a keyed `/clip` requires (#263) — **never a literal in the repo**; a release build gets it from the builder's environment via `--dart-define`, a source run from your shell | unset (no key sent) |
+| `PLOTLINES_MIRROR_STATE_URL` | where the sidecar reads `MIRROR_STATE.json` for `capabilities.mirror` (#367) | unset — see below |
+| `PLOTLINES_ELEVATION_UPSTREAM` | the Pi5 caching elevation proxy's `/dem` base URL (QA only) | unset |
+
+Three things worth knowing before you set any of them:
+
+- **Running from source against the LAN Pi** needs the same DNS override the mirror runbook
+  (`deploy/mirror/README.md` §6.5) uses, or a plain http URL: `PLOTLINES_MIRROR_URL=http://tiles.plotlines.app
+  flutter run -d linux` (the Pi serves plain HTTP; the https default is the hosted posture,
+  Phase 4 #279). A stock run with nothing set still passes the https default, and an
+  unreachable mirror is an honest `capabilities.extract` failure plus the Overpass fallback,
+  never a blocked region.
+- **`PLOTLINES_MIRROR_URL=off`** reproduces the pre-#434 spawn exactly — no mirror flag, no
+  key, `capabilities.extract = {"configured": false}`.
+- **`PLOTLINES_MIRROR_STATE_URL` is deliberately not defaulted.** `GET /health` re-reads that
+  source on every call today, and the client polls `/health` every 2 s — so a default would
+  be a request to the mirror before any extent is declared, and a 5 s fetch against an
+  unreachable Pi would blow the client's 2 s health timeout. #367 owns making that read safe
+  before it goes on by default; until then it is a dev/QA flag you set by hand.
+
 ## Testing
 
 ```bash

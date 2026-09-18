@@ -496,6 +496,22 @@ whether that mirror happens to gate the request on a shared key. Implemented in
 `service/plotlines_service/mirror_clip.py`; `service/tests/test_mirror_clip_server.py` covers both
 mechanisms.
 
+**How a shipped client carries the key (#434, 2026-09-17).** The Flutter app is what spawns the
+sidecar, so it is the app that has to hand over `--mirror-clip-url` and `--mirror-clip-client-key`
+— and until #434 it handed over neither, which left every stock desktop install on the Overpass
+fallback with `capabilities.extract = {"configured": false}` no matter what Phase 3 had landed in
+the service. `client/lib/data/sidecar_upstreams.dart` now resolves the four upstream flags from
+a process environment variable, then a build-time `--dart-define`, then a built-in default; the
+mirror URL defaults to `https://tiles.plotlines.app` (pinned by test to `tiles/mirror.py`'s
+`MIRROR_HOST`), and the key has **no default and no literal anywhere in the tree** — it enters a
+release build from the builder's secret store through `--dart-define`, exactly as any other deploy
+secret does, and a test fails if that define ever grows a `defaultValue`. A key baked into a
+distributed binary is extractable by anyone holding the binary; that is the accepted meaning of a
+shared client key here (bandwidth and CPU bounding, not authentication), and the reason it is
+passed on the sidecar's argv rather than hidden. The privacy statement (FR138) was reworded in the
+same commit to name the recipients in the order the shipped app now tries them: the mirror first,
+Overpass as the fallback.
+
 ## 7. Phase 2 — Spikes
 
 Two spikes, in this order, plus one build task. Letters continue the punch-list series, which

@@ -353,7 +353,12 @@ is restricted, by two independent mechanisms in `mirror_clip.py`:
 
 Both are `mirror_clip.py` CLI flags (`--client-key`,
 `--rate-limit-per-minute`) wired through `docker-compose.yml`'s
-`mirror-clip.environment` block. See the module's own docstring and
+`mirror-clip.environment` block. The client side of the key (issue #434):
+the Flutter app starts the sidecar with `--mirror-clip-url` and
+`--mirror-clip-client-key`, the key reaching the client binary only through
+a `--dart-define` from the builder's environment (or the shell, for a source
+run) — see `packaging/README.md` "Mirror client key". The same value goes in
+both places; nothing in the repo holds it. See the module's own docstring and
 `docs/Plotlines_OSM_Acquisition_Review.md` §6.8 for the full reasoning.
 `service/tests/test_mirror_clip_server.py` covers both mechanisms
 hermetically; setting a real key on the live Pi is an operator step, not
