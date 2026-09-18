@@ -209,7 +209,13 @@ def _mirror_capability(source: str | None) -> dict:
 
 
 class CapabilityState:
-    """One capability's readiness lifecycle: pending -> loading -> ready|failed.
+    """One capability's readiness lifecycle: pending -> loading -> ready|failed,
+    plus a fourth terminal state, **provisional** (issue #432, ARCH D62),
+    that only `RegionState.build`'s offline bbox-shrink truncation fallback
+    ever sets: usable — `ready` reads `True` — but honestly flagged as a
+    locally-truncated stand-in for a real rebuild, "the same 'stated reason,
+    honest progress' pattern FR121 uses for not-ready, applied to 'correct
+    once reconnected' instead of 'not yet available'" (review §6.7a).
 
     Backs the `/health` capability entries (§8.3) that have real startup work
     behind them (graph, elevation) — `tiles` and `layers` have none in this
@@ -224,14 +230,17 @@ class CapabilityState:
 
     @property
     def ready(self) -> bool:
-        return self.status == "ready"
+        # Provisional is usable — an Author can route on a truncated graph
+        # right now — it is only *honesty about correctness*, not
+        # *availability*, that distinguishes it from "ready" (issue #432).
+        return self.status in ("ready", "provisional")
 
     @property
     def settled(self) -> bool:
         """Done trying, either way — used to unblock a dependent capability
         without waiting forever on one that failed (FR121: never blocking
         the app)."""
-        return self.status in ("ready", "failed")
+        return self.status in ("ready", "provisional", "failed")
 
     def start(self, detail: str) -> None:
         self.status = "loading"
@@ -242,12 +251,20 @@ class CapabilityState:
         self.status = "ready"
         self.detail = detail
 
+    def provisional_ready(self, detail: str) -> None:
+        """Issue #432 — a shrink truncated a held wider graph rather than
+        rebuilding, because the mirror and every Overpass endpoint were
+        unreachable. `detail` is a finished, user-facing sentence naming
+        that and that a real rebuild will replace it once reconnected."""
+        self.status = "provisional"
+        self.detail = detail
+
     def fail(self, detail: str) -> None:
         self.status = "failed"
         self.detail = detail
 
     def progress(self) -> float:
-        if self.status == "ready":
+        if self.status in ("ready", "provisional"):
             return 1.0
         if self.status != "loading" or self.started_at is None or self.estimated_s <= 0:
             return 0.0
@@ -265,6 +282,12 @@ class CapabilityState:
     def to_dict(self) -> dict:
         if self.status == "ready":
             return {"ready": True}
+        if self.status == "provisional":
+            # `ready: True` (the Author can route on it now) with
+            # `provisional: True` alongside — "visibly distinct from ready"
+            # per #432's acceptance criteria, never folded into the plain
+            # `{"ready": True}` a real build reports.
+            return {"ready": True, "provisional": True, "reason": self.detail}
         if self.status == "failed":
             return {"ready": False, "reason": f"failed:{self.detail}"}
         if self.status == "loading":
@@ -379,8 +402,14 @@ class RegionState:
         return max(0.0, REGION_REQUEUE_COOLDOWN_S - (now - self.failed_at))
 
     def plan_requeue_after_failure(self, *, manual: bool, now: float) -> RequeueDecision:
-        """Decide whether a `POST /regions` for this settled-`failed` region
-        may re-queue a build now (issue #247, review §5.6).
+        """Decide whether a `POST /regions` for this settled-`failed` (or,
+        since issue #432, settled-`provisional`) region may re-queue a build
+        now (issue #247, review §5.6). `failed_at`/`automatic_requeues` are
+        the same ledger for both: a provisional build clears them exactly
+        as a clean one does (`RegionState.build`), so this almost always
+        accepts immediately for a provisional region — the cooldown/cap
+        exist to stop hammering a dead endpoint, not to slow down leaving
+        an already-usable provisional graph behind.
 
         `manual` is set only by the Author's explicit FR121 "Try again"
         (`RegionRequest.retry`); the automatic `/health`-poll path leaves it
@@ -437,7 +466,10 @@ class RegionState:
               allow_unmirrored: bool = False,
               elevation_upstream: str | None = None,
               mirror_clip_url: str | None = None,
-              mirror_clip_client_key: str | None = None) -> None:
+              mirror_clip_client_key: str | None = None,
+              held_graph_lookup: Callable[
+                  [tuple[float, float, float, float], str], "RegionState | None"
+              ] | None = None) -> None:
         self.build_attempts += 1
         attempt = self.build_attempts
         self.last_attempt_started_at = time.time()
@@ -502,10 +534,54 @@ class RegionState:
             log.info("region build OK key=%s attempt=%d timings=%s",
                      self.key, attempt, self.timings)
         except region_lib.OverpassUnavailable as exc:
+            self.timings["total"] = time.monotonic() - t0
+            # Issue #432 / ARCH D62 — before reporting the honest failure,
+            # check whether this is a bbox *shrink* of a wider region this
+            # sidecar already built successfully: if so, truncating that
+            # held graph serves it with no network call at all (SPIKE-I B9:
+            # 100% of shrinks land inside the held coverage). This is
+            # deliberately gated on the exact failure this module already
+            # treats as "neither the mirror clip nor Overpass could be
+            # reached" — a nudge or grow past the held graph's buffer has
+            # nothing to truncate *from* that covers the new area, so it
+            # falls through to the unchanged `failed:<reason>` report below
+            # (review §6.7a: "no change is owed here").
+            held = held_graph_lookup(self.bbox, self.network_type) if held_graph_lookup else None
+            provisional_path = None
+            if held is not None:
+                held_region = region_lib.Region(
+                    key=held.key, bbox=held.bbox, network_type=held.network_type)
+                provisional_path = region_lib.build_provisional_graph_from_shrink(
+                    region, held_region, cache_dir)
+            if provisional_path is not None:
+                self.graph = load_graphml(provisional_path)
+                self.last_error = None
+                self.last_traceback = None
+                self.last_attempt_finished_at = time.time()
+                # A provisional build is not a failure (issue #432): it
+                # clears the requeue ledger exactly as a clean build does,
+                # so the very next `POST /regions` for this bbox — on
+                # reconnection, no special-cased "resume" — is free to
+                # attempt a real rebuild immediately rather than waiting
+                # out #247's post-*failure* cooldown for a build that
+                # actually succeeded, just provisionally.
+                self.failed_at = None
+                self.automatic_requeues = 0
+                self.cooldown_bypassed_at = None
+                self.graph_state.provisional_ready(
+                    "offline — routing on a locally truncated copy of the "
+                    "wider graph already built for this device; will "
+                    "rebuild for real once reconnected"
+                )
+                log.warning(
+                    "region build PROVISIONAL key=%s attempt=%d truncated "
+                    "from held=%s: %d nodes, %d edges (mirror/overpass "
+                    "unreachable: %s)", self.key, attempt, held.key,
+                    self.graph.node_count, self.graph.edge_count, exc)
+                return
             # Already a finished, user-facing sentence (issue #229) — surface it
             # verbatim, without the `type(exc).__name__` prefix the generic
             # branch adds. The client renders this reason directly.
-            self.timings["total"] = time.monotonic() - t0
             self.last_error = str(exc)
             self.last_traceback = traceback.format_exc()
             self.last_attempt_finished_at = time.time()
@@ -665,7 +741,7 @@ class Readiness:
                 self._queue_build(region)
                 log.info("ensure_region key=%s bbox=%s nt=%s decision=NEW_BUILD",
                          key, bbox, network_type)
-            elif region.graph_state.status == "failed":
+            elif region.graph_state.status in ("failed", "provisional"):
                 # A settled failure (typically Overpass unreachable, issue
                 # #229) is retryable, but not without limit (issue #247): a
                 # cooldown floors the interval between a failure and the next
@@ -673,6 +749,15 @@ class Readiness:
                 # dead endpoint has been retried enough. A build already
                 # re-queued reads as "pending"/"loading", not "failed", so a
                 # rapid double call won't stack two builds.
+                #
+                # Issue #432 — a `provisional` region (an offline shrink
+                # truncation, ARCH D62) reuses this exact branch rather than
+                # a special-cased "resume": `RegionState.build` clears
+                # `failed_at` on a provisional success just as it does on a
+                # clean one, so `plan_requeue_after_failure` finds no
+                # cooldown running and accepts immediately — the next call
+                # for this same bbox (reconnection, or the Author simply
+                # revisiting the screen) always attempts a real rebuild.
                 decision = region.plan_requeue_after_failure(
                     manual=manual, now=time.monotonic())
                 if decision.accepted:
@@ -680,15 +765,17 @@ class Readiness:
                         region.automatic_requeues += 1
                     elif decision.bypassed_cooldown:
                         region.cooldown_bypassed_at = time.monotonic()
+                    label = ("REQUEUE_AFTER_FAILURE" if region.graph_state.status == "failed"
+                            else "REQUEUE_AFTER_PROVISIONAL")
                     log.info(
-                        "ensure_region key=%s nt=%s decision=REQUEUE_AFTER_FAILURE "
+                        "ensure_region key=%s nt=%s decision=%s "
                         "(prior attempts=%d, manual=%s, bypass=%s, auto_requeues=%d, "
-                        "last_error=%r)", key, network_type, region.build_attempts,
-                        manual, decision.bypassed_cooldown, region.automatic_requeues,
-                        region.last_error)
+                        "last_error=%r)", key, network_type, label,
+                        region.build_attempts, manual, decision.bypassed_cooldown,
+                        region.automatic_requeues, region.last_error)
                     region.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
                     self._queue_build(region)
-                else:
+                elif region.graph_state.status == "failed":
                     # Leave the region `failed`, but make the wait legible on
                     # `/health` (FR121's "stated reason") — an Author who
                     # pressed "Try again" and saw nothing must not be left
@@ -698,6 +785,11 @@ class Readiness:
                         "ensure_region key=%s nt=%s decision=REQUEUE_REFUSED "
                         "(manual=%s, auto_requeues=%d) %s", key, network_type,
                         manual, region.automatic_requeues, decision.reason)
+                # A refused *provisional* requeue leaves the region exactly
+                # as it was — still usable, still honestly labelled — rather
+                # than overwriting its stated reason with a cooldown notice
+                # (issue #432: this is a rate limit on rebuild attempts, not
+                # a new fact about the provisional graph itself).
         return key
 
     def _queue_build(self, region: "RegionState") -> None:
@@ -705,12 +797,42 @@ class Readiness:
             region.build,
             self.cache_dir, self.tiles_upstream, self.allow_unmirrored,
             self.elevation_upstream, self.mirror_clip_url,
-            self.mirror_clip_client_key,
+            self.mirror_clip_client_key, self.find_held_supergraph,
         )
 
     def region(self, key: str) -> RegionState | None:
         with self._lock:
             return self.regions.get(key)
+
+    def find_held_supergraph(
+        self, bbox: tuple[float, float, float, float], network_type: str,
+    ) -> "RegionState | None":
+        """Issue #432 / ARCH D62 — the tightest already-`ready` (or already-
+        `provisional`) region, for the same `network_type`, whose own bbox
+        properly contains `bbox`. This stands in for "the trip's prior
+        (wider) extent" `RegionState.build`'s offline bbox-shrink fallback
+        truncates: there is no trip-scoped registry here — `RegionState` has
+        never carried a trip id, only a `(bbox, network_type, ruleset)` key
+        — so, exactly as `osm_source_pin`'s own docstring already reasons,
+        "the region that finished building most recently [for a bbox
+        containing this one]" stands in for "this trip's own prior extent"
+        because an Author desktop session works one trip's bbox at a time in
+        the overwhelming case.
+
+        `None` when `bbox` is not a proper subset of anything held — either
+        nothing has been built yet, or every candidate's bbox is unrelated
+        or identical (a rebuild request, not a shrink)."""
+        best: RegionState | None = None
+        best_area: float | None = None
+        for _key, candidate in self.snapshot():
+            if candidate.network_type != network_type or not candidate.graph_state.ready:
+                continue
+            if not region_lib.bbox_is_shrink(candidate.bbox, bbox):
+                continue
+            area = region_lib.bbox_area(candidate.bbox)
+            if best is None or area < best_area:
+                best, best_area = candidate, area
+        return best
 
     def osm_source_pin(self, *, fetched_at: str) -> str:
         """Issue #277 (Phase 3.5) — the `Provenance.osm_source` value for a

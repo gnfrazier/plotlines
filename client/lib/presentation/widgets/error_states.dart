@@ -224,6 +224,24 @@ class CapabilityWarmingNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final failed = status.failed;
+    // Issue #432 / ARCH D62 — a provisional capability is ready (the
+    // control above this notice is enabled, an Author can route right now)
+    // but not the final answer: its own quiet one-liner, distinct from both
+    // "still warming" and a settled failure, using the sidecar's own
+    // finished sentence naming the truncation and the pending real rebuild.
+    if (status.ready && status.provisional) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.sync_problem, size: 15, color: c.textMuted),
+          const SizedBox(width: PlotSpacing.s2),
+          Flexible(
+            child: Text(status.describe(capabilityLabel),
+                style: PlotTypography.small(c.textSecondary)),
+          ),
+        ],
+      );
+    }
     // A capability still warming is the quiet one-line notice it always was:
     // nothing has gone wrong and nothing needs deciding (FR121).
     if (!failed) {

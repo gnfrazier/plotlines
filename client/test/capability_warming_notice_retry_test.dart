@@ -93,6 +93,26 @@ void main() {
     expect(find.textContaining('Routing loading'), findsOneWidget);
   });
 
+  testWidgets('a provisional capability shows its own quiet notice, not a failure card '
+      '(issue #432)', (tester) async {
+    await tester.pumpWidget(_host(const CapabilityWarmingNotice(
+      capabilityLabel: 'Routing',
+      status: CapabilityStatus(
+        ready: true,
+        provisional: true,
+        reason: 'offline — routing on a locally truncated copy of the wider '
+            'graph already built for this device; will rebuild for real once '
+            'reconnected',
+      ),
+      whatStillWorks: ['this must not render'],
+    )));
+
+    expect(find.text('Routing is unavailable'), findsNothing);
+    expect(find.text('WHAT STILL WORKS'), findsNothing);
+    expect(find.text('Try again'), findsNothing);
+    expect(find.textContaining('locally truncated copy'), findsOneWidget);
+  });
+
   testWidgets('no onRetry wired: a failure still renders, just without the button', (tester) async {
     await tester.pumpWidget(_host(const CapabilityWarmingNotice(
       capabilityLabel: 'Routing',

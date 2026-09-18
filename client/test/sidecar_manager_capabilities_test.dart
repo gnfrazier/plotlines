@@ -51,6 +51,25 @@ void main() {
       });
       expect(status.failed, isTrue);
     });
+
+    test('a provisional capability (issue #432) is ready but flagged, never failed', () {
+      final status = CapabilityStatus.fromJson({
+        'ready': true,
+        'provisional': true,
+        'reason': 'offline — routing on a locally truncated copy ...',
+      });
+      expect(status.ready, isTrue);
+      expect(status.provisional, isTrue);
+      expect(status.failed, isFalse);
+    });
+
+    test('provisional defaults to false for every other capability shape', () {
+      expect(CapabilityStatus.fromJson({'ready': true}).provisional, isFalse);
+      expect(
+        CapabilityStatus.fromJson({'ready': false, 'reason': 'failed:x'}).provisional,
+        isFalse,
+      );
+    });
   });
 
   group('CapabilityStatus.describe', () {
@@ -83,6 +102,17 @@ void main() {
       expect(text, contains('unavailable'));
       expect(text, contains('disk full'));
       expect(text, isNot(contains('available in')));
+    });
+
+    test('a provisional capability describes with the sidecar\'s own reason, not "ready"', () {
+      const status = CapabilityStatus(
+        ready: true,
+        provisional: true,
+        reason: 'offline — will rebuild for real once reconnected',
+      );
+      final text = status.describe('Routing');
+      expect(text, 'offline — will rebuild for real once reconnected');
+      expect(text, isNot('Routing ready'));
     });
 
     test('the sidecar\'s "failed:" reason prefix is stripped for display (issue #229)', () {
@@ -133,6 +163,22 @@ void main() {
       ));
       expect(caps.routing.forRegion('abc123')!.ready, isFalse);
       expect(caps.routing.forRegion('def456')!.ready, isTrue);
+    });
+
+    test('forRegion surfaces a provisional region distinctly from ready (issue #432)', () {
+      final caps = Capabilities.fromJson(healthBody(
+        regions: {
+          'shrunk1': {
+            'ready': true,
+            'provisional': true,
+            'reason': 'offline — will rebuild once reconnected',
+          },
+        },
+        elevation: {'ready': false, 'reason': 'elevation_source_not_configured:tracked_in_148'},
+      ));
+      final region = caps.routing.forRegion('shrunk1')!;
+      expect(region.ready, isTrue);
+      expect(region.provisional, isTrue);
     });
 
     test('forRegion is null for an unensured key, distinct from not-ready', () {
