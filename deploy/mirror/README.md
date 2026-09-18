@@ -764,7 +764,112 @@ merge-inversion fix keeps that path from crashing, but a request that also
 matches a full-state source still pays for scanning it). `--precut-keep-
 sources` off (the default) avoids this by removing the full-state entries
 this precut was drawn from, which is the intended steady state for a mirror
-that only serves the WNC corridor today.
+that only serves the WNC corridor today — so this over-selection case
+mostly doesn't arise here in practice. It is fixed at the
+`select_covering_extracts` layer regardless (issue #402):
+`geofabrik_pull.py` now also pulls each region's Osmosis `.poly` boundary
+alongside its `.osm.pbf`, and `mirror_clip.select_covering_extracts` uses
+it to narrow the header-box rectangle to the extract's real shape,
+excluding a candidate the header box alone would have kept. This matters
+again the moment more than one region is ever pinned side by side without
+`--precut-keep-sources` off — a future non-WNC deployment, or a corridor
+precut done per-state instead of merged.
+
+## `/clip`'s three other measured optimizations (issue #402)
+
+`#375` fixed wall time by shrinking what gets scanned (the precut above).
+`#265`'s SPIKE-I named four further directions and left them explicitly
+unaddressed; `#402` picked three of them up as real, measured changes —
+the fourth (a persistent spatial index, SPIKE-I's own "largest change, and
+it makes the mirror stateful") was evaluated and **not built**, see below.
+
+- **Rectangle-based over-selection** — the `.poly`-boundary narrowing
+  described just above.
+- **`BackReferenceWriter` memory** — `_select_and_write` now runs
+  `apply_file` with a disk-backed `sparse_file_array` location index
+  instead of the default in-memory `flex_mem`. SPIKE-I measured this
+  dropping `complete_ways`' peak RSS from 2,842 MB to 1,770 MB on the
+  Colorado extract, with identical output. This is **not** a full fix:
+  SPIKE-I found ~77% of that memory is `BackReferenceWriter`'s own second
+  pass, not the location table, and pyosmium's public API has no lever for
+  that pass itself — `dense_file_array` fails outright (it allocates
+  across the whole OSM id range) and `smart`'s relation-closure logic
+  costs +54% wall time for nothing at trip-bbox scale. So this ships the
+  real, available reduction, not the whole direction.
+- **A clip cache** — `--cache-dir` (env `MIRROR_CLIP_CACHE_DIR`) and
+  `--cache-max-bytes` (env `MIRROR_CLIP_CACHE_MAX_BYTES`), wired through
+  `docker-compose.yml`'s `mirror-clip.environment` block the same way
+  `--client-key`/`--rate-limit-per-minute` already are, backed by a new
+  `mirror_clip_cache` named volume (the mirror's own tree stays read-only,
+  so a cache needs a writable mount of its own). Off by default — §6.7's
+  "the mirror stays dumb, caches nothing" decision was made before the
+  wall-time finding existed; this makes it a measured tradeoff rather than
+  a default nobody had numbers for, without changing what ships until an
+  operator opts in. Keyed on `(pin, bbox)`, so a re-pin never serves a
+  stale answer. `X-Plotlines-Clip-Cache-Hit` on every response says which
+  case a given request hit.
+- **A persistent spatial index — evaluated, not built.** SPIKE-I's own
+  framing: the largest change of the four, and it makes the mirror
+  stateful. The reason to build one is to avoid `/clip`'s O(pinned
+  extract) scan on every request; the precut mechanism above already gets
+  that scan down to a few-MB file for the one region this mirror actually
+  serves (the WNC corridor), which is the same outcome a spatial index
+  would buy, achieved more cheaply. An index would earn its cost back only
+  if this mirror ever served bboxes the precut corridor doesn't cover, or
+  precut a much larger area than a single trip-planning corridor — neither
+  is true of this deployment today, so building one now would be
+  engineering for a requirement this mirror does not have. Revisit if
+  either condition changes.
+
+## Post-precut remeasurement (issue #402)
+
+#375 shipped the precut mechanism without re-taking SPIKE-I's numbers
+against it — that validation, and this section, is what closes #402's
+other half. See "Live clip rehearsal" above for the method; this reuses it
+against the *precut* pin rather than the full-state one SPIKE-I measured.
+
+**Taken 2026-09-17/18 on `argon-robot` (the live Pi, same hardware SPIKE-I
+used), Asheville cell (`-82.6,35.55,-82.5,35.62`, spans the NC/TN header
+boxes) — same code, before and after the re-pin, so this isolates the
+precut mechanism's own effect:**
+
+| | before (full-state NC+TN, pinned 2026-09-12) | after (`--precut-wnc-corridor`, pinned 2026-09-18) |
+|---|---|---|
+| server wall time | 617.04 s | 101.65 s, 101.73 s (repeat) |
+| output bytes | 3,070,302 | 3,119,621 (same feature set) |
+| sources scanned | `north-carolina` (428 MB) + `tennessee` (189 MB) | `wnc-corridor` (97 MB) |
+| clip RSS delta | 2,662,928 KB | 2,107,440 KB |
+
+A second cell (`-83.1,35.65,-82.7,36.0`, the NC/TN border case) came in at
+105.20 s post-precut, consistent with the Asheville figure — cost tracks
+the *pinned extract's* size, not which sub-area of it is requested, exactly
+as SPIKE-I's original finding predicted.
+
+**The precut mechanism works and the 83% reduction is real (617 s → ~102
+s), but it does not reach SPIKE-I's pre-registered bands** (≤20 s PARITY,
+≤60 s outer). 102 s is ~1.7x over the outer band. The reduction is
+proportional to the drop in pinned-extract size (617 MB combined → 97 MB,
+~6.4x smaller; 617 s → ~102 s is a ~6.1x speedup) — consistent with "cost
+is O(pinned extract)," not evidence the outer band is close. Getting under
+60 s from here needs the pinned extract smaller still (a tighter corridor,
+or sub-corridor precuts) or one of the directions in the section above.
+
+**A second, more serious defect surfaced by this same remeasurement, found
+and fixed in this PR:** a coverage-miss bbox nowhere near the corridor
+(`-90.0,41.0,-89.6,41.3`) took **100+ seconds** to correctly 404, instead
+of the near-instant rejection `_header_box` is supposed to give. Cause:
+neither `BackReferenceWriter` nor `_merge_extracts` set a header box on
+`clip_bbox`'s output, so the `wnc-corridor` extract this mirror actually
+serves had *no* declared coverage at all (`osmium.io.Reader(...).header()
+.box().valid()` — confirmed `False` against the live file) — every request
+against it, in or out of the corridor, fell back to "unknown coverage,
+keep" and paid a full scan. Fixed by `_stamp_header_box` (an extra pass
+over the clip's own small output, not its source). **Not yet reflected on
+the live Pi** — the deployed `mirror-clip` image predates this fix, and
+`wnc-corridor.osm.pbf` was itself precut before the fix existed, so a
+rebuild of the image (see "Build and start the clip container" above) plus
+another re-pin is still owed before this defect is actually closed in
+production, not just in code.
 
 ## Staleness monitor, cadence, and ownership (issue #260)
 

@@ -181,6 +181,10 @@ def _pbf_url(base_url: str, region: str) -> str:
     return f"{base_url.rstrip('/')}/{region}-latest.osm.pbf"
 
 
+def _poly_url(base_url: str, region: str) -> str:
+    return f"{base_url.rstrip('/')}/{region}.poly"
+
+
 def _index_url(base_url: str) -> str:
     return f"{base_url.rstrip('/')}/index-v1.json"
 
@@ -255,6 +259,75 @@ def _atomic_write(dest: Path, body: bytes) -> None:
     except BaseException:
         Path(tmp_name).unlink(missing_ok=True)
         raise
+
+
+def _looks_like_valid_poly(body: bytes) -> bool:
+    """A light structural check on an Osmosis `.poly` boundary body —
+    deliberately standalone from `plotlines_service.mirror_clip.parse_poly`
+    (the fuller parser that actually builds rings for the intersection
+    test), the same "duplicate a small piece rather than import the rest
+    of the repo" call this module's own `PLOTLINES_USER_AGENT` already
+    makes, for the same reason: this script runs standalone on the Pi.
+    Geofabrik publishes no digest for `.poly` files, the same gap
+    `pull_index` already has for `index-v1.json`, so "this parses as the
+    Osmosis polygon-filter shape" stands in for the `.md5` match as the
+    verify-before-publish gate here (issue #402)."""
+    try:
+        text = body.decode("ascii")
+    except UnicodeDecodeError:
+        return False
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    if len(lines) < 5 or lines[-1] != "END":
+        return False
+    coordinate_lines = 0
+    for line in lines[2:-1]:
+        if line == "END" or line.startswith("!"):
+            continue
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        try:
+            float(parts[0])
+            float(parts[1])
+        except ValueError:
+            return False
+        coordinate_lines += 1
+    return coordinate_lines >= 3
+
+
+def _fetch_poly(
+    *, region: str, dest_pbf: Path, base_url: str, user_agent: str
+) -> None:
+    """Best-effort: pulls the region's Osmosis `.poly` boundary alongside
+    its already-published `.osm.pbf` (issue #402) —
+    `mirror_clip.select_covering_extracts` uses it to narrow the
+    rectangular header-box test with the extract's real shape, so a WNC-
+    corridor bbox near the NC/TN line no longer forces scanning both
+    states' full extracts when only one of them actually reaches there.
+    Idempotent (skips once the file is on disk) and never fails the region
+    pull as a whole: an extract with no `.poly` file is exactly the
+    'unknown coverage, safe to include' case `select_covering_extracts`
+    already falls back to for a missing header box, so a Geofabrik hiccup
+    here costs precision, not correctness."""
+    dest_poly = dest_pbf.with_name(dest_pbf.name[: -len(".osm.pbf")] + ".poly")
+    if dest_poly.exists():
+        return
+    try:
+        body = _get(_poly_url(base_url, region), user_agent=user_agent)
+    except (urllib.error.URLError, OSError) as exc:
+        LOG.warning(
+            "region %s: .poly fetch failed (%s) — over-selection at this "
+            "region's borders stays unmitigated", region, exc,
+        )
+        return
+    if not _looks_like_valid_poly(body):
+        LOG.warning(
+            "region %s: .poly body did not parse — over-selection at this "
+            "region's borders stays unmitigated", region,
+        )
+        return
+    _atomic_write(dest_poly, body)
+    LOG.info("region %s: pulled boundary -> %s", region, dest_poly)
 
 
 def _record_failure(
@@ -334,6 +407,8 @@ def pull_region(
                   region, remote_md5)
         entry["consecutive_failures"] = 0
         entry["last_failure"] = None
+        _fetch_poly(region=region, dest_pbf=dest, base_url=base_url,
+                    user_agent=user_agent)
         return PullResult(region, "skipped_unchanged", remote_md5)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -368,6 +443,8 @@ def pull_region(
     entry["last_failure"] = None
     state["geofabrik"]["pinned_date"] = pinned_date
     LOG.info("region %s: pulled %s -> %s", region, remote_md5, dest)
+    _fetch_poly(region=region, dest_pbf=dest, base_url=base_url,
+                user_agent=user_agent)
     return PullResult(region, "pulled", remote_md5)
 
 

@@ -65,12 +65,32 @@ _MD5_BODY = f"{_PBF_DIGEST}  {_REGION}-latest.osm.pbf\n".encode()
 _INDEX_BODY = b'{"type": "FeatureCollection", "features": []}'
 _INDEX_ETAG = '"abc123"'
 
+_POLY_BODY = (
+    b"fixture\nouter\n   -83.0000000   35.0000000\n   -81.5000000   35.0000000\n"
+    b"   -81.5000000   36.0000000\nEND\nEND\n"
+)
+
 
 def test_plotlines_user_agent_matches_osm_identity() -> None:
     # "One contactable string across every upstream we touch" (issue #241) —
     # this script duplicates the literal (it's deployed without
     # plotlines_core, see its module docstring) so this is the drift guard.
     assert gp.PLOTLINES_USER_AGENT == osm_user_agent("mirror-geofabrik-pull")
+
+
+class TestLooksLikeValidPoly:
+    def test_a_well_formed_poly_body_passes(self) -> None:
+        assert gp._looks_like_valid_poly(_POLY_BODY) is True
+
+    def test_garbage_fails(self) -> None:
+        assert gp._looks_like_valid_poly(b"not a poly file at all") is False
+
+    def test_non_ascii_bytes_fail(self) -> None:
+        assert gp._looks_like_valid_poly(b"\xff\xfe\x00\x01") is False
+
+    def test_a_coordinate_line_with_a_non_numeric_value_fails(self) -> None:
+        body = b"fixture\nouter\n   nope   35.0\n   -81.5   35.0\n   -81.5   36.0\nEND\nEND\n"
+        assert gp._looks_like_valid_poly(body) is False
 
 
 class _Route:
@@ -112,6 +132,7 @@ def upstream():
     routes: dict[str, _Route] = {
         f"/{_REGION}-latest.osm.pbf.md5": _Route(200, _MD5_BODY),
         f"/{_REGION}-latest.osm.pbf": _Route(200, _PBF_BODY),
+        f"/{_REGION}.poly": _Route(200, _POLY_BODY),
         "/index-v1.json": _Route(200, _INDEX_BODY, etag=_INDEX_ETAG),
     }
     request_log: list[tuple[str, dict]] = []
@@ -162,6 +183,10 @@ def test_first_pull_downloads_verifies_and_publishes(upstream, mirror_root) -> N
     dest = mirror_root / "osm" / "geofabrik" / "2026-09-01" / f"{_REGION}.osm.pbf"
     assert dest.read_bytes() == _PBF_BODY
     assert dest.with_name(dest.name + ".md5").read_text().startswith(_PBF_DIGEST)
+    # Issue #402: the boundary polygon is published alongside the extract,
+    # same directory, `.poly` in place of `.osm.pbf`.
+    poly_dest = dest.with_name(dest.name[: -len(".osm.pbf")] + ".poly")
+    assert poly_dest.read_bytes() == _POLY_BODY
 
     entry = state["geofabrik"]["regions"][_REGION]
     assert entry["md5"] == _PBF_DIGEST
@@ -171,11 +196,96 @@ def test_first_pull_downloads_verifies_and_publishes(upstream, mirror_root) -> N
     assert state["geofabrik"]["pinned_date"] == "2026-09-01"
 
     # Requests carried the Plotlines UA on both the conditional check and
-    # the body download.
+    # the body download, plus the boundary poly fetch.
     paths_seen = {path for path, _headers in upstream.request_log}
-    assert paths_seen == {f"/{_REGION}-latest.osm.pbf.md5", f"/{_REGION}-latest.osm.pbf"}
+    assert paths_seen == {
+        f"/{_REGION}-latest.osm.pbf.md5",
+        f"/{_REGION}-latest.osm.pbf",
+        f"/{_REGION}.poly",
+    }
     for _path, headers in upstream.request_log:
         assert headers["User-Agent"] == gp.PLOTLINES_USER_AGENT
+
+
+def test_a_failed_poly_fetch_does_not_fail_the_region_pull(upstream, mirror_root) -> None:
+    # Issue #402: the extract itself is the thing that must never be put at
+    # risk by a boundary-polygon problem — `select_covering_extracts`
+    # already treats a missing `.poly` as safe-to-include ("unknown
+    # coverage"), so a Geofabrik hiccup here costs precision, not the pull.
+    del upstream.routes[f"/{_REGION}.poly"]  # upstream now 404s it
+    state = {"geofabrik": {"regions": {}}}
+
+    result = gp.pull_region(
+        region=_REGION, root=mirror_root, pinned_date="2026-09-01", state=state,
+        base_url=upstream.base_url, now=_clock(datetime(2026, 9, 1, tzinfo=timezone.utc)),
+    )
+
+    assert result.action == "pulled"
+    dest = mirror_root / "osm" / "geofabrik" / "2026-09-01" / f"{_REGION}.osm.pbf"
+    assert dest.exists()
+    poly_dest = dest.with_name(dest.name[: -len(".osm.pbf")] + ".poly")
+    assert not poly_dest.exists()
+
+
+def test_an_unparseable_poly_body_is_never_published(upstream, mirror_root) -> None:
+    upstream.routes[f"/{_REGION}.poly"] = _Route(200, b"not a poly file at all")
+    state = {"geofabrik": {"regions": {}}}
+
+    gp.pull_region(
+        region=_REGION, root=mirror_root, pinned_date="2026-09-01", state=state,
+        base_url=upstream.base_url, now=_clock(datetime(2026, 9, 1, tzinfo=timezone.utc)),
+    )
+
+    dest = mirror_root / "osm" / "geofabrik" / "2026-09-01" / f"{_REGION}.osm.pbf"
+    poly_dest = dest.with_name(dest.name[: -len(".osm.pbf")] + ".poly")
+    assert not poly_dest.exists()
+
+
+def test_an_unchanged_pull_still_fetches_a_poly_missing_from_an_older_pin(
+    upstream, mirror_root
+) -> None:
+    # A region pinned before this feature existed has an .osm.pbf but no
+    # sibling .poly — the next daily pull, even an "unchanged" one, should
+    # still backfill it rather than leaving that pin permanently without one.
+    dest = mirror_root / "osm" / "geofabrik" / "2026-09-01" / f"{_REGION}.osm.pbf"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(_PBF_BODY)
+    state = {"geofabrik": {"regions": {
+        _REGION: {"md5": _PBF_DIGEST, "checked_at": gp._iso(
+            datetime(2026, 8, 1, tzinfo=timezone.utc)
+        )},
+    }}}
+    t1 = datetime(2026, 9, 1, tzinfo=timezone.utc)  # well past the 24h cadence
+
+    result = gp.pull_region(region=_REGION, root=mirror_root, pinned_date="2026-09-01",
+                             state=state, base_url=upstream.base_url, now=_clock(t1))
+
+    assert result.action == "skipped_unchanged"
+    poly_dest = dest.with_name(dest.name[: -len(".osm.pbf")] + ".poly")
+    assert poly_dest.read_bytes() == _POLY_BODY
+
+
+def test_an_unchanged_pull_makes_no_poly_request_once_already_on_disk(
+    upstream, mirror_root
+) -> None:
+    dest = mirror_root / "osm" / "geofabrik" / "2026-09-01" / f"{_REGION}.osm.pbf"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(_PBF_BODY)
+    poly_dest = dest.with_name(dest.name[: -len(".osm.pbf")] + ".poly")
+    poly_dest.write_bytes(_POLY_BODY)
+    state = {"geofabrik": {"regions": {
+        _REGION: {"md5": _PBF_DIGEST, "checked_at": gp._iso(
+            datetime(2026, 8, 1, tzinfo=timezone.utc)
+        )},
+    }}}
+    t1 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+
+    result = gp.pull_region(region=_REGION, root=mirror_root, pinned_date="2026-09-01",
+                             state=state, base_url=upstream.base_url, now=_clock(t1))
+
+    assert result.action == "skipped_unchanged"
+    paths_seen = [path for path, _headers in upstream.request_log]
+    assert paths_seen == [f"/{_REGION}-latest.osm.pbf.md5"]  # no .poly re-fetch
 
 
 def test_second_run_within_cadence_window_makes_no_request(upstream, mirror_root) -> None:
