@@ -49,6 +49,7 @@ import '../map/tap_to_pick_map.dart';
 import '../widgets/error_states.dart';
 import '../widgets/plot_date_range_picker.dart';
 import '../widgets/plot_toggle_chip.dart';
+import '../widgets/passage_mode_picker.dart';
 import '../widgets/travel_mode_icons.dart';
 
 // Issue #230 B6 — `import` (GPX) was a third value here, rendered as a
@@ -71,22 +72,16 @@ class NewRouteScreen extends ConsumerStatefulWidget {
 }
 
 class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
-  // FR10/FR144 (N0) — "the declared set seeds which traversal modes are
-  // offered at passage creation": every real mode stays offered below (this
-  // is never a constraint), but the one preselected here is the trip's own
-  // declared mode rather than a hardcoded 'cycling' — canonical-order first
-  // match, since a `Set`'s own iteration order isn't something to build a
-  // default on. Held as a getter so K8's `_resetControls` returns `_mode`
-  // to exactly this value, not a stale literal.
-  String get _defaultMode => kTraversalModes.firstWhere(
-        ref.read(currentTripProvider).declaredModes.contains,
-        orElse: () => 'cycling',
-      );
-
-  late String _mode = _defaultMode;
+  // FR10/FR144 (N0), issue #319 — the mode this first passage is solved
+  // for: **one of the trip's modes**, and **nothing is preselected**. The
+  // old canonical-order-first-match / `'cycling'` default was a Plotlines
+  // 1.0 artifact (#319 Q7, owner's call); the Author picks, and Generate
+  // says so until they have (`_whyCannotGenerate`). Null until picked, and
+  // K8's `_resetControls` returns it to null.
+  String? _mode;
   // FR10/FR130 [#338] — the discipline under `_mode`, or null to solve on the
   // category's own profile. A discipline is category-specific, so switching
-  // `_mode` clears it (see the MODE chip's onTap).
+  // `_mode` clears it (see `PassageModePicker`'s onSelected).
   String? _discipline;
   // FR7/A7 — the AC-stated default shape (`planner_ui_state.dart`'s single
   // source of truth for it): loop needs only a start, no destination,
@@ -136,7 +131,9 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     return _distanceUnit == DistanceUnit.miles ? typed * _metresPerMile : typed * 1000;
   }
 
-  bool get _canGenerate => canGenerateShape(
+  bool get _canGenerate =>
+      _mode != null &&
+      canGenerateShape(
         shape: _shape,
         hasStart: _start != null,
         hasEnd: _end != null,
@@ -147,7 +144,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   /// the always-visible Reset can read as inert when there is nothing to
   /// back out of rather than implying an action that would do nothing.
   bool get _controlsAtDefault =>
-      _mode == _defaultMode &&
+      _mode == null &&
       _discipline == null &&
       _shape == defaultSegmentShape &&
       _theme == defaultRouteTheme &&
@@ -166,7 +163,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   /// also clears the solved route while sparing the curation.
   void _resetControls() {
     setState(() {
-      _mode = _defaultMode;
+      _mode = null;
       _discipline = null;
       _shape = defaultSegmentShape;
       _theme = defaultRouteTheme;
@@ -289,29 +286,31 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                         : ref.read(currentTripProvider.notifier).renameTrip(v.trim()),
                   ),
                   const SizedBox(height: PlotSpacing.s4),
-                  // FR144/N0 — this now edits the trip's declared modes
-                  // directly (already set ahead of the location prompt by
-                  // `showTripModePrompt`, `trip_library_screen.dart`), not
-                  // the old session-only `tripAuthoringMetaProvider` field:
+                  // FR144/N0 — this edits the trip's one mode set directly
+                  // (already set ahead of the location prompt by
+                  // `showTripModePrompt`, `trip_library_screen.dart`):
                   // "modes are editable for the life of the trip."
-                  // Issue #230 B5 — this and the MODE picker further down are
-                  // two different decisions that used the same nine words and
-                  // said nothing about how they differ. Both are now named
-                  // for their scope and carry one line saying what they do.
-                  _SectionLabel('TRIP CATEGORIES'),
+                  // Issue #319 — this and PASSAGE MODE further down used to
+                  // be the same chip control twice, ~500 px apart, the
+                  // second offering eight modes to this one's three. Now
+                  // this is the multi-select *ownership* control (checked
+                  // chips, the same control the trip-creation prompt uses)
+                  // and the passage pick is a single-select segmented
+                  // control offering only what is checked here.
+                  _SectionLabel('TRIP MODES'),
                   Text(
-                    // Issue #316 — the layer set is chosen on its own step now.
-                    // Issue #315 — this declares the broad categories; a
+                    // Issue #316 — the layer set is chosen on its own step.
+                    // Issue #315 — these are the broad categories; a
                     // discipline (road / gravel / mountain, and so on) is
                     // picked per passage.
-                    'The broad ways this trip travels. Seeds the trip\'s starting layers — '
-                    'chosen on the previous step — and the modes offered when you add a '
-                    'passage; it never limits what a passage can be.',
+                    'Every way this trip travels. A passage can only be one of these — '
+                    'to use another mode on a passage, add it here first. Seeds the '
+                    'trip\'s starting layers, chosen on the previous step.',
                     style: PlotTypography.small(c.textSecondary),
                   ),
                   const SizedBox(height: PlotSpacing.s2),
                   Builder(builder: (context) {
-                    final selected = ref.watch(currentTripProvider).declaredModes;
+                    final selected = ref.watch(currentTripProvider).modes;
                     return Wrap(
                       spacing: PlotSpacing.s2,
                       runSpacing: PlotSpacing.s2,
@@ -323,7 +322,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                             selected: selected.contains(m),
                             onTap: () => ref
                                 .read(currentTripProvider.notifier)
-                                .toggleDeclaredMode(m),
+                                .toggleMode(m),
                           ),
                       ],
                     );
@@ -419,53 +418,47 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                   // when a GPX parser exists.
                   const SizedBox(height: PlotSpacing.s5),
                   if (_startMethod == _StartMethod.theme) ...[
-                    // Issue #230 B5 — named for its scope: this is the mode
-                    // *this first route* is solved for, not the trip's.
-                    _SectionLabel('MODE FOR THIS ROUTE'),
+                    // Issue #230 B5 / #319 — named for its scope: this is
+                    // the mode *this first passage* is solved for, picked
+                    // from the trip's modes above, none preselected.
+                    _SectionLabel('PASSAGE MODE'),
                     Text(
-                      // Issue #315 / #338 — this first route picks a category,
-                      // then optionally a discipline under it. Every passage
-                      // added later picks its own.
-                      'Which category this first route is solved for. Pick a discipline '
-                      'below to narrow it, or leave it on the category default.',
+                      // Issue #315 / #338 — this first passage picks a
+                      // category, then optionally a discipline under it.
+                      // Every passage added later picks its own.
+                      'Which of the trip\'s modes this first passage is solved for. '
+                      'Pick a discipline below to narrow it, or leave it on the '
+                      'category default.',
                       style: PlotTypography.small(c.textSecondary),
                     ),
                     const SizedBox(height: PlotSpacing.s2),
-                    Wrap(
-                      spacing: PlotSpacing.s2,
-                      runSpacing: PlotSpacing.s2,
-                      children: [
-                        // FR10/B1 — the *traversal* list: a passage is a leg
-                        // between two points, so only modes that produce a
-                        // solved route belong here. `transit` (FR29's authored
-                        // note leg, C13) is declared on the trip but never
-                        // generated.
-                        for (final m in kTraversalModes)
-                          PlotToggleChip(
-                            label: travelModeLabel(m),
-                            icon: travelModeIcon(m),
-                            selected: _mode == m,
-                            // #338 — a discipline refines one category, so
-                            // changing the category drops it.
-                            onTap: () => setState(() {
-                              _mode = m;
-                              _discipline = null;
-                            }),
-                          ),
-                      ],
+                    // FR10/B1 — the *traversal* list: a passage is a leg
+                    // between two points, so only modes that produce a
+                    // solved route belong here. `transit` (FR29's authored
+                    // note leg, C13) may be on the trip but is never
+                    // generated — `PassageModePicker`'s default `offerable`
+                    // is `kTraversalModes`.
+                    PassageModePicker(
+                      selected: _mode,
+                      // #338 — a discipline refines one category, so
+                      // changing the category drops it.
+                      onSelected: (m) => setState(() {
+                        _mode = m;
+                        _discipline = null;
+                      }),
                     ),
                     // #338 — the discipline row, revealed under the chosen
                     // category. Single-select and optional: "category default"
                     // solves on the category's own profile. Tuned-vs-generic
                     // is read off `Discipline.tier`, never row placement, and
                     // the control makes no difficulty-grading claim (SPIKE-C).
-                    if (disciplinesForCategory(_mode).isNotEmpty) ...[
+                    if (_mode != null && disciplinesForCategory(_mode!).isNotEmpty) ...[
                       const SizedBox(height: PlotSpacing.s3),
                       _SectionLabel('DISCIPLINE'),
                       Text(
                         'Optional — narrows the route to a discipline\'s own dials. '
                         'Leave it on the category default to solve on '
-                        '${travelCategoryLabel(_mode)}\'s base profile.',
+                        '${travelCategoryLabel(_mode!)}\'s base profile.',
                         style: PlotTypography.small(c.textSecondary),
                       ),
                       const SizedBox(height: PlotSpacing.s2),
@@ -478,7 +471,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                             selected: _discipline == null,
                             onTap: () => setState(() => _discipline = null),
                           ),
-                          for (final k in disciplinesForCategory(_mode))
+                          for (final k in disciplinesForCategory(_mode!))
                             PlotToggleChip(
                               label: disciplineLabel(k),
                               icon: disciplineIcon(k),
@@ -513,11 +506,11 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     // paddling are first-class at MVP; the rest are real modes
                     // with configured weights whose routing has not been
                     // measured yet. Say so rather than implying parity.
-                    if (!isFirstClassMode(_mode))
+                    if (_mode != null && !isFirstClassMode(_mode!))
                       Padding(
                         padding: const EdgeInsets.only(top: PlotSpacing.s2),
                         child: Text(
-                          '${travelModeLabel(_mode)} is not a first-class mode at MVP — it '
+                          '${travelModeLabel(_mode!)} is not a first-class mode at MVP — it '
                           'routes on its own weight profile, but that profile has not been '
                           'tuned against real routes yet.',
                           style: PlotTypography.small(c.textMuted),
@@ -697,6 +690,9 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   /// "disabled and says so", applied to the screen's primary action). Only
   /// reached while [_canGenerate] is false.
   String _whyCannotGenerate() {
+    // #319 — no mode is preselected, so this is the first thing missing on
+    // a fresh screen and is named first.
+    if (_mode == null) return 'Pick which of the trip\'s modes this passage is solved for.';
     if (_start == null) return 'Tap the map or search a town to place a start point.';
     if (_shape == 'point_to_point' && _end == null) {
       return 'Point-to-point needs an end point — tap the map again.';
@@ -810,7 +806,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
             start: _start!,
             end: _shape == 'loop' ? null : _end,
             via: _via,
-            mode: _mode,
+            mode: _mode!,
             discipline: _discipline,
             shape: _shape,
             theme: _theme,

@@ -18,6 +18,7 @@ Trip _sourceTrip() => Trip(
       updatedAt: '2025-02-01T00:00:00.000Z',
       duration: TripDuration(dayCount: 3),
       metrics: RollUp(total: RouteMetrics(distanceM: 42000, climbM: 900)),
+      modes: {'hiking', 'cycling'},
       days: [Day(id: 'd1', index: 0, title: 'Day 1'), Day(id: 'd2', index: 1)],
       anchors: [
         Anchor(
@@ -63,7 +64,6 @@ TripRoster _sourceRoster() => const TripRoster(
 CloneOutcome _clone(CloneScope scope, {CloneParts parts = const CloneParts()}) => cloneTrip(
       source: _sourceTrip(),
       sourceRoster: _sourceRoster(),
-      sourceDeclaredModes: {'hiking', 'cycling'},
       scope: scope,
       parts: parts,
       newId: 'clone-1',
@@ -157,7 +157,7 @@ void main() {
       expect(out.trip.anchors.single.roles.single.reveal, RevealPolicy.onArrival);
       expect(out.trip.duration!.dayCount, 3);
       expect(out.trip.metrics!.total!.distanceM, 42000);
-      expect(out.declaredModes, {'hiking', 'cycling'});
+      expect(out.trip.modes, {'hiking', 'cycling'});
       expect(out.runsTripInitiation, isFalse);
     });
 
@@ -185,7 +185,6 @@ void main() {
       cloneTrip(
         source: src,
         sourceRoster: srcRoster,
-        sourceDeclaredModes: {'hiking'},
         scope: CloneScope.wholeTrip,
         newId: 'x',
         nowIso: 'now',
@@ -211,10 +210,10 @@ void main() {
       expect(out.roster.entries.first.dayGroupOverrides, isEmpty);
     });
 
-    test('runs trip initiation and starts with no declared modes', () {
+    test('runs trip initiation and starts with no modes', () {
       final out = _clone(CloneScope.rosterOnly);
       expect(out.runsTripInitiation, isTrue);
-      expect(out.declaredModes, isEmpty);
+      expect(out.trip.modes, isEmpty);
     });
   });
 
@@ -224,7 +223,7 @@ void main() {
       expect(out.trip.days.map((d) => d.id), ['d1', 'd2']);
       expect(out.trip.anchors, hasLength(1));
       expect(out.roster.isEmpty, isTrue);
-      expect(out.declaredModes, {'hiking', 'cycling'});
+      expect(out.trip.modes, {'hiking', 'cycling'});
     });
 
     test('everything assigned to (now absent) people is dropped, not dangling', () {

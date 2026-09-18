@@ -35,18 +35,6 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _declaredModesMeta = const VerificationMeta(
-    'declaredModes',
-  );
-  @override
-  late final GeneratedColumn<String> declaredModes = GeneratedColumn<String>(
-    'declared_modes',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(''),
-  );
   static const VerificationMeta _payloadMeta = const VerificationMeta(
     'payload',
   );
@@ -107,7 +95,6 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     id,
     title,
     modes,
-    declaredModes,
     payload,
     roster,
     summary,
@@ -146,15 +133,6 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
       );
     } else if (isInserting) {
       context.missing(_modesMeta);
-    }
-    if (data.containsKey('declared_modes')) {
-      context.handle(
-        _declaredModesMeta,
-        declaredModes.isAcceptableOrUnknown(
-          data['declared_modes']!,
-          _declaredModesMeta,
-        ),
-      );
     }
     if (data.containsKey('payload')) {
       context.handle(
@@ -213,10 +191,6 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         DriftSqlType.string,
         data['${effectivePrefix}modes'],
       )!,
-      declaredModes: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}declared_modes'],
-      )!,
       payload: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}payload'],
@@ -250,20 +224,17 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   final String id;
   final String title;
 
-  /// Denormalized comma-joined mode list (e.g. "cycling,hiking") so the
-  /// library list can project it without decoding `payload` per row
-  /// (SPIKE-20: full-row `SELECT *` on 20 trips cost 137ms vs 1.0ms projected).
-  final String modes;
-
-  /// FR144/N0 — the Author's **declared** modes (`Trip.declaredModes`),
-  /// comma-joined the same way [modes] is. Lives here rather than in
+  /// FR144/N0, issue #319 — the trip's one travel-mode set (`Trip.modes`),
+  /// comma-joined (e.g. "cycling,hiking"). Lives here rather than in
   /// `payload` because `trip_payload.schema.json` is
   /// `additionalProperties: false` and has no such field (`trip.dart`'s doc
-  /// comment on `declaredModes`) — this column is this field's only
-  /// persistence, not a denormalized copy of something the payload also
-  /// carries. Defaulted for old rows written before this column existed;
-  /// those trips simply have nothing declared until reopened and re-set.
-  final String declaredModes;
+  /// comment on `modes`) — this column is the field's only persistence, and
+  /// the library list projects it without decoding `payload` per row
+  /// (SPIKE-20: full-row `SELECT *` on 20 trips cost 137ms vs 1.0ms
+  /// projected). Before schema v6 this was the segment-derived list and a
+  /// second `declared_modes` column held the Author's set; the v6 migration
+  /// folds the two into this one.
+  final String modes;
 
   /// Canonical trip_payload.schema.json JSON, as TEXT (SQLite has no JSON type).
   final String payload;
@@ -271,7 +242,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   /// FR134–FR136 / G2b — the trip's roster layer (`TripRoster.toJson()`):
   /// membership, group and sub-group assignments, shared-gear and meal
   /// responsibilities, and Author notes. Kept **beside** [payload], not
-  /// inside it, for the same reason [declaredModes] is: the roster is not a
+  /// inside it, for the same reason [modes] is: the roster is not a
   /// `trip_payload.schema.json` type (FR136 — group "is stored on the trip
   /// roster entry, not the account profile", and equally not on the payload),
   /// and in hosted mode it maps to the separate `roster_entry` / `author_note`
@@ -292,7 +263,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     required this.id,
     required this.title,
     required this.modes,
-    required this.declaredModes,
     required this.payload,
     required this.roster,
     required this.summary,
@@ -305,7 +275,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     map['id'] = Variable<String>(id);
     map['title'] = Variable<String>(title);
     map['modes'] = Variable<String>(modes);
-    map['declared_modes'] = Variable<String>(declaredModes);
     map['payload'] = Variable<String>(payload);
     map['roster'] = Variable<String>(roster);
     map['summary'] = Variable<String>(summary);
@@ -319,7 +288,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       id: Value(id),
       title: Value(title),
       modes: Value(modes),
-      declaredModes: Value(declaredModes),
       payload: Value(payload),
       roster: Value(roster),
       summary: Value(summary),
@@ -337,7 +305,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       id: serializer.fromJson<String>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       modes: serializer.fromJson<String>(json['modes']),
-      declaredModes: serializer.fromJson<String>(json['declaredModes']),
       payload: serializer.fromJson<String>(json['payload']),
       roster: serializer.fromJson<String>(json['roster']),
       summary: serializer.fromJson<String>(json['summary']),
@@ -352,7 +319,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       'id': serializer.toJson<String>(id),
       'title': serializer.toJson<String>(title),
       'modes': serializer.toJson<String>(modes),
-      'declaredModes': serializer.toJson<String>(declaredModes),
       'payload': serializer.toJson<String>(payload),
       'roster': serializer.toJson<String>(roster),
       'summary': serializer.toJson<String>(summary),
@@ -365,7 +331,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     String? id,
     String? title,
     String? modes,
-    String? declaredModes,
     String? payload,
     String? roster,
     String? summary,
@@ -375,7 +340,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     id: id ?? this.id,
     title: title ?? this.title,
     modes: modes ?? this.modes,
-    declaredModes: declaredModes ?? this.declaredModes,
     payload: payload ?? this.payload,
     roster: roster ?? this.roster,
     summary: summary ?? this.summary,
@@ -387,9 +351,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
       modes: data.modes.present ? data.modes.value : this.modes,
-      declaredModes: data.declaredModes.present
-          ? data.declaredModes.value
-          : this.declaredModes,
       payload: data.payload.present ? data.payload.value : this.payload,
       roster: data.roster.present ? data.roster.value : this.roster,
       summary: data.summary.present ? data.summary.value : this.summary,
@@ -404,7 +365,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('modes: $modes, ')
-          ..write('declaredModes: $declaredModes, ')
           ..write('payload: $payload, ')
           ..write('roster: $roster, ')
           ..write('summary: $summary, ')
@@ -419,7 +379,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     id,
     title,
     modes,
-    declaredModes,
     payload,
     roster,
     summary,
@@ -433,7 +392,6 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           other.id == this.id &&
           other.title == this.title &&
           other.modes == this.modes &&
-          other.declaredModes == this.declaredModes &&
           other.payload == this.payload &&
           other.roster == this.roster &&
           other.summary == this.summary &&
@@ -445,7 +403,6 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   final Value<String> id;
   final Value<String> title;
   final Value<String> modes;
-  final Value<String> declaredModes;
   final Value<String> payload;
   final Value<String> roster;
   final Value<String> summary;
@@ -456,7 +413,6 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.modes = const Value.absent(),
-    this.declaredModes = const Value.absent(),
     this.payload = const Value.absent(),
     this.roster = const Value.absent(),
     this.summary = const Value.absent(),
@@ -468,7 +424,6 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     required String id,
     required String title,
     required String modes,
-    this.declaredModes = const Value.absent(),
     required String payload,
     this.roster = const Value.absent(),
     this.summary = const Value.absent(),
@@ -485,7 +440,6 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Expression<String>? id,
     Expression<String>? title,
     Expression<String>? modes,
-    Expression<String>? declaredModes,
     Expression<String>? payload,
     Expression<String>? roster,
     Expression<String>? summary,
@@ -497,7 +451,6 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (modes != null) 'modes': modes,
-      if (declaredModes != null) 'declared_modes': declaredModes,
       if (payload != null) 'payload': payload,
       if (roster != null) 'roster': roster,
       if (summary != null) 'summary': summary,
@@ -511,7 +464,6 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Value<String>? id,
     Value<String>? title,
     Value<String>? modes,
-    Value<String>? declaredModes,
     Value<String>? payload,
     Value<String>? roster,
     Value<String>? summary,
@@ -523,7 +475,6 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       id: id ?? this.id,
       title: title ?? this.title,
       modes: modes ?? this.modes,
-      declaredModes: declaredModes ?? this.declaredModes,
       payload: payload ?? this.payload,
       roster: roster ?? this.roster,
       summary: summary ?? this.summary,
@@ -544,9 +495,6 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     }
     if (modes.present) {
       map['modes'] = Variable<String>(modes.value);
-    }
-    if (declaredModes.present) {
-      map['declared_modes'] = Variable<String>(declaredModes.value);
     }
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
@@ -575,7 +523,6 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('modes: $modes, ')
-          ..write('declaredModes: $declaredModes, ')
           ..write('payload: $payload, ')
           ..write('roster: $roster, ')
           ..write('summary: $summary, ')
@@ -1090,7 +1037,6 @@ typedef $$TripsTableCreateCompanionBuilder =
       required String id,
       required String title,
       required String modes,
-      Value<String> declaredModes,
       required String payload,
       Value<String> roster,
       Value<String> summary,
@@ -1103,7 +1049,6 @@ typedef $$TripsTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> title,
       Value<String> modes,
-      Value<String> declaredModes,
       Value<String> payload,
       Value<String> roster,
       Value<String> summary,
@@ -1132,11 +1077,6 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
 
   ColumnFilters<String> get modes => $composableBuilder(
     column: $table.modes,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get declaredModes => $composableBuilder(
-    column: $table.declaredModes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1190,11 +1130,6 @@ class $$TripsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get declaredModes => $composableBuilder(
-    column: $table.declaredModes,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get payload => $composableBuilder(
     column: $table.payload,
     builder: (column) => ColumnOrderings(column),
@@ -1238,11 +1173,6 @@ class $$TripsTableAnnotationComposer
 
   GeneratedColumn<String> get modes =>
       $composableBuilder(column: $table.modes, builder: (column) => column);
-
-  GeneratedColumn<String> get declaredModes => $composableBuilder(
-    column: $table.declaredModes,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<String> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
@@ -1291,7 +1221,6 @@ class $$TripsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> modes = const Value.absent(),
-                Value<String> declaredModes = const Value.absent(),
                 Value<String> payload = const Value.absent(),
                 Value<String> roster = const Value.absent(),
                 Value<String> summary = const Value.absent(),
@@ -1302,7 +1231,6 @@ class $$TripsTableTableManager
                 id: id,
                 title: title,
                 modes: modes,
-                declaredModes: declaredModes,
                 payload: payload,
                 roster: roster,
                 summary: summary,
@@ -1315,7 +1243,6 @@ class $$TripsTableTableManager
                 required String id,
                 required String title,
                 required String modes,
-                Value<String> declaredModes = const Value.absent(),
                 required String payload,
                 Value<String> roster = const Value.absent(),
                 Value<String> summary = const Value.absent(),
@@ -1326,7 +1253,6 @@ class $$TripsTableTableManager
                 id: id,
                 title: title,
                 modes: modes,
-                declaredModes: declaredModes,
                 payload: payload,
                 roster: roster,
                 summary: summary,

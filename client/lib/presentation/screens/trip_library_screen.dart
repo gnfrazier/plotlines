@@ -90,7 +90,7 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
       if (_query.isNotEmpty && !t.title.toLowerCase().contains(_query)) {
         return false;
       }
-      if (_modeFilter.isNotEmpty && !t.allModes.any(_modeFilter.contains)) {
+      if (_modeFilter.isNotEmpty && !t.modes.any(_modeFilter.contains)) {
         return false;
       }
       if (!_durationFilter.matches(t.summary.dayCount)) return false;
@@ -99,7 +99,7 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
   }
 
   List<String> _allModes(List<TripListEntry> trips) {
-    final modes = <String>{for (final t in trips) ...t.allModes};
+    final modes = <String>{for (final t in trips) ...t.modes};
     return modes.toList()..sort();
   }
 
@@ -234,7 +234,7 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
     await db.setSetting(_lastTripLocationKey, choice.label);
     if (!context.mounted) return;
     ref.read(currentTripProvider.notifier).reset();
-    ref.read(currentTripProvider.notifier).setDeclaredModes(modes);
+    ref.read(currentTripProvider.notifier).setModes(modes);
     ref.read(currentRosterProvider.notifier).reset();
     ref.read(tripAuthoringMetaProvider.notifier).reset();
     // N1 (FR120) — the location only centers the map; the Author still has
@@ -247,9 +247,9 @@ class _TripLibraryScreenState extends ConsumerState<TripLibraryScreen> {
   }
 }
 
-/// FR74 — filter by mode and by duration. Modes are the union of realised and
-/// declared modes across the library; the row is hidden entirely when there
-/// is nothing to filter on.
+/// FR74 — filter by mode and by duration. Modes are the union of every
+/// trip's mode set across the library (#319 — one set per trip); the row is
+/// hidden entirely when there is nothing to filter on.
 class _FilterBar extends StatelessWidget {
   const _FilterBar({
     required this.modes,
@@ -594,7 +594,7 @@ class _TripCard extends ConsumerWidget {
     if (choice == null) return;
     await db.setSetting(_lastTripLocationKey, choice.label);
     if (!context.mounted) return;
-    ref.read(currentTripProvider.notifier).setDeclaredModes(modes);
+    ref.read(currentTripProvider.notifier).setModes(modes);
     ref.read(tripBboxProvider.notifier).reset();
     // Issue #316 — clear any candidate set warmed for a prior trip creation.
     ref.read(tripCandidatesProvider.notifier).reset();

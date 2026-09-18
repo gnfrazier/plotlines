@@ -132,7 +132,6 @@ void main() {
       id: 'existing',
       title: 'Blue Ridge, late September',
       modes: const ['cycling'],
-      declaredModes: const ['cycling'],
       payloadJson: '{}',
       updatedAt: DateTime.utc(2026, 8, 27),
     );
@@ -248,7 +247,7 @@ void main() {
     // FR144/N0 — the declared set actually lands on the trip, not just the
     // dialog's own local state.
     final container = ProviderScope.containerOf(tester.element(find.byType(TripLibraryScreen)));
-    expect(container.read(currentTripProvider).declaredModes, {'hiking'});
+    expect(container.read(currentTripProvider).modes, {'hiking'});
   });
 
   testWidgets('cancelling the location prompt does not start a trip', (tester) async {

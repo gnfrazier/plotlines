@@ -21,6 +21,7 @@ import '../../state/settings_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import 'conflict_dialog.dart';
 import 'error_states.dart';
+import 'passage_mode_picker.dart';
 import 'passage_removal_prompt.dart';
 import 'travel_mode_icons.dart';
 
@@ -301,29 +302,31 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                           // routing, same as shape; changing it marks the
                           // route stale rather than re-solving (Q3/FR140),
                           // and A11's mode-legal routability re-checks on
-                          // the next solve, not here.
-                          Text('MODE',
+                          // the next solve, not here. Issue #319 — offers
+                          // only the trip's modes (all eight wire modes
+                          // used to be here), as a single-select pick from
+                          // that parent set, with "add a mode to the trip"
+                          // on the same control so a mode the trip lacks is
+                          // one gesture away rather than silently offered.
+                          Text('PASSAGE MODE',
                               style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
                           const SizedBox(height: PlotSpacing.s2),
-                          Wrap(
-                            spacing: PlotSpacing.s2,
-                            children: [
-                              for (final m in kTravelModes)
-                                ChoiceChip(
-                                  label: Text(travelModeLabel(m).toUpperCase()),
-                                  selected: segment.mode == m,
-                                  onSelected: (_) => ref
-                                      .read(currentTripProvider.notifier)
-                                      .updateSegmentMode(widget.dayId, segment.id, m),
-                                ),
-                            ],
+                          PassageModePicker(
+                            selected: segment.mode,
+                            offerable: kTravelModes,
+                            dense: true,
+                            onSelected: (m) => ref
+                                .read(currentTripProvider.notifier)
+                                .updateSegmentMode(widget.dayId, segment.id, m),
                           ),
                           // #338 — the discipline under the passage's mode
                           // category: the second axis, revealed once the
                           // category has disciplines. Single-select and
                           // optional (CATEGORY DEFAULT = the category's own
-                          // profile); changing it marks the route stale, same
-                          // as MODE. Tuned-vs-generic is read off
+                          // profile). #319 — unlike PASSAGE MODE, changing
+                          // it does *not* mark the route stale: a change
+                          // within a parent mode is not a change of parent
+                          // mode (owner's call, Q8). Tuned-vs-generic is read off
                           // `Discipline.tier`, not chip order, and no
                           // difficulty-grading claim is made (SPIKE-C).
                           if (disciplinesForCategory(segment.mode).isNotEmpty) ...[

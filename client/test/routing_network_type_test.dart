@@ -104,7 +104,7 @@ void main() {
 
     h.container
         .read(currentTripProvider.notifier)
-        .setDeclaredModes({'cycling', 'hiking', 'driving'});
+        .setModes({'cycling', 'hiking', 'driving'});
 
     h.container.read(tripRegionKeyProvider); // create the notifier (bbox already set)
     await Future<void>.delayed(const Duration(milliseconds: 60));

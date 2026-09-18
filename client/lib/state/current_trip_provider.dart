@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../data/app_database.dart' show TripCardMetrics;
+import '../data/app_database.dart' show TripCardMetrics, TripRow;
 import '../domain/cluster_proposal.dart';
 import '../domain/domain.dart';
 import '../domain/promote.dart' as domain_promote show promoteAnchor;
@@ -79,25 +79,29 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         updatedAt: _nowIso(),
       );
 
-  /// FR144/N0 — the Author's stated set, from the mode-declaration prompt
-  /// (trip creation) or a later edit (New Route's "PRIMARY MODES", the
-  /// layer picker). "At least one is required" is enforced here too, not
-  /// only at the picker UI: an empty set is never a legal declared state,
-  /// so a call that would produce one is ignored rather than accepted.
-  void setDeclaredModes(Set<String> modes) {
+  /// FR144/N0, issue #319 — the trip's one mode set (`Trip.modes`), from
+  /// the mode-declaration prompt (trip creation) or a later edit from the
+  /// trip-mode control on the planning page. "At least one is required" is
+  /// enforced here too, not only at the picker UI: an empty set is never a
+  /// legal state, so a call that would produce one is ignored rather than
+  /// accepted. Setting the set never touches a passage — a passage whose
+  /// mode is dropped from the set keeps it, and [_replaceDay] folds the mode
+  /// straight back in on the next day mutation, so the set stays a superset
+  /// of what the segments use.
+  void setModes(Set<String> modes) {
     if (modes.isEmpty) return;
-    state = state.copyWith(declaredModes: modes, updatedAt: _nowIso());
+    state = state.copyWith(modes: modes, updatedAt: _nowIso());
   }
 
-  void toggleDeclaredMode(String mode) {
-    final modes = {...state.declaredModes};
+  void toggleMode(String mode) {
+    final modes = {...state.modes};
     if (modes.contains(mode)) {
       if (modes.length == 1) return; // AC: at least one is always required.
       modes.remove(mode);
     } else {
       modes.add(mode);
     }
-    state = state.copyWith(declaredModes: modes, updatedAt: _nowIso());
+    state = state.copyWith(modes: modes, updatedAt: _nowIso());
   }
 
   /// New Route's "Blank canvas" start method (wireframe screen 00) — an
@@ -135,17 +139,19 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final days = exists
         ? [for (final d in state.days) if (d.id == sequenced.id) sequenced else d]
         : [...state.days, sequenced];
-    // FR144/N0 — "not a constraint": every day/segment mutation in this
-    // notifier funnels through here, so this is the one place that needs to
-    // catch a passage created in an undeclared mode and fold it in, silently
-    // and unconditionally (no warning, no block, no confirmation). Declared
-    // modes only ever grow this way — a mode already present, declared or
-    // realized, changes nothing.
+    // FR144/N0, #319 — every day/segment mutation in this notifier funnels
+    // through here, so this is the one place that keeps `Trip.modes` a
+    // superset of what the segments use: a passage that arrives in a mode
+    // outside the set (the pickers only offer the set, so this is a clone,
+    // an older payload, or a caller bypassing them) adds it, silently and
+    // unconditionally (no warning, no block, no confirmation). The set only
+    // ever grows this way — a mode already present changes nothing, and
+    // removing a passage never removes its mode (only the Author does).
     final impliedModes = {for (final d in days) for (final s in d.segments) s.mode};
-    final declaredModes = impliedModes.difference(state.declaredModes).isEmpty
-        ? state.declaredModes
-        : {...state.declaredModes, ...impliedModes};
-    state = state.copyWith(days: days, declaredModes: declaredModes, updatedAt: _nowIso());
+    final modes = impliedModes.difference(state.modes).isEmpty
+        ? state.modes
+        : {...state.modes, ...impliedModes};
+    state = state.copyWith(days: days, modes: modes, updatedAt: _nowIso());
   }
 
   /// FR139/Q2 — a [Role.dayId]/[Role.segmentId] link (issue #384) must never
@@ -1259,8 +1265,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
 
   /// FR139/Q2 — a passage's mode is editable after routing like shape,
   /// weights and bands; this marks the segment stale (Q3/FR140) rather than
-  /// re-solving, same as [updateSegmentShape]. Mode-legal routability
+  /// re-solving, same as [updateSegmentShape] — #319's rule: a change of
+  /// *parent* mode invalidates the route (a discipline change under the same
+  /// parent does not, see [updateSegmentDiscipline]). Mode-legal routability
   /// (A11) is re-checked when [regenerateSegment] next solves it, not here.
+  /// The picker only offers `Trip.modes`, but a mode outside the set is not
+  /// refused here either — [_replaceDay] folds it into the set.
   ///
   /// #315 — changing the category drops a discipline that belonged to the old
   /// one (a `mountain` discipline makes no sense on a `hiking` passage); the
@@ -1283,10 +1293,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
 
   /// FR10 / FR130 [#338] — a passage's discipline (the second axis under its
   /// mode category, `discipline.dart`) is editable after routing like its
-  /// mode; changing it marks the segment stale (Q3/FR140) rather than
-  /// re-solving, exactly as [updateSegmentMode]. Passing null clears it back
-  /// to "solve on the category's own profile" — the picker's own "category
-  /// default" choice.
+  /// mode. Passing null clears it back to "solve on the category's own
+  /// profile" — the picker's own "category default" choice.
+  ///
+  /// **Unlike [updateSegmentMode], this never marks the segment stale**
+  /// (#319, Q8, owner's call): a change of parent mode — cycle to foot, foot
+  /// to paddle — invalidates the route, a change *within* a parent — road to
+  /// gravel to mountain — does not. The discipline's own profile is picked
+  /// up by whatever next re-solves the passage; until then the solved route
+  /// stands as the category's answer.
   ///
   /// A discipline that does not refine the passage's current mode is ignored:
   /// the picker only ever offers `disciplinesForCategory(mode)`, so a mismatch
@@ -1305,7 +1320,6 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           s,
     ];
     _replaceDay(day.copyWith(segments: segments));
-    markSegmentStale(dayId, segmentId);
   }
 
   /// FR139/Q2 — a passage's endpoints are editable after routing too, same
@@ -1928,7 +1942,6 @@ class TripPersistence {
       id: trip.id,
       title: trip.title,
       modes: trip.modes.toList(),
-      declaredModes: trip.declaredModes.toList(),
       payloadJson: _encode(trip),
       rosterJson: _encodeRoster(roster),
       summaryJson: _summaryFor(trip, roster).toJsonString(),
@@ -1941,10 +1954,11 @@ class TripPersistence {
     final db = _ref.read(appDatabaseProvider);
     final row = await db.loadTrip(id);
     if (row == null) return;
-    final trip = Trip.fromJson(_decode(row.payload)).copyWith(
-      // FR144/N0 — `declaredModes` never rode in `payload` (`trip.dart`'s
-      // doc comment); it comes back from its own column instead.
-      declaredModes: row.declaredModes.isEmpty ? const {} : row.declaredModes.split(',').toSet(),
+    final decoded = Trip.fromJson(_decode(row.payload));
+    final trip = decoded.copyWith(
+      // FR144/N0 — `modes` never rode in `payload` (`trip.dart`'s doc
+      // comment); it comes back from its own column instead.
+      modes: _modesOf(row, segments: decoded.days.expand((d) => d.segments)),
     );
     _ref.read(currentTripProvider.notifier).open(trip);
     // FR134–FR136 — the roster is its own column too, and rehydrates here
@@ -1954,7 +1968,7 @@ class TripPersistence {
     // comment) — a reopened trip starts without whatever was set for the
     // trip open before it, rather than inheriting a stale value. (Travel
     // modes used to be session-only too; FR144/N0 promoted them to
-    // `Trip.declaredModes` above, which *does* survive reopening.) The trip
+    // `Trip.modes` above, which *does* survive reopening.) The trip
     // bbox is the same accepted limitation (trip_bbox_provider.dart) — a
     // reopened trip needs the "Trip area" action (trip_shell_screen.dart) to
     // redraw it before anything bbox-scoped can run again.
@@ -1986,15 +2000,15 @@ class TripPersistence {
     if (row == null) {
       throw StateError('clone: no stored trip with id "$sourceId"');
     }
-    final source = Trip.fromJson(_decode(row.payload));
+    final decoded = Trip.fromJson(_decode(row.payload));
+    final source = decoded.copyWith(
+      modes: _modesOf(row, segments: decoded.days.expand((d) => d.segments)),
+    );
     final sourceRoster = _decodeRoster(row.roster);
-    final sourceDeclaredModes =
-        row.declaredModes.isEmpty ? const <String>{} : row.declaredModes.split(',').toSet();
 
     final outcome = cloneTrip(
       source: source,
       sourceRoster: sourceRoster,
-      sourceDeclaredModes: sourceDeclaredModes,
       scope: scope,
       parts: parts,
       newId: _uuid.v4(),
@@ -2006,7 +2020,6 @@ class TripPersistence {
       id: outcome.trip.id,
       title: outcome.trip.title,
       modes: outcome.trip.modes.toList(),
-      declaredModes: outcome.declaredModes.toList(),
       payloadJson: _encode(outcome.trip),
       rosterJson: _encodeRoster(outcome.roster),
       summaryJson: _summaryFor(outcome.trip, outcome.roster).toJsonString(),
@@ -2020,14 +2033,25 @@ class TripPersistence {
   /// clone carried the authored trip (nothing to initialise). For a
   /// roster-only clone the caller runs trip initiation instead.
   void adopt(CloneOutcome outcome) {
-    _ref.read(currentTripProvider.notifier).open(
-          outcome.trip.copyWith(declaredModes: outcome.declaredModes),
-        );
+    _ref.read(currentTripProvider.notifier).open(outcome.trip);
     _ref.read(currentRosterProvider.notifier).open(outcome.roster);
     _ref.read(tripAuthoringMetaProvider.notifier).reset();
     _ref.read(tripBboxProvider.notifier).reset();
   }
 }
+
+/// `Trips.modes` back into `Trip.modes` (#319). Legacy spellings are folded
+/// onto their category (#315) — the v5 migration already did this for
+/// stored rows, so this is belt-and-braces for a row written by a build in
+/// between — and the set is widened by any segment mode the row's payload
+/// carries, so `Trip.modes` is a superset of the segments' modes from the
+/// moment a trip is opened, not only after its first mutation.
+Set<String> _modesOf(TripRow row, {Iterable<Segment> segments = const []}) => {
+      if (row.modes.isNotEmpty)
+        for (final m in row.modes.split(','))
+          if (m.isNotEmpty) canonicalMode(m),
+      for (final s in segments) s.mode,
+    };
 
 /// G2 (FR74) — the card-face metrics denormalized into `Trips.summary` on
 /// every save, so the Trip Library never decodes a payload per row.

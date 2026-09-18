@@ -252,7 +252,7 @@
   "@reasonNoClustersFoundInBbox": {
     "description": "M13 state: no clusters found in bbox (FR102)"
   },
-  "reasonComposeDistanceIsAnOutcome": "in Compose mode the distance is what the places add up to",
+  "reasonComposeDistanceIsAnOutcome": "in Compose the distance is what the places add up to",
   "@reasonComposeDistanceIsAnOutcome": {
     "description": "FR118 — deliberately NOT an M13 failure state (ARCH D53)"
   },
@@ -412,9 +412,9 @@
       "lon": {"type": "num", "x-slot-type": "number"}
     }
   },
-  "declaredModes": "Modes {modes}",
-  "@declaredModes": {
-    "description": "FR144 / N0 — the modes declared at trip initiation",
+  "tripModes": "Modes {modes}",
+  "@tripModes": {
+    "description": "FR144 / N0 / #319 — the trip's mode set",
     "placeholders": {
       "modes": {"type": "String", "x-slot-type": "nameList"}
     }

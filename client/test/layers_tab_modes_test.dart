@@ -1,5 +1,5 @@
 // FR144/N0 AC — "the layer picker states which modes it derived its initial
-// state from," and "changing the [declared mode] set updates layer defaults
+// state from," and "changing the [trip's mode] set updates layer defaults
 // for days the Author has not overridden and leaves overridden days alone"
 // (punchlist §4.34). `CurationClient` has no HTTP-mocked test convention in
 // this repo (`curation_client_test.dart`'s own doc comment), so this fakes
@@ -105,10 +105,10 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('states which declared mode its defaults come from', (tester) async {
+  testWidgets('states which trip mode its defaults come from', (tester) async {
     final trip = Trip(
       id: 't1', title: 'Test', createdAt: '2026-08-26T00:00:00Z', updatedAt: '2026-08-26T00:00:00Z',
-      declaredModes: const {'hiking'},
+      modes: const {'hiking'},
     );
     await tester.pumpWidget(_harness(trip));
     await _settle(tester);
@@ -119,7 +119,7 @@ void main() {
   testWidgets('a two-mode trip unions both modes\' defaults and names both', (tester) async {
     final trip = Trip(
       id: 't1', title: 'Test', createdAt: '2026-08-26T00:00:00Z', updatedAt: '2026-08-26T00:00:00Z',
-      declaredModes: const {'cycling', 'hiking'},
+      modes: const {'cycling', 'hiking'},
     );
     await tester.pumpWidget(_harness(trip));
     await _settle(tester);
@@ -130,11 +130,11 @@ void main() {
     expect(container.read(layerSelectionProvider).tripLive, {'sight', 'natural', 'amenity'});
   });
 
-  testWidgets('changing declared modes reseeds the trip default but leaves an override alone',
+  testWidgets('changing the trip\'s modes reseeds the trip default but leaves an override alone',
       (tester) async {
     final withOverride = Trip(
       id: 't1', title: 'Test', createdAt: '2026-08-26T00:00:00Z', updatedAt: '2026-08-26T00:00:00Z',
-      declaredModes: const {'cycling'},
+      modes: const {'cycling'},
       days: [Day(id: 'day-1', index: 1)],
     );
     final harnessKey = GlobalKey<_MutableHarnessState>();
@@ -149,7 +149,7 @@ void main() {
 
     // An Author edit mid-session, same trip identity, same provider
     // container — the trip default reseeds; the day override doesn't.
-    harnessKey.currentState!.setTrip(withOverride.copyWith(declaredModes: {'hiking'}));
+    harnessKey.currentState!.setTrip(withOverride.copyWith(modes: {'hiking'}));
     await _settle(tester);
 
     expect(find.text('Defaults from: Hike'), findsOneWidget);

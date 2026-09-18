@@ -1,10 +1,13 @@
 // FR144/N0 — trip creation declares one or more travel **categories**, ahead
 // of the location prompt (`trip_location_prompt.dart`) on the new-trip path
 // (Author Flows MVP Flow 1's "Declare travel modes" node). At least one is
-// required; every category stays offered regardless of what's picked
-// (declaring is not a constraint — FR144). Mirrors `_TripLocationDialog`'s
-// shape (a plain `AlertDialog`, Cancel/Continue) rather than inventing a new
-// dialog pattern for what is, structurally, the same kind of step.
+// required. Issue #319 — this sets the trip's *one* mode set (`Trip.modes`):
+// the per-passage picker offers only what is chosen here, and the same
+// dialog is reopened from that picker's "add a mode to the trip" affordance
+// (`passage_mode_picker.dart`) with the current set preselected. Mirrors
+// `_TripLocationDialog`'s shape (a plain `AlertDialog`, Cancel/Continue)
+// rather than inventing a new dialog pattern for what is, structurally, the
+// same kind of step.
 //
 // Issue #315 — this is category selection now: Cycle · Foot · Paddle · Ski ·
 // Drive as five equal targets, no "common vs every other mode" tiering and no
@@ -76,10 +79,10 @@ class _TripModeDialogState extends State<_TripModeDialog> {
                 // extent). Issue #315 — a discipline is a per-passage choice,
                 // so this only asks for the broad category.
                 'Pick the broad ways this trip travels — at least one. This seeds the '
-                'map layers you\'ll confirm on the layer step, and the modes offered when '
-                'you add a passage. You\'ll choose a specific discipline — road, gravel or '
-                'mountain, say — on each passage. Nothing here is a limit: adding a '
-                'passage in another mode later just adds it.',
+                'map layers you\'ll confirm on the layer step, and each passage picks '
+                'one of these modes. You\'ll choose a specific discipline — road, gravel or '
+                'mountain, say — on each passage. You can add a mode to the trip at any '
+                'time while planning.',
                 style: PlotTypography.body(c.textSecondary),
               ),
               const SizedBox(height: PlotSpacing.s4),
