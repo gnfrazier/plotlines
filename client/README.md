@@ -105,6 +105,13 @@ Three things worth knowing before you set any of them:
   be a request to the mirror before any extent is declared, and a 5 s fetch against an
   unreachable Pi would blow the client's 2 s health timeout. #367 owns making that read safe
   before it goes on by default; until then it is a dev/QA flag you set by hand.
+- **`PLOTLINES_ELEVATION_UPSTREAM` has no production value — it only ever points at
+  the Pi5 QA/UAT elevation proxy** (`deploy/elevation/README.md`, issue #450): once that
+  proxy is deployed and running, set it to `http://<pi-LAN-address>:8090/dem` (Caddy's
+  published port there). No tester machine ever sets
+  `PLOTLINES_OPENTOPOGRAPHY_API_KEY` — only the Pi holds it, and a sidecar started with
+  `--elevation-upstream` uses `core/plotlines_core/elevation/qa_proxy_client.py`'s
+  unauthenticated fetcher instead.
 
 ## Testing
 

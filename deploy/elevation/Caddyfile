@@ -1,0 +1,30 @@
+## Plotlines Pi5 QA/UAT elevation proxy — issue #450, companion to epic #264
+## and to #304 (which built service/plotlines_service/elevation_proxy.py but
+## never its deployment). See deploy/elevation/README.md.
+##
+## Deliberately its own Caddy instance and site block, never folded into
+## deploy/mirror/'s Caddyfile — #304's own "Done when" named a separate
+## hostname/port because the ToS/key-revocation risk here differs from the
+## mirror's ODbL redistribution risk, so this must not inherit whatever
+## issue #263 decides about the mirror's reachability.
+##
+## LAN-only, port-only address, no hostname: never bind this to a public DNS
+## record. A bare `:PORT` address (unlike the mirror Caddyfile's
+## `http://<host>`) has no domain name for Caddy to request a certificate
+## for, so there is nothing to disable explicitly here the way the mirror's
+## `http://` prefix has to.
+##
+## elevation-proxy has no auth of its own (see its own --host argparse help
+## in service/plotlines_service/elevation_proxy.py) — Caddy publishing the
+## only host-reachable port, with the elevation-proxy container publishing
+## none (see docker-compose.yml), is what keeps it off the open LAN beyond
+## "reachable to anyone already on this network," same posture as the
+## mirror-clip container.
+
+:{$ELEVATION_PORT:8090} {
+	reverse_proxy elevation-proxy:8090
+
+	log {
+		output file {$ELEVATION_LOG:/var/log/caddy/elevation.log}
+	}
+}

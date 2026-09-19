@@ -1,0 +1,61 @@
+# Runs the Pi5 QA/UAT elevation proxy behind a Caddy front end (issue #450,
+# companion to epic #264 and to #304 — the elevation-proxy code this
+# deploys). Deliberately its own compose stack, separate from
+# deploy/mirror/'s — see Caddyfile's header for why.
+#
+# On the Pi:
+#   docker compose up -d
+#
+# elevation-proxy is this repo's own image (service/Dockerfile.elevation-
+# proxy), not a public registry pull — same pattern deploy/mirror/'s
+# mirror-clip service uses. Build it on a machine with the full repo
+# checked out (needs core/ and service/ as build context) and load the
+# result here, e.g.:
+#   docker build -f service/Dockerfile.elevation-proxy -t plotlines-elevation-proxy:latest .
+#   docker save plotlines-elevation-proxy:latest | ssh pi docker load
+# or clone the repo onto the Pi and build there directly — see
+# deploy/elevation/README.md for the full walkthrough, including why the
+# native build (not a cross-build from an amd64 dev box) is the one to
+# reach for first on this hardware.
+services:
+  caddy:
+    image: caddy:2.11.4
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - elevation-proxy
+
+  elevation-proxy:
+    image: plotlines-elevation-proxy:latest
+    restart: unless-stopped
+    # No published host port: only Caddy's reverse_proxy (see Caddyfile)
+    # reaches this container, over compose's own default network — the
+    # proxy has no auth of its own (elevation_proxy.py's --host help text).
+    #
+    # The real OpenTopography key is supplied at `docker compose up` time
+    # from a git-ignored .env in this same directory (copy .env.example to
+    # .env, fill in the real value, never commit .env itself — docker
+    # compose reads it automatically). ${VAR:?msg} fails `docker compose up`
+    # immediately with an honest message if the key is unset, on top of
+    # elevation_proxy.py's own startup check (client_from_env raises
+    # MissingApiKey at process start, never per-request) — belt and braces,
+    # not redundant: this one fires before a container even starts.
+    environment:
+      - PLOTLINES_OPENTOPOGRAPHY_API_KEY=${PLOTLINES_OPENTOPOGRAPHY_API_KEY:?set PLOTLINES_OPENTOPOGRAPHY_API_KEY in deploy/elevation/.env — see .env.example}
+      - PLOTLINES_OPENTOPOGRAPHY_KEY_TIER=${PLOTLINES_OPENTOPOGRAPHY_KEY_TIER:-free-non-academic}
+    volumes:
+      - elevation_cache:/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  # A named volume, not a /srv bind mount like the mirror's read-only tree:
+  # nothing outside this container ever needs to read the DEM cache
+  # directly (unlike the mirror tree, which Caddy's file_server also
+  # serves), so there is no reason to give it a well-known host path.
+  elevation_cache:
