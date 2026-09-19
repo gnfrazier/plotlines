@@ -4,12 +4,19 @@
 # Build from the repo root (needs both core/ and service/):
 #   docker build -f service/Dockerfile.elevation-proxy -t plotlines-elevation-proxy .
 #
-# rasterio ships self-contained manylinux aarch64 wheels (bundled GDAL), so a
-# plain slim Python image is sufficient — no separate GDAL apt install needed.
-# If a pinned rasterio version ever lacks an aarch64 wheel, switch the base
-# image to one that ships GDAL's shared libs (e.g. ghcr.io/osgeo/gdal) rather
-# than compiling from source on the Pi.
+# rasterio ships self-contained manylinux aarch64 wheels (bundled GDAL), so no
+# separate GDAL apt install is needed. Its bundled GDAL .so does, however,
+# dynamically link against the *system* libexpat rather than bundling it
+# (confirmed live on the Pi 2026-09-19: python:3.12-slim doesn't carry
+# libexpat.so.1, and the proxy container crash-looped on import with
+# `ImportError: libexpat.so.1: cannot open shared object file`) — so that one
+# runtime lib has to come from apt. If a pinned rasterio version ever lacks an
+# aarch64 wheel, switch the base image to one that ships GDAL's shared libs
+# (e.g. ghcr.io/osgeo/gdal) rather than compiling from source on the Pi.
 FROM python:3.12-slim
+
+RUN apt-get update && apt-get install --no-install-recommends -y libexpat1 \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir uv
 
