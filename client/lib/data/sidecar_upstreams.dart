@@ -29,8 +29,8 @@ import 'package:flutter/foundation.dart';
 ///  3. The built-in default: the Plotlines-operated mirror at
 ///     [defaultMirrorUrl], matching `tiles/mirror.py`'s `MIRROR_HOST`
 ///     posture (a test pins the two to each other). Only the mirror URL has
-///     a default; the key, the state URL, and the elevation proxy have
-///     none.
+///     a default; the key, the state URL, the elevation proxy, and the
+///     tiles upstream (#453) have none.
 ///
 /// The literal `off` at any level disables that upstream outright — the
 /// sidecar is then started without the flag, exactly as before #434, and
@@ -47,6 +47,7 @@ class SidecarUpstreams {
     this.mirrorClipClientKey,
     this.mirrorStateUrl,
     this.elevationUpstream,
+    this.tilesUpstream,
   });
 
   /// No upstreams at all — the pre-#434 spawn, kept for tests and for a
@@ -65,6 +66,7 @@ class SidecarUpstreams {
   static const String mirrorClipClientKeyVar = 'PLOTLINES_MIRROR_CLIP_CLIENT_KEY';
   static const String mirrorStateUrlVar = 'PLOTLINES_MIRROR_STATE_URL';
   static const String elevationUpstreamVar = 'PLOTLINES_ELEVATION_UPSTREAM';
+  static const String tilesUpstreamVar = 'PLOTLINES_TILES_UPSTREAM';
 
   /// The literal that disables an upstream at any level.
   static const String off = 'off';
@@ -80,6 +82,7 @@ class SidecarUpstreams {
   static const String _defineMirrorStateUrl = String.fromEnvironment(mirrorStateUrlVar);
   static const String _defineElevationUpstream =
       String.fromEnvironment(elevationUpstreamVar);
+  static const String _defineTilesUpstream = String.fromEnvironment(tilesUpstreamVar);
 
   /// Base URL of the mirror (no trailing `/clip`), or null for no mirror.
   final String? mirrorUrl;
@@ -100,6 +103,19 @@ class SidecarUpstreams {
   /// to #264, tracked apart from #148/FR87). No default.
   final String? elevationUpstream;
 
+  /// The sidecar's `--tiles-upstream`: a PMTiles source a region's on-demand
+  /// tile cache is extracted from (issue #453, epic #458). **No built-in
+  /// default here** — `tiles/mirror.py`'s `MIRROR_WNC_CORRIDOR_URL` is one
+  /// region's coverage, not the production basemap, and
+  /// `MIRROR_ARCHIVE_URL` still names an unacquired planet build (#394's
+  /// remaining item). Unset, the sidecar keeps its own default: the
+  /// committed home-region archive, no network. A production default is
+  /// #457's decision, not this field's. Never combine this with
+  /// `--allow-unmirrored-tiles` — [toSidecarArgs] never emits that flag, so
+  /// a third-party host here is refused by the sidecar (`HotlinkRefused`,
+  /// FR92/FR95), not allowed through.
+  final String? tilesUpstream;
+
   /// Whether the sidecar will be told about a mirror at all.
   bool get mirrorConfigured => mirrorUrl != null;
 
@@ -114,6 +130,7 @@ class SidecarUpstreams {
       mirrorStateUrl: _pick(env[mirrorStateUrlVar], _defineMirrorStateUrl, null),
       elevationUpstream:
           _pick(env[elevationUpstreamVar], _defineElevationUpstream, null),
+      tilesUpstream: _pick(env[tilesUpstreamVar], _defineTilesUpstream, null),
     );
   }
 
@@ -139,11 +156,13 @@ class SidecarUpstreams {
     final key = mirrorClipClientKey;
     final state = mirrorStateUrl;
     final elevation = elevationUpstream;
+    final tiles = tilesUpstream;
     return [
       if (url != null) '--mirror-clip-url=$url',
       if (url != null && key != null) '--mirror-clip-client-key=$key',
       if (state != null) '--mirror-state-url=$state',
       if (elevation != null) '--elevation-upstream=$elevation',
+      if (tiles != null) '--tiles-upstream=$tiles',
     ];
   }
 
@@ -153,7 +172,8 @@ class SidecarUpstreams {
       'mirrorUrl: $mirrorUrl, '
       'mirrorClipClientKey: ${mirrorClipClientKey == null ? 'unset' : 'set'}, '
       'mirrorStateUrl: $mirrorStateUrl, '
-      'elevationUpstream: $elevationUpstream)';
+      'elevationUpstream: $elevationUpstream, '
+      'tilesUpstream: $tilesUpstream)';
 
   @override
   bool operator ==(Object other) =>
@@ -161,11 +181,12 @@ class SidecarUpstreams {
       other.mirrorUrl == mirrorUrl &&
       other.mirrorClipClientKey == mirrorClipClientKey &&
       other.mirrorStateUrl == mirrorStateUrl &&
-      other.elevationUpstream == elevationUpstream;
+      other.elevationUpstream == elevationUpstream &&
+      other.tilesUpstream == tilesUpstream;
 
   @override
-  int get hashCode =>
-      Object.hash(mirrorUrl, mirrorClipClientKey, mirrorStateUrl, elevationUpstream);
+  int get hashCode => Object.hash(
+      mirrorUrl, mirrorClipClientKey, mirrorStateUrl, elevationUpstream, tilesUpstream);
 }
 
 /// The complete argv the client spawns the sidecar with (ARCH §7.3): the

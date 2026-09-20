@@ -42,6 +42,9 @@ void main() {
           reason: '/health fetches this on every 2 s poll; a default would be a '
               'request before any extent is declared (#367 owns making that safe)');
       expect(u.elevationUpstream, isNull, reason: 'QA-only proxy, no default (#148/FR87)');
+      expect(u.tilesUpstream, isNull,
+          reason: 'ships like elevationUpstream: no built-in default (#453) — a '
+              'production default is #457\'s decision');
     });
 
     test("the default mirror host matches tiles/mirror.py's MIRROR_HOST", () {
@@ -80,15 +83,26 @@ void main() {
       expect(u.mirrorClipClientKey, isNull);
     });
 
-    test('the key, state URL, and elevation proxy come from the environment', () {
+    test('the key, state URL, elevation proxy, and tiles upstream come from the environment', () {
       final u = SidecarUpstreams.resolve(environment: const {
         SidecarUpstreams.mirrorClipClientKeyVar: 'k-test',
         SidecarUpstreams.mirrorStateUrlVar: 'https://tiles.plotlines.app/MIRROR_STATE.json',
         SidecarUpstreams.elevationUpstreamVar: 'http://argon-robot:8096/dem',
+        SidecarUpstreams.tilesUpstreamVar:
+            'http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles',
       });
       expect(u.mirrorClipClientKey, 'k-test');
       expect(u.mirrorStateUrl, 'https://tiles.plotlines.app/MIRROR_STATE.json');
       expect(u.elevationUpstream, 'http://argon-robot:8096/dem');
+      expect(u.tilesUpstream,
+          'http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles');
+    });
+
+    test('the literal "off" disables the tiles upstream outright', () {
+      final u = SidecarUpstreams.resolve(environment: const {
+        SidecarUpstreams.tilesUpstreamVar: 'off',
+      });
+      expect(u.tilesUpstream, isNull);
     });
 
     test('resolving is pure — the same input gives an equal value', () {
@@ -165,6 +179,29 @@ void main() {
       ]);
     });
 
+    test('a configured tiles upstream adds --tiles-upstream (issue #453)', () {
+      const u = SidecarUpstreams(
+        tilesUpstream: 'http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles',
+      );
+      expect(u.toSidecarArgs(), [
+        '--tiles-upstream=http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles',
+      ]);
+    });
+
+    test('no tiles upstream configured adds nothing', () {
+      expect(SidecarUpstreams.none.toSidecarArgs(), isNot(contains(startsWith('--tiles-upstream'))));
+      const u = SidecarUpstreams(mirrorUrl: 'https://tiles.plotlines.app');
+      expect(u.toSidecarArgs().where((a) => a.startsWith('--tiles-upstream')), isEmpty);
+    });
+
+    test('the client never emits --allow-unmirrored-tiles, whatever the tiles upstream', () {
+      const u = SidecarUpstreams(tilesUpstream: 'http://evil.example.com/tiles.pmtiles');
+      expect(u.toSidecarArgs(), isNot(contains('--allow-unmirrored-tiles')));
+      expect(u.toSidecarArgs().any((a) => a.contains('allow-unmirrored')), isFalse,
+          reason: 'a third-party host is refused by the sidecar (HotlinkRefused, '
+              'FR92/FR95), never allowed through from the client');
+    });
+
     test('the four baseline flags keep their order and come first', () {
       final args = sidecarSpawnArgs(
         port: 51234,
@@ -185,6 +222,9 @@ void main() {
       expect(args.where((a) => a.startsWith('--mirror-clip-client-key=')), isEmpty,
           reason: 'no key without a define or env var — the mirror decides '
               'whether an unkeyed /clip is accepted (#263)');
+      expect(args.where((a) => a.startsWith('--tiles-upstream=')), isEmpty,
+          reason: 'no built-in default for the tiles upstream (#453) — unset, the '
+              'spawn is byte-identical to pre-#453 for tiles');
     });
   });
 
@@ -198,6 +238,18 @@ void main() {
         ...baseline,
         '--mirror-clip-url=http://127.0.0.1:8095',
         '--mirror-clip-client-key=k',
+      ]);
+    });
+
+    test('an injected tiles upstream reaches the spawn (issue #453)', () {
+      final manager = SidecarManager(
+        upstreams: const SidecarUpstreams(
+            tilesUpstream:
+                'http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles'),
+      );
+      expect(manager.spawnArgsFor(port: 51234, cacheDir: Directory('/tmp/c')), [
+        ...baseline,
+        '--tiles-upstream=http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles',
       ]);
     });
 
@@ -218,10 +270,11 @@ void main() {
   group('no request to the mirror before an extent is declared (D41/D57)', () {
     test('configuring, resolving, and building spawn args never contacts the mirror', () async {
       // A loopback stand-in for the mirror that counts every request it
-      // sees. The client side of #434 is inert by construction — the URL
-      // is an argv string until the sidecar, on an extent declaration,
-      // asks /clip for that bbox (#274 asserts the service half: polling
-      // /health alone makes no request).
+      // sees. The client side of #434 (and #453's tiles upstream) is inert
+      // by construction — the URL is an argv string until the sidecar, on
+      // an extent declaration, asks /clip or extracts tiles for that bbox
+      // (#274 asserts the service half: polling /health alone makes no
+      // request).
       var hits = 0;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(() => server.close(force: true));
@@ -237,10 +290,12 @@ void main() {
         SidecarUpstreams.mirrorUrlVar: mirror,
         SidecarUpstreams.mirrorClipClientKeyVar: 'k',
         SidecarUpstreams.mirrorStateUrlVar: '$mirror/MIRROR_STATE.json',
+        SidecarUpstreams.tilesUpstreamVar: '$mirror/basemap/protomaps/20250101-wnc/corridor.pmtiles',
       });
       final manager = SidecarManager(upstreams: upstreams);
       final args = manager.spawnArgsFor(port: 51234, cacheDir: Directory('/tmp/c'));
       expect(args, contains('--mirror-clip-url=$mirror'));
+      expect(args, contains('--tiles-upstream=$mirror/basemap/protomaps/20250101-wnc/corridor.pmtiles'));
 
       // Give any stray request every chance to land before asserting.
       await Future<void>.delayed(const Duration(milliseconds: 200));
