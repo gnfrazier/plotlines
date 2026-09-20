@@ -219,6 +219,121 @@ void main() {
     });
   });
 
+  group('Capabilities.mirror (issue #367)', () {
+    Map<String, dynamic> body(Map<String, dynamic>? mirror) => {
+          'tiles': {'ready': true},
+          'layers': {'ready': true},
+          'routing': {'regions': <String, dynamic>{}},
+          'elevation': {'ready': false, 'reason': 'x'},
+          if (mirror != null) 'mirror': mirror,
+        };
+
+    test('absent mirror key reads as not-configured, not fresh', () {
+      final caps = Capabilities.fromJson(body(null));
+      expect(caps.mirror.configured, isFalse);
+      expect(caps.mirror.stale, isFalse);
+    });
+
+    test('configured: false reads the same as absent', () {
+      final caps = Capabilities.fromJson(body({'configured': false}));
+      expect(caps.mirror.configured, isFalse);
+    });
+
+    test('a fresh mirror parses basemap age and geofabrik staleness', () {
+      final caps = Capabilities.fromJson(body({
+        'configured': true,
+        'stale': false,
+        'basemap': {'build_id': '20250101-wnc', 'age_days': 3.2, 'stale': false},
+        'geofabrik': {'pinned_date': '2026-09-01', 'regions': {}, 'stale': false},
+      }));
+      expect(caps.mirror.configured, isTrue);
+      expect(caps.mirror.stale, isFalse);
+      expect(caps.mirror.basemapAgeDays, 3.2);
+      expect(caps.mirror.geofabrikStale, isFalse);
+      expect(caps.mirror.error, isNull);
+    });
+
+    test('a stale mirror is loud (§11.3 — a stopped cron reads as loud, not silent)', () {
+      final caps = Capabilities.fromJson(body({
+        'configured': true,
+        'stale': true,
+        'basemap': {'build_id': '20250101-wnc', 'age_days': 52.0, 'stale': true},
+        'geofabrik': {'pinned_date': '2026-07-01', 'regions': {}, 'stale': false},
+      }));
+      expect(caps.mirror.stale, isTrue);
+      expect(caps.mirror.basemapAgeDays, 52.0);
+    });
+
+    test('a fetch failure reports stale with the error, never a silent unknown', () {
+      final caps = Capabilities.fromJson(body({
+        'configured': true,
+        'stale': true,
+        'error': 'URLError: unreachable',
+      }));
+      expect(caps.mirror.configured, isTrue);
+      expect(caps.mirror.stale, isTrue);
+      expect(caps.mirror.error, 'URLError: unreachable');
+    });
+  });
+
+  group('Capabilities.tilesUpstream (issue #454)', () {
+    Map<String, dynamic> body(Map<String, dynamic>? upstream) => {
+          'tiles': {
+            'ready': true,
+            'archive': 'a1b2c3',
+            if (upstream != null) 'upstream': upstream,
+          },
+          'layers': {'ready': true},
+          'routing': {'regions': <String, dynamic>{}},
+          'elevation': {'ready': false, 'reason': 'x'},
+        };
+
+    test('absent upstream key (an older sidecar) is null, not a default kind', () {
+      final caps = Capabilities.fromJson(body(null));
+      expect(caps.tilesUpstream, isNull);
+      // #155's byte-identical fields are untouched either way.
+      expect(caps.tilesArchiveId, 'a1b2c3');
+    });
+
+    test('a local archive parses kind/source with refused false', () {
+      final caps = Capabilities.fromJson(body({
+        'kind': 'local',
+        'source': '/opt/plotlines/home.pmtiles',
+        'refused': false,
+        'reason': null,
+      }));
+      expect(caps.tilesUpstream!.kind, 'local');
+      expect(caps.tilesUpstream!.source, '/opt/plotlines/home.pmtiles');
+      expect(caps.tilesUpstream!.refused, isFalse);
+      expect(caps.tilesUpstream!.reason, isNull);
+    });
+
+    test('the mirror host parses kind mirror, never refused', () {
+      final caps = Capabilities.fromJson(body({
+        'kind': 'mirror',
+        'source': 'https://tiles.plotlines.app/basemap/protomaps/x/y.pmtiles',
+        'refused': false,
+        'reason': null,
+      }));
+      expect(caps.tilesUpstream!.kind, 'mirror');
+      expect(caps.tilesUpstream!.refused, isFalse);
+    });
+
+    test('a foreign host reports refused true with a named reason (FR92/FR95)', () {
+      final caps = Capabilities.fromJson(body({
+        'kind': 'foreign',
+        'source': 'https://tile.openstreetmap.org/x.pmtiles',
+        'refused': true,
+        'reason': "tile upstream 'tile.openstreetmap.org' is not the Plotlines "
+            'mirror (tiles.plotlines.app): Plotlines mirrors the Protomaps '
+            'basemap rather than hotlinking a third-party tile host (FR92/FR95).',
+      }));
+      expect(caps.tilesUpstream!.kind, 'foreign');
+      expect(caps.tilesUpstream!.refused, isTrue);
+      expect(caps.tilesUpstream!.reason, contains('FR92/FR95'));
+    });
+  });
+
   group('SidecarManager.healthPollTimeout (Buncombe County incident)', () {
     Capabilities caps(Map<String, dynamic> regions) => Capabilities.fromJson({
           'tiles': {'ready': true},

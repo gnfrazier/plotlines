@@ -171,6 +171,95 @@ class RoutingCapability {
       });
 }
 
+/// `/health`'s `capabilities.tiles.upstream` (issue #454) — classified once
+/// at sidecar startup from `--tiles-upstream`/`--allow-unmirrored-tiles`
+/// alone, never per-build, so it answers honestly before any trip bbox is
+/// declared. Null on [Capabilities] when an older sidecar predates this
+/// field — distinct from a present-but-unremarkable `kind: 'local'` block.
+class TilesUpstreamCapability {
+  const TilesUpstreamCapability({
+    required this.kind,
+    required this.source,
+    required this.refused,
+    this.reason,
+  });
+
+  /// `'local'` (a PMTiles archive on disk — the shipped home region, or a
+  /// dev override), `'mirror'` (the Plotlines-controlled host), or
+  /// `'foreign'` (any other http(s) host).
+  final String kind;
+
+  /// The upstream as given, or the home archive's own path when unset.
+  final String source;
+
+  /// True when a `'foreign'` upstream was refused (FR92/FR95,
+  /// `HotlinkRefused`) rather than allowed via `--allow-unmirrored-tiles` —
+  /// Plotlines mirrors the tile source, it never hotlinks a third-party host.
+  final bool refused;
+
+  /// The finished, user-facing refusal sentence when [refused]; null
+  /// otherwise.
+  final String? reason;
+
+  factory TilesUpstreamCapability.fromJson(Map<String, dynamic> json) =>
+      TilesUpstreamCapability(
+        kind: json['kind'] as String? ?? 'local',
+        source: json['source'] as String? ?? '',
+        refused: json['refused'] as bool? ?? false,
+        reason: json['reason'] as String?,
+      );
+}
+
+/// `/health`'s `capabilities.mirror` (issue #260's staleness monitor; #367 —
+/// this is the client-side consumer it was missing). Absent/`configured:
+/// false` is deliberately distinct from "fresh": a sidecar given no
+/// `--mirror-state-url` has nothing to report, which must never read as an
+/// up-to-date mirror.
+class MirrorCapability {
+  const MirrorCapability({
+    required this.configured,
+    this.stale = false,
+    this.basemapAgeDays,
+    this.geofabrikStale,
+    this.error,
+  });
+
+  /// False when no `--mirror-state-url` was given at all (the default until
+  /// #261 points a sidecar at the mirror in production) — [stale] is
+  /// meaningless in that case and always false.
+  final bool configured;
+
+  /// True if either the basemap pin or any Geofabrik region pin is older
+  /// than the monitor's staleness threshold — or if state could not be
+  /// read at all ([error] set).
+  final bool stale;
+
+  /// The basemap pin's age in days, when known.
+  final double? basemapAgeDays;
+
+  /// The Geofabrik side's own `stale` flag, when configured.
+  final bool? geofabrikStale;
+
+  /// Set when `/health` could not fetch `MIRROR_STATE.json` at all (the
+  /// mirror unreachable, a missing file) — [stale] is forced true alongside
+  /// this, never a silent "unknown, assume fresh".
+  final String? error;
+
+  factory MirrorCapability.fromJson(Map<String, dynamic> json) {
+    final configured = json['configured'] as bool? ?? false;
+    if (!configured) return const MirrorCapability(configured: false);
+    final basemap = json['basemap'] as Map<String, dynamic>?;
+    final geofabrik = json['geofabrik'] as Map<String, dynamic>?;
+    return MirrorCapability(
+      configured: true,
+      stale: json['stale'] as bool? ?? false,
+      basemapAgeDays: (basemap?['age_days'] as num?)?.toDouble(),
+      geofabrikStale: geofabrik?['stale'] as bool?,
+      error: json['error'] as String?,
+    );
+  }
+}
+
 /// Snapshot of `/health`'s `capabilities` object. `tiles` and `layers` are
 /// ready as soon as the sidecar answers at all in this codebase (B1);
 /// `routing` settles per region (issue #154) and `elevation` never settles
@@ -183,11 +272,22 @@ class Capabilities {
     required this.routing,
     required this.elevation,
     this.tilesArchiveId,
+    this.tilesUpstream,
+    this.mirror = const MirrorCapability(configured: false),
     this.layersPerLayer = const {},
     this.layersPerLayerDetail = const {},
   });
 
   final CapabilityStatus tiles;
+
+  /// `/health`'s `capabilities.tiles.upstream` (issue #454). Null when an
+  /// older sidecar predates the field.
+  final TilesUpstreamCapability? tilesUpstream;
+
+  /// `/health`'s `capabilities.mirror` (issue #260/#367). Defaults to
+  /// not-configured when absent — see [MirrorCapability]'s own docs for why
+  /// that must never read as "fresh".
+  final MirrorCapability mirror;
 
   /// `/health`'s `capabilities.tiles.archive` (issue #155) — a short content
   /// fingerprint of the committed home-region PMTiles archive the sidecar is
@@ -232,12 +332,20 @@ class Capabilities {
   factory Capabilities.fromJson(Map<String, dynamic> json) {
     final layersJson = json['layers'] as Map<String, dynamic>;
     final tilesJson = json['tiles'] as Map<String, dynamic>;
+    final tilesUpstreamJson = tilesJson['upstream'] as Map<String, dynamic>?;
+    final mirrorJson = json['mirror'] as Map<String, dynamic>?;
     return Capabilities(
       tiles: CapabilityStatus.fromJson(tilesJson),
       tilesArchiveId: tilesJson['archive'] as String?,
+      tilesUpstream: tilesUpstreamJson == null
+          ? null
+          : TilesUpstreamCapability.fromJson(tilesUpstreamJson),
       layers: CapabilityStatus.fromJson(layersJson),
       routing: RoutingCapability.fromJson(json['routing'] as Map<String, dynamic>),
       elevation: CapabilityStatus.fromJson(json['elevation'] as Map<String, dynamic>),
+      mirror: mirrorJson == null
+          ? const MirrorCapability(configured: false)
+          : MirrorCapability.fromJson(mirrorJson),
       layersPerLayer: {
         for (final e in ((layersJson['per_layer'] as Map<String, dynamic>?) ?? {}).entries)
           e.key: e.value as String,
