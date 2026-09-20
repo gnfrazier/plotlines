@@ -82,6 +82,12 @@ from plotlines_core.scoring.metrics import edge_walk, measure
 from plotlines_core.scoring.profile import THEMES, WeightProfile
 from plotlines_core.tiles.archive import Archive, valid_zxy
 from plotlines_core.tiles.extract import NoTilesInBbox, extract_bbox
+from plotlines_core.tiles.mirror import (
+    HotlinkRefused,
+    UpstreamKind,
+    classify_upstream,
+    resolve_upstream,
+)
 from plotlines_core.tiles.mirror_state import (
     MIRROR_NOT_CONFIGURED,
     load_mirror_state,
@@ -206,6 +212,34 @@ def _mirror_capability(source: str | None) -> dict:
     except (OSError, ValueError) as exc:
         return {"configured": True, "stale": True, "error": str(exc)}
     return mirror_health(state)
+
+
+def _tiles_upstream_capability(source: str | Path, *, allow_unmirrored: bool) -> dict:
+    """`capabilities.tiles.upstream` — issue #454. Classified once, at app
+    startup (`Readiness.__init__`), never per-build: the refusal is a
+    function of `--tiles-upstream`/`--allow-unmirrored-tiles` alone, not the
+    bbox, so it does not need to wait for (or repeat on) a region build.
+    `classify_upstream`/`resolve_upstream` are pure string inspection — no
+    archive is opened, no request goes out, so this stays honest under
+    D41/D57's "no eager request" even called before any extent exists.
+
+    Additive alongside `capabilities.tiles.ready`/`.archive` (issue #155),
+    which this never touches."""
+    kind = classify_upstream(source)
+    refused = False
+    reason: str | None = None
+    if kind is UpstreamKind.FOREIGN and not allow_unmirrored:
+        refused = True
+        try:
+            resolve_upstream(source, allow_unmirrored=allow_unmirrored)
+        except HotlinkRefused as exc:
+            reason = str(exc)
+    return {
+        "kind": kind.value,
+        "source": str(source),
+        "refused": refused,
+        "reason": reason,
+    }
 
 
 class CapabilityState:
@@ -382,6 +416,11 @@ class RegionState:
         # of a requeue storm (issue #232).
         if not self.graph_state.ready:
             d["attempts"] = self.build_attempts
+        # Additive and only while set (issue #454) — a region with no tile
+        # failure on record stays byte-identical, the same discipline
+        # `attempts` above follows.
+        if self.tiles_error is not None:
+            d["tiles_error"] = self.tiles_error
         return d
 
     def extract_capability(self) -> dict:
@@ -695,6 +734,10 @@ class Readiness:
         self.cache_dir = cache_dir
         self.tiles_upstream = tiles_upstream
         self.allow_unmirrored = allow_unmirrored
+        # Issue #454 — classified once here, not on every `/health` poll or
+        # region build; see `_tiles_upstream_capability`'s docstring for why.
+        self.tiles_upstream_capability = _tiles_upstream_capability(
+            tiles_upstream, allow_unmirrored=allow_unmirrored)
         #: QA/UAT-only (companion to epic #264, not #148). See
         #: `ELEVATION_QA_PROXY_CONFIGURED` and `RegionState.build`.
         self.elevation_upstream = elevation_upstream
@@ -1329,7 +1372,16 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         is a short content fingerprint of the committed home-region PMTiles
         archive (issue #155): the client folds it into its raster tile-cache
         folder so renders derived from a superseded archive are dropped
-        rather than served stale for the 30-day cache TTL.
+        rather than served stale for the 30-day cache TTL. `tiles.upstream`
+        (issue #454) is `_tiles_upstream_capability`'s classification of
+        `--tiles-upstream`, computed once at startup — `kind`
+        (local/mirror/foreign), `source`, and whether it was `refused`
+        (FR92/FR95, `HotlinkRefused`) with a reason — so a misconfigured
+        upstream is loud on this same channel rather than reaching only the
+        sidecar log. A region whose own tile extraction failed for a reason
+        classification can't predict (mirror unreachable, a truncated
+        archive) additionally carries `tiles_error` under
+        `routing.regions[key]`, only while set.
 
         `layers` is driven by `app.state.layer_registry` (story N2): a real
         per-layer state machine, not a constant. `layers.ready` is **`any`,
@@ -1384,7 +1436,11 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             "sidecar_version": VERSION,
             "mode": mode,
             "capabilities": {
-                "tiles": {"ready": True, "archive": home_tiles_identity},
+                "tiles": {
+                    "ready": True,
+                    "archive": home_tiles_identity,
+                    "upstream": state.tiles_upstream_capability,
+                },
                 "layers": layers_cap,
                 "routing": {"regions": state.routing_capabilities()},
                 "elevation": (

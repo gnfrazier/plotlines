@@ -74,6 +74,77 @@ def test_tiles_and_layers_are_ready_immediately(tmp_path: Path) -> None:
     assert all(state == "ready" for state in caps["layers"]["per_layer"].values())
 
 
+# -- `capabilities.tiles.upstream` (issue #454) --------------------------- #
+#
+# Classified once at startup from `--tiles-upstream`/`--allow-unmirrored-tiles`
+# alone — never per-build, never a network request — so `/health` can answer
+# honestly before any `POST /regions` (D41/D57).
+
+def test_tiles_upstream_reports_local_for_the_default_home_archive(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path))
+    caps = client.get("/health").json()["capabilities"]
+    # #155's byte-identical guarantee holds unchanged alongside the new field.
+    assert caps["tiles"]["ready"] is True
+    assert isinstance(caps["tiles"]["archive"], str) and caps["tiles"]["archive"]
+    upstream = caps["tiles"]["upstream"]
+    assert upstream["kind"] == "local"
+    assert upstream["refused"] is False
+    assert upstream["reason"] is None
+    assert upstream["source"]  # the home archive's own path
+
+
+def test_tiles_upstream_reports_mirror_for_the_plotlines_host(tmp_path: Path) -> None:
+    client = TestClient(create_app(
+        tmp_path,
+        tiles_upstream="https://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles",
+    ))
+    caps = client.get("/health").json()["capabilities"]
+    upstream = caps["tiles"]["upstream"]
+    assert upstream["kind"] == "mirror"
+    assert upstream["refused"] is False
+    assert upstream["reason"] is None
+
+
+def test_tiles_upstream_refuses_a_foreign_host_before_any_region_build(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """FR92/FR95: a third-party tile host is classified `refused` at
+    startup — before `POST /regions` even exists to trigger a build — and
+    with no network request made. `classify_upstream`/`resolve_upstream`
+    are pure string inspection (D41/D57); this pins that no caller has
+    quietly grown a socket/urlopen call underneath them."""
+    def _no_network(*_args, **_kwargs):
+        raise AssertionError("classifying a tile upstream must not touch the network")
+    monkeypatch.setattr("urllib.request.urlopen", _no_network)
+    monkeypatch.setattr("socket.create_connection", _no_network)
+
+    client = TestClient(create_app(
+        tmp_path, tiles_upstream="https://tile.openstreetmap.org/x.pmtiles",
+    ))
+    caps = client.get("/health").json()["capabilities"]
+    # Byte-identical guarantee holds even for a refused upstream.
+    assert caps["tiles"]["ready"] is True
+    assert isinstance(caps["tiles"]["archive"], str) and caps["tiles"]["archive"]
+    upstream = caps["tiles"]["upstream"]
+    assert upstream["kind"] == "foreign"
+    assert upstream["refused"] is True
+    assert upstream["reason"]
+    assert "FR92" in upstream["reason"] and "FR95" in upstream["reason"]
+
+
+def test_tiles_upstream_allow_unmirrored_permits_a_foreign_host(tmp_path: Path) -> None:
+    client = TestClient(create_app(
+        tmp_path,
+        tiles_upstream="https://tile.openstreetmap.org/x.pmtiles",
+        allow_unmirrored_tiles=True,
+    ))
+    caps = client.get("/health").json()["capabilities"]
+    upstream = caps["tiles"]["upstream"]
+    assert upstream["kind"] == "foreign"
+    assert upstream["refused"] is False
+    assert upstream["reason"] is None
+
+
 def test_elevation_reports_a_fixed_not_ready_reason(tmp_path: Path) -> None:
     # Issue #154's explicit scoping note: elevation acquisition is gated on
     # FR87 (#148) and never attempted here, so it never blocks routing.

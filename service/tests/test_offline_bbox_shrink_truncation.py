@@ -223,7 +223,13 @@ def test_reconnection_replaces_the_provisional_graph_with_a_real_rebuild(tmp_pat
     shrunk = state.regions[shrunk_key]
     assert shrunk.graph_state.status == "ready"
     cap = shrunk.routing_capability()
-    assert cap == {"ready": True}  # no lingering "provisional" flag
+    # No lingering "provisional" flag. Not exact-equality on the whole dict
+    # (issue #454): this fixture's `tiles_upstream` is a `home.pmtiles` that
+    # was never written, so tile extraction genuinely fails here every time
+    # and `tiles_error` is a true, unrelated report — not a shrink/provisional
+    # concern this test is about.
+    assert cap["ready"] is True
+    assert "provisional" not in cap
     assert shrunk.build_attempts == 2
 
 
