@@ -1,0 +1,635 @@
+{
+  "harness": "http://localhost:8765/",
+  "viewport": {
+    "width": 1200,
+    "height": 800
+  },
+  "cameras": {
+    "asheville-z13": {
+      "lng": -82.553,
+      "lat": 35.595,
+      "z": 13
+    },
+    "mitchell-z12": {
+      "lng": -82.265,
+      "lat": 35.765,
+      "z": 12
+    },
+    "hotsprings-z14": {
+      "lng": -82.828,
+      "lat": 35.893,
+      "z": 14
+    }
+  },
+  "runs": [
+    {
+      "camera": "asheville-z13",
+      "style": "protomaps_light",
+      "switch_ms": 421,
+      "camera_after": {
+        "lng": -82.553,
+        "lat": 35.595,
+        "z": 13
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 71,
+      "layers_vector": 70,
+      "rendered_total": 905,
+      "rendered_by_source_layer": {
+        "places": 25,
+        "pois": 1,
+        "roads": 681,
+        "boundaries": 8,
+        "buildings": 23,
+        "landuse": 135,
+        "water": 23,
+        "earth": 9
+      },
+      "new_errors": [],
+      "shot": "results/shots/asheville-z13__protomaps_light.png"
+    },
+    {
+      "camera": "asheville-z13",
+      "style": "protomaps_dark",
+      "switch_ms": 387,
+      "camera_after": {
+        "lng": -82.553,
+        "lat": 35.595,
+        "z": 13
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 71,
+      "layers_vector": 70,
+      "rendered_total": 905,
+      "rendered_by_source_layer": {
+        "places": 25,
+        "pois": 1,
+        "roads": 681,
+        "boundaries": 8,
+        "buildings": 23,
+        "landuse": 135,
+        "water": 23,
+        "earth": 9
+      },
+      "new_errors": [],
+      "shot": "results/shots/asheville-z13__protomaps_dark.png"
+    },
+    {
+      "camera": "asheville-z13",
+      "style": "protomaps_grayscale",
+      "switch_ms": 388,
+      "camera_after": {
+        "lng": -82.553,
+        "lat": 35.595,
+        "z": 13
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 69,
+      "layers_vector": 68,
+      "rendered_total": 907,
+      "rendered_by_source_layer": {
+        "places": 25,
+        "roads": 684,
+        "boundaries": 8,
+        "buildings": 23,
+        "landuse": 135,
+        "water": 23,
+        "earth": 9
+      },
+      "new_errors": [],
+      "shot": "results/shots/asheville-z13__protomaps_grayscale.png"
+    },
+    {
+      "camera": "asheville-z13",
+      "style": "protomaps_white",
+      "switch_ms": 353,
+      "camera_after": {
+        "lng": -82.553,
+        "lat": 35.595,
+        "z": 13
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 69,
+      "layers_vector": 68,
+      "rendered_total": 907,
+      "rendered_by_source_layer": {
+        "places": 25,
+        "roads": 684,
+        "boundaries": 8,
+        "buildings": 23,
+        "landuse": 135,
+        "water": 23,
+        "earth": 9
+      },
+      "new_errors": [],
+      "shot": "results/shots/asheville-z13__protomaps_white.png"
+    },
+    {
+      "camera": "asheville-z13",
+      "style": "protomaps_black",
+      "switch_ms": 389,
+      "camera_after": {
+        "lng": -82.553,
+        "lat": 35.595,
+        "z": 13
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 69,
+      "layers_vector": 68,
+      "rendered_total": 907,
+      "rendered_by_source_layer": {
+        "places": 25,
+        "roads": 684,
+        "boundaries": 8,
+        "buildings": 23,
+        "landuse": 135,
+        "water": 23,
+        "earth": 9
+      },
+      "new_errors": [],
+      "shot": "results/shots/asheville-z13__protomaps_black.png"
+    },
+    {
+      "camera": "asheville-z13",
+      "style": "omt_liberty",
+      "switch_ms": 346,
+      "camera_after": {
+        "lng": -82.553,
+        "lat": 35.595,
+        "z": 13
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 110,
+      "layers_vector": 109,
+      "rendered_total": 55,
+      "rendered_by_source_layer": {
+        "water": 55
+      },
+      "new_errors": [],
+      "shot": "results/shots/asheville-z13__omt_liberty.png"
+    },
+    {
+      "camera": "asheville-z13",
+      "style": "omt_bright",
+      "switch_ms": 1137,
+      "camera_after": {
+        "lng": -82.553,
+        "lat": 35.595,
+        "z": 13
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 119,
+      "layers_vector": 118,
+      "rendered_total": 55,
+      "rendered_by_source_layer": {
+        "water": 55
+      },
+      "new_errors": [],
+      "shot": "results/shots/asheville-z13__omt_bright.png"
+    },
+    {
+      "camera": "mitchell-z12",
+      "style": "protomaps_light",
+      "switch_ms": 388,
+      "camera_after": {
+        "lng": -82.265,
+        "lat": 35.765,
+        "z": 12
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 71,
+      "layers_vector": 70,
+      "rendered_total": 167,
+      "rendered_by_source_layer": {
+        "places": 3,
+        "pois": 1,
+        "roads": 111,
+        "boundaries": 7,
+        "water": 13,
+        "landuse": 20,
+        "earth": 12
+      },
+      "new_errors": [],
+      "shot": "results/shots/mitchell-z12__protomaps_light.png"
+    },
+    {
+      "camera": "mitchell-z12",
+      "style": "protomaps_dark",
+      "switch_ms": 373,
+      "camera_after": {
+        "lng": -82.265,
+        "lat": 35.765,
+        "z": 12
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 71,
+      "layers_vector": 70,
+      "rendered_total": 167,
+      "rendered_by_source_layer": {
+        "places": 3,
+        "pois": 1,
+        "roads": 111,
+        "boundaries": 7,
+        "water": 13,
+        "landuse": 20,
+        "earth": 12
+      },
+      "new_errors": [],
+      "shot": "results/shots/mitchell-z12__protomaps_dark.png"
+    },
+    {
+      "camera": "mitchell-z12",
+      "style": "protomaps_grayscale",
+      "switch_ms": 342,
+      "camera_after": {
+        "lng": -82.265,
+        "lat": 35.765,
+        "z": 12
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 69,
+      "layers_vector": 68,
+      "rendered_total": 166,
+      "rendered_by_source_layer": {
+        "places": 3,
+        "roads": 111,
+        "boundaries": 7,
+        "water": 13,
+        "landuse": 20,
+        "earth": 12
+      },
+      "new_errors": [],
+      "shot": "results/shots/mitchell-z12__protomaps_grayscale.png"
+    },
+    {
+      "camera": "mitchell-z12",
+      "style": "protomaps_white",
+      "switch_ms": 338,
+      "camera_after": {
+        "lng": -82.265,
+        "lat": 35.765,
+        "z": 12
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 69,
+      "layers_vector": 68,
+      "rendered_total": 166,
+      "rendered_by_source_layer": {
+        "places": 3,
+        "roads": 111,
+        "boundaries": 7,
+        "water": 13,
+        "landuse": 20,
+        "earth": 12
+      },
+      "new_errors": [],
+      "shot": "results/shots/mitchell-z12__protomaps_white.png"
+    },
+    {
+      "camera": "mitchell-z12",
+      "style": "protomaps_black",
+      "switch_ms": 360,
+      "camera_after": {
+        "lng": -82.265,
+        "lat": 35.765,
+        "z": 12
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 69,
+      "layers_vector": 68,
+      "rendered_total": 166,
+      "rendered_by_source_layer": {
+        "places": 3,
+        "roads": 111,
+        "boundaries": 7,
+        "water": 13,
+        "landuse": 20,
+        "earth": 12
+      },
+      "new_errors": [],
+      "shot": "results/shots/mitchell-z12__protomaps_black.png"
+    },
+    {
+      "camera": "mitchell-z12",
+      "style": "omt_liberty",
+      "switch_ms": 343,
+      "camera_after": {
+        "lng": -82.265,
+        "lat": 35.765,
+        "z": 12
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 110,
+      "layers_vector": 109,
+      "rendered_total": 13,
+      "rendered_by_source_layer": {
+        "water": 13
+      },
+      "new_errors": [],
+      "shot": "results/shots/mitchell-z12__omt_liberty.png"
+    },
+    {
+      "camera": "mitchell-z12",
+      "style": "omt_bright",
+      "switch_ms": 1201,
+      "camera_after": {
+        "lng": -82.265,
+        "lat": 35.765,
+        "z": 12
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 119,
+      "layers_vector": 118,
+      "rendered_total": 13,
+      "rendered_by_source_layer": {
+        "water": 13
+      },
+      "new_errors": [],
+      "shot": "results/shots/mitchell-z12__omt_bright.png"
+    },
+    {
+      "camera": "hotsprings-z14",
+      "style": "protomaps_light",
+      "switch_ms": 360,
+      "camera_after": {
+        "lng": -82.828,
+        "lat": 35.893,
+        "z": 14
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 71,
+      "layers_vector": 70,
+      "rendered_total": 264,
+      "rendered_by_source_layer": {
+        "places": 1,
+        "pois": 1,
+        "roads": 168,
+        "water": 50,
+        "boundaries": 7,
+        "buildings": 3,
+        "landuse": 25,
+        "earth": 9
+      },
+      "new_errors": [],
+      "shot": "results/shots/hotsprings-z14__protomaps_light.png"
+    },
+    {
+      "camera": "hotsprings-z14",
+      "style": "protomaps_dark",
+      "switch_ms": 341,
+      "camera_after": {
+        "lng": -82.828,
+        "lat": 35.893,
+        "z": 14
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 71,
+      "layers_vector": 70,
+      "rendered_total": 264,
+      "rendered_by_source_layer": {
+        "places": 1,
+        "pois": 1,
+        "roads": 168,
+        "water": 50,
+        "boundaries": 7,
+        "buildings": 3,
+        "landuse": 25,
+        "earth": 9
+      },
+      "new_errors": [],
+      "shot": "results/shots/hotsprings-z14__protomaps_dark.png"
+    },
+    {
+      "camera": "hotsprings-z14",
+      "style": "protomaps_grayscale",
+      "switch_ms": 363,
+      "camera_after": {
+        "lng": -82.828,
+        "lat": 35.893,
+        "z": 14
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 69,
+      "layers_vector": 68,
+      "rendered_total": 263,
+      "rendered_by_source_layer": {
+        "places": 1,
+        "roads": 168,
+        "water": 50,
+        "boundaries": 7,
+        "buildings": 3,
+        "landuse": 25,
+        "earth": 9
+      },
+      "new_errors": [],
+      "shot": "results/shots/hotsprings-z14__protomaps_grayscale.png"
+    },
+    {
+      "camera": "hotsprings-z14",
+      "style": "protomaps_white",
+      "switch_ms": 366,
+      "camera_after": {
+        "lng": -82.828,
+        "lat": 35.893,
+        "z": 14
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 69,
+      "layers_vector": 68,
+      "rendered_total": 263,
+      "rendered_by_source_layer": {
+        "places": 1,
+        "roads": 168,
+        "water": 50,
+        "boundaries": 7,
+        "buildings": 3,
+        "landuse": 25,
+        "earth": 9
+      },
+      "new_errors": [],
+      "shot": "results/shots/hotsprings-z14__protomaps_white.png"
+    },
+    {
+      "camera": "hotsprings-z14",
+      "style": "protomaps_black",
+      "switch_ms": 347,
+      "camera_after": {
+        "lng": -82.828,
+        "lat": 35.893,
+        "z": 14
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 69,
+      "layers_vector": 68,
+      "rendered_total": 263,
+      "rendered_by_source_layer": {
+        "places": 1,
+        "roads": 168,
+        "water": 50,
+        "boundaries": 7,
+        "buildings": 3,
+        "landuse": 25,
+        "earth": 9
+      },
+      "new_errors": [],
+      "shot": "results/shots/hotsprings-z14__protomaps_black.png"
+    },
+    {
+      "camera": "hotsprings-z14",
+      "style": "omt_liberty",
+      "switch_ms": 337,
+      "camera_after": {
+        "lng": -82.828,
+        "lat": 35.893,
+        "z": 14
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 110,
+      "layers_vector": 109,
+      "rendered_total": 47,
+      "rendered_by_source_layer": {
+        "water": 47
+      },
+      "new_errors": [],
+      "shot": "results/shots/hotsprings-z14__omt_liberty.png"
+    },
+    {
+      "camera": "hotsprings-z14",
+      "style": "omt_bright",
+      "switch_ms": 354,
+      "camera_after": {
+        "lng": -82.828,
+        "lat": 35.893,
+        "z": 14
+      },
+      "camera_drift": {
+        "lng": 0.0,
+        "lat": 0.0,
+        "z": 0
+      },
+      "layers_total": 119,
+      "layers_vector": 118,
+      "rendered_total": 47,
+      "rendered_by_source_layer": {
+        "water": 47
+      },
+      "new_errors": [],
+      "shot": "results/shots/hotsprings-z14__omt_bright.png"
+    }
+  ],
+  "console": [
+    "log: [SPIKE-K] protomaps_light: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_light: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_dark: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "warning: Image \"US:I-3char\" could not be loaded. Please make sure you have added the image with map.addImage() or a \"sprite\" property in your style. You can provide missing images by listening for the \"styleimagemissing\" map event.",
+    "warning: Image \"generic_shield-2char\" could not be loaded. Please make sure you have added the image with map.addImage() or a \"sprite\" property in your style. You can provide missing images by listening for the \"styleimagemissing\" map event.",
+    "warning: Image \"generic_shield-3char\" could not be loaded. Please make sure you have added the image with map.addImage() or a \"sprite\" property in your style. You can provide missing images by listening for the \"styleimagemissing\" map event.",
+    "warning: Image \"US:I-2char\" could not be loaded. Please make sure you have added the image with map.addImage() or a \"sprite\" property in your style. You can provide missing images by listening for the \"styleimagemissing\" map event.",
+    "log: [SPIKE-K] protomaps_grayscale: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_white: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_black: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] omt_liberty: sources.ne2_shaded (raster) removed; sources.openmaptiles.url: https://tiles.openfreemap.org/planet \u2192 pmtiles://\u2026; 1 layer(s) on removed sources dropped",
+    "log: [SPIKE-K] omt_bright: sources.ne2_shaded (raster) removed; sources.openmaptiles.url: https://tiles.openfreemap.org/planet \u2192 pmtiles://\u2026; 0 layer(s) on removed sources dropped",
+    "log: [SPIKE-K] protomaps_light: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_light: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_dark: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "warning: Image \"generic_shield-3char\" could not be loaded. Please make sure you have added the image with map.addImage() or a \"sprite\" property in your style. You can provide missing images by listening for the \"styleimagemissing\" map event.",
+    "warning: Image \"generic_shield-2char\" could not be loaded. Please make sure you have added the image with map.addImage() or a \"sprite\" property in your style. You can provide missing images by listening for the \"styleimagemissing\" map event.",
+    "warning: Image \"generic_shield-4char\" could not be loaded. Please make sure you have added the image with map.addImage() or a \"sprite\" property in your style. You can provide missing images by listening for the \"styleimagemissing\" map event.",
+    "log: [SPIKE-K] protomaps_grayscale: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_white: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_black: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] omt_liberty: sources.ne2_shaded (raster) removed; sources.openmaptiles.url: https://tiles.openfreemap.org/planet \u2192 pmtiles://\u2026; 1 layer(s) on removed sources dropped",
+    "log: [SPIKE-K] omt_bright: sources.ne2_shaded (raster) removed; sources.openmaptiles.url: https://tiles.openfreemap.org/planet \u2192 pmtiles://\u2026; 0 layer(s) on removed sources dropped",
+    "log: [SPIKE-K] protomaps_light: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_light: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_dark: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "warning: Image \"generic_shield-2char\" could not be loaded. Please make sure you have added the image with map.addImage() or a \"sprite\" property in your style. You can provide missing images by listening for the \"styleimagemissing\" map event.",
+    "warning: Image \"generic_shield-3char\" could not be loaded. Please make sure you have added the image with map.addImage() or a \"sprite\" property in your style. You can provide missing images by listening for the \"styleimagemissing\" map event.",
+    "log: [SPIKE-K] protomaps_grayscale: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_white: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] protomaps_black: sources.protomaps.url: pmtiles://corridor.pmtiles \u2192 pmtiles://\u2026",
+    "log: [SPIKE-K] omt_liberty: sources.ne2_shaded (raster) removed; sources.openmaptiles.url: https://tiles.openfreemap.org/planet \u2192 pmtiles://\u2026; 1 layer(s) on removed sources dropped",
+    "log: [SPIKE-K] omt_bright: sources.ne2_shaded (raster) removed; sources.openmaptiles.url: https://tiles.openfreemap.org/planet \u2192 pmtiles://\u2026; 0 layer(s) on removed sources dropped"
+  ]
+}

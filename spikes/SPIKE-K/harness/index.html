@@ -1,0 +1,226 @@
+<!doctype html>
+<!--
+  SPIKE-K harness — swap basemap style JSONs live against the mirror's
+  Protomaps corridor extract. Throwaway; not the Flutter client and not a
+  product surface. See ../README.md.
+
+  Keys 1–7 (or the dropdown) switch styles with no reload and no lost camera.
+  Every style is loaded verbatim from ./styles/<id>.json; the only runtime
+  patch is `rewriteSources`, which points each *vector* source at the one
+  configured PMTiles URL (a placeholder in the checked-in files) and drops
+  raster sources the harness has no business hotlinking. Nothing else in the
+  style is touched — that is the whole point.
+
+  Query string:
+    ?tiles=<url>       PMTiles URL (default: same-origin /corridor.pmtiles,
+                       which serve.py range-proxies to the mirror — the
+                       mirror sends no CORS headers, README §5)
+    ?style=<id>        initial style id
+    ?lng=&lat=&z=      initial camera
+    ?ui=0              hide the overlay (screenshots)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SPIKE-K style switcher</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+<style>
+  html, body, #map { margin: 0; height: 100%; width: 100%; }
+  #ui {
+    position: absolute; top: 10px; left: 10px; z-index: 10;
+    font: 13px/1.4 system-ui, sans-serif; background: rgba(255,255,255,.92);
+    padding: 8px 10px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+    min-width: 260px;
+  }
+  #ui select { font: inherit; width: 100%; }
+  #ui .row { margin-top: 4px; }
+  #ui code { font-size: 12px; }
+  #status { color: #444; }
+  #status.err { color: #b00020; }
+  #errors { max-height: 8em; overflow: auto; font-size: 11px; color: #b00020; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="ui">
+  <select id="style"></select>
+  <div class="row"><b>keys 1–7</b> switch · <span id="status">loading…</span></div>
+  <div class="row" id="camera"></div>
+  <div class="row" id="stats"></div>
+  <div id="errors"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/dist/pmtiles.js"></script>
+<script>
+// Candidates first (issue priority order, with White/Black in slots 4/5 per
+// the schema-risk check); 6/7 are the OpenMapTiles styles kept loadable so
+// the "does it render as-is" answer is reproducible, not asserted.
+const STYLES = [
+  { id: "protomaps_light",     label: "1 · Protomaps Light" },
+  { id: "protomaps_dark",      label: "2 · Protomaps Dark" },
+  { id: "protomaps_grayscale", label: "3 · Protomaps Grayscale" },
+  { id: "protomaps_white",     label: "4 · Protomaps White" },
+  { id: "protomaps_black",     label: "5 · Protomaps Black" },
+  { id: "omt_liberty",         label: "6 · OSM Liberty (risk check — not a candidate)" },
+  { id: "omt_bright",          label: "7 · OSM Bright (risk check — not a candidate)" },
+];
+
+const params = new URLSearchParams(location.search);
+const TILES_URL = params.get("tiles") || (location.origin + "/corridor.pmtiles");
+const START = {
+  // Asheville — the same cell SPIKE-I/#402 measured the clip on; dense enough
+  // at z13 to exercise roads, water, landuse, POIs and place labels at once.
+  lng: parseFloat(params.get("lng") ?? "-82.553"),
+  lat: parseFloat(params.get("lat") ?? "35.595"),
+  zoom: parseFloat(params.get("z") ?? "13"),
+};
+if (params.get("ui") === "0") document.getElementById("ui").style.display = "none";
+
+const protocol = new pmtiles.Protocol();
+maplibregl.addProtocol("pmtiles", protocol.tile);
+
+const errorsEl = document.getElementById("errors");
+const statusEl = document.getElementById("status");
+const errorLog = [];   // read by the screenshot probe via window.__spikeK
+function logError(msg) {
+  errorLog.push(msg);
+  errorsEl.textContent = errorLog.slice(-6).join("\n");
+}
+
+const styleCache = new Map();
+async function loadStyle(id) {
+  if (!styleCache.has(id)) {
+    const r = await fetch(`styles/${id}.json`);
+    if (!r.ok) throw new Error(`styles/${id}.json → HTTP ${r.status}`);
+    styleCache.set(id, await r.json());
+  }
+  return structuredClone(styleCache.get(id));
+}
+
+// The one runtime patch. Returns what was changed so the overlay can show it.
+function rewriteSources(style) {
+  const changes = [];
+  const dropped = new Set();
+  for (const [name, src] of Object.entries(style.sources)) {
+    if (src.type === "vector") {
+      const before = src.url ?? (src.tiles && src.tiles.join(","));
+      delete src.tiles;
+      src.url = `pmtiles://${TILES_URL}`;
+      changes.push(`sources.${name}.url: ${before} → pmtiles://…`);
+    } else {
+      // e.g. Liberty/Bright's `ne2_shaded` Natural Earth raster on
+      // openfreemap's host. Only used at z≤6; never hotlink it from here.
+      delete style.sources[name];
+      dropped.add(name);
+      changes.push(`sources.${name} (${src.type}) removed`);
+    }
+  }
+  if (dropped.size) {
+    const n = style.layers.length;
+    style.layers = style.layers.filter(l => !dropped.has(l.source));
+    changes.push(`${n - style.layers.length} layer(s) on removed sources dropped`);
+  }
+  return changes;
+}
+
+let map;
+let current = null;
+let pendingErrorsForStyle = null;
+
+function updateCamera() {
+  const c = map.getCenter();
+  document.getElementById("camera").innerHTML =
+    `<code>lng ${c.lng.toFixed(4)} lat ${c.lat.toFixed(4)} z ${map.getZoom().toFixed(2)}</code>`;
+}
+
+function updateStats() {
+  if (!map || !map.isStyleLoaded()) return;
+  const style = map.getStyle();
+  const vectorLayers = style.layers.filter(l => l["source-layer"]).length;
+  const rendered = map.queryRenderedFeatures().length;
+  document.getElementById("stats").textContent =
+    `${style.layers.length} layers (${vectorLayers} vector) · ${rendered} features in view`;
+}
+
+async function switchStyle(id, { initial = false } = {}) {
+  const entry = STYLES.find(s => s.id === id);
+  if (!entry) return;
+  statusEl.textContent = `loading ${entry.label}…`;
+  statusEl.className = "";
+  document.getElementById("style").value = id;
+  const style = await loadStyle(id);
+  const changes = rewriteSources(style);
+  const before = performance.now();
+  pendingErrorsForStyle = id;
+  if (initial) {
+    map = new maplibregl.Map({
+      container: "map",
+      style,
+      center: [START.lng, START.lat],
+      zoom: START.zoom,
+      attributionControl: { compact: false },
+      // Deterministic screenshots: no fade-in on tiles or labels.
+      fadeDuration: 0,
+      // Keep the camera identical across styles; never let a style's own
+      // `center`/`zoom` override it on swap.
+    });
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.on("move", updateCamera);
+    map.on("moveend", updateStats);
+    map.on("error", e => {
+      const m = (e && e.error && e.error.message) || String(e);
+      logError(`[${pendingErrorsForStyle}] ${m}`);
+    });
+  } else {
+    // `setStyle` diffs against the current style and keeps the camera. With
+    // diff:true MapLibre applies the delta; two styles from different
+    // generators share nothing, so force a clean swap — still no reload,
+    // still the same camera.
+    map.setStyle(style, { diff: false });
+  }
+  map.once("idle", () => {
+    const ms = (performance.now() - before).toFixed(0);
+    statusEl.textContent = `${entry.label} — idle after ${ms} ms`;
+    current = id;
+    updateCamera();
+    updateStats();
+    console.log(`[SPIKE-K] ${id}: ${changes.join("; ")}`);
+  });
+}
+
+const select = document.getElementById("style");
+for (const s of STYLES) {
+  const o = document.createElement("option");
+  o.value = s.id; o.textContent = s.label;
+  select.appendChild(o);
+}
+select.addEventListener("change", () => switchStyle(select.value));
+document.addEventListener("keydown", e => {
+  if (e.target === select) return;
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= STYLES.length) switchStyle(STYLES[n - 1].id);
+});
+
+// Probe hooks (probes/shoot.py). Not used by the interactive page.
+window.__spikeK = {
+  styles: STYLES.map(s => s.id),
+  switchStyle,
+  get current() { return current; },
+  get map() { return map; },
+  errors: errorLog,
+  // Count features actually drawn per source-layer in the current view —
+  // "renders" as a measurement rather than an eyeballed screenshot.
+  renderedBySourceLayer() {
+    const counts = {};
+    for (const f of map.queryRenderedFeatures()) {
+      counts[f.sourceLayer] = (counts[f.sourceLayer] || 0) + 1;
+    }
+    return counts;
+  },
+};
+
+switchStyle(params.get("style") || STYLES[0].id, { initial: true });
+</script>
+</body>
+</html>
