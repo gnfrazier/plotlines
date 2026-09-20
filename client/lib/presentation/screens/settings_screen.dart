@@ -290,6 +290,7 @@ class AboutPane extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
     final client = ref.watch(routingClientProvider);
+    final caps = ref.watch(sidecarManagerProvider).capabilities;
 
     return FutureBuilder<Map<String, dynamic>>(
       future: client.about(),
@@ -336,6 +337,22 @@ class AboutPane extends ConsumerWidget {
               ),
             for (final line in lines) ...[
               _AttributionCard(line: line),
+              const SizedBox(height: PlotSpacing.s3),
+            ],
+            // Issue #367 — the mirror staleness monitor (#260) reaches this
+            // surface: an advisory about data age, not an error state (D41/
+            // D57, FR14/FR29a's advisory-not-constraint discipline), so it
+            // never blocks planning and only appears when there is
+            // something to say.
+            if (_mirrorAdvisory(caps?.mirror) case final text?) ...[
+              _DataFreshnessAdvisory(text: text),
+              const SizedBox(height: PlotSpacing.s3),
+            ],
+            // Issue #454 — a refused third-party tile upstream (FR92/FR95)
+            // reaching the same channel: the operator misconfigured
+            // `--tiles-upstream`, not an Author-facing failure.
+            if (_tilesUpstreamAdvisory(caps?.tilesUpstream) case final text?) ...[
+              _DataFreshnessAdvisory(text: text),
               const SizedBox(height: PlotSpacing.s3),
             ],
             const SizedBox(height: PlotSpacing.s4),
@@ -410,6 +427,53 @@ class AboutPane extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// #367 — a finished, honest sentence for the mirror staleness monitor
+/// (#260), or null when there is nothing advisory to say. Checks [stale]
+/// rather than `!configured`: "not configured" and "fresh" are different
+/// states (§11.3 — a monitor nobody set up must never read as "up to
+/// date"), and neither is loud here, only a genuinely stale pin is.
+String? _mirrorAdvisory(MirrorCapability? mirror) {
+  if (mirror == null || !mirror.configured || !mirror.stale) return null;
+  if (mirror.error != null) {
+    return "Couldn't check whether map data is up to date (${mirror.error}).";
+  }
+  final age = mirror.basemapAgeDays;
+  final ageText = age == null ? '' : ' (basemap last refreshed ${age.round()} days ago)';
+  return 'Map data may be out of date$ageText — trips still plan normally.';
+}
+
+/// #454 — only surfaces when `--tiles-upstream` was actually refused
+/// (FR92/FR95); the ordinary local/mirror path has nothing to say here.
+String? _tilesUpstreamAdvisory(TilesUpstreamCapability? upstream) {
+  if (upstream == null || !upstream.refused) return null;
+  return 'Basemap tile source was refused: '
+      '${upstream.reason ?? 'not the Plotlines mirror'}.';
+}
+
+/// Shared shape for #367/#454's advisories — an icon + sentence, like
+/// [_DegradedBanner] in `sidecar_gate.dart`, but scoped to one card rather
+/// than a full-width banner: this is data-age/config context on the About
+/// pane, not a state that blocks the app (D41/D57, FR14/FR29a).
+class _DataFreshnessAdvisory extends StatelessWidget {
+  const _DataFreshnessAdvisory({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return PlotCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 16, color: c.warning),
+          const SizedBox(width: PlotSpacing.s2),
+          Expanded(child: Text(text, style: PlotTypography.small(c.textSecondary))),
+        ],
+      ),
     );
   }
 }
