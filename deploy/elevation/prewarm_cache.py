@@ -89,7 +89,11 @@ def prewarm_one_detailed(base_url: str, bbox: BBox, *, timeout: float = 180.0) -
     free_tier_exhausted, 503 + Retry-After) must not stop the rest of a list
     from being attempted. Classifies the outcome (see `PrewarmOutcome`) by
     the JSON error body's `"error"` field, matching the shapes
-    `service/plotlines_service/elevation_proxy.py`'s `/dem` endpoint sends."""
+    `service/plotlines_service/elevation_proxy.py`'s `/dem` endpoint sends —
+    FastAPI's `HTTPException(detail={"error": ...})` wraps that dict under a
+    top-level `"detail"` key on the wire, so `"error"` is read from there
+    first and only falls back to the body's own top level for a body that
+    isn't FastAPI-wrapped."""
     west, south, east, north = bbox
     query = urlencode({"west": west, "south": south, "east": east, "north": north})
     url = f"{base_url}?{query}"
@@ -106,7 +110,9 @@ def prewarm_one_detailed(base_url: str, bbox: BBox, *, timeout: float = 180.0) -
         )
         error_key = None
         try:
-            error_key = json.loads(detail).get("error")
+            parsed = json.loads(detail)
+            payload = parsed.get("detail", parsed) if isinstance(parsed, dict) else None
+            error_key = payload.get("error") if isinstance(payload, dict) else None
         except (ValueError, AttributeError):
             pass
         if error_key in ("free_tier_exhausted", "enterprise_key_required"):
