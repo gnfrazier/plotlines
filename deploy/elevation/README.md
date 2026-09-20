@@ -167,6 +167,32 @@ and exits non-zero at the end, so a CI-style caller can still tell success
 from partial failure, but a slow network blip on bbox 3 of 12 doesn't lose
 the other 11.
 
+### Spending the ceiling-exhaustion check on real QA/UAT regions
+
+`prewarm_priority_regions.py` is `prewarm_cache.py`'s live-check sibling: it
+runs this section's own "Confirm ceiling exhaustion still degrades cleanly"
+acceptance check (below), but against real, priority-ordered regions
+(North Carolina, the Blue Ridge Parkway, Skyline Drive, the Boundary Waters
+Canoe Area, Yellowstone, Lake Champlain, then the PCT tiled north from
+Campo, CA) instead of throwaway bboxes — so the remaining 24h call budget
+goes toward the cache rather than being spent for nothing. Unlike
+`prewarm_cache.py`, it needs `shapely`/`pyproj` for real corridor buffering.
+The Pi's system Python refuses a direct `pip install` (PEP 668), so use a
+repo-root venv (same convention `.gitignore`'s `.venv/` note and
+`spikes/shared/regions.py` already use):
+
+```
+python3 -m venv .venv && .venv/bin/pip install shapely pyproj   # one-time
+.venv/bin/python deploy/elevation/prewarm_priority_regions.py --dry-run
+.venv/bin/python deploy/elevation/prewarm_priority_regions.py --proxy-root http://127.0.0.1:8090 --yes
+```
+
+It waits a random 63-126s between calls, and `--yes` is required for a live
+run since it spends real, non-refundable quota. See the module docstring
+for the full priority order and the fallback (widen the PCT buffer, then a
+synthetic confirmation bbox) it uses if the list completes without
+naturally exhausting the ceiling.
+
 ## Pointing QA/dev sidecars at it
 
 Set `PLOTLINES_ELEVATION_UPSTREAM` to this proxy's `/dem` URL, alongside the

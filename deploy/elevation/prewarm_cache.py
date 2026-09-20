@@ -37,13 +37,40 @@ instant for every bbox that succeeded.
 from __future__ import annotations
 
 import argparse
+import enum
+import json
 import sys
 import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from urllib.parse import urlencode
 
 BBox = tuple[float, float, float, float]
+
+
+class PrewarmOutcome(enum.Enum):
+    """How one `/dem` attempt landed — finer-grained than `prewarm_one`'s
+    plain bool, so a caller orchestrating a whole run (see
+    `prewarm_priority_regions.py`) can tell a ceiling refusal (which means
+    "stop, the budget is spent, this is expected") apart from an upstream
+    rejection (which means "this bbox was likely too large — check tile
+    sizing") apart from anything else."""
+
+    OK = "ok"
+    EXHAUSTED = "exhausted"          # 503 free_tier_exhausted / enterprise_key_required
+    UPSTREAM_FAILED = "upstream_failed"  # 502 upstream_fetch_failed
+    OTHER_ERROR = "other_error"
+
+
+@dataclass(frozen=True)
+class PrewarmResult:
+    bbox: BBox
+    outcome: PrewarmOutcome
+    detail: str
+    elapsed_s: float
+    bytes_len: int | None
+    retry_after_s: int | None
 
 
 def _parse_bbox(raw: str) -> BBox:
@@ -57,10 +84,12 @@ def _parse_bbox(raw: str) -> BBox:
     return west, south, east, north
 
 
-def prewarm_one(base_url: str, bbox: BBox, *, timeout: float = 180.0) -> bool:
-    """Fetch one bbox from the proxy. Returns whether it succeeded; never
-    raises — a failed bbox (e.g. free_tier_exhausted, 503 + Retry-After)
-    must not stop the rest of the list from being attempted."""
+def prewarm_one_detailed(base_url: str, bbox: BBox, *, timeout: float = 180.0) -> PrewarmResult:
+    """Fetch one bbox from the proxy. Never raises — a failed bbox (e.g.
+    free_tier_exhausted, 503 + Retry-After) must not stop the rest of a list
+    from being attempted. Classifies the outcome (see `PrewarmOutcome`) by
+    the JSON error body's `"error"` field, matching the shapes
+    `service/plotlines_service/elevation_proxy.py`'s `/dem` endpoint sends."""
     west, south, east, north = bbox
     query = urlencode({"west": west, "south": south, "east": east, "north": north})
     url = f"{base_url}?{query}"
@@ -69,17 +98,49 @@ def prewarm_one(base_url: str, bbox: BBox, *, timeout: float = 180.0) -> bool:
         with urllib.request.urlopen(url, timeout=timeout) as response:
             body = response.read()
     except urllib.error.HTTPError as exc:
+        elapsed = time.monotonic() - start
         detail = exc.read().decode("utf-8", "replace")
-        retry_after = exc.headers.get("Retry-After")
+        retry_after_raw = exc.headers.get("Retry-After")
+        retry_after = (
+            int(retry_after_raw) if retry_after_raw and retry_after_raw.isdigit() else None
+        )
+        error_key = None
+        try:
+            error_key = json.loads(detail).get("error")
+        except (ValueError, AttributeError):
+            pass
+        if error_key in ("free_tier_exhausted", "enterprise_key_required"):
+            outcome = PrewarmOutcome.EXHAUSTED
+        elif error_key == "upstream_fetch_failed":
+            outcome = PrewarmOutcome.UPSTREAM_FAILED
+        else:
+            outcome = PrewarmOutcome.OTHER_ERROR
         suffix = f" (Retry-After: {retry_after}s)" if retry_after else ""
         print(f"FAILED {bbox}: HTTP {exc.code} {detail}{suffix}", file=sys.stderr)
-        return False
+        return PrewarmResult(bbox, outcome, detail, elapsed, None, retry_after)
     except urllib.error.URLError as exc:
+        elapsed = time.monotonic() - start
         print(f"FAILED {bbox}: {exc.reason}", file=sys.stderr)
-        return False
+        return PrewarmResult(bbox, PrewarmOutcome.OTHER_ERROR, str(exc.reason), elapsed, None, None)
     elapsed = time.monotonic() - start
     print(f"OK {bbox}: {len(body)} bytes in {elapsed:.1f}s")
-    return True
+    return PrewarmResult(bbox, PrewarmOutcome.OK, "", elapsed, len(body), None)
+
+
+def prewarm_one(base_url: str, bbox: BBox, *, timeout: float = 180.0) -> bool:
+    """Fetch one bbox from the proxy. Returns whether it succeeded; never
+    raises. Unchanged contract — a thin wrapper over
+    `prewarm_one_detailed`."""
+    return prewarm_one_detailed(base_url, bbox, timeout=timeout).outcome is PrewarmOutcome.OK
+
+
+def query_health(proxy_root: str, *, timeout: float = 30.0) -> dict:
+    """`GET {proxy_root}/health` -> `{"ready", "remaining_calls_24h",
+    "next_free_at"}`. Still stdlib-only (urllib + json); doesn't touch this
+    script's copy-anywhere deployability."""
+    url = f"{proxy_root.rstrip('/')}/health"
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def main(argv: list[str] | None = None) -> int:
