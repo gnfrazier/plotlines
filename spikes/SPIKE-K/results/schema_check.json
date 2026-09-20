@@ -1,0 +1,1456 @@
+{
+  "archive": "http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles",
+  "archive_layers": {
+    "boundaries": [
+      "brk_a3",
+      "disputed",
+      "kind",
+      "kind_detail",
+      "sort_rank"
+    ],
+    "buildings": [
+      "addr_housenumber",
+      "height",
+      "kind",
+      "kind_detail",
+      "layer",
+      "min_height",
+      "sort_rank"
+    ],
+    "earth": [
+      "kind",
+      "min_zoom",
+      "name",
+      "name2",
+      "name3",
+      "name:ar",
+      "name:bg",
+      "name:cs",
+      "name:da",
+      "name:de",
+      "name:el",
+      "name:en",
+      "name:es",
+      "name:et",
+      "name:fa",
+      "name:fi",
+      "name:fr",
+      "name:ga",
+      "name:he",
+      "name:hi",
+      "name:hr",
+      "name:hu",
+      "name:id",
+      "name:it",
+      "name:ja",
+      "name:ko",
+      "name:lt",
+      "name:lv",
+      "name:mr",
+      "name:mt",
+      "name:ne",
+      "name:nl",
+      "name:no",
+      "name:pl",
+      "name:pt",
+      "name:ro",
+      "name:ru",
+      "name:sk",
+      "name:sl",
+      "name:sv",
+      "name:tr",
+      "name:uk",
+      "name:ur",
+      "name:vi",
+      "name:zh-Hans",
+      "name:zh-Hant",
+      "pgf:name:hi",
+      "pgf:name:mr",
+      "pgf:name:ne",
+      "script",
+      "script2",
+      "script3"
+    ],
+    "landcover": [
+      "kind"
+    ],
+    "landuse": [
+      "kind",
+      "sort_rank"
+    ],
+    "places": [
+      "capital",
+      "kind",
+      "kind_detail",
+      "min_zoom",
+      "name",
+      "name2",
+      "name3",
+      "name:ar",
+      "name:bg",
+      "name:cs",
+      "name:da",
+      "name:de",
+      "name:el",
+      "name:en",
+      "name:es",
+      "name:et",
+      "name:fa",
+      "name:fi",
+      "name:fr",
+      "name:ga",
+      "name:he",
+      "name:hi",
+      "name:hr",
+      "name:hu",
+      "name:id",
+      "name:it",
+      "name:ja",
+      "name:ko",
+      "name:lt",
+      "name:lv",
+      "name:mr",
+      "name:mt",
+      "name:ne",
+      "name:nl",
+      "name:no",
+      "name:pl",
+      "name:pt",
+      "name:ro",
+      "name:ru",
+      "name:sk",
+      "name:sl",
+      "name:sv",
+      "name:tr",
+      "name:uk",
+      "name:ur",
+      "name:vi",
+      "name:zh-Hans",
+      "name:zh-Hant",
+      "pgf:name",
+      "pgf:name2",
+      "pgf:name:en",
+      "pgf:name:hi",
+      "pgf:name:mr",
+      "pgf:name:ne",
+      "population",
+      "population_rank",
+      "ref",
+      "ref:FR:FANTOIR",
+      "ref:FR:SIREN",
+      "ref:RS:nkd",
+      "ref:SE:pts:postort",
+      "ref:USCG",
+      "ref:USPS",
+      "ref:assessors_office",
+      "ref:catasto",
+      "ref:category",
+      "ref:en",
+      "ref:gdke",
+      "ref:lzh",
+      "ref:nan",
+      "ref:nan-Hans",
+      "ref:nan-Hant",
+      "ref:nan-Latn-pehoeji",
+      "ref:nan-Latn-tailo",
+      "ref:nid",
+      "ref:nuts:1",
+      "ref:nuts:2",
+      "ref:vi",
+      "ref:whc",
+      "ref:xpcc",
+      "ref:zh",
+      "ref:zh-Hans",
+      "ref:zh-Hant",
+      "script",
+      "script2",
+      "script3",
+      "sort_key",
+      "wikidata"
+    ],
+    "pois": [
+      "elevation",
+      "iata",
+      "kind",
+      "kind_detail",
+      "min_zoom",
+      "name",
+      "name2",
+      "name3",
+      "name:ar",
+      "name:bg",
+      "name:cs",
+      "name:da",
+      "name:de",
+      "name:el",
+      "name:en",
+      "name:es",
+      "name:et",
+      "name:fa",
+      "name:fi",
+      "name:fr",
+      "name:ga",
+      "name:he",
+      "name:hi",
+      "name:hr",
+      "name:hu",
+      "name:id",
+      "name:it",
+      "name:ja",
+      "name:ko",
+      "name:lt",
+      "name:lv",
+      "name:mr",
+      "name:mt",
+      "name:ne",
+      "name:nl",
+      "name:no",
+      "name:pl",
+      "name:pt",
+      "name:ro",
+      "name:ru",
+      "name:sk",
+      "name:sl",
+      "name:sv",
+      "name:tr",
+      "name:uk",
+      "name:ur",
+      "name:vi",
+      "name:zh-Hans",
+      "name:zh-Hant",
+      "pgf:name",
+      "pgf:name2",
+      "pgf:name3",
+      "pgf:name:en",
+      "pgf:name:fa",
+      "pgf:name:he",
+      "pgf:name:hi",
+      "pgf:name:mr",
+      "pgf:name:ne",
+      "script",
+      "script2",
+      "script3"
+    ],
+    "roads": [
+      "access",
+      "is_bridge",
+      "is_link",
+      "is_tunnel",
+      "kind",
+      "kind_detail",
+      "min_zoom",
+      "name",
+      "name2",
+      "name3",
+      "name:ar",
+      "name:bg",
+      "name:cs",
+      "name:da",
+      "name:de",
+      "name:el",
+      "name:en",
+      "name:es",
+      "name:et",
+      "name:fa",
+      "name:fi",
+      "name:fr",
+      "name:ga",
+      "name:he",
+      "name:hi",
+      "name:hr",
+      "name:hu",
+      "name:id",
+      "name:it",
+      "name:ja",
+      "name:ko",
+      "name:lt",
+      "name:lv",
+      "name:mr",
+      "name:mt",
+      "name:ne",
+      "name:nl",
+      "name:no",
+      "name:pl",
+      "name:pt",
+      "name:ro",
+      "name:ru",
+      "name:sk",
+      "name:sl",
+      "name:sv",
+      "name:tr",
+      "name:uk",
+      "name:ur",
+      "name:vi",
+      "name:zh-Hans",
+      "name:zh-Hant",
+      "network",
+      "network_1",
+      "network_2",
+      "network_3",
+      "network_4",
+      "network_5",
+      "network_6",
+      "oneway",
+      "pgf:name",
+      "pgf:name2",
+      "pgf:name:en",
+      "pgf:name:hi",
+      "pgf:name:mr",
+      "pgf:name:ne",
+      "ref",
+      "route",
+      "script",
+      "script2",
+      "script3",
+      "service",
+      "shield_text",
+      "shield_text_1",
+      "shield_text_2",
+      "shield_text_3",
+      "shield_text_4",
+      "shield_text_5",
+      "shield_text_6",
+      "sort_rank"
+    ],
+    "water": [
+      "bridge",
+      "kind",
+      "kind_detail",
+      "layer",
+      "min_zoom",
+      "name",
+      "name2",
+      "name3",
+      "name:ar",
+      "name:bg",
+      "name:cs",
+      "name:da",
+      "name:de",
+      "name:el",
+      "name:en",
+      "name:es",
+      "name:et",
+      "name:fa",
+      "name:fi",
+      "name:fr",
+      "name:ga",
+      "name:he",
+      "name:hi",
+      "name:hr",
+      "name:hu",
+      "name:id",
+      "name:it",
+      "name:ja",
+      "name:ko",
+      "name:lt",
+      "name:lv",
+      "name:mr",
+      "name:mt",
+      "name:ne",
+      "name:nl",
+      "name:no",
+      "name:pl",
+      "name:pt",
+      "name:ro",
+      "name:ru",
+      "name:sk",
+      "name:sl",
+      "name:sv",
+      "name:tr",
+      "name:uk",
+      "name:ur",
+      "name:vi",
+      "name:zh-Hans",
+      "name:zh-Hant",
+      "pgf:name",
+      "pgf:name2",
+      "pgf:name:en",
+      "pgf:name:hi",
+      "pgf:name:mr",
+      "pgf:name:ne",
+      "script",
+      "script2",
+      "script3",
+      "sort_rank",
+      "tunnel"
+    ]
+  },
+  "styles": [
+    {
+      "style": "protomaps_light",
+      "vector_layers_in_style": 70,
+      "source_layers_referenced": [
+        "boundaries",
+        "buildings",
+        "earth",
+        "landcover",
+        "landuse",
+        "places",
+        "pois",
+        "roads",
+        "water"
+      ],
+      "source_layers_missing": [],
+      "style_layers_on_missing_source_layers": 0,
+      "keys_absent_by_layer": {
+        "earth": [
+          "pgf:name",
+          "pgf:name2",
+          "pgf:name3"
+        ],
+        "places": [
+          "pgf:name3"
+        ],
+        "roads": [
+          "pgf:name3"
+        ],
+        "water": [
+          "pgf:name3"
+        ]
+      },
+      "per_layer": {
+        "boundaries": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "kind_detail"
+          ],
+          "keys_absent": []
+        },
+        "buildings": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "addr_housenumber",
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "earth": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "kind",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": [
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3"
+          ]
+        },
+        "landcover": {
+          "present": true,
+          "style_layers": 1,
+          "keys_read": [
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "landuse": {
+          "present": true,
+          "style_layers": 11,
+          "keys_read": [
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "places": {
+          "present": true,
+          "style_layers": 4,
+          "keys_read": [
+            "capital",
+            "kind",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "population_rank",
+            "ref",
+            "ref:en",
+            "script",
+            "script2",
+            "script3",
+            "sort_key"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        },
+        "pois": {
+          "present": true,
+          "style_layers": 1,
+          "keys_read": [
+            "kind",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": []
+        },
+        "roads": {
+          "present": true,
+          "style_layers": 41,
+          "keys_read": [
+            "is_bridge",
+            "is_link",
+            "is_tunnel",
+            "kind",
+            "kind_detail",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "network",
+            "oneway",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3",
+            "shield_text"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        },
+        "water": {
+          "present": true,
+          "style_layers": 6,
+          "keys_read": [
+            "kind",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        }
+      }
+    },
+    {
+      "style": "protomaps_dark",
+      "vector_layers_in_style": 70,
+      "source_layers_referenced": [
+        "boundaries",
+        "buildings",
+        "earth",
+        "landcover",
+        "landuse",
+        "places",
+        "pois",
+        "roads",
+        "water"
+      ],
+      "source_layers_missing": [],
+      "style_layers_on_missing_source_layers": 0,
+      "keys_absent_by_layer": {
+        "earth": [
+          "pgf:name",
+          "pgf:name2",
+          "pgf:name3"
+        ],
+        "places": [
+          "pgf:name3"
+        ],
+        "roads": [
+          "pgf:name3"
+        ],
+        "water": [
+          "pgf:name3"
+        ]
+      },
+      "per_layer": {
+        "boundaries": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "kind_detail"
+          ],
+          "keys_absent": []
+        },
+        "buildings": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "addr_housenumber",
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "earth": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "kind",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": [
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3"
+          ]
+        },
+        "landcover": {
+          "present": true,
+          "style_layers": 1,
+          "keys_read": [
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "landuse": {
+          "present": true,
+          "style_layers": 11,
+          "keys_read": [
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "places": {
+          "present": true,
+          "style_layers": 4,
+          "keys_read": [
+            "capital",
+            "kind",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "population_rank",
+            "ref",
+            "ref:en",
+            "script",
+            "script2",
+            "script3",
+            "sort_key"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        },
+        "pois": {
+          "present": true,
+          "style_layers": 1,
+          "keys_read": [
+            "kind",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": []
+        },
+        "roads": {
+          "present": true,
+          "style_layers": 41,
+          "keys_read": [
+            "is_bridge",
+            "is_link",
+            "is_tunnel",
+            "kind",
+            "kind_detail",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "network",
+            "oneway",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3",
+            "shield_text"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        },
+        "water": {
+          "present": true,
+          "style_layers": 6,
+          "keys_read": [
+            "kind",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        }
+      }
+    },
+    {
+      "style": "protomaps_grayscale",
+      "vector_layers_in_style": 68,
+      "source_layers_referenced": [
+        "boundaries",
+        "buildings",
+        "earth",
+        "landuse",
+        "places",
+        "roads",
+        "water"
+      ],
+      "source_layers_missing": [],
+      "style_layers_on_missing_source_layers": 0,
+      "keys_absent_by_layer": {
+        "earth": [
+          "pgf:name",
+          "pgf:name2",
+          "pgf:name3"
+        ],
+        "places": [
+          "pgf:name3"
+        ],
+        "roads": [
+          "pgf:name3"
+        ],
+        "water": [
+          "pgf:name3"
+        ]
+      },
+      "per_layer": {
+        "boundaries": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "kind_detail"
+          ],
+          "keys_absent": []
+        },
+        "buildings": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "addr_housenumber",
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "earth": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "kind",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": [
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3"
+          ]
+        },
+        "landuse": {
+          "present": true,
+          "style_layers": 11,
+          "keys_read": [
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "places": {
+          "present": true,
+          "style_layers": 4,
+          "keys_read": [
+            "capital",
+            "kind",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "population_rank",
+            "ref",
+            "ref:en",
+            "script",
+            "script2",
+            "script3",
+            "sort_key"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        },
+        "roads": {
+          "present": true,
+          "style_layers": 41,
+          "keys_read": [
+            "is_bridge",
+            "is_link",
+            "is_tunnel",
+            "kind",
+            "kind_detail",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "network",
+            "oneway",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3",
+            "shield_text"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        },
+        "water": {
+          "present": true,
+          "style_layers": 6,
+          "keys_read": [
+            "kind",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        }
+      }
+    },
+    {
+      "style": "protomaps_white",
+      "vector_layers_in_style": 68,
+      "source_layers_referenced": [
+        "boundaries",
+        "buildings",
+        "earth",
+        "landuse",
+        "places",
+        "roads",
+        "water"
+      ],
+      "source_layers_missing": [],
+      "style_layers_on_missing_source_layers": 0,
+      "keys_absent_by_layer": {
+        "earth": [
+          "pgf:name",
+          "pgf:name2",
+          "pgf:name3"
+        ],
+        "places": [
+          "pgf:name3"
+        ],
+        "roads": [
+          "pgf:name3"
+        ],
+        "water": [
+          "pgf:name3"
+        ]
+      },
+      "per_layer": {
+        "boundaries": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "kind_detail"
+          ],
+          "keys_absent": []
+        },
+        "buildings": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "addr_housenumber",
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "earth": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "kind",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": [
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3"
+          ]
+        },
+        "landuse": {
+          "present": true,
+          "style_layers": 11,
+          "keys_read": [
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "places": {
+          "present": true,
+          "style_layers": 4,
+          "keys_read": [
+            "capital",
+            "kind",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "population_rank",
+            "ref",
+            "ref:en",
+            "script",
+            "script2",
+            "script3",
+            "sort_key"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        },
+        "roads": {
+          "present": true,
+          "style_layers": 41,
+          "keys_read": [
+            "is_bridge",
+            "is_link",
+            "is_tunnel",
+            "kind",
+            "kind_detail",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "network",
+            "oneway",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3",
+            "shield_text"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        },
+        "water": {
+          "present": true,
+          "style_layers": 6,
+          "keys_read": [
+            "kind",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        }
+      }
+    },
+    {
+      "style": "protomaps_black",
+      "vector_layers_in_style": 68,
+      "source_layers_referenced": [
+        "boundaries",
+        "buildings",
+        "earth",
+        "landuse",
+        "places",
+        "roads",
+        "water"
+      ],
+      "source_layers_missing": [],
+      "style_layers_on_missing_source_layers": 0,
+      "keys_absent_by_layer": {
+        "earth": [
+          "pgf:name",
+          "pgf:name2",
+          "pgf:name3"
+        ],
+        "places": [
+          "pgf:name3"
+        ],
+        "roads": [
+          "pgf:name3"
+        ],
+        "water": [
+          "pgf:name3"
+        ]
+      },
+      "per_layer": {
+        "boundaries": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "kind_detail"
+          ],
+          "keys_absent": []
+        },
+        "buildings": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "addr_housenumber",
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "earth": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "kind",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": [
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3"
+          ]
+        },
+        "landuse": {
+          "present": true,
+          "style_layers": 11,
+          "keys_read": [
+            "kind"
+          ],
+          "keys_absent": []
+        },
+        "places": {
+          "present": true,
+          "style_layers": 4,
+          "keys_read": [
+            "capital",
+            "kind",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "population_rank",
+            "ref",
+            "ref:en",
+            "script",
+            "script2",
+            "script3",
+            "sort_key"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        },
+        "roads": {
+          "present": true,
+          "style_layers": 41,
+          "keys_read": [
+            "is_bridge",
+            "is_link",
+            "is_tunnel",
+            "kind",
+            "kind_detail",
+            "min_zoom",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "network",
+            "oneway",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3",
+            "shield_text"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        },
+        "water": {
+          "present": true,
+          "style_layers": 6,
+          "keys_read": [
+            "kind",
+            "name",
+            "name2",
+            "name3",
+            "name:en",
+            "pgf:name",
+            "pgf:name2",
+            "pgf:name3",
+            "script",
+            "script2",
+            "script3"
+          ],
+          "keys_absent": [
+            "pgf:name3"
+          ]
+        }
+      }
+    },
+    {
+      "style": "omt_liberty",
+      "vector_layers_in_style": 109,
+      "source_layers_referenced": [
+        "aerodrome_label",
+        "aeroway",
+        "boundary",
+        "building",
+        "landcover",
+        "landuse",
+        "park",
+        "place",
+        "poi",
+        "transportation",
+        "transportation_name",
+        "water",
+        "water_name",
+        "waterway"
+      ],
+      "source_layers_missing": [
+        "aerodrome_label",
+        "aeroway",
+        "boundary",
+        "building",
+        "park",
+        "place",
+        "poi",
+        "transportation",
+        "transportation_name",
+        "water_name",
+        "waterway"
+      ],
+      "style_layers_on_missing_source_layers": 97,
+      "keys_absent_by_layer": {
+        "landcover": [
+          "class"
+        ],
+        "landuse": [
+          "class"
+        ],
+        "water": [
+          "brunnel"
+        ]
+      },
+      "per_layer": {
+        "aerodrome_label": {
+          "present": false,
+          "style_layers": 1
+        },
+        "aeroway": {
+          "present": false,
+          "style_layers": 3
+        },
+        "boundary": {
+          "present": false,
+          "style_layers": 3
+        },
+        "building": {
+          "present": false,
+          "style_layers": 2
+        },
+        "landcover": {
+          "present": true,
+          "style_layers": 5,
+          "keys_read": [
+            "class"
+          ],
+          "keys_absent": [
+            "class"
+          ]
+        },
+        "landuse": {
+          "present": true,
+          "style_layers": 6,
+          "keys_read": [
+            "class"
+          ],
+          "keys_absent": [
+            "class"
+          ]
+        },
+        "park": {
+          "present": false,
+          "style_layers": 2
+        },
+        "place": {
+          "present": false,
+          "style_layers": 9
+        },
+        "poi": {
+          "present": false,
+          "style_layers": 4
+        },
+        "transportation": {
+          "present": false,
+          "style_layers": 61
+        },
+        "transportation_name": {
+          "present": false,
+          "style_layers": 6
+        },
+        "water": {
+          "present": true,
+          "style_layers": 1,
+          "keys_read": [
+            "brunnel"
+          ],
+          "keys_absent": [
+            "brunnel"
+          ]
+        },
+        "water_name": {
+          "present": false,
+          "style_layers": 2
+        },
+        "waterway": {
+          "present": false,
+          "style_layers": 4
+        }
+      }
+    },
+    {
+      "style": "omt_bright",
+      "vector_layers_in_style": 118,
+      "source_layers_referenced": [
+        "aerodrome_label",
+        "aeroway",
+        "boundary",
+        "building",
+        "landcover",
+        "landuse",
+        "park",
+        "place",
+        "poi",
+        "transportation",
+        "transportation_name",
+        "water",
+        "water_name",
+        "waterway"
+      ],
+      "source_layers_missing": [
+        "aerodrome_label",
+        "aeroway",
+        "boundary",
+        "building",
+        "park",
+        "place",
+        "poi",
+        "transportation",
+        "transportation_name",
+        "water_name",
+        "waterway"
+      ],
+      "style_layers_on_missing_source_layers": 103,
+      "keys_absent_by_layer": {
+        "landcover": [
+          "class",
+          "subclass"
+        ],
+        "landuse": [
+          "class"
+        ],
+        "water": [
+          "brunnel",
+          "intermittent"
+        ]
+      },
+      "per_layer": {
+        "aerodrome_label": {
+          "present": false,
+          "style_layers": 1
+        },
+        "aeroway": {
+          "present": false,
+          "style_layers": 5
+        },
+        "boundary": {
+          "present": false,
+          "style_layers": 3
+        },
+        "building": {
+          "present": false,
+          "style_layers": 2
+        },
+        "landcover": {
+          "present": true,
+          "style_layers": 5,
+          "keys_read": [
+            "class",
+            "subclass"
+          ],
+          "keys_absent": [
+            "class",
+            "subclass"
+          ]
+        },
+        "landuse": {
+          "present": true,
+          "style_layers": 8,
+          "keys_read": [
+            "class"
+          ],
+          "keys_absent": [
+            "class"
+          ]
+        },
+        "park": {
+          "present": false,
+          "style_layers": 2
+        },
+        "place": {
+          "present": false,
+          "style_layers": 9
+        },
+        "poi": {
+          "present": false,
+          "style_layers": 4
+        },
+        "transportation": {
+          "present": false,
+          "style_layers": 61
+        },
+        "transportation_name": {
+          "present": false,
+          "style_layers": 6
+        },
+        "water": {
+          "present": true,
+          "style_layers": 2,
+          "keys_read": [
+            "brunnel",
+            "intermittent"
+          ],
+          "keys_absent": [
+            "brunnel",
+            "intermittent"
+          ]
+        },
+        "water_name": {
+          "present": false,
+          "style_layers": 2
+        },
+        "waterway": {
+          "present": false,
+          "style_layers": 8
+        }
+      }
+    }
+  ]
+}
