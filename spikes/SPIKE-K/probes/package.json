@@ -1,0 +1,12 @@
+{
+  "name": "spike-k-probes",
+  "private": true,
+  "description": "SPIKE-K: generate the Protomaps candidate styles from upstream's own generator (issue #461)",
+  "type": "module",
+  "scripts": {
+    "generate": "node gen_protomaps_styles.mjs"
+  },
+  "dependencies": {
+    "@protomaps/basemaps": "5.7.2"
+  }
+}

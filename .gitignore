@@ -197,6 +197,13 @@ spikes/SPIKE-14/harness/assets/route_*.geojson
 # property rewritten by probes/simplify_labels.py. The script is the definition.
 spikes/SPIKE-14/harness/assets/style_labels.json
 
+# SPIKE-K basemap-style comparison: the npm install behind
+# probes/gen_protomaps_styles.mjs is a download; package.json pins what was
+# installed and the generated harness/styles/*.json ARE committed — they are
+# the candidates under comparison. results/ (render_check.json,
+# schema_check.json, shots/) is the evidence and is committed too.
+spikes/SPIKE-K/probes/node_modules/
+
 # SPIKE-20 trip-payload round-trip outputs. What is committed is the evidence: the
 # three per-region fixture payloads (~50 KB each — small enough to read, and the
 # thing a reader can re-validate against docs/schemas/trip_payload.schema.json),
