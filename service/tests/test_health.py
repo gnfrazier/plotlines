@@ -216,7 +216,7 @@ def test_elevation_upstream_absent_leaves_the_default_untouched(tmp_path: Path) 
     reason="SPIKE-00 fixture graph not present in this checkout",
 )
 def test_unreachable_elevation_upstream_degrades_the_region_without_failing_it(
-    tmp_path: Path,
+    tmp_path: Path, caplog,
 ) -> None:
     import shutil
 
@@ -241,6 +241,14 @@ def test_unreachable_elevation_upstream_degrades_the_region_without_failing_it(
     assert body["capabilities"]["routing"]["regions"][key] == {"ready": True}
     assert body["capabilities"]["elevation"]["ready"] is True  # the flag is set…
 
+    # `ready` flips before the build worker resolves elevation (B1: routing
+    # never waits on it), so wait for the worker before asserting on what
+    # the resolution produced — otherwise this races it (issue #466: the
+    # old `elevation == {}` assertion passed only while the resolution was
+    # still in flight, and lost the race as soon as the tiles step before
+    # it got faster).
+    _settle_builds(client)
+
     resp = client.post("/segments/generate", json={
         "region": key,
         "start": {"lat": 40.0175, "lon": -105.2797},
@@ -248,7 +256,13 @@ def test_unreachable_elevation_upstream_degrades_the_region_without_failing_it(
         "shape": "point_to_point",
         "theme": "balanced",
     })
-    # …but a degraded sampler never breaks a solve — elevation is just
-    # absent from the response, not a 500 or a fabricated number.
+    # …but a degraded sampler never breaks a solve. What it produces is the
+    # FR88 void policy `ElevationResolver.sampler_for` documents: a
+    # degraded all-`0.0` sampler, so the profile is flat rather than absent
+    # or a 500 — and the void is logged, never silent.
     assert resp.status_code == 200
-    assert resp.json()["elevation"] == {}
+    elevation = resp.json()["elevation"]
+    assert elevation["ascent_m"] == 0.0 and elevation["descent_m"] == 0.0
+    assert elevation["min_m"] == 0.0 and elevation["max_m"] == 0.0
+    assert any("unreadable_raster" in r.getMessage() for r in caplog.records), (
+        "a degraded elevation read must be logged, not silently flat")
