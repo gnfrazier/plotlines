@@ -19,7 +19,20 @@
 #   cd service && uv run --frozen pytest tests/test_x.py
 #   cd client  && flutter test test/x_test.dart
 #
+# `-n auto` (pytest-xdist) sizes the service suite's worker count to the
+# machine's vCPU count. On a big-core WSL box that means one worker per
+# core, each importing service's full `core` dependency (osmnx/numpy/
+# networkx) — run alongside `flutter test`'s own analyzer/VM footprint, two
+# runs on 2026-09-20 drove combined RSS to 15-18 GB and the guest OOM-killer
+# killed pytest and then needed the VM itself restarted. This script (unlike
+# CI, which invokes `pytest -n auto` directly and keeps it — CI runners have
+# few enough vCPUs that `auto` there was never the problem) therefore
+# defaults the service suite to 4 workers rather than `auto`; set
+# PLOTLINES_TEST_ALL_JOBS to override (back to "auto", or any other count)
+# when running locally on a box you know can take it.
+#
 # Usage: tools/test_all.sh
+#        PLOTLINES_TEST_ALL_JOBS=auto tools/test_all.sh
 # Exit status is non-zero if any suite or gate failed.
 
 set -uo pipefail
@@ -27,6 +40,8 @@ set -uo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 out="$(mktemp -d)"
 cd "$root"
+
+service_jobs="${PLOTLINES_TEST_ALL_JOBS:-4}"
 
 run() {  # run <name> <working-dir> <command...>
   local name="$1" dir="$2"; shift 2
@@ -38,7 +53,7 @@ run() {  # run <name> <working-dir> <command...>
 started=$(date +%s)
 
 run core    core    uv run --frozen pytest -q &
-run service service uv run --frozen pytest -q -n auto &
+run service service uv run --frozen pytest -q -n "$service_jobs" &
 run client  client  flutter test &
 # Gates: cheap, no toolchain beyond python3. Sequential is fine.
 run gate-reveal  . tools/ci/reveal_gate_lint.sh &

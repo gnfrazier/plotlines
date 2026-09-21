@@ -16,6 +16,7 @@ wrong.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import math
 import threading
@@ -81,7 +82,14 @@ from plotlines_core.scoring.bands import Band, BandSet, distance_is_advisory
 from plotlines_core.scoring.metrics import edge_walk, measure
 from plotlines_core.scoring.profile import THEMES, WeightProfile
 from plotlines_core.tiles.archive import Archive, valid_zxy
-from plotlines_core.tiles.extract import NoTilesInBbox, extract_bbox
+from plotlines_core.tiles.extract import ExtractStats, NoTilesInBbox, extract_bbox
+from plotlines_core.tiles.mirror import (
+    BASEMAP_MAX_ZOOM,
+    HotlinkRefused,
+    UpstreamKind,
+    classify_upstream,
+    resolve_upstream,
+)
 from plotlines_core.tiles.mirror_state import (
     MIRROR_NOT_CONFIGURED,
     load_mirror_state,
@@ -206,6 +214,53 @@ def _mirror_capability(source: str | None) -> dict:
     except (OSError, ValueError) as exc:
         return {"configured": True, "stale": True, "error": str(exc)}
     return mirror_health(state)
+
+
+def _tiles_upstream_capability(source: str | Path, *, allow_unmirrored: bool) -> dict:
+    """`capabilities.tiles.upstream` — issue #454. `classify_upstream` is
+    pure string inspection (no archive open, no request), so this is safe
+    to compute once at `create_app` time rather than lazily at first region
+    build (D41/D57: classification is not an eager *request*, only the
+    ranged GET a real extract makes is). `refused` mirrors exactly what
+    `RegionState.build` -> `extract_bbox` -> `resolve_upstream` would raise
+    the first time this upstream is actually used, computed here so a
+    misconfigured `--tiles-upstream` is visible on `/health` before an
+    Author ever declares an extent (#453's acceptance bullet 5)."""
+    kind = classify_upstream(source)
+    reason: str | None = None
+    if kind is UpstreamKind.FOREIGN and not allow_unmirrored:
+        try:
+            resolve_upstream(source, allow_unmirrored=allow_unmirrored)
+        except HotlinkRefused as exc:
+            reason = str(exc)
+    return {
+        "kind": kind.value,
+        "source": str(source),
+        "refused": reason is not None,
+        "reason": reason,
+    }
+
+
+def _tiles_archive_identity(home_identity: str, upstream_source: str, *,
+                            used_default_upstream: bool,
+                            region_identities: list[str]) -> str:
+    """`capabilities.tiles.archive` — issue #455. Byte-identical to the home
+    archive's own fingerprint (issue #155) when nothing has moved it off
+    that default (no `--tiles-upstream` given, and no region has extracted
+    its own on-demand archive yet) — an existing sidecar that never leaves
+    the committed home region sees no folder churn from this change. Once
+    either is true, a short hash over the home identity, the configured
+    upstream's own source *string* (never its content — hashing that would
+    mean ranging into a remote archive just to answer `/health`, D41/D57),
+    and every ensured region's own tile-archive identity, sorted so
+    dict-iteration order never matters. Recomputed on every `/health` call:
+    the home identity and upstream string are fixed for the process, but a
+    region's own archive can be (re-)extracted at any time after startup,
+    and #155's whole point was that a stale render must not survive that."""
+    if used_default_upstream and not region_identities:
+        return home_identity
+    parts = [home_identity, upstream_source, *sorted(region_identities)]
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:16]
 
 
 class CapabilityState:
@@ -359,6 +414,13 @@ class RegionState:
         #: Why the (best-effort, never region-failing) tile extraction did not
         #: produce an archive. `None` means it worked or was never reached.
         self.tiles_error: str | None = None
+        #: `ExtractStats.as_dict()` from the one `extract_bbox` call this
+        #: region made (issue #456) — `None` when no extraction ran this
+        #: attempt (a cache hit, no tile coverage, or a failure before the
+        #: tiles step). Surfaced on `/regions/{key}/diagnostics` beside
+        #: `timings_s.tiles` so a slow or over-large extract is diagnosable
+        #: without reading the sidecar log.
+        self.tiles_stats: dict | None = None
         # Requeue cooldown/cap bookkeeping (issue #247). `failed_at` is the
         # `time.monotonic()` of the last settled failure; the cooldown is
         # measured from it. `automatic_requeues` counts accepted `/health`-
@@ -382,6 +444,14 @@ class RegionState:
         # of a requeue storm (issue #232).
         if not self.graph_state.ready:
             d["attempts"] = self.build_attempts
+        # Additive and only while set (issue #454) — a region whose tile
+        # extract failed (a refused foreign host, an unreachable mirror, an
+        # out-of-coverage bbox that raised instead of the expected
+        # `NoTilesInBbox`) names it here even though `tiles_error` never
+        # fails the region itself (B1); a region with no tiles problem keeps
+        # a byte-identical entry, same discipline as `attempts` above.
+        if self.tiles_error:
+            d["tiles_error"] = self.tiles_error
         return d
 
     def extract_capability(self) -> dict:
@@ -460,6 +530,7 @@ class RegionState:
             "last_error": self.last_error,
             "last_traceback": self.last_traceback,
             "tiles_error": self.tiles_error,
+            "tiles_stats": self.tiles_stats,
         }
 
     def build(self, cache_dir: Path, tiles_upstream: str | Path,
@@ -630,8 +701,16 @@ class RegionState:
         try:
             tiles_path = CacheLayout(cache_dir).tile_archive(self.bbox)
             if not tiles_path.exists():
+                # Issue #456: cap explicitly at the client's own render
+                # ceiling (`basemapMaximumZoom`) rather than inheriting
+                # whatever max_zoom the configured source archive happens to
+                # carry — today they agree, but nothing enforced that.
+                stats = ExtractStats()
                 extract_bbox(tiles_upstream, self.bbox, tiles_path,
-                             allow_unmirrored=allow_unmirrored)
+                             max_zoom=BASEMAP_MAX_ZOOM,
+                             allow_unmirrored=allow_unmirrored, stats=stats)
+                self.timings["tiles"] = stats.wall_time_s
+                self.tiles_stats = stats.as_dict()
             self.tiles_archive = Archive(tiles_path)
         except NoTilesInBbox:
             # Expected: the bbox is outside the tile source's coverage. `/tiles`
@@ -1295,7 +1374,18 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
     # UA setup above.
     region_lib.configure_overpass_cache(cache_dir)
 
-    state = Readiness(cache_dir, tiles_upstream or default_home_region_archive(),
+    # Issue #454/#455 — resolved once, here, rather than read fresh at every
+    # `/health` call: `used_default_tiles_upstream` and `tiles_upstream_
+    # capability` are both functions of the flag pair the sidecar was
+    # started with, not of the bbox, so nothing about them can change during
+    # the process's life (classification is pure string inspection, not a
+    # bbox-scoped build outcome).
+    used_default_tiles_upstream = tiles_upstream is None
+    tiles_upstream_actual = tiles_upstream or default_home_region_archive()
+    tiles_upstream_capability = _tiles_upstream_capability(
+        tiles_upstream_actual, allow_unmirrored=allow_unmirrored_tiles)
+
+    state = Readiness(cache_dir, tiles_upstream_actual,
                       allow_unmirrored=allow_unmirrored_tiles,
                       elevation_upstream=elevation_upstream,
                       mirror_clip_url=mirror_clip_url,
@@ -1329,7 +1419,20 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         is a short content fingerprint of the committed home-region PMTiles
         archive (issue #155): the client folds it into its raster tile-cache
         folder so renders derived from a superseded archive are dropped
-        rather than served stale for the 30-day cache TTL.
+        rather than served stale for the 30-day cache TTL. Since issue
+        #455 it is a **composite** identity — the home archive's own
+        fingerprint, folded with the `--tiles-upstream` source string and
+        every ensured region's own on-demand archive identity — so a
+        mirror-sourced or re-extracted region tile archive gets its own
+        cache folder too, rather than sharing (and poisoning) the home
+        archive's; unconfigured and no region ever built, it is
+        byte-identical to the plain home identity #155 shipped, so an
+        existing install sees no folder churn from this change.
+        `tiles.upstream` (issue #454) reports where those tiles come from —
+        `kind` (`local`/`mirror`/`foreign`), the source as given, and
+        whether it was refused (`HotlinkRefused`, FR92/FR95) — decided once
+        at startup from the flag pair alone, before any extent is declared
+        (D41/D57: classification is not a request).
 
         `layers` is driven by `app.state.layer_registry` (story N2): a real
         per-layer state machine, not a constant. `layers.ready` is **`any`,
@@ -1379,12 +1482,29 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         registry = app.state.layer_registry
         layers_cap = registry.capability()
         layers_cap["per_layer_detail"] = registry.per_layer_detail()
+        # Issue #455 — recomputed every call: a region's own tile archive
+        # can be (re-)extracted at any point after startup, and the whole
+        # point of this identity is that such a change is visible here.
+        region_tile_identities = [
+            region.tiles_archive.info().identity
+            for _key, region in state.snapshot()
+            if region.tiles_archive is not None
+        ]
+        tiles_archive_id = _tiles_archive_identity(
+            home_tiles_identity, tiles_upstream_capability["source"],
+            used_default_upstream=used_default_tiles_upstream,
+            region_identities=region_tile_identities,
+        )
         body = {
             "app_version": VERSION,
             "sidecar_version": VERSION,
             "mode": mode,
             "capabilities": {
-                "tiles": {"ready": True, "archive": home_tiles_identity},
+                "tiles": {
+                    "ready": True,
+                    "archive": tiles_archive_id,
+                    "upstream": tiles_upstream_capability,
+                },
                 "layers": layers_cap,
                 "routing": {"regions": state.routing_capabilities()},
                 "elevation": (

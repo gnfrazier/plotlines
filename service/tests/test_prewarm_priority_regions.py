@@ -74,7 +74,15 @@ class _FakeProxyHandler(http.server.BaseHTTPRequestHandler):
         idx = type(self).CALL_COUNT
         type(self).CALL_COUNT += 1
         if type(self).EXHAUST_AFTER is not None and idx >= type(self).EXHAUST_AFTER:
-            body = b'{"error": "free_tier_exhausted", "message": "ceiling reached"}'
+            # FastAPI's real HTTPException(detail={"error": ...}) wire shape
+            # (elevation_proxy.py) — {"detail": {...}}, not a flat
+            # {"error": ...}; a flat fixture here previously masked a
+            # classifier bug (issue #459) that made run() never recognize
+            # real exhaustion and grind through the whole candidate list.
+            body = (
+                b'{"detail": {"error": "free_tier_exhausted", '
+                b'"message": "ceiling reached"}}'
+            )
             self.send_response(503)
             self.send_header("Retry-After", "60")
             self.send_header("Content-Type", "application/json")

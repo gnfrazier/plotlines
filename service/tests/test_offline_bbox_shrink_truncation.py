@@ -223,7 +223,14 @@ def test_reconnection_replaces_the_provisional_graph_with_a_real_rebuild(tmp_pat
     shrunk = state.regions[shrunk_key]
     assert shrunk.graph_state.status == "ready"
     cap = shrunk.routing_capability()
-    assert cap == {"ready": True}  # no lingering "provisional" flag
+    assert cap["ready"] is True
+    assert "provisional" not in cap  # no lingering flag
+    # This fixture's `tiles_upstream` (`tmp_path / "home.pmtiles"`) was
+    # never a real archive, so tile extraction has always failed here —
+    # issue #456 just made that visible on `routing_capability()` rather
+    # than only on `/regions/{key}/diagnostics` (issue #454's own point).
+    # This test is about the graph/provisional state, not tiles.
+    assert "tiles_error" in cap
     assert shrunk.build_attempts == 2
 
 

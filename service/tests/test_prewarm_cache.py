@@ -121,12 +121,22 @@ def test_prewarm_one_succeeds_and_reports_bytes(fake_proxy) -> None:
 def test_prewarm_one_does_not_raise_on_free_tier_exhausted(fake_proxy) -> None:
     # #304's 503 + Retry-After shape (service/tests/test_elevation_proxy.py) —
     # a script pre-warming a long bbox list must survive one failure and
-    # keep going, never crash the whole run.
+    # keep going, never crash the whole run. The body is FastAPI's own
+    # HTTPException(detail={"error": ...}) wire shape — {"detail": {...}},
+    # not a flat {"error": ...} — matching what
+    # service/plotlines_service/elevation_proxy.py actually sends; a flat
+    # fixture here previously let a "detail" won't-unwrap classifier bug
+    # (issue #459) go undetected.
     server, handler_cls = fake_proxy
     bbox = (-83.10, 35.65, -82.70, 36.00)
-    handler_cls.RESPONSES[bbox] = (503, '{"error": "free_tier_exhausted"}')
+    handler_cls.RESPONSES[bbox] = (
+        503,
+        '{"detail": {"error": "free_tier_exhausted", "message": "ceiling reached"}}',
+    )
     base_url = f"http://127.0.0.1:{server.server_port}/dem"
 
+    result = pc.prewarm_one_detailed(base_url, bbox)
+    assert result.outcome is pc.PrewarmOutcome.EXHAUSTED
     assert pc.prewarm_one(base_url, bbox) is False
 
 

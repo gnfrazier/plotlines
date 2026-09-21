@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/data/routing_client.dart';
+import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/presentation/screens/privacy_screen.dart';
 import 'package:plotlines_client/presentation/screens/settings_screen.dart';
 import 'package:plotlines_client/presentation/screens/software_notices_screen.dart';
@@ -26,7 +27,26 @@ class _FakeRoutingClient extends RoutingClient {
   Future<Map<String, dynamic>> about() async => _about();
 }
 
-Future<void> _pump(WidgetTester tester, RoutingClient client) async {
+/// #367/#454 — a sidecar manager whose `/health` snapshot is fixed rather
+/// than polled, so `AboutPane`'s mirror/tiles-upstream advisories can be
+/// driven directly.
+class _FakeSidecarManager extends SidecarManager {
+  _FakeSidecarManager([this._capabilities]);
+  final Capabilities? _capabilities;
+
+  @override
+  Future<void> start() async {}
+  @override
+  SidecarStatus get status => const SidecarStatus(SidecarState.ready);
+  @override
+  Capabilities? get capabilities => _capabilities;
+}
+
+Future<void> _pump(
+  WidgetTester tester,
+  RoutingClient client, {
+  Capabilities? capabilities,
+}) async {
   tester.view.physicalSize = const Size(1200, 2000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -34,7 +54,11 @@ Future<void> _pump(WidgetTester tester, RoutingClient client) async {
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [routingClientProvider.overrideWithValue(client)],
+      overrides: [
+        routingClientProvider.overrideWithValue(client),
+        sidecarManagerProvider.overrideWith(
+            (ref) => _FakeSidecarManager(capabilities)),
+      ],
       child: MaterialApp(
         home: const Scaffold(body: AboutPane()),
       ),
@@ -181,5 +205,104 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('only ships with a'), findsOneWidget);
+  });
+
+  group('mirror staleness advisory (issue #367)', () {
+    Capabilities capsWithMirror(Map<String, dynamic> mirrorJson) =>
+        Capabilities.fromJson({
+          'tiles': {'ready': true},
+          'layers': {'ready': true},
+          'routing': {'regions': <String, dynamic>{}},
+          'elevation': {'ready': false, 'reason': 'x'},
+          'mirror': mirrorJson,
+        });
+
+    testWidgets('not configured shows no advisory — absence must not read as fresh',
+        (tester) async {
+      await _pump(tester, _FakeRoutingClient(_fullAbout),
+          capabilities: capsWithMirror({'configured': false}));
+
+      expect(find.textContaining('out of date'), findsNothing);
+    });
+
+    testWidgets('a fresh mirror shows no advisory', (tester) async {
+      await _pump(tester, _FakeRoutingClient(_fullAbout),
+          capabilities: capsWithMirror({
+            'configured': true,
+            'stale': false,
+            'basemap': {'build_id': '20250101-wnc', 'age_days': 3.0, 'stale': false},
+            'geofabrik': {'pinned_date': '2026-09-01', 'regions': {}, 'stale': false},
+          }));
+
+      expect(find.textContaining('out of date'), findsNothing);
+    });
+
+    testWidgets('a stale mirror surfaces an advisory naming the basemap age',
+        (tester) async {
+      await _pump(tester, _FakeRoutingClient(_fullAbout),
+          capabilities: capsWithMirror({
+            'configured': true,
+            'stale': true,
+            'basemap': {'build_id': '20250101-wnc', 'age_days': 52.0, 'stale': true},
+            'geofabrik': {'pinned_date': '2026-07-01', 'regions': {}, 'stale': false},
+          }));
+
+      expect(find.textContaining('out of date'), findsOneWidget);
+      expect(find.textContaining('52 days'), findsOneWidget);
+      // Advisory, not an error: it must read differently from the
+      // attribution-incomplete build-failure text above it.
+      expect(find.textContaining('build failure'), findsNothing);
+    });
+
+    testWidgets('an unreachable mirror surfaces the error rather than staying silent',
+        (tester) async {
+      await _pump(tester, _FakeRoutingClient(_fullAbout),
+          capabilities: capsWithMirror({
+            'configured': true,
+            'stale': true,
+            'error': 'URLError: unreachable',
+          }));
+
+      expect(find.textContaining("Couldn't check whether map data is up to date"),
+          findsOneWidget);
+      expect(find.textContaining('URLError'), findsOneWidget);
+    });
+  });
+
+  group('tile upstream refusal advisory (issue #454)', () {
+    Capabilities capsWithTilesUpstream(Map<String, dynamic> upstreamJson) =>
+        Capabilities.fromJson({
+          'tiles': {'ready': true, 'upstream': upstreamJson},
+          'layers': {'ready': true},
+          'routing': {'regions': <String, dynamic>{}},
+          'elevation': {'ready': false, 'reason': 'x'},
+        });
+
+    testWidgets('an ordinary mirror upstream shows no advisory', (tester) async {
+      await _pump(tester, _FakeRoutingClient(_fullAbout),
+          capabilities: capsWithTilesUpstream({
+            'kind': 'mirror',
+            'source': 'https://tiles.plotlines.app/basemap/protomaps/x/y.pmtiles',
+            'refused': false,
+            'reason': null,
+          }));
+
+      expect(find.textContaining('refused'), findsNothing);
+    });
+
+    testWidgets('a refused foreign host surfaces the reason (FR92/FR95)',
+        (tester) async {
+      await _pump(tester, _FakeRoutingClient(_fullAbout),
+          capabilities: capsWithTilesUpstream({
+            'kind': 'foreign',
+            'source': 'https://tile.openstreetmap.org/x.pmtiles',
+            'refused': true,
+            'reason': "tile upstream 'tile.openstreetmap.org' is not the "
+                'Plotlines mirror (FR92/FR95).',
+          }));
+
+      expect(find.textContaining('Basemap tile source was refused'), findsOneWidget);
+      expect(find.textContaining('FR92/FR95'), findsOneWidget);
+    });
   });
 }

@@ -72,12 +72,12 @@ to run the app.
 
 ## The mirror the sidecar is pointed at (issue #434)
 
-The client spawns the sidecar with the four upstream flags it accepts — `--mirror-clip-url`,
-`--mirror-clip-client-key`, `--mirror-state-url`, `--elevation-upstream` — resolved by
-`lib/data/sidecar_upstreams.dart` from, in precedence order, a **process environment
-variable** at launch, a **`--dart-define`** at build time, and a **built-in default**. Only
-the mirror URL has a default (`https://tiles.plotlines.app`, pinned by test to
-`tiles/mirror.py`'s `MIRROR_HOST`); the other three are unset unless you set them. This is
+The client spawns the sidecar with the five upstream flags it accepts — `--mirror-clip-url`,
+`--mirror-clip-client-key`, `--mirror-state-url`, `--elevation-upstream`, `--tiles-upstream`
+(#453) — resolved by `lib/data/sidecar_upstreams.dart` from, in precedence order, a **process
+environment variable** at launch, a **`--dart-define`** at build time, and a **built-in
+default**. Only the mirror URL has a default (`https://tiles.plotlines.app`, pinned by test to
+`tiles/mirror.py`'s `MIRROR_HOST`); the other four are unset unless you set them. This is
 what makes Phase 3's transport swap (#272) reachable from the app: with the URL passed, the
 sidecar asks the mirror's `/clip` for the trip bbox **when the Author declares an extent, and
 never before** (D41/D57), builds the region graph and the candidate set from that clip, and
@@ -89,8 +89,9 @@ falls through to Overpass only when the mirror cannot serve it.
 | `PLOTLINES_MIRROR_CLIP_CLIENT_KEY` | the `X-Plotlines-Client-Key` a keyed `/clip` requires (#263) — **never a literal in the repo**; a release build gets it from the builder's environment via `--dart-define`, a source run from your shell | unset (no key sent) |
 | `PLOTLINES_MIRROR_STATE_URL` | where the sidecar reads `MIRROR_STATE.json` for `capabilities.mirror` (#367) | unset — see below |
 | `PLOTLINES_ELEVATION_UPSTREAM` | the Pi5 caching elevation proxy's `/dem` base URL (QA only) | unset |
+| `PLOTLINES_TILES_UPSTREAM` | PMTiles source the sidecar's `--tiles-upstream` extracts basemap tiles from — the Pi serves plain HTTP, same as `PLOTLINES_MIRROR_URL`; the literal `off` disables it | unset — see below |
 
-Three things worth knowing before you set any of them:
+Four things worth knowing before you set any of them:
 
 - **Running from source against the LAN Pi** needs the same DNS override the mirror runbook
   (`deploy/mirror/README.md` §6.5) uses, or a plain http URL: `PLOTLINES_MIRROR_URL=http://tiles.plotlines.app
@@ -112,6 +113,14 @@ Three things worth knowing before you set any of them:
   `PLOTLINES_OPENTOPOGRAPHY_API_KEY` — only the Pi holds it, and a sidecar started with
   `--elevation-upstream` uses `core/plotlines_core/elevation/qa_proxy_client.py`'s
   unauthenticated fetcher instead.
+- **`PLOTLINES_TILES_UPSTREAM` has no built-in default (issue #453, epic #458).**
+  `tiles/mirror.py`'s `MIRROR_WNC_CORRIDOR_URL` is one region's coverage, not the production
+  basemap, and `MIRROR_ARCHIVE_URL` still names an unacquired planet build — pointing a
+  default upstream at either belongs with the planet-build / object-storage work (#457), not
+  here. Unset, the sidecar keeps serving the committed home-region archive with no network.
+  `utils/launch-with-mirror.sh` sets it to the WNC-corridor build for a LAN Pi run. Whatever
+  this names, the client never passes `--allow-unmirrored-tiles` — a third-party host is
+  refused by the sidecar (`HotlinkRefused`, FR92/FR95), not allowed through.
 
 ## Testing
 
