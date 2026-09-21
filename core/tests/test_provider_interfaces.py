@@ -10,7 +10,7 @@ before SPIKE-17 runs against a real source.
 from __future__ import annotations
 
 import plotlines_core.providers as providers
-from plotlines_core.curation.notability import RawFeature
+from plotlines_core.curation.notability import RawFeature, Shape
 from plotlines_core.curation.providers import BBox
 from plotlines_core.providers import (
     EdgeDataProvider,
@@ -53,7 +53,8 @@ class _ClosurePlugin:
     def fetch_shapes(self, bbox: BBox, kinds: list[str]) -> list[RawFeature]:
         ring = ((-81.96, 36.00), (-81.94, 36.00), (-81.94, 36.02), (-81.96, 36.00))
         return [RawFeature(id="closure/1", coord=(-81.95, 36.01),
-                           tags={"access": "no"}, area_m2=51_000.0, geometry=ring)]
+                           tags={"access": "no"}, area_m2=51_000.0,
+                           geometry=Shape("polygon", ring))]
 
 
 class _NhdPlugin:
