@@ -95,6 +95,39 @@ def test_precut_pins_a_smaller_extract_and_removes_the_sources_by_default(
     assert entry["md5"] == result.detail
 
 
+def test_precut_sets_checked_at_so_the_pin_does_not_read_permanently_stale(
+    tmp_path: Path,
+) -> None:
+    """#471: the precut path wrote `pulled_at` but never `checked_at`, and
+    `mirror_state.geofabrik_health`'s `_pull_health` reads only
+    `checked_at` for age — the same gap the two non-precut pull paths
+    (`pull_region`, `pull_index`) already close by setting it themselves.
+    A missing `checked_at` reads as `age = None`, and `stale = age is None
+    or age > max_age_days` treats that as stale, so a freshly-precut
+    region — the WNC corridor, which every real pin bump produces per the
+    release checklist — reported `capabilities.mirror.stale = true`
+    forever regardless of how recently it was actually pulled."""
+    from datetime import datetime, timezone
+
+    from plotlines_core.tiles.mirror_state import geofabrik_health
+
+    mirror = _two_region_mirror(tmp_path)
+    state = gp.load_state(mirror / "MIRROR_STATE.json")
+
+    gp.precut_region(
+        root=mirror, pinned_date="2026-09-01", state=state,
+        dest_region="wnc-corridor", source_regions=["west-region", "east-region"],
+        bbox=_CORRIDOR_BBOX,
+    )
+
+    entry = state["geofabrik"]["regions"]["wnc-corridor"]
+    assert entry["checked_at"] is not None
+
+    health = geofabrik_health(state, now=datetime.now(timezone.utc))
+    assert health["regions"]["wnc-corridor"]["stale"] is False
+    assert health["stale"] is False
+
+
 def test_precut_keeps_sources_when_asked(tmp_path: Path) -> None:
     mirror = _two_region_mirror(tmp_path)
     state = gp.load_state(mirror / "MIRROR_STATE.json")
