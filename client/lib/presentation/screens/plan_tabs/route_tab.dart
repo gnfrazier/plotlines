@@ -17,6 +17,7 @@ import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
 import '../../display_format_of.dart';
 import '../../map/alternate_markers.dart';
+import '../../map/anchor_map_points.dart';
 import '../../map/node_marker_role.dart';
 import '../../map/route_geometry.dart';
 import '../../map/tap_to_pick_map.dart';
@@ -301,6 +302,8 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                   children: [
                     TapToPickMap(
                       points: routeTabMarkerPoints(widget.trip),
+                      // #410 — every promoted anchor, at its own coordinate.
+                      anchors: anchorMapPoints(widget.trip.anchors),
                       polyline: routeCoords ?? const [],
                       polylineArcStage: selectedSegment?.arcStage,
                       leaderLines: routeTabLeaderLines(selectedSegment),

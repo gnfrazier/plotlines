@@ -1029,10 +1029,11 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// the same field a rest day's POIs use), not [promoteAnchor]: the
   /// Anchor/role model now exists (FR106/FR110, Story O1), but wiring
   /// `layers_tab.dart`'s candidate map onto it is that story's UI half and
-  /// out of this call site's scope (ARCH B3's node→anchor migration is
-  /// tracked separately from O1's new-model addition). `Node.poiType`
-  /// carries "the Author-set type this node counts as" for exactly this
-  /// case in the meantime.
+  /// out of this call site's scope. `Node.poiType` carries "the Author-set
+  /// type this node counts as" for exactly this case in the meantime. Both
+  /// outputs are drawn on the Layers tab's map since #410 — the node as a
+  /// `NodeMarker`, an anchor as an `AnchorMarker` — so the tap is visible
+  /// either way; the migration itself is #477.
   void promoteCandidate(String dayId, Node node) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     _replaceDay(day.copyWith(nodes: [...day.nodes, node]));

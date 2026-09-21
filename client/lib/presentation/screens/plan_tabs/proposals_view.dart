@@ -26,6 +26,7 @@ import '../../../state/current_trip_provider.dart';
 import '../../../state/proposals_provider.dart';
 import '../../../state/settings_provider.dart' show displayFormatProvider;
 import '../../../state/trip_bbox_provider.dart';
+import '../../map/anchor_map_points.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/proposal_card.dart';
 
@@ -50,6 +51,10 @@ class ProposalsView extends ConsumerWidget {
           child: CandidateMap(
             candidates: const [],
             bbox: bbox,
+            // #410 — a promoted proposal's anchor is drawn where the
+            // proposal was, so "already promoted" is visible on the map
+            // and not only in the list's re-run filter.
+            anchors: anchorMapPoints(trip.anchors),
             proposals: state.visible,
             selectedProposalId: state.selectedId,
             onProposalTap: (p) => notifier.select(p.id),

@@ -48,6 +48,19 @@ typedef MapLeaderLine = ({LatLonPoint from, LatLonPoint to});
 /// so do not come from [MapMarkerPoint]'s node-role vocabulary.
 typedef MapAnnotation = ({LatLonPoint coord, Widget marker});
 
+/// #410 — a promoted anchor's own coordinate, drawn as an [AnchorMarker].
+/// Built from `Trip.anchors` by `anchor_map_points.dart`; [label] is the
+/// tooltip, [sourceId] the candidate it was promoted from (if any), so a
+/// candidate map can retire that candidate's mark in favour of this one.
+/// Not a [MapMarkerPoint]: an anchor is trip canon with a role set, not a
+/// node with a [NodeMarkerType], and the two vocabularies stay apart.
+typedef MapAnchorPoint = ({
+  LatLonPoint coord,
+  String label,
+  AnchorMarkerMark mark,
+  String? sourceId,
+});
+
 /// Why a bundled basemap style failed to resolve. A bare `null` collapsed
 /// these four into one indistinguishable outcome (issue #184, an M13
 /// "never a silent failure" violation) — the caller could not tell a
@@ -241,6 +254,7 @@ class TapToPickMap extends ConsumerStatefulWidget {
     this.alternateLines = const [],
     this.replacedStretch = const [],
     this.annotations = const [],
+    this.anchors = const [],
     this.center,
     this.focusCoord,
     this.initialZoom = 13,
@@ -286,6 +300,14 @@ class TapToPickMap extends ConsumerStatefulWidget {
   /// #324 — caller-drawn marks (an alternate's fork and rejoin), above the
   /// lines and below nothing.
   final List<MapAnnotation> annotations;
+
+  /// #410 — the trip's promoted anchors, each drawn once at its own
+  /// coordinate. Before this `Trip.anchors` reached cards, dropdowns and
+  /// lookups but never a map: promotion (FR106/FR110's "editorial moment")
+  /// changed nothing the Author could see on the surface they look at most.
+  /// An area anchor is marked at its representative point here; its boundary
+  /// is #475's lane.
+  final List<MapAnchorPoint> anchors;
 
   final LatLonPoint? center;
 
@@ -479,6 +501,22 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                         color: c.textMuted,
                         strokeWidth: 1.5,
                         pattern: StrokePattern.dashed(segments: const [6.0, 4.0]),
+                      ),
+                  ]),
+                // #410 — promoted anchors, under the node markers and the
+                // in-hand annotations: canon on the map, but not what is
+                // being edited on this surface.
+                if (widget.anchors.isNotEmpty)
+                  MarkerLayer(markers: [
+                    for (final a in widget.anchors)
+                      Marker(
+                        point: ll.LatLng(a.coord[1], a.coord[0]),
+                        width: 30,
+                        height: 30,
+                        child: Tooltip(
+                          message: a.label,
+                          child: AnchorMarker(mark: a.mark),
+                        ),
                       ),
                   ]),
                 MarkerLayer(markers: [

@@ -26,7 +26,7 @@ import 'candidate_geometry_layer.dart';
 import 'map_attribution.dart';
 import 'map_label_scale.dart';
 import 'no_basemap_notice.dart';
-import 'tap_to_pick_map.dart' show MapTileAssets;
+import 'tap_to_pick_map.dart' show MapAnchorPoint, MapMarkerPoint, MapTileAssets;
 import 'vector_tile_provider.dart';
 
 CandidateRoleAffinity _markerAffinity(RoleAffinity affinity) => switch (affinity) {
@@ -49,6 +49,8 @@ class CandidateMap extends ConsumerStatefulWidget {
     this.route = const [],
     this.onMapTap,
     this.pickedCoord,
+    this.anchors = const [],
+    this.nodes = const [],
   });
 
   final List<Candidate> candidates;
@@ -92,8 +94,45 @@ class CandidateMap extends ConsumerStatefulWidget {
   /// "this is what you chose" rather than another candidate.
   final Coord? pickedCoord;
 
+  /// #410 — the trip's promoted anchors (`anchor_map_points.dart`), drawn
+  /// above the candidate layer as [AnchorMarker]s. A candidate whose id is
+  /// an anchor's `sourceId` is *not* drawn as a candidate any more: the
+  /// anchor mark stands where its pin stood, so promotion visibly changes
+  /// the map instead of leaving the cache's mark untouched under canon —
+  /// and a tap there no longer offers a promotion that would only throw
+  /// `DuplicatePromotionException`.
+  final List<MapAnchorPoint> anchors;
+
+  /// #410 — the trip's authored nodes, drawn as the same [NodeMarker]s the
+  /// Route tab draws them with. The Layers tab's direct tap-to-promote still
+  /// writes a day-scoped `Node` rather than an `Anchor` (N3's stand-in from
+  /// before O1's model existed, see `CurrentTripNotifier.promoteCandidate`),
+  /// so without this that path changed nothing on the very map the tap
+  /// happened on. A candidate at exactly a node's coordinate — which is what
+  /// `promoteCandidate` copies — is retired the same way an anchored one is.
+  final List<MapMarkerPoint> nodes;
+
   @override
   ConsumerState<CandidateMap> createState() => _CandidateMapState();
+}
+
+/// The candidates still drawn as candidates once [anchors] and [nodes] have
+/// claimed theirs — by source id for an anchor, by exact coordinate for a
+/// node. Pure, so the retirement rule is testable without a map.
+@visibleForTesting
+List<Candidate> unpromotedCandidates(
+  List<Candidate> candidates,
+  List<MapAnchorPoint> anchors,
+  List<MapMarkerPoint> nodes,
+) {
+  if (anchors.isEmpty && nodes.isEmpty) return candidates;
+  final promotedIds = {for (final a in anchors) if (a.sourceId != null) a.sourceId!};
+  bool atNode(Coord c) =>
+      nodes.any((n) => n.coord[0] == c[0] && n.coord[1] == c[1]);
+  return [
+    for (final c in candidates)
+      if (!promotedIds.contains(c.id) && !atNode(c.coord)) c,
+  ];
 }
 
 class _CandidateMapState extends ConsumerState<CandidateMap> {
@@ -119,6 +158,8 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
     final sidecar = ref.watch(sidecarManagerProvider);
     final baseUrl = sidecar.baseUrl;
     final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
+    // #410 — promoted candidates are drawn by their anchor/node, not twice.
+    final candidates = unpromotedCandidates(widget.candidates, widget.anchors, widget.nodes);
 
     return FutureBuilder(
       future: MapTileAssets.theme(isDark ? 'dark' : 'light', labelScale: labelScale),
@@ -223,7 +264,7 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
                   onCandidateTap: widget.onCandidateTap,
                 ),
               MarkerLayer(markers: [
-                for (final candidate in widget.candidates)
+                for (final candidate in candidates)
                   Marker(
                     point: ll.LatLng(candidate.coord[1], candidate.coord[0]),
                     width: 32,
@@ -245,6 +286,33 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
                     ),
                   ),
               ]),
+              // #410 — canon above cache: the trip's nodes, then its anchors,
+              // drawn over the candidate layer so a promoted place reads as
+              // promoted wherever it sits among the candidates.
+              if (widget.nodes.isNotEmpty)
+                MarkerLayer(markers: [
+                  for (final n in widget.nodes)
+                    Marker(
+                      point: ll.LatLng(n.coord[1], n.coord[0]),
+                      width: 28,
+                      height: 28,
+                      child: NodeMarker(n.role),
+                    ),
+                ]),
+              if (widget.anchors.isNotEmpty)
+                MarkerLayer(markers: [
+                  for (final a in widget.anchors)
+                    Marker(
+                      point: ll.LatLng(a.coord[1], a.coord[0]),
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      child: Tooltip(
+                        message: a.label,
+                        child: AnchorMarker(mark: a.mark),
+                      ),
+                    ),
+                ]),
               if (widget.pickedCoord != null)
                 MarkerLayer(markers: [
                   Marker(

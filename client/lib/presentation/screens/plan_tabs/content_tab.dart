@@ -23,6 +23,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../../domain/domain.dart';
 import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
+import '../../map/anchor_map_points.dart';
 import '../../map/node_marker_role.dart';
 import '../../map/tap_to_pick_map.dart';
 import '../../widgets/anchor_promotion_panel.dart';
@@ -86,6 +87,11 @@ class _ContentTabState extends ConsumerState<ContentTab> {
                   for (final n in segment.nodes)
                     (coord: n.coord, role: markerForNodeKind(n.kind), arcStage: n.arcStage),
                 ],
+                // #410 — the anchors the panel below this map promotes are
+                // trip-scoped, so every one is drawn, not only this
+                // segment's; before this the panel's own promotion never
+                // reached the map beside it.
+                anchors: anchorMapPoints(widget.trip.anchors),
                 center: segment.start,
                 onTap: (point) => setState(() {
                   _selectedNodeId = null;
