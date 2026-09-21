@@ -37,9 +37,11 @@ String anchorMapLabel(Anchor anchor) {
 
 /// Every anchor in [anchors] as one [MapAnchorPoint] at the anchor's own
 /// [Anchor.coord] — the representative point FR106 requires every anchor to
-/// carry, area or not. Role offsets (FR107) are not drawn here: they are the
-/// role's trigger/export position, and O2's own surface draws them as the
-/// hollow marker; the anchor is the place.
+/// carry, area or not — plus its [Anchor.area] rings when it has them
+/// (#484, FR108), for `AnchorAreaLayer` to draw the boundary. Role offsets
+/// (FR107) are not drawn here: they are the role's trigger/export position,
+/// and O2's own surface draws them as the hollow marker; the anchor is the
+/// place.
 List<MapAnchorPoint> anchorMapPoints(List<Anchor> anchors) => [
       for (final a in anchors)
         (
@@ -47,5 +49,6 @@ List<MapAnchorPoint> anchorMapPoints(List<Anchor> anchors) => [
           label: anchorMapLabel(a),
           mark: anchorMarkFor(a),
           sourceId: a.provenance?.sourceId,
+          rings: a.area?.rings,
         ),
     ];

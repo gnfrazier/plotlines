@@ -118,7 +118,8 @@ void main() {
     });
 
     // FR108 / O3 — an area anchor still carries a representative coord; it
-    // is marked there. Its boundary is #475's lane, not this one's.
+    // is marked there. Its boundary rides along as `rings` for
+    // `AnchorAreaLayer` (#484, `anchor_area_layer_test.dart`).
     test('an area anchor is marked at its representative point', () {
       final ring = [
         [-105.0, 40.0], [-105.0, 40.1], [-104.9, 40.1], [-105.0, 40.0],

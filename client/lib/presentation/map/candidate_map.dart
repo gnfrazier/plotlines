@@ -22,6 +22,7 @@ import '../../domain/home_region.dart';
 import '../../domain/json_utils.dart' show Coord;
 import '../../domain/trip_bbox.dart';
 import '../../state/providers.dart';
+import 'anchor_area_layer.dart';
 import 'candidate_geometry_layer.dart';
 import 'map_attribution.dart';
 import 'map_label_scale.dart';
@@ -257,12 +258,22 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
                     ),
                 ]),
               // Issue #475 — a polygon/line candidate's own extent, under
-              // its marker (the pin stays the guaranteed tap target).
-              if (widget.candidates.any((candidate) => candidate.geometry != null))
+              // its marker (the pin stays the guaranteed tap target). Fed
+              // the retired list (#484): a promoted candidate's ring is drawn
+              // from the anchor below, and a tap on it must not offer the
+              // promotion #410 already withdrew from its pin.
+              if (candidates.any((candidate) => candidate.geometry != null))
                 CandidateGeometryLayer(
-                  candidates: widget.candidates,
+                  candidates: candidates,
                   onCandidateTap: widget.onCandidateTap,
                 ),
+              // #484 — area anchors' boundaries. A promoted area candidate is
+              // retired from the candidate layer above, so the ring it had
+              // there is drawn here from the anchor's own copy instead of
+              // vanishing at promotion. Under every marker: a pin inside a
+              // district stays a pin, not a tinted one.
+              if (widget.anchors.any((a) => a.rings != null))
+                AnchorAreaLayer(anchors: widget.anchors),
               MarkerLayer(markers: [
                 for (final candidate in candidates)
                   Marker(
