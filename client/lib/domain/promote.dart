@@ -31,6 +31,18 @@ AnchorProvenance provenanceFromCandidate(Candidate candidate) => AnchorProvenanc
       tags: candidate.tags,
     );
 
+/// FR108 / O3, ARCH D37 — the anchor's [Area] adopted from a polygon
+/// candidate's own boundary at promotion, `imported` rather than `authored`,
+/// and copied rather than referenced (§4.2 / P10: the anchor must survive a
+/// candidate-cache wipe). `null` for a point candidate — and for a line one:
+/// the payload's anchor is a point or a polygon, and a byway's path is
+/// passage-shaped (`line_string`), not an area to fill.
+Area? areaFromCandidate(Candidate candidate) => switch (candidate.geometry) {
+      CandidatePolygon(:final ring) =>
+        Area(rings: [List.of(ring.map(List<double>.of))], source: AreaSource.imported),
+      CandidateLine() || null => null,
+    };
+
 /// Thrown when a promotion would create a second anchor for the same source.
 /// FR106's "one anchor per place": re-promoting an already-promoted candidate
 /// must not silently duplicate the pin.

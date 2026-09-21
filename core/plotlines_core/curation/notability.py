@@ -31,6 +31,74 @@ from .taxonomy import TypeTaxonomy, TAXONOMY, match_in, weight_for
 RULESET_VERSION = "1.3.0"
 
 
+#: FR100 / ARCH D37 — the two geometry kinds a feature can carry beyond its
+#: representative point. A `polygon` is one closed exterior ring (holes are
+#: not carried: the candidate tier needs an extent and a boundary, and the
+#: payload's `polygon` gains holes only when an Author draws them). A
+#: `line` is an open path — a scenic byway, a rail-trail, a ridge — which is
+#: the shape SPIKE-H §3 measured collapsing to a centroid (issue #403).
+SHAPE_KINDS = ("polygon", "line")
+
+_GEOJSON_TYPE = {"polygon": "Polygon", "line": "LineString"}
+_KIND_FOR_GEOJSON = {v: k for k, v in _GEOJSON_TYPE.items()}
+
+
+@dataclass(frozen=True)
+class Shape:
+    """A feature's own geometry, kind-tagged so a consumer never has to
+    guess whether a coordinate run is a boundary or a path. `colocate.py`
+    clips a polygon with Sutherland-Hodgman and takes its area centroid; a
+    line put through the same code would be silently closed into a bogus
+    polygon — the discriminator is what makes carrying lines safe.
+
+    `coords` are (lon, lat) pairs. A polygon's are its closed exterior ring
+    (>= 4 positions, first == last); a line's are >= 2 vertices."""
+
+    kind: str
+    coords: tuple[tuple[float, float], ...]
+
+    def __post_init__(self) -> None:
+        if self.kind not in SHAPE_KINDS:
+            raise ValueError(f"shape kind {self.kind!r} not in {SHAPE_KINDS}")
+        n = len(self.coords)
+        if self.kind == "polygon":
+            if n < 4:
+                raise ValueError(f"polygon ring has {n} positions; needs at least 4")
+            if tuple(self.coords[0]) != tuple(self.coords[-1]):
+                raise ValueError("polygon ring is not closed: first position must equal last")
+        elif n < 2:
+            raise ValueError(f"line has {n} positions; needs at least 2")
+
+    @property
+    def extent(self) -> tuple[float, float, float, float]:
+        """(west, south, east, north) of the coordinate run."""
+        lons = [p[0] for p in self.coords]
+        lats = [p[1] for p in self.coords]
+        return (min(lons), min(lats), max(lons), max(lats))
+
+    def to_geojson(self) -> dict:
+        """RFC 7946 geometry object — the same vocabulary the trip payload's
+        `polygon` / `line_string` $defs already speak, minus `source`, which
+        is a promotion-time fact rather than an extraction-time one."""
+        coords = [[x, y] for x, y in self.coords]
+        return {
+            "type": _GEOJSON_TYPE[self.kind],
+            "coordinates": [coords] if self.kind == "polygon" else coords,
+        }
+
+    @classmethod
+    def from_geojson(cls, doc: Mapping) -> "Shape":
+        try:
+            kind = _KIND_FOR_GEOJSON[doc["type"]]
+            raw = doc["coordinates"]
+            if kind == "polygon":
+                raw = raw[0]  # exterior ring; further rings are not carried
+            coords = tuple((float(p[0]), float(p[1])) for p in raw)
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            raise ValueError(f"not a Polygon/LineString geometry: {exc}") from exc
+        return cls(kind=kind, coords=coords)
+
+
 @dataclass(frozen=True)
 class RawFeature:
     """One feature as extracted from a LayerProvider (ARCH §14.2), before
@@ -41,11 +109,11 @@ class RawFeature:
     coord: tuple[float, float]  # [lon, lat]
     tags: Mapping[str, str] = field(default_factory=dict)
     area_m2: float | None = None
-    # FR100 / ARCH D37 — exterior ring (lon, lat pairs) for an area feature,
-    # so a plugin's polygon (FR108 rest-day-on-a-polygon, area-entry
-    # triggers) survives to something downstream can read, not just a
-    # centroid. `None` for a point feature.
-    geometry: tuple[tuple[float, float], ...] | None = None
+    # FR100 / ARCH D37 — the feature's own polygon or line, so a plugin's
+    # area (FR108 rest-day-on-a-polygon, area-entry triggers) or a byway's
+    # path survives to something downstream can read, not just a
+    # representative point. `None` for a point feature.
+    geometry: Shape | None = None
 
 
 @dataclass(frozen=True)
@@ -61,11 +129,11 @@ class Candidate:
     role_affinity: str
     tags: Mapping[str, str]
     title: str | None = None
-    # Carried through from the RawFeature so an area candidate is not
-    # indistinguishable from a pin once scored (SPIKE-H §3). Both `None`
+    # Carried through from the RawFeature so an area or line candidate is
+    # not indistinguishable from a pin once scored (SPIKE-H §3). Both `None`
     # for a point.
     area_m2: float | None = None
-    geometry: tuple[tuple[float, float], ...] | None = None
+    geometry: Shape | None = None
 
 
 def score_with_taxonomy(

@@ -95,8 +95,9 @@ class ShapeDataProvider(Protocol):
     This one predates v2.0 and is the reason area support was an extension
     rather than a rewrite (ARCH §14.2): the provider layer carried polygons
     while v1.0's PRD scoped them out. A returned `RawFeature` carries its
-    exterior ring in `geometry` and its centroid in `coord`, so a consumer
-    that only understands points still has one.
+    polygon or line as a kind-tagged `Shape` in `geometry` and a
+    representative point in `coord`, so a consumer that only understands
+    points still has one (issue #403).
     """
 
     def fetch_shapes(self, bbox: BBox, kinds: list[str]) -> list[RawFeature]: ...

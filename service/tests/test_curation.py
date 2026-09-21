@@ -109,6 +109,46 @@ def test_candidates_score_omits_unqualified_over_triggering_features(client: Tes
     assert ids == {"notable_tree"}
 
 
+def test_candidates_score_carries_geometry_through_to_the_wire(client: TestClient) -> None:
+    # Issue #403 — a polygon or line feature's own geometry survives scoring
+    # and reaches the response as RFC 7946, beside `area_m2`; a point's is null.
+    ring = [[0.0, 0.0], [0.01, 0.0], [0.01, 0.01], [0.0, 0.0]]
+    path = [[0.0, 0.0], [0.05, 0.02], [0.1, 0.0]]
+    body = {
+        "live_layers": ["leisure", "man_made", "historic"],
+        "features": [
+            {"id": "park", "coord": [0.005, 0.003], "tags": {"leisure": "park"},
+             "area_m2": 30_000.0, "geometry": {"type": "Polygon", "coordinates": [ring]}},
+            {"id": "bridge", "coord": [0.05, 0.02],
+             "tags": {"man_made": "bridge", "heritage": "2"},
+             "geometry": {"type": "LineString", "coordinates": path}},
+            {"id": "castle", "coord": [0, 0], "tags": {"historic": "castle"}},
+        ],
+    }
+    resp = client.post("/candidates/score", json=body)
+    assert resp.status_code == 200
+    by_id = {c["id"]: c for c in resp.json()["candidates"]}
+    assert by_id["park"]["geometry"] == {"type": "Polygon", "coordinates": [ring]}
+    assert by_id["park"]["area_m2"] == 30_000.0
+    assert by_id["bridge"]["geometry"] == {"type": "LineString", "coordinates": path}
+    assert by_id["bridge"]["area_m2"] is None
+    assert by_id["castle"]["geometry"] is None
+    assert by_id["castle"]["area_m2"] is None
+
+
+def test_candidates_score_rejects_a_geometry_it_cannot_carry(client: TestClient) -> None:
+    body = {
+        "live_layers": ["natural"],
+        "features": [
+            {"id": "pt", "coord": [0, 0], "tags": {"natural": "peak"},
+             "geometry": {"type": "Point", "coordinates": [0, 0]}},
+        ],
+    }
+    resp = client.post("/candidates/score", json=body)
+    assert resp.status_code == 422
+    assert "geometry" in resp.json()["detail"]
+
+
 def test_candidates_extract_scores_features_from_the_layer_provider(client: TestClient) -> None:
     engine = _FakeOsmEngine([
         RawFeature(id="peak1", coord=(-105.3, 40.0), tags={"natural": "peak"}),

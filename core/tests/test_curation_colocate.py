@@ -10,7 +10,7 @@ from plotlines_core.curation.colocate import (
     analyze_colocation, analyze_colocation_full, by_corridor_proximity,
     diff_runs, mark_new_against, reviewable_cap, DEFAULTS,
 )
-from plotlines_core.curation.notability import Candidate
+from plotlines_core.curation.notability import Candidate, Shape
 from plotlines_core.curation.providers import BBox
 
 BOX = BBox(-1.0, -1.0, 1.0, 1.0)
@@ -78,7 +78,7 @@ def area_cand(cid, ring, coord=None, salience=0.8, affinity="narrative", tags=No
         id=cid, coord=coord or (sum(lons) / len(lons), sum(lats) / len(lats)),
         layer=affinity, salience=salience, role_affinity=affinity,
         tags=tags or {"historic": "district"}, title=title or cid,
-        geometry=tuple(ring))
+        geometry=Shape("polygon", tuple(ring)))
 
 
 def test_area_candidate_with_centroid_outside_bbox_is_not_dropped():
@@ -122,6 +122,62 @@ def test_area_candidate_whose_polygon_does_not_reach_the_bbox_is_still_excluded(
 
     assert len(props) == 1
     assert "way/9" not in {m.candidate_id for m in props[0].members}
+
+
+# --- line candidates: a byway clusters at the midpoint of its in-bbox run --- #
+# issue #403 — a `line` Shape must never go through the polygon clip, which
+# would close a 40 km path into a shape the feature never had and hand the
+# cluster a centroid nowhere near any part of the road.
+
+def line_cand(cid, coords, coord=None, salience=0.8, affinity="narrative", title=None):
+    return Candidate(
+        id=cid, coord=coord or coords[len(coords) // 2],
+        layer=affinity, salience=salience, role_affinity=affinity,
+        tags={"route": "scenic"}, title=title or cid,
+        geometry=Shape("line", tuple(coords)))
+
+
+def test_line_candidate_clusters_at_the_midpoint_of_its_in_bbox_run():
+    # A U-shaped byway whose two arms leave the bbox to the north: its
+    # length-centroid sits far up between the arms, well outside the bbox,
+    # and its raw `coord` is the vertex at the bottom of the U. The bbox
+    # holds only the bottom of the U, and the cafe sits on that bottom.
+    bbox = BBox(west=-82.60, south=35.55, east=-82.50, north=35.62)
+    byway = line_cand(
+        "byway/1",
+        coords=[(-82.58, 35.90), (-82.58, 35.60), (-82.52, 35.60), (-82.52, 35.90)],
+        coord=(-82.58, 35.90),  # the source's own pin, outside the bbox
+        title="Blue Ridge Scenic Byway",
+    )
+    cafe = cand("node/2", -82.5500, 35.6001, salience=0.45, affinity="provision", tags={"amenity": "cafe"})
+    water = cand("node/3", -82.5502, 35.6003, salience=0.40, affinity="provision", tags={"amenity": "drinking_water"})
+
+    props, beyond = analyze_colocation_full([byway, cafe, water], bbox)
+
+    assert beyond == 0
+    assert len(props) == 1
+    assert {m.candidate_id for m in props[0].members} == {"byway/1", "node/2", "node/3"}
+    assert props[0].role_affinities == ("narrative", "provision")
+
+
+def test_line_candidate_that_only_grazes_the_bbox_extent_is_excluded():
+    # Extent overlap admits it to the first pass; the clip then finds no
+    # segment inside, and the byway falls back to its own pin — outside.
+    bbox = BBox(west=-82.60, south=35.55, east=-82.50, north=35.62)
+    diagonal = line_cand(
+        "byway/2",
+        # bounding box reaches into the bbox's north-west corner; the path
+        # itself passes above it (at x=-82.60 the line is at y=35.70)
+        coords=[(-82.70, 35.60), (-82.55, 35.75)],
+        coord=(-82.70, 35.60),
+    )
+    cafe = cand("node/2", -82.5500, 35.6001, salience=0.45, affinity="provision")
+    water = cand("node/3", -82.5502, 35.6003, salience=0.40, affinity="provision")
+
+    props = analyze_colocation([diagonal, cafe, water], bbox)
+
+    assert len(props) == 1
+    assert "byway/2" not in {m.candidate_id for m in props[0].members}
 
 
 def test_point_candidate_bbox_membership_is_unchanged():

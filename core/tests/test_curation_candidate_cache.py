@@ -17,7 +17,7 @@ import pytest
 
 from plotlines_core.cache_layout import CacheLayout, trip_bbox_key
 from plotlines_core.curation import providers as providers_mod
-from plotlines_core.curation.notability import RULESET_VERSION, RawFeature
+from plotlines_core.curation.notability import RULESET_VERSION, RawFeature, Shape
 from plotlines_core.curation.providers import (
     LAYER_SET_VERSION,
     BBox,
@@ -53,8 +53,8 @@ def _features() -> list[RawFeature]:
         RawFeature(id="w/3", coord=(-81.90, 36.01),
                    tags={"leisure": "park", "name": "Common"},
                    area_m2=48000.0,
-                   geometry=((-81.91, 36.00), (-81.89, 36.00),
-                             (-81.89, 36.02), (-81.91, 36.00))),
+                   geometry=Shape("polygon", ((-81.91, 36.00), (-81.89, 36.00),
+                                               (-81.89, 36.02), (-81.91, 36.00)))),
     ]
 
 
@@ -96,9 +96,52 @@ def test_disk_round_trip_preserves_area_and_geometry(tmp_path):
     park = next(f for f in got if f.id == "w/3")
 
     assert park.area_m2 == 48000.0
-    assert park.geometry == ((-81.91, 36.00), (-81.89, 36.00),
-                             (-81.89, 36.02), (-81.91, 36.00))
+    assert park.geometry == Shape("polygon", ((-81.91, 36.00), (-81.89, 36.00),
+                                              (-81.89, 36.02), (-81.91, 36.00)))
     assert all(isinstance(c, tuple) for f in got for c in [f.coord])
+
+
+def test_disk_round_trip_preserves_a_line_shape(tmp_path):
+    # Issue #403 — a byway's path is cached as a `LineString`, kind intact.
+    layout = CacheLayout(tmp_path)
+    path = Shape("line", ((-81.95, 36.00), (-81.93, 36.01), (-81.90, 36.01)))
+    features = [RawFeature(id="w/4", coord=(-81.93, 36.01),
+                           tags={"route": "scenic", "name": "Ridge Road"}, geometry=path)]
+    SharedOsmFetch(_CountingEngine(features), cache_layout=layout).features_for(
+        _BBOX, set(LAYERS))
+
+    doc = json.loads(layout.candidate_set(_KEY).read_text())
+    assert doc["features"][0]["geometry"]["type"] == "LineString"
+
+    got = SharedOsmFetch(_CountingEngine([]), cache_layout=layout).features_for(
+        _BBOX, set(LAYERS))
+    assert got[0].geometry == path
+    assert got[0].area_m2 is None
+
+
+def test_a_pre_403_entry_with_a_bare_ring_still_reads_as_a_polygon(tmp_path):
+    # Entries written before #403 stored the exterior ring as a bare list.
+    # The cache key (both versions) still matches, so the file must read —
+    # a polygon was the only kind that ever reached disk — rather than cost
+    # the Author a cold re-fetch.
+    layout = CacheLayout(tmp_path)
+    ring = [[-81.91, 36.00], [-81.89, 36.00], [-81.89, 36.02], [-81.91, 36.00]]
+    doc = {
+        "layer_set_version": providers_mod.LAYER_SET_VERSION,
+        "ruleset_version": RULESET_VERSION,
+        "bbox": list(_KEY),
+        "features": [{"id": "w/3", "coord": [-81.90, 36.01],
+                      "tags": {"leisure": "park"}, "area_m2": 48000.0, "geometry": ring}],
+    }
+    path = layout.candidate_set(_KEY)
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(doc))
+
+    engine = _CountingEngine([])
+    got = SharedOsmFetch(engine, cache_layout=layout).features_for(_BBOX, set(LAYERS))
+
+    assert engine.calls == []
+    assert got[0].geometry == Shape("polygon", tuple((x, y) for x, y in ring))
 
 
 def test_a_ruleset_version_change_invalidates_the_entry(tmp_path, monkeypatch):

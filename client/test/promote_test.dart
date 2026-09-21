@@ -147,6 +147,64 @@ void main() {
       expect(anchor.containsPoint([-105.275, 40.015]), isTrue);
     });
 
+    test('areaFromCandidate adopts a polygon candidate\'s ring as an imported Area (#403)', () {
+      // The path SPIKE-H §3 found missing, at its last link: the ring that
+      // rode `/candidates` becomes the anchor's own `area`, marked
+      // `imported` so the payload records it was adopted rather than drawn.
+      const ring = [
+        [-105.28, 40.01],
+        [-105.27, 40.01],
+        [-105.27, 40.02],
+        [-105.28, 40.02],
+        [-105.28, 40.01],
+      ];
+      final candidate = Candidate(
+        id: 'w1',
+        coord: [-105.275, 40.015],
+        layer: 'leisure',
+        salience: 0.7,
+        roleAffinity: RoleAffinity.station,
+        areaM2: 12000.0,
+        geometry: const CandidatePolygon(ring: ring),
+      );
+      final area = areaFromCandidate(candidate);
+      expect(area, isNotNull);
+      expect(area!.source, AreaSource.imported);
+      expect(area.rings, [ring]);
+      // Copied, not referenced (§4.2 / P10): the anchor's ring is its own.
+      expect(identical(area.rings.first, ring), isFalse);
+
+      final anchor = promoteAnchor(
+        existingAnchors: const [],
+        id: 'a1',
+        coord: candidate.coord,
+        area: area,
+        roles: [Role(id: 'r1', kind: roleKindFromAffinity(candidate.roleAffinity))],
+        provenance: provenanceFromCandidate(candidate),
+      );
+      expect(anchor.containsPoint([-105.275, 40.015]), isTrue);
+      expect(anchor.toJson()['area']['source'], 'imported');
+    });
+
+    test('areaFromCandidate is null for a point and for a line candidate', () {
+      expect(areaFromCandidate(_candidate()), isNull);
+      final byway = Candidate(
+        id: 'byway/1',
+        coord: [0.05, 0.02],
+        layer: 'byways',
+        salience: 0.7,
+        roleAffinity: RoleAffinity.narrative,
+        geometry: const CandidateLine(coords: [
+          [0.0, 0.0],
+          [0.05, 0.02],
+          [0.1, 0.0],
+        ]),
+      );
+      // An anchor is a point or a polygon; a path is passage-shaped. Never
+      // close a byway into an area it never was.
+      expect(areaFromCandidate(byway), isNull);
+    });
+
     test('promoting with no area leaves the anchor a plain point (O2\'s AC extended)', () {
       final anchor = promoteAnchor(
         existingAnchors: const [],

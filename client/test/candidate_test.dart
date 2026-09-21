@@ -25,6 +25,95 @@ void main() {
       expect(candidate.tags['historic'], 'fort');
     });
 
+    // Issue #403 — the candidate's own geometry, when the source feature was
+    // an area or a line, is the RFC 7946 object the payload speaks and is
+    // read kind-tagged; `geometry: null` (a point) is what the sidecar sends.
+    test('reads a Polygon geometry as a CandidatePolygon with its area', () {
+      final candidate = Candidate.fromJson({
+        'id': 'w9',
+        'coord': [0.005, 0.003],
+        'layer': 'leisure',
+        'salience': 0.6,
+        'role_affinity': 'station',
+        'area_m2': 30000.0,
+        'geometry': {
+          'type': 'Polygon',
+          'coordinates': [
+            [
+              [0.0, 0.0],
+              [0.01, 0.0],
+              [0.01, 0.01],
+              [0.0, 0.0],
+            ]
+          ],
+        },
+      });
+      expect(candidate.areaM2, 30000.0);
+      final geometry = candidate.geometry;
+      expect(geometry, isA<CandidatePolygon>());
+      expect((geometry as CandidatePolygon).ring, [
+        [0.0, 0.0],
+        [0.01, 0.0],
+        [0.01, 0.01],
+        [0.0, 0.0],
+      ]);
+    });
+
+    test('reads a LineString geometry as a CandidateLine', () {
+      final candidate = Candidate.fromJson({
+        'id': 'byway/1',
+        'coord': [0.05, 0.02],
+        'layer': 'byways',
+        'salience': 0.7,
+        'role_affinity': 'narrative',
+        'area_m2': null,
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': [
+            [0, 0],
+            [0.05, 0.02],
+            [0.1, 0],
+          ],
+        },
+      });
+      expect(candidate.areaM2, isNull);
+      final geometry = candidate.geometry;
+      expect(geometry, isA<CandidateLine>());
+      expect((geometry as CandidateLine).coords, [
+        [0.0, 0.0],
+        [0.05, 0.02],
+        [0.1, 0.0],
+      ]);
+    });
+
+    test('a point candidate carries null geometry, absent or explicit', () {
+      final explicit = Candidate.fromJson({
+        'id': 'n1',
+        'coord': [0.0, 0.0],
+        'layer': 'natural',
+        'salience': 0.5,
+        'role_affinity': 'provision',
+        'area_m2': null,
+        'geometry': null,
+      });
+      expect(explicit.geometry, isNull);
+      expect(explicit.areaM2, isNull);
+    });
+
+    test('an unknown geometry type throws rather than silently dropping the shape', () {
+      expect(
+        () => Candidate.fromJson({
+          'id': 'n1',
+          'coord': [0.0, 0.0],
+          'layer': 'natural',
+          'salience': 0.5,
+          'role_affinity': 'provision',
+          'geometry': {'type': 'MultiPolygon', 'coordinates': []},
+        }),
+        throwsFormatException,
+      );
+    });
+
     test('title and tags are optional', () {
       final candidate = Candidate.fromJson({
         'id': 'n1',

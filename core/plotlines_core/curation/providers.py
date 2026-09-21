@@ -22,7 +22,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Iterable, Protocol
 
-from .notability import RULESET_VERSION, RawFeature, score_with_taxonomy
+from .notability import RULESET_VERSION, RawFeature, Shape, score_with_taxonomy
 from .taxonomy import LAYERS, TAXONOMY, TypeRule, TypeTaxonomy
 
 if TYPE_CHECKING:
@@ -174,15 +174,40 @@ def feature_from_geometry(feature_id: str, geometry, tags: dict[str, str]) -> Ra
     if geometry is None or geometry.is_empty:
         return None
     centroid = geometry.centroid
+    coord = (centroid.x, centroid.y)
     area_m2 = None
-    ring: tuple[tuple[float, float], ...] | None = None
+    shape: Shape | None = None
     if geometry.geom_type in ("Polygon", "MultiPolygon"):
         area_m2 = _approx_area_m2(geometry, centroid.y)
         poly = geometry if geometry.geom_type == "Polygon" else max(
             geometry.geoms, key=lambda g: g.area)
-        ring = tuple((float(x), float(y)) for x, y in poly.exterior.coords)
-    return RawFeature(id=feature_id, coord=(centroid.x, centroid.y), tags=tags,
-                      area_m2=area_m2, geometry=ring)
+        shape = Shape("polygon", tuple((float(x), float(y)) for x, y in poly.exterior.coords))
+    elif geometry.geom_type in ("LineString", "LinearRing", "MultiLineString"):
+        # Issue #403 / SPIKE-H §3: `geometry.centroid` does not raise on a
+        # line, so a 40 km byway used to become one silent pin. Keep the
+        # path, and pin it *on* the line — a U-shaped route's centroid can
+        # sit kilometres off any part of it.
+        line = _longest_merged_line(geometry)
+        mid = line.interpolate(0.5, normalized=True)
+        coord = (mid.x, mid.y)
+        shape = Shape("line", tuple((float(x), float(y)) for x, y in line.coords))
+    return RawFeature(id=feature_id, coord=coord, tags=tags, area_m2=area_m2, geometry=shape)
+
+
+def _longest_merged_line(geometry):
+    """One `LineString` for a line-shaped geometry. A `MultiLineString` is
+    merged where its parts touch end-to-end (a byway split at county lines
+    is one path, not several); if parts remain disjoint the longest is kept,
+    mirroring the largest-polygon choice above rather than inventing a
+    joining segment."""
+    if geometry.geom_type != "MultiLineString":
+        return geometry
+    from shapely.ops import linemerge
+
+    merged = linemerge(geometry)
+    if merged.geom_type == "LineString":
+        return merged
+    return max(merged.geoms, key=lambda g: g.length)
 
 
 #: ARCH §14.2's `LayerLicence` for the built-in OSM layers. Asserted by the
@@ -392,21 +417,24 @@ def _raw_feature_to_json(f: RawFeature) -> dict:
         "coord": [f.coord[0], f.coord[1]],
         "tags": dict(f.tags),
         "area_m2": f.area_m2,
-        "geometry": ([[x, y] for x, y in f.geometry]
-                     if f.geometry is not None else None),
+        "geometry": f.geometry.to_geojson() if f.geometry is not None else None,
     }
 
 
 def _raw_feature_from_json(d: dict) -> RawFeature:
     geom = d.get("geometry")
+    if isinstance(geom, list):
+        # Entries written before #403 stored a bare exterior ring; a polygon
+        # was the only kind that ever reached disk, so read it as one rather
+        # than paying a cold re-fetch for a cache the key still matches.
+        geom = {"type": "Polygon", "coordinates": [geom]}
     lon, lat = d["coord"]
     return RawFeature(
         id=d["id"],
         coord=(float(lon), float(lat)),
         tags=dict(d.get("tags") or {}),
         area_m2=(float(d["area_m2"]) if d.get("area_m2") is not None else None),
-        geometry=(tuple((float(x), float(y)) for x, y in geom)
-                  if geom is not None else None),
+        geometry=Shape.from_geojson(geom) if geom is not None else None,
     )
 
 

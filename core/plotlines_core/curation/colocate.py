@@ -199,10 +199,7 @@ def _in_bbox(c: Candidate, bbox: BBox) -> bool:
     rejection, same shape, different geometry source.
     """
     if c.geometry:
-        lons = [p[0] for p in c.geometry]
-        lats = [p[1] for p in c.geometry]
-        west, east = min(lons), max(lons)
-        south, north = min(lats), max(lats)
+        west, south, east, north = c.geometry.extent
     else:
         west = east = c.coord[0]
         south = north = c.coord[1]
@@ -257,13 +254,90 @@ def _cluster_anchor(c: Candidate, bbox: BBox) -> tuple[float, float]:
     back to the unclipped centroid if clipping the ring came up empty (a
     polygon whose bounding box overlaps the bbox but whose actual boundary
     does not — the bbox-vs-bbox `_in_bbox` test is coarser than this).
+
+    A line candidate (issue #403 — a byway, a rail-trail) gets the same
+    treatment with line geometry: the midpoint, by length, of the part of
+    the path inside the bbox. Running a path through the polygon clip would
+    close it into a shape the feature never had.
     """
     if not c.geometry:
         return c.coord
-    clipped = _clip_to_bbox(c.geometry, bbox)
+    if c.geometry.kind == "line":
+        pieces = _clip_line_to_bbox(c.geometry.coords, bbox)
+        return _line_midpoint(pieces) or c.coord
+    clipped = _clip_to_bbox(c.geometry.coords, bbox)
     if not clipped:
         return c.coord
     return _polygon_centroid(clipped) or c.coord
+
+
+def _clip_segment(a: tuple[float, float], b: tuple[float, float],
+                  bbox: BBox) -> tuple[tuple[float, float], tuple[float, float]] | None:
+    """Liang-Barsky clip of segment a->b against the axis-aligned `bbox`;
+    `None` when no part of it lies inside."""
+    t0, t1 = 0.0, 1.0
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    for p, q in ((-dx, a[0] - bbox.west), (dx, bbox.east - a[0]),
+                 (-dy, a[1] - bbox.south), (dy, bbox.north - a[1])):
+        if p == 0:
+            if q < 0:
+                return None
+            continue
+        r = q / p
+        if p < 0:
+            if r > t1:
+                return None
+            t0 = max(t0, r)
+        else:
+            if r < t0:
+                return None
+            t1 = min(t1, r)
+    return ((a[0] + t0 * dx, a[1] + t0 * dy), (a[0] + t1 * dx, a[1] + t1 * dy))
+
+
+def _clip_line_to_bbox(coords: Sequence[tuple[float, float]],
+                       bbox: BBox) -> list[list[tuple[float, float]]]:
+    """The runs of `coords` inside `bbox`, each a polyline; a path that
+    leaves and re-enters the bbox yields more than one."""
+    pieces: list[list[tuple[float, float]]] = []
+    current: list[tuple[float, float]] = []
+    for a, b in zip(coords, coords[1:]):
+        seg = _clip_segment(a, b, bbox)
+        if seg is None:
+            if current:
+                pieces.append(current)
+                current = []
+            continue
+        p, q = seg
+        if current and current[-1] != p:
+            pieces.append(current)
+            current = []
+        if not current:
+            current.append(p)
+        current.append(q)
+    if current:
+        pieces.append(current)
+    return pieces
+
+
+def _line_midpoint(pieces: Sequence[Sequence[tuple[float, float]]]) -> tuple[float, float] | None:
+    """The point half-way along the total length of `pieces`, walked in
+    order — planar, like `_polygon_centroid`, since it only has to land on
+    the path. `None` when there is nothing to walk."""
+    segments = [(a, b) for piece in pieces for a, b in zip(piece, piece[1:])]
+    total = sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in segments)
+    if not segments:
+        return None
+    if total <= 0.0:
+        return segments[0][0]
+    remaining = total / 2.0
+    for a, b in segments:
+        length = math.hypot(b[0] - a[0], b[1] - a[1])
+        if length >= remaining:
+            t = remaining / length if length else 0.0
+            return (a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]))
+        remaining -= length
+    return segments[-1][1]
 
 
 def _polygon_centroid(ring: Sequence[tuple[float, float]]) -> tuple[float, float] | None:

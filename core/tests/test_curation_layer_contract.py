@@ -10,7 +10,7 @@ engine that returns committed-style `RawFeature`s.
 
 from __future__ import annotations
 
-from plotlines_core.curation.notability import Candidate, RawFeature
+from plotlines_core.curation.notability import Candidate, RawFeature, Shape
 from plotlines_core.curation.providers import (
     FAILED,
     READY,
@@ -124,14 +124,14 @@ def test_area_geometry_survives_scoring_to_the_candidate():
     feats = [
         RawFeature(id="area/1", coord=(-81.895, 36.005),
                    tags={"leisure": "nature_reserve", "name": "Big Reserve"},
-                   area_m2=250_000.0, geometry=ring),
+                   area_m2=250_000.0, geometry=Shape("polygon", ring)),
         RawFeature(id="pt/1", coord=(-81.9, 36.0),
                    tags={"natural": "peak", "name": "Knob"}),
     ]
     got = {c.id: c for c in score_with_taxonomy(
         feats, TAXONOMY, live_layers={"leisure", "natural"})}
     assert got["area/1"].area_m2 == 250_000.0
-    assert got["area/1"].geometry == ring
+    assert got["area/1"].geometry == Shape("polygon", ring)
     assert got["pt/1"].area_m2 is None
     assert got["pt/1"].geometry is None
 
@@ -145,11 +145,109 @@ def test_feature_from_geometry_captures_a_polygon_exterior_ring():
     poly = Polygon([(0, 0), (d, 0), (d, d), (0, d)])
     feat = feature_from_geometry("w1", poly, {"leisure": "park"})
     assert feat is not None and feat.geometry is not None
-    assert feat.geometry[0] == (0.0, 0.0)
-    assert len(feat.geometry) == 5  # closed ring
+    assert feat.geometry.kind == "polygon"
+    assert feat.geometry.coords[0] == (0.0, 0.0)
+    assert len(feat.geometry.coords) == 5  # closed ring
 
     pt = feature_from_geometry("n1", Point(1, 2), {"natural": "peak"})
     assert pt is not None and pt.geometry is None
+
+
+# --- issue #403: line geometry survives, kind-tagged ------------------------ #
+
+def test_feature_from_geometry_keeps_a_line_and_pins_it_on_the_path():
+    """SPIKE-H §3's repro: `geometry.centroid` does not raise on a
+    LineString, so a byway used to collapse to one silent pin. Now the path
+    survives as a `line` Shape, and the pin sits *on* the path — a U-shaped
+    route's centroid is between the arms, on no road at all."""
+    from shapely.geometry import LineString
+
+    from plotlines_core.curation.providers import feature_from_geometry
+
+    u_shape = LineString([(0.0, 1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 1.0)])
+    feat = feature_from_geometry("byway/1", u_shape, {"route": "scenic", "name": "Loop"})
+    assert feat is not None and feat.geometry is not None
+    assert feat.geometry.kind == "line"
+    assert feat.geometry.coords == ((0.0, 1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 1.0))
+    assert feat.area_m2 is None
+    # midpoint by length (total 3.0 → 1.5 along) is the middle of the bottom
+    assert feat.coord == (0.5, 0.0)
+    assert u_shape.centroid.coords[0] != feat.coord  # the old pin, off the road
+
+
+def test_feature_from_geometry_merges_a_split_line_end_to_end():
+    from shapely.geometry import MultiLineString
+
+    from plotlines_core.curation.providers import feature_from_geometry
+
+    # A byway split at a county line: two parts touching end to end.
+    split = MultiLineString([[(0.0, 0.0), (1.0, 0.0)], [(1.0, 0.0), (2.0, 0.0)]])
+    feat = feature_from_geometry("byway/2", split, {"route": "scenic"})
+    assert feat is not None and feat.geometry is not None
+    assert feat.geometry.kind == "line"
+    assert feat.geometry.coords == ((0.0, 0.0), (1.0, 0.0), (2.0, 0.0))
+
+    # Disjoint parts cannot be merged; keep the longest rather than invent
+    # a joining segment (mirrors the largest-polygon rule for MultiPolygon).
+    disjoint = MultiLineString([[(0.0, 0.0), (1.0, 0.0)], [(5.0, 5.0), (5.0, 8.0)]])
+    feat = feature_from_geometry("byway/3", disjoint, {"route": "scenic"})
+    assert feat is not None and feat.geometry is not None
+    assert feat.geometry.coords == ((5.0, 5.0), (5.0, 8.0))
+
+
+def test_line_geometry_survives_scoring_to_the_candidate():
+    from plotlines_core.curation.notability import score_with_taxonomy
+    from plotlines_core.curation.taxonomy import TypeRule
+
+    taxonomy = (
+        TypeRule(layer="byways", key="route", value="scenic",
+                 base_weight=0.7, role_affinity="narrative"),
+    )
+    path = Shape("line", ((-81.9, 36.0), (-81.8, 36.05), (-81.7, 36.0)))
+    feats = [RawFeature(id="byway/1", coord=(-81.8, 36.05),
+                        tags={"route": "scenic", "name": "Ridge Road"}, geometry=path)]
+    got = score_with_taxonomy(feats, taxonomy, live_layers={"byways"})
+    assert [c.id for c in got] == ["byway/1"]
+    assert got[0].geometry == path
+    assert got[0].area_m2 is None
+
+
+def test_shape_rejects_what_its_kind_cannot_be():
+    import pytest
+
+    with pytest.raises(ValueError, match="kind"):
+        Shape("blob", ((0.0, 0.0), (1.0, 1.0)))
+    with pytest.raises(ValueError, match="at least 4"):
+        Shape("polygon", ((0.0, 0.0), (1.0, 0.0), (0.0, 0.0)))
+    with pytest.raises(ValueError, match="not closed"):
+        Shape("polygon", ((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)))
+    with pytest.raises(ValueError, match="at least 2"):
+        Shape("line", ((0.0, 0.0),))
+
+
+def test_shape_geojson_round_trip_is_the_payloads_vocabulary():
+    """The wire form is RFC 7946 — the `Polygon` / `LineString` objects the
+    trip payload's own $defs use — so the client reads one geometry
+    vocabulary, not a candidate-specific one."""
+    ring = Shape("polygon", ((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 0.0)))
+    assert ring.to_geojson() == {
+        "type": "Polygon",
+        "coordinates": [[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 0.0]]],
+    }
+    assert Shape.from_geojson(ring.to_geojson()) == ring
+    assert ring.extent == (0.0, 0.0, 1.0, 1.0)
+
+    line = Shape("line", ((0.0, 0.0), (2.0, 3.0)))
+    assert line.to_geojson() == {"type": "LineString", "coordinates": [[0.0, 0.0], [2.0, 3.0]]}
+    assert Shape.from_geojson(line.to_geojson()) == line
+    assert line.extent == (0.0, 0.0, 2.0, 3.0)
+
+    import pytest
+
+    with pytest.raises(ValueError, match="Polygon/LineString"):
+        Shape.from_geojson({"type": "Point", "coordinates": [0.0, 0.0]})
+    with pytest.raises(ValueError, match="Polygon/LineString"):
+        Shape.from_geojson({"type": "LineString"})
 
 
 def test_plugin_shaped_provider_scores_against_its_own_taxonomy():
