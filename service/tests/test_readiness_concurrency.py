@@ -223,6 +223,10 @@ def test_a_tile_extraction_failure_is_recorded_rather_than_swallowed(tmp_path, m
     assert region.routing_ready, "a tile failure must never fail the region (B1)"
     assert region.tiles_error == "OSError: upstream archive is truncated"
     assert region.diagnostics()["tiles_error"] == region.tiles_error
+    # Issue #454 — `/health`'s `capabilities.routing.regions[key]` carries it
+    # too, additive alongside `attempts` (a ready region with no tile error
+    # stays byte-identical; see the retry test below).
+    assert region.routing_capability()["tiles_error"] == region.tiles_error
     assert any("region tiles FAILED" in r.getMessage() for r in caplog.records)
 
 
@@ -297,6 +301,10 @@ def test_a_retry_clears_the_previous_attempts_tile_error(tmp_path, monkeypatch):
     region = RegionState("k", (-105.0, 40.0, -104.9, 40.1), "bike")
     region.build(tmp_path, tmp_path / "home.pmtiles")
     assert region.tiles_error is not None
+    assert "tiles_error" in region.routing_capability()
 
     region.build(tmp_path, tmp_path / "home.pmtiles")
     assert region.tiles_error is None, "a stale error would misreport a healthy retry"
+    # Issue #454 — the key disappears entirely on `/health` rather than
+    # surfacing as `"tiles_error": null`, matching `attempts`' own discipline.
+    assert "tiles_error" not in region.routing_capability()

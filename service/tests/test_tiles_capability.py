@@ -47,17 +47,32 @@ def test_upstream_mirror_host_reported_not_refused(tmp_path: Path) -> None:
     assert upstream == {"kind": "mirror", "source": url, "refused": False, "reason": None}
 
 
-def test_foreign_upstream_is_refused_before_any_region_is_built(tmp_path: Path) -> None:
+def test_foreign_upstream_is_refused_before_any_region_is_built(
+    tmp_path: Path, monkeypatch,
+) -> None:
     # FR92/FR95 (HotlinkRefused) fires here purely from string classification
     # — no `/regions` call, no network — so a misconfigured upstream is
     # visible on `/health` from the very first poll (#454's acceptance, and
-    # #453's bullet 5 this closes out).
+    # #453's bullet 5 this closes out). The monkeypatches pin the "no
+    # network" half: `classify_upstream`/`resolve_upstream` are string
+    # inspection (D41/D57), and this fails loudly if a caller ever grows a
+    # socket or urlopen underneath them.
+    def _no_network(*_args, **_kwargs):
+        raise AssertionError("classifying a tile upstream must not touch the network")
+    monkeypatch.setattr("urllib.request.urlopen", _no_network)
+    monkeypatch.setattr("socket.create_connection", _no_network)
+
     url = "https://tile.openstreetmap.org/x.pmtiles"
     client = TestClient(create_app(tmp_path, tiles_upstream=url))
-    upstream = client.get("/health").json()["capabilities"]["tiles"]["upstream"]
+    tiles = client.get("/health").json()["capabilities"]["tiles"]
+    # #155's byte-identical guarantee holds even for a refused upstream.
+    assert tiles["ready"] is True
+    assert isinstance(tiles["archive"], str) and tiles["archive"]
+    upstream = tiles["upstream"]
     assert upstream["kind"] == "foreign"
     assert upstream["refused"] is True
     assert "mirror" in upstream["reason"]
+    assert "FR92" in upstream["reason"] and "FR95" in upstream["reason"]
 
 
 def test_allow_unmirrored_tiles_suppresses_the_refusal(tmp_path: Path) -> None:
