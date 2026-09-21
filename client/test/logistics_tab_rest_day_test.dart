@@ -41,7 +41,7 @@ class _FakeSidecarManager extends SidecarManager {
   SidecarStatus get status => const SidecarStatus(SidecarState.ready);
 }
 
-Future<ProviderContainer> _pump(WidgetTester tester, Day day) async {
+Future<ProviderContainer> _pump(WidgetTester tester, Day day, {List<Anchor> anchors = const []}) async {
   final container = ProviderContainer(overrides: [
     metricUnits(),
     sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
@@ -54,6 +54,7 @@ Future<ProviderContainer> _pump(WidgetTester tester, Day day) async {
           createdAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-01-01T00:00:00Z',
           days: [day],
+          anchors: anchors,
         ),
       );
 
@@ -177,6 +178,10 @@ void main() {
   });
 
   testWidgets('promoted anchors and scheduled events on the day show as a summary', (tester) async {
+    // #482 — anchors attached to this rest day live on `Trip.anchors` via
+    // `Role.dayId` (real promotion, Layers/Proposals/hand-placed dialog),
+    // never `Day.nodes`; a third anchor attached to a different day must
+    // not be counted. Scheduled events are still a `Day.nodes` entry.
     await _pump(
       tester,
       Day(
@@ -184,16 +189,19 @@ void main() {
         index: 1,
         kind: 'rest',
         nodes: [
-          Node(id: 'n1', kind: NodeKind.poi, coord: const [0, 0]),
-          Node(id: 'n2', kind: NodeKind.poi, coord: const [0, 0]),
           Node(
-            id: 'n3',
+            id: 'n1',
             kind: NodeKind.event,
             coord: const [0, 0],
             scheduled: ScheduledWindow(opensAt: '2026-09-12T09:00:00Z'),
           ),
         ],
       ),
+      anchors: [
+        Anchor(id: 'a1', coord: const [0, 0], roles: [Role(id: 'r1', kind: RoleKind.narrative, dayId: 'd1')]),
+        Anchor(id: 'a2', coord: const [0, 0], roles: [Role(id: 'r2', kind: RoleKind.narrative, dayId: 'd1')]),
+        Anchor(id: 'a3', coord: const [0, 0], roles: [Role(id: 'r3', kind: RoleKind.narrative, dayId: 'd2')]),
+      ],
     );
 
     // PlotBadge uppercases its label.
