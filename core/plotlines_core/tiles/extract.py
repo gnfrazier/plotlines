@@ -279,6 +279,11 @@ def extract_bbox(source: str | Path, bbox: tuple[float, float, float, float],
     """
     own_stats = stats if stats is not None else ExtractStats()
     own_stats.source = str(source)
+    # The *effective* zoom range (after the clamp below) — what the log
+    # line reports, since the caller's own bound is exactly the number that
+    # can be misleading. `None` only if the header never loaded.
+    lo_z: int | None = None
+    hi_z: int | None = None
     t0 = time.monotonic()
     get_bytes, close = _open_source(source, allow_unmirrored=allow_unmirrored)
     get_bytes = _counting_source(get_bytes, own_stats)
@@ -343,7 +348,7 @@ def extract_bbox(source: str | Path, bbox: tuple[float, float, float, float],
         log.info(
             "tile extract bbox=%s zoom=[%s,%s] addresses=%d hits=%d "
             "requests=%d bytes=%d wall_s=%.3f source=%r",
-            bbox, min_zoom, max_zoom, own_stats.addresses, own_stats.hits,
+            bbox, lo_z, hi_z, own_stats.addresses, own_stats.hits,
             own_stats.requests, own_stats.bytes, own_stats.wall_time_s, source,
         )
     return out_path
