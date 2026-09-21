@@ -19,6 +19,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../../domain/candidate.dart';
 import '../../../domain/domain.dart';
+import '../../../domain/promote.dart'
+    show DuplicatePromotionException, areaFromCandidate, provenanceFromCandidate, roleKindFromAffinity;
 import '../../../state/current_trip_provider.dart';
 import '../../../state/layer_selection_provider.dart';
 import '../../../state/messages_provider.dart';
@@ -139,6 +141,13 @@ class _LayersTabState extends ConsumerState<LayersTab> {
     final candidatesState = ref.watch(tripCandidatesProvider);
     final layerStates =
         ref.watch(sidecarManagerProvider).capabilities?.layersPerLayer ?? const {};
+    // #477 — "promoted for this day" is now an anchor attachment (any role
+    // with `dayId == day.id`), not `day.nodes`: `_promote` below writes an
+    // Anchor, and attachment is a role property (FR142b, K12 / N4a), not a
+    // day-owned list.
+    final dayAnchors = day == null
+        ? const <Anchor>[]
+        : widget.trip.anchors.where((a) => a.roles.any((r) => r.dayId == day.id)).toList();
     return Row(
           children: [
             Expanded(
@@ -249,10 +258,10 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                         ),
                     ],
                     const SizedBox(height: PlotSpacing.s5),
-                    Text('Promoted (${day?.nodes.length ?? 0})',
+                    Text('Promoted (${dayAnchors.length})',
                         style: PlotTypography.title(c.textPrimary)),
                     const SizedBox(height: PlotSpacing.s2),
-                    if (day == null || day.nodes.isEmpty)
+                    if (day == null || dayAnchors.isEmpty)
                       Text('Tap a candidate on the map to promote it.',
                           style: PlotTypography.body(c.textMuted))
                     else
@@ -260,8 +269,8 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                         spacing: PlotSpacing.s2,
                         runSpacing: PlotSpacing.s2,
                         children: [
-                          for (final node in day.nodes)
-                            PlotBadge(node.title ?? node.poiType ?? node.kind.wireValue),
+                          for (final anchor in dayAnchors)
+                            PlotBadge(anchor.title ?? anchor.provenance?.layer ?? 'Untitled'),
                         ],
                       ),
                   ],
@@ -325,20 +334,45 @@ class _LayersTabState extends ConsumerState<LayersTab> {
   /// FR99 — "an Author can promote any candidate directly [...] without
   /// ever running N4." No proposal, no cluster review: a tap is the whole
   /// interaction.
+  ///
+  /// #477 — this used to append a day-scoped `Node` (`promoteCandidate`,
+  /// N3's stand-in from before O1's Anchor/role model existed). It now goes
+  /// through the same `promoteAnchor` path as the proposals view and the
+  /// hand-placed dialog: one role, pre-filled from the candidate's affinity
+  /// (`roleKindFromAffinity`) and attached to the active day directly
+  /// (`dayId: day.id`) since a tap here already names the day it's for,
+  /// geometry/provenance copied from the candidate (`areaFromCandidate` /
+  /// `provenanceFromCandidate`, #403's O3 seam). `DuplicatePromotionException`
+  /// is caught the way `proposals_view.dart` does — re-tapping an
+  /// already-promoted candidate routes the Author to editing it instead of
+  /// silently duplicating the anchor (FR106).
   void _promote(Candidate candidate) {
     final day = _activeDay;
     if (day == null) return;
-    final node = Node(
-      id: _uuid.v4(),
-      kind: NodeKind.poi,
-      coord: candidate.coord,
-      title: candidate.title,
-      poiType: candidate.layer,
-    );
-    ref.read(currentTripProvider.notifier).promoteCandidate(day.id, node);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Promoted "${node.title ?? node.poiType}"')),
-    );
+    final roles = [
+      Role(
+        id: _uuid.v4(),
+        kind: roleKindFromAffinity(candidate.roleAffinity),
+        dayId: day.id,
+      ),
+    ];
+    try {
+      final anchor = ref.read(currentTripProvider.notifier).promoteAnchor(
+            coord: candidate.coord,
+            roles: roles,
+            title: candidate.title,
+            area: areaFromCandidate(candidate),
+            provenance: provenanceFromCandidate(candidate),
+          );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Promoted "${anchor.title ?? candidate.layer}"')),
+      );
+    } on DuplicatePromotionException {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Already promoted — edit its roles in the Anchors view')),
+      );
+    }
   }
 }
 

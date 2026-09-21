@@ -1024,16 +1024,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     return node;
   }
 
-  /// FR99 — an Author promoting a candidate directly off the curation map's
-  /// `layers_tab.dart`. Deliberately still a day-scoped node (`Day.nodes`,
-  /// the same field a rest day's POIs use), not [promoteAnchor]: the
-  /// Anchor/role model now exists (FR106/FR110, Story O1), but wiring
-  /// `layers_tab.dart`'s candidate map onto it is that story's UI half and
-  /// out of this call site's scope. `Node.poiType` carries "the Author-set
-  /// type this node counts as" for exactly this case in the meantime. Both
-  /// outputs are drawn on the Layers tab's map since #410 — the node as a
-  /// `NodeMarker`, an anchor as an `AnchorMarker` — so the tap is visible
-  /// either way; the migration itself is #477.
+  /// A day-scoped node from a candidate — still used by `logistics_tab.dart`
+  /// for lodging (`domain/lodging.dart`'s `lodgingNodeFromCandidate`, a
+  /// different FR from FR99's anchor promotion and deliberately still a
+  /// `Day.nodes` entry, the same field a rest day's POIs use).
+  ///
+  /// `layers_tab.dart`'s FR99 "promote directly from the map" tap used to go
+  /// through here too (N3's stand-in from before O1's Anchor/role model
+  /// existed) — #477 moved that call site onto [promoteAnchor] instead, so
+  /// this mutator's remaining caller is lodging only.
   void promoteCandidate(String dayId, Node node) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     _replaceDay(day.copyWith(nodes: [...day.nodes, node]));

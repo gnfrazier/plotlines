@@ -178,8 +178,10 @@ void main() {
       expect(unpromotedCandidates([c1, c2], anchors, const []), [c1, c2]);
     });
 
-    // The Layers tab's tap-to-promote still writes a day `Node` at the
-    // candidate's exact coord (#477); that node retires the candidate too.
+    // A day-scoped `Node` at a candidate's exact coord (e.g. the lodging
+    // path, `logistics_tab.dart`'s `promoteCandidate` — #477 moved the
+    // Layers tab's own tap-to-promote off this mechanism onto an anchor)
+    // still retires the candidate the same way.
     test('a candidate promoted to a node is retired by exact coord', () {
       const nodes = <MapMarkerPoint>[
         (coord: [-105.28, 40.03], role: NodeMarkerType.plot, arcStage: null),
@@ -288,9 +290,9 @@ void main() {
       expect(find.byType(AnchorMarker), findsOneWidget);
     });
 
-    // #477 — the Layers tab's tap still writes a day node; it is drawn as
-    // the Route tab draws it, and the candidate it copied its coord from
-    // is retired.
+    // A day-scoped node from any producer (lodging, since #477 moved the
+    // Layers tab's own tap onto an anchor instead) draws as the Route tab
+    // draws it, and the candidate it copied its coord from is retired.
     testWidgets('a promoted day node draws as a NodeMarker and retires the pin',
         (tester) async {
       await tester.pumpWidget(_wrap(CandidateMap(
