@@ -1014,7 +1014,14 @@ class _RestDayDetailsState extends ConsumerState<_RestDayDetails> {
     final location = widget.day.location;
     final locationLabel = widget.day.locationLabel;
     final scheduled = widget.day.nodes.where((n) => n.scheduled != null).length;
-    final anchors = widget.day.nodes.length - scheduled;
+    // #482 — real anchor promotion (Layers tab, Proposals view, the
+    // hand-placed dialog) writes `Trip.anchors` with a `Role.dayId`
+    // attachment, never `Day.nodes`; this badge undercounted every
+    // promotion path by reading the wrong model. Same "attached to this
+    // day" predicate `layers_tab.dart`'s `dayAnchors` and `AnchorsView`
+    // already use.
+    final trip = ref.watch(currentTripProvider);
+    final anchors = trip.anchors.where((a) => a.roles.any((r) => r.dayId == widget.day.id)).length;
     return PlotCard(
       sunk: true,
       padding: const EdgeInsets.all(PlotSpacing.s3),
@@ -1067,7 +1074,7 @@ class _RestDayDetailsState extends ConsumerState<_RestDayDetails> {
             decoration: const InputDecoration(hintText: 'Itinerary detail', isDense: true),
             onChanged: (v) => ref.read(currentTripProvider.notifier).setDayNote(widget.day.id, v),
           ),
-          if (widget.day.nodes.isNotEmpty) ...[
+          if (widget.day.nodes.isNotEmpty || anchors > 0) ...[
             const SizedBox(height: PlotSpacing.s2),
             Wrap(
               spacing: PlotSpacing.s2,
