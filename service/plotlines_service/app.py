@@ -55,6 +55,7 @@ from plotlines_core.curation.providers import BBox, OsmLayerProvider
 from plotlines_core.curation.registry import build_default_registry
 from plotlines_core.elevation.interface import (
     ElevationResolver,
+    ElevationUnavailable,
     HttpElevationSource,
     LocalCacheSource,
 )
@@ -185,8 +186,8 @@ ELEVATION_NOT_CONFIGURED: dict = {
 # (`plotlines_service.elevation_proxy`), this replaces `ELEVATION_NOT_CONFIGURED`
 # above. It reports that the sidecar *attempts* elevation through the shared
 # QA cache, not that any particular region's sampler resolved — a per-region
-# sampler failure degrades silently to flat elevation (FR88), the same as
-# every other void case, without flipping this process-wide capability off.
+# resolution failure leaves that region's `elevation` absent (logged, never
+# silent; issue #466), without flipping this process-wide capability off.
 ELEVATION_QA_PROXY_CONFIGURED: dict = {
     "ready": True,
     "reason": "qa_pi5_elevation_proxy",
@@ -727,11 +728,19 @@ class RegionState:
         # QA/UAT-only elevation, companion to epic #264 — NOT #148's
         # production wiring (see `ELEVATION_QA_PROXY_CONFIGURED` above).
         # Best-effort and independent of routing, same discipline as tiles
-        # just above: a Pi5 proxy that is unreachable degrades this region to
-        # flat elevation (existing FR88 void policy) rather than failing the
-        # build, and — deliberately — never falls back to a direct
-        # OpenTopography call from the sidecar, which would defeat the whole
-        # point of centralising calls behind the shared cache.
+        # just above: a Pi5 proxy that is unreachable leaves this region
+        # without elevation data (`elevation` absent from a response, issue
+        # #466) rather than failing the build, and — deliberately — never
+        # falls back to a direct OpenTopography call from the sidecar, which
+        # would defeat the whole point of centralising calls behind the
+        # shared cache.
+        #
+        # This calls `resolve()` directly rather than `sampler_for()`: the
+        # latter's degraded-sampler fallback is FR88's *in-raster-void*
+        # policy (nodata/NaN/out-of-bounds within a raster that did open),
+        # which stays untouched for graph enrichment (FR89) — a source that
+        # never resolved at all is a different case and gets no sampler
+        # here, not a flat one.
         if elevation_upstream:
             try:
                 e_cache = LocalCacheSource(CacheLayout(cache_dir).elevation_dir)
@@ -746,7 +755,14 @@ class RegionState:
                         ),
                     ]
                 )
-                self.sampler = e_resolver.sampler_for(self.bbox)
+                try:
+                    raster = e_resolver.resolve(self.bbox)
+                except ElevationUnavailable as exc:
+                    log.warning("region elevation UNAVAILABLE key=%s bbox=%s: %s",
+                                self.key, self.bbox, exc)
+                    self.sampler = None
+                else:
+                    self.sampler = ElevationSampler(raster.path)
             except Exception as exc:  # noqa: BLE001 — elevation never fails a region (FR88)
                 log.warning("region elevation FAILED key=%s bbox=%s: %s",
                             self.key, self.bbox, exc)
@@ -1452,8 +1468,8 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         (companion to epic #264, not #148's production path): when set,
         `elevation` reports `ELEVATION_QA_PROXY_CONFIGURED` instead — this is
         process-wide, like `tiles`/`layers`, not per-region like `routing`; a
-        given region's own sampler still degrades silently on a proxy miss
-        (FR88), never flipping this back off.
+        given region's own `elevation` still comes back absent on a proxy
+        miss (logged, never silent; issue #466), never flipping this back off.
 
         Version-mismatch refusal (A8, M12) is unchanged and lives entirely
         client-side in `SidecarManager.start()`, before the sidecar is even
