@@ -28,9 +28,10 @@ import 'package:flutter/foundation.dart';
 ///     builder's environment.
 ///  3. The built-in default: the Plotlines-operated mirror at
 ///     [defaultMirrorUrl], matching `tiles/mirror.py`'s `MIRROR_HOST`
-///     posture (a test pins the two to each other). Only the mirror URL has
-///     a default; the key, the state URL, the elevation proxy, and the
-///     tiles upstream (#453) have none.
+///     posture, and the tiles upstream at [defaultTilesUpstream] (issue
+///     #457), matching `MIRROR_WNC_CORRIDOR_URL` (tests pin all three to
+///     the core side). The key, the state URL, and the elevation proxy have
+///     no default.
 ///
 /// The literal `off` at any level disables that upstream outright — the
 /// sidecar is then started without the flag, exactly as before #434, and
@@ -59,6 +60,13 @@ class SidecarUpstreams {
   /// `MIRROR_STATE.json` sits beside it for the staleness monitor (#367).
   /// Pinned to `core/plotlines_core/tiles/mirror.py::MIRROR_HOST` by test.
   static const String defaultMirrorUrl = 'https://tiles.plotlines.app';
+
+  /// The mirror's primary covered region's basemap archive (issue #457).
+  /// Pinned to `core/plotlines_core/tiles/mirror.py::MIRROR_WNC_CORRIDOR_URL`
+  /// by test — the WNC corridor is the one region `deploy/mirror/
+  /// protomaps_extract.py`'s `DEFAULT_REGIONS` marks `primary=True`.
+  static const String defaultTilesUpstream =
+      'https://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles';
 
   /// Environment-variable / `--dart-define` names. One set of names for both
   /// channels so the README can document each once.
@@ -104,16 +112,19 @@ class SidecarUpstreams {
   final String? elevationUpstream;
 
   /// The sidecar's `--tiles-upstream`: a PMTiles source a region's on-demand
-  /// tile cache is extracted from (issue #453, epic #458). **No built-in
-  /// default here** — `tiles/mirror.py`'s `MIRROR_WNC_CORRIDOR_URL` is one
-  /// region's coverage, not the production basemap, and
-  /// `MIRROR_ARCHIVE_URL` still names an unacquired planet build (#394's
-  /// remaining item). Unset, the sidecar keeps its own default: the
-  /// committed home-region archive, no network. A production default is
-  /// #457's decision, not this field's. Never combine this with
-  /// `--allow-unmirrored-tiles` — [toSidecarArgs] never emits that flag, so
-  /// a third-party host here is refused by the sidecar (`HotlinkRefused`,
-  /// FR92/FR95), not allowed through.
+  /// tile cache is extracted from (issue #453, epic #458). Defaults to
+  /// [defaultTilesUpstream] — `tiles/mirror.py`'s `MIRROR_WNC_CORRIDOR_URL`,
+  /// the mirror's one *primary* covered region (issue #457's decision: the
+  /// production basemap is TTL-refreshed on-demand extraction through the
+  /// mirror, not a purchased planet archive — `MIRROR_ARCHIVE_URL` still
+  /// names that unacquired build and is never defaulted to). A trip bbox
+  /// outside every region the mirror actually covers still shows the #318
+  /// graticule after this default — an honest, bounded gap, not the "any
+  /// bbox in the service area" claim #453's own comment corrected away
+  /// from. Never combine this with `--allow-unmirrored-tiles` —
+  /// [toSidecarArgs] never emits that flag, so a third-party host here is
+  /// refused by the sidecar (`HotlinkRefused`, FR92/FR95), not allowed
+  /// through.
   final String? tilesUpstream;
 
   /// Whether the sidecar will be told about a mirror at all.
@@ -130,7 +141,8 @@ class SidecarUpstreams {
       mirrorStateUrl: _pick(env[mirrorStateUrlVar], _defineMirrorStateUrl, null),
       elevationUpstream:
           _pick(env[elevationUpstreamVar], _defineElevationUpstream, null),
-      tilesUpstream: _pick(env[tilesUpstreamVar], _defineTilesUpstream, null),
+      tilesUpstream: _pick(
+          env[tilesUpstreamVar], _defineTilesUpstream, defaultTilesUpstream),
     );
   }
 

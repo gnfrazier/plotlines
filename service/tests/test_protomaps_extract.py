@@ -186,18 +186,57 @@ def test_acquire_extracts_and_publishes_end_to_end(
     assert "-83.6,35.2,-81.0,36.4" in body
 
     state = json.loads((mirror_root / "MIRROR_STATE.json").read_text())
+    # Primary region (default) — mirrored up to the flat top-level shape
+    # mirror_state.basemap_health() and the client already read.
     assert state["basemap"]["build_id"] == "20260913-wnc"
-    assert state["basemap"]["covered_regions"] == [
-        {"name": "wnc-corridor", "bbox": list(_BBOX)},
-    ]
     assert state["basemap"]["source"]["provider"] == "protomaps"
     assert state["basemap"]["source"]["planet_build_date"] == "20260913"
     assert state["basemap"]["source"]["source_url"] == f"{date_probe_server.base_url}/20260913.pmtiles"
     assert state["basemap"]["extracted_at"] == "2026-09-14T12:00:00Z"
 
+    # Issue #457 — covered_regions is a dict keyed by region name, one full
+    # entry per region, not a two-field list.
+    region = state["basemap"]["covered_regions"]["wnc-corridor"]
+    assert region["name"] == "wnc-corridor"
+    assert region["bbox"] == list(_BBOX)
+    assert region["build_id"] == "20260913-wnc"
+    assert region["path"] == "basemap/protomaps/20260913-wnc/corridor.pmtiles"
+    assert region["source"]["planet_build_date"] == "20260913"
+    assert region["extracted_at"] == "2026-09-14T12:00:00Z"
+
     # geofabrik key is untouched — same non-clobbering contract every other
     # script writing into MIRROR_STATE.json holds to.
     assert state["geofabrik"] == {"pinned_date": "2026-09-01", "regions": {"nc": {"checked_at": "x"}}}
+
+
+def test_a_non_primary_region_does_not_touch_the_top_level_fields(
+    fake_pmtiles_bin, mirror_root, date_probe_server,
+) -> None:
+    date_probe_server.live_dates.add("20260913")
+    now = datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc)
+
+    # Publish the primary region first, exactly as a real refresh run would.
+    pe.acquire(
+        root=mirror_root, bbox=_BBOX, region_name="wnc-corridor",
+        build_id="20260913-wnc", upstream_base_url=date_probe_server.base_url,
+        pmtiles_bin=str(fake_pmtiles_bin), now=now,
+    )
+    nc_bbox = (-84.32, 33.75, -75.40, 36.59)
+    pe.acquire(
+        root=mirror_root, bbox=nc_bbox, region_name="nc", build_id="20260913-nc",
+        upstream_base_url=date_probe_server.base_url, pmtiles_bin=str(fake_pmtiles_bin),
+        now=now, filename="nc.pmtiles", primary=False,
+    )
+
+    state = json.loads((mirror_root / "MIRROR_STATE.json").read_text())
+    # Top level still reflects the primary region, unchanged by the NC publish.
+    assert state["basemap"]["build_id"] == "20260913-wnc"
+    # Both regions are tracked independently.
+    assert set(state["basemap"]["covered_regions"]) == {"wnc-corridor", "nc"}
+    nc_dest = mirror_root / "basemap" / "protomaps" / "20260913-nc" / "nc.pmtiles"
+    assert nc_dest.is_file()
+    assert state["basemap"]["covered_regions"]["nc"]["path"] == \
+        "basemap/protomaps/20260913-nc/nc.pmtiles"
 
 
 def test_explicit_build_date_skips_probing(fake_pmtiles_bin, mirror_root, date_probe_server) -> None:
@@ -266,3 +305,202 @@ def test_resolve_pmtiles_bin_raises_clearly_when_nothing_is_found(monkeypatch) -
 
     with pytest.raises(pe.ExtractFailed, match="no `pmtiles` binary found"):
         pe._resolve_pmtiles_bin(None)
+
+
+# --- region_is_fresh / region_extracted_at (issue #457) ---------------------
+
+def test_region_is_fresh_true_within_ttl() -> None:
+    now = datetime(2026, 9, 21, tzinfo=timezone.utc)
+    state = {"basemap": {"covered_regions": {
+        "wnc-corridor": {"extracted_at": "2026-08-25T00:00:00Z"},  # 27 days old
+    }}}
+    assert pe.region_is_fresh(state, "wnc-corridor", ttl_days=30.0, now=now) is True
+
+
+def test_region_is_fresh_false_past_ttl() -> None:
+    now = datetime(2026, 9, 21, tzinfo=timezone.utc)
+    state = {"basemap": {"covered_regions": {
+        "wnc-corridor": {"extracted_at": "2026-08-01T00:00:00Z"},  # 51 days old
+    }}}
+    assert pe.region_is_fresh(state, "wnc-corridor", ttl_days=30.0, now=now) is False
+
+
+def test_region_is_fresh_false_when_never_extracted() -> None:
+    now = datetime(2026, 9, 21, tzinfo=timezone.utc)
+    assert pe.region_is_fresh({"basemap": {}}, "nc", ttl_days=30.0, now=now) is False
+    assert pe.region_is_fresh({}, "nc", ttl_days=30.0, now=now) is False
+
+
+# --- refresh_region / refresh_all (issue #457) ------------------------------
+
+def test_refresh_region_is_a_no_op_when_fresh(
+    fake_pmtiles_bin, mirror_root, date_probe_server, monkeypatch,
+) -> None:
+    date_probe_server.live_dates.add("20260913")
+    now = datetime(2026, 9, 14, tzinfo=timezone.utc)
+    spec = pe.RegionSpec(
+        key="wnc-corridor", label="WNC", bbox=_BBOX, build_id="20260913-wnc",
+        filename="corridor.pmtiles", primary=True,
+    )
+    pe.acquire(
+        root=mirror_root, bbox=spec.bbox, region_name=spec.key, build_id=spec.build_id,
+        upstream_base_url=date_probe_server.base_url, pmtiles_bin=str(fake_pmtiles_bin), now=now,
+    )
+    date_probe_server.request_log.clear()
+
+    # No subprocess invoked on a fresh re-run: fail loudly if extraction is
+    # attempted anyway.
+    def _boom(*_a, **_kw):
+        raise AssertionError("pmtiles extract must not run for a fresh region")
+    monkeypatch.setattr(pe, "run_pmtiles_extract", _boom)
+
+    later = now + pe.timedelta(days=5)  # still within the default 30-day TTL
+    result = pe.refresh_region(root=mirror_root, spec=spec, ttl_days=30.0, now=later)
+
+    assert result.skipped is True
+    assert result.reason == "fresh"
+    assert date_probe_server.request_log == []  # no build-date re-probe either
+
+
+def test_refresh_region_re_extracts_when_stale(
+    fake_pmtiles_bin, mirror_root, date_probe_server,
+) -> None:
+    date_probe_server.live_dates.add("20260101")
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    spec = pe.RegionSpec(
+        key="wnc-corridor", label="WNC", bbox=_BBOX, build_id="20260913-wnc",
+        filename="corridor.pmtiles", primary=True,
+    )
+    pe.acquire(
+        root=mirror_root, bbox=spec.bbox, region_name=spec.key, build_id=spec.build_id,
+        upstream_base_url=date_probe_server.base_url, pmtiles_bin=str(fake_pmtiles_bin), now=now,
+    )
+
+    date_probe_server.live_dates.add("20260305")
+    later = now + pe.timedelta(days=63)  # past the default 30-day TTL
+    result = pe.refresh_region(
+        root=mirror_root, spec=spec, ttl_days=30.0, now=later,
+        upstream_base_url=date_probe_server.base_url, pmtiles_bin=str(fake_pmtiles_bin),
+    )
+
+    assert result.skipped is False
+    state = json.loads((mirror_root / "MIRROR_STATE.json").read_text())
+    assert state["basemap"]["covered_regions"]["wnc-corridor"]["extracted_at"] == \
+        later.isoformat().replace("+00:00", "Z")
+    assert state["basemap"]["covered_regions"]["wnc-corridor"]["source"]["planet_build_date"] == "20260305"
+
+
+def test_refresh_region_force_bypasses_freshness(
+    fake_pmtiles_bin, mirror_root, date_probe_server,
+) -> None:
+    date_probe_server.live_dates.add("20260913")
+    now = datetime(2026, 9, 14, tzinfo=timezone.utc)
+    spec = pe.RegionSpec(
+        key="wnc-corridor", label="WNC", bbox=_BBOX, build_id="20260913-wnc",
+        filename="corridor.pmtiles", primary=True,
+    )
+    pe.acquire(
+        root=mirror_root, bbox=spec.bbox, region_name=spec.key, build_id=spec.build_id,
+        upstream_base_url=date_probe_server.base_url, pmtiles_bin=str(fake_pmtiles_bin), now=now,
+    )
+    later = now + pe.timedelta(days=1)  # well within TTL
+
+    result = pe.refresh_region(
+        root=mirror_root, spec=spec, ttl_days=30.0, now=later, force=True,
+        upstream_base_url=date_probe_server.base_url, pmtiles_bin=str(fake_pmtiles_bin),
+    )
+
+    assert result.skipped is False
+
+
+def test_refresh_all_pulls_at_least_two_named_regions(
+    fake_pmtiles_bin, mirror_root, date_probe_server,
+) -> None:
+    date_probe_server.live_dates.add("20260913")
+    now = datetime(2026, 9, 14, tzinfo=timezone.utc)
+    regions = (
+        pe.RegionSpec(key="wnc-corridor", label="WNC", bbox=_BBOX,
+                       build_id="20260913-wnc", filename="corridor.pmtiles", primary=True),
+        pe.RegionSpec(key="nc", label="NC", bbox=(-84.32, 33.75, -75.40, 36.59),
+                       build_id="20260913-nc", filename="nc.pmtiles"),
+    )
+
+    results = pe.refresh_all(
+        root=mirror_root, regions=regions, ttl_days=30.0, now=now,
+        upstream_base_url=date_probe_server.base_url, pmtiles_bin=str(fake_pmtiles_bin),
+    )
+
+    assert [r.region.key for r in results] == ["wnc-corridor", "nc"]
+    assert all(not r.skipped for r in results)
+    state = json.loads((mirror_root / "MIRROR_STATE.json").read_text())
+    assert set(state["basemap"]["covered_regions"]) == {"wnc-corridor", "nc"}
+    assert (mirror_root / "basemap" / "protomaps" / "20260913-wnc" / "corridor.pmtiles").is_file()
+    assert (mirror_root / "basemap" / "protomaps" / "20260913-nc" / "nc.pmtiles").is_file()
+
+
+# --- CLI: --ttl-days / PLOTLINES_TILES_TTL_DAYS / --regions -----------------
+
+def test_ttl_days_env_var_overrides_the_default(monkeypatch, mirror_root) -> None:
+    monkeypatch.setenv(pe.ENV_TTL_DAYS, "7")
+    captured = {}
+
+    def _stub(*, ttl_days, **_kwargs):
+        captured["ttl_days"] = ttl_days
+        return []
+
+    monkeypatch.setattr(pe, "refresh_all", _stub)
+    pe.main(["--root", str(mirror_root)])
+
+    assert captured["ttl_days"] == 7.0
+
+
+def test_ttl_days_flag_overrides_the_env_var(monkeypatch, mirror_root) -> None:
+    monkeypatch.setenv(pe.ENV_TTL_DAYS, "7")
+    captured = {}
+
+    def _stub(*, ttl_days, **_kwargs):
+        captured["ttl_days"] = ttl_days
+        return []
+
+    monkeypatch.setattr(pe, "refresh_all", _stub)
+    pe.main(["--root", str(mirror_root), "--ttl-days", "3"])
+
+    assert captured["ttl_days"] == 3.0
+
+
+def test_cli_regions_flag_selects_a_named_subset(
+    fake_pmtiles_bin, mirror_root, date_probe_server,
+) -> None:
+    date_probe_server.live_dates.add("20260913")
+    rc = pe.main([
+        "--root", str(mirror_root), "--regions", "nc",
+        "--upstream-base-url", date_probe_server.base_url,
+        "--pmtiles-bin", str(fake_pmtiles_bin),
+    ])
+    assert rc == 0
+    state = json.loads((mirror_root / "MIRROR_STATE.json").read_text())
+    assert set(state["basemap"]["covered_regions"]) == {"nc"}
+    # nc is not primary, so it never overwrites the top-level build_id —
+    # left at the fixture's pre-seeded None, not stamped with nc's pin.
+    assert state["basemap"]["build_id"] is None
+
+
+def test_cli_unknown_region_key_errors(mirror_root) -> None:
+    with pytest.raises(SystemExit):
+        pe.main(["--root", str(mirror_root), "--regions", "not-a-real-region"])
+
+
+def test_cli_explicit_bbox_runs_a_single_ad_hoc_region(
+    fake_pmtiles_bin, mirror_root, date_probe_server,
+) -> None:
+    date_probe_server.live_dates.add("20260913")
+    rc = pe.main([
+        "--root", str(mirror_root), "--bbox=-80.0,35.0,-79.0,36.0",
+        "--region-name", "custom", "--build-id", "20260913-custom",
+        "--upstream-base-url", date_probe_server.base_url,
+        "--pmtiles-bin", str(fake_pmtiles_bin),
+    ])
+    assert rc == 0
+    state = json.loads((mirror_root / "MIRROR_STATE.json").read_text())
+    assert "custom" in state["basemap"]["covered_regions"]
+    assert state["basemap"]["build_id"] == "20260913-custom"

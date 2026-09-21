@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 
+from plotlines_core.tiles.mirror_state import DEFAULT_BASEMAP_TTL_DAYS
 from plotlines_service.app import create_app
 
 def _now_iso_minus(days: int) -> str:
@@ -48,6 +49,9 @@ def test_mirror_capability_reads_a_fresh_local_state_file(tmp_path):
     assert mirror["stale"] is False
     assert mirror["basemap"]["stale"] is False
     assert mirror["geofabrik"]["stale"] is False
+    # Issue #457 — the basemap's own TTL is reported alongside age/stale,
+    # distinct from Geofabrik's MAX_PIN_AGE_DAYS.
+    assert mirror["basemap"]["max_age_days"] == DEFAULT_BASEMAP_TTL_DAYS
 
 
 def test_mirror_capability_reports_stale_for_a_deliberately_stalled_pull(tmp_path):

@@ -269,8 +269,8 @@ immutable.
 /srv/plotlines-mirror/
   MIRROR_STATE.json                                     # freshness marker + covered regions — see 6.6
   COPYRIGHT.txt                                         # 1a: ODbL notice for the whole tree
-  basemap/protomaps/20250101/planet.pmtiles             # matches MIRROR_ARCHIVE_URL exactly
-  basemap/protomaps/20250101-wnc/corridor.pmtiles       # 1b: the SPIKE-14 stand-in, honestly named
+  basemap/protomaps/20250101/planet.pmtiles             # matches MIRROR_ARCHIVE_URL — still unprovisioned; ARCH D65 (2026-09-21) makes per-region on-demand extraction the accepted answer instead
+  basemap/protomaps/20250101-wnc/corridor.pmtiles       # 1b: real extract since #394/#457, TTL-refreshed — no longer the SPIKE-14 stand-in
   osm/COPYRIGHT.txt                                     # © OpenStreetMap contributors, ODbL 1.0
   osm/geofabrik/2026-09-01/index-v1.json                # licence checked (#259) — mirrored — 1a
   osm/geofabrik/2026-09-01/north-america/us/north-carolina.osm.pbf
@@ -738,7 +738,7 @@ are the addendum's recommendations, adopted as written.
 | **Q3** | Where the covering-set merge happens | **Dissolved by Q1-C** — there is no covering set and no merge | The way-deduplicating merge never lands on the client, which was the plan's hardest correctness surface (§11.7) |
 | **Q4** | ODbL redistribution sign-off | **A — write `docs/Plotlines_Licensing_Position.md`**, decide against the OSMF community guidelines, record as an ARCH D-number | Filed as **#253**, in **Phase 0** — not a Phase 3 gate, because share-alike is already implicated by today's sharing surfaces (addendum L2) |
 | **Q5** | Keep the interactive Overpass affordance | **A — keep public instances, hard-capped**, budget named as ours to spend | The caps are mechanical (addendum P4): bbox area below `max_query_area_size` so it can never subdivide, concurrency 1, a per-day budget that fails closed with an honest message, no automatic retry. Phase 5 |
-| **Q6** | Egress budget when web lands | **D + C — clip server-side, put remaining bulk on zero-egress object storage** | Egress drops by roughly the ratio of bbox area to region area. §6.3's layout must stay a bucket layout (§6.0) |
+| **Q6** | Egress budget when web lands | **D + C — clip server-side, put remaining bulk on zero-egress object storage.** *Amended 2026-09-21 (issue #457, ARCH **D65**): this answer's "D" half never covered the basemap's own bulk — a purchased whole-planet Protomaps build stayed unprovisioned, with no mechanism to refresh even the one region the mirror carried. The **basemap-tile reading is corrected**: TTL-refreshed on-demand `pmtiles extract` against Protomaps' hosted daily build, through the mirror, for a small named-region list — never a planet archive on object storage. The **OSM-extract half is unchanged** — `/clip` still clips Geofabrik state files server-side per trip bbox (D63), and pinned bulk state files still live on the Pi's NVMe, not object storage | Egress drops by roughly the ratio of bbox area to region area. §6.3's layout must stay a bucket layout (§6.0) |
 
 **One measurement still owed against Q6.** §11.5's premise — "an active Author re-pulls a regional
 extract for each new trip in a new region" — is arithmetic once SPIKE-I reports extract sizes

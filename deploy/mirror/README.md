@@ -72,36 +72,52 @@ Raspberry Pi OS but not guaranteed on a minimal image.
 #258/#260's job), and only ever (re)writes Plotlines' own static
 `COPYRIGHT.txt` files and creates directories.
 
-**`protomaps_extract.py` (#394) is now the primary way to populate the
-basemap** — it runs after `build_tree.sh`, on a machine with the `pmtiles`
-CLI installed (not necessarily the Pi), and writes directly into `--root`
-(point it at the mounted mirror tree, or a scratch dir to copy over
-afterward):
+**`protomaps_extract.py` (#394, generalized to a repeatable multi-region
+refresh by #457) is now the primary way to populate the basemap** — it runs
+after `build_tree.sh`, on a machine with the `pmtiles` CLI installed (not
+necessarily the Pi), and writes directly into `--root` (point it at the
+mounted mirror tree, or a scratch dir to copy over afterward):
 
 ```
 ./protomaps_extract.py --root /srv/plotlines-mirror
 ```
 
-It extracts a **real** corridor archive from Protomaps' own hosted daily
-planet build (`pmtiles extract` against `build.protomaps.com` — measured: 95
-requests, 124 MB transferred, ~11s) and publishes it under the same honest
-path `copy_basemap_standin.sh` used, merging the same
-`basemap.build_id`/`basemap.covered_regions` shape into `MIRROR_STATE.json`
-plus a `source`/`extracted_at` provenance record, leaving `geofabrik`
-untouched. See its module docstring for why the CLI tool is required rather
-than reusing `plotlines_core.tiles.extract.extract_bbox` (that path is fine
-for a live per-trip request, but re-walks the archive per tile with no
-request coalescing — measured too slow for a 43k-tile regional pull).
+With no region-selecting flags this walks every region in `DEFAULT_REGIONS`
+(today: the WNC corridor, the mirror's *primary* region, plus North
+Carolina full-state), extracting a **real** archive from Protomaps' own
+hosted daily planet build for each (`pmtiles extract` against
+`build.protomaps.com` — measured against the WNC corridor bbox: 95 requests,
+124 MB transferred, ~11s) and publishing it under its own honest path
+(`basemap/protomaps/<build-id>/<filename>`). It's **safe to run daily from
+cron/systemd** — a region whose extract is within `--ttl-days` (default 30,
+env `PLOTLINES_TILES_TTL_DAYS`; distinct from Geofabrik's 45-day pin-age
+window since Protomaps' own daily builds live only about a week) is skipped
+with no subprocess or network call at all; `--force` re-extracts every
+selected region regardless, and `--regions wnc-corridor,nc` narrows a run to
+named keys. `MIRROR_STATE.json`'s `basemap.covered_regions` is a dict keyed
+by region name, each entry carrying its own `bbox`/`path`/`build_id`/
+`source`/`extracted_at` — the *primary* region's entry is additionally
+mirrored up to `basemap`'s own top-level `build_id`/`source`/`extracted_at`,
+the flat shape `mirror_state.basemap_health()` and the client read, so
+non-primary regions never affect the staleness the client sees. `geofabrik`
+is left untouched throughout. See the script's module docstring for why the
+CLI tool is required rather than reusing
+`plotlines_core.tiles.extract.extract_bbox` (that path is fine for a live
+per-trip request, but re-walks the archive per tile with no request
+coalescing — measured too slow for a 43k-tile regional pull).
 
 `copy_basemap_standin.sh` (#257) still works exactly as before — copying in
 a local archive file (the gitignored SPIKE-14 synthetic fixture, or any
 other pre-built `.pmtiles`) rather than fetching one — useful for an
 offline dry run or CI, or to restore a specific known-good file without
-re-pulling from Protomaps. Both scripts write the same `basemap` shape into
-`MIRROR_STATE.json`, so whichever ran most recently wins; don't run them
-back-to-back expecting the first one's content to survive. Geofabrik payload
-files themselves are pulled in by #258/#260 — neither basemap script here
-reaches that part of the tree.
+re-pulling from Protomaps. It still writes the pre-#457 single-region,
+list-shaped `basemap.covered_regions` (see the #468 warning above) rather
+than `protomaps_extract.py`'s per-region dict, so whichever script ran most
+recently wins the shape as well as the content; don't run them back-to-back
+expecting the first one's to survive, and prefer `protomaps_extract.py`
+whenever a real extract's freshness/multi-region tracking matters. Geofabrik
+payload files themselves are pulled in by #258/#260 — neither basemap script
+here reaches that part of the tree.
 
 ## Verifying it
 
