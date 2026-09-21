@@ -24,13 +24,15 @@
 # core, each importing service's full `core` dependency (osmnx/numpy/
 # networkx) — run alongside `flutter test`'s own analyzer/VM footprint, two
 # runs on 2026-09-20 drove combined RSS to 15-18 GB and the guest OOM-killer
-# killed pytest and then needed the VM itself restarted. Set
-# PLOTLINES_TEST_ALL_JOBS to cap the worker count (e.g. 4) when running
-# locally on a high-core-count machine; CI's runners have few enough vCPUs
-# that `auto` there was never the problem.
+# killed pytest and then needed the VM itself restarted. This script (unlike
+# CI, which invokes `pytest -n auto` directly and keeps it — CI runners have
+# few enough vCPUs that `auto` there was never the problem) therefore
+# defaults the service suite to 4 workers rather than `auto`; set
+# PLOTLINES_TEST_ALL_JOBS to override (back to "auto", or any other count)
+# when running locally on a box you know can take it.
 #
 # Usage: tools/test_all.sh
-#        PLOTLINES_TEST_ALL_JOBS=4 tools/test_all.sh
+#        PLOTLINES_TEST_ALL_JOBS=auto tools/test_all.sh
 # Exit status is non-zero if any suite or gate failed.
 
 set -uo pipefail
@@ -39,7 +41,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 out="$(mktemp -d)"
 cd "$root"
 
-service_jobs="${PLOTLINES_TEST_ALL_JOBS:-auto}"
+service_jobs="${PLOTLINES_TEST_ALL_JOBS:-4}"
 
 run() {  # run <name> <working-dir> <command...>
   local name="$1" dir="$2"; shift 2
