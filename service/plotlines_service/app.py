@@ -50,7 +50,9 @@ from plotlines_core.curation.colocate import (
 )
 from plotlines_core.content.anchor import Anchor
 from plotlines_core.curation.defaults import resolve_default_layers
-from plotlines_core.curation.notability import RawFeature, RULESET_VERSION, score_notability
+from plotlines_core.curation.notability import (
+    RawFeature, RULESET_VERSION, Shape, score_notability,
+)
 from plotlines_core.curation.providers import BBox, OsmLayerProvider
 from plotlines_core.curation.registry import build_default_registry
 from plotlines_core.elevation.interface import (
@@ -1214,6 +1216,10 @@ class CandidateFeatureInput(BaseModel):
     coord: list[float] = Field(min_length=2, max_length=2)
     tags: dict[str, str] = Field(default_factory=dict)
     area_m2: float | None = None
+    #: RFC 7946 `Polygon` (exterior ring only) or `LineString` — the
+    #: feature's own geometry beyond `coord` (FR100, issue #403). Absent for
+    #: a point feature.
+    geometry: dict | None = None
 
 
 class CandidatesScoreRequest(BaseModel):
@@ -1677,6 +1683,8 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                     "role_affinity": c.role_affinity,
                     "title": c.title,
                     "tags": dict(c.tags),
+                    "area_m2": c.area_m2,
+                    "geometry": c.geometry.to_geojson() if c.geometry is not None else None,
                 }
                 for c in candidates
             ],
@@ -1691,11 +1699,15 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         try:
             features = [
                 RawFeature(id=f.id, coord=(f.coord[0], f.coord[1]), tags=f.tags,
-                           area_m2=f.area_m2)
+                           area_m2=f.area_m2,
+                           geometry=(Shape.from_geojson(f.geometry)
+                                     if f.geometry is not None else None))
                 for f in req.features
             ]
         except IndexError as exc:
             raise HTTPException(422, f"bad feature coord: {exc}") from exc
+        except ValueError as exc:
+            raise HTTPException(422, f"bad feature geometry: {exc}") from exc
         candidates = score_notability(features, live_layers=req.live_layers)
         return _candidates_response(candidates)
 
