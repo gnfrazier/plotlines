@@ -22,6 +22,7 @@ import '../../domain/home_region.dart';
 import '../../domain/json_utils.dart' show Coord;
 import '../../domain/trip_bbox.dart';
 import '../../state/providers.dart';
+import 'candidate_geometry_layer.dart';
 import 'map_attribution.dart';
 import 'map_label_scale.dart';
 import 'no_basemap_notice.dart';
@@ -214,6 +215,13 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
                       ),
                     ),
                 ]),
+              // Issue #475 — a polygon/line candidate's own extent, under
+              // its marker (the pin stays the guaranteed tap target).
+              if (widget.candidates.any((candidate) => candidate.geometry != null))
+                CandidateGeometryLayer(
+                  candidates: widget.candidates,
+                  onCandidateTap: widget.onCandidateTap,
+                ),
               MarkerLayer(markers: [
                 for (final candidate in widget.candidates)
                   Marker(
