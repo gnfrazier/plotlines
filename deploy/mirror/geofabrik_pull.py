@@ -602,10 +602,12 @@ def precut_region(
         )
 
     digest = _file_md5(dest_path)
+    precut_time = _utcnow()
     regions[dest_region] = {
         "precut_from": list(source_regions),
         "precut_bbox": list(bbox),
-        "pulled_at": _iso(_utcnow()),
+        "pulled_at": _iso(precut_time),
+        "checked_at": _iso(precut_time),
         "md5": digest,
     }
     if replace_sources:
