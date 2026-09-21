@@ -195,6 +195,7 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final isDark = material.Theme.of(context).brightness == Brightness.dark;
+    final basemapStyle = ref.watch(settingsProvider).basemapStyle;
     final labelScale = resolveMapLabelScale(
       MediaQuery.textScalerOf(context).scale(1),
       MediaQuery.devicePixelRatioOf(context),
@@ -213,7 +214,8 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
     final unit = ref.watch(settingsProvider).unit;
 
     return FutureBuilder(
-      future: MapTileAssets.theme(isDark ? 'dark' : 'light', labelScale: labelScale),
+      future: MapTileAssets.theme(resolveBasemapStyleName(isDark, basemapStyle),
+          labelScale: labelScale),
       builder: (context, snapshot) {
         final themeResult = snapshot.data;
         final vectorTheme = themeResult?.theme;

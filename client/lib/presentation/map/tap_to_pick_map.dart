@@ -19,6 +19,7 @@ import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
 import '../../domain/home_region.dart';
 import '../../state/providers.dart';
+import '../../state/settings_provider.dart';
 import 'anchor_area_layer.dart';
 import 'arc_stage_marker.dart';
 import 'map_attribution.dart';
@@ -160,6 +161,15 @@ class MapTileAssets {
     });
     return future;
   }
+
+  /// Issue #465 — the `<name>@<scale bucket>` keys requested so far, for a
+  /// widget test to confirm which style name actually reached [theme]
+  /// (`Theme.id` doesn't distinguish our styles: none of the committed JSON
+  /// sets `"id"`, so `ThemeReader` falls back to `'default'` for all three).
+  /// Never cleared — a widget test asserts a key is *present*, not that the
+  /// cache is otherwise empty, since other tests in the same run share it.
+  @visibleForTesting
+  static Set<String> get requestedKeysForTesting => _themes.keys.toSet();
 
   /// Every path `style_<name>.json` is looked for, in order: the bundled
   /// `data/flutter_assets/...` beside the executable, then `client/assets`
@@ -361,6 +371,7 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final isDark = material.Theme.of(context).brightness == Brightness.dark;
+    final basemapStyle = ref.watch(settingsProvider).basemapStyle;
     final labelScale = resolveMapLabelScale(
       MediaQuery.textScalerOf(context).scale(1),
       MediaQuery.devicePixelRatioOf(context),
@@ -372,7 +383,8 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
     final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
 
     return FutureBuilder(
-      future: MapTileAssets.theme(isDark ? 'dark' : 'light', labelScale: labelScale),
+      future: MapTileAssets.theme(resolveBasemapStyleName(isDark, basemapStyle),
+          labelScale: labelScale),
       builder: (context, snapshot) {
         final themeResult = snapshot.data;
         final vectorTheme = themeResult?.theme;

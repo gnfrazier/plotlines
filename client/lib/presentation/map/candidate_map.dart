@@ -22,6 +22,7 @@ import '../../domain/home_region.dart';
 import '../../domain/json_utils.dart' show Coord;
 import '../../domain/trip_bbox.dart';
 import '../../state/providers.dart';
+import '../../state/settings_provider.dart';
 import 'anchor_area_layer.dart';
 import 'candidate_geometry_layer.dart';
 import 'map_attribution.dart';
@@ -150,6 +151,7 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final isDark = material.Theme.of(context).brightness == Brightness.dark;
+    final basemapStyle = ref.watch(settingsProvider).basemapStyle;
     final labelScale = resolveMapLabelScale(
       MediaQuery.textScalerOf(context).scale(1),
       MediaQuery.devicePixelRatioOf(context),
@@ -163,7 +165,8 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
     final candidates = unpromotedCandidates(widget.candidates, widget.anchors, widget.nodes);
 
     return FutureBuilder(
-      future: MapTileAssets.theme(isDark ? 'dark' : 'light', labelScale: labelScale),
+      future: MapTileAssets.theme(resolveBasemapStyleName(isDark, basemapStyle),
+          labelScale: labelScale),
       builder: (context, snapshot) {
         final themeResult = snapshot.data;
         final vectorTheme = themeResult?.theme;
