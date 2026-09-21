@@ -32,7 +32,7 @@ void main() {
   const baseline = ['--port=51234', '--host=127.0.0.1', '--mode=sidecar', '--cache-dir=/tmp/c'];
 
   group('SidecarUpstreams.resolve — where the values come from', () {
-    test('a stock launch defaults to the Plotlines-operated mirror and nothing else', () {
+    test('a stock launch defaults to the Plotlines-operated mirror and its primary region', () {
       final u = SidecarUpstreams.resolve(environment: const {});
       expect(u.mirrorUrl, SidecarUpstreams.defaultMirrorUrl);
       expect(u.mirrorConfigured, isTrue);
@@ -42,14 +42,33 @@ void main() {
           reason: '/health fetches this on every 2 s poll; a default would be a '
               'request before any extent is declared (#367 owns making that safe)');
       expect(u.elevationUpstream, isNull, reason: 'QA-only proxy, no default (#148/FR87)');
-      expect(u.tilesUpstream, isNull,
-          reason: 'ships like elevationUpstream: no built-in default (#453) — a '
-              'production default is #457\'s decision');
+      expect(u.tilesUpstream, SidecarUpstreams.defaultTilesUpstream,
+          reason: 'issue #457: the mirror\'s primary covered region is now the '
+              'built-in default, same as the mirror URL itself');
     });
 
     test("the default mirror host matches tiles/mirror.py's MIRROR_HOST", () {
       expect(Uri.parse(SidecarUpstreams.defaultMirrorUrl).host, pythonMirrorHost());
       expect(Uri.parse(SidecarUpstreams.defaultMirrorUrl).scheme, 'https');
+    });
+
+    test("the default tiles upstream matches tiles/mirror.py's MIRROR_WNC_CORRIDOR_URL", () {
+      // `MIRROR_WNC_CORRIDOR_URL` is built from three constants at import
+      // time on the Python side — reconstructed here from the same two
+      // source literals (PROTOMAPS_BASEMAP_BUILD, MIRROR_HOST) plus the
+      // stable "-wnc/corridor.pmtiles" suffix `WNC_CORRIDOR_BUILD_ID` and
+      // the pmtiles filename both hard-code, rather than parsing Python
+      // f-string concatenation out of the source text.
+      final file = File(
+          '${Directory.current.parent.path}/core/plotlines_core/tiles/mirror.py');
+      final source = file.readAsStringSync();
+      final host = RegExp(r'^MIRROR_HOST\s*=\s*"([^"]+)"', multiLine: true)
+          .firstMatch(source)!.group(1)!;
+      final protomapsBuild = RegExp(r'^PROTOMAPS_BASEMAP_BUILD\s*=\s*"([^"]+)"', multiLine: true)
+          .firstMatch(source)!.group(1)!;
+      expect(source, contains('WNC_CORRIDOR_BUILD_ID = f"{PROTOMAPS_BASEMAP_BUILD}-wnc"'));
+      expect(SidecarUpstreams.defaultTilesUpstream,
+          'https://$host/basemap/protomaps/$protomapsBuild-wnc/corridor.pmtiles');
     });
 
     test('an environment variable overrides the default mirror URL', () {
@@ -222,9 +241,9 @@ void main() {
       expect(args.where((a) => a.startsWith('--mirror-clip-client-key=')), isEmpty,
           reason: 'no key without a define or env var — the mirror decides '
               'whether an unkeyed /clip is accepted (#263)');
-      expect(args.where((a) => a.startsWith('--tiles-upstream=')), isEmpty,
-          reason: 'no built-in default for the tiles upstream (#453) — unset, the '
-              'spawn is byte-identical to pre-#453 for tiles');
+      expect(args, contains('--tiles-upstream=${SidecarUpstreams.defaultTilesUpstream}'),
+          reason: 'issue #457: a stock launch now points at the mirror\'s primary '
+              'covered region by default');
     });
   });
 
