@@ -5,7 +5,7 @@
 /// `data/routing_client.dart`'s `GeocodeResult`, not a payload `$def`.
 library;
 
-import 'json_utils.dart' show Coord;
+import 'json_utils.dart' show Coord, Ring;
 
 /// ARCH D47's role affinity — narrative | provision | station.
 enum RoleAffinity {
@@ -21,6 +21,46 @@ enum RoleAffinity {
       };
 }
 
+/// FR100 / issue #403 — a candidate's own geometry beyond its representative
+/// point, kind-tagged: the polygon of a park or district, or the path of a
+/// byway or rail-trail. On the wire it is the RFC 7946 `Polygon` /
+/// `LineString` object the trip payload already speaks; a point candidate
+/// carries none. Not itself canon — promotion *copies* a polygon into
+/// [Anchor.area] (see `promote.dart`'s `areaFromCandidate`), never references
+/// this (ARCH §4.2, P10).
+sealed class CandidateGeometry {
+  const CandidateGeometry();
+
+  static CandidateGeometry? fromJson(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    final type = json['type'] as String?;
+    final coordinates = json['coordinates'] as List?;
+    if (coordinates == null) {
+      throw FormatException('candidate geometry "$type" has no coordinates');
+    }
+    List<Coord> coords(List raw) =>
+        raw.map((c) => (c as List).map((v) => (v as num).toDouble()).toList()).toList();
+    return switch (type) {
+      'Polygon' => CandidatePolygon(ring: coords(coordinates.first as List)),
+      'LineString' => CandidateLine(coords: coords(coordinates)),
+      _ => throw FormatException('unknown candidate geometry type "$type"'),
+    };
+  }
+}
+
+/// A closed exterior [ring] (first position repeated as last). Holes are not
+/// carried at the candidate tier.
+class CandidatePolygon extends CandidateGeometry {
+  const CandidatePolygon({required this.ring});
+  final Ring ring;
+}
+
+/// An open path of at least two vertices.
+class CandidateLine extends CandidateGeometry {
+  const CandidateLine({required this.coords});
+  final List<Coord> coords;
+}
+
 class Candidate {
   const Candidate({
     required this.id,
@@ -30,9 +70,15 @@ class Candidate {
     required this.roleAffinity,
     this.title,
     this.tags = const {},
+    this.areaM2,
+    this.geometry,
   });
 
   final String id;
+
+  /// A representative point every consumer can render, sort, or measure
+  /// from — the polygon's centroid, or a point *on* the line — whether or
+  /// not it reads [geometry].
   final Coord coord;
 
   /// One of `taxonomy.LAYERS` — sight | amenity | natural | historic |
@@ -45,6 +91,11 @@ class Candidate {
   final String? title;
   final Map<String, String> tags;
 
+  /// Polygon candidates only — the source feature's area, as FR98(b)'s
+  /// qualification gate measured it.
+  final double? areaM2;
+  final CandidateGeometry? geometry;
+
   factory Candidate.fromJson(Map<String, dynamic> json) => Candidate(
         id: json['id'] as String,
         coord: (json['coord'] as List).map((v) => (v as num).toDouble()).toList(),
@@ -54,6 +105,9 @@ class Candidate {
         title: json['title'] as String?,
         tags: (json['tags'] as Map?)?.map((k, v) => MapEntry(k as String, v as String)) ??
             const {},
+        areaM2: (json['area_m2'] as num?)?.toDouble(),
+        geometry: CandidateGeometry.fromJson(
+            (json['geometry'] as Map?)?.cast<String, dynamic>()),
       );
 }
 
