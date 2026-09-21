@@ -226,6 +226,38 @@ def test_a_tile_extraction_failure_is_recorded_rather_than_swallowed(tmp_path, m
     assert any("region tiles FAILED" in r.getMessage() for r in caplog.records)
 
 
+def test_tile_extraction_failure_also_reaches_health_not_only_diagnostics(
+    tmp_path, monkeypatch,
+):
+    """Issue #454: `tiles_error` was previously visible only on
+    `GET /regions/{key}/diagnostics` — a surface the client has no reason to
+    poll unless it already suspects a problem. It must also appear on
+    `/health`'s per-region routing entry, additive and only while set, so a
+    ready-but-basemap-less region is diagnosable from the one channel the
+    client already polls continuously."""
+    from fastapi.testclient import TestClient
+
+    from plotlines_service.app import create_app
+
+    monkeypatch.setattr("plotlines_service.app.region_lib.ensure_graph",
+                        lambda region, cache_dir: tmp_path / "graph.graphml")
+    monkeypatch.setattr("plotlines_service.app.load_graphml", lambda path: object())
+
+    def explode(*_args, **_kwargs):
+        raise OSError("upstream archive is truncated")
+
+    monkeypatch.setattr("plotlines_service.app.extract_bbox", explode)
+
+    client = TestClient(create_app(tmp_path))
+    bbox = [-105.0, 40.0, -104.9, 40.1]
+    key = client.post("/regions", json={"bbox": bbox}).json()["region"]
+    client.app.state.readiness._build_pool.shutdown(wait=True)
+
+    region_cap = client.get("/health").json()["capabilities"]["routing"]["regions"][key]
+    assert region_cap["ready"] is True
+    assert region_cap["tiles_error"] == "OSError: upstream archive is truncated"
+
+
 def test_a_bbox_with_no_tile_coverage_is_not_reported_as_an_error(tmp_path, monkeypatch):
     """`NoTilesInBbox` is the expected miss, not a failure: `/tiles` answers
     404 per-request and there is nothing to root-cause."""

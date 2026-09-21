@@ -76,6 +76,17 @@ MIRROR_WNC_CORRIDOR_URL = (
 WNC_CORRIDOR_BBOX = (-83.6, 35.2, -81.0, 36.4)
 WNC_CORRIDOR_REGION_NAME = "wnc-corridor"
 
+#: The on-demand region cache's zoom ceiling — issue #456. Today this
+#: happens to equal every source archive's own `max_zoom`, so nothing failed
+#: without it; stated explicitly so an `extract_bbox` call is bounded by a
+#: number this module owns rather than by whatever a future, deeper archive
+#: (the eventual whole-planet build, §6.0/Q6) happens to carry. Mirrors the
+#: client's own ceiling, `basemapMaximumZoom` in
+#: `client/lib/presentation/map/vector_tile_provider.dart` — the renderer
+#: never requests past z15, so extracting past it would cache tiles nothing
+#: ever asks `/tiles` for.
+BASEMAP_MAX_ZOOM = 15
+
 #: ODbL, as a Produced Work from OSM data (FR95). `terms_url` is the
 #: OpenStreetMap copyright page, not Protomaps' — the obligation runs to
 #: OpenStreetMap.

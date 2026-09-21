@@ -112,9 +112,12 @@ def test_region_tile_cache_lives_in_the_bbox_scoped_cache_layout(tmp_path: Path,
     monkeypatch.setattr(app_mod, "load_graphml", lambda path: object())
 
     seen: list[Path] = []
+    seen_max_zoom: list[int | None] = []
 
-    def fake_extract(upstream, box, out_path, *, allow_unmirrored=False):
+    def fake_extract(upstream, box, out_path, *, allow_unmirrored=False,
+                     max_zoom=None, stats=None):
         seen.append(out_path)
+        seen_max_zoom.append(max_zoom)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         build_archive(out_path, {(3, 4, 4): b"region-tile"})
         return out_path
@@ -129,6 +132,9 @@ def test_region_tile_cache_lives_in_the_bbox_scoped_cache_layout(tmp_path: Path,
     assert expected.parent == CacheLayout(tmp_path).tiles_dir
     assert region.tiles_archive is not None
     assert region.tiles_archive.tile(3, 4, 4) == b"region-tile"
+    # Issue #456: capped explicitly at the client's render ceiling rather
+    # than left to inherit whatever the source archive's own max_zoom is.
+    assert seen_max_zoom == [app_mod.BASEMAP_MAX_ZOOM]
 
     # A second region for the same bbox, different network type: the archive
     # already exists, so no re-extraction — one tile cache per trip bbox.
@@ -137,3 +143,45 @@ def test_region_tile_cache_lives_in_the_bbox_scoped_cache_layout(tmp_path: Path,
     region2.build(tmp_path, tiles_upstream="unused", allow_unmirrored=False)
     assert seen == []
     assert region2.tiles_archive is not None
+    # No extraction ran, so no stats to report — a cache hit is not a call
+    # to instrument (issue #456's "no behaviour change ... beyond the new
+    # log line" is specifically about a *local-path upstream that runs*,
+    # not this branch, but the same "nothing happened, nothing reported"
+    # logic applies here too).
+    assert region2.tiles_stats is None
+
+
+def test_extract_stats_reach_diagnostics(tmp_path: Path, monkeypatch) -> None:
+    """Issue #456: a real `extract_bbox` call's address/hit/request/byte/
+    wall-time numbers land on `RegionState.timings["tiles"]` and
+    `.tiles_stats`, and both are visible on `/regions/{key}/diagnostics` —
+    not just logged. Runs the real extraction against a small local
+    synthetic archive (no network) so the counts are exact and reproducible."""
+    from plotlines_service import app as app_mod
+    from plotlines_service.app import RegionState
+
+    world = build_archive(tmp_path / "world.pmtiles", {
+        (0, 0, 0): b"0/0/0",
+        (1, 0, 0): b"1/0/0", (1, 1, 0): b"1/1/0",
+        (1, 0, 1): b"1/0/1", (1, 1, 1): b"1/1/1",
+    })
+
+    monkeypatch.setattr(app_mod.region_lib, "ensure_graph",
+                        lambda region, cache_dir: tmp_path / "graph.graphml")
+    monkeypatch.setattr(app_mod, "load_graphml", lambda path: object())
+
+    region = RegionState("k", (-170.0, 10.0, -10.0, 80.0), "bike")
+    region.build(tmp_path, tiles_upstream=world, allow_unmirrored=False)
+
+    assert region.tiles_archive is not None
+    assert region.tiles_stats is not None
+    assert region.tiles_stats["hits"] > 0
+    assert region.tiles_stats["addresses"] >= region.tiles_stats["hits"]
+    assert region.tiles_stats["requests"] > 0
+    assert region.tiles_stats["source"] == str(world)
+    assert "tiles" in region.timings
+    assert region.timings["tiles"] == pytest.approx(region.tiles_stats["wall_time_s"], abs=0.01)
+
+    diag = region.diagnostics()
+    assert diag["tiles_stats"] == region.tiles_stats
+    assert diag["timings_s"]["tiles"] == pytest.approx(region.timings["tiles"], abs=0.01)
