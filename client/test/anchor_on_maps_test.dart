@@ -201,9 +201,12 @@ void main() {
     expect(find.byType(AnchorMarker), findsOneWidget);
   });
 
-  // #477 — the tab's own tap still writes a day `Node`; it is drawn on this
-  // map as the node it is, and the candidate's pin is retired the same way.
-  testWidgets('Layers tab: tap-to-promote (day node) changes the mark on the map it happened on',
+  // #477 — the tab's own tap used to write a day `Node` (N3's stand-in from
+  // before O1's Anchor/role model existed); it now runs the same
+  // `promoteAnchor` path the line above exercises directly, so the tap
+  // itself produces the anchor mark, not a `NodeMarker`, and the day gets no
+  // `Node` at all.
+  testWidgets('Layers tab: tap-to-promote changes the mark on the map it happened on',
       (tester) async {
     final container = _container(
       curation: _ScriptedCurationClient(const CandidateExtraction(candidates: [_oldFort])),
@@ -218,15 +221,22 @@ void main() {
         .fetch(bbox: _bbox, liveLayers: {'sight', 'historic'});
     await _settle(tester);
     expect(find.byType(CandidateMarker), findsOneWidget);
+    expect(find.byType(AnchorMarker), findsNothing);
 
     await tester.tap(find.byType(CandidateMarker));
     await _settle(tester);
 
-    expect(find.byType(CandidateMarker), findsNothing);
-    final plots = tester
-        .widgetList<NodeMarker>(find.byType(NodeMarker))
-        .where((m) => m.type == NodeMarkerType.plot);
-    expect(plots, hasLength(1));
-    expect(container.read(currentTripProvider).days.single.nodes, hasLength(1));
+    expect(find.byType(CandidateMarker), findsNothing,
+        reason: 'the promoted candidate\'s pin is retired');
+    expect(find.byType(AnchorMarker), findsOneWidget);
+    expect(
+        tester.widgetList<NodeMarker>(find.byType(NodeMarker)).where((m) => m.type == NodeMarkerType.plot),
+        isEmpty);
+
+    final trip = container.read(currentTripProvider);
+    expect(trip.days.single.nodes, isEmpty);
+    expect(trip.anchors, hasLength(1));
+    expect(trip.anchors.single.provenance?.sourceId, 'c-fort');
+    expect(trip.anchors.single.roles.single.dayId, 'd1');
   });
 }

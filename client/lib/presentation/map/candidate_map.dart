@@ -104,12 +104,12 @@ class CandidateMap extends ConsumerStatefulWidget {
   final List<MapAnchorPoint> anchors;
 
   /// #410 — the trip's authored nodes, drawn as the same [NodeMarker]s the
-  /// Route tab draws them with. The Layers tab's direct tap-to-promote still
-  /// writes a day-scoped `Node` rather than an `Anchor` (N3's stand-in from
-  /// before O1's model existed, see `CurrentTripNotifier.promoteCandidate`),
-  /// so without this that path changed nothing on the very map the tap
-  /// happened on. A candidate at exactly a node's coordinate — which is what
-  /// `promoteCandidate` copies — is retired the same way an anchored one is.
+  /// Route tab draws them with (lodging and other day-scoped POIs, e.g.
+  /// `logistics_tab.dart`'s `promoteCandidate` path). The Layers tab's own
+  /// direct tap-to-promote wrote a day-scoped `Node` the same way before
+  /// #477 moved it onto `promoteAnchor`; a candidate at exactly a node's
+  /// coordinate is still retired here for whatever other path still
+  /// produces one.
   final List<MapMarkerPoint> nodes;
 
   @override
