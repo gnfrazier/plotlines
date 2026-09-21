@@ -20,6 +20,7 @@ import pytest
 from plotlines_core.curation.providers import OSM_LICENCE
 from plotlines_core.tiles.mirror import MIRROR_HOST
 from plotlines_core.tiles.mirror_state import (
+    DEFAULT_BASEMAP_TTL_DAYS,
     MAX_PIN_AGE_DAYS,
     MIRROR_NOT_CONFIGURED,
     basemap_health,
@@ -43,13 +44,16 @@ def _iso(dt: datetime) -> str:
 def test_basemap_health_fresh_build_is_not_stale():
     state = {"basemap": {"build_id": "20260901-wnc"}}
     health = basemap_health(state, now=_NOW)
-    assert health == {"build_id": "20260901-wnc", "age_days": 5.0, "stale": False}
+    assert health == {
+        "build_id": "20260901-wnc", "age_days": 5.0, "stale": False,
+        "max_age_days": DEFAULT_BASEMAP_TTL_DAYS,
+    }
 
 
 def test_basemap_health_old_build_is_stale():
     state = {"basemap": {"build_id": "20250101-wnc"}}
     health = basemap_health(state, now=_NOW)
-    assert health["age_days"] > MAX_PIN_AGE_DAYS
+    assert health["age_days"] > DEFAULT_BASEMAP_TTL_DAYS
     assert health["stale"] is True
 
 
@@ -57,6 +61,7 @@ def test_basemap_health_missing_build_id_is_stale():
     state = {"basemap": {"build_id": None}}
     assert basemap_health(state, now=_NOW) == {
         "build_id": None, "age_days": None, "stale": True,
+        "max_age_days": DEFAULT_BASEMAP_TTL_DAYS,
     }
 
 
@@ -69,7 +74,38 @@ def test_basemap_health_prefers_extracted_at_over_the_build_id_date():
         "extracted_at": _iso(_NOW - timedelta(days=2)),
     }}
     health = basemap_health(state, now=_NOW)
-    assert health == {"build_id": "20250101-wnc", "age_days": 2.0, "stale": False}
+    assert health == {
+        "build_id": "20250101-wnc", "age_days": 2.0, "stale": False,
+        "max_age_days": DEFAULT_BASEMAP_TTL_DAYS,
+    }
+
+
+def test_basemap_health_ttl_is_independent_of_the_geofabrik_pin_age():
+    """Issue #457 acceptance: a 29-day-old extract reads fresh and a
+    31-day-old one reads stale, using `DEFAULT_BASEMAP_TTL_DAYS` (30) —
+    distinct from `MAX_PIN_AGE_DAYS` (45), which stays Geofabrik's own."""
+    assert DEFAULT_BASEMAP_TTL_DAYS < MAX_PIN_AGE_DAYS
+
+    fresh_state = {"basemap": {
+        "build_id": "20260101-wnc",
+        "extracted_at": _iso(_NOW - timedelta(days=29)),
+    }}
+    assert basemap_health(fresh_state, now=_NOW)["stale"] is False
+
+    stale_state = {"basemap": {
+        "build_id": "20260101-wnc",
+        "extracted_at": _iso(_NOW - timedelta(days=31)),
+    }}
+    assert basemap_health(stale_state, now=_NOW)["stale"] is True
+
+
+def test_basemap_health_max_age_days_is_configurable():
+    state = {"basemap": {
+        "build_id": "20260101-wnc",
+        "extracted_at": _iso(_NOW - timedelta(days=10)),
+    }}
+    assert basemap_health(state, now=_NOW, max_age_days=5.0)["stale"] is True
+    assert basemap_health(state, now=_NOW, max_age_days=15.0)["stale"] is False
 
 
 def test_basemap_health_falls_back_to_build_id_when_extracted_at_absent():
@@ -243,6 +279,34 @@ def test_mirror_health_not_stale_when_both_halves_are_fresh():
         },
     }
     assert mirror_health(state, now=_NOW)["stale"] is False
+
+
+def test_mirror_health_threads_a_separate_basemap_ttl():
+    # A build 40 days old is stale against MAX_PIN_AGE_DAYS-shared logic
+    # (pre-#457) but fresh against a widened basemap-only TTL passed in.
+    state = {
+        "basemap": {
+            "build_id": "20260101-wnc",
+            "extracted_at": _iso(_NOW - timedelta(days=40)),
+        },
+        "geofabrik": {
+            "pinned_date": "2026-09-01",
+            "regions": {
+                "north-america/us/north-carolina": {
+                    "checked_at": _iso(_NOW - timedelta(days=1)),
+                    "consecutive_failures": 0, "last_failure": None,
+                },
+            },
+        },
+    }
+    default_health = mirror_health(state, now=_NOW)
+    assert default_health["basemap"]["stale"] is True  # 40 > DEFAULT_BASEMAP_TTL_DAYS (30)
+    assert default_health["stale"] is True
+
+    widened_health = mirror_health(state, now=_NOW, basemap_max_age_days=60.0)
+    assert widened_health["basemap"]["stale"] is False
+    assert widened_health["stale"] is False
+    assert widened_health["geofabrik"]["stale"] is False
 
 
 def test_mirror_not_configured_sentinel_is_a_plain_flag():

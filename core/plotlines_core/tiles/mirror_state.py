@@ -45,6 +45,16 @@ from .mirror import MIRROR_HOST
 #: `geofabrik_pull.py` is that.
 MAX_PIN_AGE_DAYS = 45.0
 
+#: Issue #457 — the basemap's own staleness threshold, decoupled from
+#: `MAX_PIN_AGE_DAYS` above. That number is Geofabrik's monthly-pin-plus-
+#: grace-window cadence; the basemap is a different upstream on a different
+#: rhythm — Protomaps' own daily builds live only about a week
+#: (`deploy/mirror/protomaps_extract.py::find_latest_build_date`'s measured
+#: retention window), so 30 days stale means many builds behind, not one
+#: late cron tick. Kept in lockstep with that script's own duplicated
+#: `DEFAULT_TTL_DAYS` (it cannot import core — see its module docstring).
+DEFAULT_BASEMAP_TTL_DAYS = 30.0
+
 #: `copy_basemap_standin.sh`'s `BUILD_ID` / `geofabrik_pull.py`'s
 #: `--pinned-date` both start with an eight-digit or ISO date
 #: (`20250101-wnc`, `2026-09-01`) — this reads either without caring which.
@@ -105,7 +115,7 @@ def load_mirror_state(source: str | Path, *, timeout_s: float = 5.0) -> dict:
 
 
 def basemap_health(state: dict, *, now: datetime,
-                    max_age_days: float = MAX_PIN_AGE_DAYS) -> dict:
+                    max_age_days: float = DEFAULT_BASEMAP_TTL_DAYS) -> dict:
     """Staleness of `state["basemap"]`. `deploy/mirror/protomaps_extract.py`
     (#394) writes a real `extracted_at` pull timestamp, which is preferred
     here when present — the honest answer to "when did this last actually
@@ -114,7 +124,14 @@ def basemap_health(state: dict, *, now: datetime,
     carries no `extracted_at`, so age falls back to the build id's own
     leading date, the same literal `mirror.py`'s `PROTOMAPS_BASEMAP_BUILD`
     is — that fallback is what made this a "manual step, not a polled sync"
-    before #394."""
+    before #394.
+
+    `max_age_days` is the basemap's own threshold (issue #457) — it no
+    longer shares `MAX_PIN_AGE_DAYS` with `geofabrik_health`, since
+    Protomaps' daily builds rotate on a much shorter cadence than
+    Geofabrik's monthly pin. Reported back in the returned dict as
+    `max_age_days` so `/health`'s `capabilities.mirror.basemap` states the
+    threshold it was judged against, not just the verdict."""
     basemap = state.get("basemap") or {}
     build_id = basemap.get("build_id")
     extracted_at = _parse_iso(basemap.get("extracted_at"))
@@ -124,6 +141,7 @@ def basemap_health(state: dict, *, now: datetime,
         "build_id": build_id,
         "age_days": None if age is None else round(age, 1),
         "stale": age is None or age > max_age_days,
+        "max_age_days": max_age_days,
     }
 
 
@@ -197,12 +215,15 @@ def pin_age_days(pin: str | None, *, now: datetime | None = None) -> float | Non
 
 
 def mirror_health(state: dict, *, now: datetime | None = None,
-                   max_age_days: float = MAX_PIN_AGE_DAYS) -> dict:
+                   max_age_days: float = MAX_PIN_AGE_DAYS,
+                   basemap_max_age_days: float = DEFAULT_BASEMAP_TTL_DAYS) -> dict:
     """The `/health` staleness summary — §11.3's "we become the
     availability" monitor, built regardless of the pin cadence chosen (Q2:
-    B's cadence + C's monitoring)."""
+    B's cadence + C's monitoring). `max_age_days` is Geofabrik's threshold;
+    `basemap_max_age_days` is the basemap's own (issue #457) — two
+    parameters because the two upstreams no longer share one number."""
     now = now or datetime.now(timezone.utc)
-    basemap = basemap_health(state, now=now, max_age_days=max_age_days)
+    basemap = basemap_health(state, now=now, max_age_days=basemap_max_age_days)
     geofabrik = geofabrik_health(state, now=now, max_age_days=max_age_days)
     return {
         "configured": True,
