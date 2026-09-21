@@ -256,13 +256,15 @@ def test_unreachable_elevation_upstream_degrades_the_region_without_failing_it(
         "shape": "point_to_point",
         "theme": "balanced",
     })
-    # …but a degraded sampler never breaks a solve. What it produces is the
-    # FR88 void policy `ElevationResolver.sampler_for` documents: a
-    # degraded all-`0.0` sampler, so the profile is flat rather than absent
-    # or a 500 — and the void is logged, never silent.
+    # …but an unresolved source never breaks a solve. `RegionState.build`
+    # calls `resolve()` directly rather than `sampler_for()` for this
+    # QA-proxy path (issue #466): a source that never resolved gets no
+    # sampler at all, so `elevation` comes back absent — not a fabricated
+    # flat profile, and not a 500 — and the miss is logged, never silent.
+    # `sampler_for`'s degraded-sampler fallback is a different, narrower
+    # policy (in-raster voids on a raster that did open) that graph
+    # enrichment (FR89) still relies on and this path never reaches.
     assert resp.status_code == 200
-    elevation = resp.json()["elevation"]
-    assert elevation["ascent_m"] == 0.0 and elevation["descent_m"] == 0.0
-    assert elevation["min_m"] == 0.0 and elevation["max_m"] == 0.0
-    assert any("unreadable_raster" in r.getMessage() for r in caplog.records), (
-        "a degraded elevation read must be logged, not silently flat")
+    assert resp.json()["elevation"] == {}
+    assert any("UNAVAILABLE" in r.getMessage() for r in caplog.records), (
+        "an unresolved elevation upstream must be logged, not silently absent")
