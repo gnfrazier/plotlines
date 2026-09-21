@@ -23,13 +23,14 @@ it were guaranteed present on the Pi).
 ```
 ssh pi 'sudo mkdir -p /opt/plotlines-mirror && sudo chown "$(id -un)":"$(id -gn)" /opt/plotlines-mirror'
 scp -r deploy/mirror/. pi:/opt/plotlines-mirror/
-scp spikes/SPIKE-14/tiles/wnc-corridor.pmtiles pi:/opt/plotlines-mirror/wnc-corridor.pmtiles
 ssh pi
 cd /opt/plotlines-mirror
 sudo ./build_tree.sh /srv/plotlines-mirror
-sudo ./copy_basemap_standin.sh /srv/plotlines-mirror ./wnc-corridor.pmtiles
+sudo ./protomaps_extract.py --root /srv/plotlines-mirror   # needs the `pmtiles` CLI on PATH — see below
 docker compose up -d
 ```
+
+**Populate the basemap with `protomaps_extract.py`, not `copy_basemap_standin.sh`, on a fresh deploy or a re-publish of a real archive** (issue #468). `copy_basemap_standin.sh` only ever writes the pre-#394 `basemap` shape (`build_id`/`covered_regions`, no `extracted_at`/`source`) — that is correct for its actual job, restoring a known-good local `.pmtiles` without a network fetch, but running it with a *real* extract (e.g. one produced by `protomaps_extract.py` elsewhere and copied over by hand) silently downgrades `MIRROR_STATE.json` to the shape `mirror_state.basemap_health()` treats as pre-#394 stand-in state, which then falls back to parsing `build_id`'s leading date (`20250101-wnc` → 2025-01-01) as the age — a real ~9-day-old file reported as 628.5 days stale, and nothing errors because the fallback is working exactly as designed for state it was never meant to see. This is exactly how #468 happened. If `pmtiles` isn't installed yet, `protomaps_extract.py`'s own module docstring names the release to fetch (github.com/protomaps/go-pmtiles); pass `--pmtiles-bin` to point at wherever it lands rather than requiring it on the system `PATH`.
 
 The `mkdir`/`chown` first and the trailing `/.` on the source both
 matter, for two independent reasons:

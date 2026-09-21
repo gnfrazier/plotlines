@@ -11,6 +11,17 @@
 # works exactly as before, for an offline dry run, CI, or restoring a known
 # local .pmtiles without a network fetch.
 #
+# WARNING (issue #468): this script always writes the pre-#394 `basemap`
+# shape below — no `extracted_at`, no `source` sub-object — regardless of
+# whether SOURCE_ARCHIVE is a synthetic stand-in or a real extract someone
+# produced with protomaps_extract.py elsewhere and copied here by hand.
+# `mirror_state.basemap_health()` then falls back to parsing `build_id`'s
+# own leading date as the age, which for the real `20250101-wnc` label
+# reports a fresh file as 628.5 days stale. Publishing a real extract
+# through this script silently regresses the staleness monitor — run
+# protomaps_extract.py directly against the target root instead whenever
+# the archive is real.
+#
 # This is a *stand-in* for the real Protomaps planet build
 # (plotlines_core.tiles.mirror.MIRROR_ARCHIVE_URL) — the mirror does not
 # carry a planet archive (§6.2: "do not put a planet archive on it"). Naming
