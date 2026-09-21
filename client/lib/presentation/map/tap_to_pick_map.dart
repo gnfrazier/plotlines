@@ -19,6 +19,7 @@ import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
 import '../../domain/home_region.dart';
 import '../../state/providers.dart';
+import 'anchor_area_layer.dart';
 import 'arc_stage_marker.dart';
 import 'map_attribution.dart';
 import 'map_label_scale.dart';
@@ -52,13 +53,16 @@ typedef MapAnnotation = ({LatLonPoint coord, Widget marker});
 /// Built from `Trip.anchors` by `anchor_map_points.dart`; [label] is the
 /// tooltip, [sourceId] the candidate it was promoted from (if any), so a
 /// candidate map can retire that candidate's mark in favour of this one.
-/// Not a [MapMarkerPoint]: an anchor is trip canon with a role set, not a
-/// node with a [NodeMarkerType], and the two vocabularies stay apart.
+/// [rings] (#484, FR108) is an area anchor's boundary — exterior ring first,
+/// holes after, each closed — drawn by `AnchorAreaLayer`; `null` for a point
+/// anchor. Not a [MapMarkerPoint]: an anchor is trip canon with a role set,
+/// not a node with a [NodeMarkerType], and the two vocabularies stay apart.
 typedef MapAnchorPoint = ({
   LatLonPoint coord,
   String label,
   AnchorMarkerMark mark,
   String? sourceId,
+  List<List<LatLonPoint>>? rings,
 });
 
 /// Why a bundled basemap style failed to resolve. A bare `null` collapsed
@@ -305,8 +309,8 @@ class TapToPickMap extends ConsumerStatefulWidget {
   /// coordinate. Before this `Trip.anchors` reached cards, dropdowns and
   /// lookups but never a map: promotion (FR106/FR110's "editorial moment")
   /// changed nothing the Author could see on the surface they look at most.
-  /// An area anchor is marked at its representative point here; its boundary
-  /// is #475's lane.
+  /// An area anchor is marked at its representative point and its boundary
+  /// drawn by [AnchorAreaLayer] (#484).
   final List<MapAnchorPoint> anchors;
 
   final LatLonPoint? center;
@@ -427,6 +431,10 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                       borderStrokeWidth: 2,
                     ),
                   ]),
+                // #484 — area anchors' boundaries, under every line: a route
+                // through a district is drawn over the district, not under it.
+                if (widget.anchors.any((a) => a.rings != null))
+                  AnchorAreaLayer(anchors: widget.anchors),
                 // #324 — the replaced stretch goes under the route so the
                 // route still reads as the route; the casing widens it rather
                 // than recolouring it.
