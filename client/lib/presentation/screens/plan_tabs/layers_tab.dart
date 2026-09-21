@@ -25,12 +25,14 @@ import '../../../state/messages_provider.dart';
 import '../../../state/providers.dart';
 import '../../../state/trip_bbox_provider.dart';
 import '../../../state/trip_candidates_provider.dart';
+import '../../map/anchor_map_points.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/desktop_error_surface.dart';
 import '../../widgets/layer_picker.dart';
 import '../../widgets/teaching_block.dart';
 import '../../../data/curation_client.dart' show LayerCatalog;
 import 'proposals_view.dart';
+import 'route_tab.dart' show routeTabMarkerPoints;
 
 const _uuid = Uuid();
 
@@ -145,6 +147,11 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                   CandidateMap(
                       candidates: candidatesState.candidates,
                       bbox: bbox,
+                      // #410 — what has already been promoted, drawn as
+                      // such: anchors from the proposals view / Content
+                      // tab, and the day nodes `_promote` below writes.
+                      anchors: anchorMapPoints(widget.trip.anchors),
+                      nodes: routeTabMarkerPoints(widget.trip),
                       onCandidateTap: _promote),
                   Positioned(
                     top: PlotSpacing.s3,
