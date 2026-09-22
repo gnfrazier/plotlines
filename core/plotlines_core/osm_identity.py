@@ -96,10 +96,38 @@ def apply_osm_http_identity(version: str | None = None) -> str:
 #: around any such call so no two are ever in flight under different globals.
 OSM_SETTINGS_LOCK = threading.Lock()
 
+#: Issue #490. `OSM_SETTINGS_LOCK` used to be held with plain, unbounded
+#: `with OSM_SETTINGS_LOCK:` — fine for the settings mutation it exists to
+#: protect, wrong for the whole Overpass round trip both callers actually
+#: hold it across: one attempt under the lock is osmnx's own `/status` GET
+#: (no timeout covers its DNS lookup) plus `_get_overpass_pause`'s
+#: `default_pause` or its unbounded recursive "slot available in Ns" sleep
+#: (ARCH A23a). A caller waiting to acquire the lock therefore used to wait
+#: on the *holder's* osmnx internals with no bound of its own. `Lock.acquire
+#: (timeout=)` polls wall-clock time regardless of what the holder is doing,
+#: so bounding the wait at this constant turns "wedged until the holder
+#: happens to return" into an honest, finite failure — `graph/regions.py`'s
+#: failover loop and `curation/providers.py`'s candidate fetch both pass it.
+#: Chosen well above the time one well-behaved attempt spends under the lock
+#: in the common case, and far below the minutes a stuck attempt can
+#: otherwise cost a second caller.
+OVERPASS_LOCK_TIMEOUT_S = 30.0
+
+
+class OverpassSettingsBusy(RuntimeError):
+    """`overpass_settings(timeout=...)` gave up waiting for
+    `OSM_SETTINGS_LOCK` — another Overpass caller (a region build's
+    failover hop, or a concurrent candidate fetch) is still inside its own
+    attempt after `timeout` seconds. Never means Overpass itself answered
+    or refused; it means the *lock* was still contended, which is exactly
+    the case a caller with no bound of its own would otherwise wait on
+    forever (issue #490)."""
+
 
 @contextmanager
 def overpass_settings(
     *, url: str | None = None, rate_limit: bool | None = None,
+    timeout: float | None = None,
 ) -> Iterator[None]:
     """Hold `OSM_SETTINGS_LOCK` for the block, optionally point osmnx's
     process-global `overpass_url` / `overpass_rate_limit` at `url` /
@@ -118,12 +146,27 @@ def overpass_settings(
     caller that genuinely needs to override the pause for the length of a
     block.
 
+    `timeout=None` waits on `OSM_SETTINGS_LOCK` indefinitely, matching the
+    pre-#490 behaviour — kept as the default only for a caller (a test, most
+    often) that deliberately wants that wait. Every production caller passes
+    `timeout=OVERPASS_LOCK_TIMEOUT_S`; a positive but exceeded `timeout`
+    raises `OverpassSettingsBusy` rather than continuing to wait.
+
     Not reentrant: `OSM_SETTINGS_LOCK` is a plain `Lock` and nothing in
     plotlines-core nests one `overpass_settings` block inside another.
     """
     import osmnx as ox
 
-    with OSM_SETTINGS_LOCK:
+    if timeout is None:
+        acquired = OSM_SETTINGS_LOCK.acquire()
+    else:
+        acquired = OSM_SETTINGS_LOCK.acquire(timeout=timeout)
+    if not acquired:
+        raise OverpassSettingsBusy(
+            f"Overpass settings lock still held after {timeout:.0f}s — "
+            "another Overpass call is still in flight"
+        )
+    try:
         saved_url = ox.settings.overpass_url
         saved_rate_limit = ox.settings.overpass_rate_limit
         try:
@@ -135,6 +178,8 @@ def overpass_settings(
         finally:
             ox.settings.overpass_url = saved_url
             ox.settings.overpass_rate_limit = saved_rate_limit
+    finally:
+        OSM_SETTINGS_LOCK.release()
 
 
 #: Nominatim's usage policy states "an absolute maximum of 1 request per

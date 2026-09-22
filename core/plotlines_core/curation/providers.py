@@ -280,7 +280,12 @@ class OsmLayerProvider:
         import osmnx as ox
         import requests
 
-        from ..osm_identity import apply_osm_http_identity, overpass_settings
+        from ..osm_identity import (
+            OVERPASS_LOCK_TIMEOUT_S,
+            OverpassSettingsBusy,
+            apply_osm_http_identity,
+            overpass_settings,
+        )
 
         # Issue #241 / review §3.4: the candidate path must not query Overpass
         # as osmnx's stock UA either. A headless entrypoint already stamps the
@@ -309,21 +314,34 @@ class OsmLayerProvider:
         # both go with it. Until then the honest half of the decision still
         # applies below — an Overpass failure here must read as a finished
         # sentence, never a raw exception repr (issue #248's standard).
-        with overpass_settings():
-            try:
-                gdf = ox.features_from_bbox(
-                    (bbox.west, bbox.south, bbox.east, bbox.north), tags)
-            except ox._errors.InsufficientResponseError:
-                # A 200 with zero elements is a true answer about this
-                # bbox/layer — no such feature here — not an outage (mirrors
-                # #248's NoRoutableWaysError distinction on the graph path).
-                return []
-            except (requests.exceptions.RequestException,
-                    ox._errors.ResponseStatusCodeError) as exc:
-                raise CandidateFetchUnavailable(
-                    "the map-data service didn't answer for this layer — "
-                    "try again in a moment, or narrow the trip area."
-                ) from exc
+        #
+        # Issue #490 — `timeout=OVERPASS_LOCK_TIMEOUT_S` bounds the wait for
+        # the lock itself: without it, a region build holding the lock for
+        # the length of its own attempt (or longer, if osmnx is stuck inside
+        # it) left this call waiting with no bound of its own, wedging every
+        # `/candidates` request behind a build that might never finish.
+        try:
+            with overpass_settings(timeout=OVERPASS_LOCK_TIMEOUT_S):
+                try:
+                    gdf = ox.features_from_bbox(
+                        (bbox.west, bbox.south, bbox.east, bbox.north), tags)
+                except ox._errors.InsufficientResponseError:
+                    # A 200 with zero elements is a true answer about this
+                    # bbox/layer — no such feature here — not an outage
+                    # (mirrors #248's NoRoutableWaysError distinction on the
+                    # graph path).
+                    return []
+                except (requests.exceptions.RequestException,
+                        ox._errors.ResponseStatusCodeError) as exc:
+                    raise CandidateFetchUnavailable(
+                        "the map-data service didn't answer for this layer — "
+                        "try again in a moment, or narrow the trip area."
+                    ) from exc
+        except OverpassSettingsBusy as exc:
+            raise CandidateFetchUnavailable(
+                "the map-data service is busy with another request right "
+                "now — try again in a moment, or narrow the trip area."
+            ) from exc
         return [f for f in self._features_from_gdf(gdf) if f is not None]
 
     def _fetch_from_local_clip(

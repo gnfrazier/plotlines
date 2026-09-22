@@ -18,6 +18,7 @@ import osmnx as ox
 import pytest
 from osmium.osm import mutable
 
+from plotlines_core import osm_identity
 from plotlines_core.cache_layout import CacheLayout
 from plotlines_core.graph import regions
 
@@ -790,6 +791,48 @@ def test_candidate_fetch_does_not_inherit_a_concurrent_failover_hop(tmp_path, mo
     assert observed["url"] == default_url
     assert observed["rate_limit"] == default_rate_limit
     assert fetch_elapsed >= 0.2  # it blocked on the build, it did not race it
+
+
+# --------------------------------------------------------------------------- #
+# Issue #490, consequence 2: a `/candidates` fetch stuck inside
+# `OSM_SETTINGS_LOCK` (a stalled DNS lookup, say) used to hold it
+# indefinitely, and `ensure_graph`'s failover loop waited on that same lock
+# with no bound of its own — wedging the only build worker
+# (`REGION_BUILD_CONCURRENCY = 1`) and, with it, every later `POST /regions`.
+# --------------------------------------------------------------------------- #
+
+
+def test_ensure_graph_does_not_wedge_forever_behind_an_already_held_lock(
+    tmp_path, monkeypatch,
+):
+    """`ensure_graph` must give up waiting for `OSM_SETTINGS_LOCK` after
+    `OVERPASS_LOCK_TIMEOUT_S` and treat a still-busy lock as a transient,
+    retryable failure — eventually raising `OverpassUnavailable` — rather
+    than blocking on it past this test's own timeout.
+
+    Regression: against the pre-#490 `with overpass_settings(url=endpoint):`
+    (no `timeout=`), this test would hang forever — the lock held by the
+    `with osm_identity.OSM_SETTINGS_LOCK:` block below is never released
+    inside the test, so nothing would ever return.
+    """
+    monkeypatch.setattr(regions, "OVERPASS_LOCK_TIMEOUT_S", 0.1)
+
+    region = regions.region_for(_BBOX, "bike")
+
+    with osm_identity.OSM_SETTINGS_LOCK:  # stands in for a stuck /candidates fetch
+        started = time.monotonic()
+        with pytest.raises(regions.OverpassUnavailable):
+            regions.ensure_graph(
+                region, tmp_path,
+                endpoints=("https://primary.example/api",),
+                attempts_per_endpoint=1,
+                sleep=lambda _s: None,
+            )
+        elapsed = time.monotonic() - started
+
+    assert elapsed < 5.0, (
+        f"ensure_graph waited {elapsed:.2f}s on a lock already held by "
+        "another caller")
 
 
 def test_overpass_settings_restores_globals_on_exit_and_on_error():

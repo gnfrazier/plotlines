@@ -35,7 +35,12 @@ import requests
 from shapely.geometry import box
 
 from plotlines_core.graph import extract_fetch, pbf_source
-from plotlines_core.osm_identity import apply_osm_http_identity, overpass_settings
+from plotlines_core.osm_identity import (
+    OVERPASS_LOCK_TIMEOUT_S,
+    OverpassSettingsBusy,
+    apply_osm_http_identity,
+    overpass_settings,
+)
 
 log = logging.getLogger("plotlines.regions")
 
@@ -137,6 +142,13 @@ OVERPASS_PROBE_TIMEOUT_S = 3.0
 TRANSIENT_OVERPASS_ERRORS: tuple[type[Exception], ...] = (
     requests.exceptions.RequestException,
     ox._errors.ResponseStatusCodeError,
+    # Issue #490 — `OSM_SETTINGS_LOCK` still held by a concurrent
+    # `/candidates` fetch past `OVERPASS_LOCK_TIMEOUT_S` reads exactly like
+    # any other transient Overpass failure from here: back off, retry this
+    # endpoint, eventually fail over and (if every endpoint stays busy)
+    # raise `OverpassUnavailable` — never wait on the lock a second time
+    # with no bound.
+    OverpassSettingsBusy,
 )
 
 
@@ -888,7 +900,7 @@ def ensure_graph(
             # mechanism 3), and the connect probe above now removes that
             # latency for the case it actually mattered for.
             try:
-                with overpass_settings(url=endpoint):
+                with overpass_settings(url=endpoint, timeout=OVERPASS_LOCK_TIMEOUT_S):
                     graph = _download_region_graph(region)
             except ox._errors.InsufficientResponseError as exc:
                 # A true answer about this bbox/mode (issue #248), not an

@@ -82,6 +82,70 @@ def test_apply_reaches_the_outbound_overpass_and_nominatim_headers():
     assert "gboeing" not in headers["User-Agent"]
 
 
+# ── Issue #490 — bounding the wait for `OSM_SETTINGS_LOCK` ────────────────
+#
+# `overpass_settings` used to hold `OSM_SETTINGS_LOCK` with a plain, unbounded
+# `with OSM_SETTINGS_LOCK:`. That protects the settings mutation fine, but the
+# lock is held across the *whole* Overpass round trip in both real callers
+# (`graph/regions.py`, `curation/providers.py`), and a second caller waiting
+# for it had no bound of its own — it waited on whatever the holder's osmnx
+# internals were doing, which can be unbounded (ARCH A23a). `timeout=` turns
+# that into an honest, finite `OverpassSettingsBusy` instead.
+
+
+def test_overpass_settings_waits_for_a_real_release_under_a_generous_timeout():
+    """The ordinary case: a lock released promptly is waited for and used,
+    not treated as busy just because `timeout=` was given."""
+    released = threading.Event()
+
+    def hold_briefly():
+        with osm_identity.OSM_SETTINGS_LOCK:
+            released.wait(timeout=5)
+
+    holder = threading.Thread(target=hold_briefly)
+    holder.start()
+    try:
+        time.sleep(0.05)  # let the holder actually claim the lock first
+        released.set()
+        with osm_identity.overpass_settings(timeout=5.0):
+            pass  # acquired — did not raise OverpassSettingsBusy
+    finally:
+        holder.join(timeout=5)
+
+
+def test_overpass_settings_raises_overpass_settings_busy_after_timeout_even_against_a_lock_held_forever():
+    """A lock still held past `timeout` seconds raises `OverpassSettingsBusy`
+    rather than blocking past it — the property the whole fix rests on:
+    `Lock.acquire(timeout=)` polls wall-clock time, so the wait is bounded
+    even against a lock that is never released for the life of this test,
+    the pathological case a stalled DNS lookup or osmnx's unbounded
+    recursive pause (ARCH A23a) produces."""
+    with osm_identity.OSM_SETTINGS_LOCK:  # never released within this test
+        started = time.monotonic()
+        with pytest.raises(osm_identity.OverpassSettingsBusy):
+            with osm_identity.overpass_settings(timeout=0.15):
+                pass  # never reached
+        elapsed = time.monotonic() - started
+
+    assert 0.15 <= elapsed < 2.0, elapsed
+
+
+def test_overpass_settings_busy_never_mutates_globals_it_never_entered():
+    """A caller that never acquired the lock must never see its `url` /
+    `rate_limit` request take effect — there was nothing to restore because
+    nothing was ever changed."""
+    original_url = ox.settings.overpass_url
+
+    with osm_identity.OSM_SETTINGS_LOCK:
+        with pytest.raises(osm_identity.OverpassSettingsBusy):
+            with osm_identity.overpass_settings(
+                url="https://busy.example/api", timeout=0.1,
+            ):
+                pass
+
+    assert ox.settings.overpass_url == original_url
+
+
 # ── Issue #249 — `nominatim_rate_limit` ────────────────────────────────────
 #
 # Nominatim's usage policy: "an absolute maximum of 1 request per second".
