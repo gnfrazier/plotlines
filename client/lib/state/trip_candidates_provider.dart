@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/curation_client.dart' show CurationException;
 import '../domain/candidate.dart';
+import '../domain/reason_phrase.dart' show looksLikeRawDiagnostic;
 import '../domain/trip_bbox.dart';
 import 'providers.dart';
 
@@ -174,12 +175,21 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
   }
 }
 
-/// Issue #496 — a `CurationException` (a timeout included, since a timed-out
-/// call now raises one with an honest sentence) carries a screen-displayable
-/// [CurationException.message]; `toString()` would prefix it with the class
-/// name and status code, which is exactly the raw-exception leakage M13
-/// exists to keep off the shared error banner (`layers_tab.dart`).
-String _errorMessage(Object e) => e is CurationException ? e.message : e.toString();
+/// Issue #496 unwraps `CurationException`'s [CurationException.message]
+/// rather than its `toString()` (which prefixes the class name and status
+/// code); issue #418 closes the gap that left open — `message` falls back to
+/// the raw response body when it isn't `{"detail": …}`, and every other
+/// thrown type (`SocketException`, a bare `StateError`) had no unwrapping at
+/// all, so its `toString()` reached the screen whole. [looksLikeRawDiagnostic]
+/// (#230 B3) is the same guard `sidecar_manager.dart`'s `describe` already
+/// applies to a capability's `/health` reason: the sidecar's own honest
+/// sentences pass through untouched, and anything shaped like a repr, a
+/// traceback, or a host:port is replaced with a fixed phrase — the detail
+/// stays in the log, not on `layers_tab.dart`'s shared error surface.
+String _errorMessage(Object e) {
+  final raw = e is CurationException ? e.message : e.toString();
+  return looksLikeRawDiagnostic(raw) ? 'something went wrong finding candidates for this area' : raw;
+}
 
 final tripCandidatesProvider =
     StateNotifierProvider<TripCandidatesNotifier, TripCandidatesState>(

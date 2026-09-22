@@ -10,6 +10,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io' show SocketException;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -102,8 +103,7 @@ void main() {
 
   // Issue #496 — a timed-out `/candidates` call now raises a
   // `CurationException` with an honest sentence (never a bare
-  // `TimeoutException`); this pins that the state's `error` — which
-  // `layers_tab.dart`'s `_ErrorBanner` renders verbatim — carries that
+  // `TimeoutException`); this pins that the state's `error` carries that
   // sentence and not `CurationException`'s `toString()` (the class name
   // and status code prefix M13 exists to keep off the screen).
   test('a CurationException surfaces its honest message, not its toString()', () async {
@@ -118,6 +118,44 @@ void main() {
     final state = container.read(tripCandidatesProvider);
     expect(state.error, "the sidecar didn't answer while extracting candidates for this area — try again in a moment");
     expect(state.error, isNot(contains('CurationException')));
+  });
+
+  // Issue #418 — #496 only unwrapped `CurationException.message`, which
+  // itself falls back to the raw response body when it isn't
+  // `{"detail": …}`, and left every other thrown type's `toString()`
+  // untouched: a `CurationException` with a raw (non-JSON) 500 body, or a
+  // `SocketException`-shaped throw from an unreachable sidecar, both used to
+  // reach the screen whole. `_errorMessage` now runs the same
+  // `looksLikeRawDiagnostic` guard `sidecar_manager.dart` already applies to
+  // a capability's `/health` reason.
+  group('#418 — a raw diagnostic never reaches state.error', () {
+    test('a CurationException with a non-JSON body is replaced with a fixed phrase', () async {
+      final client = _FakeCurationClient()
+        ..throwThis = CurationException(500,
+            '<html><body><h1>500 Internal Server Error</h1><pre>Traceback (most recent call last):\n  File "app.py", line 1</pre></body></html>');
+      final container = _container(client);
+      final notifier = container.read(tripCandidatesProvider.notifier);
+
+      await notifier.fetch(bbox: _bbox, liveLayers: {'sight'});
+
+      final state = container.read(tripCandidatesProvider);
+      expect(state.error, 'something went wrong finding candidates for this area');
+      expect(state.error, isNot(contains('Traceback')));
+      expect(state.error, isNot(contains('<html>')));
+    });
+
+    test('a SocketException-shaped throw is replaced with a fixed phrase', () async {
+      final client = _FakeCurationClient()
+        ..throwThis = const SocketException('Connection refused');
+      final container = _container(client);
+      final notifier = container.read(tripCandidatesProvider.notifier);
+
+      await notifier.fetch(bbox: _bbox, liveLayers: {'sight'});
+
+      final state = container.read(tripCandidatesProvider);
+      expect(state.error, 'something went wrong finding candidates for this area');
+      expect(state.error, isNot(contains('SocketException')));
+    });
   });
 
   test('reset() clears candidates, error and the fetch key', () async {

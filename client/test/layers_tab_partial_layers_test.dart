@@ -13,6 +13,14 @@
 //
 // The wire reason (`failed:TimeoutError`) never reaches a Text — FR145.
 //
+// Issue #418 pins a third shape into the same treatment: a *thrown*
+// `candidatesForBbox` (a 500, an unreachable sidecar) used to render through
+// `_ErrorBanner`'s raw `e.toString()` instead of this tab's shared M13
+// surface. `_unavailableLayersSurface` reads `layerExtractionFailed` from
+// `candidatesState.error != null` exactly as it does from an empty
+// `layersServed`, so the exception path converges on the same card and the
+// same whole-set retry as "nothing served" below.
+//
 // `CurationClient` is faked as `layers_catalog_error_surface_test.dart`
 // fakes it.
 library;
@@ -58,6 +66,7 @@ class _ScriptedCurationClient extends CurationClient {
 
   final List<Set<String>> requested = [];
   CandidateExtraction next = const CandidateExtraction(candidates: []);
+  Object? throwThis;
 
   @override
   Future<LayerCatalog> layerCatalog({required String mode, required String dayType}) async =>
@@ -73,6 +82,7 @@ class _ScriptedCurationClient extends CurationClient {
     required Set<String> liveLayers,
   }) async {
     requested.add(liveLayers);
+    if (throwThis != null) throw throwThis!;
     return next;
   }
 }
@@ -204,6 +214,41 @@ void main() {
     await tester.tap(find.text('Retry'));
     await _settle(tester);
     expect(curation.requested.last, {'sight', 'natural'});
+  });
+
+  // Issue #418 — the reproduction: a `CurationException` (or any thrown
+  // failure) from `/candidates` used to reach the screen as `_ErrorBanner`'s
+  // raw `e.toString()`. It now converges on the same `layerExtractionFailed`
+  // card and whole-set retry as the 200-with-nothing-served case above.
+  testWidgets('a thrown CurationException converges on layerExtractionFailed with a whole-set retry',
+      (tester) async {
+    final curation = _ScriptedCurationClient()
+      ..throwThis = CurationException(500, 'Internal Server Error');
+    final container = _container(curation);
+    await tester.pumpWidget(_harness(container));
+    await _settle(tester);
+    await container
+        .read(tripCandidatesProvider.notifier)
+        .fetch(bbox: _bbox, liveLayers: {'sight', 'natural'});
+    await _settle(tester);
+
+    final surface = tester.widget<DesktopErrorSurface>(find.byType(DesktopErrorSurface));
+    expect(surface.state, DesktopErrorState.layerExtractionFailed);
+    expect(find.text('layer extraction did not finish'), findsOneWidget);
+    expect(find.textContaining('CurationException'), findsNothing);
+    expect(find.textContaining('Internal Server Error'), findsNothing);
+    expect(find.text('Retry'), findsOneWidget);
+
+    curation.throwThis = null;
+    curation.next = CandidateExtraction(
+      candidates: [_c('a', 'sight')],
+      layersServed: const ['sight', 'natural'],
+    );
+    await tester.tap(find.text('Retry'));
+    await _settle(tester);
+
+    expect(curation.requested.last, {'sight', 'natural'});
+    expect(find.byType(DesktopErrorSurface), findsNothing);
   });
 
   testWidgets('a fully served run shows no card', (tester) async {
