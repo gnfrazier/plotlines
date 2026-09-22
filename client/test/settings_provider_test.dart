@@ -47,6 +47,10 @@ void main() {
       // Date/time still start on inherit — that *is* reading from the OS.
       expect(notifier.state.dateFormat, DateFormatPref.inherit);
       expect(notifier.state.clock, ClockPref.inherit);
+      // Issue #465 — no platform basemap-style signal exists (unlike
+      // units/contrast), so this starts at matchAppearance regardless of
+      // the injected platform defaults, same reasoning as ThemeMode.system.
+      expect(notifier.state.basemapStyle, BasemapStylePref.matchAppearance);
     });
 
     test('a stored explicit choice overrides the platform default on load', () async {
@@ -54,6 +58,7 @@ void main() {
       await db.setSetting('date_format', 'europeanDot');
       await db.setSetting('clock_format', 'hour24');
       await db.setSetting('temperature_unit', 'fahrenheit');
+      await db.setSetting('basemap_style', 'grayscale');
 
       final c = _container(db);
       final notifier = SettingsNotifier(
@@ -71,6 +76,7 @@ void main() {
       expect(notifier.state.dateFormat, DateFormatPref.europeanDot);
       expect(notifier.state.clock, ClockPref.hour24);
       expect(notifier.state.temperatureUnit, TemperatureUnit.fahrenheit);
+      expect(notifier.state.basemapStyle, BasemapStylePref.grayscale);
     });
 
     test('setters write through to the settings store', () async {
@@ -83,11 +89,13 @@ void main() {
       await notifier.setClock(ClockPref.hour12);
       await notifier.setTemperatureUnit(TemperatureUnit.celsius);
       await notifier.setTtsReadout(true);
+      await notifier.setBasemapStyle(BasemapStylePref.dark);
 
       expect(await db.getSetting('date_format'), 'iso8601');
       expect(await db.getSetting('clock_format'), 'hour12');
       expect(await db.getSetting('temperature_unit'), 'celsius');
       expect(await db.getSetting('tts_readout'), 'true');
+      expect(await db.getSetting('basemap_style'), 'dark');
     });
   });
 
@@ -101,6 +109,7 @@ void main() {
         dateFormat: DateFormatPref.us,
         clock: ClockPref.hour12,
         textSize: TextSizePref.larger,
+        basemapStyle: BasemapStylePref.grayscale,
         ttsReadout: true,
       );
       expect(s.syncedPreferences, {
@@ -114,6 +123,8 @@ void main() {
         // like every other display choice; only the per-device TTS toggle
         // is excluded.
         'text_size': 'larger',
+        // Issue #465 — synced like every other display preference (FR58).
+        'basemap_style': 'grayscale',
       });
     });
 
@@ -146,6 +157,26 @@ void main() {
       const off = DisplaySettings(ttsReadout: false);
       expect(on.syncedPreferences.containsKey('tts_readout'), isFalse);
       expect(on.syncedPreferences, off.syncedPreferences);
+    });
+  });
+
+  group('resolveBasemapStyleName (issue #465)', () {
+    // matchAppearance reproduces the inline `isDark ? 'dark' : 'light'`
+    // rule every map widget used before this preference existed — the one
+    // case that must never change behaviour for an Author who never opens
+    // BASEMAP STYLE.
+    test('matchAppearance tracks the device brightness', () {
+      expect(resolveBasemapStyleName(true, BasemapStylePref.matchAppearance), 'dark');
+      expect(resolveBasemapStyleName(false, BasemapStylePref.matchAppearance), 'light');
+    });
+
+    // The other three pin a name regardless of brightness.
+    test('light/dark/grayscale pin their name regardless of brightness', () {
+      for (final isDark in [true, false]) {
+        expect(resolveBasemapStyleName(isDark, BasemapStylePref.light), 'light');
+        expect(resolveBasemapStyleName(isDark, BasemapStylePref.dark), 'dark');
+        expect(resolveBasemapStyleName(isDark, BasemapStylePref.grayscale), 'grayscale');
+      }
     });
   });
 }

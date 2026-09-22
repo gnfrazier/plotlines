@@ -68,10 +68,21 @@ void main() {
     'landuse_park': '#232325',
     'earth': '#1f1f1f',
   };
+  // Issue #465 — Grayscale's own ramp, read from the committed style: it
+  // sits in a narrower, lighter band than Light's (background/water fill
+  // are the same `#a3a3a3`; `landuse_park` varies by kind, so both ends of
+  // that range are checked).
+  const grayscaleBackdrops = {
+    'background / water fill': '#a3a3a3',
+    'earth': '#cccccc',
+    'landuse_park (glacier/sand, lightest)': '#d2d2d2',
+    'landuse_park (forest/park, darkest)': '#c2c2c2',
+  };
 
   for (final entry in {
     'light': lightBackdrops,
     'dark': darkBackdrops,
+    'grayscale': grayscaleBackdrops,
   }.entries) {
     final styleName = entry.key;
     final backdrops = entry.value;

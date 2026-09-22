@@ -1,5 +1,6 @@
-"""Generate `client/assets/map_style/style_{light,dark}.json` from the mirrored
-Protomaps Basemap themes at `spikes/SPIKE-14/harness/assets/` (ARCH D24).
+"""Generate `client/assets/map_style/style_{light,dark,grayscale}.json` from the
+mirrored Protomaps Basemap themes at `spikes/SPIKE-14/harness/assets/` (Light/Dark)
+and `spikes/SPIKE-K/harness/styles/` (Grayscale) (ARCH D24).
 
 SPIKE-14 found that `vector_tile_renderer` draws no basemap labels at all against the
 unmodified Protomaps v4 themes — not a missing feature, but two specific expression
@@ -36,6 +37,36 @@ This is that fix made real for both themes and committed to the pipeline rather 
 by hand once — D24 calls for "a scripted transform in the tile pipeline" specifically so
 a mirrored upstream refresh re-derives the shipped theme instead of drifting from it.
 
+Grayscale (issue #465, SPIKE-K #461 §6.3-6.4) has no source under SPIKE-14's harness —
+that spike ran before Grayscale was evaluated — so its input is SPIKE-K's own generator
+output (`spikes/SPIKE-K/probes/gen_protomaps_styles.mjs`, `@protomaps/basemaps` 5.7.2,
+`namedFlavor("grayscale")`, already committed at `spikes/SPIKE-K/harness/styles/
+protomaps_grayscale.json`). Running it through this module's transform surfaced a fifth
+instance of the expression-form `in` bug (module docstring item 3): `landuse_park`, a
+*fill* layer, carries the same `case`/`in`/`literal` construct in its `paint` that the
+`pois` layer carries in its `text-color` — but items 1-4 above were all found and fixed
+against Light/Dark's `pois` layer specifically, so the original `build_theme()` only ever
+applied `downgrade_in_filter`/`strip_zoom_filter` to symbol layers carrying a
+`text-field`. Grayscale ships no `pois` layer (no sprite sheet either, by upstream
+definition — the two flavors with sprites are Light and Dark), so *that* bug doesn't
+recur, but `landuse_park` sitting outside the symbol/text-field gate means it would have
+kept its unparseable `paint` expression and silently lost every kind-specific fill color
+under the same "parser bails on the whole `case`" failure mode. Fixed by widening
+`downgrade_in_filter`/`strip_zoom_filter` to every layer's `filter`/`paint`/`layout`,
+not only symbol layers with a `text-field` — confirmed a no-op against the committed
+Light/Dark output (neither has a matching pattern outside that gate today), so this is a
+strict widening, not a behaviour change for the two themes already shipping.
+
+Grayscale's own upstream water-label colours (`#7a7a7a` on a `#a3a3a3`-`#d2d2d2`
+landcover range) read 1.7-2.8:1 — well under WCAG 2.2 AA's 4.5:1 floor
+(plotlines-constraints), the same class of defect #321 fixed for Light/Dark, just with
+Grayscale's own numbers (its whole ramp sits in a narrower, lighter band than Light's).
+`WATER_LABEL_CONTRAST_FIX` applies a themed override to the three water-label layers'
+`text-color`/`text-halo-color`/`text-halo-width`, so the shipped file is a script step,
+never a hand-patch the script itself can't reproduce — see issue #486 for the
+pre-existing gap where #321's own Light/Dark values are *not* in this script yet and a
+re-run of this module currently regresses them.
+
 Run from the repo root:  python packaging/build_basemap_theme.py
 """
 
@@ -46,8 +77,42 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT / "spikes" / "SPIKE-14" / "harness" / "assets"
+GRAYSCALE_SRC = ROOT / "spikes" / "SPIKE-K" / "harness" / "styles" / "protomaps_grayscale.json"
 DST_DIR = ROOT / "client" / "assets" / "map_style"
-THEMES = ["light", "dark"]
+THEMES = ["light", "dark", "grayscale"]
+
+
+def _source_path(name: str) -> Path:
+    if name == "grayscale":
+        return GRAYSCALE_SRC
+    return SRC_DIR / f"style_{name}.json"
+
+
+_WATER_LABEL_LAYERS = {"water_waterway_label", "water_label_ocean", "water_label_lakes"}
+
+# WCAG 2.2 AA (plotlines-constraints), computed against this theme's own committed
+# landcover/water fills — see the module docstring. Light/Dark's #321 values are not
+# listed here (issue #486): they are a pre-existing hand-patch on the committed file,
+# not yet part of this script.
+WATER_LABEL_CONTRAST_FIX = {
+    "grayscale": {
+        "text-color": "#333333",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1,
+    },
+}
+
+
+def _apply_water_label_contrast_fix(name: str, style: dict) -> list[str]:
+    fix = WATER_LABEL_CONTRAST_FIX.get(name)
+    if not fix:
+        return []
+    fixed = []
+    for layer in style["layers"]:
+        if layer["id"] in _WATER_LABEL_LAYERS:
+            layer.setdefault("paint", {}).update(fix)
+            fixed.append(layer["id"])
+    return fixed
 
 
 def downgrade_in_filter(node):
@@ -97,50 +162,60 @@ def strip_zoom_filter(node):
 
 
 def build_theme(name: str) -> None:
-    src = SRC_DIR / f"style_{name}.json"
+    src = _source_path(name)
     dst = DST_DIR / f"style_{name}.json"
     style = json.loads(src.read_text(encoding="utf-8"))
 
-    text_fixed, filter_fixed, paint_fixed, zoom_filter_fixed = [], [], [], []
+    text_fixed, filter_fixed, paint_fixed, layout_fixed, zoom_filter_fixed = [], [], [], [], []
     for layer in style["layers"]:
+        # Items 1-4's fixes were found against Light/Dark's `pois` layer and written as
+        # symbol/text-field-scoped; item 3 in particular (expression-form `in` inside
+        # `paint`) is a general layer-shape bug, not a `pois`-specific or symbol-specific
+        # one, and Grayscale's `landuse_park` (a *fill* layer) carries exactly that
+        # construct. So `filter`/`paint`/`layout` are downgraded on every layer,
+        # regardless of type — confirmed a no-op against the committed Light/Dark output.
+        for prop in ("filter", "paint", "layout"):
+            if prop not in layer:
+                continue
+            downgraded = downgrade_in_filter(layer[prop])
+            if downgraded != layer[prop]:
+                layer[prop] = downgraded
+                (filter_fixed if prop == "filter" else
+                 paint_fixed if prop == "paint" else layout_fixed).append(layer["id"])
+
+        if "filter" in layer:
+            stripped = strip_zoom_filter(layer["filter"])
+            if stripped != layer["filter"]:
+                layer["filter"] = stripped
+                zoom_filter_fixed.append(layer["id"])
+
         if layer.get("type") != "symbol":
             continue
         layout = layer.get("layout") or {}
         if "text-field" not in layout:
             continue
         layout["text-field"] = ["get", "name"]
-        # The icon sprite is a separate unresolved dependency (the themes reference a
-        # sprite sheet the tile pipeline never extracted) — leaving icon-image in place
-        # would misattribute a missing sprite to a missing label.
+        # The icon sprite is a separate unresolved dependency (Light/Dark reference a
+        # sprite sheet the tile pipeline never extracted; Grayscale ships no sprite at
+        # all, by upstream definition) — leaving icon-image in place would misattribute
+        # a missing sprite to a missing label.
         layout.pop("icon-image", None)
         text_fixed.append(f'{layer["id"]} ({layer.get("source-layer")})')
 
-        if "filter" in layer:
-            downgraded = downgrade_in_filter(layer["filter"])
-            if downgraded != layer["filter"]:
-                layer["filter"] = downgraded
-                filter_fixed.append(layer["id"])
-
-            stripped = strip_zoom_filter(layer["filter"])
-            if stripped != layer["filter"]:
-                layer["filter"] = stripped
-                zoom_filter_fixed.append(layer["id"])
-
-        if "paint" in layer:
-            downgraded = downgrade_in_filter(layer["paint"])
-            if downgraded != layer["paint"]:
-                layer["paint"] = downgraded
-                paint_fixed.append(layer["id"])
+    contrast_fixed = _apply_water_label_contrast_fix(name, style)
 
     dst.write_text(json.dumps(style), encoding="utf-8")
     print(f"wrote {dst.relative_to(ROOT)}")
     print(f"  text-field simplified on {len(text_fixed)} symbol layers:")
     for entry in text_fixed:
         print(f"    {entry}")
+    print(f"  'in' filter downgraded on {len(filter_fixed)}: {', '.join(filter_fixed) or '-'}")
     print(f"  paint 'in' expression downgraded on {len(paint_fixed)}: {', '.join(paint_fixed) or '-'}")
+    print(f"  layout 'in' expression downgraded on {len(layout_fixed)}: {', '.join(layout_fixed) or '-'}")
     print(f"  zoom-comparison filter clause dropped on {len(zoom_filter_fixed)}: "
           f"{', '.join(zoom_filter_fixed) or '-'}")
-    print(f"  'in' filter downgraded on {len(filter_fixed)}: {', '.join(filter_fixed) or '-'}")
+    print(f"  WCAG AA water-label contrast fix applied on {len(contrast_fixed)}: "
+          f"{', '.join(contrast_fixed) or '-'}")
 
 
 def main() -> None:

@@ -67,6 +67,47 @@ enum TextSizePref {
 double resolveTextScale(double platformScale, TextSizePref pref) =>
     (platformScale * pref.factor).clamp(1.0, 2.0);
 
+/// K5 / ARCH D24 (issue #465) — which Protomaps basemap flavour an Author's
+/// maps draw with. SPIKE-K (#461) found the flavour swap is a cheap,
+/// zero-camera-drift style-JSON load, and named Grayscale the one worth
+/// adding as an Author-selectable "quiet" theme; White and Black stayed out
+/// of scope (a print backdrop and a terrain-removing theme, respectively).
+enum BasemapStylePref {
+  /// Mirrors the app's own light/dark appearance — today's only behaviour,
+  /// kept as the default so nobody who never opens this setting sees a
+  /// change.
+  matchAppearance,
+
+  light,
+  dark,
+  grayscale;
+
+  String get label => switch (this) {
+        BasemapStylePref.matchAppearance => 'Match appearance',
+        BasemapStylePref.light => 'Light',
+        BasemapStylePref.dark => 'Dark',
+        BasemapStylePref.grayscale => 'Grayscale',
+      };
+}
+
+/// The style-JSON name [MapTileAssets.theme] loads, given the device's
+/// current brightness and the Author's [BasemapStylePref]. Pure, so the
+/// mapping is verifiable without a window — `resolveTextScale`'s pattern —
+/// and it is the *only* place a preference turns into a style name; every
+/// map widget reads this rather than re-deriving `isDark ? 'dark' :
+/// 'light'` inline.
+///
+/// [BasemapStylePref.matchAppearance] reproduces that inline rule exactly,
+/// so an Author who never visits this setting sees no change. The other
+/// three pin a name regardless of [isDark].
+String resolveBasemapStyleName(bool isDark, BasemapStylePref pref) =>
+    switch (pref) {
+      BasemapStylePref.matchAppearance => isDark ? 'dark' : 'light',
+      BasemapStylePref.light => 'light',
+      BasemapStylePref.dark => 'dark',
+      BasemapStylePref.grayscale => 'grayscale',
+    };
+
 /// K5 / FR79 — the OS-derived starting point for every display preference.
 ///
 /// FR79: "The initial value of every display preference is read from the
@@ -136,6 +177,7 @@ class DisplaySettings {
     this.dateFormat = DateFormatPref.inherit,
     this.clock = ClockPref.inherit,
     this.textSize = TextSizePref.system,
+    this.basemapStyle = BasemapStylePref.matchAppearance,
     this.ttsReadout = false,
   });
 
@@ -155,6 +197,11 @@ class DisplaySettings {
   /// replacing it. Applied once, in `main.dart`'s `MediaQuery` wrapper.
   final TextSizePref textSize;
 
+  /// K5 / ARCH D24 (issue #465) — which basemap flavour draws under this
+  /// Author's maps. `matchAppearance` mirrors [themeMode]'s light/dark
+  /// resolution; applied via [resolveBasemapStyleName].
+  final BasemapStylePref basemapStyle;
+
   /// H2a / FR40a device-TTS readout toggle. **Per-device, never synced** — it
   /// depends on which voices are installed on the machine in front of the
   /// Character, so it is excluded from [syncedPreferences].
@@ -168,6 +215,7 @@ class DisplaySettings {
     DateFormatPref? dateFormat,
     ClockPref? clock,
     TextSizePref? textSize,
+    BasemapStylePref? basemapStyle,
     bool? ttsReadout,
   }) =>
       DisplaySettings(
@@ -178,6 +226,7 @@ class DisplaySettings {
         dateFormat: dateFormat ?? this.dateFormat,
         clock: clock ?? this.clock,
         textSize: textSize ?? this.textSize,
+        basemapStyle: basemapStyle ?? this.basemapStyle,
         ttsReadout: ttsReadout ?? this.ttsReadout,
       );
 
@@ -192,6 +241,7 @@ class DisplaySettings {
         'date_format': dateFormat.name,
         'clock_format': clock.name,
         'text_size': textSize.name,
+        'basemap_style': basemapStyle.name,
       };
 
   /// Build the render-time [DisplayFormat] for this set of preferences.
@@ -220,11 +270,12 @@ class DisplaySettings {
       other.dateFormat == dateFormat &&
       other.clock == clock &&
       other.textSize == textSize &&
+      other.basemapStyle == basemapStyle &&
       other.ttsReadout == ttsReadout;
 
   @override
   int get hashCode => Object.hash(unit, temperatureUnit, themeMode, contrast,
-      dateFormat, clock, textSize, ttsReadout);
+      dateFormat, clock, textSize, basemapStyle, ttsReadout);
 }
 
 class SettingsNotifier extends StateNotifier<DisplaySettings> {
@@ -261,6 +312,7 @@ class SettingsNotifier extends StateNotifier<DisplaySettings> {
     final dateFormat = await db.getSetting('date_format');
     final clock = await db.getSetting('clock_format');
     final textSize = await db.getSetting('text_size');
+    final basemapStyle = await db.getSetting('basemap_style');
     final tts = await db.getSetting('tts_readout');
     state = DisplaySettings(
       // A stored value is an explicit choice; its absence falls back to the
@@ -294,6 +346,10 @@ class SettingsNotifier extends StateNotifier<DisplaySettings> {
       textSize: TextSizePref.values.firstWhere(
         (t) => t.name == textSize,
         orElse: () => TextSizePref.system,
+      ),
+      basemapStyle: BasemapStylePref.values.firstWhere(
+        (b) => b.name == basemapStyle,
+        orElse: () => BasemapStylePref.matchAppearance,
       ),
       ttsReadout: tts == 'true',
     );
@@ -334,6 +390,13 @@ class SettingsNotifier extends StateNotifier<DisplaySettings> {
   Future<void> setTextSize(TextSizePref pref) async {
     state = state.copyWith(textSize: pref);
     await _ref.read(appDatabaseProvider).setSetting('text_size', pref.name);
+  }
+
+  Future<void> setBasemapStyle(BasemapStylePref pref) async {
+    state = state.copyWith(basemapStyle: pref);
+    await _ref
+        .read(appDatabaseProvider)
+        .setSetting('basemap_style', pref.name);
   }
 
   /// Per-device only — persisted locally, excluded from the synced payload.
