@@ -100,6 +100,26 @@ void main() {
     expect(state.candidates.map((c) => c.id), ['a']);
   });
 
+  // Issue #496 — a timed-out `/candidates` call now raises a
+  // `CurationException` with an honest sentence (never a bare
+  // `TimeoutException`); this pins that the state's `error` — which
+  // `layers_tab.dart`'s `_ErrorBanner` renders verbatim — carries that
+  // sentence and not `CurationException`'s `toString()` (the class name
+  // and status code prefix M13 exists to keep off the screen).
+  test('a CurationException surfaces its honest message, not its toString()', () async {
+    final client = _FakeCurationClient()
+      ..throwThis = CurationException(
+          503, '{"detail": "the sidecar didn\'t answer while extracting candidates for this area — try again in a moment"}');
+    final container = _container(client);
+    final notifier = container.read(tripCandidatesProvider.notifier);
+
+    await notifier.fetch(bbox: _bbox, liveLayers: {'sight'});
+
+    final state = container.read(tripCandidatesProvider);
+    expect(state.error, "the sidecar didn't answer while extracting candidates for this area — try again in a moment");
+    expect(state.error, isNot(contains('CurationException')));
+  });
+
   test('reset() clears candidates, error and the fetch key', () async {
     final client = _FakeCurationClient()..result = [_c('a')];
     final container = _container(client);
