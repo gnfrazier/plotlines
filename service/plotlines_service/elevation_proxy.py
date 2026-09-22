@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import logging
 import threading
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
@@ -53,6 +54,33 @@ from .version import VERSION
 
 log = logging.getLogger("plotlines.elevation_proxy")
 
+#: Issue #495 — the #488 shape applied here. `client.fetch` -> `opener.open`
+#: (`core/plotlines_core/elevation/keys.py`) has a 120s *socket* timeout that,
+#: like every synchronous transport's, does not cover a stalled DNS lookup —
+#: #488's finding, unchanged by which client makes the call. `get_dem` used to
+#: hold `lock` across that whole call, so a stalled resolver held it
+#: indefinitely and every later `/dem` (any bbox) queued on `Lock.acquire()`
+#: with no bound of its own. The fetch now runs on its own single-worker pool
+#: and gives up after `_DEM_FETCH_TIMEOUT_S` regardless of whether
+#: `client.fetch` ever returns — margin over the client's own 120s, the same
+#: logic as `_GEOCODE_FETCH_TIMEOUT_S` / `_CANDIDATE_FETCH_TIMEOUT_S`. `lock`
+#: itself now only guards the fast, network-free bookkeeping (`cache.get`,
+#: `authorize`, `reserve`) and is released before the fetch is dispatched, so
+#: a cache-hit `/dem` for a different bbox is never made to wait on a stuck
+#: fetch for another one. The one thing this gives up versus the old lock:
+#: two *identical*-bbox misses arriving close together can both dispatch a
+#: fetch (the single-worker pool runs them one after the other rather than
+#: coalescing them into one) — an extra spent free-tier call in a load-test
+#: burst, never a hang or a wrong answer, and acceptable here per the
+#: module's own docstring ("QA/UAT... lower priority than its sidecar
+#: sibling"). Concurrency 1 is preserved by the pool, not by `lock`.
+_DEM_FETCH_TIMEOUT_S = 150.0
+
+#: `Retry-After` hint on a bare fetch timeout — unlike `FreeTierExhausted`,
+#: there is no ledger-derived "next free" moment to report, so this is just a
+#: short, honest "try again soon" rather than a restatement of the deadline.
+_DEM_FETCH_TIMED_OUT_RETRY_AFTER_S = 10
+
 
 def create_proxy_app(
     cache_dir: Path,
@@ -69,6 +97,7 @@ def create_proxy_app(
     if client is None:
         client = client_from_env(layout.elevation_dir, env=env)
     lock = threading.Lock()
+    fetch_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="elevation-proxy-fetch")
 
     app = FastAPI(title="plotlines-elevation-proxy", version=VERSION)
 
@@ -109,18 +138,37 @@ def create_proxy_app(
                 ) from None
 
             dest = cache.reserve(bbox)
-            try:
-                path = client.fetch(client.base_url, bbox, dest)
-            except Exception as exc:  # noqa: BLE001 — any upstream failure is 502
-                log.warning("dem FETCH FAILED bbox=%s: %s", bbox, exc)
-                raise HTTPException(
-                    502,
-                    detail={"error": "upstream_fetch_failed", "message": str(exc)},
-                ) from exc
+
+        # Issue #495 — dispatched and awaited with `lock` released: a stuck
+        # fetch here must never hold up a cache-hit `/dem` for a different
+        # bbox, or `/health`, which never touches `lock` at all.
+        future = fetch_pool.submit(client.fetch, client.base_url, bbox, dest)
+        try:
+            path = future.result(timeout=_DEM_FETCH_TIMEOUT_S)
+        except FutureTimeoutError:
+            log.warning(
+                "dem FETCH TIMED OUT bbox=%s after %.0fs", bbox, _DEM_FETCH_TIMEOUT_S)
+            raise HTTPException(
+                503,
+                detail={
+                    "error": "upstream_fetch_timed_out",
+                    "message": (
+                        f"OpenTopography didn't answer within "
+                        f"{_DEM_FETCH_TIMEOUT_S:.0f}s"),
+                },
+                headers={"Retry-After": str(_DEM_FETCH_TIMED_OUT_RETRY_AFTER_S)},
+            ) from None
+        except Exception as exc:  # noqa: BLE001 — any upstream failure is 502
+            log.warning("dem FETCH FAILED bbox=%s: %s", bbox, exc)
+            raise HTTPException(
+                502,
+                detail={"error": "upstream_fetch_failed", "message": str(exc)},
+            ) from exc
+
+        with lock:
             log.info(
-                "dem FETCHED bbox=%s remaining=%s", bbox, client.remaining_calls
-            )
-            return FileResponse(path, media_type="image/tiff")
+                "dem FETCHED bbox=%s remaining=%s", bbox, client.remaining_calls)
+        return FileResponse(path, media_type="image/tiff")
 
     @app.get("/health")
     def proxy_health() -> dict:
