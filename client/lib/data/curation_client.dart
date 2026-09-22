@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -40,13 +41,46 @@ class CurationClient {
 
   final String baseUrl;
 
+  // Issue #496 (ARCH §8.6/D66's client half) — every sidecar call below
+  // carries a deadline and converts a `TimeoutException` into the same
+  // typed [CurationException] an ordinary sidecar error would raise, with
+  // an honest "didn't answer" sentence rather than the raw exception —
+  // `.timeout()` alone abandons the Dart future but leaves the surrounding
+  // `on CurationException catch` / M13 plumbing with nothing to catch.
+  // Mutable, not `const`, only so a test can shrink one without waiting out
+  // the real deadline; production code never reassigns these.
+  //
+  // `/layers` and `/candidates/score` are local reads (no network) — a few
+  // seconds is generous margin. `/candidates` and `/clusters/analyze` both
+  // run `LayerRegistry.fetch_candidates_all`, whose own worst case is
+  // `_CANDIDATE_FETCH_TIMEOUT_S = 60.0` server-side (`service/app.py`);
+  // `/clusters/analyze` also clusters what it extracts, so it carries extra
+  // margin on top.
+  static Duration layerCatalogTimeout = const Duration(seconds: 10);
+  static Duration scoreCandidatesTimeout = const Duration(seconds: 10);
+  static Duration candidatesTimeout = const Duration(seconds: 75);
+  static Duration analyzeColocationTimeout = const Duration(seconds: 90);
+
   Uri _uri(String path, [Map<String, String>? query]) =>
       Uri.parse('$baseUrl$path').replace(queryParameters: query);
+
+  Never _timedOut(String doing) {
+    throw CurationException(503, jsonEncode({
+      'detail': "the sidecar didn't answer while $doing — try again in a moment",
+    }));
+  }
 
   /// FR97 — the layer catalog and this (mode, day type) pair's default live
   /// set.
   Future<LayerCatalog> layerCatalog({required String mode, required String dayType}) async {
-    final resp = await http.get(_uri('/layers', {'mode': mode, 'day_type': dayType}));
+    final http.Response resp;
+    try {
+      resp = await http
+          .get(_uri('/layers', {'mode': mode, 'day_type': dayType}))
+          .timeout(layerCatalogTimeout);
+    } on TimeoutException {
+      _timedOut('loading the layer catalog');
+    }
     _checkOk(resp);
     return LayerCatalog.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
   }
@@ -59,14 +93,21 @@ class CurationClient {
     required Set<String> liveLayers,
     required List<RawCandidateFeature> features,
   }) async {
-    final resp = await http.post(
-      _uri('/candidates/score'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'live_layers': liveLayers.toList(),
-        'features': features.map((f) => f.toJson()).toList(),
-      }),
-    );
+    final http.Response resp;
+    try {
+      resp = await http
+          .post(
+            _uri('/candidates/score'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'live_layers': liveLayers.toList(),
+              'features': features.map((f) => f.toJson()).toList(),
+            }),
+          )
+          .timeout(scoreCandidatesTimeout);
+    } on TimeoutException {
+      _timedOut('scoring candidates');
+    }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
     return (raw['candidates'] as List)
@@ -87,13 +128,18 @@ class CurationClient {
     required TripBbox bbox,
     required Set<String> liveLayers,
   }) async {
-    final resp = await http.get(_uri('/candidates', {
-      'west': bbox.minLon.toString(),
-      'south': bbox.minLat.toString(),
-      'east': bbox.maxLon.toString(),
-      'north': bbox.maxLat.toString(),
-      'layers': liveLayers.join(','),
-    }));
+    final http.Response resp;
+    try {
+      resp = await http.get(_uri('/candidates', {
+        'west': bbox.minLon.toString(),
+        'south': bbox.minLat.toString(),
+        'east': bbox.maxLon.toString(),
+        'north': bbox.maxLat.toString(),
+        'layers': liveLayers.join(','),
+      })).timeout(candidatesTimeout);
+    } on TimeoutException {
+      _timedOut('extracting candidates for this area');
+    }
     _checkOk(resp);
     return CandidateExtraction.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
   }
@@ -109,6 +155,14 @@ class CurationClient {
   /// time are flagged [ClusterProposal.isNew]. [route], when given, is a
   /// lon/lat polyline: every proposal then carries `distanceToRouteM`, and
   /// the reviewable cap grows with route length.
+  ///
+  /// Issue #504 — `/clusters/analyze` runs the same
+  /// `LayerRegistry.fetch_candidates_all` extraction `/candidates` does,
+  /// but (unlike `/candidates` since #490) still calls it inline on the
+  /// endpoint's own shared-pool thread with no dedicated pool or deadline
+  /// server-side, so [analyzeColocationTimeout] carries margin for the
+  /// full extraction plus clustering rather than the "a few seconds" a
+  /// pure local read would need.
   Future<ColocationResult> analyzeColocation({
     required TripBbox bbox,
     required Set<String> liveLayers,
@@ -117,18 +171,25 @@ class CurationClient {
     Iterable<Set<String>> previous = const [],
     String sort = 'rank',
   }) async {
-    final resp = await http.post(
-      _uri('/clusters/analyze'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'bbox': [bbox.minLon, bbox.minLat, bbox.maxLon, bbox.maxLat],
-        'layers': liveLayers.toList(),
-        if (route.isNotEmpty) 'route': route,
-        if (rejected.isNotEmpty) 'rejected': [for (final s in rejected) s.toList()],
-        if (previous.isNotEmpty) 'previous': [for (final s in previous) s.toList()],
-        'sort': sort,
-      }),
-    );
+    final http.Response resp;
+    try {
+      resp = await http
+          .post(
+            _uri('/clusters/analyze'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'bbox': [bbox.minLon, bbox.minLat, bbox.maxLon, bbox.maxLat],
+              'layers': liveLayers.toList(),
+              if (route.isNotEmpty) 'route': route,
+              if (rejected.isNotEmpty) 'rejected': [for (final s in rejected) s.toList()],
+              if (previous.isNotEmpty) 'previous': [for (final s in previous) s.toList()],
+              'sort': sort,
+            }),
+          )
+          .timeout(analyzeColocationTimeout);
+    } on TimeoutException {
+      _timedOut('looking for clusters');
+    }
     _checkOk(resp);
     return ColocationResult.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
   }

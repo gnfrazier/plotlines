@@ -15,6 +15,7 @@ library;
 import 'package:flutter/foundation.dart' show listEquals, mapEquals, setEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/curation_client.dart' show CurationException;
 import '../domain/candidate.dart';
 import '../domain/trip_bbox.dart';
 import 'providers.dart';
@@ -135,7 +136,7 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
     } catch (e) {
       state = state.copyWith(
         loading: false,
-        error: e.toString(),
+        error: _errorMessage(e),
         fetchedFor: CandidateFetchKey(bbox: bbox, liveLayers: liveLayers),
       );
     }
@@ -168,10 +169,17 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
         layersUnavailable: result.layersUnavailable,
       );
     } catch (e) {
-      state = state.copyWith(loading: false, error: e.toString());
+      state = state.copyWith(loading: false, error: _errorMessage(e));
     }
   }
 }
+
+/// Issue #496 — a `CurationException` (a timeout included, since a timed-out
+/// call now raises one with an honest sentence) carries a screen-displayable
+/// [CurationException.message]; `toString()` would prefix it with the class
+/// name and status code, which is exactly the raw-exception leakage M13
+/// exists to keep off the shared error banner (`layers_tab.dart`).
+String _errorMessage(Object e) => e is CurationException ? e.message : e.toString();
 
 final tripCandidatesProvider =
     StateNotifierProvider<TripCandidatesNotifier, TripCandidatesState>(

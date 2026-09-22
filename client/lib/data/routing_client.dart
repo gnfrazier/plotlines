@@ -21,10 +21,47 @@ class RoutingClient {
 
   final String baseUrl;
 
+  // Issue #496 (ARCH §8.6/D66's client half) — every sidecar call below
+  // carries a deadline and converts a `TimeoutException` into the same
+  // typed [RoutingException] an ordinary sidecar error would raise, with an
+  // honest "didn't answer" sentence rather than the raw exception —
+  // `.timeout()` alone abandons the Dart future but leaves the surrounding
+  // `on RoutingException catch` / M13 plumbing with nothing to catch (the
+  // shape #493 shipped for [geocode] below, applied to every other call).
+  // Mutable, not `const`, only so a test can shrink one without waiting out
+  // the real deadline; production code never reassigns these.
+  //
+  // `/health`, `/about`, `/segments/*`, `/days/compose` and `/trips/split`
+  // never leave the sidecar process (a graph solve, cue derivation, or a
+  // dict lookup) — a few seconds is generous margin. `/regions` is
+  // ARCH D25's 202-and-poll house style: it only has to enqueue the build,
+  // never wait on it, so its deadline is short too.
+  static Duration healthTimeout = const Duration(seconds: 10);
+  static Duration aboutTimeout = const Duration(seconds: 10);
+  static Duration ensureRegionTimeout = const Duration(seconds: 8);
+  static Duration generateSegmentTimeout = const Duration(seconds: 15);
+  static Duration envelopeTimeout = const Duration(seconds: 15);
+  static Duration submitDiagnoseTimeout = const Duration(seconds: 8);
+  static Duration pollDiagnoseTimeout = const Duration(seconds: 8);
+  static Duration cuesForTimeout = const Duration(seconds: 15);
+  static Duration composeDayTimeout = const Duration(seconds: 15);
+  static Duration assembleTripTimeout = const Duration(seconds: 15);
+
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
+  Never _timedOut(String doing) {
+    throw RoutingException(503, jsonEncode({
+      'detail': "the sidecar didn't answer while $doing — try again in a moment",
+    }));
+  }
+
   Future<Map<String, dynamic>> health() async {
-    final resp = await http.get(_uri('/health'));
+    final http.Response resp;
+    try {
+      resp = await http.get(_uri('/health')).timeout(healthTimeout);
+    } on TimeoutException {
+      _timedOut('checking sidecar health');
+    }
     _checkOk(resp);
     return jsonDecode(resp.body) as Map<String, dynamic>;
   }
@@ -37,7 +74,12 @@ class RoutingClient {
   /// `privacyStatement`) so the lightest surfaces still satisfy the licence
   /// obligation when no sidecar is reachable.
   Future<Map<String, dynamic>> about() async {
-    final resp = await http.get(_uri('/about'));
+    final http.Response resp;
+    try {
+      resp = await http.get(_uri('/about')).timeout(aboutTimeout);
+    } on TimeoutException {
+      _timedOut('loading the about page');
+    }
     _checkOk(resp);
     return jsonDecode(resp.body) as Map<String, dynamic>;
   }
@@ -57,11 +99,18 @@ class RoutingClient {
       {String networkType = 'bike', bool retry = false}) async {
     final body = <String, dynamic>{'bbox': bboxWsen, 'network_type': networkType};
     if (retry) body['retry'] = true;
-    final resp = await http.post(
-      _uri('/regions'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final http.Response resp;
+    try {
+      resp = await http
+          .post(
+            _uri('/regions'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(ensureRegionTimeout);
+    } on TimeoutException {
+      _timedOut('preparing the routing region');
+    }
     _checkOk(resp);
     return (jsonDecode(resp.body) as Map<String, dynamic>)['region'] as String;
   }
@@ -95,22 +144,29 @@ class RoutingClient {
     Map<String, double>? weights,
     double? targetM,
   }) async {
-    final resp = await http.post(
-      _uri('/segments/generate'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'region': region,
-        'start': _latLon(start),
-        if (end != null) 'end': _latLon(end),
-        'via': via.map(_latLon).toList(),
-        'mode': mode,
-        if (discipline != null) 'discipline': discipline,
-        'shape': shape,
-        'theme': theme,
-        if (weights != null) 'weights': weights,
-        if (targetM != null) 'target_m': targetM,
-      }),
-    );
+    final http.Response resp;
+    try {
+      resp = await http
+          .post(
+            _uri('/segments/generate'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'region': region,
+              'start': _latLon(start),
+              if (end != null) 'end': _latLon(end),
+              'via': via.map(_latLon).toList(),
+              'mode': mode,
+              if (discipline != null) 'discipline': discipline,
+              'shape': shape,
+              'theme': theme,
+              if (weights != null) 'weights': weights,
+              if (targetM != null) 'target_m': targetM,
+            }),
+          )
+          .timeout(generateSegmentTimeout);
+    } on TimeoutException {
+      _timedOut('generating the route');
+    }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
     return _segmentFromSolveResponse(raw,
@@ -190,16 +246,23 @@ class RoutingClient {
     required double targetM,
     List<Coord> via = const [],
   }) async {
-    final resp = await http.post(
-      _uri('/segments/envelope'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'region': region,
-        'start': _latLon(start),
-        'target_m': targetM,
-        'via': via.map(_latLon).toList(),
-      }),
-    );
+    final http.Response resp;
+    try {
+      resp = await http
+          .post(
+            _uri('/segments/envelope'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'region': region,
+              'start': _latLon(start),
+              'target_m': targetM,
+              'via': via.map(_latLon).toList(),
+            }),
+          )
+          .timeout(envelopeTimeout);
+    } on TimeoutException {
+      _timedOut('probing the route range');
+    }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
     return raw.map((k, v) =>
@@ -215,23 +278,30 @@ class RoutingClient {
     required List<Band> bands,
     List<Coord> via = const [],
   }) async {
-    final resp = await http.post(
-      _uri('/segments/diagnose'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'region': region,
-        'start': _latLon(start),
-        'target_m': targetM,
-        'via': via.map(_latLon).toList(),
-        'bands': bands
-            .map((b) => {
-                  'metric': b.attribute,
-                  'minimum': b.min,
-                  'maximum': b.max,
-                })
-            .toList(),
-      }),
-    );
+    final http.Response resp;
+    try {
+      resp = await http
+          .post(
+            _uri('/segments/diagnose'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'region': region,
+              'start': _latLon(start),
+              'target_m': targetM,
+              'via': via.map(_latLon).toList(),
+              'bands': bands
+                  .map((b) => {
+                        'metric': b.attribute,
+                        'minimum': b.min,
+                        'maximum': b.max,
+                      })
+                  .toList(),
+            }),
+          )
+          .timeout(submitDiagnoseTimeout);
+    } on TimeoutException {
+      _timedOut('starting the route diagnosis');
+    }
     _checkOk(resp);
     return (jsonDecode(resp.body) as Map<String, dynamic>)['id'] as String;
   }
@@ -239,7 +309,12 @@ class RoutingClient {
   /// A6, step 2 of 2 — poll until the diagnosis is ready. Returns null while
   /// still pending.
   Future<Diagnosis?> pollDiagnose(String jobId) async {
-    final resp = await http.get(_uri('/segments/diagnose/$jobId'));
+    final http.Response resp;
+    try {
+      resp = await http.get(_uri('/segments/diagnose/$jobId')).timeout(pollDiagnoseTimeout);
+    } on TimeoutException {
+      _timedOut('checking the route diagnosis');
+    }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
     if (raw['status'] == 'pending') return null;
@@ -253,46 +328,53 @@ class RoutingClient {
   /// weights/target distance); its `nodes`/`hazards`/`portages`/`alternates`
   /// are the curated content the sheet is derived around.
   Future<CueSheet> cuesFor(Segment segment, {required String region}) async {
-    final resp = await http.post(
-      _uri('/segments/cues'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'region': region,
-        'start': _latLon(segment.start!),
-        if (segment.end != null) 'end': _latLon(segment.end!),
-        'via': segment.via.map(_latLon).toList(),
-        // #315 — keep the cue re-solve on the same profile the generate used.
-        if (segment.discipline != null) 'discipline': segment.discipline,
-        'shape': segment.shape,
-        if (segment.weights?.name != null) 'theme': segment.weights!.name,
-        if (segment.targetDistance != null) 'target_m': segment.targetDistance!.valueM,
-        'segment_id': segment.id,
-        'nodes': segment.nodes.map((n) => {
-              'id': n.id, 'kind': n.kind.wireValue, 'coord': n.coord,
-              'distance_along_m': n.distanceAlongM, 'title': n.title,
-              'instructions': n.instructions,
-              // C5 / F1 (FR133) — woven into the cue's own instruction text
-              // server-side (`cues.node_cues`), not a separate logistics list.
-              'amenities': n.amenities,
-            }).toList(),
-        'hazards': segment.hazards.map((h) => {
-              'id': h.id, 'severity': h.severity, 'coord': h.coord,
-              'distance_along_m': h.distanceAlongM, 'title': h.title,
-              'safety_note': h.safetyNote,
-            }).toList(),
-        'portages': segment.portages.map((p) => {
-              'id': p.id,
-              'geometry': {'coordinates': p.geometry.coordinates},
-              'exit_bank': p.exitBank, 'mandatory': p.mandatory ?? false,
-              'distance_m': p.distanceM,
-            }).toList(),
-        'alternates': segment.alternates.map((a) => {
-              'id': a.id, 'intent': a.intent, 'kind': a.kind,
-              'geometry': {'coordinates': a.geometry.coordinates},
-              'label': a.label, 'diverges_at_m': a.divergesAtM,
-            }).toList(),
-      }),
-    );
+    final http.Response resp;
+    try {
+      resp = await http
+          .post(
+            _uri('/segments/cues'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+            'region': region,
+            'start': _latLon(segment.start!),
+            if (segment.end != null) 'end': _latLon(segment.end!),
+            'via': segment.via.map(_latLon).toList(),
+            // #315 — keep the cue re-solve on the same profile the generate used.
+            if (segment.discipline != null) 'discipline': segment.discipline,
+            'shape': segment.shape,
+            if (segment.weights?.name != null) 'theme': segment.weights!.name,
+            if (segment.targetDistance != null) 'target_m': segment.targetDistance!.valueM,
+            'segment_id': segment.id,
+            'nodes': segment.nodes.map((n) => {
+                  'id': n.id, 'kind': n.kind.wireValue, 'coord': n.coord,
+                  'distance_along_m': n.distanceAlongM, 'title': n.title,
+                  'instructions': n.instructions,
+                  // C5 / F1 (FR133) — woven into the cue's own instruction text
+                  // server-side (`cues.node_cues`), not a separate logistics list.
+                  'amenities': n.amenities,
+                }).toList(),
+            'hazards': segment.hazards.map((h) => {
+                  'id': h.id, 'severity': h.severity, 'coord': h.coord,
+                  'distance_along_m': h.distanceAlongM, 'title': h.title,
+                  'safety_note': h.safetyNote,
+                }).toList(),
+            'portages': segment.portages.map((p) => {
+                  'id': p.id,
+                  'geometry': {'coordinates': p.geometry.coordinates},
+                  'exit_bank': p.exitBank, 'mandatory': p.mandatory ?? false,
+                  'distance_m': p.distanceM,
+                }).toList(),
+            'alternates': segment.alternates.map((a) => {
+                  'id': a.id, 'intent': a.intent, 'kind': a.kind,
+                  'geometry': {'coordinates': a.geometry.coordinates},
+                  'label': a.label, 'diverges_at_m': a.divergesAtM,
+                }).toList(),
+            }),
+          )
+          .timeout(cuesForTimeout);
+    } on TimeoutException {
+      _timedOut('deriving cues');
+    }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
     return CueSheet.fromJson(raw['cue_sheet'] as Map<String, dynamic>);
@@ -319,18 +401,25 @@ class RoutingClient {
     List<Anchor> anchors = const [],
     double? targetM,
   }) async {
-    final resp = await http.post(
-      _uri('/days/compose'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'segments': segments.map((s) => s.toJson()).toList(),
-        'transitions': transitions.map((t) => t.toJson()).toList(),
-        'index': index,
-        'kind': kind,
-        if (anchors.isNotEmpty) 'anchors': anchors.map((a) => a.toJson()).toList(),
-        'target_m': ?targetM,
-      }),
-    );
+    final http.Response resp;
+    try {
+      resp = await http
+          .post(
+            _uri('/days/compose'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'segments': segments.map((s) => s.toJson()).toList(),
+              'transitions': transitions.map((t) => t.toJson()).toList(),
+              'index': index,
+              'kind': kind,
+              if (anchors.isNotEmpty) 'anchors': anchors.map((a) => a.toJson()).toList(),
+              'target_m': ?targetM,
+            }),
+          )
+          .timeout(composeDayTimeout);
+    } on TimeoutException {
+      _timedOut('composing the day');
+    }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
     // `itinerary` / `recap` / `cues` ride beside the payload, not in it — read
@@ -368,24 +457,32 @@ class RoutingClient {
     Map<String, String>? dayStartAt,
     String? tripStartAt,
   }) async {
-    final resp = await http.post(
-      _uri('/trips/split'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'days': days.map((d) => d.toJson()).toList(),
-        'title': title,
-        if (limits != null) 'limits': dayLimitsToJson(limits),
-        if (defaultWeights != null) 'default_weights': defaultWeights.toJson(),
-        // D1 / FR31 / FR16 (issue #213) — the dashboard's time-model inputs.
-        // Omitted entirely when unset: the `dashboard` block is then the
-        // distance/elevation panel, with no moving-time/ETA fields.
-        'active_segment_id': ?activeSegmentId,
-        'speeds': ?speeds,
-        'day_hold_s': ?dayHoldS,
-        'day_start_at': ?dayStartAt,
-        'trip_start_at': ?tripStartAt,
-      }),
-    );
+    final http.Response resp;
+    try {
+      resp = await http
+          .post(
+            _uri('/trips/split'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'days': days.map((d) => d.toJson()).toList(),
+              'title': title,
+              if (limits != null) 'limits': dayLimitsToJson(limits),
+              if (defaultWeights != null) 'default_weights': defaultWeights.toJson(),
+              // D1 / FR31 / FR16 (issue #213) — the dashboard's time-model
+              // inputs. Omitted entirely when unset: the `dashboard` block is
+              // then the distance/elevation panel, with no moving-time/ETA
+              // fields.
+              'active_segment_id': ?activeSegmentId,
+              'speeds': ?speeds,
+              'day_hold_s': ?dayHoldS,
+              'day_start_at': ?dayStartAt,
+              'trip_start_at': ?tripStartAt,
+            }),
+          )
+          .timeout(assembleTripTimeout);
+    } on TimeoutException {
+      _timedOut('assembling the trip');
+    }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
     // `hazard_rollup` and `dashboard` ride beside the payload, not in it — lift
