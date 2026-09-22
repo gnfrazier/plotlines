@@ -190,6 +190,30 @@ class _DisplayAndMeasurement extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: PlotSpacing.s5),
+        // Issue #465 / ARCH D24 (SPIKE-K #461 §6.3) — which Protomaps
+        // flavour draws under the Author's maps. `matchAppearance` keeps
+        // today's behaviour (mirrors APPEARANCE above) so nobody who never
+        // opens this section sees a change.
+        Text('BASEMAP STYLE', style: PlotTypography.eyebrow(c.textMuted)),
+        const SizedBox(height: PlotSpacing.s2),
+        PlotCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (final pref in BasemapStylePref.values)
+                RadioListTile<BasemapStylePref>(
+                  title: Text(pref.label),
+                  subtitle: pref == BasemapStylePref.grayscale
+                      ? const Text('No points of interest on this style')
+                      : null,
+                  value: pref,
+                  groupValue: settings.basemapStyle,
+                  onChanged: (v) => v == null ? null : notifier.setBasemapStyle(v),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: PlotSpacing.s5),
         // Issue #230 A2 / WCAG 1.4.4 — a text-size control beside CONTRAST.
         // It multiplies whatever the OS already reports (see `_TextScale` in
         // `main.dart`), so this is "more than my desktop already gives me",
