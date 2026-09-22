@@ -248,6 +248,39 @@ def _mirror_capability(source: str | None, pool: ThreadPoolExecutor) -> dict:
     return mirror_health(state)
 
 
+#: Issue #490. `LayerRegistry.fetch_candidates_all`'s Overpass round trip
+#: (through `plotlines_core.osm_identity.OSM_SETTINGS_LOCK`) can run for the
+#: length of a full attempt regardless of what osmnx does internally — no
+#: caller-side deadline in `curation/providers.py` covers the request itself,
+#: only the wait for the lock. `GET /candidates` is a sync FastAPI endpoint
+#: on the shared thread pool `/health`/`/layers`/`/tiles` also answer on, so
+#: that work runs on its own pool instead (`Readiness._candidate_fetch_pool`)
+#: and this constant is the deadline this call gives up at — generous margin
+#: over `OVERPASS_LOCK_TIMEOUT_S` plus one ordinary Overpass query, so the
+#: common case never trips it, same #488 shape as `_MIRROR_STATE_FETCH_TIMEOUT_S`.
+_CANDIDATE_FETCH_TIMEOUT_S = 60.0
+
+
+def _fetch_candidates(
+    registry, bbox: BBox, layers: set[str], pool: ThreadPoolExecutor,
+) -> tuple[list, dict[str, str]]:
+    """Runs `registry.fetch_candidates_all(bbox, layers)` on `pool`
+    (`Readiness._candidate_fetch_pool`, never the shared FastAPI pool
+    `/candidates` itself answers on) and gives up after
+    `_CANDIDATE_FETCH_TIMEOUT_S` regardless of whether the fetch itself ever
+    returns — issue #490, the #488 treatment applied to the candidate path.
+    A stuck fetch degrades every requested layer to
+    `failed:candidate_fetch_timed_out` (the same shape `fetch_candidates_all`
+    itself returns for an ordinary per-layer failure) rather than blocking
+    this call; the abandoned fetch is left running on its own single-worker
+    pool, where it can only ever queue up against itself."""
+    future = pool.submit(registry.fetch_candidates_all, bbox, layers)
+    try:
+        return future.result(timeout=_CANDIDATE_FETCH_TIMEOUT_S)
+    except FutureTimeoutError:
+        return [], {layer: "failed:candidate_fetch_timed_out" for layer in layers}
+
+
 def _tiles_upstream_capability(source: str | Path, *, allow_unmirrored: bool) -> dict:
     """`capabilities.tiles.upstream` — issue #454. `classify_upstream` is
     pure string inspection (no archive open, no request), so this is safe
@@ -846,6 +879,18 @@ class Readiness:
         self._mirror_state_pool = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="mirror-state",
         )
+        # Issue #490 — same shape, for `/candidates`. `OSM_SETTINGS_LOCK`
+        # bounds how long *waiting* for it can take (`OVERPASS_LOCK_TIMEOUT_S`
+        # in `plotlines_core.osm_identity`), but the *holder* can still be
+        # stuck inside osmnx for as long as it likes — `/candidates` is a
+        # sync endpoint on FastAPI's shared pool, so that work must not run
+        # there either. One worker: per #250 the candidate path is already
+        # single-endpoint with no retry, so nothing is gained by widening
+        # this past what `OSM_SETTINGS_LOCK` already serialises to one
+        # in-flight fetch. See `_fetch_candidates`.
+        self._candidate_fetch_pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="candidate-fetch",
+        )
 
     def shutdown(self) -> None:
         """Stop accepting builds and abandon any still queued. In-flight
@@ -853,6 +898,7 @@ class Readiness:
         only exists so a test / hosted-mode reload does not leak the pool."""
         self._build_pool.shutdown(wait=False, cancel_futures=True)
         self._mirror_state_pool.shutdown(wait=False, cancel_futures=True)
+        self._candidate_fetch_pool.shutdown(wait=False, cancel_futures=True)
 
     def ensure_region(self, bbox: tuple[float, float, float, float],
                       network_type: str = "bike", *, manual: bool = False) -> str:
@@ -1778,13 +1824,21 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         Synchronous for MVP: ARCH §7.2 describes this as a job for a large
         multi-day bbox; a future pass can make it async without changing
         what it returns.
+
+        The actual fetch runs on `Readiness._candidate_fetch_pool`, never
+        this endpoint's own shared-pool thread (issue #490, the #488 shape):
+        a stuck Overpass call degrades every requested layer to
+        `failed:candidate_fetch_timed_out` after `_CANDIDATE_FETCH_TIMEOUT_S`
+        rather than leaving this call — and `/health`/`/layers`/`/tiles`
+        behind it on the shared pool — waiting on it.
         """
         live = {layer for layer in layers.split(",") if layer}
         if not live:
             raise HTTPException(422, "no live layers requested")
         registry = app.state.layer_registry
-        candidates, errors = registry.fetch_candidates_all(
-            BBox(west, south, east, north), live)
+        candidates, errors = _fetch_candidates(
+            registry, BBox(west, south, east, north), live,
+            state._candidate_fetch_pool)
         body = _candidates_response(candidates)
         body["layers_served"] = sorted(live - set(errors))
         body["layers_unavailable"] = errors

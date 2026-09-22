@@ -6,6 +6,8 @@ same split `graph/loader.py` uses to keep geometry math independently
 testable from the disk/network read that feeds it.
 """
 
+import time
+
 import osmium
 import osmnx as ox
 import pytest
@@ -13,6 +15,7 @@ import requests
 from osmium.osm import mutable
 from shapely.geometry import Point, Polygon
 
+from plotlines_core import osm_identity
 from plotlines_core.cache_layout import CacheLayout
 from plotlines_core.curation.providers import (
     BBox, CandidateFetchUnavailable, OsmLayerProvider, SharedOsmFetch,
@@ -167,6 +170,40 @@ def test_fetch_raises_candidate_fetch_unavailable_on_a_bad_response_status(monke
         OsmLayerProvider().fetch(BBox(0.0, 0.0, 0.01, 0.01), {"historic"})
     assert "502 Bad Gateway" not in str(excinfo.value)
     assert str(excinfo.value)
+
+
+# --------------------------------------------------------------------------- #
+# Issue #490 — `OSM_SETTINGS_LOCK` used to be held (by whichever side got
+# there first) for the length of a whole Overpass attempt, and the other
+# side's `overpass_settings()` call waited for it with no bound of its own.
+# A region build holding the lock therefore left a concurrent `/candidates`
+# fetch blocked for as long as the build's own attempt took — unbounded if
+# osmnx got stuck inside it (#488's DNS-with-no-timeout finding, ARCH A23a's
+# unbounded recursive pause).
+# --------------------------------------------------------------------------- #
+
+
+def test_fetch_raises_candidate_fetch_unavailable_when_the_lock_is_held_too_long(
+    monkeypatch,
+):
+    """`fetch` must give up waiting for `OSM_SETTINGS_LOCK` after
+    `OVERPASS_LOCK_TIMEOUT_S` rather than block on it indefinitely behind a
+    region build (or anything else) that holds it.
+
+    Regression: against the pre-#490 `with OSM_SETTINGS_LOCK:` this test
+    would hang forever, since nothing in that call ever released the lock
+    within the test's lifetime.
+    """
+    monkeypatch.setattr(osm_identity, "OVERPASS_LOCK_TIMEOUT_S", 0.2)
+
+    with osm_identity.OSM_SETTINGS_LOCK:  # stands in for a concurrent build
+        started = time.monotonic()
+        with pytest.raises(CandidateFetchUnavailable) as excinfo:
+            OsmLayerProvider().fetch(BBox(0.0, 0.0, 0.01, 0.01), {"historic"})
+        elapsed = time.monotonic() - started
+
+    assert elapsed < 2.0, f"fetch waited {elapsed:.2f}s on an already-held lock"
+    assert str(excinfo.value)  # a finished sentence, not a raw repr
 
 
 # --------------------------------------------------------------------------
