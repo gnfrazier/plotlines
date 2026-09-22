@@ -281,6 +281,150 @@ def _fetch_candidates(
         return [], {layer: "failed:candidate_fetch_timed_out" for layer in layers}
 
 
+class RegionBuildPhaseTimeout(RuntimeError):
+    """Issue #492 — one of `RegionState.build`'s four network phases (mirror-
+    clip extract, graph, tiles, elevation) did not return within its own
+    caller-side deadline (`_run_build_phase`). Raised instead of letting the
+    phase's underlying call keep the phase pool's worker occupied — each
+    phase's existing exception handling in `build()` then treats a stall
+    exactly like an ordinary failure of that phase, so a stuck resolver
+    degrades one capability rather than parking `Readiness._build_pool`'s
+    one worker (the defect: every later `POST /regions` queued behind it
+    forever, since nothing else could ever get a turn)."""
+
+
+#: Issue #492 — caller-side deadlines for `RegionState.build`'s four network
+#: phases, the same #488/#490 shape applied to the one pool that must never
+#: be occupied indefinitely: `Readiness._build_pool` has exactly one worker
+#: (`REGION_BUILD_CONCURRENCY = 1`), so a hang in *any* phase of *one*
+#: region's build previously wedged every other region's build behind it,
+#: with no bound. Each phase runs on its own single-worker pool instead
+#: (`RegionBuildPhasePools`, `_run_build_phase`), one pool per phase *type*
+#: rather than one pool shared across all four — a stuck tiles fetch for
+#: region A must only ever make a later *tiles* submission (this build's
+#: next attempt, or region B's) queue up behind it; it must never also hold
+#: region B's unrelated graph phase hostage for graph's own (much larger)
+#: ceiling just because they happened to share a worker. `future.result
+#: (timeout=)` bounds the *wait* regardless of whether the pool ever
+#: actually dequeues the work, which is what makes a single-worker-per-type
+#: pool sufficient even while a zombie thread from a timed-out call sits in
+#: it indefinitely.
+#:
+#: Extract and elevation each sit a margin over an internal timeout the
+#: callee already has (`extract_fetch.READ_TIMEOUT_S`, `qa_proxy_fetch`'s
+#: hardcoded 120s) — that internal bound covers the *read* leg once
+#: connected, never the `getaddrinfo` DNS lookup underneath it (no
+#: synchronous transport's timeout does, see `_mirror_capability`'s
+#: docstring), which is exactly the caller-side gap this closes. Tiles has
+#: no single internal bound to sit a margin over — `extract_bbox` makes
+#: several dozen 30s-timeout ranged GETs per extract — so its ceiling
+#: covers a worst-case run of them. Graph has no internal bound at all
+#: (ARCH A23a: osmnx's own rate-limiter/retry pauses are unbounded by
+#: construction — a real fix is "owed to #285", not this issue), so its
+#: ceiling is a chosen number generous enough to clear the measured normal
+#: case (a full two-endpoint, two-attempt-each Overpass fallback; graph
+#: builds observed at 36.7-116.6 s) rather than a margin derived from a
+#: bound that does not exist.
+_EXTRACT_PHASE_TIMEOUT_S = extract_fetch.READ_TIMEOUT_S + 30.0
+_GRAPH_PHASE_TIMEOUT_S = 600.0
+_TILES_PHASE_TIMEOUT_S = 300.0
+_ELEVATION_PHASE_TIMEOUT_S = 150.0
+
+#: Issue #492 — the user-facing sentence for a graph-phase timeout, reused
+#: verbatim as `RegionState.build`'s `graph_state.fail()` reason via the
+#: same branch `OverpassUnavailable` already takes (both mean "the graph
+#: build didn't produce a graph"; a shrink-fallback via `held_graph_lookup`
+#: applies equally to either). Worded as a sibling of `OverpassUnavailable`'s
+#: own "exhausted every endpoint" sentence (`graph.regions.ensure_graph`),
+#: never the raw `RegionBuildPhaseTimeout` message the other three phases
+#: fall through to their generic `except Exception` with — this one is the
+#: primary `routing` reason an Author reads on `/health`.
+_GRAPH_PHASE_TIMEOUT_MESSAGE = (
+    "Couldn't reach the map-data service to prepare routing for this area "
+    "in time. This is almost always temporary — check your connection and "
+    "try again in a few minutes."
+)
+
+
+def _run_build_phase(pool: ThreadPoolExecutor, timeout_s: float,
+                     fn: Callable[[], object], *,
+                     timeout_message: str | None = None) -> object:
+    """Runs `fn` (a zero-argument closure) on `pool` (one of
+    `RegionBuildPhasePools`' four, never `Readiness._build_pool` itself —
+    the one worker `RegionState.build` runs on) and gives up after
+    `timeout_s`, raising `RegionBuildPhaseTimeout(timeout_message)` instead
+    of waiting on `fn` any further — issue #492, the #488/#490 shape applied
+    to the region-build pool. `fn`'s own exception, if it raises one before
+    the deadline, propagates unchanged (`future.result()`'s normal
+    behaviour); only a genuine timeout is translated."""
+    future = pool.submit(fn)
+    try:
+        return future.result(timeout=timeout_s)
+    except FutureTimeoutError:
+        raise RegionBuildPhaseTimeout(
+            timeout_message or f"timed out after {timeout_s:g}s") from None
+
+
+@dataclass
+class RegionBuildPhasePools:
+    """Issue #492 — one single-worker `ThreadPoolExecutor` per network-phase
+    *type* (`RegionState.build`'s extract/graph/tiles/elevation), so a stuck
+    call in one phase type can only ever make a *later submission of that
+    same phase type* queue up behind it — never a different phase of the
+    same or a different region, which would otherwise be held to that other
+    phase's own (possibly much larger) ceiling for no reason. Built once by
+    `Readiness.__init__` and shared for the process's life; a direct
+    `RegionState.build()` caller with no pools of its own gets a throwaway
+    set created and abandoned for that one call (see `build`'s docstring)."""
+
+    extract: ThreadPoolExecutor
+    graph: ThreadPoolExecutor
+    tiles: ThreadPoolExecutor
+    elevation: ThreadPoolExecutor
+
+    @classmethod
+    def create(cls) -> "RegionBuildPhasePools":
+        return cls(
+            extract=ThreadPoolExecutor(max_workers=1, thread_name_prefix="region-build-extract"),
+            graph=ThreadPoolExecutor(max_workers=1, thread_name_prefix="region-build-graph"),
+            tiles=ThreadPoolExecutor(max_workers=1, thread_name_prefix="region-build-tiles"),
+            elevation=ThreadPoolExecutor(max_workers=1, thread_name_prefix="region-build-elevation"),
+        )
+
+    def shutdown(self) -> None:
+        for pool in (self.extract, self.graph, self.tiles, self.elevation):
+            pool.shutdown(wait=False, cancel_futures=True)
+
+
+#: Issue #492 — how long a region may sit `pending` (queued behind another
+#: region's build, never yet dequeued by `Readiness._build_pool`'s single
+#: worker) before the watchdog stops waiting on its own turn and reports an
+#: honest, named reason instead (ARCH §8.3 rule 3: "never a silent hang; a
+#: reason on every disabled control"). Deliberately **not** derived as "some
+#: multiple of `GRAPH_ESTIMATED_S`" — that constant's own docstring already
+#: says it is too low against the measured 36.7-116.6 s range, and
+#: multiplying a known-dishonest figure forward only relocates the
+#: dishonesty. Sized instead off that measured range plus slack for a couple
+#: of ordinary regions ahead in the queue, each also possibly running tiles/
+#: elevation past graph-ready: comfortably clear of a normal short queue,
+#: while still surfacing a genuinely wedged worker well before an Author
+#: gives up waiting on a silent "pending" and reports it as a bug.
+BUILD_QUEUE_WATCHDOG_S = 600.0
+
+
+def _build_queue_watchdog_reason(active_started_at: float | None, now: float) -> str:
+    """The user-facing reason (FR145: no raw internal id in Author-facing
+    copy — the blocking region's cache key is meaningless to an Author, so
+    it stays out of the sentence; `_apply_build_queue_watchdog`'s own log
+    line carries it instead, for whoever is actually diagnosing the queue)."""
+    elapsed = now - active_started_at if active_started_at is not None else 0.0
+    return (
+        f"Waiting for another area's routing to finish preparing before "
+        f"this one can start — it has been building for "
+        f"{math.ceil(max(elapsed, 0.0))}s."
+    )
+
+
 def _tiles_upstream_capability(source: str | Path, *, allow_unmirrored: bool) -> dict:
     """`capabilities.tiles.upstream` — issue #454. `classify_upstream` is
     pure string inspection (no archive open, no request), so this is safe
@@ -496,6 +640,23 @@ class RegionState:
         self.failed_at: float | None = None
         self.automatic_requeues = 0
         self.cooldown_bypassed_at: float | None = None
+        # Issue #492 — the build-queue watchdog's own bookkeeping.
+        # `queued_at` is stamped by `Readiness._queue_build` every time this
+        # region is submitted (first build or any requeue); the watchdog
+        # measures a `pending` region's wait from it. `build_generation` is
+        # bumped by the same call and captured by the submitted callable —
+        # a build that starts running with a stale generation (superseded by
+        # a later requeue while it sat queued behind the actually-active
+        # build) is a no-op, so a watchdog-triggered requeue can never run
+        # the same region's build twice concurrently or out of order.
+        self.queued_at: float | None = None
+        self.build_generation = 0
+        #: True for the whole span of one `build()` call, including the
+        #: tiles/elevation phases that run *after* `graph_state` already
+        #: reports `ready` — issue #492. Without this, "graph ready but the
+        #: worker is still finishing tiles/elevation" was indistinguishable
+        #: from "done" on `/health`.
+        self.build_in_progress = False
 
     @property
     def routing_ready(self) -> bool:
@@ -517,6 +678,12 @@ class RegionState:
         # a byte-identical entry, same discipline as `attempts` above.
         if self.tiles_error:
             d["tiles_error"] = self.tiles_error
+        # Additive and only while set (issue #492) — a region whose graph
+        # phase has already succeeded but whose build() call has not
+        # returned yet (still in tiles or elevation) names that here rather
+        # than reading identical to a fully finished build.
+        if self.graph_state.ready and self.build_in_progress:
+            d["finishing"] = True
         return d
 
     def extract_capability(self) -> dict:
@@ -605,7 +772,44 @@ class RegionState:
               mirror_clip_client_key: str | None = None,
               held_graph_lookup: Callable[
                   [tuple[float, float, float, float], str], "RegionState | None"
-              ] | None = None) -> None:
+              ] | None = None,
+              build_phase_pools: "RegionBuildPhasePools | None" = None) -> None:
+        """Runs one build attempt. `build_phase_pools` are the #492 deadline
+        pools (one per network-phase type — see `RegionBuildPhasePools`)
+        every phase submits to (`_run_build_phase`) — `Readiness._queue_build`
+        always supplies its own persistent set. Left `None` (every direct
+        test call that predates issue #492), a throwaway set is created for
+        the duration of this one call and abandoned rather than joined
+        (`shutdown(wait=False, cancel_futures=True)`) — joining would defeat
+        the whole point for a caller whose phase actually hung."""
+        if build_phase_pools is None:
+            build_phase_pools = RegionBuildPhasePools.create()
+            try:
+                self.build(cache_dir, tiles_upstream, allow_unmirrored,
+                          elevation_upstream, mirror_clip_url,
+                          mirror_clip_client_key, held_graph_lookup,
+                          build_phase_pools)
+            finally:
+                build_phase_pools.shutdown()
+            return
+        self.build_in_progress = True
+        try:
+            self._build_impl(cache_dir, tiles_upstream, allow_unmirrored,
+                             elevation_upstream, mirror_clip_url,
+                             mirror_clip_client_key, held_graph_lookup,
+                             build_phase_pools)
+        finally:
+            self.build_in_progress = False
+
+    def _build_impl(self, cache_dir: Path, tiles_upstream: str | Path,
+                    allow_unmirrored: bool,
+                    elevation_upstream: str | None,
+                    mirror_clip_url: str | None,
+                    mirror_clip_client_key: str | None,
+                    held_graph_lookup: Callable[
+                        [tuple[float, float, float, float], str], "RegionState | None"
+                    ] | None,
+                    build_phase_pools: "RegionBuildPhasePools") -> None:
         self.build_attempts += 1
         attempt = self.build_attempts
         self.last_attempt_started_at = time.time()
@@ -625,10 +829,13 @@ class RegionState:
         # eager, unconfigured download).
         if mirror_clip_url:
             try:
-                extract_fetch.ensure_extract(
-                    self.bbox, mirror_url=mirror_clip_url, cache_dir=cache_dir,
-                    client_key=mirror_clip_client_key, progress=self.extract_state,
-                    version=VERSION,
+                _run_build_phase(
+                    build_phase_pools.extract, _EXTRACT_PHASE_TIMEOUT_S,
+                    lambda: extract_fetch.ensure_extract(
+                        self.bbox, mirror_url=mirror_clip_url, cache_dir=cache_dir,
+                        client_key=mirror_clip_client_key, progress=self.extract_state,
+                        version=VERSION,
+                    ),
                 )
                 log.info("region extract OK key=%s bbox=%s reused=%s",
                          self.key, self.bbox, self.extract_state.reused)
@@ -652,7 +859,11 @@ class RegionState:
             region = region_lib.Region(key=self.key, bbox=self.bbox,
                                        network_type=self.network_type)
             t_acq = time.monotonic()
-            path = region_lib.ensure_graph(region, cache_dir)
+            path = _run_build_phase(
+                build_phase_pools.graph, _GRAPH_PHASE_TIMEOUT_S,
+                lambda: region_lib.ensure_graph(region, cache_dir),
+                timeout_message=_GRAPH_PHASE_TIMEOUT_MESSAGE,
+            )
             self.timings["ensure_graph"] = time.monotonic() - t_acq
             t_load = time.monotonic()
             self.graph = load_graphml(path)
@@ -669,8 +880,15 @@ class RegionState:
             self.graph_state.succeed("graph ready")
             log.info("region build OK key=%s attempt=%d timings=%s",
                      self.key, attempt, self.timings)
-        except region_lib.OverpassUnavailable as exc:
+        except (region_lib.OverpassUnavailable, RegionBuildPhaseTimeout) as exc:
             self.timings["total"] = time.monotonic() - t0
+            # Issue #492 — a graph-phase timeout (`RegionBuildPhaseTimeout`,
+            # A23a's unbounded osmnx pauses) means exactly the same thing to
+            # every reader below as `OverpassUnavailable` does: the graph
+            # phase did not produce a graph. The shrink-fallback and the
+            # honest failure report both apply equally either way, so this
+            # is one branch, not two.
+            #
             # Issue #432 / ARCH D62 — before reporting the honest failure,
             # check whether this is a bbox *shrink* of a wider region this
             # sidecar already built successfully: if so, truncating that
@@ -771,9 +989,12 @@ class RegionState:
                 # whatever max_zoom the configured source archive happens to
                 # carry — today they agree, but nothing enforced that.
                 stats = ExtractStats()
-                extract_bbox(tiles_upstream, self.bbox, tiles_path,
-                             max_zoom=BASEMAP_MAX_ZOOM,
-                             allow_unmirrored=allow_unmirrored, stats=stats)
+                _run_build_phase(
+                    build_phase_pools.tiles, _TILES_PHASE_TIMEOUT_S,
+                    lambda: extract_bbox(tiles_upstream, self.bbox, tiles_path,
+                                         max_zoom=BASEMAP_MAX_ZOOM,
+                                         allow_unmirrored=allow_unmirrored, stats=stats),
+                )
                 self.timings["tiles"] = stats.wall_time_s
                 self.tiles_stats = stats.as_dict()
             self.tiles_archive = Archive(tiles_path)
@@ -820,7 +1041,10 @@ class RegionState:
                     ]
                 )
                 try:
-                    raster = e_resolver.resolve(self.bbox)
+                    raster = _run_build_phase(
+                        build_phase_pools.elevation, _ELEVATION_PHASE_TIMEOUT_S,
+                        lambda: e_resolver.resolve(self.bbox),
+                    )
                 except ElevationUnavailable as exc:
                     log.warning("region elevation UNAVAILABLE key=%s bbox=%s: %s",
                                 self.key, self.bbox, exc)
@@ -891,6 +1115,25 @@ class Readiness:
         self._candidate_fetch_pool = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="candidate-fetch",
         )
+        # Issue #492 — every network phase inside a region build
+        # (`RegionState.build` -> `_run_build_phase`) runs on one of these,
+        # never on `_build_pool` itself: that is what lets `_build_pool`'s
+        # one worker give up on a stalled phase and move on to the next
+        # queued region, rather than being occupied for as long as the
+        # phase's underlying call takes (unbounded, for the DNS-hang class
+        # #488/#490 already found and the A23a osmnx defect). One pool per
+        # phase *type* (`RegionBuildPhasePools`), not one shared across all
+        # four — a stuck tiles fetch must only ever make a later *tiles*
+        # submission queue up behind it, never hold an unrelated region's
+        # graph phase hostage for graph's own ceiling too.
+        self._build_phase_pools = RegionBuildPhasePools.create()
+        # Issue #492 — which region's `build()` is actually running right
+        # now (as opposed to merely queued), and when it started, so the
+        # build-queue watchdog (`_apply_build_queue_watchdog`) can name it in
+        # a `pending` region's stated reason. `None` when no build is
+        # in-flight. Written only by `_run_build`, under `_lock`.
+        self._active_build_key: str | None = None
+        self._active_build_started_at: float | None = None
 
     def shutdown(self) -> None:
         """Stop accepting builds and abandon any still queued. In-flight
@@ -899,6 +1142,7 @@ class Readiness:
         self._build_pool.shutdown(wait=False, cancel_futures=True)
         self._mirror_state_pool.shutdown(wait=False, cancel_futures=True)
         self._candidate_fetch_pool.shutdown(wait=False, cancel_futures=True)
+        self._build_phase_pools.shutdown()
 
     def ensure_region(self, bbox: tuple[float, float, float, float],
                       network_type: str = "bike", *, manual: bool = False) -> str:
@@ -973,12 +1217,91 @@ class Readiness:
         return key
 
     def _queue_build(self, region: "RegionState") -> None:
-        self._build_pool.submit(
-            region.build,
-            self.cache_dir, self.tiles_upstream, self.allow_unmirrored,
-            self.elevation_upstream, self.mirror_clip_url,
-            self.mirror_clip_client_key, self.find_held_supergraph,
-        )
+        # Issue #492 — `build_generation` is bumped and captured here so a
+        # requeue that lands while the *previous* submission for this same
+        # region is still sitting unstarted in `_build_pool`'s internal
+        # queue (behind whatever build is actually active) can supersede it
+        # cleanly: `_run_build` checks the generation it was given against
+        # the region's current one and no-ops if it has been superseded,
+        # rather than running the same region's build twice. `queued_at` is
+        # what the watchdog measures a `pending` region's wait from.
+        region.build_generation += 1
+        generation = region.build_generation
+        region.queued_at = time.monotonic()
+        self._build_pool.submit(self._run_build, region, generation)
+
+    def _run_build(self, region: "RegionState", generation: int) -> None:
+        """The callable actually submitted to `_build_pool` (issue #492).
+        Tracks which region is the active build (`_active_build_key`/
+        `_active_build_started_at`) for the watchdog, and skips the build
+        outright if a later `_queue_build` call superseded this submission
+        while it was still queued — see that method's docstring."""
+        if region.build_generation != generation:
+            log.info(
+                "region build SKIPPED (superseded while queued) key=%s "
+                "generation=%d current=%d", region.key, generation,
+                region.build_generation)
+            return
+        with self._lock:
+            self._active_build_key = region.key
+            self._active_build_started_at = time.monotonic()
+        try:
+            region.build(
+                self.cache_dir, self.tiles_upstream, self.allow_unmirrored,
+                self.elevation_upstream, self.mirror_clip_url,
+                self.mirror_clip_client_key, self.find_held_supergraph,
+                self._build_phase_pools,
+            )
+        finally:
+            with self._lock:
+                if self._active_build_key == region.key:
+                    self._active_build_key = None
+                    self._active_build_started_at = None
+
+    def _apply_build_queue_watchdog(
+        self, regions: list[tuple[str, "RegionState"]],
+    ) -> None:
+        """Issue #492 — a region that has sat `pending` (queued, never
+        dequeued by `_build_pool`'s one worker) behind another region's
+        build for longer than `BUILD_QUEUE_WATCHDOG_S` gets an honest
+        `failed` reason naming the region ahead of it, instead of a silent
+        `pending` with no explanation. This is purely a *report*: the
+        region's original queued submission is left exactly where it is (it
+        will still run once the active build finishes or times itself out,
+        per `_run_build`'s generation check superseding any requeue that
+        follows), and `failed_at` is deliberately left unset so `#247`'s
+        `plan_requeue_after_failure` finds no cooldown running — the next
+        `ensure_region` call for this region (automatic poll or the
+        Author's manual "Try again") is accepted immediately rather than
+        made to wait out a cooldown for a failure that was never a real
+        attempt.
+
+        Called from `routing_capabilities`, i.e. on every `/health` — the
+        same 2s cadence the client already polls at, so a wedged queue
+        surfaces within one watchdog window of a poll, not a background
+        timer of its own.
+        """
+        now = time.monotonic()
+        with self._lock:
+            active_key = self._active_build_key
+            active_started_at = self._active_build_started_at
+        if active_key is None:
+            return
+        for key, region in regions:
+            if key == active_key:
+                continue
+            if region.graph_state.status != "pending":
+                continue
+            if region.queued_at is None:
+                continue
+            waited = now - region.queued_at
+            if waited < BUILD_QUEUE_WATCHDOG_S:
+                continue
+            reason = _build_queue_watchdog_reason(active_started_at, now)
+            region.graph_state.fail(reason)
+            log.warning(
+                "region build WATCHDOG key=%s queued=%.1fs behind active=%s: %s",
+                key, waited, active_key, reason)
 
     def region(self, key: str) -> RegionState | None:
         with self._lock:
@@ -1067,8 +1390,13 @@ class Readiness:
 
     def routing_capabilities(self) -> dict:
         """§8.3's per-region `routing` breakdown — empty until an Author has
-        drawn a trip bbox and the client has called `POST /regions`."""
-        return {key: region.routing_capability() for key, region in self.snapshot()}
+        drawn a trip bbox and the client has called `POST /regions`. Runs
+        the issue #492 build-queue watchdog first, on the same snapshot this
+        reports from, so a region it just marked `failed` reads that way in
+        the very response the watchdog fired on."""
+        regions = self.snapshot()
+        self._apply_build_queue_watchdog(regions)
+        return {key: region.routing_capability() for key, region in regions}
 
     def extract_capabilities(self) -> dict:
         """`capabilities.extract` (issue #274). Shaped like `_mirror_
