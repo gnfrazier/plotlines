@@ -52,8 +52,9 @@ COPY service/ /app/service/
 WORKDIR /app/service
 RUN uv sync --no-dev
 
-# Single process, like Dockerfile.elevation-proxy: the clip's behaviour
-# under concurrent requests is exactly what §9 names as unmeasured, so this
-# rehearsal does not guess at a worker count. Do not add --workers here.
+# Single process, like Dockerfile.elevation-proxy: issue #494's concurrency
+# bound (mirror_clip.py's --max-concurrent-clips) is in-memory, so
+# --workers > 1 would give each worker its own independent bound instead of
+# one shared across the mirror. Do not add --workers here.
 ENTRYPOINT ["uv", "run", "python", "-m", "plotlines_service.mirror_clip"]
 CMD ["--host", "0.0.0.0", "--port", "8095", "--root", "/srv/plotlines-mirror"]

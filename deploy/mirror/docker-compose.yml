@@ -62,6 +62,10 @@ services:
       #   MIRROR_CLIP_CACHE_DIR=/var/cache/plotlines-mirror-clip docker compose up -d
       - MIRROR_CLIP_CACHE_DIR=${MIRROR_CLIP_CACHE_DIR:-}
       - MIRROR_CLIP_CACHE_MAX_BYTES=${MIRROR_CLIP_CACHE_MAX_BYTES:-0}
+      # Issue #494: how many /clip requests may run at once before the rest
+      # get an immediate 503 clip_busy — see mirror_clip.py's
+      # --max-concurrent-clips help for why fail-fast beats queuing here.
+      - MIRROR_CLIP_MAX_CONCURRENT=${MIRROR_CLIP_MAX_CONCURRENT:-1}
     volumes:
       - /srv/plotlines-mirror:/srv/plotlines-mirror:ro
       - mirror_clip_cache:/var/cache/plotlines-mirror-clip
