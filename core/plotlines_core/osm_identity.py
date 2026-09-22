@@ -200,10 +200,36 @@ NOMINATIM_MIN_INTERVAL_S = 1.0
 _NOMINATIM_LOCK = threading.Lock()
 _last_nominatim_call_finished: float | None = None
 
+#: Issue #493, the #490 shape applied to `_NOMINATIM_LOCK`. `/geocode`
+#: (`service/plotlines_service/app.py`) held this lock with a plain, unbounded
+#: `with _NOMINATIM_LOCK:` across the *whole* `ox.geocode_to_gdf` round trip —
+#: osmnx's request timeout (180s) does not cover the DNS lookup
+#: `socket.create_connection` makes first (#488's finding, which applies here
+#: identically), so a stalled resolver held the lock indefinitely and every
+#: later `/geocode` call queued behind it on `Lock.acquire()` with no bound of
+#: its own. `Lock.acquire(timeout=)` polls wall-clock time regardless of what
+#: the holder is doing, so a caller now gives up rather than waiting forever.
+#: Chosen with the same margin logic as `OVERPASS_LOCK_TIMEOUT_S`: comfortably
+#: above what one well-behaved call (pacing sleep plus
+#: `service.app._GEOCODE_FETCH_TIMEOUT_S`'s own bound on the dispatched call)
+#: costs in the common case, well below the minutes a stuck one could
+#: otherwise cost a second caller.
+NOMINATIM_LOCK_TIMEOUT_S = 30.0
+
+
+class NominatimBusy(RuntimeError):
+    """`nominatim_rate_limit(timeout=...)` gave up waiting for
+    `_NOMINATIM_LOCK` — another `/geocode` call is still in flight (or stuck)
+    in this process after `timeout` seconds. Never means Nominatim itself
+    answered or refused; it means the *lock* was still held, which is exactly
+    the case a caller with no bound of its own would otherwise wait on
+    forever (issue #493, same shape as `OverpassSettingsBusy`)."""
+
 
 @contextmanager
 def nominatim_rate_limit(
     *,
+    timeout: float | None = None,
     sleep: Callable[[float], None] = time.sleep,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> Iterator[None]:
@@ -216,9 +242,21 @@ def nominatim_rate_limit(
     the first is still running.
 
     `/geocode` (`service/plotlines_service/app.py`) is the one call site
-    today; wrap the `ox.geocode_to_gdf` call in this rather than relying on
+    today; wrap the actual Nominatim call in this rather than relying on
     osmnx's own per-call, per-thread `pause = 1` — that pause cannot see a
-    concurrent caller in the *same* process, which this lock can.
+    concurrent caller in the *same* process, which this lock can. Since issue
+    #493 the caller dispatches `ox.geocode_to_gdf` to its own dedicated
+    single-worker pool (`Readiness._geocode_pool`) and bounds the wait on it
+    with `future.result(timeout=)` — the #488 shape — rather than calling it
+    directly under this lock the way the pre-#493 code did; what this lock
+    now brackets is that bounded wait, the pacing sleep, and the
+    last-finished bookkeeping, never an unbounded raw socket call.
+
+    `timeout=None` waits on `_NOMINATIM_LOCK` indefinitely, matching the
+    pre-#493 behaviour — kept as the default only for a caller (a test, most
+    often) that deliberately wants that wait. The production caller passes
+    `timeout=NOMINATIM_LOCK_TIMEOUT_S`; a positive but exceeded `timeout`
+    raises `NominatimBusy` rather than continuing to wait.
 
     This is process-wide, not service-wide: a second OS process (two
     sidecars, or a horizontally-scaled hosted deployment running more than
@@ -240,7 +278,16 @@ def nominatim_rate_limit(
     one `nominatim_rate_limit` block inside another.
     """
     global _last_nominatim_call_finished
-    with _NOMINATIM_LOCK:
+    if timeout is None:
+        acquired = _NOMINATIM_LOCK.acquire()
+    else:
+        acquired = _NOMINATIM_LOCK.acquire(timeout=timeout)
+    if not acquired:
+        raise NominatimBusy(
+            f"Nominatim lock still held after {timeout:.0f}s — another "
+            "geocode call is still in flight"
+        )
+    try:
         if _last_nominatim_call_finished is not None:
             remaining = NOMINATIM_MIN_INTERVAL_S - (
                 monotonic() - _last_nominatim_call_finished
@@ -251,6 +298,8 @@ def nominatim_rate_limit(
             yield
         finally:
             _last_nominatim_call_finished = monotonic()
+    finally:
+        _NOMINATIM_LOCK.release()
 
 
 # --- Display attribution (issue #296, addendum P2, table row *Nominatim*) --
