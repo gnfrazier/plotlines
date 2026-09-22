@@ -257,6 +257,35 @@ void main() {
 
       expect(sidecar.lastQuery['q'], 'Saint-Étienne, Loire');
     });
+
+    // Issue #493 — the sidecar now gives up on a stuck Nominatim lookup on
+    // its own, but nothing bounded this call's own wait if the sidecar
+    // itself never answered at all (a wedged process, not just a slow
+    // upstream). `RoutingClient.geocodeTimeout` is mutable so this test can
+    // shrink it to milliseconds rather than wait out the real 60s.
+    test(
+        'a sidecar that never answers times out with the no-match error '
+        'surface, not a bare hang', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      // Deliberately never responds — a stand-in for a wedged sidecar
+      // process, worse than any real slow Nominatim round trip.
+      server.listen((request) {});
+
+      final client = RoutingClient('http://127.0.0.1:${server.port}');
+      final savedTimeout = RoutingClient.geocodeTimeout;
+      RoutingClient.geocodeTimeout = const Duration(milliseconds: 50);
+      addTearDown(() => RoutingClient.geocodeTimeout = savedTimeout);
+
+      await expectLater(
+        () => client.geocode('Asheville, NC'),
+        throwsA(
+          isA<RoutingException>()
+              .having((e) => e.statusCode, 'statusCode', 503)
+              .having((e) => e.message, 'message', contains("didn't answer")),
+        ),
+      );
+    });
   });
 
   group('pollDiagnose', () {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -404,8 +405,38 @@ class RoutingClient {
   }
 
   /// A10 / New Route's location search — Nominatim via OSMnx (ARCH §7.2).
+  ///
+  /// Issue #493 — the sidecar now gives up on a stuck Nominatim lookup on
+  /// its own (an honest 503, never a bare hang), but nothing bounded this
+  /// call's own wait if the sidecar itself never answered — the New Route
+  /// search or A10's location prompt sat on a spinner forever with no M13
+  /// error state. `geocodeTimeout` carries a wide margin over the
+  /// sidecar's own worst case (`NOMINATIM_LOCK_TIMEOUT_S` +
+  /// `_GEOCODE_FETCH_TIMEOUT_S`, `service/plotlines_service/app.py`) so the
+  /// sidecar's own honest answer is always what a caller actually sees; a
+  /// [RoutingException] on timeout reuses the exact surface every other
+  /// `/geocode` error already goes through (`RoutingException.message`),
+  /// so no call site needed its own catch clause added for this.
+  ///
+  /// Mutable (not `const`) only so a test can shrink it rather than wait out
+  /// the real 60s — production code never reassigns it.
+  static Duration geocodeTimeout = const Duration(seconds: 60);
+
   Future<List<GeocodeResult>> geocode(String query) async {
-    final resp = await http.get(_uri('/geocode').replace(queryParameters: {'q': query}));
+    final http.Response resp;
+    try {
+      resp = await http
+          .get(_uri('/geocode').replace(queryParameters: {'q': query}))
+          .timeout(geocodeTimeout);
+    } on TimeoutException {
+      throw RoutingException(
+        503,
+        jsonEncode({
+          'detail': "the search service didn't answer for '$query' — try "
+              'again in a moment',
+        }),
+      );
+    }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
     return (raw['results'] as List)
