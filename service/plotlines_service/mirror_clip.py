@@ -57,9 +57,29 @@ goes through pyosmium's Python API only — `osmium.SimpleHandler`,
 BSD-2-Clause). Nothing in this module or its Dockerfile shells out to an
 `osmium` binary; there is no such binary in the image.
 
-**Concurrency.** Single process, like `elevation_proxy.py` — the clip's cost
-profile under concurrent requests is exactly what §9 flags as unmeasured,
-so this rehearsal does not guess at one. Do not add `--workers > 1`.
+**Concurrency (issue #494).** Single process, like `elevation_proxy.py` —
+`_RateLimiter` and `_ClipConcurrencyLimiter` below are both in-memory, so
+`--workers > 1` would give each worker its own independent bound instead of
+one shared across the mirror; do not add it. What bounds a concurrent
+`/clip` is no longer "unmeasured, so don't guess at one" (§9's old
+unmeasured-cost-profile note): a single process still dispatches every sync
+endpoint, `/clip` included, onto anyio's default thread pool, so
+`_RateLimiter`'s per-IP-per-minute ceiling alone permits up to
+`rate_limit_per_minute` concurrent clips from one address — and #402's own
+finding (two full-extract merges killed the process in ~9s) is what two
+concurrent clips of *different* bboxes do to a Pi 5's 8 GB, at a smaller
+but real scale for two precut-corridor clips too. `--max-concurrent-clips`
+(default 1) is a `threading.BoundedSemaphore` gating entry into
+`clip_bbox` itself, acquired non-blocking: a caller past the bound gets an
+immediate 503 `clip_busy` with `Retry-After` rather than queuing behind
+someone else's ~100s clip on the same thread pool `/health` also answers
+on. Fail-fast is the right shape here, not a 202-and-poll queue: the
+sidecar's own `ensure_extract` already turns any non-2xx/non-404 `/clip`
+answer into the honest `MirrorUnreachable` and requeues on its own
+schedule (#247-style), so nothing downstream needs this endpoint to queue
+a caller instead of just saying no. `/health` reads only the filesystem
+and never touches the semaphore, so it keeps answering while the bounded
+number of clips run.
 
 **Reachability (issue #263, §6.8/1d).** Decided split: the mirror's plain
 static files (region extracts, the basemap archive) stay open — that is
@@ -102,6 +122,7 @@ import logging
 import os
 import shutil
 import tempfile
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -978,6 +999,39 @@ class _RateLimiter:
         return count <= self._limit
 
 
+#: Issue #494. Not a promise about how long any particular caller's clip
+#: still has to run — this process tracks no per-slot start time, only
+#: whether the bound is currently full — just a short, honest "poll again
+#: soon" rather than the ~100s a real clip actually takes. The sidecar's own
+#: retry/requeue cadence (`core.graph.extract_fetch`, #247-style) is what
+#: actually governs when a caller tries again; this header is a hint for a
+#: generic HTTP client, not the mechanism.
+CLIP_BUSY_RETRY_AFTER_S = 5
+
+
+class _ClipConcurrencyLimiter:
+    """Issue #494: bounds how many `/clip` requests may run `clip_bbox` at
+    once, via a `threading.BoundedSemaphore` acquired **non-blocking**. Past
+    the bound, `try_acquire` returns `False` immediately rather than making
+    the caller wait — the module docstring's "Concurrency" section explains
+    why fail-fast is the right shape here, not a queue. In-memory and
+    single-process, the same posture `_RateLimiter` documents for the same
+    reason (no `--workers > 1`)."""
+
+    def __init__(self, max_concurrency: int):
+        #: Clamped to at least 1 — a configured 0 or negative value would
+        #: make `BoundedSemaphore` raise, and "no concurrency at all" is not
+        #: a real operating mode for an endpoint that must serve *something*.
+        self.max_concurrency = max(1, max_concurrency)
+        self._semaphore = threading.BoundedSemaphore(self.max_concurrency)
+
+    def try_acquire(self) -> bool:
+        return self._semaphore.acquire(blocking=False)
+
+    def release(self) -> None:
+        self._semaphore.release()
+
+
 def _client_ip(request: Request) -> str:
     # Caddy's reverse_proxy sets X-Forwarded-For; request.client.host would
     # otherwise be Caddy's own address, collapsing every real caller onto
@@ -997,11 +1051,13 @@ def create_clip_app(
     rate_limit_time_fn: Callable[[], float] = time.monotonic,
     cache_dir: Path | None = None,
     cache_max_bytes: int = 0,
+    max_concurrent_clips: int = 1,
 ) -> FastAPI:
     app = FastAPI(title="plotlines-mirror-clip", version=VERSION)
     work_dir = Path(tmp_dir) if tmp_dir else Path(tempfile.gettempdir())
     work_dir.mkdir(parents=True, exist_ok=True)
     rate_limiter = _RateLimiter(rate_limit_per_minute, time_fn=rate_limit_time_fn)
+    concurrency_limiter = _ClipConcurrencyLimiter(max_concurrent_clips)
     configured_key = normalize_client_key(client_key)
 
     def _enforce_clip_access(request: Request) -> None:
@@ -1040,34 +1096,54 @@ def create_clip_app(
             )
 
     def _run_clip(bbox: BBox) -> Response:
-        fd, out_name = tempfile.mkstemp(
-            dir=work_dir, prefix=".mirror-clip-", suffix=".osm.pbf"
-        )
-        os.close(fd)
-        dest = Path(out_name)
-        dest.unlink()  # BackReferenceWriter refuses to write over an existing file
-        try:
-            result = clip_bbox(
-                bbox, root=root, dest=dest, tmp_dir=work_dir,
-                cache_dir=cache_dir, cache_max_bytes=cache_max_bytes,
+        # Issue #494: bound how many callers may run `clip_bbox` at once,
+        # fail-fast rather than queue — see the module docstring's
+        # "Concurrency" section and `_ClipConcurrencyLimiter`.
+        if not concurrency_limiter.try_acquire():
+            log.warning("clip REFUSED bbox=%s reason=clip_busy", bbox)
+            raise HTTPException(
+                503,
+                detail={
+                    "error": "clip_busy",
+                    "message": (
+                        f"this mirror is already running "
+                        f"{concurrency_limiter.max_concurrency} clip(s) — "
+                        "try again shortly"
+                    ),
+                },
+                headers={"Retry-After": str(CLIP_BUSY_RETRY_AFTER_S)},
             )
-        except ValueError as exc:
-            dest.unlink(missing_ok=True)
-            if isinstance(exc, NoMirrorCoverage):
-                log.warning("clip REFUSED bbox=%s reason=no_mirror_coverage: %s", bbox, exc)
+        try:
+            fd, out_name = tempfile.mkstemp(
+                dir=work_dir, prefix=".mirror-clip-", suffix=".osm.pbf"
+            )
+            os.close(fd)
+            dest = Path(out_name)
+            dest.unlink()  # BackReferenceWriter refuses to write over an existing file
+            try:
+                result = clip_bbox(
+                    bbox, root=root, dest=dest, tmp_dir=work_dir,
+                    cache_dir=cache_dir, cache_max_bytes=cache_max_bytes,
+                )
+            except ValueError as exc:
+                dest.unlink(missing_ok=True)
+                if isinstance(exc, NoMirrorCoverage):
+                    log.warning("clip REFUSED bbox=%s reason=no_mirror_coverage: %s", bbox, exc)
+                    raise HTTPException(
+                        404, detail={"error": "no_mirror_coverage", "message": str(exc)}
+                    ) from None
+                log.warning("clip REFUSED bbox=%s reason=invalid_bbox: %s", bbox, exc)
                 raise HTTPException(
-                    404, detail={"error": "no_mirror_coverage", "message": str(exc)}
+                    400, detail={"error": "invalid_bbox", "message": str(exc)}
                 ) from None
-            log.warning("clip REFUSED bbox=%s reason=invalid_bbox: %s", bbox, exc)
-            raise HTTPException(
-                400, detail={"error": "invalid_bbox", "message": str(exc)}
-            ) from None
-        except Exception as exc:  # noqa: BLE001 — any clip failure is a finished sentence
-            dest.unlink(missing_ok=True)
-            log.error("clip FAILED bbox=%s: %s", bbox, exc)
-            raise HTTPException(
-                500, detail={"error": "clip_failed", "message": str(exc)}
-            ) from exc
+            except Exception as exc:  # noqa: BLE001 — any clip failure is a finished sentence
+                dest.unlink(missing_ok=True)
+                log.error("clip FAILED bbox=%s: %s", bbox, exc)
+                raise HTTPException(
+                    500, detail={"error": "clip_failed", "message": str(exc)}
+                ) from exc
+        finally:
+            concurrency_limiter.release()
 
         if result.pin is None:
             # Issue #274: the client keys its cache on this pin and has no
@@ -1196,6 +1272,15 @@ def main(argv: list[str] | None = None) -> int:
              "the CPU cost this bounds does not depend on whether a key "
              "is configured. 0 disables the ceiling.",
     )
+    parser.add_argument(
+        "--max-concurrent-clips", type=int,
+        default=int(os.environ.get("MIRROR_CLIP_MAX_CONCURRENT", "1")),
+        help="issue #494: how many /clip requests may run clip_bbox at "
+             "once. A caller past this bound gets an immediate 503 "
+             "clip_busy with Retry-After rather than queuing — see the "
+             "module docstring's Concurrency section. Clamped to at least "
+             "1.",
+    )
     _cache_dir_env = os.environ.get("MIRROR_CLIP_CACHE_DIR")
     parser.add_argument(
         "--cache-dir", type=Path,
@@ -1230,11 +1315,12 @@ def main(argv: list[str] | None = None) -> int:
     configure_logging(None, args.log_level)  # stderr only — container/systemd journal owns capture
     log.info(
         "mirror-clip starting version=%s host=%s port=%s root=%s "
-        "client_key_configured=%s rate_limit_per_minute=%s (issue #262/#263, "
+        "client_key_configured=%s rate_limit_per_minute=%s "
+        "max_concurrent_clips=%s (issue #262/#263/#494, "
         "epic #264 Phase 1.8/1.9 — pyosmium only, no osmium-tool CLI, "
         "addendum L1/1d)",
         VERSION, args.host, args.port, args.root,
-        bool(client_key), args.rate_limit_per_minute,
+        bool(client_key), args.rate_limit_per_minute, args.max_concurrent_clips,
     )
 
     app = create_clip_app(
@@ -1244,6 +1330,7 @@ def main(argv: list[str] | None = None) -> int:
         rate_limit_per_minute=args.rate_limit_per_minute,
         cache_dir=args.cache_dir,
         cache_max_bytes=args.cache_max_bytes,
+        max_concurrent_clips=args.max_concurrent_clips,
     )
     config = uvicorn.Config(
         app, host=args.host, port=args.port, log_level=args.log_level, access_log=True
