@@ -38,13 +38,37 @@ void main() {
       expect(u.mirrorConfigured, isTrue);
       expect(u.mirrorClipClientKey, isNull,
           reason: 'the key has no built-in default — it is never a literal in the repo');
-      expect(u.mirrorStateUrl, isNull,
-          reason: '/health fetches this on every 2 s poll; a default would be a '
-              'request before any extent is declared (#367 owns making that safe)');
+      expect(u.mirrorStateUrl, '${SidecarUpstreams.defaultMirrorUrl}/MIRROR_STATE.json',
+          reason: 'issue #367: safe to default now that /health caches the read '
+              'instead of re-fetching it on every 2 s poll');
       expect(u.elevationUpstream, isNull, reason: 'QA-only proxy, no default (#148/FR87)');
       expect(u.tilesUpstream, SidecarUpstreams.defaultTilesUpstream,
           reason: 'issue #457: the mirror\'s primary covered region is now the '
               'built-in default, same as the mirror URL itself');
+    });
+
+    test('the mirror state URL is derived from the mirror URL, not defaulted independently', () {
+      final u = SidecarUpstreams.resolve(environment: const {
+        SidecarUpstreams.mirrorUrlVar: 'http://127.0.0.1:8095',
+      });
+      expect(u.mirrorStateUrl, 'http://127.0.0.1:8095/MIRROR_STATE.json');
+    });
+
+    test('turning the mirror off also turns off its derived state URL', () {
+      final u = SidecarUpstreams.resolve(environment: const {
+        SidecarUpstreams.mirrorUrlVar: 'off',
+      });
+      expect(u.mirrorUrl, isNull);
+      expect(u.mirrorStateUrl, isNull,
+          reason: 'no mirror URL to derive a state URL from, and nothing named it explicitly');
+    });
+
+    test('an explicit state URL overrides the derived default', () {
+      final u = SidecarUpstreams.resolve(environment: const {
+        SidecarUpstreams.mirrorUrlVar: 'http://127.0.0.1:8095',
+        SidecarUpstreams.mirrorStateUrlVar: 'http://elsewhere/MIRROR_STATE.json',
+      });
+      expect(u.mirrorStateUrl, 'http://elsewhere/MIRROR_STATE.json');
     });
 
     test("the default mirror host matches tiles/mirror.py's MIRROR_HOST", () {
