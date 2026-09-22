@@ -168,7 +168,13 @@ def test_a_pre_cached_region_becomes_ready_without_network(tmp_path: Path) -> No
     assert got_key == key
 
     body = _wait_for(client, lambda c: c["routing"]["regions"].get(key, {}).get("ready") is True)
-    assert body["capabilities"]["routing"]["regions"][key] == {"ready": True}
+    # Issue #492 — `ready` can flip true while the build worker is still
+    # past the graph phase (tiles, here, reading the local home archive),
+    # which is the one additive field this may legitimately carry; assert
+    # on set membership rather than exact equality to avoid racing it.
+    region_capability = body["capabilities"]["routing"]["regions"][key]
+    assert region_capability["ready"] is True
+    assert set(region_capability) <= {"ready", "finishing"}
 
 
 def test_health_exposes_matched_app_and_sidecar_version(tmp_path: Path) -> None:
@@ -237,8 +243,14 @@ def test_unreachable_elevation_upstream_degrades_the_region_without_failing_it(
 
     body = _wait_for(client, lambda c: c["routing"]["regions"].get(key, {}).get("ready") is True)
     # The region still builds and routes fine — elevation degrading never
-    # touches `routing` (FR88), and `/health` itself never raises.
-    assert body["capabilities"]["routing"]["regions"][key] == {"ready": True}
+    # touches `routing` (FR88), and `/health` itself never raises. The only
+    # additive field this can carry while `ready` is true is issue #492's
+    # `finishing` — set while the build worker is still past the graph
+    # phase (here, resolving elevation) — so this asserts on set membership
+    # rather than exact equality to avoid racing that flag.
+    region_capability = body["capabilities"]["routing"]["regions"][key]
+    assert region_capability["ready"] is True
+    assert set(region_capability) <= {"ready", "finishing"}
     assert body["capabilities"]["elevation"]["ready"] is True  # the flag is set…
 
     # `ready` flips before the build worker resolves elevation (B1: routing
