@@ -252,3 +252,88 @@ def test_serialises_two_threads_and_neither_ever_overlaps():
     starts.sort()
     gaps = [b - a for a, b in zip(starts, starts[1:])]
     assert all(gap >= interval - 0.02 for gap in gaps), gaps
+
+
+# ── Issue #493 — bounding the wait for `_NOMINATIM_LOCK` ──────────────────
+#
+# `nominatim_rate_limit` used to hold `_NOMINATIM_LOCK` with a plain,
+# unbounded `with _NOMINATIM_LOCK:` across the whole block — fine for the
+# pacing bookkeeping it exists to protect, wrong once `/geocode` started
+# wrapping the actual `ox.geocode_to_gdf` call in it directly, since osmnx's
+# request timeout (180s) does not cover the DNS lookup
+# `socket.create_connection` makes first (#488's finding, applying here
+# identically). A second caller waiting for the lock had no bound of its
+# own. `timeout=` turns that into an honest, finite `NominatimBusy` instead
+# — the same shape as `OverpassSettingsBusy` (#490).
+
+
+def test_nominatim_rate_limit_waits_for_a_real_release_under_a_generous_timeout():
+    """The ordinary case: a lock released promptly is waited for and used,
+    not treated as busy just because `timeout=` was given."""
+    released = threading.Event()
+
+    def hold_briefly():
+        with osm_identity._NOMINATIM_LOCK:
+            released.wait(timeout=5)
+
+    holder = threading.Thread(target=hold_briefly)
+    holder.start()
+    try:
+        time.sleep(0.05)  # let the holder actually claim the lock first
+        released.set()
+        with osm_identity.nominatim_rate_limit(timeout=5.0):
+            pass  # acquired — did not raise NominatimBusy
+    finally:
+        holder.join(timeout=5)
+
+
+def test_nominatim_rate_limit_raises_nominatim_busy_after_timeout_even_against_a_lock_held_forever():
+    """A lock still held past `timeout` seconds raises `NominatimBusy`
+    rather than blocking past it — the property the whole fix rests on:
+    `Lock.acquire(timeout=)` polls wall-clock time, so the wait is bounded
+    even against a lock never released for the life of this test, the
+    pathological case a stalled DNS lookup inside a still-running
+    `/geocode` call produces (issue #493)."""
+    with osm_identity._NOMINATIM_LOCK:  # never released within this test
+        started = time.monotonic()
+        with pytest.raises(osm_identity.NominatimBusy):
+            with osm_identity.nominatim_rate_limit(timeout=0.15):
+                pass  # never reached
+        elapsed = time.monotonic() - started
+
+    assert 0.15 <= elapsed < 2.0, elapsed
+
+
+def test_nominatim_busy_never_updates_the_finished_timestamp_it_never_touched():
+    """A caller that never acquired the lock must never see its would-be
+    pacing bookkeeping take effect — there was nothing to record because
+    nothing was ever entered."""
+    osm_identity._last_nominatim_call_finished = None
+
+    with osm_identity._NOMINATIM_LOCK:
+        with pytest.raises(osm_identity.NominatimBusy):
+            with osm_identity.nominatim_rate_limit(timeout=0.1):
+                pass
+
+    assert osm_identity._last_nominatim_call_finished is None
+
+
+def test_nominatim_rate_limit_timeout_none_still_waits_indefinitely_by_default():
+    """`timeout=None` (the default) preserves the pre-#493 unbounded wait —
+    kept for a caller (a test, most often) that deliberately wants it, same
+    as `overpass_settings`'s own default."""
+    released = threading.Event()
+
+    def hold_then_release():
+        with osm_identity._NOMINATIM_LOCK:
+            released.wait(timeout=5)
+
+    holder = threading.Thread(target=hold_then_release)
+    holder.start()
+    try:
+        time.sleep(0.05)
+        released.set()
+        with osm_identity.nominatim_rate_limit():
+            pass  # acquired — waited without a bound and did not raise
+    finally:
+        holder.join(timeout=5)

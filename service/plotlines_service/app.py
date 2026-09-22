@@ -72,7 +72,12 @@ from plotlines_core.multimodal.legacy import (
     migrate_payload_modes,
 )
 from plotlines_core.multimodal.modes import TRAVERSAL_MODES
-from plotlines_core.osm_identity import apply_osm_http_identity, nominatim_rate_limit
+from plotlines_core.osm_identity import (
+    NOMINATIM_LOCK_TIMEOUT_S,
+    NominatimBusy,
+    apply_osm_http_identity,
+    nominatim_rate_limit,
+)
 from plotlines_core.graph.loader import LoadedGraph, load_graphml, nearest_node
 from plotlines_core.routing.access import mode_legal_graph
 from plotlines_core.routing.diagnose import diagnose
@@ -259,6 +264,35 @@ def _mirror_capability(source: str | None, pool: ThreadPoolExecutor) -> dict:
 #: over `OVERPASS_LOCK_TIMEOUT_S` plus one ordinary Overpass query, so the
 #: common case never trips it, same #488 shape as `_MIRROR_STATE_FETCH_TIMEOUT_S`.
 _CANDIDATE_FETCH_TIMEOUT_S = 60.0
+
+
+#: Issue #493. Bounds the dedicated single-worker pool's wait for the actual
+#: `ox.geocode_to_gdf` round trip once dispatched, the same #488 shape as
+#: `_CANDIDATE_FETCH_TIMEOUT_S` / `_MIRROR_STATE_FETCH_TIMEOUT_S` — a margin
+#: over what one healthy Nominatim request (plus DNS) costs, well under the
+#: minutes a stuck lookup could otherwise occupy a caller for. Nested inside
+#: `nominatim_rate_limit(timeout=NOMINATIM_LOCK_TIMEOUT_S)`'s own,
+#: independent bound on the wait to acquire the pacing lock — see that
+#: module's docstring for why both are needed.
+_GEOCODE_FETCH_TIMEOUT_S = 20.0
+
+
+def _geocode_via_nominatim(query: str, pool: ThreadPoolExecutor):
+    """Runs `ox.geocode_to_gdf(query)` on `pool`
+    (`Readiness._geocode_pool`, never the shared FastAPI pool `/geocode`
+    itself answers on) inside `nominatim_rate_limit`'s pacing lock, and gives
+    up after `_GEOCODE_FETCH_TIMEOUT_S` regardless of whether the call itself
+    ever returns — issue #493, the #488 shape applied to the Nominatim path.
+
+    Raises `NominatimBusy` if another `/geocode` call is still in flight past
+    `NOMINATIM_LOCK_TIMEOUT_S`, and lets `FutureTimeoutError` propagate if
+    the dispatched call itself doesn't finish within `_GEOCODE_FETCH_TIMEOUT_S`
+    — both honest, finite outcomes instead of the pre-#493 unbounded wait. A
+    call abandoned on either path is left running on its own single-worker
+    pool, where it can only ever queue up against itself."""
+    with nominatim_rate_limit(timeout=NOMINATIM_LOCK_TIMEOUT_S):
+        future = pool.submit(ox.geocode_to_gdf, query)
+        return future.result(timeout=_GEOCODE_FETCH_TIMEOUT_S)
 
 
 def _fetch_candidates(
@@ -1115,6 +1149,16 @@ class Readiness:
         self._candidate_fetch_pool = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="candidate-fetch",
         )
+        # Issue #493 — same shape again, for `/geocode`. `_NOMINATIM_LOCK`
+        # (`plotlines_core.osm_identity`) bounds how long *waiting* for it can
+        # take (`NOMINATIM_LOCK_TIMEOUT_S`), but the dispatched
+        # `ox.geocode_to_gdf` call itself still needs its own pool off
+        # `/geocode`'s shared-pool thread — one worker, since Nominatim's own
+        # policy caps this process at one in-flight geocode anyway (the lock
+        # already serialises to that). See `_geocode_via_nominatim`.
+        self._geocode_pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="geocode",
+        )
         # Issue #492 — every network phase inside a region build
         # (`RegionState.build` -> `_run_build_phase`) runs on one of these,
         # never on `_build_pool` itself: that is what lets `_build_pool`'s
@@ -1142,6 +1186,7 @@ class Readiness:
         self._build_pool.shutdown(wait=False, cancel_futures=True)
         self._mirror_state_pool.shutdown(wait=False, cancel_futures=True)
         self._candidate_fetch_pool.shutdown(wait=False, cancel_futures=True)
+        self._geocode_pool.shutdown(wait=False, cancel_futures=True)
         self._build_phase_pools.shutdown()
 
     def ensure_region(self, bbox: tuple[float, float, float, float],
@@ -2558,12 +2603,28 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         callers in this process (this is a sync `def` endpoint, so FastAPI
         may run two calls on threadpool siblings) can each individually pass
         while together exceeding the policy.
+
+        Issue #493 — the actual fetch runs on `Readiness._geocode_pool`,
+        never this endpoint's own shared-pool thread (the #488 shape): a
+        stuck Nominatim lookup gives up after `_GEOCODE_FETCH_TIMEOUT_S`
+        rather than leaving this call — and `/health`/`/layers`/`/tiles`
+        behind it on the shared pool — waiting on it, and a second `/geocode`
+        that arrives while one is still stuck gives up waiting for the
+        pacing lock after `NOMINATIM_LOCK_TIMEOUT_S` instead of blocking
+        indefinitely. Both report an honest 503, not a bare timeout.
         """
         if not q.strip():
             raise HTTPException(422, "empty query")
         try:
-            with nominatim_rate_limit():
-                gdf = ox.geocode_to_gdf(q)
+            gdf = _geocode_via_nominatim(q, state._geocode_pool)
+        except NominatimBusy as exc:
+            raise HTTPException(503, str(exc)) from exc
+        except FutureTimeoutError as exc:
+            raise HTTPException(
+                503,
+                f"the search service didn't answer for {q!r} — try again "
+                "in a moment"
+            ) from exc
         except (ValueError, RuntimeError) as exc:
             # osmnx raises a mix of exception types for "nothing found" vs.
             # a downstream Nominatim/network failure; both are the same
