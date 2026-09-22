@@ -101,6 +101,23 @@ def load_mirror_state(source: str | Path, *, timeout_s: float = 5.0) -> dict:
     `osm_identity.osm_user_agent()` like every other outbound request the
     library makes, even though `MIRROR_HOST` is Plotlines-controlled
     infrastructure, not a third party owed the politeness Overpass is.
+
+    Issue #488: `timeout_s` bounds the socket once a connection exists, but
+    not the `getaddrinfo` DNS lookup `socket.create_connection` (which
+    `urlopen` calls into) makes first — that lookup is a blocking OS call
+    with no timeout parameter anywhere in the stdlib, `requests`, or (for
+    its default sync backend) `httpx` either, since all three end up at the
+    same `socket.create_connection` underneath. There is no library swap
+    that closes this gap for a synchronous call: the only reliable bound on
+    a call that can hang in DNS is to stop *waiting* on it from a deadline
+    on the caller's side, accepting that the underlying thread may outlive
+    the deadline. `service.plotlines_service.app._mirror_capability` is
+    where that actually happens — it runs this function on a dedicated
+    single-worker pool and gives up on it after a hard timeout, isolated
+    from the shared pool every other sync endpoint answers on, so a stalled
+    resolver here (the WSL-DNS-timing class of bug `#466` already hit once)
+    degrades `/health`'s `mirror` capability to stale instead of blocking
+    `/layers`/`/tiles` behind it.
     """
     text: str
     source_str = str(source)
