@@ -264,6 +264,66 @@ def test_fetch_falls_back_to_overpass_when_no_local_clip_is_cached(tmp_path, mon
     assert seen.get("called") is True
 
 
+# --------------------------------------------------------------------------- #
+# Issue #491 — a failed `features_for` used to go unmemoised, so
+# `LayerRegistry.fetch_candidates_all`'s per-layer loop (six built-in layers,
+# one bbox) repeated the same doomed Overpass round trip once per layer
+# during an outage.
+# --------------------------------------------------------------------------- #
+
+
+def test_shared_osm_fetch_negative_caches_a_failed_fetch():
+    calls: list[int] = []
+
+    class FailingEngine:
+        def fetch(self, bbox, layers):
+            calls.append(1)
+            raise CandidateFetchUnavailable("the map-data service didn't answer")
+
+    shared = SharedOsmFetch(FailingEngine())
+    bbox = BBox(0.0, 0.0, 0.01, 0.01)
+
+    for _ in range(6):  # one call per built-in layer, same as the real loop
+        with pytest.raises(CandidateFetchUnavailable):
+            shared.features_for(bbox, {"historic"})
+
+    assert len(calls) == 1
+
+
+def test_shared_osm_fetch_retries_once_the_negative_cache_ttl_elapses():
+    """A layer recovers after the transport does: once
+    `NEGATIVE_CACHE_TTL_S` has passed, the next call gets a real attempt
+    rather than the cached failure. `clock` is injected so this asserts on
+    the TTL boundary itself rather than a real sleep."""
+    from plotlines_core.curation.providers import NEGATIVE_CACHE_TTL_S
+
+    attempts = {"n": 0}
+    now = {"t": 0.0}
+
+    class FlakyEngine:
+        def fetch(self, bbox, layers):
+            attempts["n"] += 1
+            if attempts["n"] == 1:
+                raise CandidateFetchUnavailable("down")
+            return []
+
+    shared = SharedOsmFetch(FlakyEngine(), clock=lambda: now["t"])
+    bbox = BBox(0.0, 0.0, 0.01, 0.01)
+
+    with pytest.raises(CandidateFetchUnavailable):
+        shared.features_for(bbox, {"historic"})
+    assert attempts["n"] == 1
+
+    now["t"] += NEGATIVE_CACHE_TTL_S - 1  # still inside the TTL
+    with pytest.raises(CandidateFetchUnavailable):
+        shared.features_for(bbox, {"historic"})
+    assert attempts["n"] == 1, "a second attempt inside the TTL is the bug this guards"
+
+    now["t"] += 1  # TTL has now fully elapsed
+    assert shared.features_for(bbox, {"historic"}) == []
+    assert attempts["n"] == 2
+
+
 def test_shared_osm_fetch_default_engine_reads_the_cache_layout_it_was_given(tmp_path):
     """`SharedOsmFetch()`'s default-constructed engine gets the same
     `cache_layout` — this is what lets the registry path (`registry

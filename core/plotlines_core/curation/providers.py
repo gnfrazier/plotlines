@@ -19,8 +19,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Iterable, Protocol
+from typing import TYPE_CHECKING, Callable, Iterable, Protocol
 
 from .notability import RULESET_VERSION, RawFeature, Shape, score_with_taxonomy
 from .taxonomy import LAYERS, TAXONOMY, TypeRule, TypeTaxonomy
@@ -456,6 +457,19 @@ def _raw_feature_from_json(d: dict) -> RawFeature:
     )
 
 
+#: How long `SharedOsmFetch` remembers a failed fetch for one bbox before
+#: letting the next call retry the transport (issue #491, ARCH §8.6 rule 4 /
+#: A30). Set to the same span as `service/plotlines_service/app.py`'s
+#: `_CANDIDATE_FETCH_TIMEOUT_S`: long enough that the six sequential
+#: per-layer calls one `/candidates` request makes for the same bbox always
+#: share a single Overpass attempt (they run back-to-back on one thread, well
+#: under a minute apart), short enough that a transport failure never reads
+#: as a permanent one — the very next `/candidates` request, which cannot
+#: even start until this one has finished or timed out
+#: (`Readiness._candidate_fetch_pool` is one worker), gets a real attempt.
+NEGATIVE_CACHE_TTL_S = 60.0
+
+
 class SharedOsmFetch:
     """One bbox -> one `OsmLayerProvider.fetch` call, shared by the six
     per-layer `BuiltinOsmLayerProvider` instances registered against it
@@ -463,6 +477,11 @@ class SharedOsmFetch:
     plugin — one dataset, one provider — and would turn one Overpass query
     into six for a batched built-in source). `engine` is injectable so a
     test can feed committed fixtures instead of hitting the commons.
+
+    A failed fetch is negative-cached for `NEGATIVE_CACHE_TTL_S` (issue
+    #491) exactly as a successful one is cached indefinitely below — without
+    it, one Overpass outage cost six sequential round trips, one per
+    built-in layer, because only success was ever memoised.
 
     Two cache tiers (issue #243, ARCH A23's first mitigation, FR94):
 
@@ -480,7 +499,8 @@ class SharedOsmFetch:
     """
 
     def __init__(self, engine: "OsmLayerProvider | None" = None, *,
-                 cache_layout: "CacheLayout | None" = None) -> None:
+                 cache_layout: "CacheLayout | None" = None,
+                 clock: "Callable[[], float]" = time.monotonic) -> None:
         # Issue #275: the default engine gets the same `cache_layout` this
         # `SharedOsmFetch` was given, so `OsmLayerProvider.fetch` can find the
         # mirror clip `graph.extract_fetch.ensure_extract` cached for this
@@ -489,11 +509,30 @@ class SharedOsmFetch:
         self._engine = engine or OsmLayerProvider(cache_layout=cache_layout)
         self._cache: dict[tuple[float, float, float, float], list[RawFeature]] = {}
         self._disk = cache_layout
+        # Issue #491: a *failed* fetch used to go unmemoised — only success
+        # was cached above — so `LayerRegistry.fetch_candidates_all`'s
+        # sequential per-layer loop (six built-in layers, one bbox) repeated
+        # the same doomed Overpass round trip once per layer during an
+        # outage. `_failed` remembers the exception for `NEGATIVE_CACHE_TTL_S`
+        # so the other five reuse it instead of re-dialling; `clock` is
+        # injectable so a test can advance past the TTL without a real sleep.
+        self._failed: dict[tuple[float, float, float, float], tuple[float, Exception]] = {}
+        self._clock = clock
 
     def features_for(self, bbox: BBox, layers: set[str]) -> list[RawFeature]:
         key = (bbox.west, bbox.south, bbox.east, bbox.north)
         if key in self._cache:
             return self._cache[key]
+
+        cached_failure = self._failed.get(key)
+        if cached_failure is not None:
+            recorded_at, error = cached_failure
+            if self._clock() - recorded_at < NEGATIVE_CACHE_TTL_S:
+                raise error
+            # TTL elapsed since the recorded failure — ARCH §8.6 rule 4: a
+            # transport failure is transient, so the next attempt for this
+            # bbox gets a real try rather than inheriting a stale one.
+            del self._failed[key]
 
         from_disk = self._read_disk(key)
         if from_disk is not None:
@@ -502,8 +541,13 @@ class SharedOsmFetch:
 
         # Always fetch every built-in layer for this bbox, once, so a second
         # per-layer sibling reads the cache rather than re-querying.
-        features = self._engine.fetch(bbox, set(LAYERS))
+        try:
+            features = self._engine.fetch(bbox, set(LAYERS))
+        except Exception as exc:
+            self._failed[key] = (self._clock(), exc)
+            raise
         self._cache[key] = features
+        self._failed.pop(key, None)
         self._write_disk(key, features)
         return features
 
