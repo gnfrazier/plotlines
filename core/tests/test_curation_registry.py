@@ -236,7 +236,78 @@ def test_candidate_fetch_unavailable_surfaces_a_finished_sentence_not_a_repr():
 
     assert errors["battlefields"] == f"{FAILED}:{message}"
     assert "CandidateFetchUnavailable" not in errors["battlefields"]
-    assert reg.per_layer()["battlefields"] == f"{FAILED}:{message}"
+
+
+def test_candidate_fetch_unavailable_does_not_stick_the_layer_failed():
+    """Issue #491 / ARCH §8.6 rule 4, A30: a `CandidateFetchUnavailable` is a
+    transport failure, not a fact about the layer — unlike an ordinary
+    provider bug (`test_a_layer_that_raises_at_fetch_is_marked_failed_afterwards`),
+    it must not latch the entry into `failed`. The pre-#491 registry did,
+    which is why one Overpass outage against all six built-in layers left
+    `/health` reporting every one of them `failed` for the rest of the
+    sidecar session — nothing outside a test ever calls `mark_ready`."""
+    reg = _registry_with_builtins()
+    reg.register_plugin("battlefields", FakePlugin(
+        raise_on_fetch=CandidateFetchUnavailable("service unavailable, try again")))
+
+    reg.fetch_candidates_all(_BBOX, {"battlefields"})
+
+    assert reg.per_layer()["battlefields"] == "ready"
+    assert "battlefields" in reg.ready_layers()
+
+
+# --------------------------------------------------------------------------- #
+# Issue #491 — one Overpass outage on `/candidates` used to cost six
+# sequential Overpass calls (one per built-in layer), then leave all six
+# `failed` until the sidecar restarted (nothing outside a test ever calls
+# `mark_ready`). Repro straight from the issue: a registry whose engine's
+# `fetch` raises `CandidateFetchUnavailable`, `fetch_candidates_all` over
+# all six built-in layers, count engine calls — then make the engine
+# succeed and call again.
+# --------------------------------------------------------------------------- #
+
+
+def test_an_overpass_outage_on_all_six_built_ins_costs_one_engine_call_and_recovers():
+    from plotlines_core.curation.providers import (
+        NEGATIVE_CACHE_TTL_S, BuiltinOsmLayerProvider, SharedOsmFetch,
+    )
+
+    class RecoveringEngine:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def fetch(self, bbox, layers):
+            self.calls += 1
+            if self.calls == 1:
+                raise CandidateFetchUnavailable(
+                    "the map-data service didn't answer for this layer")
+            return [RawFeature(id="n/1", coord=(-81.95, 36.0),
+                                tags={"historic": "castle", "name": "Keep"})]
+
+    clock = {"t": 0.0}
+    engine = RecoveringEngine()
+    shared = SharedOsmFetch(engine, clock=lambda: clock["t"])
+
+    reg = LayerRegistry()
+    reg.register_builtins(
+        {layer: BuiltinOsmLayerProvider(layer, shared) for layer in LAYERS})
+
+    cands, errors = reg.fetch_candidates_all(_BBOX, set(LAYERS))
+    assert engine.calls == 1, "one outage must cost one engine call, not six"
+    assert cands == []
+    assert set(errors) == set(LAYERS)
+    assert all(v.startswith("failed:") for v in errors.values())
+    # The registry itself never latches — every layer is still `ready`, so
+    # a re-run before the negative cache even expires is not skipped by the
+    # `entry.status != READY` guard.
+    assert all(state == "ready" for state in reg.per_layer().values())
+
+    clock["t"] += NEGATIVE_CACHE_TTL_S  # the outage's negative cache expires
+
+    cands, errors = reg.fetch_candidates_all(_BBOX, set(LAYERS))
+    assert engine.calls == 2
+    assert errors == {}
+    assert cands  # a layer recovers after the transport does
 
 
 def test_fetch_names_an_unknown_layer_without_aborting():

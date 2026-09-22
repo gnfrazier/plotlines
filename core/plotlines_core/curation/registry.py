@@ -250,14 +250,24 @@ class LayerRegistry:
         A layer that is unknown, not ready, or whose `fetch_candidates`
         raises **subtracts** from the result and is named in the error map;
         it never aborts the request (N2's AC, and the exact inverse of the
-        shipped `/candidates`'s single `try`). A raising provider is also
-        marked `failed` so the picker reflects it on the next `/health`.
+        shipped `/candidates`'s single `try`). A raising provider is marked
+        `failed` so the picker reflects it on the next `/health` — **except**
+        a `CandidateFetchUnavailable` (issue #250's built-in OSM transport
+        posture), which is reported in the error map for *this request
+        only* and leaves the entry `ready`. Issue #491 / ARCH §8.6 rule 4 /
+        A30: a transport failure is a fact about this one attempt, not
+        about the layer, so latching it into `failed` turned one Overpass
+        blip into "curation is broken until the sidecar restarts" — the
+        five other built-in layers tripped the same way on the same
+        outage, all six landing `failed` together and staying there since
+        nothing outside a test ever calls `mark_ready`. A plugin's
+        `load_state()` failure at registration is the case that *may* stay
+        sticky, because a missing licence is a fact about the layer.
 
         The error string is `type(exc).__name__: exc` for an ordinary
-        provider bug, but a `CandidateFetchUnavailable` (issue #250 — the
-        built-in OSM layers' accepted single-endpoint Overpass posture)
-        surfaces its `str()` verbatim instead: a finished, user-facing
-        sentence, not a raw exception repr.
+        provider bug, but a `CandidateFetchUnavailable` surfaces its
+        `str()` verbatim instead: a finished, user-facing sentence, not a
+        raw exception repr (issue #250's standard).
         """
         with self._lock:
             requested = sorted(layers)
@@ -281,9 +291,16 @@ class LayerRegistry:
                 # path's `OverpassUnavailable`/`NoRoutableWaysError`) — surface
                 # it verbatim rather than re-wrapping it in the generic
                 # `type(exc).__name__: exc` raw-repr shape below.
+                #
+                # Issue #491 — deliberately no `self._fail(layer, reason)`
+                # here: a transport failure is transient (ARCH §8.6 rule 4),
+                # so the entry stays `ready` and the *next* fetch gets a real
+                # attempt instead of being skipped by the `entry.status !=
+                # READY` guard above. Combined with `SharedOsmFetch`'s
+                # negative cache, this bounds one outage to one Overpass
+                # attempt per bbox without ever latching the layer off.
                 reason = str(exc)
                 errors[layer] = f"{FAILED}:{reason}"
-                self._fail(layer, reason)
             except Exception as exc:  # noqa: BLE001 — subtract the layer, keep the rest
                 reason = f"{type(exc).__name__}: {exc}"
                 errors[layer] = f"{FAILED}:{reason}"
