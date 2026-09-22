@@ -171,14 +171,13 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                       onPressed: () => _fetchCandidates(live),
                     ),
                   ),
-                  if (candidatesState.error != null)
-                    Positioned(
-                      bottom: PlotSpacing.s3,
-                      left: PlotSpacing.s3,
-                      right: PlotSpacing.s3,
-                      child: _ErrorBanner(message: candidatesState.error!),
-                    )
-                  else if (candidatesState.layersUnavailable.isNotEmpty)
+                  // #418 — a thrown `candidatesForBbox` (500, unreachable
+                  // sidecar, timeout) converges on the same M13 treatment as
+                  // the 200-with-nothing-served case below: `_unavailableLayersSurface`
+                  // reads `layerExtractionFailed` from either signal, so a
+                  // caller never has to tell "the request failed" from "it
+                  // came back empty" apart — both are one whole-set retry.
+                  if (candidatesState.error != null || candidatesState.layersUnavailable.isNotEmpty)
                     Positioned(
                       bottom: PlotSpacing.s3,
                       left: PlotSpacing.s3,
@@ -285,8 +284,10 @@ class _LayersTabState extends ConsumerState<LayersTab> {
   /// others (or none of them, through a 200 rather than an exception). The
   /// candidates that did arrive stay on the map; this card sits beside
   /// them, names each missing layer with a bounded cause, and retries just
-  /// those. With nothing served it is `layerExtractionFailed` — the total
-  /// case — and the retry is the whole run.
+  /// those. With nothing served — whether that arrived as a 200 with an
+  /// empty `layersUnavailable`-only result or as a thrown `CurationException`
+  /// (#418) — it is `layerExtractionFailed`, the total case, with no
+  /// per-layer detail to itemise and a retry that is the whole run.
   Widget _unavailableLayersSurface(TripCandidatesState candidatesState, Set<String> live) {
     final messages = ref.watch(messagesProvider);
     final partial = candidatesState.isPartiallyServed;
@@ -402,25 +403,6 @@ class _FindCandidatesButton extends StatelessWidget {
                 style: PlotTypography.data(enabled ? c.textPrimary : c.textMuted),
               ),
             ),
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = PlotColors.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
-      decoration: BoxDecoration(
-        color: c.surfaceCard.withValues(alpha: 0.95),
-        borderRadius: PlotRadii.controlShape,
-        border: Border.all(color: c.danger),
-      ),
-      child: Text(message, style: PlotTypography.data(c.danger)),
     );
   }
 }
