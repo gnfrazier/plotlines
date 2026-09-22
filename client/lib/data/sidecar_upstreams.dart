@@ -28,10 +28,13 @@ import 'package:flutter/foundation.dart';
 ///     builder's environment.
 ///  3. The built-in default: the Plotlines-operated mirror at
 ///     [defaultMirrorUrl], matching `tiles/mirror.py`'s `MIRROR_HOST`
-///     posture, and the tiles upstream at [defaultTilesUpstream] (issue
-///     #457), matching `MIRROR_WNC_CORRIDOR_URL` (tests pin all three to
-///     the core side). The key, the state URL, and the elevation proxy have
-///     no default.
+///     posture; the tiles upstream at [defaultTilesUpstream] (issue #457),
+///     matching `MIRROR_WNC_CORRIDOR_URL`; and, once a mirror URL is
+///     configured at all, the state URL at `<mirrorUrl>/MIRROR_STATE.json`
+///     (issue #367 — safe now that `_mirror_capability` caches the read
+///     rather than fetching it on every 2s `/health` poll; tests pin all
+///     three to the core side). The key and the elevation proxy have no
+///     default.
 ///
 /// The literal `off` at any level disables that upstream outright — the
 /// sidecar is then started without the flag, exactly as before #434, and
@@ -100,11 +103,16 @@ class SidecarUpstreams {
   final String? mirrorClipClientKey;
 
   /// Where the sidecar reads `MIRROR_STATE.json` for `capabilities.mirror`.
-  /// No default, deliberately: `/health` fetches this source on every poll
-  /// — the client polls every 2 s — so a default here would be a request to
-  /// the mirror before any extent is declared, and a 5 s fetch timeout
-  /// against an unreachable mirror would blow the client's 2 s health
-  /// timeout. Explicit dev/QA use only until #367 makes the read safe.
+  /// Defaults to `<mirrorUrl>/MIRROR_STATE.json` once a mirror URL is
+  /// configured at all (issue #367) — a bare mirror-URL default was unsafe
+  /// while `/health` re-fetched this source on every 2 s poll (a default
+  /// would have been a request to the mirror on a fixed timer, before any
+  /// extent is declared, and a stuck fetch would have blown the client's
+  /// 2 s health timeout); `_mirror_capability` now caches the read for
+  /// `_MIRROR_STATE_CACHE_TTL_S` and bounds the fetch on its own pool
+  /// (`service/plotlines_service/app.py`), so this can default on like
+  /// [mirrorUrl] and [tilesUpstream] do. Still overridable/disablable the
+  /// same way as every other field here.
   final String? mirrorStateUrl;
 
   /// The Pi5 caching elevation proxy's `/dem` base URL (QA-only companion
@@ -134,11 +142,17 @@ class SidecarUpstreams {
   /// over the build-time defines over [defaultMirrorUrl]. Pure — no I/O.
   factory SidecarUpstreams.resolve({Map<String, String>? environment}) {
     final env = environment ?? Platform.environment;
+    final mirrorUrl = _pick(env[mirrorUrlVar], _defineMirrorUrl, defaultMirrorUrl);
     return SidecarUpstreams(
-      mirrorUrl: _pick(env[mirrorUrlVar], _defineMirrorUrl, defaultMirrorUrl),
+      mirrorUrl: mirrorUrl,
       mirrorClipClientKey:
           _pick(env[mirrorClipClientKeyVar], _defineMirrorClipClientKey, null),
-      mirrorStateUrl: _pick(env[mirrorStateUrlVar], _defineMirrorStateUrl, null),
+      // Issue #367 — derived from the resolved mirror URL, not a literal
+      // default of its own, so `off`/an env override on `mirrorUrl` alone
+      // (no explicit `mirrorStateUrl`) still turns this off too rather than
+      // leaving it pointed at a mirror the sidecar was told to ignore.
+      mirrorStateUrl: _pick(env[mirrorStateUrlVar], _defineMirrorStateUrl,
+          mirrorUrl == null ? null : '$mirrorUrl/MIRROR_STATE.json'),
       elevationUpstream:
           _pick(env[elevationUpstreamVar], _defineElevationUpstream, null),
       tilesUpstream: _pick(

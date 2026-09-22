@@ -215,8 +215,47 @@ ELEVATION_QA_PROXY_CONFIGURED: dict = {
 #: the fetch's own 5.0s bound so the common (fast) case never trips it.
 _MIRROR_STATE_FETCH_TIMEOUT_S = 8.0
 
+#: Issue #367 (rescoped by #434). `/health` is polled every 2s for the life
+#: of the session (`SidecarManager`, `client/lib/data/sidecar_manager.dart:
+#: 652`); once `--mirror-state-url` defaults to a live URL instead of
+#: staying unset (this issue's other half, `SidecarUpstreams.resolve`), an
+#: uncached read turns that poll into a request to the mirror on a fixed
+#: timer from process start, before any extent has been declared — the same
+#: posture #274's first acceptance box refuses for `/clip` (D41/D57: no
+#: request to the mirror before an extent names it). `MAX_PIN_AGE_DAYS`
+#: (45 days) and `DEFAULT_BASEMAP_TTL_DAYS` (30 days, `mirror_state.py`) are
+#: the staleness question's own granularity, so re-reading hourly rather
+#: than on every poll loses nothing an Author would notice while cutting
+#: the request rate by three orders of magnitude.
+_MIRROR_STATE_CACHE_TTL_S = 3600.0
 
-def _mirror_capability(source: str | None, pool: ThreadPoolExecutor) -> dict:
+
+class MirrorStateCache:
+    """One cached `capabilities.mirror` result per source, issue #367.
+    Caches a fetch failure for `_MIRROR_STATE_CACHE_TTL_S` exactly as a
+    success is — not just success — because the request volume this exists
+    to cut is identical either way: an unreachable mirror polled every 2s
+    is the exact case #434's rescoping called out, and re-trying it every
+    poll would defeat the cache for precisely the deployment (no live
+    mirror yet) where it matters most. `clock` is injectable so a test can
+    advance past the TTL without a real sleep."""
+
+    def __init__(self, *, clock: Callable[[], float] = time.monotonic) -> None:
+        self._clock = clock
+        self._entries: dict[str, tuple[float, dict]] = {}
+
+    def get_or_fetch(self, source: str, pool: ThreadPoolExecutor) -> dict:
+        now = self._clock()
+        cached = self._entries.get(source)
+        if cached is not None and now - cached[0] < _MIRROR_STATE_CACHE_TTL_S:
+            return cached[1]
+        result = _fetch_mirror_capability(source, pool)
+        self._entries[source] = (now, result)
+        return result
+
+
+def _mirror_capability(source: str | None, pool: ThreadPoolExecutor,
+                        cache: "MirrorStateCache | None" = None) -> dict:
     """`capabilities.mirror` — issue #260 (Phase 1.6, epic #264; review
     §6.6, addendum Q2). `--mirror-state-url` is optional and orthogonal to
     `--tiles-upstream`: it names where to *read* `MIRROR_STATE.json` for the
@@ -239,9 +278,26 @@ def _mirror_capability(source: str | None, pool: ThreadPoolExecutor) -> dict:
     rather than blocking this call — even while the pool's one worker is
     still occupied by a previous fetch that never returned, since a second
     stuck fetch then just queues behind it rather than spawning a second
-    stuck thread anywhere that matters."""
+    stuck thread anywhere that matters.
+
+    Issue #367 — `cache` (`Readiness._mirror_state_cache`), when given,
+    answers from `MirrorStateCache.get_or_fetch` instead of fetching on
+    every call: a miss still runs through the same pool/timeout shape
+    below. `None` (every direct caller outside `/health` — tests included)
+    keeps the pre-#367 uncached behaviour, since there is no polled caller
+    to protect."""
     if not source:
         return MIRROR_NOT_CONFIGURED
+    if cache is not None:
+        return cache.get_or_fetch(source, pool)
+    return _fetch_mirror_capability(source, pool)
+
+
+def _fetch_mirror_capability(source: str, pool: ThreadPoolExecutor) -> dict:
+    """The uncached read `MirrorStateCache.get_or_fetch` calls through to on
+    a cache miss — issue #488's pool/timeout shape, unchanged. Split out of
+    `_mirror_capability` by issue #367 so the cache can call it without
+    re-entering the `source`/cache dispatch above."""
     future = pool.submit(load_mirror_state, source)
     try:
         state = future.result(timeout=_MIRROR_STATE_FETCH_TIMEOUT_S)
@@ -1137,6 +1193,11 @@ class Readiness:
         self._mirror_state_pool = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="mirror-state",
         )
+        # Issue #367 — one cached `capabilities.mirror` result per source,
+        # so the 2s `/health` poll does not turn into a request to the
+        # mirror on the same cadence once `--mirror-state-url` defaults on.
+        # See `MirrorStateCache` and `_mirror_capability`.
+        self._mirror_state_cache = MirrorStateCache()
         # Issue #490 — same shape, for `/candidates`. `OSM_SETTINGS_LOCK`
         # bounds how long *waiting* for it can take (`OVERPASS_LOCK_TIMEOUT_S`
         # in `plotlines_core.osm_identity`), but the *holder* can still be
@@ -1947,7 +2008,11 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         that fetch runs on its own single-worker pool with a hard deadline
         (`_mirror_capability`), never on this endpoint's own shared thread —
         a stuck upstream can degrade `mirror` to stale but can no longer
-        starve `layers`/`tiles` the way a hung DNS lookup once did.
+        starve `layers`/`tiles` the way a hung DNS lookup once did. Since
+        issue #367 the result is also cached for `_MIRROR_STATE_CACHE_TTL_S`
+        (`Readiness._mirror_state_cache`) — a 2s poll no longer means a 2s
+        fetch, which is what makes it safe for `--mirror-state-url` to
+        default on (`SidecarUpstreams.resolve`) rather than stay dev/QA-only.
 
         `extract` (issue #274, Phase 3.2) reports `{"configured": False}`
         when no `--mirror-clip-url` was given — the default until #275
@@ -1994,7 +2059,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                     if state.elevation_upstream
                     else ELEVATION_NOT_CONFIGURED
                 ),
-                "mirror": _mirror_capability(mirror_state_url, state._mirror_state_pool),
+                "mirror": _mirror_capability(
+                    mirror_state_url, state._mirror_state_pool,
+                    state._mirror_state_cache),
                 "extract": state.extract_capabilities(),
             },
         }

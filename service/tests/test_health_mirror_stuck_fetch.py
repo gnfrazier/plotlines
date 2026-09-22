@@ -88,8 +88,15 @@ def test_repeated_polls_against_a_stuck_fetch_never_touch_the_shared_pool(
     """The client polls `/health` every 2s regardless of whether the last
     poll's mirror fetch ever finished. Each poll submits a fresh fetch onto
     the dedicated single-worker pool (never the shared one), so however many
-    polls stack up behind one stuck fetch, `/layers` must stay fast."""
+    polls stack up behind one stuck fetch, `/layers` must stay fast.
+
+    Issue #367's `MirrorStateCache` would otherwise answer polls 2-5 from
+    the first poll's cached (timed-out) result without touching the pool
+    again — a real behaviour change worth having (see
+    `test_mirror_state_cache.py`), but not what *this* regression is about,
+    so the TTL is collapsed to 0 to keep every poll a genuine fresh fetch."""
     monkeypatch.setattr(app_module, "_MIRROR_STATE_FETCH_TIMEOUT_S", 0.1)
+    monkeypatch.setattr(app_module, "_MIRROR_STATE_CACHE_TTL_S", 0.0)
 
     unblock = threading.Event()
 
