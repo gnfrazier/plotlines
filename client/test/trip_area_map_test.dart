@@ -12,11 +12,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:drift/native.dart';
+
+import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/domain/home_region.dart';
 import 'package:plotlines_client/domain/trip_bbox.dart';
+import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart' show MapTileAssets;
 import 'package:plotlines_client/presentation/map/trip_area_map.dart';
 import 'package:plotlines_client/state/providers.dart';
+import 'package:plotlines_client/state/settings_provider.dart';
 
 class _FakeSidecarManager extends SidecarManager {
   @override
@@ -50,6 +55,35 @@ Widget _harness({
           bbox: bbox,
           drawing: drawing,
           onProposeChange: onProposeChange,
+        ),
+      ),
+    ),
+  );
+}
+
+/// Issue #465 — an in-memory settings DB pre-seeded with a basemap-style
+/// choice (settings_provider_test.dart's own pattern), plus a chosen
+/// [Brightness], for the basemap-style-selection tests below.
+Future<Widget> _harnessWithBasemapPref({
+  required BasemapStylePref basemapStyle,
+  required Brightness brightness,
+}) async {
+  final db = AppDatabase.forTesting(NativeDatabase.memory());
+  addTearDown(db.close);
+  await db.setSetting('basemap_style', basemapStyle.name);
+  return ProviderScope(
+    overrides: [
+      sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+      appDatabaseProvider.overrideWithValue(db),
+    ],
+    child: MaterialApp(
+      theme: ThemeData(brightness: brightness),
+      home: Scaffold(
+        body: TripAreaMap(
+          center: HomeRegion.center,
+          bbox: null,
+          drawing: false,
+          onProposeChange: (_) {},
         ),
       ),
     ),
@@ -109,5 +143,34 @@ void main() {
       (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeUpLeftDownRight,
     );
     expect(handles, findsNothing);
+  });
+
+  group('basemap style preference (issue #465)', () {
+    testWidgets('an explicit preference reaches MapTileAssets.theme', (tester) async {
+      await tester.pumpWidget(await _harnessWithBasemapPref(
+        basemapStyle: BasemapStylePref.grayscale,
+        brightness: Brightness.light,
+      ));
+      await _settleMap(tester);
+
+      expect(
+        MapTileAssets.requestedKeysForTesting.any((k) => k.startsWith('grayscale@')),
+        isTrue,
+      );
+    });
+
+    testWidgets('matchAppearance still tracks the device brightness (regression guard)',
+        (tester) async {
+      await tester.pumpWidget(await _harnessWithBasemapPref(
+        basemapStyle: BasemapStylePref.matchAppearance,
+        brightness: Brightness.dark,
+      ));
+      await _settleMap(tester);
+
+      expect(
+        MapTileAssets.requestedKeysForTesting.any((k) => k.startsWith('dark@')),
+        isTrue,
+      );
+    });
   });
 }

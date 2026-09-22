@@ -6,15 +6,18 @@
 // `logistics_tab_rest_day_test.dart` (C2) already uses.
 library;
 
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/map/arc_stage_marker.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/content_tab.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
+import 'package:plotlines_client/state/providers.dart';
 
 Future<ProviderContainer> _pump(WidgetTester tester) async {
   // The section is inside an `ExpansionTile` below the node chips — a
@@ -25,8 +28,18 @@ Future<ProviderContainer> _pump(WidgetTester tester) async {
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
+  // Issue #465 — `ContentTab` embeds `TapToPickMap`, which now reads
+  // `settingsProvider` for its basemap-style preference; without this
+  // override that pulls in the real `appDatabaseProvider` (a genuine native
+  // drift connection) rather than the in-memory one every other test here
+  // already gets via `AppDatabase.forTesting`.
+  final db = AppDatabase.forTesting(NativeDatabase.memory());
+  addTearDown(db.close);
   final container = ProviderContainer(
-    overrides: [selectedSegmentProvider.overrideWith((ref) => ('day-1', 'seg-1'))],
+    overrides: [
+      selectedSegmentProvider.overrideWith((ref) => ('day-1', 'seg-1')),
+      appDatabaseProvider.overrideWithValue(db),
+    ],
   );
   addTearDown(container.dispose);
   final segment = Segment(

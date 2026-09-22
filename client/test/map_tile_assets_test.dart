@@ -117,6 +117,15 @@ void main() {
       expect(paths.any((p) => p.endsWith('/assets/map_style/style_light.json')), isTrue);
       expect(paths.length, greaterThan(3));
     });
+
+    // Issue #465 — Grayscale is just another name-keyed asset; no path-shape
+    // change needed for it.
+    test('works the same way for grayscale', () {
+      final paths = MapTileAssets.candidateStylePaths('grayscale');
+
+      expect(paths.any((p) => p.endsWith('/client/assets/map_style/style_grayscale.json')), isTrue);
+      expect(paths.any((p) => p.endsWith('/assets/map_style/style_grayscale.json')), isTrue);
+    });
   });
 
   group('MapTileAssets.theme caching', () {
@@ -129,6 +138,15 @@ void main() {
 
       final result = await first;
       expect(result.ok, isTrue, reason: 'committed style_light.json should parse');
+    });
+
+    // Issue #465 (issue #184's four typed failure modes, extended) — the
+    // committed style_grayscale.json resolves through the same
+    // candidateStylePaths/loadBasemapTheme path as light/dark.
+    test('the committed grayscale style resolves ok', () async {
+      final result = await MapTileAssets.theme('grayscale');
+      expect(result.ok, isTrue, reason: 'committed style_grayscale.json should parse');
+      expect(result.error, isNull);
     });
 
     test('the label scale is part of the cache key (issue #321)', () async {

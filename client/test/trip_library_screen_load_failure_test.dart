@@ -10,12 +10,13 @@
 // `layers_catalog_error_surface_test.dart` exercises the Layers tab's fix.
 library;
 
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:plotlines_client/data/app_database.dart' show TripListEntry;
+import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/presentation/screens/trip_library_screen.dart';
 import 'package:plotlines_client/state/providers.dart';
@@ -57,10 +58,17 @@ Widget _harness(ProviderContainer container) {
 }
 
 ProviderContainer _container(_FlakyTripLibrary lib) {
+  // Issue #465 — `TripLibraryScreen` embeds `TapToPickMap`, which now reads
+  // `settingsProvider` for its basemap-style preference; without this
+  // override that pulls in the real `appDatabaseProvider` (a genuine native
+  // drift connection) instead of an in-memory one.
+  final db = AppDatabase.forTesting(NativeDatabase.memory());
+  addTearDown(db.close);
   final c = ProviderContainer(
     overrides: [
       sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
       tripLibraryProvider.overrideWith((ref) => lib.list()),
+      appDatabaseProvider.overrideWithValue(db),
     ],
   );
   addTearDown(c.dispose);
