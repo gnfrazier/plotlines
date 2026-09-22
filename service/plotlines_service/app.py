@@ -24,7 +24,7 @@ import time
 import traceback
 import uuid
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -196,7 +196,22 @@ ELEVATION_QA_PROXY_CONFIGURED: dict = {
 }
 
 
-def _mirror_capability(source: str | None) -> dict:
+#: Issue #488. `load_mirror_state`'s own `timeout_s` (5.0s, `mirror_state.py`)
+#: does not bound a stalled DNS lookup — no synchronous transport's timeout
+#: does, see that module's docstring — so the real deadline has to live on
+#: the caller's side: give up waiting on the fetch, rather than trust it to
+#: return. `/health` is polled every 2s for the life of the session
+#: (`SidecarManager`, `client/lib/data/sidecar_manager.dart:652`), and every
+#: sync FastAPI endpoint (`/health` included) shares one process-wide thread
+#: pool, so a fetch that never returns must never be allowed to occupy a
+#: thread from that shared pool either — it runs on its own single-worker
+#: pool instead (`Readiness._mirror_state_pool`), so it can only ever queue
+#: up against itself. `_MIRROR_STATE_FETCH_TIMEOUT_S` carries a margin over
+#: the fetch's own 5.0s bound so the common (fast) case never trips it.
+_MIRROR_STATE_FETCH_TIMEOUT_S = 8.0
+
+
+def _mirror_capability(source: str | None, pool: ThreadPoolExecutor) -> dict:
     """`capabilities.mirror` — issue #260 (Phase 1.6, epic #264; review
     §6.6, addendum Q2). `--mirror-state-url` is optional and orthogonal to
     `--tiles-upstream`: it names where to *read* `MIRROR_STATE.json` for the
@@ -209,11 +224,25 @@ def _mirror_capability(source: str | None) -> dict:
     (a local path or the mirror's own http(s) URL) can — a missing file, a
     Pi that's down, a network blip. `/health` must stay responsive for
     every other capability even when this one can't be read, so a fetch
-    failure reports as stale with the reason, never a 500."""
+    failure reports as stale with the reason, never a 500.
+
+    Issue #488 — the fetch runs on `pool` (`Readiness._mirror_state_pool`,
+    one dedicated worker, never the shared FastAPI thread pool `/health`
+    itself answers on) and this call gives up on it after
+    `_MIRROR_STATE_FETCH_TIMEOUT_S` regardless of what `load_mirror_state`
+    does internally: a stuck upstream degrades this one capability to stale
+    rather than blocking this call — even while the pool's one worker is
+    still occupied by a previous fetch that never returned, since a second
+    stuck fetch then just queues behind it rather than spawning a second
+    stuck thread anywhere that matters."""
     if not source:
         return MIRROR_NOT_CONFIGURED
+    future = pool.submit(load_mirror_state, source)
     try:
-        state = load_mirror_state(source)
+        state = future.result(timeout=_MIRROR_STATE_FETCH_TIMEOUT_S)
+    except FutureTimeoutError:
+        return {"configured": True, "stale": True,
+                "error": "mirror state fetch timed out"}
     except (OSError, ValueError) as exc:
         return {"configured": True, "stale": True, "error": str(exc)}
     return mirror_health(state)
@@ -810,12 +839,20 @@ class Readiness:
             max_workers=REGION_BUILD_CONCURRENCY,
             thread_name_prefix="region-build",
         )
+        # Issue #488 — `capabilities.mirror`'s `MIRROR_STATE.json` fetch gets
+        # its own single-worker pool, isolated from FastAPI's shared
+        # sync-endpoint pool `/health` itself runs on, so a stuck upstream
+        # can never starve `/layers`/`/tiles`. See `_mirror_capability`.
+        self._mirror_state_pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="mirror-state",
+        )
 
     def shutdown(self) -> None:
         """Stop accepting builds and abandon any still queued. In-flight
         builds are left to finish (or be killed with the process); this
         only exists so a test / hosted-mode reload does not leak the pool."""
         self._build_pool.shutdown(wait=False, cancel_futures=True)
+        self._mirror_state_pool.shutdown(wait=False, cancel_futures=True)
 
     def ensure_region(self, bbox: tuple[float, float, float, float],
                       network_type: str = "bike", *, manual: bool = False) -> str:
@@ -1487,7 +1524,11 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         production), otherwise `plotlines_core.tiles.mirror_state.
         mirror_health()`'s basemap/Geofabrik pin ages and a single `stale`
         flag, so a cron that silently stopped is loud here rather than
-        indistinguishable from a working mirror (§11.3).
+        indistinguishable from a working mirror (§11.3). Since issue #488
+        that fetch runs on its own single-worker pool with a hard deadline
+        (`_mirror_capability`), never on this endpoint's own shared thread —
+        a stuck upstream can degrade `mirror` to stale but can no longer
+        starve `layers`/`tiles` the way a hung DNS lookup once did.
 
         `extract` (issue #274, Phase 3.2) reports `{"configured": False}`
         when no `--mirror-clip-url` was given — the default until #275
@@ -1534,7 +1575,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                     if state.elevation_upstream
                     else ELEVATION_NOT_CONFIGURED
                 ),
-                "mirror": _mirror_capability(mirror_state_url),
+                "mirror": _mirror_capability(mirror_state_url, state._mirror_state_pool),
                 "extract": state.extract_capabilities(),
             },
         }
