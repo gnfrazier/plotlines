@@ -70,6 +70,19 @@ jobs:
       # payload the core emits, or one producer bumped without the other (ARCH D28).
       - run: PYTHONPATH=core python spikes/SPIKE-20/run.py --check-committed
 
+  sidecar-bundled-data-lint:
+    name: "sidecar packaging: core data files must be bundled (#509)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # A `Path(__file__)`-relative config read (this codebase's pattern for
+      # package-local data, e.g. curation/defaults.py) only resolves in a
+      # frozen sidecar if packaging/build_sidecar.sh actually bundles it —
+      # every test suite below runs against source, never a frozen artifact,
+      # so this is the only thing that would have caught #509 (every /layers
+      # call 500ing because layer_defaults.json was never collected).
+      - run: tools/ci/sidecar_bundled_data_lint.sh
+
   core-tests:
     name: "core tests"
     runs-on: ubuntu-latest
