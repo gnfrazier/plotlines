@@ -424,6 +424,13 @@ class SidecarManager extends ChangeNotifier {
   Capabilities? _capabilities;
   Timer? _capabilityPollTimer;
   bool _healthPollInFlight = false;
+
+  /// Last poll's raw `capabilities` JSON, to gate [notifyListeners] on an
+  /// actual change (issue: Continue button flickering) — [Capabilities] has
+  /// no value equality of its own, and re-decoding identical JSON every 2s
+  /// otherwise notified listeners unconditionally, rebuilding every screen
+  /// watching this manager on each tick even when nothing changed.
+  String? _lastCapabilitiesJson;
   SidecarRegistry? _registry;
 
   SidecarStatus get status => _status;
@@ -660,8 +667,12 @@ class SidecarManager extends ChangeNotifier {
             .timeout(_pollTimeout);
         if (resp.statusCode != 200) return;
         final body = jsonDecode(resp.body) as Map<String, dynamic>;
-        _capabilities = Capabilities.fromJson(body['capabilities'] as Map<String, dynamic>);
+        final capsJson = body['capabilities'] as Map<String, dynamic>;
         unawaited(_dumpHealthPoll(resp.body));
+        final capsEncoded = jsonEncode(capsJson);
+        if (capsEncoded == _lastCapabilitiesJson) return;
+        _lastCapabilitiesJson = capsEncoded;
+        _capabilities = Capabilities.fromJson(capsJson);
         notifyListeners();
       } catch (_) {
         // Sidecar may have died mid-poll — `_onExit` handles that

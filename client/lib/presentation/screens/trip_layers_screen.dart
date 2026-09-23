@@ -78,8 +78,12 @@ class _TripLayersScreenState extends ConsumerState<TripLayersScreen> {
     final catalogKey = (modes: layerModesKey(modes), dayType: 'route');
     final catalogAsync = ref.watch(layerCatalogProvider(catalogKey));
     final selection = ref.watch(layerSelectionProvider);
-    final layerStates =
-        ref.watch(sidecarManagerProvider).capabilities?.layersPerLayer ?? const {};
+    // `select` so this screen only rebuilds when per-layer state actually
+    // changes, not on every 2s health-poll tick that leaves it unchanged
+    // (each poll's `SidecarManager.notifyListeners()` would otherwise
+    // rebuild the whole screen, flickering the Continue button below).
+    final layerStates = ref.watch(sidecarManagerProvider
+        .select((m) => m.capabilities?.layersPerLayer ?? const <String, String>{}));
 
     return Scaffold(
       appBar: AppBar(
