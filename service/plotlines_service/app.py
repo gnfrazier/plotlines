@@ -2342,6 +2342,13 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         is separate from `/segments/generate` (D26): expensive, cacheable,
         and triggered by a distinct intent. It never writes canon (ARCH P10)
         — a proposal is reviewed and promoted or rejected, never auto-added.
+
+        The candidate extraction runs through `_fetch_candidates` on
+        `Readiness._candidate_fetch_pool`, the same #488 shape `/candidates`
+        uses (issue #490) — never this endpoint's own shared-pool thread
+        (issue #504: this call was the one #490 didn't reach, since it
+        patched `_fetch_candidates`'s caller rather than the shared
+        extraction call itself).
         """
         west, south, east, north = req.bbox
         bbox = BBox(west, south, east, north)
@@ -2352,7 +2359,8 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         if req.sort not in ("rank", "corridor"):
             raise HTTPException(422, f"unknown sort {req.sort!r}")
 
-        candidates, errors = registry.fetch_candidates_all(bbox, live)
+        candidates, errors = _fetch_candidates(
+            registry, bbox, live, state._candidate_fetch_pool)
         params = _colocation_params(req.params)
         route = [(pt[0], pt[1]) for pt in req.route] if len(req.route) >= 2 else None
         rejected = [frozenset(s) for s in req.rejected]
