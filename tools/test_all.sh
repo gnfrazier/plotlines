@@ -58,6 +58,7 @@ run client  client  flutter test &
 # Gates: cheap, no toolchain beyond python3. Sequential is fine.
 run gate-reveal  . tools/ci/reveal_gate_lint.sh &
 run gate-schema  . env PYTHONPATH=core python3 spikes/SPIKE-20/run.py --check-committed &
+run gate-sidecar-data . tools/ci/sidecar_bundled_data_lint.sh &
 wait
 
 # The P1 boundary gate inline — a grep, same as CI's.
@@ -70,7 +71,7 @@ else
 fi
 
 status=0
-for name in core service client gate-p1 gate-reveal gate-schema; do
+for name in core service client gate-p1 gate-reveal gate-schema gate-sidecar-data; do
   rc=$(cat "$out/$name.rc")
   echo
   echo "===================== $name (exit $rc) ====================="

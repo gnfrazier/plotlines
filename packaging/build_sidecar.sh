@@ -61,6 +61,17 @@ COLLECT_DATA=(rasterio pyproj osmnx osmium)
 COLLECT_SUBMODULES=(rasterio pyproj osmium)
 COPY_METADATA=(osmnx click attrs pydantic osmium)
 
+# plotlines_core (issue #509) — `curation/config/layer_defaults.json` is the
+# package's only non-Python data file (`curation/defaults.py::resolve_default_
+# layers` reads it via `Path(__file__).parent`), and without --collect-data it
+# is never bundled: a frozen sidecar 500s on every `/layers` call, always,
+# regardless of params, because the file is nowhere in the frozen tree. Same
+# mechanism as the rasterio/pyproj/osmnx/osmium entries above — collect-data
+# preserves a package's own internal layout under `_internal/<package>/...`,
+# exactly where a frozen module's `Path(__file__).parent`-relative read
+# expects it.
+COLLECT_DATA+=(plotlines_core)
+
 # pyogrio vendors a SECOND complete GDAL build alongside rasterio's — 87 MB of pure
 # duplication (25% of the unstripped tree). Nothing on the sidecar's path uses it:
 # we read GraphML and GeoTIFF, not shapefiles/GeoPackage.
