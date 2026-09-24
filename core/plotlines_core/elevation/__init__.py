@@ -12,11 +12,14 @@ See ARCH §6.2, §7.5, §12.1 and PRD M3 / M10 (FR62, FR85, FR87, FR88).
   Supplies the fetcher the interface's provider source is wired with.
 * :mod:`~plotlines_core.elevation.sampler` — `ElevationSampler`, reads an
   already-acquired local GeoTIFF; never raises, never fetches.
-* :mod:`~plotlines_core.elevation.void` — the `nodata` / NaN / out-of-bounds /
-  unreadable-raster -> `0.0` policy, logged once per raster path.
+* :mod:`~plotlines_core.elevation.void` — the void policy (#473, ARCH D68): a
+  `nodata` / NaN / inf / out-of-bounds gap inside an open raster is
+  interpolated from its nearest finite samples; a missing or unreadable raster
+  is *absent*, never `0.0`. Logged once per raster path.
 * :mod:`~plotlines_core.elevation.enrich` — `enrich_elevation`, writes the
   sampled value onto every graph node and `elev_gain = max(0.0, elev[v] -
-  elev[u])` onto every edge (FR89).
+  elev[u])` onto every edge (FR89) — or nothing at all when no source
+  resolved.
 * :mod:`~plotlines_core.elevation.region_asset` — FR90: the shipped home
   region's DEM as a versioned tarball asset, with the build step, the
   documented `tar -C` one-time extract, and an "is it installed / current"
@@ -83,7 +86,13 @@ from plotlines_core.elevation.region_asset import (
     read_installed_manifest,
 )
 from plotlines_core.elevation.sampler import ElevationSampler
-from plotlines_core.elevation.void import VOID_FILL, VoidLog, resolve_voids
+from plotlines_core.elevation.void import (
+    VOID_FILL,
+    VoidLog,
+    interpolate_voids,
+    mark_voids,
+    resolve_voids,
+)
 
 __all__ = [
     "ASSET_KIND",
@@ -135,7 +144,9 @@ __all__ = [
     "extract_region_asset",
     "install_command",
     "installed_asset_is_current",
+    "interpolate_voids",
     "is_region_asset_installed",
+    "mark_voids",
     "phase1_resolver",
     "phase1_resolver_for_layout",
     "phase2_resolver",

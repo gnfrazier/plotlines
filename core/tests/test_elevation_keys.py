@@ -392,9 +392,10 @@ def test_as_fetcher_wires_into_phase1_and_the_cache_absorbs_repeat_bboxes(tmp_pa
     assert ledger.remaining() == 49
 
 
-def test_an_exhausted_budget_degrades_the_sampler_instead_of_raising(tmp_path):
+def test_an_exhausted_budget_leaves_elevation_absent_instead_of_raising(tmp_path):
     """The refusal reaches `HttpElevationSource` as a fetch failure, which is a
-    miss; `sampler_for` then hands back a degraded all-`0.0` sampler."""
+    miss; `sampler_for` then hands back no sampler (absent, #473) rather than
+    raising or a flat all-`0.0` one."""
     key = _free_key()
     ledger = _ledger(tmp_path, key)
     for _ in range(FREE_TIER_DAILY_CALL_CEILING):
@@ -402,6 +403,4 @@ def test_an_exhausted_budget_degrades_the_sampler_instead_of_raising(tmp_path):
     client = OpenTopographyClient(key, ledger, opener=_StubOpener())
     resolver = phase1_resolver(tmp_path / "dem", fetch=client.as_fetcher())
 
-    sampler = resolver.sampler_for(_BBOX)
-    assert sampler.degraded
-    assert list(sampler.sample([(35.5, -82.5)])) == [0.0]
+    assert resolver.sampler_for(_BBOX) is None

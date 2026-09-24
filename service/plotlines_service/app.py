@@ -1168,12 +1168,11 @@ class RegionState:
         # would defeat the whole point of centralising calls behind the
         # shared cache.
         #
-        # This calls `resolve()` directly rather than `sampler_for()`: the
-        # latter's degraded-sampler fallback is FR88's *in-raster-void*
-        # policy (nodata/NaN/out-of-bounds within a raster that did open),
-        # which stays untouched for graph enrichment (FR89) — a source that
-        # never resolved at all is a different case and gets no sampler
-        # here, not a flat one.
+        # This calls `resolve()` directly rather than `sampler_for()` so the
+        # miss can be logged with its reason; the outcome is the same one
+        # `sampler_for()` gives since #473 (ARCH D68) — a source that never
+        # resolved gets no sampler, not a flat one. Gaps *inside* a raster
+        # that did open are the sampler's business (interpolated, FR88).
         if elevation_upstream:
             try:
                 e_cache = LocalCacheSource(CacheLayout(cache_dir).elevation_dir)

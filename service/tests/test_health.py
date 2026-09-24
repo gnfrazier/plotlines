@@ -273,9 +273,9 @@ def test_unreachable_elevation_upstream_degrades_the_region_without_failing_it(
     # QA-proxy path (issue #466): a source that never resolved gets no
     # sampler at all, so `elevation` comes back absent — not a fabricated
     # flat profile, and not a 500 — and the miss is logged, never silent.
-    # `sampler_for`'s degraded-sampler fallback is a different, narrower
-    # policy (in-raster voids on a raster that did open) that graph
-    # enrichment (FR89) still relies on and this path never reaches.
+    # Since #473 `sampler_for()` gives the same answer (`None`); gaps inside
+    # a raster that did open are interpolated by the sampler, a different
+    # policy this path never reaches.
     assert resp.status_code == 200
     assert resp.json()["elevation"] == {}
     assert any("UNAVAILABLE" in r.getMessage() for r in caplog.records), (

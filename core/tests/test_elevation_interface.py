@@ -27,7 +27,6 @@ from plotlines_core.elevation.interface import (
     phase1_resolver,
     phase2_resolver,
 )
-from plotlines_core.elevation.sampler import ElevationSampler
 
 _BBOX = (10.0, 46.0, 14.0, 50.0)
 _TRANSFORM = from_origin(10.0, 50.0, 1.0, 1.0)
@@ -88,7 +87,7 @@ def test_phase1_miss_falls_through_to_direct_provider_and_writes_back(tmp_path):
     assert calls == [OPENTOPO_BASE_URL]
 
 
-def test_phase1_unresolvable_raises_but_sampler_for_degrades(tmp_path):
+def test_phase1_unresolvable_raises_but_sampler_for_is_absent(tmp_path):
     r = phase1_resolver(tmp_path)  # empty cache, no fetch wired
     try:
         r.resolve(_BBOX)
@@ -97,10 +96,8 @@ def test_phase1_unresolvable_raises_but_sampler_for_degrades(tmp_path):
     else:
         raise AssertionError("expected ElevationUnavailable")
 
-    sampler = r.sampler_for(_BBOX)
-    assert isinstance(sampler, ElevationSampler)
-    assert sampler.degraded
-    assert sampler.sample([(48.0, 12.0)]).tolist() == [0.0]
+    # absent, not a degraded sampler reading a fabricated 0.0 (#473)
+    assert r.sampler_for(_BBOX) is None
 
 
 # --------------------------------------------------------------------------- #
