@@ -143,15 +143,27 @@ export PLOTLINES_OPENTOPOGRAPHY_API_KEY=...          # required; acquisition is 
 export PLOTLINES_OPENTOPOGRAPHY_KEY_TIER=enterprise  # optional; defaults to free-non-academic
 ```
 
-An unset key is not an error state — the local DEM cache and the shipped region tarball
-(FR90) are unaffected, and an unresolvable bbox degrades to flat elevation rather than
-blocking planning (FR88). An **unrecognised** tier *is* an error: defaulting it to the
-free tier would silently claim non-commercial use.
+Set it in the environment the desktop app is launched from: the client spawns the sidecar
+with its own environment inherited (`Process.start` on POSIX, `CreateProcess` with a null
+environment block on Windows), and the key is never a `--dart-define` or a literal — a
+builder's key compiled into a distributed app would be one free-tier allowance shared by
+every install, and a secret in the binary. The sidecar reads it once at startup
+(`resolve_elevation_wiring` in `service/plotlines_service/app.py`, issue #148); `/health`'s
+`capabilities.elevation` then says which source is in play and, under `regions`, what each
+trip area got.
+
+An unset key is not an error state — region builds still read the local DEM cache, so the
+shipped region tarball (FR90) and any bbox fetched earlier have elevation offline; a bbox
+nothing covers has elevation **absent**, stated per region, never a flat `0.0` (FR88, #473)
+and never a blocked plan. An **unrecognised** tier *is* an error: rather than default it to
+the free tier, which would silently claim non-commercial use, the sidecar refuses
+downloads, logs why, and says so on `/health`.
 
 The 50-call ceiling is survivable because `LocalCacheSource` sits ahead of the provider in
 every phase (ARCH P7) — it is 50 *new bboxes* per 24 h, not 50 route solves. The rolling
-window is persisted to `<cache-dir>/opentopography_calls.json` so it survives a sidecar
-restart; deleting that file re-earns the ceiling and is a licensing act, not a cache
+window is persisted to `<cache-dir>/opentopography_calls.json` — the cache root the client
+passes as `--cache-dir`, deliberately *not* the `elevation/` DEM directory, so clearing DEMs
+never resets it — and survives a sidecar restart; deleting that file re-earns the ceiling and is a licensing act, not a cache
 clear. Attribution (CC BY, FR86) is a separate obligation the key does not discharge.
 
 ## Elevation region asset — the shipped home-region raster (FR90)
