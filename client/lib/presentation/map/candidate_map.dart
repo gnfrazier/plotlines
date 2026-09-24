@@ -25,17 +25,12 @@ import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
 import 'anchor_area_layer.dart';
 import 'candidate_geometry_layer.dart';
+import 'candidate_point_layer.dart';
 import 'map_attribution.dart';
 import 'map_label_scale.dart';
 import 'no_basemap_notice.dart';
 import 'tap_to_pick_map.dart' show MapAnchorPoint, MapMarkerPoint, MapTileAssets;
 import 'vector_tile_provider.dart';
-
-CandidateRoleAffinity _markerAffinity(RoleAffinity affinity) => switch (affinity) {
-      RoleAffinity.narrative => CandidateRoleAffinity.narrative,
-      RoleAffinity.provision => CandidateRoleAffinity.provision,
-      RoleAffinity.station => CandidateRoleAffinity.station,
-    };
 
 class CandidateMap extends ConsumerStatefulWidget {
   const CandidateMap({
@@ -278,29 +273,19 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
               // district stays a pin, not a tinted one.
               if (widget.anchors.any((a) => a.rings != null))
                 AnchorAreaLayer(anchors: widget.anchors),
-              MarkerLayer(markers: [
-                for (final candidate in candidates)
-                  Marker(
-                    point: ll.LatLng(candidate.coord[1], candidate.coord[0]),
-                    width: 32,
-                    height: 32,
-                    alignment: Alignment.center,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: widget.onCandidateTap == null
-                          ? null
-                          : () => widget.onCandidateTap!(candidate),
-                      child: Tooltip(
-                        message: candidate.title ??
-                            '${candidate.layer} (${(candidate.salience * 100).round()}% salience)',
-                        child: CandidateMarker(
-                          salience: candidate.salience,
-                          roleAffinity: _markerAffinity(candidate.roleAffinity),
-                        ),
+              // #478 — SPIKE-G's salience-gated points: top-K markers, a dot
+              // tail, and grid clusters below the trip overview or above the
+              // density ceiling — never one widget per candidate.
+              CandidatePointLayer(
+                candidates: candidates,
+                onCandidateTap: widget.onCandidateTap,
+                overviewExtent: widget.bbox == null
+                    ? null
+                    : LatLngBounds(
+                        ll.LatLng(widget.bbox!.minLat, widget.bbox!.minLon),
+                        ll.LatLng(widget.bbox!.maxLat, widget.bbox!.maxLon),
                       ),
-                    ),
-                  ),
-              ]),
+              ),
               // #410 — canon above cache: the trip's nodes, then its anchors,
               // drawn over the candidate layer so a promoted place reads as
               // promoted wherever it sits among the candidates.

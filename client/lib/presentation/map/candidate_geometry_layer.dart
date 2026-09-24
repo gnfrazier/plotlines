@@ -6,6 +6,9 @@
 // the extent *around* it, styled with the same salience vocabulary as
 // `CandidateMarker` — Blaze, ring weight and fill opacity scaled by salience,
 // never colour alone — and tap-selectable through the same `onCandidateTap`.
+// Since #478 that "pin" is a widget marker only for the top-K by salience in
+// view (`CandidatePointLayer`); below the cut it is a dot, still tappable by
+// its nearest-point scan.
 //
 // Density: SPIKE-G's model prices polygon vertices at ~1–2 ms/frame for
 // ~100 area candidates on a GPU desktop, and calls the filled polygons the
