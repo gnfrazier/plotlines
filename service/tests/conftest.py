@@ -51,6 +51,16 @@ def _stub_overpass_connect_probe(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_opentopography_key(monkeypatch):
+    """`create_app` reads the OpenTopography key from the environment (issue
+    #148). A developer who exported one for real use must not have the suite
+    spend their 50-call free-tier allowance — or reach the network at all; a
+    test that wants the direct provider passes `elevation_env` explicitly."""
+    monkeypatch.delenv("PLOTLINES_OPENTOPOGRAPHY_API_KEY", raising=False)
+    monkeypatch.delenv("PLOTLINES_OPENTOPOGRAPHY_KEY_TIER", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _restore_root_logger():
     """Put the root logger back the way the test found it.
 

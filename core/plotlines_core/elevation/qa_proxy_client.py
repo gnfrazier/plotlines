@@ -1,9 +1,10 @@
 """QA-only elevation fetcher: talks to the Pi5 caching elevation proxy
 (companion to epic #264), never to OpenTopography directly.
 
-Short-term, QA/UAT-scoped infrastructure — **not** the Phase 2 production
-shared cache tracked under issue #148/FR87 (ARCH §12.1). Safe to delete once
-the QA/UAT window closes or #148 lands with its own production client. The
+Short-term, QA/UAT-scoped infrastructure — **not** ARCH §12.1's Phase 2
+production shared cache, and not #148's Phase 1 production path (the direct
+`OpenTopographyClient`, wired into region builds since #148). Safe to delete
+once the QA/UAT window closes. The
 Pi5-side counterpart this talks to is
 `service.plotlines_service.elevation_proxy`.
 

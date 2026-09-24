@@ -24,7 +24,7 @@ import threading
 import time
 import traceback
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -56,11 +56,21 @@ from plotlines_core.curation.notability import (
 )
 from plotlines_core.curation.providers import BBox, OsmLayerProvider
 from plotlines_core.curation.registry import build_default_registry
+from plotlines_core.elevation.enrich import enrich_elevation
 from plotlines_core.elevation.interface import (
     ElevationResolver,
     ElevationUnavailable,
+    Fetcher,
     HttpElevationSource,
     LocalCacheSource,
+    phase1_resolver_for_layout,
+)
+from plotlines_core.elevation.keys import (
+    ElevationKeyError,
+    EnterpriseKeyRequired,
+    MissingApiKey,
+    OpenTopographyClient,
+    client_from_env,
 )
 from plotlines_core.elevation.qa_proxy_client import qa_proxy_fetch
 from plotlines_core.elevation.sampler import ElevationSampler
@@ -173,34 +183,140 @@ REGION_REQUEUE_COOLDOWN_S = 60.0
 # Phase 5 (#284) removes automatic retry mechanically.
 REGION_AUTOMATIC_REQUEUE_CAP = 3
 
-# Elevation acquisition is explicitly out of scope for this region-build path
-# (issue #154's scoping note): D20/FR85 pin the source to GEDTM30 via
-# OpenTopography with no fallback, and that pipeline is gated on FR87 (issue
-# #148) — promoting spikes/shared/regions.py's Terrarium fetcher would be a
-# second elevation source, which D20 forbids. So `elevation` reports this
-# fixed, honest not-ready state for every region rather than ever loading —
-# never blocking routing, which needs only the graph (FR121).
-#
-# When acquisition does land (#148), its cache is already located: the
-# separate, bbox-scoped elevation cache at `CacheLayout(cache_dir).elevation_dir`
-# (FR94), a sibling of the tile cache, read via
-# `plotlines_core.elevation.phase1_resolver_for_layout`.
-ELEVATION_NOT_CONFIGURED: dict = {
-    "ready": False,
-    "reason": "elevation_source_not_configured:tracked_in_148",
+# Elevation acquisition (issue #148, FR85/FR87, ARCH §12.1 Phase 1): every
+# region build resolves its bbox through `phase1_resolver_for_layout` — the
+# bbox-scoped local DEM cache (FR94; the shipped FR90 home-region raster lands
+# here too) and, behind it, GEDTM30 via OpenTopography directly, **only when
+# an OpenTopography key is configured** (`PLOTLINES_OPENTOPOGRAPHY_API_KEY`,
+# `packaging/README.md`). The key layer (`plotlines_core.elevation.keys`)
+# enforces FR87's two clauses as refusals: the 50-calls/24 h free-tier ceiling
+# and the commercial-posture refusal. With no key the local cache is still
+# read — a previously fetched or shipped bbox has elevation offline — but
+# nothing is fetched. Which source is in play is decided once, at startup
+# (`resolve_elevation_wiring`); the process-wide `capabilities.elevation`
+# says which, and `capabilities.elevation.regions[key]` says what each
+# region actually got. Never blocks routing, which needs only the graph
+# (FR121), and a region with no elevation reports it absent, never flat
+# (FR88 as amended by #473, D68).
+
+#: `capabilities.elevation` when an OpenTopography key is configured (#148).
+#: `ready` means "this sidecar acquires elevation" — per-region outcomes are
+#: under `regions`.
+ELEVATION_OPENTOPOGRAPHY_CONFIGURED: dict = {
+    "ready": True,
+    "reason": "opentopography",
 }
 
-# QA/UAT-only, companion to epic #264 — NOT #148's production wiring. When
+#: `capabilities.elevation` with no key (and no QA proxy). A finished
+#: sentence, because the client renders the reason verbatim (FR145). Only
+#: already-cached areas have elevation; a region that hits the cache still
+#: reports `ready` under `regions`.
+ELEVATION_NOT_CONFIGURED: dict = {
+    "ready": False,
+    "reason": (
+        "Elevation isn't set up on this device — no OpenTopography key is "
+        "configured, so only areas with terrain data already cached have it"
+    ),
+}
+
+# QA/UAT-only, companion to epic #264 — not #148's production wiring. When
 # `--elevation-upstream` points a sidecar at the Pi5 caching elevation proxy
-# (`plotlines_service.elevation_proxy`), this replaces `ELEVATION_NOT_CONFIGURED`
-# above. It reports that the sidecar *attempts* elevation through the shared
-# QA cache, not that any particular region's sampler resolved — a per-region
-# resolution failure leaves that region's `elevation` absent (logged, never
-# silent; issue #466), without flipping this process-wide capability off.
+# (`plotlines_service.elevation_proxy`), this replaces the direct-provider
+# path above entirely — the sidecar never falls back to a direct
+# OpenTopography call, which would defeat centralising calls behind the shared
+# cache. It reports that the sidecar *attempts* elevation through the shared
+# QA cache; a per-region miss leaves that region's `elevation` absent (logged,
+# never silent; issue #466) without flipping this process-wide capability.
 ELEVATION_QA_PROXY_CONFIGURED: dict = {
     "ready": True,
     "reason": "qa_pi5_elevation_proxy",
 }
+
+
+@dataclass(frozen=True)
+class ElevationWiring:
+    """Where this sidecar's region builds get elevation from (issue #148).
+    Decided once at startup by `resolve_elevation_wiring`, never per build.
+
+    `source` is `"qa_proxy"`, `"opentopography"` or `"local_cache"`;
+    `fetch` is the `Fetcher` behind the local cache (`None` for cache-only);
+    `client` is kept so a miss can say whether the free-tier ceiling was the
+    reason; `capability` is the process-wide `capabilities.elevation` body."""
+
+    source: str
+    fetch: Fetcher | None
+    capability: dict
+    client: OpenTopographyClient | None = None
+
+
+def resolve_elevation_wiring(cache_dir: Path, elevation_upstream: str | None,
+                             env: Mapping[str, str] | None = None) -> ElevationWiring:
+    """Pick the elevation source for this process (issue #148).
+
+    The QA proxy flag wins outright. Otherwise an OpenTopography key from the
+    environment wires the direct provider behind the cache, its call ledger
+    beside the DEMs it accounts for. A missing key is not an error (cache-only);
+    a key that cannot legally serve Phase 1's posture, or an unrecognised tier,
+    is refused and logged — never defaulted to the free tier, which would
+    silently claim non-commercial use (FR87) — and elevation runs cache-only
+    with that refusal as the stated reason. Never raises: elevation is never
+    the reason a sidecar fails to start (FR88)."""
+    if elevation_upstream:
+        return ElevationWiring("qa_proxy", None, ELEVATION_QA_PROXY_CONFIGURED)
+    try:
+        # The call ledger sits at the cache root, not among the DEMs:
+        # deleting it re-earns the ceiling, which is a licensing act, never
+        # a side effect of clearing the elevation cache (packaging/README.md).
+        client = client_from_env(cache_dir, env=env)
+    except MissingApiKey:
+        return ElevationWiring("local_cache", None, ELEVATION_NOT_CONFIGURED)
+    except EnterpriseKeyRequired as exc:
+        log.error("elevation acquisition REFUSED (FR87 clause 2): %s", exc)
+        return ElevationWiring("local_cache", None, {
+            "ready": False,
+            "reason": (
+                "Elevation downloads are turned off — the configured "
+                "OpenTopography key's tier doesn't permit this build's use, "
+                "so only areas with terrain data already cached have it"
+            ),
+        })
+    except ElevationKeyError as exc:
+        log.error("elevation acquisition REFUSED (key configuration): %s", exc)
+        return ElevationWiring("local_cache", None, {
+            "ready": False,
+            "reason": (
+                "Elevation downloads are turned off — the OpenTopography key "
+                "configuration isn't valid, so only areas with terrain data "
+                "already cached have it"
+            ),
+        })
+    log.info("elevation acquisition: OpenTopography direct (%s tier), "
+             "cache %s", client.key.tier.value, CacheLayout(cache_dir).elevation_dir)
+    return ElevationWiring("opentopography", client.as_fetcher(),
+                           ELEVATION_OPENTOPOGRAPHY_CONFIGURED, client=client)
+
+
+#: A region whose graph build failed never reaches the elevation phase.
+_ELEVATION_NEEDS_GRAPH = "Elevation needs this area's routing data first"
+
+
+def _elevation_absent_reason(wiring: ElevationWiring | None) -> str:
+    """The finished sentence a region's `elevation` carries when no source
+    resolved its bbox (FR88's absent case, #473), naming *why* per source —
+    a spent free-tier allowance is not the same fact as an unreachable host."""
+    if wiring is None or wiring.source == "local_cache":
+        return ("No terrain data is cached for this area, and this device "
+                "isn't set up to download it")
+    if wiring.source == "qa_proxy":
+        return "The shared elevation cache couldn't provide terrain data for this area"
+    remaining = wiring.client.remaining_calls if wiring.client is not None else None
+    if remaining is not None and remaining <= 0:
+        ceiling = wiring.client.key.effective_terms.daily_call_ceiling
+        return (f"Today's elevation download allowance ({ceiling} new areas "
+                "per 24 hours) is used up — this area gets terrain data the "
+                "next time it's prepared after that frees up")
+    return ("Couldn't download terrain data for this area — check your "
+            "connection; it's retried the next time this area is prepared")
 
 
 #: Issue #488. `load_mirror_state`'s own `timeout_s` (5.0s, `mirror_state.py`)
@@ -736,12 +852,12 @@ class RegionState:
     it, keyed so two requests for "the same" bbox share one build and one
     in-memory graph.
 
-    Elevation is never attempted for a region by default (see
-    `ELEVATION_NOT_CONFIGURED` above) — only `graph_state` gates `routing`.
-    The one exception is the QA/UAT `--elevation-upstream` flag (companion to
-    epic #264, not #148's production path), which populates `self.sampler`
-    from the Pi5 caching proxy on a best-effort basis, same discipline as
-    tiles just below.
+    Elevation (issue #148) is resolved after the graph, best-effort and on
+    its own capability (`elevation_state`) — only `graph_state` gates
+    `routing`. A resolved raster sets `self.sampler` (segment profiles) and
+    enriches the graph (node `elevation`, edge `elev_gain`/`grade_abs`, FR89);
+    an unresolved one leaves both absent (FR88/#473). Where it comes from is
+    `ElevationWiring`'s call, made once at startup.
     """
 
     def __init__(self, key: str, bbox: tuple[float, float, float, float],
@@ -756,7 +872,12 @@ class RegionState:
         # Byte-observed, not time-estimated — see `extract_fetch.
         # DownloadProgress`'s docstring for why it isn't a `CapabilityState`.
         self.extract_state = extract_fetch.DownloadProgress()
-        self.sampler: ElevationSampler | None = None  # never populated (see module docstring)
+        self.sampler: ElevationSampler | None = None
+        # Issue #148 — this region's own elevation outcome, beside
+        # `graph_state`. No time estimate: a cache hit is instant and a
+        # provider fetch is network-bound, so any fixed ETA would be the
+        # `GRAPH_ESTIMATED_S` mistake again (#397).
+        self.elevation_state = CapabilityState(0.0)
         self.tiles_archive: Archive | None = None
         # Build telemetry (issue #232) — every attempt this session, the last
         # failure's full traceback, and per-phase wall-clock. Surfaced by
@@ -833,6 +954,20 @@ class RegionState:
         if self.graph_state.ready and self.build_in_progress:
             d["finishing"] = True
         return d
+
+    def elevation_capability(self) -> dict:
+        """`capabilities.elevation.regions[key]` — issue #148. Ready once a
+        raster resolved and the graph is enriched; while waiting on routing
+        or fetching it carries `progress` (so the client reads it as a wait,
+        not a stop) and never an `eta_s`; absent is a finished sentence."""
+        st = self.elevation_state
+        if st.status == "pending":
+            return {"ready": False,
+                    "reason": "waiting for this area's routing data",
+                    "progress": 0.0}
+        if st.status == "loading":
+            return {"ready": False, "reason": st.detail, "progress": 0.0}
+        return st.to_dict()
 
     def extract_capability(self) -> dict:
         """`capabilities.extract.regions[key]` — issue #274. Only
@@ -921,7 +1056,8 @@ class RegionState:
               held_graph_lookup: Callable[
                   [tuple[float, float, float, float], str], "RegionState | None"
               ] | None = None,
-              build_phase_pools: "RegionBuildPhasePools | None" = None) -> None:
+              build_phase_pools: "RegionBuildPhasePools | None" = None,
+              elevation_wiring: ElevationWiring | None = None) -> None:
         """Runs one build attempt. `build_phase_pools` are the #492 deadline
         pools (one per network-phase type — see `RegionBuildPhasePools`)
         every phase submits to (`_run_build_phase`) — `Readiness._queue_build`
@@ -936,7 +1072,7 @@ class RegionState:
                 self.build(cache_dir, tiles_upstream, allow_unmirrored,
                           elevation_upstream, mirror_clip_url,
                           mirror_clip_client_key, held_graph_lookup,
-                          build_phase_pools)
+                          build_phase_pools, elevation_wiring=elevation_wiring)
             finally:
                 build_phase_pools.shutdown()
             return
@@ -945,7 +1081,7 @@ class RegionState:
             self._build_impl(cache_dir, tiles_upstream, allow_unmirrored,
                              elevation_upstream, mirror_clip_url,
                              mirror_clip_client_key, held_graph_lookup,
-                             build_phase_pools)
+                             build_phase_pools, elevation_wiring)
         finally:
             self.build_in_progress = False
 
@@ -957,11 +1093,13 @@ class RegionState:
                     held_graph_lookup: Callable[
                         [tuple[float, float, float, float], str], "RegionState | None"
                     ] | None,
-                    build_phase_pools: "RegionBuildPhasePools") -> None:
+                    build_phase_pools: "RegionBuildPhasePools",
+                    elevation_wiring: ElevationWiring | None) -> None:
         self.build_attempts += 1
         attempt = self.build_attempts
         self.last_attempt_started_at = time.time()
         self.tiles_error = None  # a retry re-attempts tiles too
+        self.elevation_state = CapabilityState(0.0)  # …and elevation
 
         # Issue #274 (Phase 3.2) — request/download the mirror-clipped OSM
         # extract for this trip bbox, reporting FR121's byte-observed
@@ -1075,6 +1213,8 @@ class RegionState:
                     "wider graph already built for this device; will "
                     "rebuild for real once reconnected"
                 )
+                self.elevation_state.fail(
+                    "Elevation loads once this area is rebuilt online")
                 log.warning(
                     "region build PROVISIONAL key=%s attempt=%d truncated "
                     "from held=%s: %d nodes, %d edges (mirror/overpass "
@@ -1089,6 +1229,7 @@ class RegionState:
             self.last_attempt_finished_at = time.time()
             self.failed_at = time.monotonic()  # starts the requeue cooldown (#247)
             self.graph_state.fail(str(exc))
+            self.elevation_state.fail(_ELEVATION_NEEDS_GRAPH)
             log.warning("region build FAILED key=%s attempt=%d (overpass): %s",
                         self.key, attempt, exc)
             return
@@ -1104,6 +1245,7 @@ class RegionState:
             self.last_attempt_finished_at = time.time()
             self.failed_at = time.monotonic()  # starts the requeue cooldown (#247)
             self.graph_state.fail(str(exc))
+            self.elevation_state.fail(_ELEVATION_NEEDS_GRAPH)
             log.warning("region build FAILED key=%s attempt=%d (no routable ways): %s",
                         self.key, attempt, exc)
             return
@@ -1114,6 +1256,7 @@ class RegionState:
             self.last_attempt_finished_at = time.time()
             self.failed_at = time.monotonic()  # starts the requeue cooldown (#247)
             self.graph_state.fail(f"{type(exc).__name__}: {exc}")
+            self.elevation_state.fail(_ELEVATION_NEEDS_GRAPH)
             log.error("region build FAILED key=%s attempt=%d: %s\n%s",
                       self.key, attempt, self.last_error, self.last_traceback)
             return  # no graph, no point extracting tiles for this region
@@ -1158,51 +1301,107 @@ class RegionState:
             log.warning("region tiles FAILED key=%s bbox=%s: %s\n%s",
                         self.key, self.bbox, self.tiles_error, traceback.format_exc())
 
-        # QA/UAT-only elevation, companion to epic #264 — NOT #148's
-        # production wiring (see `ELEVATION_QA_PROXY_CONFIGURED` above).
-        # Best-effort and independent of routing, same discipline as tiles
-        # just above: a Pi5 proxy that is unreachable leaves this region
-        # without elevation data (`elevation` absent from a response, issue
-        # #466) rather than failing the build, and — deliberately — never
-        # falls back to a direct OpenTopography call from the sidecar, which
-        # would defeat the whole point of centralising calls behind the
-        # shared cache.
-        #
-        # This calls `resolve()` directly rather than `sampler_for()` so the
-        # miss can be logged with its reason; the outcome is the same one
-        # `sampler_for()` gives since #473 (ARCH D68) — a source that never
-        # resolved gets no sampler, not a flat one. Gaps *inside* a raster
-        # that did open are the sampler's business (interpolated, FR88).
-        if elevation_upstream:
-            try:
-                e_cache = LocalCacheSource(CacheLayout(cache_dir).elevation_dir)
-                e_resolver = ElevationResolver(
-                    [
-                        e_cache,
-                        HttpElevationSource(
-                            elevation_upstream,
-                            name="qa-elevation-proxy",
-                            fetch=qa_proxy_fetch,
-                            write_back=e_cache,
-                        ),
-                    ]
-                )
-                try:
-                    raster = _run_build_phase(
-                        build_phase_pools.elevation, _ELEVATION_PHASE_TIMEOUT_S,
-                        lambda: e_resolver.resolve(self.bbox),
-                    )
-                except ElevationUnavailable as exc:
-                    log.warning("region elevation UNAVAILABLE key=%s bbox=%s: %s",
-                                self.key, self.bbox, exc)
-                    self.sampler = None
-                else:
-                    self.sampler = ElevationSampler(raster.path)
-            except Exception as exc:  # noqa: BLE001 — elevation never fails a region (FR88)
-                log.warning("region elevation FAILED key=%s bbox=%s: %s",
-                            self.key, self.bbox, exc)
-                self.sampler = None
+        self._build_elevation(cache_dir, elevation_upstream, elevation_wiring,
+                              build_phase_pools)
 
+    def _elevation_resolver(self, cache_dir: Path, wiring: ElevationWiring,
+                            elevation_upstream: str | None) -> ElevationResolver:
+        """The resolver for `wiring.source` (issue #148). The QA proxy path —
+        companion to epic #264, not #148 — never falls back to a direct
+        OpenTopography call from the sidecar, which would defeat
+        centralising calls behind the shared cache; the production path is
+        ARCH §12.1's Phase 1, local cache then the direct provider (cache
+        only when no key is configured)."""
+        if wiring.source == "qa_proxy":
+            e_cache = LocalCacheSource(CacheLayout(cache_dir).elevation_dir)
+            return ElevationResolver([
+                e_cache,
+                HttpElevationSource(
+                    elevation_upstream,
+                    name="qa-elevation-proxy",
+                    fetch=qa_proxy_fetch,
+                    write_back=e_cache,
+                ),
+            ])
+        return phase1_resolver_for_layout(CacheLayout(cache_dir), fetch=wiring.fetch)
+
+    def _build_elevation(self, cache_dir: Path, elevation_upstream: str | None,
+                         wiring: ElevationWiring | None,
+                         build_phase_pools: "RegionBuildPhasePools") -> None:
+        """Resolve this region's DEM and enrich its graph (issues #148, #473).
+
+        Best-effort and independent of routing, same discipline as tiles
+        just above: `graph_state` is already ready, and nothing here can
+        fail the region (FR88/FR121). The resolve — the only step that can
+        touch the network — runs on the elevation phase pool behind
+        `_ELEVATION_PHASE_TIMEOUT_S` (#492, ARCH §8.6). It calls `resolve()`
+        rather than `sampler_for()` so a miss is logged with its reason;
+        the outcome is the same one `sampler_for()` gives since #473 — a
+        source that never resolved gets no sampler and no enrichment, not a
+        flat one.
+
+        Enrichment runs on a **copy** of the graph that is swapped in whole:
+        routing has been open on the unenriched graph since `graph_state`
+        flipped (B1), and annotating it in place would let a concurrent
+        solve read some nodes with elevation and some without — a climb
+        figure summed over half a graph."""
+        if elevation_upstream and (wiring is None or wiring.source != "qa_proxy"):
+            wiring = ElevationWiring("qa_proxy", None, ELEVATION_QA_PROXY_CONFIGURED)
+        if wiring is None:
+            wiring = ElevationWiring("local_cache", None, ELEVATION_NOT_CONFIGURED)
+        self.elevation_state.start("fetching terrain data for this area")
+        t0 = time.monotonic()
+        try:
+            resolver = self._elevation_resolver(cache_dir, wiring, elevation_upstream)
+            try:
+                raster = _run_build_phase(
+                    build_phase_pools.elevation, _ELEVATION_PHASE_TIMEOUT_S,
+                    lambda: resolver.resolve(self.bbox),
+                )
+            except ElevationUnavailable as exc:
+                log.warning("region elevation UNAVAILABLE key=%s bbox=%s source=%s: %s",
+                            self.key, self.bbox, wiring.source, exc)
+                self.sampler = None
+                self.elevation_state.fail(_elevation_absent_reason(wiring))
+                return
+            sampler = ElevationSampler(raster.path)
+            if sampler.degraded:
+                # Resolved to a file that will not open — the absent case
+                # too (#473); the sampler has already logged why.
+                log.warning("region elevation UNREADABLE key=%s raster=%s source=%s",
+                            self.key, raster.path, raster.source)
+                if raster.source != "local-cache":
+                    # Fetched this build and written back into the cache
+                    # (an error body saved as `.tif` looks exactly like
+                    # this). Left there, every later build would be a local
+                    # "hit" on it and never fetch again. A file that was
+                    # already in the cache — the shipped FR90 raster, say —
+                    # is the user's, not ours to delete.
+                    raster.path.unlink(missing_ok=True)
+                self.sampler = None
+                self.elevation_state.fail(
+                    "The terrain data for this area couldn't be read")
+                return
+            graph = self.graph
+            if graph is not None:
+                enriched = graph.graph.copy()
+                enrich_elevation(enriched, sampler)
+                self.graph = LoadedGraph(graph=enriched, source=graph.source,
+                                         load_seconds=graph.load_seconds)
+                report = enriched.graph.get("_pl_elev_enrichment")
+                log.info("region elevation OK key=%s source=%s raster=%s "
+                         "nodes=%s void_nodes=%s", self.key, raster.source,
+                         raster.path, getattr(report, "nodes_annotated", None),
+                         getattr(report, "void_nodes", None))
+            self.sampler = sampler
+            self.elevation_state.succeed("elevation ready")
+        except Exception as exc:  # noqa: BLE001 — elevation never fails a region (FR88)
+            log.warning("region elevation FAILED key=%s bbox=%s: %s",
+                        self.key, self.bbox, exc)
+            self.sampler = None
+            self.elevation_state.fail(_elevation_absent_reason(wiring))
+        finally:
+            self.timings["elevation"] = time.monotonic() - t0
 
 class Readiness:
     """The sidecar's region registry (ARCH §8.3, breaking change B1; PRD
@@ -1221,13 +1420,19 @@ class Readiness:
                  allow_unmirrored: bool = False,
                  elevation_upstream: str | None = None,
                  mirror_clip_url: str | None = None,
-                 mirror_clip_client_key: str | None = None) -> None:
+                 mirror_clip_client_key: str | None = None,
+                 elevation_wiring: ElevationWiring | None = None) -> None:
         self.cache_dir = cache_dir
         self.tiles_upstream = tiles_upstream
         self.allow_unmirrored = allow_unmirrored
         #: QA/UAT-only (companion to epic #264, not #148). See
         #: `ELEVATION_QA_PROXY_CONFIGURED` and `RegionState.build`.
         self.elevation_upstream = elevation_upstream
+        #: Issue #148 — where region builds get elevation. Defaults to the
+        #: no-network answer when a caller (a test) builds a bare
+        #: `Readiness`; `create_app` always resolves it from the environment.
+        self.elevation_wiring = elevation_wiring or resolve_elevation_wiring(
+            cache_dir, elevation_upstream, env={})
         #: Issue #274 (Phase 3.2) — the mirror's `/clip` base URL. Absent
         #: (the default until #275 lands) means `RegionState.build` never
         #: attempts an extract download at all — see `extract_capabilities`.
@@ -1425,7 +1630,7 @@ class Readiness:
                 self.cache_dir, self.tiles_upstream, self.allow_unmirrored,
                 self.elevation_upstream, self.mirror_clip_url,
                 self.mirror_clip_client_key, self.find_held_supergraph,
-                self._build_phase_pools,
+                self._build_phase_pools, elevation_wiring=self.elevation_wiring,
             )
         finally:
             with self._lock:
@@ -1572,6 +1777,19 @@ class Readiness:
         regions = self.snapshot()
         self._apply_build_queue_watchdog(regions)
         return {key: region.routing_capability() for key, region in regions}
+
+    def elevation_capabilities(self) -> dict:
+        """`capabilities.elevation` (issue #148): the process-wide source
+        statement (`ElevationWiring.capability` — `ready`/`reason`, the shape
+        every older reader already parses) plus `regions`, one entry per
+        `POST /regions` call in `routing_capabilities`' per-bbox shape, so a
+        region whose bbox no source resolved says so rather than hiding
+        behind a process-wide `ready`."""
+        return {
+            **self.elevation_wiring.capability,
+            "regions": {key: region.elevation_capability()
+                        for key, region in self.snapshot()},
+        }
 
     def extract_capabilities(self) -> dict:
         """`capabilities.extract` (issue #274). Shaped like `_mirror_
@@ -1962,7 +2180,8 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                elevation_upstream: str | None = None,
                mirror_state_url: str | None = None,
                mirror_clip_url: str | None = None,
-               mirror_clip_client_key: str | None = None) -> FastAPI:
+               mirror_clip_client_key: str | None = None,
+               elevation_env: Mapping[str, str] | None = None) -> FastAPI:
     # Issue #241 — stamp the contactable Plotlines UA/referer on every
     # Overpass and Nominatim call this app makes (region graph builds,
     # candidate fetches, and `/geocode`) before the first request goes out.
@@ -1997,7 +2216,12 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                       allow_unmirrored=allow_unmirrored_tiles,
                       elevation_upstream=elevation_upstream,
                       mirror_clip_url=mirror_clip_url,
-                      mirror_clip_client_key=mirror_clip_client_key)
+                      mirror_clip_client_key=mirror_clip_client_key,
+                      # Issue #148 — `elevation_env` is the test seam;
+                      # `None` reads the process environment, where
+                      # `packaging/README.md` says the key lives.
+                      elevation_wiring=resolve_elevation_wiring(
+                          cache_dir, elevation_upstream, env=elevation_env))
     # Issue #154 — the draw map's basemap before any region exists (FR120).
     # Only when the upstream is something other than the home archive
     # `/tiles` already reads, and never for a refused third-party host
@@ -2061,15 +2285,16 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
 
         `routing` is **per region** (D41), keyed by the region id
         `POST /regions` returned; empty until an Author has drawn a bbox.
-        `elevation` is a fixed not-ready state for every region (see
-        `ELEVATION_NOT_CONFIGURED`) — never blocking routing, which needs
-        only the graph. A failing region build never touches `layers`.
-        The one exception is the QA/UAT `--elevation-upstream` flag
-        (companion to epic #264, not #148's production path): when set,
-        `elevation` reports `ELEVATION_QA_PROXY_CONFIGURED` instead — this is
-        process-wide, like `tiles`/`layers`, not per-region like `routing`; a
-        given region's own `elevation` still comes back absent on a proxy
-        miss (logged, never silent; issue #466), never flipping this back off.
+        `elevation` (issue #148) is two things. Its top-level `ready`/`reason`
+        is process-wide, like `tiles`/`layers`: which source this sidecar
+        acquires elevation from (`ElevationWiring` — OpenTopography direct
+        when a key is configured, the QA proxy under `--elevation-upstream`,
+        otherwise the local cache only, with a sentence saying so). Its
+        `regions` is per region like `routing`: waiting / fetching (with
+        `progress`, never an `eta_s`), `ready`, or a finished sentence saying
+        why that bbox has none — absent, never flat (FR88/#473). Never
+        blocking routing, which needs only the graph. A failing region build
+        never touches `layers`.
 
         Version-mismatch refusal (A8, M12) is unchanged and lives entirely
         client-side in `SidecarManager.start()`, before the sidecar is even
@@ -2132,11 +2357,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 },
                 "layers": layers_cap,
                 "routing": {"regions": state.routing_capabilities()},
-                "elevation": (
-                    ELEVATION_QA_PROXY_CONFIGURED
-                    if state.elevation_upstream
-                    else ELEVATION_NOT_CONFIGURED
-                ),
+                "elevation": state.elevation_capabilities(),
                 "mirror": _mirror_capability(
                     mirror_state_url, state._mirror_state_pool,
                     state._mirror_state_cache),

@@ -47,15 +47,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "http(s):// host other than the Plotlines mirror. "
                              "Never the shipped path (FR92/FR95).")
     parser.add_argument("--elevation-upstream", default=None,
-                        help="QA/short-term only (companion to epic #264, tracked "
-                             "separately from #148/FR87): base URL of the Pi5 "
+                        help="QA/short-term only (companion to epic #264, not the "
+                             "#148/FR87 production path): base URL of the Pi5 "
                              "caching elevation proxy's /dem endpoint "
                              "(plotlines_service.elevation_proxy). When set, "
-                             "elevation reads go through this shared cache instead "
-                             "of being unattempted, and PLOTLINES_OPENTOPOGRAPHY_"
-                             "API_KEY need not be set on this machine at all. "
-                             "Absent (the default) leaves elevation exactly as "
-                             "today: elevation_source_not_configured:tracked_in_148.")
+                             "elevation reads go through this shared cache and "
+                             "never directly to OpenTopography, so "
+                             "PLOTLINES_OPENTOPOGRAPHY_API_KEY need not be set on "
+                             "this machine at all. Absent (the default), region "
+                             "builds read the local DEM cache and, when "
+                             "PLOTLINES_OPENTOPOGRAPHY_API_KEY is set, fetch a "
+                             "miss from OpenTopography directly (issue #148).")
     parser.add_argument("--mirror-state-url", default=None,
                         help="issue #260: where to read MIRROR_STATE.json for the "
                              "GET /health staleness monitor — a local path or the "

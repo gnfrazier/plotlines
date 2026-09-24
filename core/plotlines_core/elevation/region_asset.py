@@ -3,8 +3,8 @@
 The **home region** (Buncombe County, NC — FR96 / ARCH D41, the same constant
 extent the basemap ships under) needs a DEM on disk before any
 elevation-dependent metric can be computed for a trip drawn inside it. Unlike a
-trip bbox — whose DEM is fetched on demand from OpenTopography and is gated on
-FR87 / issue #148 — the home region's raster is **shipped**: distributed out of
+trip bbox — whose DEM is fetched on demand from OpenTopography when a key is
+configured (FR87, issue #148) — the home region's raster is **shipped**: distributed out of
 band as a *versioned tarball asset* and dropped into the local elevation cache
 by a **one-time setup step**, documented in ``packaging/README.md``.
 

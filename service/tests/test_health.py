@@ -18,7 +18,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from plotlines_core.graph import regions as region_lib
-from plotlines_service.app import create_app
+from plotlines_service.app import ELEVATION_NOT_CONFIGURED, create_app
 from plotlines_service.version import VERSION
 
 _BBOX = [-105.30, 39.99, -105.25, 40.03]  # SPIKE-00's Boulder fixture bbox
@@ -74,13 +74,16 @@ def test_tiles_and_layers_are_ready_immediately(tmp_path: Path) -> None:
     assert all(state == "ready" for state in caps["layers"]["per_layer"].values())
 
 
-def test_elevation_reports_a_fixed_not_ready_reason(tmp_path: Path) -> None:
-    # Issue #154's explicit scoping note: elevation acquisition is gated on
-    # FR87 (#148) and never attempted here, so it never blocks routing.
+def test_elevation_without_a_key_is_not_ready_with_a_finished_reason(tmp_path: Path) -> None:
+    # Issue #148: with no OpenTopography key (the suite strips it) region
+    # builds read the local DEM cache only, and the process-wide capability
+    # says so in a sentence the client can show verbatim (FR145) — not an
+    # internal id. It never blocks routing.
     client = TestClient(create_app(tmp_path))
     caps = client.get("/health").json()["capabilities"]
     assert caps["elevation"]["ready"] is False
-    assert "reason" in caps["elevation"]
+    assert "OpenTopography key" in caps["elevation"]["reason"]
+    assert ":" not in caps["elevation"]["reason"]
 
 
 def test_routing_regions_is_empty_before_any_region_is_ensured(tmp_path: Path) -> None:
@@ -201,7 +204,8 @@ def test_elevation_upstream_flag_flips_the_health_capability(tmp_path: Path) -> 
         create_app(tmp_path, elevation_upstream="http://example.invalid/dem")
     )
     caps = client.get("/health").json()["capabilities"]
-    assert caps["elevation"] == {"ready": True, "reason": "qa_pi5_elevation_proxy"}
+    assert caps["elevation"] == {
+        "ready": True, "reason": "qa_pi5_elevation_proxy", "regions": {}}
 
 
 def test_elevation_upstream_absent_leaves_the_default_untouched(tmp_path: Path) -> None:
@@ -210,10 +214,7 @@ def test_elevation_upstream_absent_leaves_the_default_untouched(tmp_path: Path) 
     # states are easy to compare at a glance.
     client = TestClient(create_app(tmp_path))
     caps = client.get("/health").json()["capabilities"]
-    assert caps["elevation"] == {
-        "ready": False,
-        "reason": "elevation_source_not_configured:tracked_in_148",
-    }
+    assert caps["elevation"] == {**ELEVATION_NOT_CONFIGURED, "regions": {}}
 
 
 @pytest.mark.skipif(
