@@ -16,6 +16,8 @@ import pytest
 from plotlines_core.elevation.enrich import (
     ELEV_GAIN_KEY,
     ELEVATION_KEY,
+    GRADE_ABS_KEY,
+    GRADE_KEY,
     EnrichmentReport,
     enrich_elevation,
     enrich_from_resolver,
@@ -240,3 +242,44 @@ def test_node_missing_coordinates_is_a_gap_not_an_error():
     enrich_elevation(g, sampler)
     assert g.nodes[2][ELEVATION_KEY] == 200.0  # from its neighbour
     assert g.edges[1, 2, 0][ELEV_GAIN_KEY] == 0.0
+
+
+def test_every_edge_gets_osmnx_grade_and_grade_abs():
+    """#148: the solver's peaks weight and `max_grade` read `grade_abs`, which
+    only the committed fixture carried; enrichment now writes it on a
+    runtime-built graph, under osmnx's own names and precision."""
+    g = _line_graph()
+    enrich_elevation(g, _sampler_for(g))
+    # 1 -> 2 rises 50 m over 140 m; 2 -> 1 falls the same.
+    assert g.edges[1, 2, 0][GRADE_KEY] == pytest.approx(round(50.0 / 140.0, 3))
+    assert g.edges[2, 1, 0][GRADE_KEY] == pytest.approx(-round(50.0 / 140.0, 3))
+    assert g.edges[2, 1, 0][GRADE_ABS_KEY] == pytest.approx(round(50.0 / 140.0, 3))
+
+
+def test_zero_length_edge_has_zero_grade_not_a_division_error():
+    g = nx.MultiDiGraph()
+    g.add_node(1, y=40.0, x=-105.0)
+    g.add_node(2, y=40.001, x=-105.0)
+    g.add_edge(1, 2, length=0.0)
+    enrich_elevation(g, FakeSampler({(40.0, -105.0): 100.0, (40.001, -105.0): 130.0}))
+    assert g.edges[1, 2, 0][GRADE_ABS_KEY] == 0.0
+
+
+def test_enrichment_invalidates_the_solvers_cached_edge_features():
+    """`scoring.profile.features` caches its tuple on the edge dict; a grade
+    written after that cache was filled must still reach the solver."""
+    from plotlines_core.scoring.profile import features
+
+    g = _line_graph()
+    before = features(g.edges[1, 2, 0])
+    assert before[4] == 0.0  # no grade yet
+    enrich_elevation(g, _sampler_for(g))
+    assert features(g.edges[1, 2, 0])[4] == pytest.approx(round(50.0 / 140.0, 3))
+
+
+def test_absent_pass_strips_grades_too():
+    g = _line_graph()
+    enrich_elevation(g, _sampler_for(g))
+    enrich_elevation(g, None)
+    for _, _, data in g.edges(data=True):
+        assert GRADE_KEY not in data and GRADE_ABS_KEY not in data
