@@ -308,6 +308,28 @@ void main() {
       expect(caps.tilesUpstream!.reason, isNull);
     });
 
+    test('upstream bounds are null until the sidecar has read them (issue #154)', () {
+      final caps = Capabilities.fromJson(body({
+        'kind': 'mirror',
+        'source': 'https://tiles.plotlines.app/basemap/protomaps/x/y.pmtiles',
+        'refused': false,
+        'reason': null,
+        'bounds': null,
+      }));
+      expect(caps.tilesUpstream!.bounds, isNull);
+    });
+
+    test('upstream bounds parse as [west, south, east, north] doubles (issue #154)', () {
+      final caps = Capabilities.fromJson(body({
+        'kind': 'mirror',
+        'source': 'https://tiles.plotlines.app/basemap/protomaps/x/y.pmtiles',
+        'refused': false,
+        'reason': null,
+        'bounds': [-83.6, 35.2, -81, 36.4],
+      }));
+      expect(caps.tilesUpstream!.bounds, [-83.6, 35.2, -81.0, 36.4]);
+    });
+
     test('the mirror host parses kind mirror, never refused', () {
       final caps = Capabilities.fromJson(body({
         'kind': 'mirror',

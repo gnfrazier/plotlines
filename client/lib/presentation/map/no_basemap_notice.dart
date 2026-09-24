@@ -9,11 +9,14 @@
 // notice at all, because "directory exists" was the only thing checked.
 //
 // Tiles are now served by the sidecar (`GET /tiles/{z}/{x}/{y}`, FR92) from
-// two possible sources: the committed home-region archive, and — once
-// ensured — the trip's own on-demand region cache. Both areas are already
-// known client-side (`HomeRegion`'s constants; `TripBbox` the Author drew),
-// so [tilesLikelyCoverViewport] answers "should this pan have tiles" with no
-// network call and no reference to any one fixture region.
+// three possible sources: the committed home-region archive, the trip's own
+// on-demand region cache once ensured, and — since the #154 reopen — the
+// configured tile upstream (the mirror) read one tile at a time. The first
+// two areas are known client-side (`HomeRegion`'s constants; `TripBbox` the
+// Author drew); the third is `/health`'s `tiles.upstream.bounds`, known once
+// the sidecar has read the upstream's header. [tilesLikelyCoverViewport]
+// answers "should this pan have tiles" with no network call of its own and
+// no reference to any one fixture region.
 library;
 
 import 'dart:math' as math;
@@ -37,7 +40,9 @@ import '../../domain/trip_bbox.dart';
 const double kMinViewportCoverage = 0.5;
 
 /// The fraction of [viewport]'s area that lies inside the union of the
-/// shipped home region and (when given) this trip's own bbox.
+/// shipped home region, (when given) this trip's own bbox, and (when given)
+/// the tile upstream's own coverage, `[west, south, east, north]` as
+/// `/health` reports it in `tiles.upstream.bounds` (issue #154).
 ///
 /// Planar in degrees: viewports at authoring zoom are small enough that the
 /// ratio of a lat/lon-rectangle's area to the viewport's is a fair proxy for
@@ -45,14 +50,14 @@ const double kMinViewportCoverage = 0.5;
 /// per-tile guarantee — a bbox-cropped, per-zoom archive can still miss
 /// inside these bounds, and the sidecar's own 404 stays authoritative for
 /// any one tile.
-double coveredViewportFraction(LatLngBounds viewport, {TripBbox? tripBbox}) {
+double coveredViewportFraction(LatLngBounds viewport,
+    {TripBbox? tripBbox, List<double>? upstreamBounds}) {
   final vw = viewport.east - viewport.west;
   final vh = viewport.north - viewport.south;
   if (vw <= 0 || vh <= 0) return 0;
   final viewportArea = vw * vh;
 
-  // Each coverage area, clipped to the viewport — at most two: the home
-  // region and the trip bbox.
+  // Each coverage area, clipped to the viewport — at most three.
   final clipped = <List<double>>[]; // each: [west, south, east, north]
   void addClip(double west, double south, double east, double north) {
     final cw = math.max(west, viewport.west);
@@ -66,18 +71,26 @@ double coveredViewportFraction(LatLngBounds viewport, {TripBbox? tripBbox}) {
   if (tripBbox != null) {
     addClip(tripBbox.minLon, tripBbox.minLat, tripBbox.maxLon, tripBbox.maxLat);
   }
+  if (upstreamBounds != null && upstreamBounds.length == 4) {
+    addClip(upstreamBounds[0], upstreamBounds[1], upstreamBounds[2], upstreamBounds[3]);
+  }
   if (clipped.isEmpty) return 0;
 
-  double areaOf(List<double> r) => (r[2] - r[0]) * (r[3] - r[1]);
-  var covered = clipped.fold<double>(0, (sum, r) => sum + areaOf(r));
-
-  // Inclusion–exclusion for the one possible overlap (home region ∩ trip
-  // bbox), so a trip drawn inside the home region is not double-counted.
-  if (clipped.length == 2) {
-    final a = clipped[0], b = clipped[1];
-    final iw = math.min(a[2], b[2]) - math.max(a[0], b[0]);
-    final ih = math.min(a[3], b[3]) - math.max(a[1], b[1]);
-    if (iw > 0 && ih > 0) covered -= iw * ih;
+  // Area of the union, exactly: split the clipped rectangles' edges into a
+  // grid and count each cell once if any rectangle holds it — so a trip
+  // drawn inside the home region, or both inside the upstream's coverage,
+  // is never double-counted.
+  final xs = {for (final r in clipped) ...[r[0], r[2]]}.toList()..sort();
+  final ys = {for (final r in clipped) ...[r[1], r[3]]}.toList()..sort();
+  var covered = 0.0;
+  for (var i = 0; i + 1 < xs.length; i++) {
+    final cx = (xs[i] + xs[i + 1]) / 2;
+    for (var j = 0; j + 1 < ys.length; j++) {
+      final cy = (ys[j] + ys[j + 1]) / 2;
+      if (clipped.any((r) => cx > r[0] && cx < r[2] && cy > r[1] && cy < r[3])) {
+        covered += (xs[i + 1] - xs[i]) * (ys[j + 1] - ys[j]);
+      }
+    }
   }
 
   return (covered / viewportArea).clamp(0.0, 1.0);
@@ -90,8 +103,10 @@ double coveredViewportFraction(LatLngBounds viewport, {TripBbox? tripBbox}) {
 /// outside the archive but clips one corner of a coverage area used to
 /// return `true`, so the honest-empty notice was suppressed on exactly the
 /// screen that needed it.
-bool tilesLikelyCoverViewport(LatLngBounds viewport, {TripBbox? tripBbox}) =>
-    coveredViewportFraction(viewport, tripBbox: tripBbox) >= kMinViewportCoverage;
+bool tilesLikelyCoverViewport(LatLngBounds viewport,
+        {TripBbox? tripBbox, List<double>? upstreamBounds}) =>
+    coveredViewportFraction(viewport, tripBbox: tripBbox, upstreamBounds: upstreamBounds) >=
+    kMinViewportCoverage;
 
 /// The designed "off the map" ground under every map widget's tile layer: a
 /// recessed surface tone ([ground]) carrying a latitude/longitude graticule
@@ -281,8 +296,8 @@ class NoBasemapNotice extends StatelessWidget {
         : styleFailed
             ? 'Basemap unavailable — the map style failed to load (see logs)'
             : outOfCoverage
-                ? 'No basemap tiles here — outside the shipped home region and '
-                  'this trip\'s own area'
+                ? 'No basemap tiles here — outside the shipped home region, '
+                  'this trip\'s own area, and the mirrored basemap'
                 : 'No basemap tiles here';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),

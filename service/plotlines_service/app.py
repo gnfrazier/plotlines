@@ -17,6 +17,7 @@ wrong.
 from __future__ import annotations
 
 import hashlib
+import http.client
 import logging
 import math
 import threading
@@ -98,6 +99,7 @@ from plotlines_core.tiles.mirror import (
     classify_upstream,
     resolve_upstream,
 )
+from plotlines_core.tiles.upstream import UpstreamTileReader
 from plotlines_core.tiles.mirror_state import (
     MIRROR_NOT_CONFIGURED,
     load_mirror_state,
@@ -371,6 +373,51 @@ def _fetch_candidates(
         return [], {layer: "failed:candidate_fetch_timed_out" for layer in layers}
 
 
+#: Issue #154 — how long `/tiles` waits for one tile read from the configured
+#: upstream (`_upstream_tile`). One ranged GET against the mirror, plus a
+#: header/directory read the first time; the client gives up on a tile at
+#: 10 s (`SidecarVectorTileProvider.provide`), so this answers well inside
+#: that and a slow mirror reads as a retryable 503, not a client timeout.
+_UPSTREAM_TILE_TIMEOUT_S = 5.0
+
+#: Issue #154 — how many `/tiles` calls may be waiting on the upstream at
+#: once. A viewport requests a few dozen tiles in a burst, all on the shared
+#: FastAPI pool; past this many, a call answers 503 immediately rather than
+#: queue — so a wedged mirror can hold at most this many shared threads for
+#: at most `_UPSTREAM_TILE_TIMEOUT_S`, never the pool (ARCH §8.6, D66).
+_UPSTREAM_TILE_MAX_WAITING = 8
+
+
+class UpstreamTileUnavailable(Exception):
+    """The upstream could not answer for this tile right now — timed out,
+    busy, or a transport failure. Transient by definition (D66): `/tiles`
+    reports it as a retryable 503, never as the 404 that means "no tile
+    here"."""
+
+
+def _upstream_tile(reader: UpstreamTileReader, pool: ThreadPoolExecutor,
+                   waiting: threading.BoundedSemaphore,
+                   z: int, x: int, y: int) -> bytes | None:
+    """One tile from the configured tile upstream, read on `pool`
+    (`Readiness._upstream_tile_pool`, never the shared FastAPI pool `/tiles`
+    answers on) behind `_UPSTREAM_TILE_TIMEOUT_S` — the #488 shape. `None`
+    is the upstream's honest "no tile here"; anything else that stops an
+    answer raises `UpstreamTileUnavailable`. Nothing is latched: the next
+    call tries again, and the reader drops a broken connection itself."""
+    if not waiting.acquire(blocking=False):
+        raise UpstreamTileUnavailable("tile upstream busy")
+    try:
+        future = pool.submit(reader.tile, z, x, y)
+        try:
+            return future.result(timeout=_UPSTREAM_TILE_TIMEOUT_S)
+        except FutureTimeoutError as exc:
+            raise UpstreamTileUnavailable("tile upstream timed out") from exc
+        except (OSError, http.client.HTTPException, ValueError) as exc:
+            raise UpstreamTileUnavailable(f"tile upstream failed: {exc}") from exc
+    finally:
+        waiting.release()
+
+
 class RegionBuildPhaseTimeout(RuntimeError):
     """Issue #492 — one of `RegionState.build`'s four network phases (mirror-
     clip extract, graph, tiles, elevation) did not return within its own
@@ -538,6 +585,17 @@ def _tiles_upstream_capability(source: str | Path, *, allow_unmirrored: bool) ->
         "refused": reason is not None,
         "reason": reason,
     }
+
+
+def _with_upstream_coverage(capability: dict,
+                            reader: UpstreamTileReader | None) -> dict:
+    """`capabilities.tiles.upstream` plus `bounds` — issue #154. The
+    upstream's own `[west, south, east, north]`, so the client's honest-empty
+    notice counts the mirror's coverage rather than only the home region and
+    the trip bbox. `None` until a `/tiles` read has loaded the upstream's
+    header: `/health` itself never reads it (D41/D57)."""
+    info = reader.info() if reader is not None else None
+    return {**capability, "bounds": list(info.bounds) if info is not None else None}
 
 
 def _tiles_archive_identity(home_identity: str, upstream_source: str, *,
@@ -1220,6 +1278,17 @@ class Readiness:
         self._geocode_pool = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="geocode",
         )
+        # Issue #154 — same shape again, for `/tiles`' read-through to the
+        # configured upstream (`_upstream_tile`). One worker: the reader
+        # holds one kept-alive connection and serialises on it anyway, and
+        # a stuck read then only ever queues further tile reads behind it.
+        # `upstream_tiles` stays `None` when there is nothing beyond the
+        # home archive to read (see `create_app`).
+        self._upstream_tile_pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="upstream-tile",
+        )
+        self._upstream_tile_waiting = threading.BoundedSemaphore(_UPSTREAM_TILE_MAX_WAITING)
+        self.upstream_tiles: UpstreamTileReader | None = None
         # Issue #492 — every network phase inside a region build
         # (`RegionState.build` -> `_run_build_phase`) runs on one of these,
         # never on `_build_pool` itself: that is what lets `_build_pool`'s
@@ -1248,6 +1317,7 @@ class Readiness:
         self._mirror_state_pool.shutdown(wait=False, cancel_futures=True)
         self._candidate_fetch_pool.shutdown(wait=False, cancel_futures=True)
         self._geocode_pool.shutdown(wait=False, cancel_futures=True)
+        self._upstream_tile_pool.shutdown(wait=False, cancel_futures=True)
         self._build_phase_pools.shutdown()
 
     def ensure_region(self, bbox: tuple[float, float, float, float],
@@ -1929,6 +1999,14 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                       elevation_upstream=elevation_upstream,
                       mirror_clip_url=mirror_clip_url,
                       mirror_clip_client_key=mirror_clip_client_key)
+    # Issue #154 — the draw map's basemap before any region exists (FR120).
+    # Only when the upstream is something other than the home archive
+    # `/tiles` already reads, and never for a refused third-party host
+    # (FR92/FR95 — `/health`'s `tiles.upstream.refused` says why). Building
+    # the reader makes no request (D41/D57); its first `/tiles` miss does.
+    if not used_default_tiles_upstream and not tiles_upstream_capability["refused"]:
+        state.upstream_tiles = UpstreamTileReader(
+            tiles_upstream_actual, allow_unmirrored=allow_unmirrored_tiles)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -2050,7 +2128,8 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 "tiles": {
                     "ready": True,
                     "archive": tiles_archive_id,
-                    "upstream": tiles_upstream_capability,
+                    "upstream": _with_upstream_coverage(
+                        tiles_upstream_capability, state.upstream_tiles),
                 },
                 "layers": layers_cap,
                 "routing": {"regions": state.routing_capabilities()},
@@ -2723,7 +2802,8 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         touches an archive at all. Answered from (a) any ensured region's
         on-demand cache extracted for that trip's own bbox, checked first
         since it is the Author's actual area, then (b) the committed home
-        region archive (FR96) — and 404, honestly, if neither has data for
+        region archive (FR96), then (c) the configured `--tiles-upstream`
+        itself, one tile at a time — and 404, honestly, if none has data for
         this address rather than ever substituting another region's tile
         (the exact silence issue #154 was filed over, on the routing side).
         """
@@ -2740,6 +2820,21 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         data = home_tiles.tile(z, x, y)
         if data is not None:
             return _tile_response(data, home_tiles.info())
+
+        # (c) Issue #154 — the configured upstream itself, one tile at a
+        # time, for a viewport no region covers yet: above all the trip-
+        # extent draw map, which has no region until the Author can see
+        # enough to draw one (FR120). Pooled and deadlined (D66); a failure
+        # is a retryable 503, distinct from the 404 below.
+        reader = state.upstream_tiles
+        if reader is not None:
+            try:
+                data = _upstream_tile(reader, state._upstream_tile_pool,
+                                      state._upstream_tile_waiting, z, x, y)
+            except UpstreamTileUnavailable as exc:
+                raise HTTPException(503, str(exc)) from exc
+            if data is not None:
+                return _tile_response(data, reader.info())
 
         raise HTTPException(404, f"no basemap tile at z={z} x={x} y={y}")
 

@@ -398,7 +398,8 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
         // any one fixture region) — `_mapReady` guards the first build,
         // before `FlutterMap` has laid out and `camera` is queryable.
         final outOfCoverage =
-            _mapReady && !tilesLikelyCoverViewport(_mapController.camera.visibleBounds);
+            _mapReady && !tilesLikelyCoverViewport(_mapController.camera.visibleBounds,
+                upstreamBounds: sidecar.capabilities?.tilesUpstream?.bounds);
 
         return Stack(
           children: [

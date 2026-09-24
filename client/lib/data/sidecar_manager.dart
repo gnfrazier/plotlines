@@ -182,6 +182,7 @@ class TilesUpstreamCapability {
     required this.source,
     required this.refused,
     this.reason,
+    this.bounds,
   });
 
   /// `'local'` (a PMTiles archive on disk — the shipped home region, or a
@@ -201,13 +202,27 @@ class TilesUpstreamCapability {
   /// otherwise.
   final String? reason;
 
-  factory TilesUpstreamCapability.fromJson(Map<String, dynamic> json) =>
-      TilesUpstreamCapability(
-        kind: json['kind'] as String? ?? 'local',
-        source: json['source'] as String? ?? '',
-        refused: json['refused'] as bool? ?? false,
-        reason: json['reason'] as String?,
-      );
+  /// The upstream archive's own coverage, `[west, south, east, north]`
+  /// (issue #154) — what the map widgets count as "should have tiles here"
+  /// beyond the home region and the trip bbox, since `/tiles` now reads
+  /// through to the upstream for a viewport no region covers yet. Null until
+  /// the sidecar has read the upstream's header (its first `/tiles` read
+  /// there — `/health` itself never reaches the upstream, D41/D57), and on
+  /// an older sidecar that predates the field.
+  final List<double>? bounds;
+
+  factory TilesUpstreamCapability.fromJson(Map<String, dynamic> json) {
+    final rawBounds = json['bounds'] as List<dynamic>?;
+    return TilesUpstreamCapability(
+      kind: json['kind'] as String? ?? 'local',
+      source: json['source'] as String? ?? '',
+      refused: json['refused'] as bool? ?? false,
+      reason: json['reason'] as String?,
+      bounds: rawBounds != null && rawBounds.length == 4
+          ? [for (final v in rawBounds) (v as num).toDouble()]
+          : null,
+    );
+  }
 }
 
 /// `/health`'s `capabilities.mirror` (issue #260's staleness monitor; #367 —

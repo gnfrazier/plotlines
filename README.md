@@ -141,15 +141,19 @@ opens on a real map under the outline of the shipped Buncombe County, NC home re
 from any trip's own bbox.
 
 Basemap tiles are served by the sidecar (`GET /tiles/{z}/{x}/{y}`, FR92/FR93; issue #154) — the
-client never reads a tile file off local disk. Two sources back that endpoint, both read
+client never reads a tile file off local disk. Three sources back that endpoint, all read
 through `core/plotlines_core/tiles/`: (a) the committed home-region archive,
 `service/plotlines_service/data/home_region.pmtiles` (~8.3 MB, z0-14, extracted from SPIKE-14's
 `spikes/SPIKE-14/tiles/wnc-corridor.pmtiles` with the vendored `spikes/SPIKE-14/tools/pmtiles`
 CLI — z14 was the highest zoom that stayed under the ~15 MB budget FR96 implies for a shipped
 asset), and (b) a bbox-scoped on-demand cache extracted for each ensured trip region (FR94),
-built alongside its graph in `POST /regions`'s background thread. Panning outside both areas
-shows an honest, viewport-based "no basemap tiles here" notice — never a substituted region —
-rather than a blank map. `client/assets/map_style/style_{light,dark}.json` (still a committed
+built alongside its graph in `POST /regions`'s background thread, and (c) the configured
+`--tiles-upstream` itself (the mirror's corridor archive by default), read one tile at a time on
+a dedicated pool behind a 5 s deadline for any viewport neither of the others covers — which is
+what gives the trip-extent draw map a basemap before any region exists (FR120). An upstream that
+is slow or unreachable answers a retryable 503 for that tile, never a hang. Panning outside all
+three areas shows an honest, viewport-based "no basemap tiles here" notice — never a substituted
+region — rather than a blank map. `client/assets/map_style/style_{light,dark}.json` (still a committed
 client asset — styling, not tile data) are generated from the mirrored Protomaps theme by
 `packaging/build_basemap_theme.py`; rerun that script if
 `spikes/SPIKE-14/harness/assets/style_*.json` ever changes upstream.
