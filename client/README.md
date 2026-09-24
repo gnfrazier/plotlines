@@ -87,11 +87,11 @@ falls through to Overpass only when the mirror cannot serve it.
 |---|---|---|
 | `PLOTLINES_MIRROR_URL` | base URL of the Plotlines mirror (`/clip` is appended by the sidecar); the literal `off` disables it | `https://tiles.plotlines.app` |
 | `PLOTLINES_MIRROR_CLIP_CLIENT_KEY` | the `X-Plotlines-Client-Key` a keyed `/clip` requires (#263) — **never a literal in the repo**; a release build gets it from the builder's environment via `--dart-define`, a source run from your shell | unset (no key sent) |
-| `PLOTLINES_MIRROR_STATE_URL` | where the sidecar reads `MIRROR_STATE.json` for `capabilities.mirror` (#367) | unset — see below |
+| `PLOTLINES_MIRROR_STATE_URL` | where the sidecar reads `MIRROR_STATE.json` for `capabilities.mirror` (#367) | `<PLOTLINES_MIRROR_URL>/MIRROR_STATE.json` — see below |
 | `PLOTLINES_ELEVATION_UPSTREAM` | the Pi5 caching elevation proxy's `/dem` base URL (QA only) | unset |
-| `PLOTLINES_TILES_UPSTREAM` | PMTiles source the sidecar's `--tiles-upstream` extracts basemap tiles from — the Pi serves plain HTTP, same as `PLOTLINES_MIRROR_URL`; the literal `off` disables it | unset — see below |
+| `PLOTLINES_TILES_UPSTREAM` | PMTiles source the sidecar's `--tiles-upstream` extracts basemap tiles from — the Pi serves plain HTTP, same as `PLOTLINES_MIRROR_URL`; the literal `off` disables it | `https://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles` — see below |
 
-Four things worth knowing before you set any of them:
+Five things worth knowing before you set any of them:
 
 - **Running from source against the LAN Pi** needs the same DNS override the mirror runbook
   (`deploy/mirror/README.md` §6.5) uses, or a plain http URL: `PLOTLINES_MIRROR_URL=http://tiles.plotlines.app
@@ -101,11 +101,11 @@ Four things worth knowing before you set any of them:
   never a blocked region.
 - **`PLOTLINES_MIRROR_URL=off`** reproduces the pre-#434 spawn exactly — no mirror flag, no
   key, `capabilities.extract = {"configured": false}`.
-- **`PLOTLINES_MIRROR_STATE_URL` is deliberately not defaulted.** `GET /health` re-reads that
-  source on every call today, and the client polls `/health` every 2 s — so a default would
-  be a request to the mirror before any extent is declared, and a 5 s fetch against an
-  unreachable Pi would blow the client's 2 s health timeout. #367 owns making that read safe
-  before it goes on by default; until then it is a dev/QA flag you set by hand.
+- **`PLOTLINES_MIRROR_STATE_URL` defaults to `MIRROR_STATE.json` beside the mirror URL**
+  (#367), and follows `PLOTLINES_MIRROR_URL` — `off` there drops this flag too. The client
+  polls `/health` every 2 s, so the sidecar's `MirrorStateCache` keeps each result, success
+  or failure, for an hour and runs a miss on its own pool behind a deadline. The polling
+  cadence never reaches the mirror, and an unreachable Pi never holds up `/health`.
 - **`PLOTLINES_ELEVATION_UPSTREAM` has no production value — it only ever points at
   the Pi5 QA/UAT elevation proxy** (`deploy/elevation/README.md`, issue #450): once that
   proxy is deployed and running, set it to `http://<pi-LAN-address>:8090/dem` (Caddy's
@@ -113,14 +113,16 @@ Four things worth knowing before you set any of them:
   `PLOTLINES_OPENTOPOGRAPHY_API_KEY` — only the Pi holds it, and a sidecar started with
   `--elevation-upstream` uses `core/plotlines_core/elevation/qa_proxy_client.py`'s
   unauthenticated fetcher instead.
-- **`PLOTLINES_TILES_UPSTREAM` has no built-in default (issue #453, epic #458).**
-  `tiles/mirror.py`'s `MIRROR_WNC_CORRIDOR_URL` is one region's coverage, not the production
-  basemap, and `MIRROR_ARCHIVE_URL` still names an unacquired planet build — pointing a
-  default upstream at either belongs with the planet-build / object-storage work (#457), not
-  here. Unset, the sidecar keeps serving the committed home-region archive with no network.
-  `utils/launch-with-mirror.sh` sets it to the WNC-corridor build for a LAN Pi run. Whatever
-  this names, the client never passes `--allow-unmirrored-tiles` — a third-party host is
-  refused by the sidecar (`HotlinkRefused`, FR92/FR95), not allowed through.
+- **`PLOTLINES_TILES_UPSTREAM` defaults to the mirror's primary basemap region** (issue #457,
+  ARCH D65): `SidecarUpstreams.defaultTilesUpstream`, which a test pins to
+  `tiles/mirror.py`'s `MIRROR_WNC_CORRIDOR_URL`. The sidecar reads nothing from it until an
+  extent is declared (D41/D57). A cold start with no network still renders the committed
+  home-region archive (FR96). A trip bbox outside every mirrored region shows the #318
+  graticule, which is an honest gap. Epic #516 owns filling that gap on a miss.
+  `utils/launch-with-mirror.sh` sets the same corridor URL over plain http for a LAN Pi run.
+  Whatever this names, the client never passes `--allow-unmirrored-tiles`. The sidecar refuses a
+  third-party host (`HotlinkRefused`, FR92/FR95) and reports the refusal on `/health`'s
+  `capabilities.tiles.upstream` (#454).
 
 ## Testing
 
