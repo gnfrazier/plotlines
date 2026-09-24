@@ -325,15 +325,24 @@ def run_pmtiles_extract(
     bbox: tuple[float, float, float, float],
     maxzoom: int,
     minzoom: int | None = None,
+    region_geojson: Path | None = None,
 ) -> str:
     """Runs `pmtiles extract` into `out_path` (a scratch file, never the
     published path directly — the caller publishes atomically). Returns the
     subprocess's combined stdout/stderr for logging/provenance; raises
-    `ExtractFailed` on a non-zero exit or a missing output file."""
+    `ExtractFailed` on a non-zero exit or a missing output file.
+
+    `region_geojson`, when given, is a GeoJSON Polygon/MultiPolygon file
+    passed as `--region` in place of `--bbox` — how one archive covers
+    several disjoint areas (`prewarm_basemap_priority_regions.py`), since
+    the sidecar reads exactly one `--tiles-upstream`. `bbox` is then only
+    the envelope recorded in `MIRROR_STATE.json`."""
     west, south, east, north = bbox
+    area = (f"--region={region_geojson}" if region_geojson is not None
+            else f"--bbox={west},{south},{east},{north}")
     cmd = [
         pmtiles_bin, "extract", source_url, str(out_path),
-        f"--bbox={west},{south},{east},{north}",
+        area,
         f"--maxzoom={maxzoom}",
     ]
     if minzoom is not None:
@@ -457,8 +466,10 @@ def acquire(
     now: datetime | None = None,
     filename: str = "corridor.pmtiles",
     primary: bool = True,
+    region_geojson: Path | None = None,
 ) -> Path:
-    """End to end: find a live build, extract `bbox` from it into a scratch
+    """End to end: find a live build, extract `bbox` (or `region_geojson`,
+    see `run_pmtiles_extract`) from it into a scratch
     file, then publish that scratch file into `root`. Never leaves a
     partial/half-extracted file at the published path — `run_pmtiles_extract`
     writes to a scratch path first and `publish_basemap_extract` moves it
@@ -473,7 +484,7 @@ def acquire(
         scratch_out = Path(scratch) / filename
         cli_output = run_pmtiles_extract(
             pmtiles_bin=resolved_bin, source_url=source_url, out_path=scratch_out,
-            bbox=bbox, maxzoom=maxzoom, minzoom=minzoom,
+            bbox=bbox, maxzoom=maxzoom, minzoom=minzoom, region_geojson=region_geojson,
         )
         return publish_basemap_extract(
             root=root, out_path=scratch_out, build_id=build_id,

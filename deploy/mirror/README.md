@@ -119,6 +119,31 @@ whenever a real extract's freshness/multi-region tracking matters. Geofabrik
 payload files themselves are pulled in by #258/#260 — neither basemap script
 here reaches that part of the tree.
 
+### Pre-warming the elevation priority regions (#453)
+
+The sidecar reads a single `--tiles-upstream`. That means extra per-region
+files from `DEFAULT_REGIONS` never reach the client: it still points at
+`corridor.pmtiles`, so an extent outside WNC (such as #453's Greensboro
+retest) goes grey from z9 up.
+`prewarm_basemap_priority_regions.py` cuts **one** archive covering the
+same areas the elevation proxy was pre-warmed for
+(`deploy/elevation/priority_regions.build_priority_candidates()`, plus the
+WNC corridor). It passes them to `pmtiles extract --region` as a GeoJSON
+MultiPolygon and publishes the result non-primary at
+`basemap/protomaps/20250101-priority/priority.pmtiles`. Run it on the Pi
+from the repo venv, because it needs shapely/pyproj:
+
+```
+.venv/bin/python deploy/mirror/prewarm_basemap_priority_regions.py --dry-run   # areas + size estimate (~6 GB)
+.venv/bin/python deploy/mirror/prewarm_basemap_priority_regions.py --root /srv/plotlines-mirror
+```
+
+Then point the client at it with
+`PLOTLINES_TILES_UPSTREAM=http://tiles.plotlines.app/basemap/protomaps/20250101-priority/priority.pmtiles`.
+The archive header's bounds are the envelope of all the areas, roughly the
+continental US. As a result, the client's out-of-coverage notice stays
+hidden over the gaps between the areas.
+
 ## Verifying it
 
 ```
