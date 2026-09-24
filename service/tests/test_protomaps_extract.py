@@ -142,8 +142,8 @@ if "FAIL" in source_url:
     sys.exit(1)
 
 with open(out_path, "wb") as f:
-    f.write(f"fake pmtiles archive from {source_url} bbox={opts.get('--bbox')}"
-            .encode())
+    f.write(f"fake pmtiles archive from {source_url} bbox={opts.get('--bbox')} "
+            f"region={opts.get('--region')}".encode())
 print("Extract required 95 total requests.")
 """
 
@@ -237,6 +237,27 @@ def test_a_non_primary_region_does_not_touch_the_top_level_fields(
     assert nc_dest.is_file()
     assert state["basemap"]["covered_regions"]["nc"]["path"] == \
         "basemap/protomaps/20260913-nc/nc.pmtiles"
+
+
+def test_region_geojson_is_passed_as_region_instead_of_bbox(
+    fake_pmtiles_bin, mirror_root, date_probe_server, tmp_path,
+) -> None:
+    # prewarm_basemap_priority_regions.py — several disjoint areas in one
+    # archive go to the CLI as --region; bbox is only the recorded envelope.
+    geojson = tmp_path / "areas.geojson"
+    geojson.write_text('{"type": "MultiPolygon", "coordinates": []}')
+    dest = pe.acquire(
+        root=mirror_root, bbox=_BBOX, region_name="priority-regions",
+        build_id="20260913-priority", build_date="20260913",
+        upstream_base_url=date_probe_server.base_url, pmtiles_bin=str(fake_pmtiles_bin),
+        filename="priority.pmtiles", primary=False, region_geojson=geojson,
+    )
+
+    body = dest.read_text()
+    assert f"region={geojson}" in body
+    assert "bbox=None" in body
+    state = json.loads((mirror_root / "MIRROR_STATE.json").read_text())
+    assert state["basemap"]["covered_regions"]["priority-regions"]["bbox"] == list(_BBOX)
 
 
 def test_explicit_build_date_skips_probing(fake_pmtiles_bin, mirror_root, date_probe_server) -> None:
