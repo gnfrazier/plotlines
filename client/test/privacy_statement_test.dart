@@ -43,6 +43,13 @@ void main() {
       expect(body.toLowerCase(), contains('identity'));
     });
 
+    test('names OpenTopography and says its key identifies the registrant (issue #148)', () {
+      final body = point('planning_requests').body;
+      expect(body, contains('OpenTopography'));
+      expect(body, contains('carries the key'));
+      expect(body, contains('Apart from that key'));
+    });
+
     test('names the Plotlines mirror (issue #274 — the first client call to it)', () {
       final body = point('planning_requests').body;
       expect(body, contains('Plotlines-operated OSM mirror'));
