@@ -226,7 +226,7 @@ flowchart TD
 | Capability warming | FR121 | N2, M12a, M13 | Per-capability, and **per-layer** inside the layers capability. |
 | No route possible | FR9 | A6, M13 | Names the conflict; offers relaxations. |
 | No data for the area | — | M13 | |
-| Elevation void / missing tile | FR88 | M10, M13 | Resolves to `0.0`, logged once per raster. Never raises, never blocks. |
+| Elevation void / missing tile | FR88 | M10, M13 | A gap in the raster is interpolated from its neighbours; no raster at all is **absent**, never a flat `0.0` (#473, D68). Logged once per raster. Never raises, never blocks. |
 | Layer extraction failed | — | M13 | **New v2.0 state.** The total case — nothing served. |
 | Layers partially served | — | M13, N2 | **New v2.0 state (SPIKE-D #159, #400).** Some requested layers served, others not; names each missing layer and its reason. Never reads as an empty area. |
 | Plugin layer unloadable on licence | FR101 | N5, M13 | Refused at **registration**, not warned at render. |

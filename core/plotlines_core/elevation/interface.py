@@ -41,8 +41,8 @@ OPENTOPO_BASE_URL = "https://portal.opentopography.org/API/globaldem?demtype=GED
 
 class ElevationUnavailable(RuntimeError):
     """Every source missed and no fetch is configured. Callers that hit this at
-    planning time fall back to a degraded (all-`0.0`) sampler; a solve never
-    sees it because a solve never resolves."""
+    planning time carry on with elevation absent (``sampler_for`` returns
+    ``None``, #473); a solve never sees it because a solve never resolves."""
 
 
 def bbox_key(bbox: BBox) -> str:
@@ -187,18 +187,21 @@ class ElevationResolver:
             f"(tried: {', '.join(self.source_names)})"
         )
 
-    def sampler_for(self, bbox: BBox) -> ElevationSampler:
-        """Resolve `bbox` and hand back a sampler over the result.
+    def sampler_for(self, bbox: BBox) -> ElevationSampler | None:
+        """Resolve `bbox` and hand back a sampler over the result, or ``None``
+        when no source resolved it.
 
-        On :class:`ElevationUnavailable` returns a degraded (all-`0.0`) sampler
-        rather than raising — elevation is never the reason planning stops
-        (FR88). The returned sampler does no network I/O, so it is safe to pass
-        into a solve.
+        ``None`` is FR88's *absent* case (#473, ARCH D68): elevation is never
+        the reason planning stops, and it is never fabricated either — before
+        #473 this returned a degraded sampler that read ``0.0`` everywhere, so
+        a region with no DEM reported a flat profile as if it were measured.
+        A returned sampler does no network I/O, so it is safe to pass into a
+        solve.
         """
         try:
             raster = self.resolve(bbox)
         except ElevationUnavailable:
-            return ElevationSampler(Path(f"__unresolved__/{bbox_key(bbox)}.tif"))
+            return None
         return ElevationSampler(raster.path)
 
 
