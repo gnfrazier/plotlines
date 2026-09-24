@@ -61,6 +61,38 @@ void main() {
     expect(tilesLikelyCoverViewport(viewport, tripBbox: tripBbox), isFalse);
   });
 
+  group('the tile upstream\'s own coverage counts (issue #154)', () {
+    // The reopened #154 screenshot: the WNC corridor outside Buncombe, with
+    // the mirror serving it through `/tiles`, still read "no tiles here".
+    const corridor = [-83.6, 35.2, -81.0, 36.4];
+
+    test('a viewport inside the upstream bounds but outside home is covered', () {
+      final viewport = _boundsAround(36.2, -81.7); // Boone, NC
+      expect(tilesLikelyCoverViewport(viewport), isFalse);
+      expect(tilesLikelyCoverViewport(viewport, upstreamBounds: corridor), isTrue);
+    });
+
+    test('unknown upstream bounds leave the answer unchanged', () {
+      final viewport = _boundsAround(36.2, -81.7);
+      expect(coveredViewportFraction(viewport, upstreamBounds: null), 0.0);
+    });
+
+    test('a viewport outside the upstream bounds too is still out-of-coverage', () {
+      final viewport = _boundsAround(40.02, -105.27);
+      expect(tilesLikelyCoverViewport(viewport, upstreamBounds: corridor), isFalse);
+    });
+
+    test('home, trip bbox and upstream overlapping are counted once', () {
+      // Everything nested inside the corridor: the union is the corridor's
+      // clip, never more than the whole viewport.
+      final viewport = _bounds(south: 35.0, west: -84.0, north: 36.6, east: -80.6);
+      const trip = TripBbox(minLat: 35.5, minLon: -82.7, maxLat: 35.7, maxLon: -82.4);
+      final fraction = coveredViewportFraction(viewport, tripBbox: trip, upstreamBounds: corridor);
+      final expected = (2.6 * 1.2) / (3.4 * 1.6);
+      expect(fraction, closeTo(expected, 1e-9));
+    });
+  });
+
   group('coverage is measured as a fraction, not an intersection (issue #318)', () {
     test('a viewport that only clips a corner of coverage reads as out-of-coverage', () {
       // The straddle case that returned `true` before #318: the covered

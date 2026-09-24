@@ -48,6 +48,12 @@ void main() {
       expect(body, contains('Plotlines-operated OSM mirror'));
     });
 
+    test('names map tiles on screen as a mirror request (issue #154 reopen)', () {
+      // Viewing the map outside the home region reads its tiles from the
+      // mirror before any area is drawn.
+      expect(point('planning_requests').body, contains('map tiles on screen'));
+    });
+
     test('says reveal is a product guarantee, not a security boundary', () {
       expect(point('reveal').body, contains('not a security boundary'));
     });

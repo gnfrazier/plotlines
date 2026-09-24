@@ -181,14 +181,20 @@ _COALESCE_GAP_BYTES = 128 * 1024
 
 
 def _resolve_directory_entries(get_bytes: GetBytes, header: dict,
-                               tile_ids: list[int]) -> dict[int, Entry]:
+                               tile_ids: list[int], *,
+                               dir_cache: dict | None = None) -> dict[int, Entry]:
     """Resolve `tile_ids` to their tile-data `Entry` (offset/length in the
     tile-data section), fetching each distinct directory blob — the root,
     and any leaf directory the lookups reach — exactly once rather than the
     fresh root-to-leaf walk `pmtiles.reader.Reader.get` does per call.
     Missing tile_ids are simply absent from the returned dict (the same
-    "no data at this address" case `Reader.get` reports as `None`)."""
-    dir_cache: dict[tuple[int, int], list[Entry]] = {}
+    "no data at this address" case `Reader.get` reports as `None`).
+
+    `dir_cache`, when given, outlives this call — `upstream.UpstreamTileReader`
+    passes its own bounded one so a run of single-tile reads pays for each
+    directory blob once across calls, not once per tile."""
+    if dir_cache is None:
+        dir_cache = {}
 
     def load_dir(offset: int, length: int) -> list[Entry]:
         key = (offset, length)

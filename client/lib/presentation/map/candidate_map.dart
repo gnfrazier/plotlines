@@ -177,7 +177,8 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
         // out-of-coverage viewport.
         final styleFailed = themeResult != null && !themeResult.ok;
         final outOfCoverage = _mapReady &&
-            !tilesLikelyCoverViewport(_mapController.camera.visibleBounds, tripBbox: widget.bbox);
+            !tilesLikelyCoverViewport(_mapController.camera.visibleBounds, tripBbox: widget.bbox,
+                upstreamBounds: sidecar.capabilities?.tilesUpstream?.bounds);
 
         return Stack(children: [
           FlutterMap(

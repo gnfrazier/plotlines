@@ -50,6 +50,7 @@ _ALLOWED_OUTBOUND_HELPERS = {
     "_mirror_capability",       # #488 — Readiness._mirror_state_pool
     "_geocode_via_nominatim",   # #493 — Readiness._geocode_pool
     "_fetch_candidates",        # #490 — Readiness._candidate_fetch_pool
+    "_upstream_tile",           # #154 — Readiness._upstream_tile_pool
 }
 
 

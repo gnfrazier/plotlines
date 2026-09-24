@@ -331,3 +331,11 @@ def test_privacy_statement_is_prose_not_boilerplate():
         assert point.body.endswith(".")
         assert "hereby" not in point.body.lower()
         assert "pursuant to" not in point.body.lower()
+
+
+def test_privacy_statement_names_map_tiles_as_a_mirror_request():
+    # Issue #154 (reopened): viewing the map outside the home region makes
+    # `/tiles` read the on-screen tiles from the mirror, before any area is
+    # drawn — a request the "drawing an area" sentence alone did not cover.
+    body = next(p.body for p in PRIVACY_STATEMENT if p.id == "planning_requests")
+    assert "map tiles on screen" in body

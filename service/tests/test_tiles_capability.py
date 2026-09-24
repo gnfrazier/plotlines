@@ -37,6 +37,7 @@ def test_upstream_unset_reports_local_home_archive(tmp_path: Path) -> None:
         "source": str(default_home_region_archive()),
         "refused": False,
         "reason": None,
+        "bounds": None,
     }
 
 
@@ -44,7 +45,8 @@ def test_upstream_mirror_host_reported_not_refused(tmp_path: Path) -> None:
     url = "http://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles"
     client = TestClient(create_app(tmp_path, tiles_upstream=url))
     upstream = client.get("/health").json()["capabilities"]["tiles"]["upstream"]
-    assert upstream == {"kind": "mirror", "source": url, "refused": False, "reason": None}
+    assert upstream == {"kind": "mirror", "source": url, "refused": False, "reason": None,
+                        "bounds": None}
 
 
 def test_foreign_upstream_is_refused_before_any_region_is_built(
@@ -80,7 +82,8 @@ def test_allow_unmirrored_tiles_suppresses_the_refusal(tmp_path: Path) -> None:
     client = TestClient(
         create_app(tmp_path, tiles_upstream=url, allow_unmirrored_tiles=True))
     upstream = client.get("/health").json()["capabilities"]["tiles"]["upstream"]
-    assert upstream == {"kind": "foreign", "source": url, "refused": False, "reason": None}
+    assert upstream == {"kind": "foreign", "source": url, "refused": False, "reason": None,
+                        "bounds": None}
 
 
 def test_tiles_ready_and_upstream_never_change_shape_when_a_region_fails(

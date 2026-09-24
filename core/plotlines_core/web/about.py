@@ -193,14 +193,19 @@ PRIVACY_STATEMENT: tuple[PrivacyPoint, ...] = (
     # shipped app tries them: the mirror first, Overpass as the fallback.
     # This sentence is pinned to behaviour on both sides (test_web_about
     # and privacy_statement_test.dart) — change the recipient and this
-    # text in the same commit, never afterwards.
+    # text in the same commit, never afterwards. The #154 reopen made the
+    # map itself a caller: `/tiles` reads the on-screen tiles from the
+    # mirror for any viewport the home archive and no region covers.
     PrivacyPoint(
         id="planning_requests",
         title="What planning sends, even signed out",
         body=(
             "Drawing an area to plan in sends that area to a "
             "Plotlines-operated OSM mirror, to prepare local map data for "
-            "the area. If the mirror cannot serve it, the same area goes to "
+            "the area. Looking at the map outside the shipped home region "
+            "asks that same mirror for the map tiles on screen, which tells "
+            "it roughly where you are looking. If the mirror cannot serve "
+            "an area, the same area goes to "
             "Overpass instead, a volunteer-run map-data lookup — today "
             "hosted in Germany or Lithuania — so we can still show you what "
             "is nearby. Typing a place to search for it sends that text to "
