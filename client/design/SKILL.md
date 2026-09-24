@@ -43,6 +43,25 @@ kinds of control (#319): a set the Author *owns* — the trip's modes — is a r
 checked chips, and a *pick from* that set — a passage's mode — is a `SegmentedButton`;
 two identically-drawn selectors for those two things is the defect #271 found.
 
+Cache and canon are drawn differently on the map, by treatment rather than colour.
+A candidate is a salience-scaled `CandidateMarker` ring, and a polygon/line candidate
+also gets an outline on the same salience ramp (`CandidateGeometryLayer`, #475 —
+drawn only when ≥ 48 px on screen, at most 300). A promoted anchor is an
+`AnchorMarker` (#410): a **diamond** (circle/square/triangle were taken), fixed size,
+fully opaque, whose internal mark keeps its candidate's affinity shape for one role
+and becomes a star for several. An area anchor's ring (`AnchorAreaLayer`, #484) has
+one fixed weight on a paper casing, drawn under every line and marker. Promotion
+retires the candidate's pin and ring, so the two never stack.
+
+Basemap styles are Protomaps Light / Dark / Grayscale, chosen through the
+`BasemapStylePref` setting (#465, default *match appearance*) and resolved in one
+place, `resolveBasemapStyleName`. The style JSONs are **generated** by
+`build_basemap_theme.py` and never hand-edited — a hand patch is silently reverted
+by the next run, which is what #486 (open) found for #321's WCAG water-label fix.
+Grayscale/White/Black carry no POIs or landcover (SPIKE-K); say so where offered.
+Advisories (a stale mirror, a refused tile upstream) use the warning icon with
+secondary body text — never gold text, never error styling.
+
 If invoked without guidance, ask what the user wants to build, ask a few focused
 questions, and act as an expert designer who outputs HTML artifacts or Flutter
 code depending on the need.
