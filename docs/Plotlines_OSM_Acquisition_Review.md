@@ -242,6 +242,8 @@ them applied rather than as originally drafted:
   happens to be on a Pi today**: no path may depend on a filesystem, a directory listing, or a
   server-side rewrite, or the eventual move to R2/B2 stops being a hostname change.
 
+**Amended 2026-09-24 (ARCH D67, epic #516):** "everything beyond that one endpoint stays dumb" no longer holds. The mirror gains a *fill worker* beside the store: a miss queues an upstream fetch of the covering area instead of being a final answer. The store itself stays dumb — immutable paths, plain files, a bucket layout — so the hostname-change property above is kept.
+
 The addendum's Phase 1 amendments (**1a**–**1d**) are folded into §6.3, §6.6 and §6.8 below.
 
 ### 6.1 Why the Pi and not the dev box
