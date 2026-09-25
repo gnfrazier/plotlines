@@ -44,9 +44,13 @@ checked chips, and a *pick from* that set — a passage's mode — is a `Segment
 two identically-drawn selectors for those two things is the defect #271 found.
 
 Cache and canon are drawn differently on the map, by treatment rather than colour.
-A candidate is a salience-scaled `CandidateMarker` ring, and a polygon/line candidate
-also gets an outline on the same salience ramp (`CandidateGeometryLayer`, #475 —
-drawn only when ≥ 48 px on screen, at most 300). A promoted anchor is an
+A candidate is a salience-scaled `CandidateMarker` ring — but only the top **300** in
+view by salience get one; the rest are canvas dots whose size and opacity carry the
+same salience ramp, and zoomed out past the trip overview (or past ~2,800 in view)
+they group into count glyphs on a pan-stable 64 px grid (`CandidatePointLayer`, #478,
+SPIKE-G's strategy). Never add a per-candidate widget; a lone candidate in a cell keeps
+its full marker. A polygon/line candidate also gets an outline on the same salience
+ramp (`CandidateGeometryLayer`, #475 — drawn only when ≥ 48 px on screen, at most 300). A promoted anchor is an
 `AnchorMarker` (#410): a **diamond** (circle/square/triangle were taken), fixed size,
 fully opaque, whose internal mark keeps its candidate's affinity shape for one role
 and becomes a star for several. An area anchor's ring (`AnchorAreaLayer`, #484) has
