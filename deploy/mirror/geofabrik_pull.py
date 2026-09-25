@@ -87,17 +87,40 @@ standard library::
         --region north-america/us/north-carolina \\
         --region north-america/us/tennessee \\
         --precut-wnc-corridor
+
+**Polite spacing (issue #530).** Every request to Geofabrik — `.md5`,
+`.osm.pbf`, `.poly`, `index-v1.json` — starts at least
+`--request-spacing-seconds` (default 120) after the previous one *ended*.
+The rules above bound how often a region is touched. This bounds how
+fast a multi-region run touches the server at all, which matters once
+one invocation names a few dozen regions. A cadence- or backoff-skipped
+region makes no request, so it waits for nothing.
+
+**`--precut-priority-regions` (issue #530)** is the OSM counterpart to
+`prewarm_basemap_priority_regions.py`: it pulls the Geofabrik regions under
+the same QA/UAT priority areas the elevation proxy and the basemap were
+pre-warmed for, and precuts them into a grid of non-overlapping cells. See
+`priority_cells` and `precut_cells` below. Needs the repo venv (shapely/
+pyproj for `priority_regions.py`, pyosmium for the clip)::
+
+    .venv/bin/python deploy/mirror/geofabrik_pull.py --precut-priority-regions --dry-run
+    .venv/bin/python deploy/mirror/geofabrik_pull.py --root /srv/plotlines-mirror \\
+        --precut-priority-regions --pull-index
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import logging
+import math
 import os
 import re
+import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -119,6 +142,7 @@ DEFAULT_BASE_URL = "https://download.geofabrik.de"
 DEFAULT_MIN_INTERVAL = timedelta(hours=24)
 DEFAULT_BACKOFF_BASE = timedelta(hours=1)
 DEFAULT_BACKOFF_CAP = timedelta(days=7)
+DEFAULT_REQUEST_SPACING = timedelta(minutes=2)
 
 #: Geofabrik region paths look like `north-america/us/north-carolina`. This
 #: guards against a typo'd or hostile `--region` value being used to build a
@@ -135,6 +159,43 @@ class PullResult:
     region: str
     action: str  # skipped_backoff | skipped_cadence | skipped_unchanged | pulled | failed
     detail: str = ""
+
+
+class RequestThrottle:
+    """Issue #530: holds every Geofabrik request at least `spacing` after the
+    previous one finished. Wraps the request (`with throttle.spaced():`) so
+    the gap is measured from when a download *ended*, not when it began, so
+    a ten-minute `.osm.pbf` body still gets its full pause afterwards. One
+    instance is shared across a whole `run()`, so the spacing holds between
+    regions as well as between a region's own `.md5`/body/`.poly` calls.
+    `spacing=0` (what `NO_SPACING` below uses) never sleeps."""
+
+    def __init__(
+        self,
+        spacing: timedelta,
+        *,
+        sleep: Callable[[float], None] = time.sleep,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._spacing_s = spacing.total_seconds()
+        self._sleep = sleep
+        self._clock = clock
+        self._last_finished: float | None = None
+
+    @contextlib.contextmanager
+    def spaced(self):
+        if self._last_finished is not None and self._spacing_s > 0:
+            remaining = self._last_finished + self._spacing_s - self._clock()
+            if remaining > 0:
+                LOG.info("waiting %.0fs before the next Geofabrik request", remaining)
+                self._sleep(remaining)
+        try:
+            yield
+        finally:
+            self._last_finished = self._clock()
+
+
+NO_SPACING = RequestThrottle(timedelta(0))
 
 
 def _utcnow() -> datetime:
@@ -250,6 +311,15 @@ def _file_md5(path: Path) -> str:
     return h.hexdigest()
 
 
+def _published_md5(md5_path: Path) -> str | None:
+    """The digest in a `.md5` sidecar `pull_region` wrote after verifying
+    its body, or `None` if there is none or it doesn't parse."""
+    try:
+        return _parse_md5_file(md5_path.read_bytes())
+    except (OSError, ValueError):
+        return None
+
+
 def _atomic_write(dest: Path, body: bytes) -> None:
     fd, tmp_name = tempfile.mkstemp(dir=dest.parent, prefix=".pull-")
     try:
@@ -296,7 +366,8 @@ def _looks_like_valid_poly(body: bytes) -> bool:
 
 
 def _fetch_poly(
-    *, region: str, dest_pbf: Path, base_url: str, user_agent: str
+    *, region: str, dest_pbf: Path, base_url: str, user_agent: str,
+    throttle: RequestThrottle = NO_SPACING,
 ) -> None:
     """Best-effort: pulls the region's Osmosis `.poly` boundary alongside
     its already-published `.osm.pbf` (issue #402) —
@@ -313,7 +384,8 @@ def _fetch_poly(
     if dest_poly.exists():
         return
     try:
-        body = _get(_poly_url(base_url, region), user_agent=user_agent)
+        with throttle.spaced():
+            body = _get(_poly_url(base_url, region), user_agent=user_agent)
     except (urllib.error.URLError, OSError) as exc:
         LOG.warning(
             "region %s: .poly fetch failed (%s) — over-selection at this "
@@ -350,6 +422,7 @@ def pull_region(
     user_agent: str = PLOTLINES_USER_AGENT,
     min_interval: timedelta = DEFAULT_MIN_INTERVAL,
     now: Callable[[], datetime] = _utcnow,
+    throttle: RequestThrottle = NO_SPACING,
 ) -> PullResult:
     """Pull one region, mutating only
     `state["geofabrik"]["regions"][region]` (and, on a real pull,
@@ -387,7 +460,8 @@ def pull_region(
                            f"last checked {_iso(checked_at)}")
 
     try:
-        md5_body = _get(_md5_url(base_url, region), user_agent=user_agent)
+        with throttle.spaced():
+            md5_body = _get(_md5_url(base_url, region), user_agent=user_agent)
         remote_md5 = _parse_md5_file(md5_body)
     except (urllib.error.URLError, OSError, ValueError) as exc:
         # Deliberately not setting checked_at here: the 24h cadence gate is
@@ -402,13 +476,19 @@ def pull_region(
     dest = root / "osm" / "geofabrik" / pinned_date / f"{region}.osm.pbf"
     dest_md5 = dest.with_name(dest.name + ".md5")
 
-    if remote_md5 == entry.get("md5") and dest.exists():
+    if dest.exists() and remote_md5 in (entry.get("md5"), _published_md5(dest_md5)):
+        # The `.md5` sidecar counts too (issue #530): a precut removes its
+        # sources from MIRROR_STATE.json but leaves their verified files on
+        # disk, and re-registering one must not re-download hundreds of MB
+        # this mirror already holds. The sidecar is only written after the
+        # body's own digest matched, so it is as good as the state entry.
         LOG.info("region %s: unchanged (%s) — no body bytes transferred",
                   region, remote_md5)
+        entry["md5"] = remote_md5
         entry["consecutive_failures"] = 0
         entry["last_failure"] = None
         _fetch_poly(region=region, dest_pbf=dest, base_url=base_url,
-                    user_agent=user_agent)
+                    user_agent=user_agent, throttle=throttle)
         return PullResult(region, "skipped_unchanged", remote_md5)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -417,8 +497,9 @@ def pull_region(
     os.close(fd)
     tmp_path = Path(tmp_name)
     try:
-        _get_streaming(_pbf_url(base_url, region), tmp_path,
-                        user_agent=user_agent)
+        with throttle.spaced():
+            _get_streaming(_pbf_url(base_url, region), tmp_path,
+                            user_agent=user_agent)
     except (urllib.error.URLError, OSError) as exc:
         tmp_path.unlink(missing_ok=True)
         return _record_failure(region, entry, current_time,
@@ -444,7 +525,7 @@ def pull_region(
     state["geofabrik"]["pinned_date"] = pinned_date
     LOG.info("region %s: pulled %s -> %s", region, remote_md5, dest)
     _fetch_poly(region=region, dest_pbf=dest, base_url=base_url,
-                user_agent=user_agent)
+                user_agent=user_agent, throttle=throttle)
     return PullResult(region, "pulled", remote_md5)
 
 
@@ -457,6 +538,7 @@ def pull_index(
     user_agent: str = PLOTLINES_USER_AGENT,
     min_interval: timedelta = DEFAULT_MIN_INTERVAL,
     now: Callable[[], datetime] = _utcnow,
+    throttle: RequestThrottle = NO_SPACING,
 ) -> PullResult:
     """Pull Geofabrik's `index-v1.json`, mutating only
     `state["geofabrik"]["index"]` — see issue #259 for why this is mirrored
@@ -497,9 +579,10 @@ def pull_index(
     dest = root / "osm" / "geofabrik" / pinned_date / "index-v1.json"
 
     try:
-        body, new_etag = _get_conditional(
-            _index_url(base_url), user_agent=user_agent, etag=entry.get("etag"),
-        )
+        with throttle.spaced():
+            body, new_etag = _get_conditional(
+                _index_url(base_url), user_agent=user_agent, etag=entry.get("etag"),
+            )
     except _NotModified:
         LOG.info("index: unchanged (etag %s) — no body bytes transferred",
                   entry.get("etag"))
@@ -618,6 +701,279 @@ def precut_region(
     return PullResult(dest_region, "precut", digest)
 
 
+# --------------------------------------------------------------------------
+# Priority-region precut (issue #530)
+# --------------------------------------------------------------------------
+
+#: The Geofabrik regions under each `deploy/elevation/priority_regions.py`
+#: area, keyed by its `region_key`, plus the WNC corridor. Named by hand
+#: rather than discovered at run time, the same rule `--region` follows: a
+#: region's covering extent is a Plotlines decision. Derived once
+#: (2026-09-24) by intersecting each area's candidate bboxes with the
+#: region polygons in Geofabrik's `index-v1.json`, leaf regions only, so
+#: British Columbia is its admin regions and California is norcal/socal,
+#: never the larger parent file. Re-derive it when an area in
+#: `priority_regions.py` moves. `test_geofabrik_priority_precut.py` fails if
+#: an area appears there without an entry here.
+PRIORITY_REGION_SOURCES: dict[str, tuple[str, ...]] = {
+    "wnc-corridor": (
+        "north-america/us/north-carolina",
+        "north-america/us/south-carolina",
+        "north-america/us/tennessee",
+    ),
+    "nc": (
+        "north-america/us/georgia",
+        "north-america/us/kentucky",
+        "north-america/us/north-carolina",
+        "north-america/us/south-carolina",
+        "north-america/us/tennessee",
+        "north-america/us/virginia",
+    ),
+    "brp": (
+        "north-america/us/district-of-columbia",
+        "north-america/us/georgia",
+        "north-america/us/indiana",
+        "north-america/us/kentucky",
+        "north-america/us/maryland",
+        "north-america/us/north-carolina",
+        "north-america/us/ohio",
+        "north-america/us/south-carolina",
+        "north-america/us/tennessee",
+        "north-america/us/virginia",
+        "north-america/us/west-virginia",
+    ),
+    "skyline": (
+        "north-america/us/maryland",
+        "north-america/us/virginia",
+        "north-america/us/west-virginia",
+    ),
+    "bwcaw": (
+        "north-america/canada/ontario",
+        "north-america/us/minnesota",
+    ),
+    "yellowstone": (
+        "north-america/us/idaho",
+        "north-america/us/montana",
+        "north-america/us/wyoming",
+    ),
+    "champlain": (
+        "north-america/canada/ontario",
+        "north-america/canada/quebec",
+        "north-america/us/new-hampshire",
+        "north-america/us/new-york",
+        "north-america/us/vermont",
+    ),
+    "pct": (
+        "north-america/canada/british-columbia/island-admreg",
+        "north-america/canada/british-columbia/okanagan-admreg",
+        "north-america/canada/british-columbia/southcoast-admreg",
+        "north-america/mexico",
+        "north-america/us/california/norcal",
+        "north-america/us/california/socal",
+        "north-america/us/nevada",
+        "north-america/us/oregon",
+        "north-america/us/washington",
+    ),
+}
+
+#: The WNC corridor, always part of the priority precut, the same way
+#: `prewarm_basemap_priority_regions.py` always includes it. Duplicates
+#: `plotlines_core.tiles.mirror.WNC_CORRIDOR_BBOX` because this script runs
+#: without `plotlines_core`. `test_geofabrik_priority_precut.py` pins the
+#: two together.
+WNC_CORRIDOR_KEY = "wnc-corridor"
+WNC_CORRIDOR_BBOX = (-83.6, 35.2, -81.0, 36.4)
+
+#: Grid cell size. A cell is pinned as its own extract, and `/clip` scans
+#: every pinned extract whose header box a trip bbox touches, whole. So the
+#: cell size sets the per-request cost the way the corridor's size did.
+#: 2° is about the corridor's 2.6° x 1.2°, which measured ~102 s on the Pi
+#: (#402).
+DEFAULT_PRIORITY_CELL_DEGREES = 2.0
+
+BBox = tuple[float, float, float, float]
+
+
+@dataclass(frozen=True)
+class PrecutCell:
+    name: str
+    bbox: BBox
+    source_regions: tuple[str, ...]
+
+
+def _cell_name(west: float, south: float) -> str:
+    ew = "w" if west < 0 else "e"
+    ns = "s" if south < 0 else "n"
+    return f"priority-{ew}{abs(round(west)):03d}-{ns}{abs(round(south)):02d}"
+
+
+def priority_cells(
+    areas: list[tuple[str, BBox]],
+    *,
+    sources: dict[str, tuple[str, ...]] = PRIORITY_REGION_SOURCES,
+    cell_degrees: float = DEFAULT_PRIORITY_CELL_DEGREES,
+) -> list[PrecutCell]:
+    """Cut `areas` (`(region_key, bbox)` pairs) into a fixed, degree-aligned
+    grid and return one cell per grid square any area reaches.
+
+    Why a grid rather than one precut per area: the areas overlap heavily
+    (the NC bbox, both BRP tiles, Skyline and the WNC corridor all cover
+    WNC). `/clip` would scan every overlapping precut for a WNC trip,
+    whole, and its cost is O(pinned extract). Grid cells never overlap, so
+    a trip bbox touches only the one to four small cells around it.
+
+    Each cell's bbox is the grid square clamped to the envelope of the
+    area pieces inside it. The pinned cell then claims no coverage beyond
+    the areas, so a trip outside them still gets an honest
+    `NoMirrorCoverage` instead of a partial clip. Its sources are every
+    region listed for the areas that reach it."""
+    unknown = sorted({key for key, _ in areas} - set(sources))
+    if unknown:
+        raise ValueError(
+            f"no Geofabrik sources listed for area(s) {unknown} — add them to "
+            f"PRIORITY_REGION_SOURCES"
+        )
+    envelopes: dict[tuple[int, int], list[float]] = {}
+    keys: dict[tuple[int, int], set[str]] = {}
+    for key, (west, south, east, north) in areas:
+        for i in range(math.floor(west / cell_degrees), math.ceil(east / cell_degrees)):
+            for j in range(math.floor(south / cell_degrees), math.ceil(north / cell_degrees)):
+                piece = (
+                    max(west, i * cell_degrees), max(south, j * cell_degrees),
+                    min(east, (i + 1) * cell_degrees), min(north, (j + 1) * cell_degrees),
+                )
+                if piece[0] >= piece[2] or piece[1] >= piece[3]:
+                    continue  # the area only touches this square's edge
+                env = envelopes.get((i, j))
+                if env is None:
+                    envelopes[(i, j)] = list(piece)
+                else:
+                    envelopes[(i, j)] = [min(env[0], piece[0]), min(env[1], piece[1]),
+                                         max(env[2], piece[2]), max(env[3], piece[3])]
+                keys.setdefault((i, j), set()).add(key)
+    return [
+        PrecutCell(
+            name=_cell_name(i * cell_degrees, j * cell_degrees),
+            bbox=tuple(envelopes[(i, j)]),
+            source_regions=tuple(sorted(set().union(*(sources[k] for k in keys[(i, j)])))),
+        )
+        for i, j in sorted(envelopes)
+    ]
+
+
+def _link_scratch_mirror(scratch: Path, *, root: Path, pinned_date: str,
+                         source_regions: tuple[str, ...]) -> None:
+    """A throwaway mirror tree naming only `source_regions`, symlinked to
+    the real files, so `clip_bbox` reads exactly this cell's sources. Run
+    against the live root, it would also pick up the WNC corridor and every
+    cell already pinned."""
+    real_dir = root / "osm" / "geofabrik" / pinned_date
+    scratch_dir = scratch / "osm" / "geofabrik" / pinned_date
+    for region in source_regions:
+        for suffix in (".osm.pbf", ".poly"):
+            target = real_dir / f"{region}{suffix}"
+            if not target.exists():
+                continue  # no .poly: clip_bbox treats that as unknown coverage
+            link = scratch_dir / f"{region}{suffix}"
+            link.parent.mkdir(parents=True, exist_ok=True)
+            os.symlink(target, link)
+    (scratch / "MIRROR_STATE.json").write_text(json.dumps({
+        "geofabrik": {"pinned_date": pinned_date,
+                      "regions": {region: {} for region in source_regions}},
+    }))
+
+
+def precut_cells(
+    *,
+    root: Path,
+    pinned_date: str,
+    state: dict,
+    cells: list[PrecutCell],
+    replace_sources: bool = True,
+    supersedes: tuple[str, ...] = (),
+    checkpoint: Callable[[], None] = lambda: None,
+) -> list[PullResult]:
+    """Issue #530: pin one precut extract per `priority_cells` cell, each
+    clipped by `mirror_clip.clip_bbox` from only that cell's sources. This
+    is `precut_region`'s mechanism (#375) applied per cell. It drops that
+    function's "drew from exactly the declared sources" check on purpose:
+    a cell lists every region of the areas that reach it, and
+    `clip_bbox`'s header-box/`.poly` selection rightly skips the ones that
+    don't reach the cell itself.
+
+    Each cell is clipped to a temp file and moved into place, so a re-run
+    never rewrites a file `/clip` might be reading. A cell that clips to
+    nothing (open water, say) is skipped and any earlier entry for it is
+    removed. After every cell, `replace_sources` unregisters the full-region
+    sources and `supersedes` unregisters extracts the cells now cover (the
+    WNC corridor). Files stay on disk either way. `checkpoint` runs after
+    each cell so a crash hours into a run keeps the cells already done.
+
+    Memory: `clip_bbox` stamps each output's header box by reading the
+    whole output in memory. A 2° cell over a dense metro is several times
+    the corridor's 97 MB. If a run gets OOM-killed, rerun with a smaller
+    `--precut-cell-degrees`, or run it on a larger machine and copy the
+    pin directory over."""
+    try:
+        from plotlines_service.mirror_clip import NoMirrorCoverage, clip_bbox
+    except ImportError as exc:
+        raise SystemExit(
+            "error: --precut-priority-regions requires plotlines-service "
+            "installed with its mirror-clip extra (pyosmium) — run it from "
+            "the repo venv (`uv sync --extra mirror-clip` in service/)"
+        ) from exc
+
+    regions = state.setdefault("geofabrik", {}).setdefault("regions", {})
+    needed = sorted({r for cell in cells for r in cell.source_regions})
+    missing = [r for r in needed if r not in regions]
+    if missing:
+        raise SystemExit(
+            f"error: priority precut source region(s) not pulled yet: {missing}"
+        )
+
+    pin_dir = root / "osm" / "geofabrik" / pinned_date
+    results = []
+    for n, cell in enumerate(cells, start=1):
+        LOG.info("precut %s (%d/%d): clipping %s to bbox=%s",
+                 cell.name, n, len(cells), list(cell.source_regions), cell.bbox)
+        dest = pin_dir / f"{cell.name}.osm.pbf"
+        with tempfile.TemporaryDirectory(dir=pin_dir, prefix=".precut-") as scratch:
+            scratch_root = Path(scratch)
+            _link_scratch_mirror(scratch_root, root=root, pinned_date=pinned_date,
+                                 source_regions=cell.source_regions)
+            staged = scratch_root / "cell.osm.pbf"
+            try:
+                result = clip_bbox(cell.bbox, root=scratch_root, dest=staged,
+                                   tmp_dir=scratch_root)
+            except NoMirrorCoverage as exc:
+                LOG.info("precut %s: nothing to pin (%s)", cell.name, exc)
+                regions.pop(cell.name, None)
+                results.append(PullResult(cell.name, "skipped_empty", str(exc)))
+                checkpoint()
+                continue
+            os.replace(staged, dest)
+        precut_time = _utcnow()
+        regions[cell.name] = {
+            "precut_from": list(result.source_regions),
+            "precut_bbox": list(cell.bbox),
+            "pulled_at": _iso(precut_time),
+            "checked_at": _iso(precut_time),
+            "md5": _file_md5(dest),
+        }
+        results.append(PullResult(cell.name, "precut", regions[cell.name]["md5"]))
+        checkpoint()
+
+    if replace_sources:
+        for region in needed:
+            regions.pop(region, None)
+    for region in supersedes:
+        regions.pop(region, None)
+    LOG.info("precut: pinned %d cell(s); replace_sources=%s, superseded %s",
+             sum(r.action == "precut" for r in results), replace_sources,
+             list(supersedes))
+    return results
+
+
 def load_state(state_path: Path) -> dict:
     with open(state_path) as f:
         return json.load(f)
@@ -637,10 +993,16 @@ def run(
     now: Callable[[], datetime] = _utcnow,
     pull_index_too: bool = False,
     precut: dict | None = None,
+    priority_precut: dict | None = None,
+    request_spacing: timedelta = DEFAULT_REQUEST_SPACING,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> list[PullResult]:
     """`precut`, when given, is
-    `{"dest_region", "bbox", "replace_sources"}` (issue #375) — applied
-    after every region pull succeeds, never against a partial pull."""
+    `{"dest_region", "bbox", "replace_sources"}` (issue #375).
+    `priority_precut` is `{"cells", "replace_sources", "supersedes"}`
+    (issue #530, see `precut_cells`). Either is applied only after every
+    region pull succeeds, never against a partial pull. `request_spacing`
+    is the gap held between Geofabrik requests for the whole run."""
     state_path = root / "MIRROR_STATE.json"
     if not state_path.exists():
         raise SystemExit(
@@ -648,11 +1010,13 @@ def run(
             f"against {root} first."
         )
     state = load_state(state_path)
+    throttle = RequestThrottle(request_spacing, sleep=sleep)
     results = []
     for region in regions:
         result = pull_region(region=region, root=root, pinned_date=pinned_date,
                               state=state, base_url=base_url,
-                              min_interval=min_interval, now=now)
+                              min_interval=min_interval, now=now,
+                              throttle=throttle)
         results.append(result)
         # Checkpoint after every region so a mid-run crash on region N
         # doesn't lose the state recorded for regions before it.
@@ -660,13 +1024,23 @@ def run(
     if pull_index_too:
         results.append(pull_index(root=root, pinned_date=pinned_date, state=state,
                                    base_url=base_url, min_interval=min_interval,
-                                   now=now))
+                                   now=now, throttle=throttle))
         save_state(state_path, state)
-    if precut is not None and not any(r.action == "failed" for r in results):
+    pulls_ok = not any(r.action == "failed" for r in results)
+    if precut is not None and pulls_ok:
         results.append(precut_region(
             root=root, pinned_date=pinned_date, state=state,
             dest_region=precut["dest_region"], source_regions=regions,
             bbox=precut["bbox"], replace_sources=precut["replace_sources"],
+        ))
+        save_state(state_path, state)
+    if priority_precut is not None and pulls_ok:
+        results.extend(precut_cells(
+            root=root, pinned_date=pinned_date, state=state,
+            cells=priority_precut["cells"],
+            replace_sources=priority_precut["replace_sources"],
+            supersedes=priority_precut["supersedes"],
+            checkpoint=lambda: save_state(state_path, state),
         ))
         save_state(state_path, state)
     return results
@@ -680,9 +1054,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--root", type=Path, default=Path("/srv/plotlines-mirror"))
     parser.add_argument(
-        "--region", action="append", required=True, dest="regions",
+        "--region", action="append", default=[], dest="regions",
         help="Geofabrik region path, e.g. north-america/us/north-carolina "
-             "(repeatable).",
+             "(repeatable). Required unless --precut-priority-regions "
+             "names the regions itself.",
     )
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument(
@@ -726,6 +1101,40 @@ def main(argv: list[str] | None = None) -> int:
              "of each source on every request that also matches the "
              "precut's header box (see #375's 'not fixed here' note).",
     )
+    parser.add_argument(
+        "--precut-priority-regions", action="store_true",
+        help="Issue #530: pull the Geofabrik regions under the elevation/"
+             "basemap priority areas (deploy/elevation/priority_regions.py, "
+             "plus the WNC corridor) and pin one non-overlapping precut per "
+             "grid cell. Replaces the full-region sources and the "
+             "wnc-corridor precut in MIRROR_STATE.json unless "
+             "--precut-keep-sources. Defaults --pinned-date to the mirror's "
+             "current pin. Needs the repo venv (shapely/pyproj, pyosmium).",
+    )
+    parser.add_argument(
+        "--priority-regions", default=None,
+        help="With --precut-priority-regions: comma-separated "
+             "priority_regions region_key values (default: all). The WNC "
+             "corridor is always included.",
+    )
+    parser.add_argument(
+        "--precut-cell-degrees", type=float,
+        default=DEFAULT_PRIORITY_CELL_DEGREES,
+        help="Grid cell size for --precut-priority-regions (default: "
+             "%(default)s). Smaller cells mean smaller pinned extracts, "
+             "cheaper /clip requests and less memory per cut.",
+    )
+    parser.add_argument(
+        "--request-spacing-seconds", type=float,
+        default=DEFAULT_REQUEST_SPACING.total_seconds(),
+        help="Minimum gap between the end of one Geofabrik request and the "
+             "start of the next (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="With --precut-priority-regions: print the cells and the "
+             "regions it would pull, then exit. No network, no writes.",
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args(argv)
 
@@ -733,6 +1142,38 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
     )
+
+    if args.precut_priority_regions:
+        if args.regions or args.precut_wnc_corridor:
+            parser.error("--precut-priority-regions names its own regions and "
+                         "covers the WNC corridor; drop --region and "
+                         "--precut-wnc-corridor")
+        try:
+            cells = _selected_priority_cells(args.priority_regions,
+                                             args.precut_cell_degrees)
+        except ValueError as exc:
+            parser.error(str(exc))
+        regions = sorted({r for cell in cells for r in cell.source_regions})
+        if args.dry_run:
+            _print_priority_plan(cells, regions)
+            return 0
+        pinned_date = args.pinned_date or _current_pin(args.root)
+        results = run(
+            regions, root=args.root, pinned_date=pinned_date,
+            base_url=args.base_url,
+            min_interval=timedelta(hours=args.min_interval_hours),
+            pull_index_too=args.pull_index_too,
+            priority_precut={
+                "cells": cells,
+                "replace_sources": not args.precut_keep_sources,
+                "supersedes": () if args.precut_keep_sources else (WNC_CORRIDOR_KEY,),
+            },
+            request_spacing=timedelta(seconds=args.request_spacing_seconds),
+        )
+        return 1 if any(r.action == "failed" for r in results) else 0
+
+    if not args.regions:
+        parser.error("--region is required (or pass --precut-priority-regions)")
 
     precut = None
     if args.precut_wnc_corridor:
@@ -761,9 +1202,58 @@ def main(argv: list[str] | None = None) -> int:
         min_interval=timedelta(hours=args.min_interval_hours),
         pull_index_too=args.pull_index_too,
         precut=precut,
+        request_spacing=timedelta(seconds=args.request_spacing_seconds),
     )
     failed = [r for r in results if r.action == "failed"]
     return 1 if failed else 0
+
+
+def _selected_priority_cells(keys_arg: str | None, cell_degrees: float) -> list[PrecutCell]:
+    """The priority areas (the same `build_priority_candidates()` the
+    elevation and basemap prewarms read, so the three can't drift), narrowed
+    by `--priority-regions`, plus the WNC corridor, cut into cells."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "elevation"))
+    try:
+        from priority_regions import build_priority_candidates
+    except ImportError as exc:
+        raise SystemExit(
+            "error: --precut-priority-regions needs shapely and pyproj for "
+            "deploy/elevation/priority_regions.py — run it from the repo venv"
+        ) from exc
+    candidates = build_priority_candidates()
+    if keys_arg:
+        wanted = {k.strip() for k in keys_arg.split(",") if k.strip()}
+        unknown = wanted - {c.region_key for c in candidates}
+        if unknown:
+            raise ValueError(f"unknown priority region key(s): {', '.join(sorted(unknown))}")
+        candidates = [c for c in candidates if c.region_key in wanted]
+    areas = [(WNC_CORRIDOR_KEY, WNC_CORRIDOR_BBOX)]
+    areas += [(c.region_key, c.bbox) for c in candidates]
+    return priority_cells(areas, cell_degrees=cell_degrees)
+
+
+def _current_pin(root: Path) -> str:
+    """The mirror's existing `geofabrik.pinned_date`, so new regions land in
+    the same pin directory as what is already pinned. `/clip` reads one pin
+    directory, so pulling into a new one would orphan the corridor. Today's
+    date only when the mirror has no pin yet."""
+    state_path = root / "MIRROR_STATE.json"
+    try:
+        pin = (load_state(state_path).get("geofabrik") or {}).get("pinned_date")
+    except (OSError, ValueError):
+        pin = None
+    return pin or _utcnow().strftime("%Y-%m-%d")
+
+
+def _print_priority_plan(cells: list[PrecutCell], regions: list[str]) -> None:
+    print(f"{'cell':<20} {'bbox':<40} sources")
+    for cell in cells:
+        bbox = ", ".join(f"{v:.2f}" for v in cell.bbox)
+        names = ", ".join(r.rsplit("/", 1)[-1] for r in cell.source_regions)
+        print(f"{cell.name:<20} ({bbox}){'':<4} {names}")
+    print(f"\n{len(cells)} cells; {len(regions)} Geofabrik regions to pull:")
+    for region in regions:
+        print(f"  {region}")
 
 
 if __name__ == "__main__":

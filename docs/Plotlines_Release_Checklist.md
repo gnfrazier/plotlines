@@ -43,6 +43,11 @@ exists to prevent.
       stale OSM data. **Pass `--precut-wnc-corridor` on this run** (issue #375) — it re-clips the
       freshly-pulled full-state extracts down to the WNC corridor and re-pins the smaller result;
       skipping it on a bump silently regresses `/clip`'s wall time back to a full-state scan.
+      **Once the mirror carries the priority-region cells** (issue #530, `priority-*` entries in
+      `MIRROR_STATE.json`), bump with `--precut-priority-regions --pinned-date <today>` instead.
+      It re-pulls every priority source and re-cuts every cell, and it covers the corridor too.
+      Running `--precut-wnc-corridor` on that mirror would pin the corridor into the new pin
+      directory alone and leave every cell behind in the old one.
 
 ## Verifying a bump
 
