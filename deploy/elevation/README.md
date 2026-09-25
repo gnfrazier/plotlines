@@ -210,9 +210,10 @@ this proxy holds it; a sidecar started with `--elevation-upstream` uses
 `core/plotlines_core/elevation/qa_proxy_client.py`'s unauthenticated
 fetcher instead of `OpenTopographyClient`, and carries no key on the wire at
 all (`core/tests/test_elevation_qa_proxy_client.py` asserts exactly that).
-Unset, as today, elevation stays `elevation_source_not_configured` — safe,
-just uninformative; nothing breaks by leaving a sidecar unpointed at this
-proxy.
+Unset, a sidecar reads its local DEM cache and — only if
+`PLOTLINES_OPENTOPOGRAPHY_API_KEY` is set on that machine — fetches misses
+from OpenTopography directly (issue #148's production path). Nothing breaks by
+leaving a sidecar unpointed at this proxy.
 
 ## Why this isn't folded into `deploy/mirror/`
 

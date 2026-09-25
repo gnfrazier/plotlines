@@ -10,6 +10,12 @@ coordinate. This module is what writes those values onto the routing graph:
   the climb from ``u`` to ``v`` only, never a negative number (FR89). The
   descending direction of the same street is a *separate* directed edge in the
   ``MultiDiGraph`` and carries its own ``elev_gain`` of ``0.0``.
+* **every edge** also gets osmnx's ``grade`` (signed rise over ``length``) and
+  ``grade_abs`` — the attribute FR2's peaks weight and ``max_grade`` read
+  (``scoring.profile.features``). Before #148 only the committed fixture carried
+  it (osmnx baked it in at fixture build), so on every region built at runtime
+  the climbing weight was inert. The edge's cached ``_pl_feat`` tuple is dropped
+  so the solver re-reads the new grade.
 
 Enrichment is a planning-time step (FR121: it gates only elevation-dependent
 metrics, nothing else) and it never raises. Two void cases, per FR88 as amended
@@ -45,6 +51,18 @@ ELEV_GAIN_KEY = "elev_gain"
 
 #: Node attribute written by :func:`enrich_elevation`, in metres.
 ELEVATION_KEY = "elevation"
+
+#: Edge attributes written by :func:`enrich_elevation` under osmnx's own names
+#: (``add_edge_grades``), so a runtime-built region reads exactly like the
+#: fixture graph osmnx graded at build time.
+GRADE_KEY = "grade"
+GRADE_ABS_KEY = "grade_abs"
+
+#: `scoring.profile.features`' per-edge cache. Stale the moment grade changes.
+_FEATURE_CACHE_KEY = "_pl_feat"
+
+#: osmnx's `add_edge_grades` default precision, matched so the two agree.
+_GRADE_PRECISION = 3
 
 
 @dataclass(frozen=True)
@@ -83,7 +101,9 @@ def enrich_elevation(
         for n in node_ids:
             graph.nodes[n].pop(ELEVATION_KEY, None)
         for u, v, key in graph.edges(keys=True):
-            graph.edges[u, v, key].pop(ELEV_GAIN_KEY, None)
+            data = graph.edges[u, v, key]
+            for attr in (ELEV_GAIN_KEY, GRADE_KEY, GRADE_ABS_KEY, _FEATURE_CACHE_KEY):
+                data.pop(attr, None)
         graph.graph.pop("_pl_node_elev", None)
         graph.graph["_pl_elev_enrichment"] = EnrichmentReport(
             nodes_annotated=0, edges_annotated=0, void_nodes=0, degraded=True,
@@ -109,8 +129,17 @@ def enrich_elevation(
 
     edges_annotated = 0
     for u, v, key in graph.edges(keys=True):
-        gain = elev_by_node[v] - elev_by_node[u]
-        graph.edges[u, v, key][ELEV_GAIN_KEY] = max(0.0, gain)
+        data = graph.edges[u, v, key]
+        rise = elev_by_node[v] - elev_by_node[u]
+        data[ELEV_GAIN_KEY] = max(0.0, rise)
+        try:
+            length = float(data.get("length") or 0.0)
+        except (TypeError, ValueError):
+            length = 0.0
+        grade = round(rise / length, _GRADE_PRECISION) if length > 0 else 0.0
+        data[GRADE_KEY] = grade
+        data[GRADE_ABS_KEY] = abs(grade)
+        data.pop(_FEATURE_CACHE_KEY, None)
         edges_annotated += 1
 
     # The loader caches node elevations on the graph for repeated snapping

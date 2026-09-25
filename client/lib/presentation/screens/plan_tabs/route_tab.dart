@@ -15,6 +15,7 @@ import '../../../state/current_trip_provider.dart';
 import '../../../state/planner_ui_state.dart';
 import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
+import '../../../state/trip_bbox_provider.dart';
 import '../../display_format_of.dart';
 import '../../map/alternate_markers.dart';
 import '../../map/anchor_map_points.dart';
@@ -246,10 +247,17 @@ class _RouteTabState extends ConsumerState<RouteTab> {
 
   /// FR121/N2 — same "no trip-wide flag" reading `new_route_screen.dart`'s
   /// `_routingCapability` uses: before the sidecar has answered `/health`
-  /// even once this is an honest wait, not a bare "not ready".
-  CapabilityStatus get _elevationCapability =>
-      ref.watch(sidecarManagerProvider).capabilities?.elevation ??
-      const CapabilityStatus(ready: false, reason: 'waiting for the sidecar');
+  /// even once this is an honest wait, not a bare "not ready". Since #148
+  /// elevation is per region too: the trip's own region's outcome, so an
+  /// area no source covered shows its reason rather than a climb of 0 m.
+  CapabilityStatus get _elevationCapability {
+    final caps = ref.watch(sidecarManagerProvider).capabilities;
+    if (caps == null) {
+      return const CapabilityStatus(ready: false, reason: 'waiting for the sidecar');
+    }
+    final region = ref.watch(tripRegionKeyProvider);
+    return caps.elevationFor(region is TripRegionResolved ? region.key : null);
+  }
 
   @override
   Widget build(BuildContext context) {

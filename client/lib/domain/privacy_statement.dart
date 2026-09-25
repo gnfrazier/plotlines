@@ -55,7 +55,10 @@ const List<PrivacyPoint> privacyStatement = [
   // as the fallback. Pinned on both sides — change the recipient and this
   // text in the same commit. The #154 reopen made the map itself a caller:
   // `/tiles` reads the on-screen tiles from the mirror for any viewport the
-  // home archive and no region covers.
+  // home archive and no region covers. Issue #148 made OpenTopography a
+  // recipient — only on a device set up with a key — and that key is the one
+  // identifying thing any of these requests carries, so the last sentence
+  // says so rather than stay true only by omission.
   PrivacyPoint(
     id: 'planning_requests',
     title: 'What planning sends, even signed out',
@@ -68,9 +71,13 @@ const List<PrivacyPoint> privacyStatement = [
         "Overpass instead, a volunteer-run map-data lookup — today hosted "
         "in Germany or Lithuania — so we can still show you what is "
         "nearby. Typing a place to search for it sends that text to "
-        "Nominatim, the OpenStreetMap Foundation's place-name lookup. None "
-        "of these requests carries your account, your name, or any other "
-        "identity.",
+        "Nominatim, the OpenStreetMap Foundation's place-name lookup. If "
+        "this device has been set up with an OpenTopography key, drawing an "
+        "area also sends it to OpenTopography, a US-based research data "
+        "service, to download terrain elevation for the area; that request "
+        "carries the key, which OpenTopography can link to whoever "
+        "registered it. Apart from that key, none of these requests carries "
+        "your account, your name, or any other identity.",
   ),
   PrivacyPoint(
     id: 'reveal',

@@ -9,10 +9,10 @@ reuse a cached) routable graph for exactly that area.
 **Deliberately graph-only.** `spikes/shared/regions.py` also builds a DEM via
 an AWS Terrarium fetcher; that is a spike-only shortcut and is *not* promoted
 here — D20/FR85 pin elevation to GEDTM30 via OpenTopography with no fallback,
-and a second elevation source is exactly what D20 forbids. Elevation
-acquisition for an on-demand region stays gated on FR87 (issue #148); a
-region built by this module reports `routing` ready while `elevation` stays
-honestly not-ready (issue #154's explicit scoping note).
+and a second elevation source is exactly what D20 forbids. Elevation for an
+on-demand region is resolved and enriched by the sidecar's region build after
+this module's graph is ready (issue #148, ARCH D69) — this module never
+touches it, and `routing` never waits on it.
 """
 
 from __future__ import annotations

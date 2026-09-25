@@ -29,6 +29,8 @@ See ARCH §6.2, §7.5, §12.1 and PRD M3 / M10 (FR62, FR85, FR87, FR88).
 from plotlines_core.elevation.enrich import (
     ELEV_GAIN_KEY,
     ELEVATION_KEY,
+    GRADE_ABS_KEY,
+    GRADE_KEY,
     EnrichmentReport,
     enrich_elevation,
     enrich_from_resolver,
@@ -103,6 +105,8 @@ __all__ = [
     "ELEVATION_PROVIDER",
     "ELEV_GAIN_KEY",
     "FREE_TIER_DAILY_CALL_CEILING",
+    "GRADE_ABS_KEY",
+    "GRADE_KEY",
     "HOME_REGION_BBOX",
     "HOME_REGION_NAME",
     "HOME_REGION_SLUG",

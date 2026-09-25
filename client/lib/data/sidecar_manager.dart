@@ -106,9 +106,9 @@ class CapabilityStatus {
 
   /// Stopped trying, one way or another — distinct from `!ready`, which is
   /// also true while still loading. Generalized from a `'failed:'`-prefix
-  /// check (issue #154): a capability that will simply never load in this
-  /// codebase (`elevation`, gated on #148) reports a fixed reason with no
-  /// `progress`, which is exactly the same "stop waiting on this" signal a
+  /// check (issue #154): a capability that will simply never load (e.g.
+  /// `elevation` with no OpenTopography key configured, #148) reports a
+  /// fixed reason with no `progress`, which is exactly the same "stop waiting on this" signal a
   /// genuine failure gives — the absence of `progress` is what actually
   /// means "not actively loading" in every case `/health` produces. A
   /// disabled control reads this to decide between an honest wait and an
@@ -146,6 +146,10 @@ class CapabilityStatus {
     // traceback, a host:port, an errno or an exception repr is replaced by a
     // fixed phrase and left in the log where it belongs.
     if (looksLikeRawDiagnostic(r)) r = 'something went wrong preparing it';
+    // Issue #148 — still loading, but with no honest ETA to give (a region's
+    // elevation fetch is network-bound; the sidecar sends `progress` and
+    // deliberately no `eta_s`). A wait, not a stop: never "unavailable".
+    if (etaS == null && progress != null) return '$capabilityLabel loading — $r';
     if (etaS == null) return '$capabilityLabel unavailable — $r';
     final mins = (etaS! / 60).ceil();
     final wait = mins <= 1 ? 'about a minute' : 'about $mins minutes';
@@ -277,15 +281,16 @@ class MirrorCapability {
 
 /// Snapshot of `/health`'s `capabilities` object. `tiles` and `layers` are
 /// ready as soon as the sidecar answers at all in this codebase (B1);
-/// `routing` settles per region (issue #154) and `elevation` never settles
-/// to ready in this codebase (gated on #148) but does settle to "stopped
-/// trying" immediately — see `CapabilityStatus.failed`.
+/// `routing` settles per region (issue #154), and so does `elevation` since
+/// #148 — its top-level status says which source the sidecar uses, and
+/// [elevationFor] reads a region's own outcome.
 class Capabilities {
   const Capabilities({
     required this.tiles,
     required this.layers,
     required this.routing,
     required this.elevation,
+    this.elevationRegions = const {},
     this.tilesArchiveId,
     this.tilesUpstream,
     this.mirror = const MirrorCapability(configured: false),
@@ -320,7 +325,20 @@ class Capabilities {
   /// workspace. Per-layer state lives in [layersPerLayer].
   final CapabilityStatus layers;
   final RoutingCapability routing;
+
+  /// Process-wide: whether this sidecar acquires elevation at all, and from
+  /// where (issue #148). A region's own outcome is [elevationFor].
   final CapabilityStatus elevation;
+
+  /// `/health`'s `capabilities.elevation.regions` (issue #148) — each
+  /// region's own elevation: waiting, fetching, ready, or a finished sentence
+  /// saying why that area has none (absent, never flat — FR88/#473).
+  final Map<String, CapabilityStatus> elevationRegions;
+
+  /// A region's elevation, falling back to the process-wide [elevation]
+  /// when there is no key yet or the sidecar predates the per-region map.
+  CapabilityStatus elevationFor(String? key) =>
+      (key == null ? null : elevationRegions[key]) ?? elevation;
 
   /// `/health`'s `capabilities.layers.per_layer` — one state string per
   /// layer id: `'ready'`, `'loading'`, or `'failed:<reason>'` (story N2).
@@ -349,6 +367,7 @@ class Capabilities {
     final tilesJson = json['tiles'] as Map<String, dynamic>;
     final tilesUpstreamJson = tilesJson['upstream'] as Map<String, dynamic>?;
     final mirrorJson = json['mirror'] as Map<String, dynamic>?;
+    final elevationJson = json['elevation'] as Map<String, dynamic>;
     return Capabilities(
       tiles: CapabilityStatus.fromJson(tilesJson),
       tilesArchiveId: tilesJson['archive'] as String?,
@@ -357,7 +376,11 @@ class Capabilities {
           : TilesUpstreamCapability.fromJson(tilesUpstreamJson),
       layers: CapabilityStatus.fromJson(layersJson),
       routing: RoutingCapability.fromJson(json['routing'] as Map<String, dynamic>),
-      elevation: CapabilityStatus.fromJson(json['elevation'] as Map<String, dynamic>),
+      elevation: CapabilityStatus.fromJson(elevationJson),
+      elevationRegions: {
+        for (final e in ((elevationJson['regions'] as Map<String, dynamic>?) ?? {}).entries)
+          e.key: CapabilityStatus.fromJson(e.value as Map<String, dynamic>),
+      },
       mirror: mirrorJson == null
           ? const MirrorCapability(configured: false)
           : MirrorCapability.fromJson(mirrorJson),

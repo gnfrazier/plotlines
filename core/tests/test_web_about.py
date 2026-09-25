@@ -286,6 +286,16 @@ def test_privacy_statement_names_planning_requests_recipients_and_no_identity():
     assert "identity" in body.lower()
 
 
+def test_privacy_statement_names_opentopography_and_its_key():
+    # Issue #148: region builds send the trip bbox to OpenTopography when a
+    # key is configured, and the key identifies whoever registered it — the
+    # "no identity" sentence would otherwise be false for that request.
+    body = next(p.body for p in PRIVACY_STATEMENT if p.id == "planning_requests")
+    assert "OpenTopography" in body
+    assert "carries the key" in body
+    assert "Apart from that key" in body
+
+
 def test_privacy_statement_names_the_plotlines_mirror():
     # Issue #274 (Phase 3.2): the first client call to the mirror's /clip
     # endpoint, so the recipient must be named the moment the call exists —

@@ -110,17 +110,17 @@ void main() {
       segment: _segmentWithClimbAndProfile(),
       elevationCapability: const CapabilityStatus(
         ready: false,
-        reason: 'elevation_source_not_configured:tracked_in_148',
+        reason: 'Elevation isn\'t set up on this device — no OpenTopography key is configured, so only areas with terrain data already cached have it',
       ),
     );
 
     expect(find.text('↑ —'), findsOneWidget);
     expect(
-      find.text('Elevation unavailable — elevation_source_not_configured:tracked_in_148'),
+      find.text('Elevation unavailable — Elevation isn\'t set up on this device — no OpenTopography key is configured, so only areas with terrain data already cached have it'),
       findsOneWidget,
     );
     expect(
-      find.text('Elevation profile unavailable — elevation_source_not_configured:tracked_in_148'),
+      find.text('Elevation profile unavailable — Elevation isn\'t set up on this device — no OpenTopography key is configured, so only areas with terrain data already cached have it'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

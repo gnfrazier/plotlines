@@ -43,11 +43,11 @@ void main() {
     });
 
     test('a fixed not-configured reason (no failed: prefix) also reads as stopped trying', () {
-      // Issue #154's elevation capability: never a failure, never going to
-      // load, and carries no `progress` — the same "stop waiting" signal.
+      // Elevation with no OpenTopography key (#148): never a failure, never
+      // going to load, and carries no `progress` — the same "stop waiting" signal.
       final status = CapabilityStatus.fromJson({
         'ready': false,
-        'reason': 'elevation_source_not_configured:tracked_in_148',
+        'reason': 'Elevation isn\'t set up on this device — no OpenTopography key is configured, so only areas with terrain data already cached have it',
       });
       expect(status.failed, isTrue);
     });
@@ -89,6 +89,16 @@ void main() {
       expect(text, contains('loading'));
       expect(text, contains('available in'));
       expect(text, contains('3 minutes'));
+    });
+
+    test('loading with progress but no eta (#148 elevation fetch) is a wait, not "unavailable"', () {
+      const status = CapabilityStatus(
+        ready: false,
+        reason: 'fetching terrain data for this area',
+        progress: 0,
+      );
+      expect(status.failed, isFalse);
+      expect(status.describe('Elevation'), 'Elevation loading — fetching terrain data for this area');
     });
 
     test('a one-minute eta reads as "about a minute", not "about 1 minutes"', () {
@@ -145,7 +155,7 @@ void main() {
     test('tiles/layers ready immediately even with no region ensured yet', () {
       final caps = Capabilities.fromJson(healthBody(
         regions: {},
-        elevation: {'ready': false, 'reason': 'elevation_source_not_configured:tracked_in_148'},
+        elevation: {'ready': false, 'reason': 'Elevation isn\'t set up on this device — no OpenTopography key is configured, so only areas with terrain data already cached have it'},
       ));
       expect(caps.tiles.ready, isTrue);
       expect(caps.layers.ready, isTrue);
@@ -159,7 +169,7 @@ void main() {
           'abc123': {'ready': false, 'reason': 'graph_loading', 'progress': 0.5, 'eta_s': 3},
           'def456': {'ready': true},
         },
-        elevation: {'ready': false, 'reason': 'elevation_source_not_configured:tracked_in_148'},
+        elevation: {'ready': false, 'reason': 'Elevation isn\'t set up on this device — no OpenTopography key is configured, so only areas with terrain data already cached have it'},
       ));
       expect(caps.routing.forRegion('abc123')!.ready, isFalse);
       expect(caps.routing.forRegion('def456')!.ready, isTrue);
@@ -174,7 +184,7 @@ void main() {
             'reason': 'offline — will rebuild once reconnected',
           },
         },
-        elevation: {'ready': false, 'reason': 'elevation_source_not_configured:tracked_in_148'},
+        elevation: {'ready': false, 'reason': 'Elevation isn\'t set up on this device — no OpenTopography key is configured, so only areas with terrain data already cached have it'},
       ));
       final region = caps.routing.forRegion('shrunk1')!;
       expect(region.ready, isTrue);
@@ -184,7 +194,7 @@ void main() {
     test('forRegion is null for an unensured key, distinct from not-ready', () {
       final caps = Capabilities.fromJson(healthBody(
         regions: {},
-        elevation: {'ready': false, 'reason': 'elevation_source_not_configured:tracked_in_148'},
+        elevation: {'ready': false, 'reason': 'Elevation isn\'t set up on this device — no OpenTopography key is configured, so only areas with terrain data already cached have it'},
       ));
       expect(caps.routing.forRegion('never-ensured'), isNull);
       expect(caps.routing.forRegion(null), isNull);
@@ -211,7 +221,7 @@ void main() {
       // on FR87 (#148) and is never attempted for any region.
       final caps = Capabilities.fromJson(healthBody(
         regions: {'abc123': {'ready': true}},
-        elevation: {'ready': false, 'reason': 'elevation_source_not_configured:tracked_in_148'},
+        elevation: {'ready': false, 'reason': 'Elevation isn\'t set up on this device — no OpenTopography key is configured, so only areas with terrain data already cached have it'},
       ));
       expect(caps.elevation.ready, isFalse);
       expect(caps.elevation.failed, isTrue);
@@ -454,6 +464,47 @@ void main() {
       final caps = Capabilities.fromJson(body({'ready': true}));
       expect(caps.layersPerLayer, isEmpty);
       expect(caps.layerReady('anything'), isTrue);
+    });
+  });
+
+  group('Capabilities.elevationFor (issue #148)', () {
+    Map<String, dynamic> health(Map<String, dynamic> elevation) => {
+          'tiles': {'ready': true},
+          'layers': {'ready': true},
+          'routing': {'regions': <String, dynamic>{}},
+          'elevation': elevation,
+        };
+
+    test("reads a region's own elevation from elevation.regions", () {
+      final caps = Capabilities.fromJson(health({
+        'ready': true,
+        'reason': 'opentopography',
+        'regions': {
+          'r1': {'ready': true},
+          'r2': {'ready': false, 'reason': 'failed:Couldn\'t download terrain data for this area'},
+        },
+      }));
+      expect(caps.elevationFor('r1').ready, isTrue);
+      final r2 = caps.elevationFor('r2');
+      expect(r2.ready, isFalse);
+      expect(r2.failed, isTrue);
+      expect(r2.describe('Elevation'), 'Elevation unavailable — Couldn\'t download terrain data for this area');
+    });
+
+    test('falls back to the process-wide status for an unknown or null key', () {
+      final caps = Capabilities.fromJson(health({
+        'ready': false,
+        'reason': 'Elevation isn\'t set up on this device',
+        'regions': <String, dynamic>{},
+      }));
+      expect(caps.elevationFor('nope').reason, 'Elevation isn\'t set up on this device');
+      expect(caps.elevationFor(null).ready, isFalse);
+    });
+
+    test('an older sidecar with no regions map still parses', () {
+      final caps = Capabilities.fromJson(health({'ready': false, 'reason': 'x'}));
+      expect(caps.elevationRegions, isEmpty);
+      expect(caps.elevationFor('r1').reason, 'x');
     });
   });
 }

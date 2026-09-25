@@ -135,7 +135,7 @@ def _always_fails(monkeypatch) -> list[int]:
     def fake_build(self, cache_dir, tiles_upstream, allow_unmirrored=False,
                    elevation_upstream=None, mirror_clip_url=None,
                    mirror_clip_client_key=None, held_graph_lookup=None,
-                   build_phase_pools=None):
+                   build_phase_pools=None, elevation_wiring=None):
         with lock:
             calls[0] += 1
         self.build_attempts += 1
