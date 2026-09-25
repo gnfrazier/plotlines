@@ -817,6 +817,56 @@ again the moment more than one region is ever pinned side by side without
 `--precut-keep-sources` off — a future non-WNC deployment, or a corridor
 precut done per-state instead of merged.
 
+### `--precut-priority-regions` (issue #530)
+
+The OSM counterpart to the basemap prewarm above. With only `wnc-corridor`
+pinned, a trip anywhere else gets `NoMirrorCoverage` from `/clip`, and the
+sidecar falls back to Overpass, even where `priority.pmtiles` draws the
+map. This flag covers the same areas the elevation proxy and the basemap
+were pre-warmed for: `deploy/elevation/priority_regions.build_priority_candidates()`
+plus the WNC corridor.
+
+- **Sources.** The Geofabrik regions under each area are a hand-named
+  table, `PRIORITY_REGION_SOURCES` in `geofabrik_pull.py`, derived once
+  from `index-v1.json`'s region polygons. There are 29 of them today,
+  including Ontario, Quebec, Mexico (the PCT's southern end) and three
+  British Columbia admin regions. `--region` is not used in this mode.
+- **Cells, not one precut per area.** The areas overlap: NC, both BRP
+  tiles, Skyline and the corridor all cover WNC. `/clip` scans every pinned
+  extract whose header box a trip touches, whole. So the areas are cut into
+  a fixed grid of non-overlapping cells, `--precut-cell-degrees`, 2° by
+  default, about the corridor's size. Each cell is clamped to the areas
+  inside it and pinned as its own region (`priority-w084-n34`, …) with the
+  cell as its header box. A trip bbox then scans only the one to four cells
+  around it, and a trip outside every area still gets an honest 404.
+- **What it replaces.** After the cells are pinned, the full-region sources
+  and `wnc-corridor` are unregistered. The cells cover the corridor, and
+  keeping it would add a second scan to every WNC request. The files stay
+  on disk. `--precut-keep-sources` keeps every registration.
+- **Pin directory.** It defaults `--pinned-date` to the mirror's current
+  pin, because `/clip` reads one pin directory. A source already on disk
+  with a matching verified `.md5` sidecar is not downloaded again, so NC
+  and TN, left on disk by the corridor precut, cost one `.md5` request each.
+- **Pacing.** Every Geofabrik request waits `--request-spacing-seconds`,
+  120 by default, after the previous one finished. That holds for every mode
+  of this script, not only this one. With 29 regions at three requests
+  each, the pauses alone come to about three hours.
+
+```
+.venv/bin/python deploy/mirror/geofabrik_pull.py --precut-priority-regions --dry-run
+.venv/bin/python deploy/mirror/geofabrik_pull.py --root /srv/plotlines-mirror \
+    --precut-priority-regions --pull-index
+```
+
+It needs the repo venv (shapely/pyproj for `priority_regions.py`, pyosmium
+for the clip). `clip_bbox` stamps each cell's header by reading the whole
+cell output in memory, and a 2° cell over a dense metro is several times
+the corridor's 97 MB. If the Pi runs out of memory, rerun with
+`--precut-cell-degrees 1`, or run it on a bigger machine against a copy of
+the tree and copy the pin directory back. Each finished cell is saved to
+`MIRROR_STATE.json` as it lands, so a crash loses only the cell in
+progress. A rerun cuts every cell again.
+
 ## `/clip`'s three other measured optimizations (issue #402)
 
 `#375` fixed wall time by shrinking what gets scanned (the precut above).

@@ -399,7 +399,8 @@ def test_run_persists_state_and_leaves_other_keys_untouched(upstream, mirror_roo
 
     t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
     results = gp.run([_REGION], root=mirror_root, pinned_date="2026-09-01",
-                      base_url=upstream.base_url, now=_clock(t0))
+                      base_url=upstream.base_url, now=_clock(t0),
+                      request_spacing=timedelta(0))
 
     assert [r.action for r in results] == ["pulled"]
     state = json.loads((mirror_root / "MIRROR_STATE.json").read_text())
@@ -528,15 +529,147 @@ def test_run_pulls_index_only_when_the_flag_is_passed(upstream, mirror_root) -> 
     t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
 
     default_results = gp.run([_REGION], root=mirror_root, pinned_date="2026-09-01",
-                              base_url=upstream.base_url, now=_clock(t0))
+                              base_url=upstream.base_url, now=_clock(t0),
+                              request_spacing=timedelta(0))
     assert [r.region for r in default_results] == [_REGION]
 
     t1 = t0 + timedelta(hours=25)
     with_index = gp.run([_REGION], root=mirror_root, pinned_date="2026-09-01",
                          base_url=upstream.base_url, now=lambda: t1,
-                         pull_index_too=True)
+                         pull_index_too=True, request_spacing=timedelta(0))
 
     assert [r.region for r in with_index] == [_REGION, "index-v1.json"]
     assert with_index[-1].action == "pulled"
     state = json.loads((mirror_root / "MIRROR_STATE.json").read_text())
     assert state["geofabrik"]["index"]["etag"] == _INDEX_ETAG
+
+
+# --------------------------------------------------------------------------
+# Issue #530 — request spacing and on-disk .md5 reuse
+# --------------------------------------------------------------------------
+
+
+class _FakeClock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+        self.slept: list[float] = []
+
+    def clock(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.slept.append(seconds)
+        self.now += seconds
+
+
+def test_throttle_never_waits_before_the_first_request() -> None:
+    fake = _FakeClock()
+    throttle = gp.RequestThrottle(timedelta(minutes=2), sleep=fake.sleep, clock=fake.clock)
+
+    with throttle.spaced():
+        pass
+
+    assert fake.slept == []
+
+
+def test_throttle_measures_the_gap_from_when_the_previous_request_ended() -> None:
+    fake = _FakeClock()
+    throttle = gp.RequestThrottle(timedelta(minutes=2), sleep=fake.sleep, clock=fake.clock)
+
+    with throttle.spaced():
+        fake.now += 600  # a ten-minute body download
+    fake.now += 30  # 30 s of local work before the next request
+    with throttle.spaced():
+        pass
+
+    # The download's own ten minutes do not count toward the gap: the
+    # pause runs from when it finished.
+    assert fake.slept == [90.0]
+
+
+def test_throttle_does_not_wait_once_the_gap_has_already_passed() -> None:
+    fake = _FakeClock()
+    throttle = gp.RequestThrottle(timedelta(minutes=2), sleep=fake.sleep, clock=fake.clock)
+
+    with throttle.spaced():
+        pass
+    fake.now += 121
+    with throttle.spaced():
+        pass
+
+    assert fake.slept == []
+
+
+def test_run_spaces_every_geofabrik_request_by_two_minutes_by_default(
+    upstream, mirror_root
+) -> None:
+    slept: list[float] = []
+    t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+
+    gp.run([_REGION], root=mirror_root, pinned_date="2026-09-01",
+           base_url=upstream.base_url, now=lambda: t0, pull_index_too=True,
+           sleep=slept.append)
+
+    # .md5, body, .poly, index: four requests, a pause before each of the
+    # last three, each just under 120 s (the local server answers in ms).
+    assert len(upstream.request_log) == 4
+    assert len(slept) == 3
+    assert all(115 < s <= 120 for s in slept)
+
+
+def test_run_makes_no_request_and_no_pause_for_a_cadence_skipped_region(
+    upstream, mirror_root
+) -> None:
+    t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+    gp.run([_REGION], root=mirror_root, pinned_date="2026-09-01",
+           base_url=upstream.base_url, now=lambda: t0, request_spacing=timedelta(0))
+    upstream.request_log.clear()
+    slept: list[float] = []
+
+    results = gp.run([_REGION], root=mirror_root, pinned_date="2026-09-01",
+                     base_url=upstream.base_url, now=lambda: t0 + timedelta(hours=1),
+                     sleep=slept.append)
+
+    assert [r.action for r in results] == ["skipped_cadence"]
+    assert upstream.request_log == []
+    assert slept == []
+
+
+def test_a_verified_file_on_disk_is_not_re_downloaded_when_its_entry_was_removed(
+    upstream, mirror_root
+) -> None:
+    """A precut unregisters its sources but leaves their verified files on
+    disk (#375). Registering one again, as `--precut-priority-regions`
+    does for NC/TN after `--precut-wnc-corridor`, must not fetch hundreds
+    of MB this mirror already has."""
+    state = {"geofabrik": {"regions": {}}}
+    t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+    gp.pull_region(region=_REGION, root=mirror_root, pinned_date="2026-09-01",
+                   state=state, base_url=upstream.base_url, now=_clock(t0))
+    state["geofabrik"]["regions"].pop(_REGION)  # what a precut does
+    upstream.request_log.clear()
+
+    result = gp.pull_region(region=_REGION, root=mirror_root, pinned_date="2026-09-01",
+                            state=state, base_url=upstream.base_url, now=_clock(t0))
+
+    assert result.action == "skipped_unchanged"
+    assert [path for path, _ in upstream.request_log] == [f"/{_REGION}-latest.osm.pbf.md5"]
+    assert state["geofabrik"]["regions"][_REGION]["md5"] == _PBF_DIGEST
+
+
+def test_a_stale_md5_sidecar_on_disk_still_downloads_the_new_body(
+    upstream, mirror_root
+) -> None:
+    state = {"geofabrik": {"regions": {}}}
+    t0 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+    dest = mirror_root / "osm" / "geofabrik" / "2026-09-01" / f"{_REGION}.osm.pbf"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"last month's extract")
+    dest.with_name(dest.name + ".md5").write_text(
+        f"{hashlib.md5(b'last month').hexdigest()}  x-latest.osm.pbf\n")
+
+    result = gp.pull_region(region=_REGION, root=mirror_root, pinned_date="2026-09-01",
+                            state=state, base_url=upstream.base_url, now=_clock(t0))
+
+    assert result.action == "pulled"
+    assert dest.read_bytes() == _PBF_BODY
