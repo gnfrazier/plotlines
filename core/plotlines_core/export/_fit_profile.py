@@ -182,7 +182,12 @@ def centroid(polygon: list[tuple[float, float]]) -> tuple[float, float]:
         cx += (x0 + x1) * cross
         cy += (y0 + y1) * cross
     a *= 0.5
-    if math.isclose(a, 0.0):
+    # An absolute tolerance, in degrees²: `isclose(a, 0.0)` with only the
+    # default relative tolerance is true for exactly 0.0 and nothing else, so
+    # a collinear ring whose float cross products leave ~1e-14 of "area"
+    # divided by it and put the centroid thousands of km away. 1e-12 deg² is
+    # ~1 cm², far below any real drawn area.
+    if math.isclose(a, 0.0, abs_tol=1e-12):
         lat = sum(p[0] for p in pts) / n
         lon = sum(p[1] for p in pts) / n
         return lat, lon
