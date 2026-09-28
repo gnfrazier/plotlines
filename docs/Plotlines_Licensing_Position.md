@@ -50,7 +50,7 @@ open, surface by surface, is whether §4.4/§4.5 attach on top of that.
 | **Anonymous web reading view** (D59/SPIKE-F, spec'd, gated to Leg 4, not yet a live endpoint) | No | The always-visible subset of a shared trip, to an unauthenticated reader | Yes, by the same reasoning — a share token is precisely a mechanism for making a Derivative Database available to the public over a network | The reader gets a rendered view (D59: `anonymous_view(payload)`), not a raw JSON extract, in the shipped design — same reasoning as hosted web. **The open question is the API shape underneath it** — see below |
 | **Trip sharing generally** (share tokens; the mechanism D59 builds on) | No | A trip payload — or a filtered view of one — to a recipient who is not the Author | Yes, once it ships, on the same reasoning | Turns on whether the wire format is a rendered view or a structured document (JSON with `anchors[].provenance` intact) — the precise ambiguity §5's LWG question names |
 | **Cloning** (D55, decided, not yet built) | No | Copies an allowlisted subset of one Author's trip into a **different Author's own trip** in the same service, never crossing to an outside party by itself | Weaker case for Public Use — the copy stays inside Plotlines-operated infrastructure between two accounts, not published to the world. It becomes a Public Use question only combined with whatever that second Author then does (share, print, host) | Not independently substantial; inherits whatever the eventual publishing act's reading is |
-| **Mirror-side bbox clip** (Phase 1, Q1-C, `#264`) | Not yet | Raw `.osm.pbf` bytes, clipped to a bbox, served by the Plotlines mirror to the Plotlines client | **Yes — this is unambiguous Derivative Database redistribution**, not a substantiality question at all: it is literally OSM data, clipped. Already correctly scoped as such (L2's "easy case") and already gated by L4/L6 (`COPYRIGHT.txt` in the mirror tree, `#256`/`#259`; the attribution gate reaching the graph, `#269`) | N/A — full ODbL notice obligation, satisfied mechanically once L4/L6 land; no share-alike question because it *is* OSM data, not a merged database |
+| **Mirror-side bbox clip** (Phase 1, Q1-C, `#264`) | **Yes** — `/clip` since #262/#264 (closed 2026-09-13); the app's default path since Phase 3 (#272) | Raw `.osm.pbf` bytes, clipped to a bbox, served by the Plotlines mirror to the Plotlines client | **Yes — this is unambiguous Derivative Database redistribution**, not a substantiality question at all: it is literally OSM data, clipped. Already correctly scoped as such (L2's "easy case") and already gated by L4/L6 (`COPYRIGHT.txt` in the mirror tree, `#256`/`#259`; the attribution gate reaching the graph, `#269`) | N/A — full ODbL notice obligation, satisfied mechanically once L4/L6 land; no share-alike question because it *is* OSM data, not a merged database |
 | **Interactive Overpass affordance** (Phase 5, hard-capped, `#284`–`#285`) | Not yet | A live query result, ephemeral, rendered to the requesting Author only | Same as row 1 — Use, not redistribution | N/A |
 
 Three things fall out of this table that the addendum's L2 framing (correctly) pushed toward, and
@@ -120,7 +120,7 @@ exactly what §3 confirms is already true in the shipped schema.
 
 ---
 
-## 3. The separable-layer decision: **yes** — and it shipped 2026-08-26
+## 3. The separable-layer decision: **yes** — and it shipped 2026-08-24 to 2026-08-26
 
 L3 asked whether to "adopt a per-feature `source`/provenance discriminator on the candidate record
 and the promoted `Node`, so an 'offer the derivative database' obligation can be satisfied by
@@ -230,11 +230,13 @@ one:
 > (coordinate, name, category, tags — via `AnchorProvenance.layer`, shipped 2026-08-24) stays
 > structurally separable from Plotlines/Author-authored content, which is what keeps ODbL
 > share-alike from reaching Plotlines' own tables. Design posture: produced works and mirror-side
-> clips only — hosted web and the anonymous reading view serve rendered output, not raw
-> payload dumps, to an unauthenticated party; any authenticated API surface exposing
-> `anchors[].provenance` is Author-or-invited-only. The mirror-side bbox clip (Q1-C) is unrelated
-> literal OSM redistribution, governed by L4/L6, not this decision. Attribution is owed on every
-> surface regardless and is already mechanical (D45).**
+> clips only — hosted web and the anonymous reading view serve rendered output, never a raw
+> payload dump, to an unauthenticated party; any authenticated API surface exposing
+> `anchors[].provenance` stays Author-or-invited-only.**
+>
+> *(The decision as recorded in ARCH §17; the ARCH row's rationale adds that the mirror-side bbox
+> clip (Q1-C) is unrelated literal OSM redistribution, governed by L4/L6. Attribution is owed on
+> every surface regardless and is already mechanical (D45).)*
 
 This is recorded in `Plotlines_ARCHITECTURE_v2.md` §17 alongside D59, in the same commit as this
 document.

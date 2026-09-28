@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://plotlines.app/schemas/trip_payload-1.0.0.json",
   "title": "Plotlines trip payload",
-  "description": "The canonical plotline (ARCH P8). One document serves three consumers: `plotlines-core`'s return type from compose_day/split_trip (ARCH §6.1), drift's local `trip.payload` column (ARCH §10.3), and the hosted `trip.payload JSONB` column (ARCH §10.1) — deserialized into the Flutter domain layer's Trip/Day/Segment/WeightProfile classes (ARCH §9.1). Written by SPIKE-20. Scope: the 31 desktop-MVP stories of MVP Scope §1.4.1–1.4.2 plus G2a/K10/M12/M13.\n\nRules that hold everywhere in this document:\n  1. UNITS ARE SI. Distances and elevations are metres, durations are seconds, angles are degrees. Miles/feet/°F are a display preference (FR79/K5) applied at render time and never stored.\n  2. COORDINATES ARE [lon, lat], RFC 7946 order, WGS84, at most 7 decimal places (~1 cm).\n  3. ABSENT MEANS UNSET. `null` is never a legal value: a field that has no value is omitted. (Two languages disagree about what a null means; neither disagrees about a missing key.)\n  4. KEY ORDER CARRIES NO MEANING, anywhere, including in map-valued fields. Postgres JSONB does not preserve it.\n  5. EVERY NUMBER THAT CAN BE FRACTIONAL IS A JSON NUMBER AND MUST BE READ AS ONE. A writer may emit `4` where `4.0` was meant; readers must accept both (Dart: `(v as num).toDouble()`).\n  6. `additionalProperties: false` EVERYWHERE. An unknown key is a schema drift bug surfacing at the boundary that introduced it, which is the entire point of having this file.",
+  "description": "The canonical plotline (ARCH P8). One document serves three consumers: `plotlines-core`'s return type from compose_day/split_trip (ARCH §7.1), drift's local `trip.payload` column (ARCH §11.3), and the hosted `trip.payload JSONB` column (ARCH §11.1) — deserialized into the Flutter domain layer's Trip/Day/Segment/WeightProfile classes (ARCH §10.1). Written by SPIKE-20. Scope: the 31 desktop-MVP stories of MVP Scope §1.4.1–1.4.2 plus G2a/K10/M12/M13.\n\nRules that hold everywhere in this document:\n  1. UNITS ARE SI. Distances and elevations are metres, durations are seconds, angles are degrees. Miles/feet/°F are a display preference (FR79/K5) applied at render time and never stored.\n  2. COORDINATES ARE [lon, lat], RFC 7946 order, WGS84, at most 7 decimal places (~1 cm).\n  3. ABSENT MEANS UNSET. `null` is never a legal value: a field that has no value is omitted. (Two languages disagree about what a null means; neither disagrees about a missing key.)\n  4. KEY ORDER CARRIES NO MEANING, anywhere, including in map-valued fields. Postgres JSONB does not preserve it.\n  5. EVERY NUMBER THAT CAN BE FRACTIONAL IS A JSON NUMBER AND MUST BE READ AS ONE. A writer may emit `4` where `4.0` was meant; readers must accept both (Dart: `(v as num).toDouble()`).\n  6. `additionalProperties: false` EVERYWHERE. An unknown key is a schema drift bug surfacing at the boundary that introduced it, which is the entire point of having this file.",
   "type": "object",
   "required": ["schema_version", "id", "title", "created_at", "updated_at", "days"],
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "description": "Semver of THIS schema, written by the producer. Not the trip's `version` (ARCH §10.1's FR59 comparison key), which lives in the database column, never in the payload.",
+      "description": "Semver of THIS schema, written by the producer. Not the trip's `version` (ARCH §11.4's FR59 comparison key), which lives in the database column, never in the payload.",
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$"
     },
@@ -185,7 +185,7 @@
     },
 
     "weight_profile": {
-      "description": "ARCH §6.3's WeightProfile in its Author-facing form (FR2–FR5). `surface` is per class and bipolar (FR4, SPIKE-03) — a single relative dial can only tolerate gravel, never seek it.",
+      "description": "ARCH §7.3's WeightProfile in its Author-facing form (FR2–FR5). `surface` is per class and bipolar (FR4, SPIKE-03) — a single relative dial can only tolerate gravel, never seek it.",
       "type": "object",
       "required": ["name"],
       "additionalProperties": false,
@@ -205,7 +205,7 @@
         },
         "terrain_technicality": {
           "$ref": "#/$defs/author_weight",
-          "description": "FR14's land half. Unvalidated (ARCH §6.3: SPIKE-04 never measured sac_scale/mtb:scale density) — carried, not trusted."
+          "description": "FR14's land half. Unvalidated (ARCH §7.3: SPIKE-04 never measured sac_scale/mtb:scale density) — carried, not trusted."
         }
       }
     },
@@ -293,7 +293,7 @@
     },
 
     "elevation": {
-      "description": "FR89 — enrichment output. Gain is positive-only, per ARCH §6.1's enrich_elevation contract. A void is never an error (FR88, amended by ARCH D68): a gap inside a raster that opened is interpolated from the nearest finite samples, and `void_samples` counts how many were; when no elevation source resolved the segment is absent and this object is omitted, never written as a flat 0.0 profile.",
+      "description": "FR89 — enrichment output. Gain is positive-only, per ARCH §7.1's enrich_elevation contract. A void is never an error (FR88, amended by ARCH D68): a gap inside a raster that opened is interpolated from the nearest finite samples, and `void_samples` counts how many were; when no elevation source resolved the segment is absent and this object is omitted, never written as a flat 0.0 profile.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -453,7 +453,7 @@
     },
 
     "station_activity": {
-      "description": "FR109, FR16b, FR24 / O4 — the activity a `station`-kind role models: something done *at* a place with a duration (a crag, hot spring, sauna, summit scramble, canyon descent), reached by a traversal mode and then performed — never a way of travelling between two places (that is a `travel_mode`). Valid only on a role whose `kind` is `station`; the role `$defs` enforces that with an `allOf`/`if`. `activity_type` is one of the keys in `core/plotlines_core/multimodal/station_activities.py`'s registry, which supplies the label and default duration for the set the app ships knowing about — but it is a plain string, not an enum, on purpose: adding an activity type is a config entry there (O4's AC), and a plugin may name one this build has never heard of (FR144). `duration_s` feeds day timing — `trips.dashboard.station_hold_s` sums it across a day's station roles into moving-vs-elapsed time, ETAs, and scheduled-event conflict detection (FR16b, C12): a three-hour crag is three hours of the day. `required_gear` feeds the mode/activity gear checklist (FR24, C8) and, like a declared `difficulty`, is always-visible logistics — neither carries a reveal field and neither is routed through the reveal gate (gear must be packable before departure). `difficulty` is the Author's own free-text declaration (FR14/B8 posture — published grading is too domain-specific and, per SPIKE-C, too thin to impose a scale), shown as data and never composed into a sentence (FR145); an absent difficulty is absent, never rendered as 'easy'.",
+      "description": "FR109, FR16b, FR24 / O4 — the activity a `station`-kind role models: something done *at* a place with a duration (a crag, hot spring, sauna, summit scramble, canyon descent), reached by a traversal mode and then performed — never a way of travelling between two places (that is a `travel_mode`). Valid only on a role whose `kind` is `station`; the role `$defs` enforces that with an `allOf`/`if`. `activity_type` is one of the keys in `core/plotlines_core/multimodal/station_activities.py`'s registry, which supplies the label and default duration for the set the app ships knowing about — but it is a plain string, not an enum, on purpose: adding an activity type is a config entry there (O4's AC), and a plugin may name one this build has never heard of (FR100). `duration_s` feeds day timing — `trips.dashboard.station_hold_s` sums it across a day's station roles into moving-vs-elapsed time, ETAs, and scheduled-event conflict detection (FR16b, C12): a three-hour crag is three hours of the day. `required_gear` feeds the mode/activity gear checklist (FR24, C8) and, like a declared `difficulty`, is always-visible logistics — neither carries a reveal field and neither is routed through the reveal gate (gear must be packable before departure). `difficulty` is the Author's own free-text declaration (FR14/B8 posture — published grading is too domain-specific and, per SPIKE-C, too thin to impose a scale), shown as data and never composed into a sentence (FR145); an absent difficulty is absent, never rendered as 'easy'.",
       "type": "object",
       "required": ["activity_type"],
       "additionalProperties": false,
@@ -734,7 +734,7 @@
     },
 
     "transition": {
-      "description": "FR12 / B3 — the mode change between two segments of a day. It is a first-class member of the day rather than a node on either segment, because it belongs to neither: `compose_day(segments, transitions)` (ARCH §6.1) takes them as separate lists for exactly this reason.",
+      "description": "FR12 / B3 — the mode change between two segments of a day. It is a first-class member of the day rather than a node on either segment, because it belongs to neither: `compose_day(segments, transitions)` (ARCH §7.1) takes them as separate lists for exactly this reason.",
       "type": "object",
       "required": ["id", "from_segment_id", "to_segment_id"],
       "additionalProperties": false,
