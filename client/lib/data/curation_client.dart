@@ -70,6 +70,19 @@ class CurationClient {
     }));
   }
 
+  /// Connection refused / reset — the sidecar died, is restarting, or has
+  /// not bound its port yet. `package:http` raises a [http.ClientException]
+  /// (wrapping the `SocketException`) for all of these; left alone it
+  /// escaped every `on CurationException catch` and reached the screen as
+  /// `ClientException with SocketException: Connection refused … port = …`,
+  /// or as an unhandled error. Same typed exception, same retryable 503, as
+  /// a timeout (issue #496's rule, applied to the other transport failure).
+  Never _unreachable(String doing) {
+    throw CurationException(503, jsonEncode({
+      'detail': "the sidecar couldn't be reached while $doing — try again in a moment",
+    }));
+  }
+
   /// FR97 — the layer catalog and this (mode, day type) pair's default live
   /// set.
   Future<LayerCatalog> layerCatalog({required String mode, required String dayType}) async {
@@ -80,6 +93,8 @@ class CurationClient {
           .timeout(layerCatalogTimeout);
     } on TimeoutException {
       _timedOut('loading the layer catalog');
+    } on http.ClientException {
+      _unreachable('loading the layer catalog');
     }
     _checkOk(resp);
     return LayerCatalog.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
@@ -107,6 +122,8 @@ class CurationClient {
           .timeout(scoreCandidatesTimeout);
     } on TimeoutException {
       _timedOut('scoring candidates');
+    } on http.ClientException {
+      _unreachable('scoring candidates');
     }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -139,6 +156,8 @@ class CurationClient {
       })).timeout(candidatesTimeout);
     } on TimeoutException {
       _timedOut('extracting candidates for this area');
+    } on http.ClientException {
+      _unreachable('extracting candidates for this area');
     }
     _checkOk(resp);
     return CandidateExtraction.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
@@ -189,6 +208,8 @@ class CurationClient {
           .timeout(analyzeColocationTimeout);
     } on TimeoutException {
       _timedOut('looking for clusters');
+    } on http.ClientException {
+      _unreachable('looking for clusters');
     }
     _checkOk(resp);
     return ColocationResult.fromJson(jsonDecode(resp.body) as Map<String, dynamic>);
@@ -229,6 +250,10 @@ class CurationException implements Exception {
   final int statusCode;
   final String body;
 
+  /// The sidecar's `{"detail": …}` sentence, or else the raw body. Callers
+  /// that display this pass it through `looksLikeRawDiagnostic` with their
+  /// own contextual fallback phrase (`trip_candidates_provider.dart`,
+  /// `proposals_provider.dart`), which is why the raw body is kept here.
   String get message {
     try {
       final decoded = jsonDecode(body);
