@@ -200,5 +200,15 @@ void main() {
       // copyWith is literal — it does not infer. The provider does the pairing.
       expect(shared.copyWith(shared: false).assigneeIds, {'ann'});
     });
+
+    test('a personal-list line still holding assignees stays personal across a save', () {
+      // `toJson` omitted `shared: false`, and the pre-C8 back-compat read
+      // takes "assignees, no flag" as shared — so a save and reload turned a
+      // personal line back into Shared Group Gear carried by `ann`.
+      final personal = GearItem(id: 'z', label: 'Stove', assigneeIds: const {'ann'});
+      final back = GearItem.fromJson(personal.toJson());
+      expect(back.shared, isFalse);
+      expect(back.assigneeIds, {'ann'});
+    });
   });
 }
