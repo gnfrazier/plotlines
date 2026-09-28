@@ -243,6 +243,19 @@ void main() {
       _expectSameJson(trip.toJson(), json, 'day_limits trip');
     });
 
+    test('an empty cue sheet keeps its schema-required `cues` array', () {
+      // `$defs/cue_sheet` requires `cues`; `pruneJson` drops every empty list,
+      // so a sheet derived over a passage with no cue-worthy features wrote a
+      // payload the schema rejects — the same required-but-prunable shape
+      // `Trip.days` guards against.
+      final json = {'generated_at': '2026-09-02T00:00:00Z', 'cues': <Map<String, dynamic>>[]};
+
+      final sheet = CueSheet.fromJson(Map<String, dynamic>.from(json));
+
+      expect(sheet.toJson(), containsPair('cues', isEmpty));
+      _expectSameJson(sheet.toJson(), json, 'empty cue sheet');
+    });
+
     test('a diagnosis with relaxations round-trips', () {
       // A6 / FR9's conflict payload travels on `/segments/diagnose`, not inside
       // a trip, so no trip fixture reaches `Relaxation`.
