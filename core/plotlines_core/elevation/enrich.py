@@ -61,6 +61,11 @@ GRADE_ABS_KEY = "grade_abs"
 #: `scoring.profile.features`' per-edge cache. Stale the moment grade changes.
 _FEATURE_CACHE_KEY = "_pl_feat"
 
+#: `routing.access.mode_legal_graph`'s per-graph cache of filtered copies —
+#: stale the moment this module writes elevation/grade (named here rather than
+#: imported so `elevation` does not depend on `routing`).
+_MODE_CACHE_KEY = "_pl_mode_graph_cache"
+
 #: osmnx's `add_edge_grades` default precision, matched so the two agree.
 _GRADE_PRECISION = 3
 
@@ -95,6 +100,10 @@ def enrich_elevation(
     absent rather than flat.
     """
     node_ids = list(graph.nodes)
+    # `routing.access.mode_legal_graph` caches filtered *copies* of this
+    # graph; they do not see the attributes written below, so a solve after
+    # enrichment would route on the pre-enrichment copy. Drop them.
+    graph.graph.pop(_MODE_CACHE_KEY, None)
 
     if sampler is None or sampler.degraded:
         # A degraded sampler logged `unreadable_raster` when it failed to open.
