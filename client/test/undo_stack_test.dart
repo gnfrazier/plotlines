@@ -97,4 +97,20 @@ void main() {
     final restored = stack.undo(after)!;
     expect(restored.days.map((d) => d.id), ['d1']);
   });
+
+  test('undo and redo carry the trip mode set, which is not in the payload (#319)', () {
+    // `Trip.modes` rides beside `toJson()`, not in it, so a snapshot taken
+    // through the payload alone restored every trip with no modes at all —
+    // an undo quietly emptying the per-passage mode picker.
+    final stack = TripUndoStack();
+    final before = trip('A').copyWith(modes: {'cycling', 'paddling'});
+    final after = trip('B').copyWith(modes: {'cycling', 'paddling', 'hiking'});
+
+    stack.record(before);
+    final undone = stack.undo(after)!;
+    expect(undone.modes, {'cycling', 'paddling'});
+
+    final redone = stack.redo(undone)!;
+    expect(redone.modes, {'cycling', 'paddling', 'hiking'});
+  });
 }
