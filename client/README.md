@@ -120,7 +120,8 @@ Five things worth knowing before you set any of them:
   extent is declared (D41/D57). A cold start with no network still renders the committed
   home-region archive (FR96). A trip bbox outside every mirrored region shows the #318
   graticule, which is an honest gap. Epic #516 owns filling that gap on a miss.
-  `utils/launch-with-mirror.sh` sets the same corridor URL over plain http for a LAN Pi run.
+  `utils/launch-with-mirror.sh` instead points a LAN Pi run over plain http at the pre-warmed
+  priority-regions archive (`20250101-priority/priority.pmtiles`), a superset of the corridor.
   Whatever this names, the client never passes `--allow-unmirrored-tiles`. The sidecar refuses a
   third-party host (`HotlinkRefused`, FR92/FR95) and reports the refusal on `/health`'s
   `capabilities.tiles.upstream` (#454).
