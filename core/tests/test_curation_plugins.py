@@ -51,6 +51,35 @@ def test_a_class_entry_point_is_instantiated(monkeypatch):
     assert isinstance(provider, GoodPlugin)
 
 
+def test_a_factory_function_entry_point_is_called(monkeypatch):
+    """The docstring promises class *or* factory; only a class was called, so
+    a factory function landed in the registry as the provider itself."""
+    def make_provider():
+        return GoodPlugin()
+
+    monkeypatch.setattr(
+        plugins, "_load_entry_points",
+        lambda group: [_FakeEntryPoint("revwar", make_provider)],
+    )
+    _, provider, _ = plugins.discover_layer_providers()[0]
+    assert isinstance(provider, GoodPlugin)
+
+
+def test_a_broken_plugin_surfaces_its_load_error_not_a_licence_refusal(monkeypatch):
+    from plotlines_core.curation.registry import LayerRegistry
+
+    monkeypatch.setattr(
+        plugins, "_load_entry_points",
+        lambda group: [_FakeEntryPoint("broken", None, raises=ImportError("no module 'x'"))],
+    )
+    name, provider, version = plugins.discover_layer_providers()[0]
+    reg = LayerRegistry()
+    reg.register_plugin(name, provider, version=version)
+    state = reg.per_layer()["broken"]
+    assert state.startswith("failed:ImportError")
+    assert "licence" not in state
+
+
 def test_a_plugin_that_fails_to_load_becomes_a_failed_layer(monkeypatch):
     monkeypatch.setattr(
         plugins, "_load_entry_points",

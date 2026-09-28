@@ -58,7 +58,11 @@ def discover_layer_providers(
             out.append((ep.name, _BrokenPluginProvider(ep.name, exc), version))
             continue
         # An entry point may point at a class or at a factory; accept either.
-        if isinstance(provider, type):
+        # A factory is any callable that is not itself provider-shaped — before
+        # this only a class was called, so a factory function was registered
+        # as the provider and refused as `licence_unsatisfiable`.
+        if isinstance(provider, type) or (
+                callable(provider) and not hasattr(provider, "load_state")):
             try:
                 provider = provider()
             except Exception as exc:  # noqa: BLE001
@@ -83,6 +87,10 @@ class _BrokenPluginProvider:
     def __init__(self, name: str, exc: BaseException) -> None:
         self._name = name
         self._reason = f"{type(exc).__name__}: {exc}"
+        #: Read by `LayerRegistry.register_plugin` ahead of the licence gate,
+        #: so the picker shows why the plugin failed rather than the
+        #: placeholder licence's `licence_unsatisfiable`.
+        self.load_error = self._reason
 
     @property
     def licence(self):
