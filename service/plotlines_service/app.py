@@ -1126,8 +1126,8 @@ class RegionState:
         # this region, the same "one capability's failure never blocks
         # another" discipline the tiles/elevation steps further down use.
         # Only attempted when a mirror is actually configured
-        # (--mirror-clip-url); unset — the default until #275 lands — this
-        # is skipped outright, never left half-started (FR120/D41/D57: no
+        # (--mirror-clip-url, which the desktop client always passes); unset,
+        # this is skipped outright, never left half-started (FR120/D41/D57: no
         # eager, unconfigured download).
         if mirror_clip_url:
             try:

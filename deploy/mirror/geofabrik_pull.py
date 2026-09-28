@@ -77,9 +77,9 @@ extracts above down to the WNC corridor bbox and pins the (few-MB, rather
 than few-hundred-MB) result instead, since `/clip`'s wall time scales with
 the size of the pinned extract it has to scan, not the trip bbox, and
 Geofabrik publishes no sub-state cuts for these states. See
-`precut_region`'s docstring below. This one needs `plotlines-service`'s
-`mirror-clip` extra (pyosmium) installed wherever it runs — deliberately
-not a base dependency of this otherwise-standalone script, so a plain
+`precut_region`'s docstring below. This one needs `plotlines-service`
+(pyosmium is its base dependency) installed wherever it runs — deliberately
+not a dependency of this otherwise-standalone script, so a plain
 `--region` pull with no `--precut-*` flag still needs nothing beyond the
 standard library::
 
@@ -650,7 +650,7 @@ def precut_region(
     `/clip` runs per request — so the precut result is what a live request
     against the un-cut sources would already have produced, computed once
     instead of on every request. Requires `plotlines-service` installed
-    with its `mirror-clip` extra (pyosmium); this is not something the Pi
+    (pyosmium is a base dependency); this is not something the Pi
     itself needs to run, so import it lazily rather than making a normal
     `--region` pull depend on it.
     """
@@ -659,9 +659,9 @@ def precut_region(
     except ImportError as exc:
         raise SystemExit(
             "error: --precut-wnc-corridor requires plotlines-service "
-            "installed with its mirror-clip extra (pyosmium) — run this on "
-            "a machine that has that installed (`uv sync --extra "
-            "mirror-clip` in service/), not necessarily the Pi itself"
+            "installed (pyosmium is a base dependency) — run this on "
+            "a machine that has it (`uv sync` in service/), not "
+            "necessarily the Pi itself"
         ) from exc
 
     regions = state.setdefault("geofabrik", {}).setdefault("regions", {})
@@ -919,8 +919,8 @@ def precut_cells(
     except ImportError as exc:
         raise SystemExit(
             "error: --precut-priority-regions requires plotlines-service "
-            "installed with its mirror-clip extra (pyosmium) — run it from "
-            "the repo venv (`uv sync --extra mirror-clip` in service/)"
+            "installed (pyosmium is a base dependency) — run it from "
+            "the repo venv (`uv sync` in service/)"
         ) from exc
 
     regions = state.setdefault("geofabrik", {}).setdefault("regions", {})
@@ -1082,8 +1082,8 @@ def main(argv: list[str] | None = None) -> int:
              "stand-in already serves) and pin the smaller result, since "
              "/clip's wall time scales with the pinned extract's size, "
              "not the trip bbox's, and Geofabrik publishes no sub-state "
-             "extracts for these regions. Requires plotlines-service's "
-             "mirror-clip extra (pyosmium) installed on this machine — "
+             "extracts for these regions. Requires plotlines-service "
+             "(pyosmium is a base dependency) installed on this machine — "
              "not necessarily the Pi. Removes the --region sources from "
              "MIRROR_STATE.json by default; pass --precut-keep-sources to "
              "keep both (their .osm.pbf files stay on disk either way).",
@@ -1185,8 +1185,8 @@ def main(argv: list[str] | None = None) -> int:
         except ImportError as exc:
             raise SystemExit(
                 "error: --precut-wnc-corridor requires plotlines-core "
-                "installed (it ships with plotlines-service, which also "
-                "needs its mirror-clip extra for this flag) — run this on "
+                "installed (it ships with plotlines-service, whose base "
+                "dependencies include pyosmium) — run this on "
                 "a machine that has that, not necessarily the Pi itself"
             ) from exc
         precut = {

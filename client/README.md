@@ -82,7 +82,8 @@ default**. Only the mirror URL has a default (`https://tiles.plotlines.app`, pin
 what makes Phase 3's transport swap (#272) reachable from the app: with the URL passed, the
 sidecar asks the mirror's `/clip` for the trip bbox **when the Author declares an extent, and
 never before** (D41/D57), builds the region graph and the candidate set from that clip, and
-falls through to Overpass only when the mirror cannot serve it.
+falls through to Overpass only when the mirror cannot serve it — a fallback that narrows once the
+mirror fills on a miss (#518) and is retired by #284 (ARCH D63's phased rule).
 
 | Variable / define | Meaning | Default |
 |---|---|---|

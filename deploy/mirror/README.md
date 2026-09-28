@@ -184,9 +184,9 @@ print('ok — a tile inside the corridor extracted via http_range_source')
 "
 ```
 
-(`allow_unmirrored=True` because §6.5's DNS override hasn't landed yet —
-see above; once it has, this runs with no flag and `classify_upstream`
-returns `MIRROR`.) `core/tests/test_wnc_corridor_standin.py` covers both
+(`allow_unmirrored=True` was needed before §6.5's DNS override and #261
+landed; with them, this runs with no flag and `classify_upstream` returns
+`MIRROR`.) `core/tests/test_wnc_corridor_standin.py` covers both
 halves of this automatically and hermetically — a bbox inside the
 corridor's real tile-address range extracts over a real range-serving HTTP
 server, and a bbox outside it raises `NoTilesInBbox` rather than writing a
@@ -295,13 +295,11 @@ block needed).
 goes through pyosmium's Python API only (`osmium.SimpleHandler`,
 `osmium.BackReferenceWriter`, `osmium.MergeInputReader`) — never the
 `osmium` CLI (`osmium-tool` is GPL-3.0; pyosmium/libosmium are
-BSD-2-Clause). `osmium` is declared as the `mirror-clip` **extra** in
-`service/pyproject.toml`, not a base dependency of `plotlines-service` —
-kept out of `packaging/build_sidecar.sh`'s frozen client binary, since
-SPIKE-J (#266) hasn't yet measured whether pyosmium survives a PyInstaller
-freeze on all four client targets. Reintroducing that dependency into every
-desktop/mobile build ahead of that measurement would undo exactly what
-Q1-C's "no client-side native clip dependency" was for.
+BSD-2-Clause). `osmium` (pyosmium) is a base dependency of `plotlines-service` (and of
+`plotlines-core`) since Phase 3's transport swap (#275), once SPIKE-J (#266)
+measured pyosmium surviving a PyInstaller freeze on all four desktop targets
+(PARITY ×4). There is no `mirror-clip` extra any more; `packaging/check_no_gpl.py`
+runs after every freeze to keep the GPL `osmium` CLI out of the binary.
 
 **What it implements.** One completeness strategy — the pyosmium-native
 equivalent of osmium-tool's `complete_ways`: any way with at least one node
@@ -323,13 +321,22 @@ clipped outputs is ~3-6 MB each.
 consults the mirrored `index-v1.json` — that's Phase 3's job
 (§8: "resolve trip bbox → covering set of extracts, from the mirrored
 `index-v1.json`"), not this endpoint's. Instead it reads each pinned
-extract's own PBF header box (real Geofabrik extracts always declare one)
-and keeps any extract whose declared coverage might overlap the request —
-treating a missing header box as *unknown, so kept* rather than excluded. A
+extract's own PBF header box (real Geofabrik extracts always declare one;
+precut output is stamped with one since #402), narrows it by the extract's
+`.poly` boundary where one was pulled (#402), and keeps any extract whose
+coverage might overlap the request — treating a missing header box as
+*unknown, so kept* rather than excluded. A
 bbox that matches no pinned extract's coverage, or matches one but selects
 zero real features from it, is `NoMirrorCoverage` — a 404 with a
 `{"error": "no_mirror_coverage", "message": "..."}` body, never a stack
 trace (acceptance criterion 5).
+
+> **A 404 on a miss is today's contract, not the decided one.** ARCH **D67** (epic #516) makes a
+> miss inside a Geofabrik-published region a *fill*: the mirror queues a pull and precut of the
+> covering region and answers `fetching` until it lands (#517, #518), and only a bbox outside every
+> region stays a finished `no_upstream_coverage`. Until #518 ships, the 404 below stands, and the
+> sidecar falls back to Overpass on it — ARCH D63's phased rule. Don't harden the 404 into
+> anything a client relies on as final.
 
 **What's recorded, not yet what SPIKE-I measures.** Every successful clip
 logs, and returns as response headers, wall time, output size, peak RSS
@@ -337,7 +344,7 @@ logs, and returns as response headers, wall time, output size, peak RSS
 request-isolated; a controlled per-request measurement is SPIKE-I's job,
 not this rehearsal's), and which region(s) it drew from. This satisfies
 "the numbers Q1-C and Q6 both rest on" for a first look; SPIKE-I (#265,
-still filed, not run) is where those numbers get pre-registered parity
+since run — `spikes/SPIKE-I/results/RESULTS.md`) is where those numbers get pre-registered parity
 bands and a real trip bbox against the actual pulled extracts, not a
 synthetic fixture.
 
@@ -427,7 +434,7 @@ cannot be done from a coding-agent sandbox.
 
 ### 1. Pull real region extracts
 
-The tree carries only the basemap stand-in until this runs.
+On a fresh tree (only the basemap stand-in), nothing clips until this runs.
 `discover_region_extracts` resolves from `MIRROR_STATE.json`'s
 `geofabrik.pinned_date` + `regions`, so before a pull **every clip 404s as
 `no_mirror_coverage`** — which reads like a broken endpoint rather than an
@@ -647,10 +654,29 @@ first recording under uncontrolled conditions; filing it as the spike's
 results would make it look like the pre-registered measurement it exists to
 precede.
 
-## `{$MIRROR_ROOT}` / `{$MIRROR_LOG}`
+## `mirror_clip.py` flags
 
-The checked-in `Caddyfile` is otherwise byte-for-byte the §6.4 block, with
-one deliberate addition: `root` and the log's `output file` are
+Each flag has an environment fallback so `docker-compose.yml` can set it:
+
+| Flag | Env | Default | What it does |
+|---|---|---|---|
+| `--root` | — | required | the mirror tree holding `MIRROR_STATE.json` and the pinned extracts |
+| `--host` / `--port` | — | `0.0.0.0` / `8095` | bind; only Caddy's `reverse_proxy` should reach it |
+| `--tmp-dir` | — | the process temp dir | scratch for merge/clip temp files |
+| `--client-key` | `MIRROR_CLIP_CLIENT_KEY` | unset (open) | required `X-Plotlines-Client-Key` (#263) |
+| `--rate-limit-per-minute` | `MIRROR_CLIP_RATE_LIMIT_PER_MINUTE` | `30` | per-IP ceiling; `0` disables |
+| `--max-concurrent-clips` | `MIRROR_CLIP_MAX_CONCURRENT` | `1` | clips running at once; past it a caller gets an immediate `503 clip_busy` with `Retry-After`, never a queue (#494) |
+| `--cache-dir` / `--cache-max-bytes` | `MIRROR_CLIP_CACHE_DIR` / `…_CACHE_MAX_BYTES` | off / `0` | the clip cache (#402, below) |
+
+`geofabrik_pull.py --precut-dest-region NAME` sets the region name a `--precut-wnc-corridor` result
+is pinned under (default `WNC_CORRIDOR_REGION_NAME`).
+
+## `{$MIRROR_ROOT}` / `{$MIRROR_LOG}` / `{$MIRROR_CLIP_UPSTREAM}`
+
+The checked-in `Caddyfile` is otherwise the §6.4 block plus the
+`reverse_proxy /clip*` route to `{$MIRROR_CLIP_UPSTREAM:mirror-clip:8095}`
+(override it to point Caddy at a clip process outside compose), with one
+further deliberate addition: `root` and the log's `output file` are
 env-var-substituted with the production paths as their **default**
 (`/srv/plotlines-mirror`, `/var/log/caddy/mirror.log`) — Caddy resolves an
 unset `{$VAR:default}` to `default`, so production behaviour is unchanged.
@@ -718,9 +744,9 @@ regardless of whether the index has been pulled — a consumer resolves
 index alone, since the index only ever describes what Geofabrik offers, not
 what this mirror has pulled and verified.
 
-No code today reads the mirrored index for region resolution (the
-mirror-side clip is Phase 3/#272 — the transport swap — and doesn't exist
-yet), so there is nothing yet to constrain to "reads only what we are
+No code reads the mirrored index for region resolution — the mirror-side
+clip that shipped with Phase 3 (#272) resolves coverage from each pinned
+extract's own header box and `.poly` instead — so there is nothing yet to constrain to "reads only what we are
 entitled to serve"; that constraint falls on whichever issue writes that
 resolution code; the mirror's index-consumption is a stand-in until then.
 
@@ -795,8 +821,8 @@ request still paying for a full scan of each source too). It reuses
 per request, so the precut result is what a live request against the un-cut
 sources would already have produced — computed once at pin time instead of
 on every request. This is the one piece of `geofabrik_pull.py` that isn't
-stdlib-only: it needs `plotlines-service` installed with its `mirror-clip`
-extra (pyosmium) wherever it runs, which is not necessarily the Pi itself —
+stdlib-only: it needs `plotlines-service` installed (pyosmium is a base
+dependency) wherever it runs, which is not necessarily the Pi itself —
 see the "Verifying a bump" section of `docs/Plotlines_Release_Checklist.md`
 for what that means operationally today.
 
@@ -806,8 +832,8 @@ pinned, since both extracts are still valid candidates by header — #376's
 merge-inversion fix keeps that path from crashing, but a request that also
 matches a full-state source still pays for scanning it). `--precut-keep-
 sources` off (the default) avoids this by removing the full-state entries
-this precut was drawn from, which is the intended steady state for a mirror
-that only serves the WNC corridor today — so this over-selection case
+this precut was drawn from, which is the intended steady state (the live Pi now serves #530's priority cells
+rather than the corridor alone, and they follow the same rule) — so this over-selection case
 mostly doesn't arise here in practice. It is fixed at the
 `select_covering_extracts` layer regardless (issue #402):
 `geofabrik_pull.py` now also pulls each region's Osmosis `.poly` boundary
@@ -909,10 +935,12 @@ it makes the mirror stateful") was evaluated and **not built**, see below.
   serves (the WNC corridor), which is the same outcome a spatial index
   would buy, achieved more cheaply. An index would earn its cost back only
   if this mirror ever served bboxes the precut corridor doesn't cover, or
-  precut a much larger area than a single trip-planning corridor — neither
-  is true of this deployment today, so building one now would be
-  engineering for a requirement this mirror does not have. Revisit if
-  either condition changes.
+  precut a much larger area than a single trip-planning corridor. **The
+  first condition is now true:** #530's priority cells (29 source regions,
+  live on the Pi as of 2026-09-28) cover far more than the corridor, and
+  D67's fill-on-miss will widen it again. The cells keep each scan to a
+  2° cell, so the case is weaker than it sounds, but this decision is due
+  its revisit — #439 owns it.
 
 ## Post-precut remeasurement (issue #402)
 
@@ -981,8 +1009,9 @@ splitting cadence from monitoring:
   `capabilities.mirror` surfaces it on the sidecar's existing per-layer capability channel (story
   N4) rather than requiring anyone to open this file by hand. `--mirror-state-url` (a local path or
   the mirror's own served URL) points a sidecar at it; absent, `capabilities.mirror` reports
-  `{"configured": false}` rather than a stale-looking reading for a source nobody named — this is
-  the default today, since no sidecar is pointed at the mirror in production yet (#261).
+  `{"configured": false}` rather than a stale-looking reading for a source nobody named — the client
+  now always passes it (`<mirror>/MIRROR_STATE.json`, #367), so this is what a flagless source run of
+  the bare service sees, not what the app sees.
   `core/tests/test_mirror_state.py` and `service/tests/test_health_mirror.py` cover the staleness
   math and the endpoint, including the case that matters most: a deliberately-stalled pull (a
   `checked_at` far past `MAX_PIN_AGE_DAYS`, the monthly cadence plus a grace window) reads as
@@ -994,7 +1023,7 @@ A trip pins the OSM build it started on, and that pin belongs in the trip payloa
 (`trips/payload.py`'s `Provenance`/`Attribution`) — an exported cue sheet carrying "contains OSM
 data, snapshot 2026-09-01" is a stronger notice than a bare credit, and without the pin, a trip
 built from a stale mirror is indistinguishable from a fresh one. The payload *write* lands with the
-extract path in Phase 3 (epic #264; #270/#277) — this issue only decides the *format*, so both ends
+extract path in Phase 3 (epic #272; #270/#277) — this issue only decides the *format*, so both ends
 agree before that code exists: `core/plotlines_core/tiles/mirror_state.py`'s
 `geofabrik_attribution_fields(state, region)` returns the four fields `Attribution(source, licence,
 credit, url)` takes, with `credit` in the exact "contains OSM data, snapshot `<date>`" shape L7

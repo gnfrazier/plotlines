@@ -293,7 +293,7 @@
     },
 
     "elevation": {
-      "description": "FR89 — enrichment output. Gain is positive-only, per ARCH §6.1's enrich_elevation contract. A void reads 0.0 and is never an error (FR88 / ARCH §6.5), so a flat profile can mean flat ground or missing raster; `void_samples` is what tells them apart.",
+      "description": "FR89 — enrichment output. Gain is positive-only, per ARCH §6.1's enrich_elevation contract. A void is never an error (FR88, amended by ARCH D68): a gap inside a raster that opened is interpolated from the nearest finite samples, and `void_samples` counts how many were; when no elevation source resolved the segment is absent and this object is omitted, never written as a flat 0.0 profile.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

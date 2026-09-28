@@ -93,15 +93,17 @@ PLOTLINES_MIRROR_CLIP_CLIENT_KEY=... flutter run -d linux
 
 The value in the built binary is extractable by anyone holding the binary; that is the
 accepted posture of a shared client key (#263 — it bounds bandwidth and CPU spent on
-non-Plotlines callers, it is not a secret in the authentication sense) and the same
-reason it is passed on the sidecar's argv rather than smuggled through the environment.
+non-Plotlines callers, it is not a secret in the authentication sense) and the client
+hands it to the sidecar in the child process's **environment**
+(`PLOTLINES_MIRROR_CLIP_CLIENT_KEY`, read by `service/plotlines_service/__main__.py`), never on
+its argv — argv is readable by any local user through `ps` (ce3bc0a).
 Rotating it is a mirror-side `MIRROR_CLIP_CLIENT_KEY` change plus a client rebuild; the
 per-IP rate ceiling holds regardless of the key.
 
 The mirror URL itself (`PLOTLINES_MIRROR_URL`, default `https://tiles.plotlines.app`), the
-staleness-monitor source, and the QA elevation proxy are the other three upstreams the
-same file resolves — see `client/README.md` for the full table and the reason the state URL
-has no default.
+staleness-monitor source, the QA elevation proxy, and the tiles upstream are the other four
+upstreams the same file resolves — see `client/README.md` for the full table and their
+defaults (the state URL defaults to `<mirror>/MIRROR_STATE.json`, #367).
 
 ## Elevation API key (OpenTopography) — FR87
 

@@ -20,29 +20,33 @@ flowchart TD
     B --> C{New, or clone<br/>an existing trip?}
     C -->|new| M["Declare travel categories<br/><i>seeds layer defaults</i>"]
     C -->|clone| Z["Choose clone scope<br/><i>grants never carry</i>"]
+    Z -->|"roster only<br/>nothing to inherit"| M
     M --> D["Location prompt<br/><i>prefilled, centers map</i>"]
     D --> E["Draw the bbox<br/><i>navigable map, scale shown</i>"]
-    Z --> E
+    Z -->|"carries the trip<br/>bbox inherited"| E
     E --> L["Choose starting layers<br/><i>mode-derived default, skippable</i>"]
     L --> N["First route<br/><i>New Route form</i>"]
     L --> F["Layers + POI ready<br/><i>curation unlocked</i>"]
-    E --> G["Elevation enriching<br/><i>routing gated, honest</i>"]
+    E --> R["Region graph building<br/><i>gates routing only</i>"]
+    E --> G["Elevation enriching<br/><i>gates elevation metrics only</i>"]
+    R --> H
     F --> H[Start curating]
     N --> H
     G --> H
 ```
 
-| Node | FR | Story | Note |
-|---|---|---|---|
-| Buncombe County | FR96 | A10 | A constant, not a default. No override, no prompt, **no download**. |
+| Node | Priority | FR | Story | Note |
+|---|---|---|---|---|
+| Buncombe County | **MVP** | FR96 | A10 | A constant, not a default. No override, no prompt, **no download**. |
 | Declare travel categories | **MVP** | FR144 | N0 | **Blocks the layer picker** — FR97's defaults vary by (category × day-type) and have no argument without this. #315 — five equal targets (Cycle · Foot · Paddle · Ski · Drive), no overflow, no `transit`; a discipline under a category is chosen per passage, not here. #319 — the declared set is the trip's **one** mode set: the passage picker offers only it (with *add a category* beside it on the planning page); a passage arriving in an undeclared category by another path adds it; the set never shrinks on its own. |
 | New, or clone? | **MVP** | FR74, FR74b | G2, G2b, N1 | **Cloning is the MVP answer for a recurring group** — last year's paddling crew, their group assignments, and the trip to edit down. Named travel circles (FR143, D9) are Later. |
-| Choose clone scope | **MVP** | FR74b | G2b | Carries roster membership, group assignments, and the whole authored trip. **Never carries profile grants or arrival visibility** — each Character re-grants per trip (K2), or cloning becomes a consent-laundering path. Author notes follow the person automatically (D6), no rule needed. A clone brings its own bbox, so it skips the location prompt. |
-| Location prompt | FR96 | A10, N1 | Prefilled last-used, freely editable. **Centers the map only** — never becomes the bbox. |
+| Choose clone scope | **MVP** | FR74b | G2b | Carries roster membership, group assignments, and the whole authored trip. **Never carries profile grants or arrival visibility** — each Character re-grants per trip (K2), or cloning becomes a consent-laundering path. Author notes follow the person automatically (story D6), no rule needed. A scope that carries the authored trip brings its own bbox, so it skips the location prompt; a **roster-only** clone has nothing to inherit and runs initiation normally — mode declaration, location prompt, bbox (FR74b, G2b). |
+| Location prompt | **MVP** | FR96 | A10, N1 | Prefilled last-used, freely editable. **Centers the map only** — never becomes the bbox. |
 | Draw the bbox | **MVP** | FR120 | N1 | Bounds layers, clusters, tiles, elevation. **Map is navigable while drawing** — zoom, pan, recentre, scale shown — and navigating never alters the extent. Revisable, see flow 9. |
 | Choose starting layers | **MVP** | FR97, FR144 | N3, N0 | **Its own step, between the extent and the first route** (issue #316) — the pipeline's own order, layer selection at stage 2 not stage 7. Shows the (mode × day-type) default live set with the full catalog to override; **skippable on the default** (PRD §5). Kicks candidate extraction off on Continue so it warms while the Author fills in New Route. The Layers tab is unchanged — it stays the curation workspace; only the *initial* selection moved here. |
-| Layers + POI ready | FR121, FR97 | N2, N3 | Ordered **ahead of** elevation. Per-layer state for plugin layers. |
-| Elevation enriching | FR121, FR91 | N2, M12a | Background. Routing disabled with a stated reason, never a silent failure. |
+| Layers + POI ready | **MVP** | FR121, FR97 | N2, N3 | Its own gate — **not ordered** against the region graph or elevation (FR121, ARCH D34 as amended). Per-layer state; a layer that fails is reported in `layers_unavailable` while the others serve. |
+| Region graph building | **MVP** | FR121 | N2, M12a | **Routing waits on this, and only this** — per region (ARCH D57). Routing controls are disabled with a stated reason and observed progress until it is ready, never a silent failure. |
+| Elevation enriching | **MVP** | FR121, FR91 | N2, M12a | Background, with its own per-region readiness (ARCH D69). **Never gates routing** — a route solved before it lands shows no profile, not a flat one (ARCH D68). |
 
 **Invariant:** there is never a *second, different* extent for analysis. That is what "one bbox" means — not that it is fixed.
 

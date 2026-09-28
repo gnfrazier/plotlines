@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# The full pre-push run: the three suites CI runs, plus the three toolchain-
+# The full pre-push run: the three suites CI runs, plus the four toolchain-
 # free gates, all at once. This is the "run the full suite plus the lint
 # gates green" step of the build agreement, as one command.
 #
