@@ -127,8 +127,12 @@ class _RosterTabState extends ConsumerState<RosterTab> {
             ),
           )
         else
+          // Keyed by Character: each card holds a pending "volunteered"
+          // pick, and an unkeyed list hands Ann's pick to Bob when Ann is
+          // removed — a disclosure attributed to someone who never made it.
           for (final response in state.responses)
             Padding(
+              key: ValueKey(response.characterId),
               padding: const EdgeInsets.only(bottom: PlotSpacing.s3),
               child: _CharacterStatusCard(
                 request: state.request,

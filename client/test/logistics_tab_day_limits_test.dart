@@ -138,6 +138,43 @@ void main() {
     expect(limits.length, 1);
   });
 
+  // Review fix — the rows were unkeyed, so removing cycling's limit handed
+  // cycling's field state (max 80) to the hiking row that slid into its
+  // place, and the next keystroke there wrote cycling's max into hiking.
+  testWidgets('removing one mode limit leaves the next row showing its own values',
+      (tester) async {
+    final container = await _pump(
+      tester,
+      Day(
+        id: 'd1',
+        index: 1,
+        segments: [_leg('s1', 'cycling'), _leg('s2', 'hiking')],
+        limits: {
+          'cycling': DayLimit(maxM: 80000),
+          'hiking': DayLimit(minM: 5000),
+        },
+      ),
+    );
+
+    final removeBtn = find.widgetWithIcon(IconButton, Icons.close).first;
+    await tester.ensureVisible(removeBtn);
+    await tester.pump();
+    await tester.tap(removeBtn);
+    await tester.pump();
+
+    expect(container.read(currentTripProvider).days.single.limits.keys, ['hiking']);
+    expect(find.widgetWithText(TextField, '80'), findsNothing);
+    expect(find.widgetWithText(TextField, '5'), findsOneWidget);
+
+    final minField =
+        find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'min');
+    await tester.enterText(minField, '6');
+    await tester.pump();
+    final hiking = container.read(currentTripProvider).days.single.limits['hiking']!;
+    expect(hiking.minM, 6000);
+    expect(hiking.maxM, isNull);
+  });
+
   // Issue #312 — the section header carries the Author's active unit and a
   // stored limit pre-fills in that unit, while storage stays SI metres.
   group('imperial preference', () {

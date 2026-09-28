@@ -10,6 +10,8 @@
 // removes a route, so its confirmation has to actually gate it.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,9 +27,14 @@ import 'package:plotlines_client/state/trip_bbox_provider.dart';
 /// Re-solves cleanly, or refuses to, on demand. Mirrors the fake in
 /// `current_trip_provider_resolve_stale_test.dart`.
 class _FakeRoutingClient extends RoutingClient {
-  _FakeRoutingClient({this.failWith}) : super('http://fake');
+  _FakeRoutingClient({this.failWith, this.crashWith}) : super('http://fake');
 
+  /// A sidecar-written reason, raised the way the real client raises one.
   final String? failWith;
+
+  /// Anything that is not the sidecar's sentence — its text must not reach
+  /// the dialog (M13: a finished sentence, never an exception).
+  final Object? crashWith;
   int solves = 0;
 
   @override
@@ -49,7 +56,8 @@ class _FakeRoutingClient extends RoutingClient {
     double? targetM,
   }) async {
     solves++;
-    if (failWith != null) throw Exception(failWith);
+    if (failWith != null) throw RoutingException(422, jsonEncode({'detail': failWith}));
+    if (crashWith != null) throw crashWith!;
     return Segment(
       id: 'ignored',
       mode: mode,
@@ -320,6 +328,22 @@ void main() {
 
       expect(find.textContaining('graph not ready'), findsOneWidget);
       expect(find.text('Day 1 — cycling loop'), findsOneWidget);
+    });
+
+    testWidgets('a failure that is not a sentence shows a fixed phrase, not the exception',
+        (tester) async {
+      final client = _FakeRoutingClient(crashWith: StateError('segment s1 has no region'));
+      final (_, container) = await _open(
+          tester, _trip([Day(id: 'd1', index: 1, segments: [_stale('s1')])]),
+          client: client);
+      addTearDown(container.dispose);
+
+      await tester.tap(find.text('Re-solve'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Bad state'), findsNothing);
+      expect(find.textContaining('has no region'), findsNothing);
+      expect(find.text('This couldn\'t be re-solved. Try again.'), findsOneWidget);
     });
   });
 

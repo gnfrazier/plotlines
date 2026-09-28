@@ -159,6 +159,9 @@ void main() {
 
     expect(resultSet, isFalse);
     expect(find.textContaining("Couldn't resolve"), findsOneWidget);
+    // M13 — a finished sentence, never the exception's toString().
+    expect(find.textContaining('Exception'), findsNothing);
+    expect(find.textContaining('network down'), findsNothing);
   });
 
   testWidgets(

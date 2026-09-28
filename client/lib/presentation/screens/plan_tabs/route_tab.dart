@@ -167,7 +167,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
   Future<void> _createAlternate(AlternateDraft draft, String dayId, String segmentId) async {
     final naming = await showAlternateNamingDialog(context, draft: draft);
     // Backing out of naming keeps the draft: the Author may still be drawing.
-    if (naming == null) return;
+    if (naming == null || !mounted) return;
     final made = ref.read(currentTripProvider.notifier).addAlternateToSegment(
           dayId,
           segmentId,
@@ -182,7 +182,6 @@ class _RouteTabState extends ConsumerState<RouteTab> {
       _altDraft = null;
       _altDraftOn = null;
     });
-    if (!mounted) return;
     await _openAlternateCard(dayId, segmentId, made.id);
   }
 
@@ -365,7 +364,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                                     routeGeometry: routeCoords,
                                   );
                                   // #322 — select and reveal the node just placed.
-                                  if (saved != null) {
+                                  if (saved != null && mounted) {
                                     ref.read(selectedNodeIdProvider.notifier).state =
                                         saved.id;
                                   }
