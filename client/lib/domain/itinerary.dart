@@ -97,7 +97,7 @@ ItineraryDayEntry _buildDayEntry(Day day, DisplayFormat format, List<String> anc
     day: day,
     heading: heading,
     paragraphs: day.isRest
-        ? [_restDayAccount(day, anchorTitles), if (restHazards != null) restHazards]
+        ? [_restDayAccount(day, anchorTitles), ?restHazards]
         : _routeDayAccount(day, format, anchorTitles),
   );
 }
