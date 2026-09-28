@@ -640,7 +640,12 @@ class RoutingException implements Exception {
   /// A6/M13: honest, screen-displayable text — FastAPI's `HTTPException`
   /// bodies are `{"detail": "..."}`, which is the message an Author actually
   /// wrote a band/relaxation string into (see `service/app.py`).
-  String get message {
+  String get message => reason ?? 'Request failed ($statusCode)';
+
+  /// The sidecar's own sentence, or null when the body is a diagnostic
+  /// rather than a reason — so a surface with a better fallback of its own
+  /// (`failureSentence`) uses that instead of "Request failed (N)".
+  String? get reason {
     Object? decoded;
     try {
       decoded = jsonDecode(body);
@@ -654,9 +659,7 @@ class RoutingException implements Exception {
     // `{"detail": [{"loc": …}]}`) or a plain-text body shaped like a
     // traceback or repr is a diagnostic, never a sentence for the screen
     // (FR145, #418) — it used to be returned verbatim.
-    if (decoded != null || looksLikeRawDiagnostic(body)) {
-      return 'Request failed ($statusCode)';
-    }
+    if (decoded != null || looksLikeRawDiagnostic(body)) return null;
     return body;
   }
 

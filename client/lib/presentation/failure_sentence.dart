@@ -7,13 +7,12 @@ library;
 import '../data/routing_client.dart' show RoutingException;
 import '../domain/reason_phrase.dart' show looksLikeRawDiagnostic;
 
-/// A sidecar's own reason ([RoutingException.message]) passes through when
+/// A sidecar's own reason ([RoutingException.reason]) passes through when
 /// it reads as a sentence; anything else — a raw body, a traceback, or any
 /// other exception's `toString()` (a class name, a path, an errno) — becomes
 /// [fallback], and the caller logs the detail.
 String failureSentence(Object error, {required String fallback}) {
-  if (error is RoutingException && !looksLikeRawDiagnostic(error.message)) {
-    return error.message;
-  }
+  final reason = error is RoutingException ? error.reason : null;
+  if (reason != null && !looksLikeRawDiagnostic(reason)) return reason;
   return fallback;
 }
