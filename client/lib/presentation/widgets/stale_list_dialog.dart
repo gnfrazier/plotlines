@@ -14,6 +14,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
+import '../failure_sentence.dart';
 import 'teaching_block.dart';
 
 /// Shows the stale list if [trip] has any stale route, and returns whether
@@ -129,7 +130,11 @@ class _StaleListDialogState extends ConsumerState<_StaleListDialog> {
     try {
       await ref.read(currentTripProvider.notifier).resolveAllStale();
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      debugPrint('re-solve all failed: $e');
+      if (mounted) {
+        setState(() => _error =
+            failureSentence(e, fallback: 'Re-solving didn\'t finish. Try again.'));
+      }
     } finally {
       if (mounted) setState(() => _resolvingAll = false);
     }
@@ -167,7 +172,11 @@ class _StaleRowState extends ConsumerState<_StaleRow> {
         await notifier.regenerateSegment(widget.item.dayId, widget.item.segmentId);
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      debugPrint('re-solve failed: $e');
+      if (mounted) {
+        setState(() => _error =
+            failureSentence(e, fallback: 'This couldn\'t be re-solved. Try again.'));
+      }
     } finally {
       if (mounted) setState(() => _resolving = false);
     }

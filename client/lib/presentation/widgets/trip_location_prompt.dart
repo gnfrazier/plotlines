@@ -15,6 +15,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../data/routing_client.dart';
 import '../../domain/attribution_line.dart' show nominatimSearchAttribution;
 import '../../domain/home_region.dart';
+import '../failure_sentence.dart';
 
 /// What the Author chose. [center] is null when they chose the shipped home
 /// region — a legitimate, non-eager choice, not a failure to resolve one.
@@ -155,10 +156,12 @@ class _TripLocationDialogState extends State<_TripLocationDialog> {
         bbox: results.first.bbox,
       ));
     } catch (e) {
+      debugPrint('geocode failed: $e');
       if (!mounted) return;
       setState(() {
         _resolving = false;
-        _error = "Couldn't resolve that location: $e";
+        _error = "Couldn't resolve that location: "
+            '${failureSentence(e, fallback: 'the geocoder didn\'t answer. Try again, or continue and place the map yourself.')}';
       });
     }
   }

@@ -39,11 +39,11 @@ import '../../../data/export/gpx_writer.dart';
 import '../../../data/export/itinerary_writer.dart';
 import '../../../data/export/tcx_writer.dart';
 import '../../../data/reveal_resolver.dart';
-import '../../../data/routing_client.dart' show RoutingException;
 import '../../../domain/domain.dart';
 import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
 import '../../../state/trip_bbox_provider.dart';
+import '../../failure_sentence.dart';
 import '../../widgets/error_states.dart';
 import '../../widgets/print_preview.dart';
 import '../../widgets/stale_list_dialog.dart';
@@ -832,13 +832,10 @@ enum _ExportFormat { gpx, tcx, geojson, fit }
 /// detail left in the log.
 @visibleForTesting
 String exportFailureReason(Object error) {
-  if (error is RoutingException && !looksLikeRawDiagnostic(error.message)) {
-    return error.message;
-  }
   if (error is FileSystemException) {
     return 'The file couldn\'t be written to that location.';
   }
-  return 'Something went wrong while writing the export.';
+  return failureSentence(error, fallback: 'Something went wrong while writing the export.');
 }
 
 class _ExportPanel extends ConsumerStatefulWidget {

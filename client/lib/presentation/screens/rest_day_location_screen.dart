@@ -44,6 +44,7 @@ import '../../data/routing_client.dart' show GeocodeResult;
 import '../../domain/attribution_line.dart' show nominatimSearchAttribution;
 import '../../domain/domain.dart';
 import '../map/candidate_map.dart';
+import '../failure_sentence.dart';
 import '../../state/trip_candidates_provider.dart';
 
 /// What the Author chose: a coordinate and, where one was resolvable, the
@@ -223,10 +224,12 @@ class _RestDayLocationScreenState extends ConsumerState<_RestDayLocationScreen> 
         }
       });
     } catch (e) {
+      debugPrint('geocode failed: $e');
       if (!mounted) return;
       setState(() {
         _searching = false;
-        _error = "Couldn't resolve that location: $e";
+        _error = "Couldn't resolve that location: "
+            '${failureSentence(e, fallback: 'the geocoder didn\'t answer. Try again, or browse the map instead.')}';
       });
     }
   }

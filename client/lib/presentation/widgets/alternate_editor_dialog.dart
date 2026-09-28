@@ -31,6 +31,7 @@ import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/settings_provider.dart';
 import '../display_format_of.dart';
+import '../failure_sentence.dart';
 import 'teaching_block.dart';
 
 /// PRD §1.4–1.5, and the model itself: no Author setting hides a hazard. Said
@@ -368,7 +369,11 @@ class _AlternateCardState extends ConsumerState<AlternateCard> {
       await _notifier.regenerateAlternate(
           widget.dayId, widget.segmentId, widget.alternateId);
     } catch (e) {
-      if (mounted) setState(() => _resolveError = '$e');
+      debugPrint('alternate re-solve failed: $e');
+      if (mounted) {
+        setState(() => _resolveError =
+            failureSentence(e, fallback: 'This path couldn\'t be re-solved. Try again.'));
+      }
     } finally {
       if (mounted) setState(() => _resolving = false);
     }

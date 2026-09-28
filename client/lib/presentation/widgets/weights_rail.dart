@@ -20,6 +20,7 @@ import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import 'conflict_dialog.dart';
+import '../failure_sentence.dart';
 import 'error_states.dart';
 import 'passage_mode_picker.dart';
 import 'passage_removal_prompt.dart';
@@ -524,7 +525,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
           .read(currentTripProvider.notifier)
           .regenerateSegment(widget.dayId, segment.id, mode: mode);
     } on RoutingException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) {
+        setState(() => _error =
+            failureSentence(e, fallback: 'The route couldn\'t be re-solved. Try again.'));
+      }
     } finally {
       if (mounted) setState(() => _regenerating = false);
     }
@@ -594,7 +598,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
           }
         }
       } on RoutingException catch (e) {
-        if (mounted) setState(() => _error = e.message);
+        if (mounted) {
+          setState(() => _error = failureSentence(e,
+              fallback: 'The range this area can deliver couldn\'t be probed.'));
+        }
       } finally {
         if (mounted) setState(() => _addingBand = false);
       }
@@ -670,7 +677,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         onApplyRelaxation: (offer) => _applyRelaxation(segment, offer),
       );
     } on RoutingException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) {
+        setState(() => _error =
+            failureSentence(e, fallback: 'Diagnose didn\'t finish. Try again.'));
+      }
     } finally {
       if (mounted) setState(() => _diagnosing = false);
     }
