@@ -26,9 +26,10 @@ Read `readme.md` in this skill, then explore the other files.
   depth across three competing scroll regions and proposing a **Frame / Tune / Refine** task
   spine. Read its `readme.md` before touching the Route rail. Later re-designs of a single
   surface belong in a sibling directory shaped the same way, not in the numbered flow set.
-- **`uploads/` is scratch input, not source of truth** — it contains stale hashed copies of
-  product docs, including a **v1 `Plotlines_PRD.md`** whose model is reversed relative to v2.
-  Never read a doc from here; read `docs/*_v2.md` in the repo.
+- **`uploads/` is scratch input, not source of truth** — it holds the images originally
+  uploaded with the design brief. The stale product-doc copies that used to sit beside them
+  (including a v1 PRD whose model is reversed) were removed on 2026-09-28. Read product docs
+  from `docs/*_v2.md` in the repo, never from here.
 
 If creating visual artifacts (slides, mocks, throwaway prototypes), copy assets
 out and produce static HTML using the tokens. If working on production Flutter
