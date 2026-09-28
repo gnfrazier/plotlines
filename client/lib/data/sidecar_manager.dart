@@ -445,6 +445,7 @@ class SidecarManager extends ChangeNotifier {
     this.binaryOverride,
     SidecarRegistry? registry,
     SidecarUpstreams? upstreams,
+    this.startupTimeout = const Duration(seconds: 60),
   })  : _registryOverride = registry,
         _upstreamsOverride = upstreams;
 
@@ -453,7 +454,20 @@ class SidecarManager extends ChangeNotifier {
   final SidecarRegistry? _registryOverride;
   final SidecarUpstreams? _upstreamsOverride;
 
+  /// How long [start] waits for a spawned sidecar to answer `/health` before
+  /// settling on [SidecarState.failed]. Only a test shortens it.
+  final Duration startupTimeout;
+
   SidecarProcess? _process;
+
+  /// Bumped by every launch, every exit of the live process, [stop] and
+  /// [dispose]. A launch or a startup poll that finds it moved on is working
+  /// for a process that is gone or superseded, and drops out without
+  /// touching [status] — otherwise a poll loop for a sidecar that already
+  /// died kept writing "starting up" over the restart's own state, and over
+  /// a settled "degraded", for the rest of its 60 s deadline.
+  int _generation = 0;
+  bool _disposed = false;
   int? _port;
   String? _confirmedVersion;
   SidecarStatus _status = const SidecarStatus(SidecarState.starting);
@@ -534,8 +548,17 @@ class SidecarManager extends ChangeNotifier {
       sidecarSpawnArgs(port: port, cacheDirPath: cacheDir.path, upstreams: upstreams);
 
   void _set(SidecarState state, {String detail = ''}) {
+    if (_disposed) return;
     _status = SidecarStatus(state, detail: detail, port: _port);
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _generation++;
+    _capabilityPollTimer?.cancel();
+    super.dispose();
   }
 
   /// Locates the frozen sidecar binary. Production layout bundles it beside
@@ -601,11 +624,50 @@ class SidecarManager extends ChangeNotifier {
     return (result.stdout as String).trim();
   }
 
+  /// Launches the sidecar and waits for it to answer `/health`. Never throws:
+  /// a binary that cannot be found or run, a missing `version.lock`, or a
+  /// spawn failure settles on [SidecarState.failed] with a finished sentence
+  /// — before this, any of them escaped as an unhandled async error from
+  /// `main.dart`'s fire-and-forget call and left [SidecarGate] on "checking
+  /// sidecar version" forever, the "won't start" state never reached.
+  ///
+  /// Also [SidecarGate]'s Retry: a still-running sidecar from the attempt
+  /// that timed out is stopped first rather than leaked beside the new one.
   Future<void> start() async {
+    final generation = ++_generation;
+    try {
+      await _launch(generation);
+    } catch (e) {
+      debugPrint('sidecar: launch failed: $e');
+      if (generation != _generation) return;
+      _set(SidecarState.failed, detail: 'the sidecar could not be launched');
+    }
+  }
+
+  Future<void> _launch(int generation) async {
     _set(SidecarState.starting, detail: 'checking sidecar version');
+
+    // A previous launch's process that is still running — Retry after a
+    // health-check timeout — is retired before anything new is spawned.
+    // Clearing [_process] first makes its exit a stale one [_onExit]
+    // ignores, so retiring it never reads as a crash to restart from.
+    final previous = _process;
+    if (previous != null) {
+      _process = null;
+      _capabilityPollTimer?.cancel();
+      await previous.stop(grace: const Duration(seconds: 5));
+      try {
+        await (await _resolveRegistry()).forget(previous.pid);
+      } catch (_) {
+        // Best-effort, as in [stop].
+      }
+      if (generation != _generation) return;
+    }
+
     final binPath = _resolveBinaryPath();
 
     final sidecarVersion = await readBinaryVersion();
+    if (generation != _generation) return;
     final clientVersion = resolveClientVersion();
     if (!sidecarVersionIsPaired(clientVersion, sidecarVersion)) {
       // A8: never run the client against a mismatched sidecar.
@@ -616,8 +678,10 @@ class SidecarManager extends ChangeNotifier {
     }
     _confirmedVersion = sidecarVersion.trim();
 
-    _port = await pickEphemeralPort();
+    final port = await pickEphemeralPort();
     final cacheDir = await _resolveCacheDir();
+    if (generation != _generation) return;
+    _port = port;
     _set(SidecarState.starting, detail: 'launching sidecar');
 
     // Issue #434 — the four baseline flags plus the mirror/elevation
@@ -626,21 +690,28 @@ class SidecarManager extends ChangeNotifier {
     // asks the mirror for a clip and every graph falls through to Overpass.
     // The URL alone triggers no request — the sidecar contacts the mirror
     // only when an extent is declared (D41/D57).
-    _process = await SidecarProcess.start(
-        binPath, spawnArgsFor(port: _port!, cacheDir: cacheDir));
-    _process!.exitCode.then(_onExit);
+    final proc = await SidecarProcess.start(
+        binPath, spawnArgsFor(port: port, cacheDir: cacheDir));
+    if (generation != _generation) {
+      // [stop] (app exit) or a newer launch arrived while this one was
+      // spawning — nobody will ever stop this child if it is kept.
+      await proc.stop(grace: const Duration(seconds: 5));
+      return;
+    }
+    _process = proc;
+    proc.exitCode.then((code) => _onExit(proc, code));
     // Record this child *before* the health-poll wait, not fire-and-forget
     // (issue #183): if the client dies during the seconds spent in
     // `_pollUntilReady`, an already-durable record is what lets the next
     // launch's sweep find and reap this sidecar. Failure to record is still
     // not worth blocking the spawn over — it is logged and startup proceeds.
     try {
-      await (await _resolveRegistry()).record(_process!.pid, _port!);
+      await (await _resolveRegistry()).record(proc.pid, port);
     } catch (e) {
       debugPrint('sidecar: could not record for orphan sweep: $e');
     }
 
-    await _pollUntilReady();
+    await _pollUntilReady(generation);
   }
 
   /// Waits only for the sidecar process to come up and answer `/health` —
@@ -648,10 +719,14 @@ class SidecarManager extends ChangeNotifier {
   /// instant the process responds (ARCH B1/§8.3, PRD FR121), so that is what
   /// unblocks [SidecarGate] now; routing and elevation settle later and are
   /// tracked by [_watchCapabilities] without holding up the app.
-  Future<void> _pollUntilReady() async {
-    final deadline = DateTime.now().add(const Duration(seconds: 60));
+  ///
+  /// Gives up silently the moment [generation] is superseded — the process
+  /// exited (restart-once or degrade has already taken over [status]), a
+  /// newer launch started, or [stop] ran.
+  Future<void> _pollUntilReady(int generation) async {
+    final deadline = DateTime.now().add(startupTimeout);
     var attempt = 0;
-    while (DateTime.now().isBefore(deadline)) {
+    while (generation == _generation && DateTime.now().isBefore(deadline)) {
       attempt++;
       // Escalating honest wait message rather than a bare spinner (MVP §4).
       final waitDetail = attempt < 6
@@ -664,6 +739,7 @@ class SidecarManager extends ChangeNotifier {
         final resp = await http
             .get(Uri.parse('$baseUrl/health'))
             .timeout(_pollTimeout);
+        if (generation != _generation) return;
         if (resp.statusCode == 200) {
           final body = jsonDecode(resp.body) as Map<String, dynamic>;
           final caps = Capabilities.fromJson(body['capabilities'] as Map<String, dynamic>);
@@ -679,6 +755,7 @@ class SidecarManager extends ChangeNotifier {
       }
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
+    if (generation != _generation) return;
     _set(SidecarState.failed, detail: 'health-check timeout');
   }
 
@@ -711,7 +788,7 @@ class SidecarManager extends ChangeNotifier {
         if (capsEncoded == _lastCapabilitiesJson) return;
         _lastCapabilitiesJson = capsEncoded;
         _capabilities = Capabilities.fromJson(capsJson);
-        notifyListeners();
+        if (!_disposed) notifyListeners();
       } catch (_) {
         // Sidecar may have died mid-poll — `_onExit` handles that
         // transition; this loop just stops making noise until it's stopped.
@@ -745,16 +822,21 @@ class SidecarManager extends ChangeNotifier {
     }
   }
 
-  void _onExit(int code) {
+  void _onExit(SidecarProcess proc, int code) {
+    // Only the live process's exit means anything. One this manager already
+    // retired (Retry stopping a timed-out launch) or replaced must not
+    // cancel the new process's poll, forget the new PID, or spend the one
+    // restart on a death nobody needs to recover from.
+    if (!identical(proc, _process) || _disposed) return;
     _capabilityPollTimer?.cancel();
+    // Whatever launch was still polling this process is done.
+    _generation++;
 
     // This PID is gone whatever happens next — drop it from the orphan
     // registry so a subsequent crash of *this* client doesn't leave the next
     // launch chasing a dead PID.
-    final deadPid = _process?.pid;
-    if (deadPid != null) {
-      unawaited(_resolveRegistry().then((r) => r.forget(deadPid)).catchError((Object _) {}));
-    }
+    final deadPid = proc.pid;
+    unawaited(_resolveRegistry().then((r) => r.forget(deadPid)).catchError((Object _) {}));
 
     switch (decideOnSidecarExit(
       stoppingDeliberately: _stoppingDeliberately,
@@ -765,7 +847,7 @@ class SidecarManager extends ChangeNotifier {
       case SidecarExitDecision.restartOnce:
         _restarted = true;
         _set(SidecarState.restarting, detail: 'sidecar exited unexpectedly — restarting');
-        start();
+        unawaited(start());
       case SidecarExitDecision.degrade:
         // Second failure: degrade honestly rather than loop (M13, M12).
         _set(SidecarState.degraded,
@@ -782,6 +864,9 @@ class SidecarManager extends ChangeNotifier {
   /// §7.3; SPIKE-00 `WINDOWS.md` §3).
   Future<void> stop() async {
     _stoppingDeliberately = true;
+    // An in-flight launch drops out — and stops whatever it spawns — rather
+    // than bringing up a sidecar after the app has asked for it to be gone.
+    _generation++;
     _capabilityPollTimer?.cancel();
     final proc = _process;
     if (proc == null) return;
