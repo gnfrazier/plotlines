@@ -1096,6 +1096,19 @@ def create_clip_app(
             )
 
     def _run_clip(bbox: BBox) -> Response:
+        # Validated here, before anything else, so a 400 means the caller's
+        # bbox and nothing else: `clip_bbox` can also raise a `ValueError`
+        # of the mirror's own making (a `MIRROR_STATE.json` that doesn't
+        # parse is a `JSONDecodeError`), which is a server fault, not an
+        # invalid bbox. It also keeps a malformed request from taking a
+        # concurrency slot.
+        try:
+            validate_bbox(bbox)
+        except ValueError as exc:
+            log.warning("clip REFUSED bbox=%s reason=invalid_bbox: %s", bbox, exc)
+            raise HTTPException(
+                400, detail={"error": "invalid_bbox", "message": str(exc)}
+            ) from None
         # Issue #494: bound how many callers may run `clip_bbox` at once,
         # fail-fast rather than queue — see the module docstring's
         # "Concurrency" section and `_ClipConcurrencyLimiter`.
@@ -1125,16 +1138,11 @@ def create_clip_app(
                     bbox, root=root, dest=dest, tmp_dir=work_dir,
                     cache_dir=cache_dir, cache_max_bytes=cache_max_bytes,
                 )
-            except ValueError as exc:
+            except NoMirrorCoverage as exc:
                 dest.unlink(missing_ok=True)
-                if isinstance(exc, NoMirrorCoverage):
-                    log.warning("clip REFUSED bbox=%s reason=no_mirror_coverage: %s", bbox, exc)
-                    raise HTTPException(
-                        404, detail={"error": "no_mirror_coverage", "message": str(exc)}
-                    ) from None
-                log.warning("clip REFUSED bbox=%s reason=invalid_bbox: %s", bbox, exc)
+                log.warning("clip REFUSED bbox=%s reason=no_mirror_coverage: %s", bbox, exc)
                 raise HTTPException(
-                    400, detail={"error": "invalid_bbox", "message": str(exc)}
+                    404, detail={"error": "no_mirror_coverage", "message": str(exc)}
                 ) from None
             except Exception as exc:  # noqa: BLE001 — any clip failure is a finished sentence
                 dest.unlink(missing_ok=True)

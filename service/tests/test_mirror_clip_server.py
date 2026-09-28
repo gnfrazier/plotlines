@@ -144,6 +144,21 @@ def test_invalid_bbox_returns_400_with_a_finished_sentence(tmp_path: Path) -> No
     assert "Traceback" not in resp.text
 
 
+def test_a_corrupt_mirror_state_is_a_500_not_an_invalid_bbox_400(tmp_path: Path) -> None:
+    """`MIRROR_STATE.json` that doesn't parse raises `JSONDecodeError` — a
+    `ValueError` — inside `clip_bbox`, which the handler used to report as
+    400 `invalid_bbox` for a perfectly valid bbox: the caller told its
+    request was wrong, the operator's log pointing at the wrong party."""
+    mirror = _mirror_with_one_region(tmp_path)
+    (mirror / "MIRROR_STATE.json").write_text('{"geofabrik": {"pinned_da')
+    tc = TestClient(create_clip_app(mirror, tmp_dir=tmp_path / "scratch"))
+
+    resp = tc.get("/clip", params=_BBOX)
+
+    assert resp.status_code == 500
+    assert resp.json()["detail"]["error"] == "clip_failed"
+
+
 def test_health_reports_the_pinned_extracts(tmp_path: Path) -> None:
     mirror = _mirror_with_one_region(tmp_path)
     tc = TestClient(create_clip_app(mirror, tmp_dir=tmp_path / "scratch"))
