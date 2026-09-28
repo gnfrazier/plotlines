@@ -986,17 +986,26 @@ class _RateLimiter:
         self._limit = limit_per_minute
         self._time_fn = time_fn
         self._windows: dict[str, tuple[float, int]] = {}
+        # The dependency runs on the shared thread pool, so two requests can
+        # read-modify-write one caller's count at once and both slip under
+        # the ceiling; the lock makes the check-and-increment atomic.
+        self._lock = threading.Lock()
 
     def allow(self, key: str) -> bool:
         if self._limit <= 0:  # 0 or negative disables the ceiling outright
             return True
-        now = self._time_fn()
-        window_start, count = self._windows.get(key, (now, 0))
-        if now - window_start >= self._WINDOW_S:
-            window_start, count = now, 0
-        count += 1
-        self._windows[key] = (window_start, count)
-        return count <= self._limit
+        with self._lock:
+            now = self._time_fn()
+            # Expired windows are dropped, not just reset on their key's next
+            # visit: every address that ever called would otherwise hold an
+            # entry for the life of the process.
+            for stale in [k for k, (start, _) in self._windows.items()
+                          if now - start >= self._WINDOW_S]:
+                del self._windows[stale]
+            window_start, count = self._windows.get(key, (now, 0))
+            count += 1
+            self._windows[key] = (window_start, count)
+            return count <= self._limit
 
 
 #: Issue #494. Not a promise about how long any particular caller's clip

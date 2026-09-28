@@ -284,6 +284,19 @@ def test_clip_rate_limit_window_resets(tmp_path: Path) -> None:
     assert second.status_code == 200
 
 
+def test_clip_rate_limiter_forgets_callers_whose_window_has_passed() -> None:
+    """Every address that ever called used to keep an entry for the life of
+    the process — unbounded growth on a long-running, internet-facing
+    service. An expired window is now dropped."""
+    clock = [0.0]
+    limiter = mirror_clip._RateLimiter(5, time_fn=lambda: clock[0])
+    for i in range(1000):
+        assert limiter.allow(f"10.0.{i // 256}.{i % 256}")
+    clock[0] = 61.0
+    assert limiter.allow("10.9.9.9")
+    assert len(limiter._windows) == 1
+
+
 def test_clip_rate_limit_tracks_callers_independently_by_forwarded_ip(
     tmp_path: Path,
 ) -> None:
