@@ -15,7 +15,7 @@ itself — #273–#278 — and reachable from the app since #434); the acquisiti
 ARCH **D63** (#287, 2026-09-17), which also closes out ARCH **A23**/**A23a** and Punchlist **2A.3**.
 **Open:** Phase 4 (#279, hosted) and the rest of Phase 5 (#283 — #284, #285, #286; §10's policy gate and
 give-back are not yet built, though two of its three test gates shipped early as #251).
-**Open issues in view:** [#238](https://github.com/gnfrazier/plotlines/issues/238), [#239](https://github.com/gnfrazier/plotlines/issues/239), [#240](https://github.com/gnfrazier/plotlines/issues/240), [#154](https://github.com/gnfrazier/plotlines/issues/154), [#144](https://github.com/gnfrazier/plotlines/issues/144)
+**Issues in view:** [#238](https://github.com/gnfrazier/plotlines/issues/238) (closed), [#239](https://github.com/gnfrazier/plotlines/issues/239), [#240](https://github.com/gnfrazier/plotlines/issues/240) (closed), [#154](https://github.com/gnfrazier/plotlines/issues/154) (closed), [#144](https://github.com/gnfrazier/plotlines/issues/144)
 **Documents in view:** ARCH **A23** / **A23a** / §8.3 / §11 / §12, PRD **FR1** / **FR92** / **FR94** / **FR95** / **FR120** / **FR121**, Punchlist **2A.3**
 
 ---
@@ -345,6 +345,11 @@ resolver is inconvenient.
 
 ### 6.6 Sync and freshness
 
+> **Amended by ARCH D67 (epic #516, open):** the regions below are *seeding*, not the limit of
+> coverage. Once #518 ships, a `/clip` miss inside a Geofabrik-published region queues a pull and
+> precut of that region under the same etiquette as here. Until then the named list is the whole
+> of it, and a miss falls back to Overpass (ARCH D63's phased rule).
+
 Pull each region from Geofabrik **once**, verify against the published `.md5`, and iterate against
 the Pi forever after. All spike iteration then costs an upstream nothing — which is the mistake we
 are unwinding on the Overpass side, so we should not repeat it on the Geofabrik side.
@@ -474,16 +479,15 @@ which is the half SPIKE-I actually measured.
   the rest of the app. The still-covered portion of the trip — including every
   already-promoted anchor — remains fully usable. No change is owed here.
 - **Shrinking is where C's offline story is worth improving, and the improvement is decided
-  but not yet built.** SPIKE-I measured that truncating the graph the client already holds
+  and, since #432 (closed 2026-09-18), built** (`graph/regions.py::truncate_graph_to_bbox`,
+  `build_provisional_graph_from_shrink`). SPIKE-I measured that truncating the graph the client already holds
   serves 100% of shrinks, at a small, disclosed cost (0.6–1.6% node divergence from a fresh
   build for the new extent). **Decided target:** a shrink truncates the held graph
   immediately rather than reporting not-ready, with routing/cue-sheet capabilities for the
   shrunk trip marked **provisional** — the same "stated reason, honest progress" pattern
   FR121 uses for not-ready, applied to "correct once reconnected" instead of "not yet
-  available" — until a real rebuild completes online. **Today**, before that mechanism is
-  built, a shrink offline behaves identically to a nudge or grow: an honest
-  `failed:<reason>` capability report, not a provisional graph. The truncation mechanism is
-  filed as **#432**. Independent of whether it is built yet, FR120's no-lost-anchor
+  available" — until a real rebuild completes online. *(Before #432, a shrink offline behaved identically to a nudge or grow: an honest
+  `failed:<reason>` capability report, not a provisional graph.)* Independent of whether it is built yet, FR120's no-lost-anchor
   guarantee is unconditional and does not bend for connectivity: any promoted anchor outside
   the new bounds is shown to the Author, who keeps it (bbox unchanged), moves the bounds, or
   removes it explicitly — never silently discarded.
@@ -598,6 +602,14 @@ unexpectedly, and it is independent of 7.1, so it can run in parallel.
 > passes on each. §11.2's week was not consumed. `spikes/SPIKE-J/results/RESULTS.md`.
 
 ## 8. Phase 3 — Desktop and mobile extract path
+
+> **As built (#272, 2026-09-17) — steps 1–3 below are the pre-§12 plan and did not ship.** §12's Q1-C
+> answer moved resolution and clipping to the mirror (§6.7): the client resolves nothing, downloads
+> no region extract, and runs no `osmium extract` — which is the GPL-3 CLI that addendum L1 forbids
+> anyway. What shipped is `graph/extract_fetch.py::ensure_extract`, which asks the mirror's `/clip`
+> for one clipped `.osm.pbf` on the extent declaration and caches it under `CacheLayout`'s extract
+> slot; `graph/pbf_source.py` reads it with pyosmium for the graph, and `OsmLayerProvider` reads
+> the same clip for candidates. Step 4 and the per-trip freshness rule below stand.
 
 Replaces the *transport*, not the interfaces: `ensure_graph(region, cache_dir)` keeps its
 signature, `OsmLayerProvider.fetch(bbox, layers)` keeps its, `LayerProvider` never knows.
@@ -837,8 +849,8 @@ it unnecessary to check.
     1.9–7.2 GB even server-side on the Pi mirror; taking it client-side would reopen L1 and
     #266's freeze matrix for no offline win. Recorded as ARCH **D62** and §6.7a's offline
     bbox-edit spec: nudge/grow already disable with reason via #274/#275's shipped capability
-    reporting; a shrink's provisional-graph improvement is the decided target, filed as **#432**,
-    not yet built. FR120's no-lost-anchor guarantee holds unconditionally either way.
+    reporting; a shrink's provisional-graph improvement is the decided target, filed as **#432**
+    and since built (closed 2026-09-18). FR120's no-lost-anchor guarantee holds unconditionally either way.
     *(§6.7a, Q1 — #278)*
 
 **Then — Phase 5, the policy gate** *(epic #283)*

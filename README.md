@@ -58,12 +58,15 @@ plotlines/
 ├── packaging/        # frozen-binary build, installers, signing; version.lock is the
 │                     # single source of truth both client and sidecar stamp themselves with
 ├── deploy/           # non-Python deployment artifacts (Caddy/mirror config, Dockerfiles'
-│   └── mirror/       #   companions) — deploy/mirror/ is the Pi5 OSM/basemap mirror (#256)
-├── docs/             # PRD, architecture, MVP scope, research spikes
+│   ├── mirror/       #   companions) — deploy/mirror/ is the Pi5 OSM/basemap mirror (#256)
+│   └── elevation/    #   the Pi5 caching elevation proxy (QA only) and priority regions
+├── docs/             # PRD, architecture, punch list, flows, research spikes, licensing
 │   └── schemas/      #   trip_payload.schema.json — the one contract core, drift and
 │                     #   the Dart domain layer all read (SPIKE-20, ARCH D28)
-└── .github/workflows/  # CI — the P1 boundary lint (core must not import fastapi) and
-                      # the trip-payload schema check
+├── spikes/           # one directory per research spike: harness, results, fixtures
+├── tools/            # test_all.sh (the full pre-push run) and the CI lint scripts
+└── .github/workflows/  # CI — core/service/client suites, the P1 boundary lint, the reveal
+                      # gate, the trip-payload schema check, the bundled-data lint
 ```
 
 ## Getting started (desktop dev)
@@ -73,7 +76,7 @@ Toolchain, verified for WSL/Ubuntu:
 - **Python 3.11+** with working `venv`/`pip` (on Debian/Ubuntu: `python3.12-venv` and
   `python3-pip` if missing) — plus `libgdal-dev`, `libgeos-dev`, `libproj-dev`, and
   `build-essential` for the geospatial stack `core/pyproject.toml` declares
-  (osmnx, shapely, rasterio, numpy, networkx).
+  (osmnx, shapely, rasterio, numpy, networkx, and osmium — pyosmium, never the GPL CLI).
 - **[uv](https://github.com/astral-sh/uv)** for Python dependency management.
 - **Flutter SDK** with Linux desktop enabled (`flutter config --enable-linux-desktop`);
   run `flutter doctor` to confirm. Needs a working display — WSLg provides this on WSL2.
@@ -81,20 +84,23 @@ Toolchain, verified for WSL/Ubuntu:
 
 `core` and `service` wire graph loading, scoring, routing (all three shapes), trip
 composition, cue derivation, geocoding, region acquisition, and basemap tile serving into a
-FastAPI sidecar wrapper (`/health`, `POST /regions`, `/segments/generate`, `/segments/envelope`,
-`/segments/diagnose`, `/segments/cues`, `/days/compose`, `/trips/split`, `/geocode`,
-`GET /tiles/{z}/{x}/{y}`). Routing is **region-scoped, on demand** (issue #154): the Author's own
+FastAPI sidecar wrapper — `/health`, `POST /regions`, `GET /regions/{key}/diagnostics`,
+`/segments/generate`, `/segments/envelope`, `/segments/diagnose` (+ `GET …/{job_id}`),
+`/segments/cues`, `/days/compose`, `/trips/split`, `/geocode`, `GET /tiles/{z}/{x}/{y}`, the
+curation endpoints (`/layers`, `/candidates`, `/candidates/score`, `/clusters/analyze`), and
+`/attribution` and `/about`. ARCH §8.2 has the full surface. Routing is **region-scoped, on demand** (issue #154): the Author's own
 trip bbox, drawn at trip initiation (FR120), is what gets built into a routable graph via
-`POST /regions` and Overpass — never a committed fixture. `spikes/SPIKE-00/cache`'s Boulder
-graph is a **test fixture** now (pre-seeded into a region's cache path in
-`service/tests/test_regions.py` to test the cross-region-422 case without a network call), not
+`POST /regions` — from the mirror's `/clip` extract first, with Overpass as the fallback on a
+miss (ARCH D63) — never a committed fixture. `spikes/SPIKE-00/fixtures/boulder_bike.graphml`
+is a **test fixture** now (pre-seeded into a region's cache path by the `boulder_region`
+fixture in `service/tests/conftest.py`, so the service tests need no network call), not
 something the app loads at startup or falls back to. `client` is a Flutter app; **Running the
 desktop app** below is Linux-first — the `client/linux` platform scaffold is the one that
 exists.
 
 ## Running the desktop app
 
-The client always spawns its **own** sidecar process (ARCH §7.3, M12) — there's no "point it
+The client always spawns its **own** sidecar process (ARCH §8.4, M12) — there's no "point it
 at an already-running dev server" mode — so the sidecar binary has to be built at least once
 before `flutter run` will get past the loading screen.
 
@@ -153,10 +159,11 @@ a dedicated pool behind a 5 s deadline for any viewport neither of the others co
 what gives the trip-extent draw map a basemap before any region exists (FR120). An upstream that
 is slow or unreachable answers a retryable 503 for that tile, never a hang. Panning outside all
 three areas shows an honest, viewport-based "no basemap tiles here" notice — never a substituted
-region — rather than a blank map. `client/assets/map_style/style_{light,dark}.json` (still a committed
+region — rather than a blank map. `client/assets/map_style/style_{light,dark,grayscale}.json` (still a committed
 client asset — styling, not tile data) are generated from the mirrored Protomaps theme by
 `packaging/build_basemap_theme.py`; rerun that script if
-`spikes/SPIKE-14/harness/assets/style_*.json` ever changes upstream.
+`spikes/SPIKE-14/harness/assets/style_*.json` or `spikes/SPIKE-K/harness/styles/protomaps_grayscale.json`
+ever changes upstream (and see #486 before you do — a rerun currently reverts #321's contrast fix).
 
 Run `flutter test` and `flutter analyze` from `client/` before a PR. `flutter analyze` reports
 `error`s inside `client/design` — the imported design reference has its own `pubspec.yaml` and

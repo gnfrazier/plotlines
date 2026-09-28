@@ -1,3 +1,3 @@
 # presentation
 
-Screens, widgets, HUD. See ARCH §9.1. Built to match `client/design/Plotlines Author Desktop.dc.html`.
+Screens, widgets, HUD. See ARCH §10.1. Built to match `client/design/client-design/Plotlines Author Desktop.bundle.html`.

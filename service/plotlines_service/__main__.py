@@ -80,10 +80,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "or revising a trip bbox (POST /regions) also "
                              "downloads that bbox's clipped .osm.pbf into "
                              "CacheLayout's extract slot, reported through "
-                             "GET /health's capabilities.extract. Independent of "
-                             "--tiles-upstream and --mirror-state-url. Absent "
-                             "(the default until #275 wires the region graph to "
-                             "consume this extract) makes no request at all — no "
+                             "GET /health's capabilities.extract; the region graph "
+                             "and candidates are then built from that clip (#275). "
+                             "Independent of --tiles-upstream and "
+                             "--mirror-state-url. The desktop client always passes "
+                             "it; absent, the service makes no request at all — no "
                              "eager, unconfigured download (FR120/D41/D57).")
     parser.add_argument("--mirror-clip-client-key",
                         default=os.environ.get(MIRROR_CLIP_CLIENT_KEY_ENV) or None,

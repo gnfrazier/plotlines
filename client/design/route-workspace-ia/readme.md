@@ -38,9 +38,10 @@ passage and trip figures.
   artboard renders standalone. If a token changes, these do not follow
   automatically.
 - The start and finish map marks drawn in `Main.dc.html` (a ring with a solid
-  chevron; a ring with a solid square) are a **proposal for #320**, which found
-  that `NodeMarkerType` has no start or finish mark at all. They are not in the
-  brand guide yet.
+  chevron; a ring with a solid square) were a **proposal for #320**. #320 has
+  since closed with its own marks — `NodeMarkerType.start` (ring + play
+  triangle) and `.finish` (checkered square) — so these artboards no longer
+  match the shipped markers.
 - The seeded canvas HTML is a build output and is not committed — regenerate it
   with the `design` skill's `seed-canvas.mjs` from the files above.
 

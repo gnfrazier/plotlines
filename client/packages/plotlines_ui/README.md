@@ -36,7 +36,7 @@ mode-agnostic: `final c = PlotColors.of(context);` then `c.primary`,
 
 ## Foundations
 - **Type** — `PlotTypography`: Instrument Serif (display), Archivo (UI/body),
-  JetBrains Mono (data). Loaded via `google_fonts`.
+  JetBrains Mono (data). Bundled `.ttf`s, not `google_fonts` — see the note below.
 - **Spacing** — `PlotSpacing` on a 4px rhythm; `PlotSpacing.touchMin` = 44.
 - **Shape** — `PlotRadii` (4px controls, 6px cards); `PlotElevation` soft shadows.
 
@@ -44,7 +44,7 @@ mode-agnostic: `final c = PlotColors.of(context);` then `c.primary`,
 Standard: `PlotButton` (primary / secondary / ghost / danger), `PlotCard`,
 `PlotBadge`, `PlotDialog` (confirm + bottom sheet), `PlotListTile`.
 
-Brand: `NodeMarker` (six topographic map markers via CustomPainter),
+Brand: `NodeMarker` (eight topographic map markers via CustomPainter — the brand guide's six plus start and finish, #320),
 `CueSheetRow`, `ElevationProfile`, `TripCard`.
 
 ## Accessibility notes baked in
