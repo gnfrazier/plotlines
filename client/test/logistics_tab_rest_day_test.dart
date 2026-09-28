@@ -77,6 +77,34 @@ Future<ProviderContainer> _pump(WidgetTester tester, Day day, {List<Anchor> anch
 }
 
 void main() {
+  // Review fix — the day cards were unkeyed, so removing Day 1 handed its
+  // title/note field state to Day 2, and typing there wrote Day 1's text
+  // into Day 2.
+  testWidgets('removing a rest day leaves the next rest day showing its own title',
+      (tester) async {
+    final container = await _pump(tester, Day(id: 'd1', index: 1, kind: 'rest', title: 'Hot springs'));
+    container.read(currentTripProvider.notifier).open(
+          Trip(
+            id: 't1',
+            title: 'Test trip',
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+            days: [
+              Day(id: 'd1', index: 1, kind: 'rest', title: 'Hot springs'),
+              Day(id: 'd2', index: 2, kind: 'rest', title: 'Laundry'),
+            ],
+          ),
+        );
+    await tester.pump();
+    expect(find.widgetWithText(TextField, 'Hot springs'), findsOneWidget);
+
+    container.read(currentTripProvider.notifier).removeDay('d1');
+    await tester.pump();
+
+    expect(find.widgetWithText(TextField, 'Hot springs'), findsNothing);
+    expect(find.widgetWithText(TextField, 'Laundry'), findsOneWidget);
+  });
+
   testWidgets('a route day shows no rest-day details', (tester) async {
     await _pump(tester, Day(id: 'd1', index: 1));
     expect(find.text('No location set'), findsNothing);
