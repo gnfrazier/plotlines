@@ -72,9 +72,10 @@ to run the app.
 
 ## The mirror the sidecar is pointed at (issue #434)
 
-The client spawns the sidecar with the five upstream flags it accepts — `--mirror-clip-url`,
-`--mirror-clip-client-key`, `--mirror-state-url`, `--elevation-upstream`, `--tiles-upstream`
-(#453) — resolved by `lib/data/sidecar_upstreams.dart` from, in precedence order, a **process
+The client spawns the sidecar with the five upstream settings it accepts — `--mirror-clip-url`,
+the client key (passed as `$PLOTLINES_MIRROR_CLIP_CLIENT_KEY` in the sidecar's environment, never
+on argv, where any local user can read it), `--mirror-state-url`, `--elevation-upstream`,
+`--tiles-upstream` (#453) — resolved by `lib/data/sidecar_upstreams.dart` from, in precedence order, a **process
 environment variable** at launch, a **`--dart-define`** at build time, and a **built-in
 default**. Only the mirror URL has a default (`https://tiles.plotlines.app`, pinned by test to
 `tiles/mirror.py`'s `MIRROR_HOST`); the other four are unset unless you set them. This is

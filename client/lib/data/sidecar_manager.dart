@@ -691,7 +691,8 @@ class SidecarManager extends ChangeNotifier {
     // The URL alone triggers no request — the sidecar contacts the mirror
     // only when an extent is declared (D41/D57).
     final proc = await SidecarProcess.start(
-        binPath, spawnArgsFor(port: port, cacheDir: cacheDir));
+        binPath, spawnArgsFor(port: port, cacheDir: cacheDir),
+        environment: upstreams.toSidecarEnvironment());
     if (generation != _generation) {
       // [stop] (app exit) or a newer launch arrived while this one was
       // spawning — nobody will ever stop this child if it is kept.

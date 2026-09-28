@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import multiprocessing
+import os
 import signal
 import sys
 from pathlib import Path
@@ -18,6 +19,10 @@ import logging
 from .app import create_app
 from .logging_setup import configure_logging, default_log_file
 from .version import VERSION
+
+# The client's own variable name (`SidecarUpstreams.mirrorClipClientKeyVar`),
+# so a key set in the client's environment reaches a spawned sidecar as-is.
+MIRROR_CLIP_CLIENT_KEY_ENV = "PLOTLINES_MIRROR_CLIP_CLIENT_KEY"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -80,13 +85,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "(the default until #275 wires the region graph to "
                              "consume this extract) makes no request at all — no "
                              "eager, unconfigured download (FR120/D41/D57).")
-    parser.add_argument("--mirror-clip-client-key", default=None,
+    parser.add_argument("--mirror-clip-client-key",
+                        default=os.environ.get(MIRROR_CLIP_CLIENT_KEY_ENV) or None,
                         help="the X-Plotlines-Client-Key header to send with "
                              "every --mirror-clip-url request (issue #263, review "
                              "§6.8/1d) — must match the mirror's own "
-                             "--client-key/MIRROR_CLIP_CLIENT_KEY. Unset (the "
-                             "default) sends no key, which only works against a "
-                             "mirror configured to leave /clip open (local/dev).")
+                             "--client-key/MIRROR_CLIP_CLIENT_KEY. Defaults to "
+                             f"${MIRROR_CLIP_CLIENT_KEY_ENV}, which is how the "
+                             "client passes it: argv is readable by any local "
+                             "user (ps, /proc/<pid>/cmdline), the environment "
+                             "is not. Unset sends no key, which only works "
+                             "against a mirror configured to leave /clip open "
+                             "(local/dev).")
     parser.add_argument("--web-domain", default=None,
                         help="hosted mode only: the registrable parent domain "
                              "(e.g. plotlines.app) that app.<domain> and "

@@ -141,6 +141,16 @@ void main() {
     expect(code, 7, reason: 'the child blocked writing to a pipe nobody read');
   });
 
+  test('the extra environment reaches the child', () async {
+    // How the mirror client key is handed over: never on argv.
+    final process = await SidecarProcess.start(
+        'sh', ['-c', 'test "\$PLOTLINES_TEST_VAR" = k && exit 3; exit 4'],
+        environment: const {'PLOTLINES_TEST_VAR': 'k'});
+    addTearDown(() => process.stop(grace: const Duration(milliseconds: 200)));
+
+    expect(await process.exitCode.timeout(const Duration(seconds: 10)), 3);
+  });
+
   test('stopping an already-dead sidecar is not an error', () async {
     // The orphan sweep and the ordinary shutdown can both reach a process
     // that has already exited; neither should throw.

@@ -174,22 +174,32 @@ class SidecarUpstreams {
   }
 
   /// The sidecar flags this configuration adds to the spawn (ARCH §7.3),
-  /// after the four baseline flags. Empty for [none]. The key is only ever
-  /// emitted alongside a mirror URL — a key with nowhere to send it is not
-  /// an argument.
+  /// after the four baseline flags. Empty for [none]. The client key is never
+  /// one of them — see [toSidecarEnvironment].
   List<String> toSidecarArgs() {
     final url = mirrorUrl;
-    final key = mirrorClipClientKey;
     final state = mirrorStateUrl;
     final elevation = elevationUpstream;
     final tiles = tilesUpstream;
     return [
       if (url != null) '--mirror-clip-url=$url',
-      if (url != null && key != null) '--mirror-clip-client-key=$key',
       if (state != null) '--mirror-state-url=$state',
       if (elevation != null) '--elevation-upstream=$elevation',
       if (tiles != null) '--tiles-upstream=$tiles',
     ];
+  }
+
+  /// The variables this configuration adds to the sidecar's environment. The
+  /// client key travels here rather than as `--mirror-clip-client-key`: argv
+  /// is readable by any local user (`ps`, `/proc/<pid>/cmdline`), the
+  /// environment is not. The sidecar reads the same variable name. The key is
+  /// only ever set alongside a mirror URL — a key with nowhere to send it is
+  /// not passed on.
+  Map<String, String> toSidecarEnvironment() {
+    final key = mirrorClipClientKey;
+    return {
+      if (mirrorUrl != null && key != null) mirrorClipClientKeyVar: key,
+    };
   }
 
   /// A log-safe rendering: never includes the key, only whether one is set.
