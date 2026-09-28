@@ -18,6 +18,7 @@ import '../data/curation_client.dart';
 import '../domain/candidate.dart' show RoleAffinity;
 import '../domain/cluster_proposal.dart';
 import '../domain/json_utils.dart' show Coord;
+import '../domain/reason_phrase.dart' show looksLikeRawDiagnostic;
 import '../domain/trip_bbox.dart';
 import 'current_trip_provider.dart';
 import 'providers.dart';
@@ -232,6 +233,9 @@ class ProposalsNotifier extends StateNotifier<ProposalsState> {
         previous: previous,
         sort: 'rank',
       );
+      // Autodisposed with the workspace: leaving it during a run of up to
+      // `analyzeColocationTimeout` must not write to a disposed notifier.
+      if (!mounted) return;
       state = state.copyWith(
         result: result,
         loading: false,
@@ -241,7 +245,8 @@ class ProposalsNotifier extends StateNotifier<ProposalsState> {
         selectedId: null,
       );
     } catch (e) {
-      state = state.copyWith(loading: false, error: e.toString());
+      if (!mounted) return;
+      state = state.copyWith(loading: false, error: _errorMessage(e));
     }
   }
 
@@ -330,6 +335,16 @@ class ProposalsNotifier extends StateNotifier<ProposalsState> {
     await _persistMembers();
     state = state.copyWith(rejectedIds: state.rejectedIds.where((x) => !ids.contains(x)).toSet());
   }
+}
+
+/// What `proposals_view.dart` renders for a failed run — the same rule as
+/// `trip_candidates_provider.dart`'s (#418): a [CurationException]'s own
+/// sentence, never any exception's `toString()` (which prefixed the class
+/// name and status code, or was a whole `SocketException` repr), and
+/// anything shaped like a diagnostic replaced by a fixed phrase.
+String _errorMessage(Object e) {
+  final raw = e is CurationException ? e.message : e.toString();
+  return looksLikeRawDiagnostic(raw) ? 'something went wrong looking for clusters in this area' : raw;
 }
 
 /// One notifier per open trip. Autodisposed with the workspace.

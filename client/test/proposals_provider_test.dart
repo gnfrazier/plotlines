@@ -2,6 +2,9 @@
 // filter, Defer (session, sinks below), Reject (persisted, undoable),
 // bulk reject by filter, and re-run preserving prior rejections + marking
 // what is new. Pure logic — no widgets, no live HTTP.
+import 'dart:async';
+import 'dart:io' show SocketException;
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -79,6 +82,27 @@ class FakeCurationClient extends CurationClient {
     lastRejected = [for (final s in rejected) s.toList()..sort()];
     lastPrevious = [for (final s in previous) s.toList()..sort()];
     return _next;
+  }
+}
+
+/// A client whose analyze blocks on [gate] and then throws [error] (if set).
+class _ScriptedCurationClient extends FakeCurationClient {
+  _ScriptedCurationClient(super.next);
+  Completer<void>? gate;
+  Object? error;
+
+  @override
+  Future<ColocationResult> analyzeColocation({
+    required TripBbox bbox,
+    required Set<String> liveLayers,
+    List<dynamic> route = const [],
+    Iterable<Set<String>> rejected = const [],
+    Iterable<Set<String>> previous = const [],
+    String sort = 'rank',
+  }) async {
+    if (gate != null) await gate!.future;
+    if (error != null) throw error!;
+    return super.analyzeColocation(bbox: bbox, liveLayers: liveLayers);
   }
 }
 
@@ -264,5 +288,38 @@ void main() {
     await n.analyze(bbox: _bbox, liveLayers: {'historic'});
     expect(n.state.visible.map((p) => p.id), ['y']);
     expect(client.lastRejected, contains(equals(['x1', 'x2'])));
+  });
+
+  // M13 / #418 — `state.error` is rendered as-is by `proposals_view.dart`.
+  // It used to be `e.toString()`: the class name and status code in front
+  // of the sentence, or a whole `ClientException` repr.
+  test('a failed analyze shows the sidecar\'s sentence, never the exception\'s toString', () async {
+    const sentence = "the sidecar didn't answer while looking for clusters — try again in a moment";
+    final client = _ScriptedCurationClient(_result([]))
+      ..error = CurationException(503, '{"detail":"$sentence"}');
+    final n = notifier(client);
+    await n.analyze(bbox: _bbox, liveLayers: {'historic'});
+    expect(n.state.error, sentence);
+  });
+
+  test('a failed analyze with a raw diagnostic shows a fixed phrase', () async {
+    final client = _ScriptedCurationClient(_result([]))
+      ..error = const SocketException('Connection refused');
+    final n = notifier(client);
+    await n.analyze(bbox: _bbox, liveLayers: {'historic'});
+    expect(n.state.error, 'something went wrong looking for clusters in this area');
+  });
+
+  // The provider is autoDispose: leaving the workspace mid-analyze (up to
+  // 90 s) disposes the notifier, and writing `state` afterwards threw.
+  test('an analyze that completes after the workspace closed is dropped quietly', () async {
+    final client = _ScriptedCurationClient(_result([_proposal('a')]))..gate = Completer<void>();
+    final n = ProposalsNotifier(db, client, 't1');
+    await n.ready;
+    final running = n.analyze(bbox: _bbox, liveLayers: {'historic'});
+    await Future<void>.delayed(Duration.zero);
+    n.dispose();
+    client.gate!.complete();
+    await expectLater(running, completes);
   });
 }
