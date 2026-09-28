@@ -17,7 +17,6 @@ wrong.
 from __future__ import annotations
 
 import hashlib
-import http.client
 import logging
 import math
 import threading
@@ -539,8 +538,14 @@ def _upstream_tile(reader: UpstreamTileReader, pool: ThreadPoolExecutor,
             return future.result(timeout=_UPSTREAM_TILE_TIMEOUT_S)
         except FutureTimeoutError as exc:
             raise UpstreamTileUnavailable("tile upstream timed out") from exc
-        except (OSError, http.client.HTTPException, ValueError) as exc:
-            raise UpstreamTileUnavailable(f"tile upstream failed: {exc}") from exc
+        except Exception as exc:  # noqa: BLE001 — see below
+            # Not only transport errors (`OSError`, `http.client.
+            # HTTPException`): an upstream answering with something that is
+            # not a PMTiles archive fails in the header/directory parse
+            # (`struct.error`, `zlib.error`). Either way the upstream could
+            # not answer this tile right now — 503, not a 500.
+            raise UpstreamTileUnavailable(
+                f"tile upstream failed: {type(exc).__name__}: {exc}") from exc
     finally:
         waiting.release()
 
