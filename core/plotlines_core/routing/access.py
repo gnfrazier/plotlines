@@ -42,6 +42,7 @@ model to call once it exists.
 
 from __future__ import annotations
 
+import weakref
 from dataclasses import dataclass, field
 
 import networkx as nx
@@ -331,6 +332,12 @@ def _add_contraflow_edges(graph: nx.MultiDiGraph) -> None:
         graph.add_edge(v, u, **data)
 
 
+#: `graph.graph` key holding `(weakref to the owning graph, {rule set: filtered
+#: graph})`. Anything that rewrites edge or node attributes in place
+#: (`elevation.enrich.enrich_elevation`) drops it so the next call refilters.
+_MODE_CACHE_KEY = "_pl_mode_graph_cache"
+
+
 def mode_legal_graph(graph: nx.MultiDiGraph, mode: str) -> nx.MultiDiGraph:
     """The graph filtered to what `mode` may legally and physically use.
 
@@ -354,7 +361,18 @@ def mode_legal_graph(graph: nx.MultiDiGraph, mode: str) -> nx.MultiDiGraph:
     # Keyed on the *resolved* rule set, not the requested mode: a `mountain`
     # discipline and plain `cycling` filter to the identical graph, and
     # re-filtering a region-sized graph for the second would be pure waste.
-    cache: dict[str, nx.MultiDiGraph] = graph.graph.setdefault("_pl_mode_graph_cache", {})
+    #
+    # The cache is owned by the graph that built it. `nx.Graph.copy()`
+    # shallow-copies `.graph`, so without the owner check a copy inherits its
+    # source's filtered graphs — the sidecar enriches elevation onto a
+    # `.copy()` of a region graph that may already have routed, and every
+    # later solve on the enriched copy then got the pre-enrichment filtered
+    # graph back: no `elevation`, no `grade`, a climb of 0 m.
+    owned = graph.graph.get(_MODE_CACHE_KEY)
+    if owned is None or owned[0]() is not graph:
+        owned = (weakref.ref(graph), {})
+        graph.graph[_MODE_CACHE_KEY] = owned
+    cache: dict[str, nx.MultiDiGraph] = owned[1]
     cached = cache.get(constraints.mode)
     if cached is not None:
         return cached

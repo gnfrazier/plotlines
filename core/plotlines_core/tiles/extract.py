@@ -33,6 +33,7 @@ from pmtiles.reader import Reader
 from pmtiles.tile import Entry, deserialize_directory, find_tile, zxy_to_tileid
 from pmtiles.writer import write as pmtiles_write
 
+from ..osm_identity import osm_user_agent
 from .mirror import resolve_upstream
 
 log = logging.getLogger(__name__)
@@ -117,7 +118,9 @@ def http_range_source(url: str, *, timeout: float = 30.0) -> tuple[GetBytes, Cal
     if parsed.query:
         path = f"{path}?{parsed.query}"
     conn = conn_cls(parsed.hostname, parsed.port, timeout=timeout)
-    headers = {"User-Agent": "plotlines-sidecar/1"}
+    # The same contactable identity every other outbound request the library
+    # makes carries (`osm_identity`), never a bare product token.
+    headers = {"User-Agent": osm_user_agent()}
 
     def _request(offset: int, length: int) -> bytes:
         conn.request("GET", path, headers={
@@ -125,7 +128,13 @@ def http_range_source(url: str, *, timeout: float = 30.0) -> tuple[GetBytes, Cal
         })
         resp = conn.getresponse()
         data = resp.read()
-        if resp.status not in (200, 206):
+        if resp.status == 200:
+            # A server (or a proxy in front of it) that ignores `Range`
+            # answers 200 with the whole archive. Those bytes start at offset
+            # 0, not at `offset` — handed back as-is, every directory and
+            # tile read past the header would be the wrong bytes, silently.
+            data = data[offset:offset + length]
+        elif resp.status != 206:
             raise http.client.HTTPException(
                 f"{resp.status} {resp.reason} ranging {url!r} bytes={offset}-{offset + length - 1}"
             )
@@ -336,18 +345,29 @@ def extract_bbox(source: str | Path, bbox: tuple[float, float, float, float],
                 f"from {source!r}"
             )
 
+        # Written beside `out_path` and renamed onto it only once finalized:
+        # the region cache treats an existing `out_path` as a hit
+        # (`if not tiles_path.exists()`), so a write interrupted part-way
+        # must never leave a truncated archive at the addressable path —
+        # every later build would "hit" it and never re-extract.
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        with pmtiles_write(str(out_path)) as w:
-            for tile_id, data in tiles:
-                w.write_tile(tile_id, data)
-            w.finalize({
-                "tile_type": header["tile_type"],
-                "tile_compression": header["tile_compression"],
-                "min_lon_e7": int(round(west * 1e7)),
-                "min_lat_e7": int(round(south * 1e7)),
-                "max_lon_e7": int(round(east * 1e7)),
-                "max_lat_e7": int(round(north * 1e7)),
-            }, metadata)
+        tmp_path = out_path.with_name(f".{out_path.name}.part")
+        try:
+            with pmtiles_write(str(tmp_path)) as w:
+                for tile_id, data in tiles:
+                    w.write_tile(tile_id, data)
+                w.finalize({
+                    "tile_type": header["tile_type"],
+                    "tile_compression": header["tile_compression"],
+                    "min_lon_e7": int(round(west * 1e7)),
+                    "min_lat_e7": int(round(south * 1e7)),
+                    "max_lon_e7": int(round(east * 1e7)),
+                    "max_lat_e7": int(round(north * 1e7)),
+                }, metadata)
+            tmp_path.replace(out_path)
+        except BaseException:
+            tmp_path.unlink(missing_ok=True)
+            raise
     finally:
         close()
         own_stats.wall_time_s = time.monotonic() - t0

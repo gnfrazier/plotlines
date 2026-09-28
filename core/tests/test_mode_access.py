@@ -394,6 +394,22 @@ def test_mode_legal_graph_is_cached_per_mode():
     assert first is second
 
 
+def test_mode_legal_graph_cache_does_not_follow_a_graph_copy():
+    """`.copy()` shallow-copies `graph.graph`, cache included. A copy whose
+    edges were then rewritten (the sidecar enriches elevation onto a copy)
+    used to get the *source's* filtered graph back, without the rewrite."""
+    graph = _two_node_graph()
+    mode_legal_graph(graph, "cycling")  # a solve before the copy fills the cache
+
+    copied = graph.copy()
+    for _u, _v, data in copied.edges(data=True):
+        data["grade_abs"] = 0.08
+    filtered = mode_legal_graph(copied, "cycling")
+
+    assert filtered is not mode_legal_graph(graph, "cycling")
+    assert next(iter(filtered.get_edge_data(1, 2).values()))["grade_abs"] == 0.08
+
+
 def test_mode_legal_graph_caches_separately_per_mode():
     graph = _two_node_graph(foot="no")
     cycling = mode_legal_graph(graph, "cycling")

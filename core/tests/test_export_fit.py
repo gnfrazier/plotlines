@@ -23,7 +23,7 @@ from plotlines_core.export import (
     fit_cue_name,
 )
 from plotlines_core.export._fit_encoder import fit_crc16
-from plotlines_core.export._fit_profile import COURSE_POINT_TYPE, degrees
+from plotlines_core.export._fit_profile import COURSE_POINT_TYPE, centroid, degrees
 from plotlines_core.export.fit import FIT_MANUFACTURER, FIT_NAME_BYTE_CEILING
 from plotlines_core.trips.payload import Attribution
 
@@ -228,6 +228,16 @@ def test_area_centroid_point_emitted_when_opted_in():
     assert -82.567 < degrees(area_cp.get(3)) < -82.562
 
 
+def test_a_degenerate_collinear_area_centroids_onto_its_own_points():
+    """A ring with no real area (drawn along a line) leaves float noise in the
+    shoelace sum; dividing by it put the centroid at (23.5, -55.0) — the
+    Atlantic — for a ring in North Carolina."""
+    ring = [(35.1, -82.3), (35.2, -82.4), (35.3, -82.5), (35.1, -82.3)]
+    lat, lon = centroid(ring)
+    assert 35.1 <= lat <= 35.3
+    assert -82.5 <= lon <= -82.3
+
+
 # --- FR44 contents toggles ------------------------------------------
 
 def test_contents_toggle_drops_course_points_and_elevation():
@@ -269,6 +279,17 @@ def test_name_never_exceeds_the_byte_ceiling():
     out = fit_cue_name("х" * 50, "многобайтовое примечание здесь и ещё немного",
                        cap=60)
     assert len(out.encode("utf-8")) <= FIT_NAME_BYTE_CEILING
+
+
+@pytest.mark.parametrize("title", ["Café Ëxpress Ünterwegs " * 4, "🚲" * 64])
+def test_course_title_never_exceeds_the_byte_ceiling(title):
+    """The title was sliced to 64 *characters*: an accented title ran past the
+    64-byte ceiling, and 64 emoji (256 bytes + NUL) no longer fit the FIT
+    definition's one-byte field size — the export raised instead of writing."""
+    dec = decode(export_course_fit(_course(title=title)).data)
+    name = dec.of("course")[0].get(5)
+    assert len(name.encode("utf-8")) <= FIT_NAME_BYTE_CEILING
+    assert title.startswith(name)
 
 
 def test_writer_applies_name_cap_parameter():

@@ -228,6 +228,17 @@ def fit_cue_name(name: str, note: str | None, *, cap: int = FIT_CUE_NAME_CAP) ->
     return out
 
 
+def _clip_to_bytes(text: str, ceiling: int) -> str:
+    """`text` cut to at most `ceiling` UTF-8 bytes, on a character boundary.
+    `FIT_NAME_BYTE_CEILING` is a byte budget; slicing by characters let a
+    title with accents or emoji run to four times it — and past 254 bytes the
+    field no longer fits the one-byte size a FIT definition record gives it."""
+    raw = text.encode("utf-8")
+    if len(raw) <= ceiling:
+        return text
+    return raw[:ceiling].decode("utf-8", errors="ignore")
+
+
 def _clip_to_words(text: str, cap: int) -> str:
     """`text` cut to at most `cap` characters (plus a trailing ellipsis), never
     through the middle of a word."""
@@ -293,7 +304,7 @@ def export_course_fit(
     # ---- course -----------------------------------------------------
     enc.write("course", {
         4: SPORT.get(course.sport, SPORT["generic"]),
-        5: course.title[:FIT_NAME_BYTE_CEILING],
+        5: _clip_to_bytes(course.title, FIT_NAME_BYTE_CEILING),
     })
 
     # ---- event: timer start ---------------------------------------

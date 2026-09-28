@@ -120,6 +120,12 @@ _PRIORITY = {
 #: Kinds that are never merged into a neighbour and never suppressed.
 _SAFETY_CRITICAL = frozenset({"hazard", "portage", "transition", "start", "finish"})
 
+#: Kinds the density merge never absorbs or lets absorb a neighbour. The
+#: safety-critical set, plus `provision` (FR133): a water/toilets/food stop
+#: absorbed into a nearby turn lost its kind and its `ref_id`, so a caller
+#: selecting provision cues — the whole reason it is a distinct kind — missed it.
+_NEVER_MERGED = _SAFETY_CRITICAL | {"provision"}
+
 
 # ------------------------------------------------------------------- geometry
 
@@ -632,7 +638,14 @@ def node_cues(route: Route, nodes, settings: CueSettings) -> tuple[list[Cue], di
 
 
 def hazard_cues(route: Route, hazards, settings: CueSettings) -> list[Cue]:
-    """FR27 — always cued, never merged away, and severity leads the text."""
+    """FR27 — always cued, never merged away, and severity leads the text.
+
+    A hazard with neither `distance_along_m` nor `coord` (pinned to the
+    passage as a whole, or to an anchor this function cannot place) is cued
+    at the passage start rather than skipped: FR115 — a hazard is never
+    hidden, and a cue sheet silently missing one is hiding it on the surface a
+    Character rides with. Same placement rule as an unplaced surfaced
+    constraint (#401)."""
     lead = {"caution": "Caution", "high": "HAZARD", "mandatory_reroute": "STOP"}
     cues: list[Cue] = []
     for hazard in hazards:
@@ -641,7 +654,7 @@ def hazard_cues(route: Route, hazards, settings: CueSettings) -> list[Cue]:
         elif hazard.coord:
             along, _ = route.project(hazard.coord)
         else:
-            continue
+            along = 0.0
         title = hazard.title or "Hazard"
         text = f"{lead.get(hazard.severity, 'Caution')}: {title}"
         if hazard.safety_note:
@@ -720,8 +733,8 @@ def _merge(cues: list[Cue], settings: CueSettings) -> tuple[list[Cue], dict]:
             previous = merged[-1]
             close = cue.distance_along_m - previous.distance_along_m <= settings.merge_window_m
             mergeable = (close
-                         and cue.kind not in _SAFETY_CRITICAL
-                         and previous.kind not in _SAFETY_CRITICAL
+                         and cue.kind not in _NEVER_MERGED
+                         and previous.kind not in _NEVER_MERGED
                          and not (cue.kind == "turn" and previous.kind == "turn"))
             if mergeable:
                 keep, absorb = (previous, cue) if _PRIORITY.get(previous.kind, 9) <= \
