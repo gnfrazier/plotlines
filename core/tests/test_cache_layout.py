@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from plotlines_core.cache_layout import (
     CANDIDATES_DIRNAME,
     ELEVATION_DIRNAME,
@@ -123,6 +125,17 @@ def test_osm_extract_pin_is_a_directory_level_above_the_key(tmp_path: Path) -> N
     assert path.parent.name == "2026-09-01"
     assert path.parent.parent == layout.extracts_dir
     assert path.name == f"{trip_bbox_key(_BBOX)}.osm.pbf"
+
+
+@pytest.mark.parametrize("pin", ["..", "../../etc", "a/b", "/abs", "", ".dot"])
+def test_osm_extract_refuses_a_pin_that_is_not_one_path_component(
+    tmp_path: Path, pin: str,
+) -> None:
+    """The pin is a directory level, and it can arrive off a mirror response
+    header — `..` or a separator must never place the extract outside
+    `extracts_dir`."""
+    with pytest.raises(ValueError):
+        CacheLayout(tmp_path).osm_extract(_BBOX, pin)
 
 
 def test_osm_extract_two_pins_for_one_bbox_coexist_without_collision(
