@@ -1,6 +1,6 @@
 # Plotlines — Author Flows (MVP)
 
-**Version:** 1.5
+**Version:** 1.6
 **Companion to:** `Plotlines_PRD_v2.md` (source of truth), `Plotlines_ARCHITECTURE_v2.md`, `Plotlines_MVP_Redirection_Punchlist.md`
 **Scope:** Every **[MVP]** Author story in PRD v2.0, plus the account, error, and edit behaviours that cut across them.
 
@@ -8,7 +8,7 @@ Diagrams are Mermaid so they version-control, diff, and render in the repo. Each
 
 **Reading order:** flows 1–6 are the Author's happy path in sequence. Flows 7 and 10 cut across all of them. Flows 8 and 9 are the behaviours a happy-path reading misses, and are the two most likely to be built wrong or not at all.
 
-> **v1.3 —** every node now carries its **priority**. These flows are titled *MVP* but several nodes are **[P1]** — most importantly the cluster-analysis branch of flow 2 (N4, N4a). A flow being drawn is not a claim that every node in it ships at MVP; the **priority column is authoritative**, and where it disagrees with any other document, the PRD story's tag wins.
+> **Priority.** These flows are titled *MVP* but several nodes are **[P1]** — most importantly the cluster-analysis branch of flow 2 (N4, N4a). A flow being drawn is not a claim that every node in it ships at MVP. Flows 1 and 2 carry a **priority column**; in flows 3–10 a node's priority is its story's tag in the PRD. Where anything here disagrees with the PRD story's tag, the tag wins.
 
 ---
 
@@ -155,7 +155,7 @@ flowchart TD
 |---|---|---|---|
 | Set trip duration | FR17 | C1 | **Editing this later is flow 9.** |
 | Mark day types | FR18 | C2 | Rest days are a primary case for area anchors (O3). |
-| Create passages | FR10, FR29, FR130 | B1, C13 | Traversal categories only. **Driving is routed**, not a note. Station activities are O4. A **discipline** under the category (road / gravel / mountain, and so on — #315) is the per-passage second axis; the discipline *picker* is [P1], filed as a fast-follow to #315, so today a passage picks only its category. |
+| Create passages | FR10, FR29, FR130 | B1, C13 | Traversal categories only. **Driving is routed**, not a note. Station activities are O4. A **discipline** under the category (road / gravel / mountain, and so on — #315) is the per-passage second axis; the per-passage discipline picker is built (#338), a row revealed under the chosen category. |
 | Order within a day | FR11 | B2 | |
 | Add transition nodes | FR12 | B3 | |
 | Split by distance + arc | FR19, FR38 | C3, O6 | **Both** the metric and the arc shape — a day may close at a resolution anchor. |
@@ -206,7 +206,7 @@ flowchart TD
 | Desktop / mobile → Local trips | FR74a | G2a, K4 | Local planning works with **no sign-in and no network**. |
 | Web | FR61 | K4 | The stated exception to local-first. Web *planning* is scoped; **web *reading* is not** (FR132). |
 | Guest session | FR60 | K4 | **No server-side trace.** Not "minimal" — none. |
-| Sign in | FR57 | K1 | Magic link is the only auth **and the only recovery path**. |
+| Sign in | FR57 | K1 | Magic link is the only auth. **Recovery is a re-send (with a visible cooldown) plus an identity-checked, support-issued link** — never a password (K1, ARCH D9). |
 | Synced | FR58, FR59 | K3 | Version check at open **and again at save** — the save-time check is the one usually omitted. |
 | no claim or merge | §6.2 non-goal | — | Guest→account claim is an explicit non-goal. Drawn so nobody builds it by accident. |
 
@@ -229,7 +229,7 @@ flowchart TD
 | Sidecar starting / won't start / died | FR91, FR121 | M12, M12a, M13 | Restart **once**, then degrade honestly. Cached trips stay viewable. |
 | Capability warming | FR121 | N2, M12a, M13 | Per-capability, and **per-layer** inside the layers capability. |
 | No route possible | FR9 | A6, M13 | Names the conflict; offers relaxations. |
-| No data for the area | — | M13 | |
+| No data for the area | — | M13 | Today a finished answer. **Pending ARCH D67 (#516, #522):** a mirror miss inside a coverable region becomes *fetching* — a waiting state, distinct from failure and from out-of-coverage, never a retry button. |
 | Elevation void / missing tile | FR88 | M10, M13 | A gap in the raster is interpolated from its neighbours; no raster at all is **absent**, never a flat `0.0` (#473, D68). Logged once per raster. Never raises, never blocks. |
 | Layer extraction failed | — | M13 | **New v2.0 state.** The total case — nothing served. |
 | Layers partially served | — | M13, N2 | **New v2.0 state (SPIKE-D #159, #400).** Some requested layers served, others not; names each missing layer and its reason. Never reads as an empty area. |
@@ -328,20 +328,22 @@ flowchart TD
 
 ## Coverage
 
-Every **[MVP]** Author story in PRD v2.0 appears in at least one flow.
+Every **[MVP]** Author story in PRD v2.0 appears in at least one flow, **except the five listed under the table** — those are gaps, recorded rather than claimed.
 
 | Flow | MVP stories | [P1] stories in the same flow |
 |---|---|---|
-| 1 | A10, N1, N2 | — *(G2's clone branch is [P1])* |
+| 1 | A10, N0, N1, N2, G2b | — *(G2's library is [P1]; its clone branch is G2b, MVP)* |
 | 2 | N3, O1 | **N4, N4a, N5** |
 | 3 | O1, O2, O3, O5 | O4 |
-| 4 | A0, A0a, A1–A5, A7, A8, A9, A11, E3 | A6 partially, A9a |
+| 4 | A0, A0a, A1–A6, A7, A8, A9, A11, E3 *(A6 partially)* | A9a |
 | 5 | B1, B2, B3, C1, C2, C3, C11 | C6–C10, C12, C13, C13a |
 | 6 | D1, E1, F1, F3, G2a, O6 | D2–D4, E4, E5, F2 |
 | 7 | K1, K3, K4, G2a | — |
-| 8 | M12, M12a, M13 | A6, N4a, N5 |
+| 8 | M12, M12a, M13, A6 | N4a, N5 |
 | 9 | Q1, Q2, Q3 | **Q4** |
 | 10 | K12 | — |
+
+**MVP stories not yet drawn:** C4 (alternate routes per day) and C5 (waypoints, regroup points, rest stops) belong in flow 5; D4b (author-entered Character fields) in flow 6; K12a (first-run teaching, "tell me once") and M14 (string templates) cut across every flow like flow 10. The v1.4 change log names K12a and M14, but no node draws them.
 
 **Where this table and any other document disagree, the PRD story's own tag is authoritative.**
 
@@ -355,6 +357,7 @@ Newest first.
 
 | Version | Change |
 |---|---|
+| **1.6** | **Doc review 2026-09-28.** Flow 1: routing waits on the **region graph**, not on elevation — a region-graph node was added and "Layers + POI ready" is no longer ordered ahead of elevation (FR121, ARCH D34 as amended); elevation has its own per-region readiness (D69), and an unready elevation shows no profile rather than a flat one (D68). A **roster-only clone runs initiation normally** (FR74b, G2b); only a scope that carries the trip skips the location prompt. Flow 1's table gained the priority column its rows already used. Flow 7: recovery is re-send plus a support-issued link (K1). Coverage: N0 and G2b credited to flow 1, A6 moved to MVP, and five undrawn MVP stories listed as gaps. Also folded in since 1.5 without a version: #319's one stored mode set (flow 1), #473's gap/absence split and #400's partial layer serving (flow 8). |
 | **1.5** | **Flow 1 gains an explicit "Choose starting layers" step** (issue #316, from the UX review in #271), between the extent step and the first route — layer selection is pipeline stage 2 and was running at stage 7 (a tab reached only after a route exists). Mode-derived default, full catalog to override, skippable on the default; candidate extraction starts here rather than on first entry to the Layers tab, which is otherwise unchanged. |
 | **1.4** | **Design cross-check applied** (CR-1 to CR-7). Flow 1 gains **mode declaration** (FR144, N0) ahead of the location prompt, a **navigable map** on the extent step (FR120), and a **clone scope** choice (FR74b, G2b). New across the set: FR142(e) first-run teaching (K12a), FR145 string templates (M14) — the latter closing a reveal-leak path the export byte assertions structurally could not catch. CR-7's errata had already been corrected in the pass preceding this one. |
 | **1.3** | **Priority column added to every node**, after a Design cross-check found flow 2's cluster branch (N4, N4a) read as MVP here while being [P1] in the PRD. Flow 9 gained its missing **Q4** node (duplication, FR141), which the coverage table had claimed without drawing. Change log reordered newest-first and the intro note relabelled to match the document version. |

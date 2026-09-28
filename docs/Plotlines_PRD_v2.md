@@ -32,7 +32,7 @@ Curation is the senior partner. An Author works from real geographic data — Op
 
 v1.0 modelled planning as *routing first*: set weights, receive a route, and let POI density bias the solve. That inverts the concept. In Plotlines an Author **looks at the land, decides what matters, and routes to it** — the route is downstream of an editorial decision, not upstream of it.
 
-Both directions are real workflows, and v2.0 supports both explicitly as **explore** and **compose** modes (§5.7, FR117–FR119). What v1.0 lacked was the compose direction and every object it requires: candidates, co-location analysis, the promotion moment, and a promoted thing that is more than a pin with a note on it.
+Both directions are real workflows, and v2.0 supports both explicitly as the **explore** and **compose** postures (§5.8, FR117–FR119). What v1.0 lacked was the compose direction and every object it requires: candidates, co-location analysis, the promotion moment, and a promoted thing that is more than a pin with a note on it.
 
 ### 1.4 The Frodo principle
 
@@ -242,7 +242,9 @@ Only now does the engine connect the promoted set. Weights govern the **characte
 
 Arc roles on anchors and passages, authored text and media, audio and trigger distances, Set curation, reveal decisions, and the itinerary's voice.
 
-### 5.8 Two planning modes
+### 5.8 Two planning postures
+
+> **Vocabulary (ARCH D64, #319).** In the product and in the UI, **"mode" means travel mode only.** Explore and compose are **planning postures**, and nothing on screen labels them a "mode". Older text in this document says "explore mode" and "compose mode"; read those as "the explore posture" and "the compose posture".
 
 | | **Explore** | **Compose** |
 |---|---|---|
@@ -258,7 +260,7 @@ Both are real workflows. v1.0 supported only explore.
 
 This scopes FR8's "banded by default, never dropped from the constraint set" to explore mode, and it reframes SPIKE-01's via-node finding: distance error rising to +30.7% / +81.9% past two via-nodes is a *property of composing*, not a defect. The places determine the length. That is the correct behaviour, stated as a product position rather than discovered as a degradation.
 
-**Modes switch in both directions, per day.** Explore → promote what you found → compose. Compose → loosen the spine → explore. Generate-then-keep-the-good-parts is a designed workflow, not an accident of the UI. *(FR119.)*
+**Postures switch in both directions, per day.** Explore → promote what you found → compose. Compose → loosen the spine → explore. Generate-then-keep-the-good-parts is a designed workflow, not an accident of the UI. *(FR119.)*
 
 ---
 
@@ -398,11 +400,11 @@ FR1–FR96 carry forward from v1.0 with their numbering intact. **FR97–FR133 a
 | **FR124** | **[NEW v2.0]** Revealed content is **delivered on arrival** in the field: reaching a role's trigger unlocks its text, media, and audio for the Character, permanently thereafter. Reveal runs fully offline from raw GPS and never requires connectivity. | Decision D-H; FR49 pattern |
 | **FR126** | **[NEW v2.0]** **Area entry is a trigger event.** Crossing into a polygon anchor's boundary fires its narration, reveal, or notification the way point-proximity does for a point anchor, with entry debounced so a boundary-hugging route does not re-fire. | Decision D-B |
 
-### 8.7 Planning Modes
+### 8.7 Planning Postures
 
 | FR | Requirement | Origin |
 |---|---|---|
-| **FR117** | **[NEW v2.0]** Plotlines supports two planning modes per day: **explore** (Author supplies distance, shape, weights and bands; engine returns a route matching them; the Author discovers what is on it) and **compose** (Author supplies a set of promoted anchors; engine returns a route reaching them; the Author learns its length). | Decision D-F |
+| **FR117** | **[NEW v2.0]** Plotlines supports two planning postures per day ("mode" is reserved for travel mode — ARCH D64): **explore** (Author supplies distance, shape, weights and bands; engine returns a route matching them; the Author discovers what is on it) and **compose** (Author supplies a set of promoted anchors; engine returns a route reaching them; the Author learns its length). | Decision D-F |
 | **FR118** | **[NEW v2.0]** **In compose mode, distance is a reported outcome, not an enforced constraint.** The realized distance and its deviation from any stated band are surfaced as an *editing decision*, not a solver failure: "these seven plot points make a 94-mile day; your band was 55–70." Affordances are the Author's — drop an anchor, move one to another day, split the day, widen the band, or accept the deviation. In compose mode, **weights flavour the connecting passages** rather than defining a search space. | Decision D-F |
 | **FR119** | **[NEW v2.0]** A day **switches between explore and compose in both directions**, without losing work. Explore → promote what was found → compose. Compose → loosen the spine → explore. Generate-then-keep-the-good-parts is a designed workflow. | Decision D-G |
 | **FR8** | **[AMENDED v2.0]** Target **distance** is settable for loop and out-and-back shapes and is **banded by default in explore mode** — the search treats it as a constraint on the *realized* route, not a soft target free to trade away (SPIKE-03 measured up to +14.8% unannounced drift when unbanded). **Prior reading (v1.0): distance is never dropped from the search's constraint set, unconditionally.** In **compose** mode that no longer holds: the anchors determine the day's length and FR118 governs. | CTP FR47; SPIKE-03; scoped v2.0 |
@@ -698,7 +700,7 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 
 **A0 — Choose how I plan this day** *[MVP]* **[NEW v2.0]** — *FR117, FR119*
 **As an** Author, **I want to** plan a day either by setting a distance and character and seeing what I find, or by picking my places and seeing how long that makes the day **so that** the tool matches how I am actually thinking about this particular day.
-*AC:* Per-day choice of **explore** (distance/shape/weights/bands in, route out) or **compose** (promoted anchors in, route out); **switching in both directions loses no work** — explore's route can have its places promoted and become a spine; compose's spine can be loosened back to explore; the current mode is always visible, and the distance control's meaning changes visibly with it (constraint in explore, reported outcome in compose).
+*AC:* Per-day choice of **explore** (distance/shape/weights/bands in, route out) or **compose** (promoted anchors in, route out); **switching in both directions loses no work** — explore's route can have its places promoted and become a spine; compose's spine can be loosened back to explore; the current posture is always visible (never labelled a "mode" — ARCH D64), and the distance control's meaning changes visibly with it (constraint in explore, reported outcome in compose).
 
 **A0a — See what my chosen places make** *[MVP]* **[NEW v2.0]** — *FR118*
 **As an** Author in compose mode, **I want** the day's realized distance reported against my intent as an editing decision **so that** I choose what to change rather than being told the solver failed.
@@ -757,7 +759,7 @@ Stories are organized by epic in INVEST form. Priority tags: **[MVP]** core laun
 
 **B1 — Create multimodal passages** *[MVP]* **[AMENDED v2.0; #315, #338]** — *FR10, FR130*
 **As an** Author, **I want to** create a passage with a start, end, and traversal mode **so that** each leg reflects its real activity.
-*AC:* Start/end placement; category selectable from the traversal list — cycling, hiking, paddling, cross-country skiing, **and driving** (#315 reduced this to the categories; road/gravel/mountain-style variants are **disciplines** under a category, `multimodal/disciplines.py`, chosen per passage) — with cycling, hiking, and paddling as first-class at MVP and the rest absorbed by `WeightProfile` config; **activities performed at a place rather than between two (climbing, canyoneering, jumaring) are authored as stations (O4), not as modes**; passage saved with endpoints, category, and (optionally) discipline. *#338 built the per-passage discipline picker — a row revealed under the chosen category in New Route and the passage inspector, filtered to that category's disciplines, single-select and optional (none = the category's own profile). Tuned-vs-generic is shown from `Discipline.tier`, not row placement, and the control makes no difficulty-grading claim (SPIKE-C).*
+*AC:* Start/end placement; category selectable from the traversal list — cycling, hiking, paddling, cross-country skiing, **and driving** (#315 reduced this to the categories; road/gravel/mountain-style variants are **disciplines** under a category, `multimodal/disciplines.py`, chosen per passage) — all five categories offered as equal targets with no tiering (N0), though cycling, hiking, and paddling are the most deeply tuned at MVP and the rest lean on `WeightProfile` config; **the picker offers only the trip's declared categories**, with *add a category* beside it (FR144, ARCH D64); **activities performed at a place rather than between two (climbing, canyoneering, jumaring) are authored as stations (O4), not as modes**; passage saved with endpoints, category, and (optionally) discipline. *#338 built the per-passage discipline picker — a row revealed under the chosen category in New Route and the passage inspector, filtered to that category's disciplines, single-select and optional (none = the category's own profile). Tuned-vs-generic is shown from `Discipline.tier`, not row placement, and the control makes no difficulty-grading claim (SPIKE-C).*
 
 **B2 — Order and sequence passages in a day** *[MVP]* — *FR11*
 **As an** Author, **I want to** assign and reorder passages within a day **so that** a single day flows through multiple modes in a logical order.
@@ -1284,7 +1286,7 @@ Deliberately unresolved, carried forward or newly surfaced.
 
 - **In-field peer intel is intentionally in-scope, and route-anchored.** Route amendments (FR56/I9) and field notes (FR56a/I9a–b) let any participant share time-sensitive intel with the trip roster peer-to-peer — deliberate, because the Author may be riding and unable to relay. Bounded to one trip's roster, anchored to points on the shared route, advisory. **Arrival events (FR122–FR123) join this category in v2.0** under the same reasoning and the same consent surface. Not the social-platform territory the non-goal guards against — no friend graph, no cross-trip feed, no open messaging. The remaining design question is presentation: how notes, flagged amendments, and arrivals are surfaced or queued so a busy stretch doesn't overwhelm the Character.
 - **Cue HUD vs. "no real-time route guidance."** The auto-updating HUD with live ETA recalculation is authored-content playback, not turn-by-turn routing — but the line is fine. Worth confirming during Design that the HUD never crosses into wrong-turn recalculation or "follow the line" guidance.
-- **Multimodal breadth.** Cycling, hiking, and paddling are first-class at MVP. v2.0 resolves *how* further modes extend (FR130: traversal modes are `WeightProfile` entries; station activities need no routing change) but not *which* ship when.
+- **Multimodal breadth.** All five travel categories are offered as equal targets at MVP (N0, #315); cycling, hiking, and paddling are the most deeply tuned. v2.0 resolves *how* further modes extend (FR130: traversal modes are `WeightProfile` entries; station activities need no routing change) but not *which* ship when.
 - **Paddling difficulty — decided, and worth revisiting if the data changes.** SPIKE-04 found the paddling network and USGS gauge readings solid and public-domain, and class ratings absent. FR13 removed, B4/B5 removed, FR14 narrowed to an advisory gauge band, portages made Author-drawn. What remains open is the trigger, not the decision: if a data agreement with American Whitewater becomes possible, or the OSM whitewater schema gains North American adoption, re-adding the class term is two fields on `WeightProfile` and a scoring clause.
 - **Unified "share with Author" surface.** FR78/FR78a is a request/response negotiation; FR30's transit/arrival sharing is a simpler per-field opt-in. **FR123 resolves part of this** by routing arrival visibility through the request/response mechanism. Whether transit sharing should also adopt it, and whether all of this lives in one surface, is still a Design decision.
 - **Leg 7 interface shape.** The **output** contract and destination list remain open. The **input** contract is no longer open — see FR100.
@@ -1363,7 +1365,7 @@ These four contradict v1.0 and must be reconciled downstream, not merely appende
 | **D-C** | **"Plot point" is the term** for the narrative role. Plot points are the point in Plotlines. Provision and station stand. Passage and Set unsettled, non-blocking. | §4.3; Open Items. |
 | **D-D** | **One bbox, drawn at trip initiation**, bounding layers, clusters, tiles, and elevation. **The invariant is that no *second, different* extent exists for analysis — not that the bbox is fixed**; it is revisable, with shrink prompting on affected anchors. **First start opens on a shipped home region with no prompt and no download**; trip creation prompts for a single location (prefilled with last-used) that centers the map only. **Two authoring extents**, plus the Character-side corridor buffer. | FR96, FR120; N1, A10. Gives clustering a bounded, precomputable domain and removes an eager download nothing had justified. Collapses ARCH D32/D41. |
 | **D-E** *(amended 2026-08-28 — SPIKE-D)* | **Readiness is per-capability, not global — and the capabilities are independent, not ordered.** Extraction gates authoring, the region graph gates routing, enrichment gates elevation-dependent metrics; all three start together and each reports its own state with an honest indicator. **Prior reading: "layer extraction and POI indexing first; elevation lazily in the background; routing gated"** — measured backwards: elevation is 8.8 s against extraction's 15.8–178.5 s, and routing waits on the graph build (36.7–116.6 s). | FR121, FR91 amended, M12a, N2. **Breaking change to ARCH §7.3.** |
-| **D-F** | **Two planning modes: explore and compose.** In compose, weights flavour and distance is a reported outcome with editorial affordances, not a solver failure. | FR117, FR118; scopes FR8, FR8a, FR5; reframes SPIKE-01. |
+| **D-F** | **Two planning modes: explore and compose.** *(Now "postures" — ARCH D64 reserves "mode" for travel mode.)* In compose, weights flavour and distance is a reported outcome with editorial affordances, not a solver failure. | FR117, FR118; scopes FR8, FR8a, FR5; reframes SPIKE-01. |
 | **D-G** | **Modes switch in both directions, per day**, losing no work. Generate-then-keep-the-good-parts is designed, not accidental. | FR119; A0. |
 | **D-H** | **Reveal is a role-level property.** Provisions always visible; narrative and station at the Author's choice; **hazards and cruxes always visible, enforced in the model**. Print and web inherit — the paper copy cannot spoil the trip. | FR114–FR116, FR124, FR64a; O5, P1, H13. |
 | **D-I** | **Arrival is an event, consented through the existing profile-request mechanism.** Roster-visible, not Author-only, because regroup is the use case. Timestamp display is an Author option. Default nothing shared. | FR122, FR123, FR78a amended; P3, D4a, K2. No new consent machinery; stays inside the participant-tracking non-goal. |
