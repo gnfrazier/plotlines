@@ -48,7 +48,7 @@ This system is delivered in two layers:
   German Freizeitkarte). See the brand guide's Iconography section.
 
 ## Iconography approach
-No icon font is bundled. The brand-critical marks — the six node markers — are
+No icon font is bundled. The brand-critical marks — the eight node markers (six from the brand guide, plus start and finish from #320) — are
 drawn in Dart with `CustomPainter` (`NodeMarker`) so they stay crisp at any
 size and recolor per theme. Mode pictographs follow the same 24px/2px spec;
 teams may render the general UI glyph set with Material Icons themed to
@@ -68,5 +68,6 @@ guide; copy those in from the guide's `assets/` when a mark is needed.
 ## Caveats
 - The Flutter package is the production one the client imports; edits to it
   are client changes and go through the normal client test/PR path.
-- Fonts use `google_fonts` (network fetch on first run); bundle `.ttf`s for
-  fully offline field use.
+- Fonts are bundled `.ttf`s under `plotlines_ui/assets/fonts/` — the package reads them
+  locally and has no `google_fonts` dependency (offline-first, ARCH P2). Only the HTML
+  design references here fetch Google Fonts.

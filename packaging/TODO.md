@@ -69,15 +69,15 @@ start becomes the binding UX constraint on Windows specifically, Nuitka is worth
 
 ## Still open
 
-- **macOS** — signing, notarization, arm64. Now the only untested desktop platform;
-  SPIKE-00's two-platform bar is met, so this no longer blocks the spike.
-- **Signing and notarization** (ARCH §12.3). Nothing here is signed yet. Windows
+- **macOS** — signing and notarization. The freeze itself is verified on arm64
+  (`macos-14`) and Intel (`macos-15-intel`) by SPIKE-J's freeze matrix (#266, PARITY ×4).
+- **Signing and notarization** (ARCH §13.3). Nothing here is signed yet. Windows
   sharpened the target: SmartScreen gates *shell* launches, not `CreateProcess`, so a
   spawned sidecar is unaffected even unsigned — **the installer is what needs signing**,
   and the sidecar inherits trust by being installed rather than downloaded.
-- **Client-side version check.** The sidecar half is done and verified on both platforms
-  (Nuitka included). The Flutter client does not exist yet, so the comparison that
-  refuses a mismatch is unwritten.
+- **Client-side version check** — **implemented.** `client/lib/data/sidecar_manager.dart`
+  compares the sidecar's `/health` version with the client's own and refuses a mismatch
+  (M12, #140); the sidecar half was verified on both platforms by SPIKE-00.
 - **Client-side Windows process control** — **implemented** (2026-08-27).
   `client/lib/data/sidecar_process.dart` holds the platform split behind `SidecarProcess`:
   POSIX stays `dart:io` `SIGTERM → SIGKILL`; Windows spawns via Win32 `CreateProcess`
@@ -93,11 +93,13 @@ start becomes the binding UX constraint on Windows specifically, Nuitka is worth
   command-line quoting is unit-tested (`test/sidecar_process_test.dart`); the FFI sequence
   itself is still covered only by SPIKE-00's `harness/windows_stop_matrix.py`, which drives
   the same calls from Python. A client-side lifecycle integration test on a `windows-latest`
-  runner is the remaining gap. See ARCH §7.3 and WINDOWS.md §3.
+  runner is the remaining gap. See ARCH §8.4 and WINDOWS.md §3.
 - **First-launch antivirus cost in onboarding.** ~5–6.7 s on first run versus ~1.6 s
-  after, on Windows. The §7.3 wait-state design should be sized for the first run. Worth
+  after, on Windows. The ARCH §8.4 wait-state design should be sized for the first run. Worth
   re-measuring once a real installer exists, since install-time file writes may absorb
   some of the scan.
 - **CI build matrix.** `build_sidecar.sh` now runs on Linux, macOS and Windows (Git Bash
   / `shell: bash`), and the lifecycle harness runs on both platforms and fails on a
-  non-graceful stop or a leaked process — so it gates correctly as-is. Not yet wired up.
+  non-graceful stop or a leaked process — so it gates correctly as-is. Partly wired: `.github/workflows/spike-266-freeze-matrix.yml`
+  runs `build_sidecar.sh` on Linux, Windows, `macos-15-intel` and `macos-14`, on manual
+  trigger only; it is not a push/PR gate.

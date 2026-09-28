@@ -17,7 +17,7 @@ Working reference of OpenStreetMap tags relevant to the rebrand, in two parts: "
 Scoped to what a touring cyclist might detour or stop for — not general infrastructure tagging.
 
 **Status column:**
-- **Implemented** — already wired into `ctp_core` (see `providers.py`)
+- **Implemented** — already a rule in `core/plotlines_core/curation/taxonomy.py`'s `TAXONOMY` (the source of truth; this table can lag it)
 - **Candidate** — fits the theme, not yet wired up
 - **Candidate (caution)** — fits, but likely to over-trigger or need a filter before it's usable
 - **Excluded** — considered and dropped; functional/institutional, not a sight
@@ -26,11 +26,11 @@ Scoped to what a touring cyclist might detour or stop for — not general infras
 
 | Tag | Description | Where |
 |---|---|---|
-| `historic=*` (wildcard, any value) | Any historic-tagged feature | FR5, `providers.py` `TAGS = {"historic": True}` |
+| `historic=*` (wildcard, any value) | Any historic-tagged feature | FR98(a), `taxonomy.py` `TypeRule(layer="historic", key="historic", value="*")` |
 | `tourism=artwork` | Sculpture, mural, or other permanent public art | FR5 |
 | `tourism=hotel`/`motel`/`guest_house`/`camp_site` | Lodging | FR14 — not a "sight," listed for completeness |
 
-`historic=*` is a flat wildcard today — a `monument` and a `boundary_stone` score identically. The full value list below is a candidate for sub-weighting later (e.g. weight `castle`/`fort`/`archaeological_site` higher than `boundary_marker`).
+`historic=*` is **sub-weighted** by `value_weights` (FR98(a), SPIKE-A): `castle` and `fort` outrank a boundary stone or milestone rather than scoring identically. The full value list below is the pool for tuning those weights, not a list of unimplemented work.
 
 ## Historic — all documented values (already covered by the wildcard)
 

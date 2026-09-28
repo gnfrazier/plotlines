@@ -7,9 +7,9 @@ elevation shape — `service/plotlines_service/elevation_proxy.py`,
 sidecar flag, `service/Dockerfile.elevation-proxy` — but never its
 deployment. This directory is that deployment: the Caddy front end, the
 compose service, the licence-blank `.env` template, and the cache pre-warm
-script. **Not** issue #148/FR87's production Phase 2 elevation build (ARCH
-§12.1's "device → hosted cache → provider" shape, built for real, not QA
-scale, elsewhere).
+script. **Not** the production elevation path: #148/FR87 shipped that (ARCH D69 —
+local cache, then OpenTopography direct with a key in the environment), and
+this proxy stays the QA/UAT stand-in beside it.
 
 **The API key must never reach this repository.** It is supplied at
 `docker compose up` time from a git-ignored `.env` in this directory — the
@@ -171,7 +171,7 @@ the other 11.
 
 `prewarm_priority_regions.py` is `prewarm_cache.py`'s live-check sibling: it
 runs this section's own "Confirm ceiling exhaustion still degrades cleanly"
-acceptance check (below), but against real, priority-ordered regions
+acceptance check (above), but against real, priority-ordered regions
 (North Carolina, the Blue Ridge Parkway, Skyline Drive, the Boundary Waters
 Canoe Area, Yellowstone, Lake Champlain, then the PCT tiled north from
 Campo, CA) instead of throwaway bboxes — so the remaining 24h call budget
@@ -232,8 +232,9 @@ that coupling implicit instead of impossible.
 
 ## Deleting it
 
-Safe to tear down entirely once the QA/UAT window closes or #148 lands with
-its own production implementation (#304's own scoping, restated in #450):
+Safe to tear down entirely once the QA/UAT window closes — #148 has shipped
+the production implementation (ARCH D69), so only QA/UAT still uses this
+(#304's own scoping, restated in #450):
 
 ```
 docker compose down -v   # -v also drops the elevation_cache volume
