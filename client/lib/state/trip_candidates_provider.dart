@@ -111,7 +111,18 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
   /// fresh per [fetch].
   final Ref _ref;
 
-  void reset() => state = const TripCandidatesState();
+  /// Bumped by [reset]. A run whose generation has moved on by the time it
+  /// answers belongs to a trip the Author has left — a new trip, or a saved
+  /// one opened — and is dropped rather than landing that trip's candidates
+  /// on this one's map.
+  int _generation = 0;
+
+  void reset() {
+    _generation++;
+    state = const TripCandidatesState();
+  }
+
+  bool _superseded(int generation) => !mounted || generation != _generation;
 
   /// Extracts and notability-scores [bbox]'s features against [liveLayers]
   /// (`GET /candidates`). A no-op while a run is already in flight. On
@@ -122,11 +133,13 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
     required Set<String> liveLayers,
   }) async {
     if (state.loading) return;
+    final generation = _generation;
     state = state.copyWith(loading: true, clearError: true);
     try {
       final result = await _ref
           .read(curationClientProvider)
           .candidatesForBbox(bbox: bbox, liveLayers: liveLayers);
+      if (_superseded(generation)) return;
       state = state.copyWith(
         candidates: result.candidates,
         loading: false,
@@ -135,6 +148,7 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
         layersUnavailable: result.layersUnavailable,
       );
     } catch (e) {
+      if (_superseded(generation)) return;
       state = state.copyWith(
         loading: false,
         error: _errorMessage(e),
@@ -154,11 +168,13 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
     final key = state.fetchedFor;
     final retry = state.layersUnavailable.keys.toSet();
     if (state.loading || key == null || retry.isEmpty) return;
+    final generation = _generation;
     state = state.copyWith(loading: true, clearError: true);
     try {
       final result = await _ref
           .read(curationClientProvider)
           .candidatesForBbox(bbox: key.bbox, liveLayers: retry);
+      if (_superseded(generation)) return;
       state = state.copyWith(
         candidates: [
           for (final c in state.candidates)
@@ -170,6 +186,7 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
         layersUnavailable: result.layersUnavailable,
       );
     } catch (e) {
+      if (_superseded(generation)) return;
       state = state.copyWith(loading: false, error: _errorMessage(e));
     }
   }
