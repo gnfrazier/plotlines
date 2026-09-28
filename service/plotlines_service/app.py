@@ -3010,11 +3010,24 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 f"the search service didn't answer for {q!r} — try again "
                 "in a moment"
             ) from exc
-        except (ValueError, RuntimeError) as exc:
+        except (ValueError, RuntimeError, TypeError) as exc:
             # osmnx raises a mix of exception types for "nothing found" vs.
             # a downstream Nominatim/network failure; both are the same
             # honest answer to an Author — no result, not a system error.
+            # `TypeError` is osmnx's "matched only a point or a line, no
+            # polygon" (`geocoder._get_first_polygon`) — a summit or an
+            # address, not a fault.
             raise HTTPException(422, f"no match for {q!r}: {exc}") from exc
+        except OSError as exc:
+            # `requests`' ConnectionError/Timeout are `OSError`s: no network,
+            # or Nominatim unreachable. A transport failure is a retryable
+            # 503 (D66), never a 500 — and not the 422 that tells the Author
+            # the place does not exist.
+            raise HTTPException(
+                503,
+                f"the search service couldn't be reached for {q!r} — check "
+                "your connection and try again"
+            ) from exc
         results = [
             {
                 "label": row.get("display_name", q),
