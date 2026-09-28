@@ -39,6 +39,7 @@ import '../../../data/export/gpx_writer.dart';
 import '../../../data/export/itinerary_writer.dart';
 import '../../../data/export/tcx_writer.dart';
 import '../../../data/reveal_resolver.dart';
+import '../../../data/routing_client.dart' show RoutingException;
 import '../../../domain/domain.dart';
 import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
@@ -824,6 +825,22 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
 
 enum _ExportFormat { gpx, tcx, geojson, fit }
 
+/// M13 — what reaches the export-failed dialog is a finished sentence, never
+/// an exception's `toString()` (a `FileSystemException`'s path and errno, a
+/// `MissingPluginException`'s channel name). A sidecar's own reason passes
+/// through when it reads as one; everything else is a fixed phrase, with the
+/// detail left in the log.
+@visibleForTesting
+String exportFailureReason(Object error) {
+  if (error is RoutingException && !looksLikeRawDiagnostic(error.message)) {
+    return error.message;
+  }
+  if (error is FileSystemException) {
+    return 'The file couldn\'t be written to that location.';
+  }
+  return 'Something went wrong while writing the export.';
+}
+
 class _ExportPanel extends ConsumerStatefulWidget {
   const _ExportPanel({required this.trip});
   final Trip trip;
@@ -1002,7 +1019,8 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
         await _exportSingle(options);
       }
     } catch (e) {
-      if (mounted) await showExportFailedDialog(context, reason: '$e');
+      debugPrint('export failed: $e');
+      if (mounted) await showExportFailedDialog(context, reason: exportFailureReason(e));
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
