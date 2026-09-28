@@ -13,7 +13,10 @@ from plotlines_core.tiles.extract import extract_bbox
 from plotlines_core.tiles.mirror import (
     MIRROR_ARCHIVE_URL,
     MIRROR_HOST,
+    MIRROR_PRIORITY_REGIONS_URL,
     MIRROR_WNC_CORRIDOR_URL,
+    PRIORITY_REGIONS_ARCHIVE_PATH,
+    PRIORITY_REGIONS_BUILD_ID,
     WNC_CORRIDOR_BBOX,
     WNC_CORRIDOR_BUILD_ID,
     HotlinkRefused,
@@ -126,6 +129,23 @@ def test_the_wnc_corridor_standin_has_its_own_honest_build_id():
 def test_the_wnc_corridor_standin_is_never_named_planet():
     assert "planet" not in MIRROR_WNC_CORRIDOR_URL
     assert MIRROR_WNC_CORRIDOR_URL != MIRROR_ARCHIVE_URL
+
+
+# ------------------------------------------------- priority-regions archive (#515, #539)
+
+def test_the_priority_archive_is_the_mirror_and_never_planet():
+    # The client's tiles default (#539) is this path under its resolved
+    # mirror URL, so on the production host it must classify as the mirror
+    # and never be passed off as the unacquired planet build.
+    assert classify_upstream(MIRROR_PRIORITY_REGIONS_URL) is UpstreamKind.MIRROR
+    assert "planet" not in MIRROR_PRIORITY_REGIONS_URL
+    assert MIRROR_PRIORITY_REGIONS_URL != MIRROR_ARCHIVE_URL
+
+
+def test_the_priority_archive_has_its_own_build_id_beside_the_corridor():
+    assert PRIORITY_REGIONS_BUILD_ID != WNC_CORRIDOR_BUILD_ID
+    assert PRIORITY_REGIONS_ARCHIVE_PATH.startswith("basemap/protomaps/")
+    assert MIRROR_PRIORITY_REGIONS_URL == f"https://{MIRROR_HOST}/{PRIORITY_REGIONS_ARCHIVE_PATH}"
 
 
 def test_the_wnc_corridor_bbox_is_a_west_south_east_north_tuple_over_western_nc():

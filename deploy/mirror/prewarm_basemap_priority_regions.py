@@ -69,13 +69,18 @@ from priority_regions import (  # noqa: E402
 LOG = logging.getLogger("prewarm_basemap_priority_regions")
 
 try:
-    from plotlines_core.tiles.mirror import PROTOMAPS_BASEMAP_BUILD as _BASEMAP_BUILD
+    from plotlines_core.tiles.mirror import (
+        PRIORITY_REGIONS_BUILD_ID as BUILD_ID,
+        PRIORITY_REGIONS_FILENAME as FILENAME,
+    )
 except ImportError:
-    _BASEMAP_BUILD = "20250101"
+    # Standalone without plotlines-core: the same literals, pinned to
+    # `tiles/mirror.py` by `test_prewarm_basemap_priority_regions.py` because
+    # the client's tiles default (#539) reads this exact path.
+    BUILD_ID = "20250101-priority"
+    FILENAME = "priority.pmtiles"
 
 REGION_NAME = "priority-regions"
-BUILD_ID = f"{_BASEMAP_BUILD}-priority"
-FILENAME = "priority.pmtiles"
 MIRROR_BASE_URL = "http://tiles.plotlines.app"
 
 #: The corridor archive's measured density — `corridor.pmtiles` as published

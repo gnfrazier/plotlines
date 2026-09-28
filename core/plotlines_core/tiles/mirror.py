@@ -76,6 +76,21 @@ MIRROR_WNC_CORRIDOR_URL = (
 WNC_CORRIDOR_BBOX = (-83.6, 35.2, -81.0, 36.4)
 WNC_CORRIDOR_REGION_NAME = "wnc-corridor"
 
+#: The widest basemap archive the mirror publishes today — issue #515's
+#: `deploy/mirror/prewarm_basemap_priority_regions.py` extracts one archive
+#: over the elevation proxy's priority regions plus the WNC corridor, so it
+#: is a superset of `corridor.pmtiles`. The client's default tiles upstream
+#: is this path under whatever mirror URL it resolved (issue #539), so a
+#: configured mirror is read for tiles instead of the corridor on the https
+#: host. Its header bounds are the whole envelope, not the union of the
+#: regions — #519 owns per-cell coverage.
+PRIORITY_REGIONS_BUILD_ID = f"{PROTOMAPS_BASEMAP_BUILD}-priority"
+PRIORITY_REGIONS_FILENAME = "priority.pmtiles"
+PRIORITY_REGIONS_ARCHIVE_PATH = (
+    f"basemap/protomaps/{PRIORITY_REGIONS_BUILD_ID}/{PRIORITY_REGIONS_FILENAME}"
+)
+MIRROR_PRIORITY_REGIONS_URL = f"https://{MIRROR_HOST}/{PRIORITY_REGIONS_ARCHIVE_PATH}"
+
 #: The on-demand region cache's zoom ceiling — issue #456. Today this
 #: happens to equal every source archive's own `max_zoom`, so nothing failed
 #: without it; stated explicitly so an `extract_bbox` call is bounded by a
