@@ -104,7 +104,15 @@ class _StaleListDialogState extends ConsumerState<_StaleListDialog> {
                 constraints: const BoxConstraints(maxHeight: 240),
                 child: SingleChildScrollView(
                   child: Column(
-                    children: [for (final item in items) _StaleRow(item: item)],
+                    children: [
+                      // Keyed by what the item is: a re-solved row leaves the
+                      // list, and an unkeyed row would hand its in-flight or
+                      // error state to the item that slides into its place.
+                      for (final item in items)
+                        _StaleRow(
+                            key: ValueKey('${item.segmentId}/${item.alternateId ?? ''}'),
+                            item: item),
+                    ],
                   ),
                 ),
               ),
@@ -142,7 +150,7 @@ class _StaleListDialogState extends ConsumerState<_StaleListDialog> {
 }
 
 class _StaleRow extends ConsumerStatefulWidget {
-  const _StaleRow({required this.item});
+  const _StaleRow({super.key, required this.item});
   final StaleItem item;
 
   @override
