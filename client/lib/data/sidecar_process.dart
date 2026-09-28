@@ -65,6 +65,14 @@ class _PosixSidecarProcess implements SidecarProcess {
     List<String> args,
   ) async {
     final process = await Process.start(executable, args);
+    // The sidecar logs every record to stderr as well as to its own rotating
+    // file (`logging_setup.py`). Nothing here reads either stream, and an
+    // unread pipe fills at ~64 KiB — after which the child blocks in
+    // `write(2)` holding Python's logging lock, wedging every thread that
+    // logs. The file handler is the record; drain both pipes so the OS
+    // buffers never fill.
+    unawaited(process.stdout.drain<void>().catchError((Object _) {}));
+    unawaited(process.stderr.drain<void>().catchError((Object _) {}));
     return _PosixSidecarProcess._(process);
   }
 

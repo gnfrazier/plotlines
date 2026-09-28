@@ -124,6 +124,23 @@ void main() {
     expect(await first, await second);
   });
 
+  test('a chatty sidecar is never wedged on a full stdout/stderr pipe', () async {
+    // The sidecar logs every record to stderr (`logging_setup.py`) for the
+    // whole session. An undrained pipe fills at ~64 KiB and the child then
+    // blocks inside `write(2)` — holding Python's logging lock, so every
+    // thread that logs stops with it. 256 KiB on each stream is well past
+    // any pipe buffer; a drained child exits at once.
+    final process = await SidecarProcess.start('sh', [
+      '-c',
+      'head -c 262144 /dev/zero >&2; head -c 262144 /dev/zero; exit 7',
+    ]);
+    addTearDown(() => process.stop(grace: const Duration(milliseconds: 200)));
+
+    final code = await process.exitCode
+        .timeout(const Duration(seconds: 10), onTimeout: () => -999);
+    expect(code, 7, reason: 'the child blocked writing to a pipe nobody read');
+  });
+
   test('stopping an already-dead sidecar is not an error', () async {
     // The orphan sweep and the ordinary shutdown can both reach a process
     // that has already exited; neither should throw.
