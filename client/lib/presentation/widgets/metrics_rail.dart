@@ -69,7 +69,7 @@ class MetricsRail extends StatelessWidget {
       // set the day timeline strip's chip already renders, so the two
       // surfaces can never disagree about which day ran short or long.
       if (day.segments.isNotEmpty) {
-        byDay.add((day.index, dayDistance, computeDayLimitBreaches(day).isNotEmpty));
+        byDay.add((day.index, dayDistance, computeDayLimitBreaches(day, tripLimits: trip.dayLimits).isNotEmpty));
       }
     }
     final maxDayDistance = byDay.isEmpty

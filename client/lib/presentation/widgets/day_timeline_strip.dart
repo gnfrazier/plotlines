@@ -125,7 +125,8 @@ class _DaySegmentStrip extends ConsumerWidget {
     // other, and both need to be visible. `computeDayLimitBreaches` is the
     // one place this is computed, shared with the metrics dashboard, so the
     // two surfaces can never disagree about which mode ran short or long.
-    final breaches = computeDayLimitBreaches(day);
+    final breaches = computeDayLimitBreaches(day,
+        tripLimits: ref.watch(currentTripProvider.select((t) => t.dayLimits)));
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
