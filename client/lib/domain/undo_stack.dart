@@ -27,8 +27,8 @@ class TripUndoStack {
 
   final int maxDepth;
 
-  final List<Map<String, dynamic>> _undoStack = [];
-  final List<Map<String, dynamic>> _redoStack = [];
+  final List<_Snapshot> _undoStack = [];
+  final List<_Snapshot> _redoStack = [];
 
   bool get canUndo => _undoStack.isNotEmpty;
   bool get canRedo => _redoStack.isNotEmpty;
@@ -44,7 +44,7 @@ class TripUndoStack {
   /// action. Starting a new action clears the redo stack — redo only replays
   /// actions undone since the last recorded action, never a stale branch.
   void record(Trip before) {
-    _undoStack.add(before.toJson());
+    _undoStack.add(_Snapshot.of(before));
     if (_undoStack.length > maxDepth) {
       _undoStack.removeAt(0);
     }
@@ -57,8 +57,8 @@ class TripUndoStack {
   Trip? undo(Trip current) {
     if (_undoStack.isEmpty) return null;
     final previous = _undoStack.removeLast();
-    _redoStack.add(current.toJson());
-    return Trip.fromJson(previous);
+    _redoStack.add(_Snapshot.of(current));
+    return previous.restore();
   }
 
   /// Steps forward one previously-undone action. Returns `null` when
@@ -66,8 +66,8 @@ class TripUndoStack {
   Trip? redo(Trip current) {
     if (_redoStack.isEmpty) return null;
     final next = _redoStack.removeLast();
-    _undoStack.add(current.toJson());
-    return Trip.fromJson(next);
+    _undoStack.add(_Snapshot.of(current));
+    return next.restore();
   }
 
   /// Discards all undo/redo history. Called on trip close; also correct to
@@ -78,4 +78,18 @@ class TripUndoStack {
     _undoStack.clear();
     _redoStack.clear();
   }
+}
+
+/// One recorded state: the payload, plus [Trip.modes], which rides beside
+/// the payload rather than in it (#319, `trip.dart`) — a snapshot of
+/// [Trip.toJson] alone restores every trip with an empty mode set.
+class _Snapshot {
+  _Snapshot.of(Trip trip)
+      : payload = trip.toJson(),
+        modes = Set.unmodifiable(trip.modes);
+
+  final Map<String, dynamic> payload;
+  final Set<String> modes;
+
+  Trip restore() => Trip.fromJson(payload).copyWith(modes: modes);
 }

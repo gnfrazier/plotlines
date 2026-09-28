@@ -20,22 +20,51 @@ import 'segment.dart';
 /// yet), minus whichever of those carry a [Node.scheduled] window — those
 /// are counted as [scheduledEvents] instead so the three figures never
 /// double-count the same node.
+///
+/// [hazards] (day- and passage-level), [notes], [media] and [places] (a
+/// day's own [Day.location]) are the rest of what an Author puts on a day.
+/// None of them is a passage or a node, and a day holding only one of them
+/// is still not empty: a day-level hazard dropped without a prompt is the
+/// FR115 failure in its quietest form.
 class DayContentSummary {
-  const DayContentSummary({this.passages = 0, this.anchors = 0, this.scheduledEvents = 0});
+  const DayContentSummary({
+    this.passages = 0,
+    this.anchors = 0,
+    this.scheduledEvents = 0,
+    this.hazards = 0,
+    this.notes = 0,
+    this.media = 0,
+    this.places = 0,
+  });
 
   static const zero = DayContentSummary();
 
   final int passages;
   final int anchors;
   final int scheduledEvents;
+  final int hazards;
+  final int notes;
+  final int media;
+  final int places;
 
   /// FR139's carve-out: "empty days are removed without a prompt."
-  bool get isEmpty => passages == 0 && anchors == 0 && scheduledEvents == 0;
+  bool get isEmpty =>
+      passages == 0 &&
+      anchors == 0 &&
+      scheduledEvents == 0 &&
+      hazards == 0 &&
+      notes == 0 &&
+      media == 0 &&
+      places == 0;
 
   DayContentSummary operator +(DayContentSummary other) => DayContentSummary(
         passages: passages + other.passages,
         anchors: anchors + other.anchors,
         scheduledEvents: scheduledEvents + other.scheduledEvents,
+        hazards: hazards + other.hazards,
+        notes: notes + other.notes,
+        media: media + other.media,
+        places: places + other.places,
       );
 }
 
@@ -46,6 +75,10 @@ DayContentSummary summarizeDayContent(Day day) {
     passages: day.segments.length,
     anchors: nodes.length - scheduled,
     scheduledEvents: scheduled,
+    hazards: day.hazards.length + day.segments.fold(0, (n, s) => n + s.hazards.length),
+    notes: day.note == null ? 0 : 1,
+    media: day.media.length,
+    places: day.location == null ? 0 : 1,
   );
 }
 
@@ -68,30 +101,55 @@ List<Day> daysBeyondCount(List<Day> days, int targetCount) {
 /// specifically any transition node carrying Author instructions (FR12/B3's
 /// parking/gear-stash/put-in notes) so the prompt can name those by what
 /// they are, per Q2's AC.
+///
+/// [hasNote], [mediaCount], [alternateCount] and [portageCount] are the
+/// passage's own authored work — FR37's note and media, FR20's drawn
+/// alternates (a branch one carrying its own narration), FR15's hand-drawn
+/// portages. Unlike the nodes, none of them survives the removal, so each
+/// raises the prompt on its own.
 class SegmentContentSummary {
   const SegmentContentSummary({
     this.nodeCount = 0,
     this.hazardCount = 0,
     this.hasArcStage = false,
     this.instructedTransitionNodes = const [],
+    this.hasNote = false,
+    this.mediaCount = 0,
+    this.alternateCount = 0,
+    this.portageCount = 0,
   });
 
   final int nodeCount;
   final int hazardCount;
   final bool hasArcStage;
   final List<Node> instructedTransitionNodes;
+  final bool hasNote;
+  final int mediaCount;
+  final int alternateCount;
+  final int portageCount;
 
   /// FR139: "the prompt is triggered by authored content, not by object
   /// type" — a segment with none of this is a mis-click, tidied without
   /// friction (Q2's AC).
   bool get hasAuthoredContent =>
-      nodeCount > 0 || hazardCount > 0 || hasArcStage || instructedTransitionNodes.isNotEmpty;
+      nodeCount > 0 ||
+      hazardCount > 0 ||
+      hasArcStage ||
+      instructedTransitionNodes.isNotEmpty ||
+      hasNote ||
+      mediaCount > 0 ||
+      alternateCount > 0 ||
+      portageCount > 0;
 }
 
 SegmentContentSummary summarizeSegmentContent(Segment segment) => SegmentContentSummary(
       nodeCount: segment.nodes.length,
       hazardCount: segment.hazards.length,
       hasArcStage: segment.arcStage != null,
+      hasNote: segment.note != null,
+      mediaCount: segment.media.length,
+      alternateCount: segment.alternates.length,
+      portageCount: segment.portages.length,
       instructedTransitionNodes: [
         for (final n in segment.nodes)
           if (n.kind == NodeKind.transition && n.instructions != null) n,

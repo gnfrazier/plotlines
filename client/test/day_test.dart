@@ -242,6 +242,31 @@ void main() {
       );
       expect(computeDayLimitBreaches(day).single.bound, 'max');
     });
+
+    test('the trip default applies to a day that sets no limit of its own', () {
+      // `compose._breaches`: `effective = {**limits, **day.limits}` — a trip
+      // carrying `defaults.day_limits` breaches a 120 km day without the day
+      // restating the band.
+      final day = Day(id: 'd1', index: 1, segments: [leg('s1', 'cycling', 120000)]);
+      final breaches = computeDayLimitBreaches(day,
+          tripLimits: {'cycling': DayLimit(maxM: 90000)});
+      expect(breaches.single.bound, 'max');
+      expect(breaches.single.limitM, 90000);
+    });
+
+    test("a day's own band for a mode replaces the trip default for that mode", () {
+      final day = Day(
+        id: 'd1',
+        index: 1,
+        segments: [leg('s1', 'cycling', 120000), leg('s2', 'hiking', 30000)],
+        limits: {'cycling': DayLimit(maxM: 150000)},
+      );
+      final breaches = computeDayLimitBreaches(day, tripLimits: {
+        'cycling': DayLimit(minM: 10000, maxM: 90000),
+        'hiking': DayLimit(maxM: 25000),
+      });
+      expect(breaches.map((b) => (b.mode, b.bound)), [('hiking', 'max')]);
+    });
   });
 
   group('FR18 / C2 — a rest day composed of an area anchor (O3)', () {

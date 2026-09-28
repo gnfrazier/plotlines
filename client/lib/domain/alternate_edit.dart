@@ -216,7 +216,17 @@ class AlternateEdit {
         final next = [...shape]..[handleIndex] = coord;
         return _copy(shape: next, moved: true);
       case AlternateHandle.newShapePoint:
-        final at = shapeInsertionIndex(previewLine, coord).clamp(0, shape.length);
+        // Measured against the path in [shape]'s own order — fork, shaping
+        // points, rejoin — not [previewLine]: that one is reversed when the
+        // fork sits past the rejoin, and has no leading fork while it is
+        // unplaced, and either would shift the index off the leg tapped.
+        final ordered = [
+          if (fork != null) fork!.point,
+          ...shape,
+          if (rejoin != null) rejoin!.point,
+        ];
+        final leg = shapeInsertionIndex(ordered, coord);
+        final at = (fork == null ? leg + 1 : leg).clamp(0, shape.length);
         final next = [...shape]..insert(at, coord);
         // Grab the point that was just made: the Author who placed it slightly
         // wrong should be able to move it without hunting for it in a list.

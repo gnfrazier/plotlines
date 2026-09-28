@@ -205,6 +205,41 @@ void main() {
       expect(edit.shape.first, const [-105.2, 40.05]);
     });
 
+    test('a new point on a divergence marked back-to-front lands between its neighbours', () {
+      // Fork east of the rejoin: `shape` runs fork→rejoin (east→west) while
+      // the saved geometry runs along the day (west→east). The insertion
+      // index has to be measured in `shape`'s own order, or a point dropped
+      // by the rejoin lands beside the fork and folds the line across itself.
+      const a = <double>[-105.15, 40.05], b = <double>[-105.25, 40.05];
+      final edit = AlternateEdit(
+        alternateId: 'alt1',
+        route: _route,
+        fork: snapToPath(_route, const [-105.1, 40.0]),
+        rejoin: snapToPath(_route, const [-105.3, 40.0]),
+        shape: const [a, b],
+      ).grab(AlternateHandle.newShapePoint).tap(const [-105.28, 40.03]);
+
+      expect(edit.shape, const [a, b, [-105.28, 40.03]]);
+      expect(edit.handleIndex, 2);
+      expect(edit.geometry!.coordinates[1], const [-105.28, 40.03]);
+    });
+
+    test('a new point before the fork is re-placed lands in path order', () {
+      // An alternate saved before #324 opens with its marks unplaced, so the
+      // preview line has no fork at its head; the index still has to count
+      // from the shaping points, not from a fork that is not there.
+      const a = <double>[-105.25, 40.05], b = <double>[-105.15, 40.05];
+      final edit = AlternateEdit(
+        alternateId: 'alt1',
+        route: _route,
+        fork: null,
+        rejoin: snapToPath(_route, const [-105.1, 40.0]),
+        shape: const [a, b],
+      ).grab(AlternateHandle.newShapePoint).tap(const [-105.12, 40.03]);
+
+      expect(edit.shape, const [a, b, [-105.12, 40.03]]);
+    });
+
     test('removing the grabbed point takes it out of the path and lets go', () {
       final edit = AlternateEdit.of(_alternate(), _route)
           .grab(AlternateHandle.shapePoint, index: 0)
