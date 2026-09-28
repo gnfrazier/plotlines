@@ -2081,6 +2081,16 @@ class ClustersAnalyzeRequest(BaseModel):
     #: `distance_to_route_m` on every proposal, the corridor filter, the
     #: `sort=corridor` resort, and grows the reviewable cap by route-km.
     route: list[list[float]] = Field(default_factory=list)
+
+    @field_validator("route")
+    @classmethod
+    def _route_points_are_lon_lat(cls, v: list[list[float]]) -> list[list[float]]:
+        # Each point is read as `pt[0], pt[1]` — a shorter one was an
+        # IndexError in the handler, a 500 for a malformed request.
+        if any(len(pt) < 2 for pt in v):
+            raise ValueError("every route point must be [lon, lat]")
+        return v
+
     #: Member-id sets the Author has already rejected for this trip (ARCH
     #: §4.4's small rejection set). A fresh cluster matching one is dropped,
     #: so a re-run does not re-propose it (FR110).
