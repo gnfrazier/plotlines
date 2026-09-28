@@ -3091,10 +3091,22 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         headers = {"Content-Encoding": info.content_encoding} if info.content_encoding else {}
         return Response(content=data, media_type=info.tile_content_type, headers=headers)
 
+    def _parse_payload(cls, data, what: str):
+        """`parse_dataclass` with a malformed payload as a 422. The parse is
+        reflection over the dataclass tree, so a missing required field is a
+        `TypeError` from the constructor and a scalar where an object belongs
+        is a `TypeError`/`AttributeError` from the walk — the caller's
+        mistake either way, never a 500."""
+        try:
+            return parse_dataclass(cls, data)
+        except (TypeError, ValueError, AttributeError, KeyError) as exc:
+            raise HTTPException(422, f"malformed {what}: {exc}") from exc
+
     @app.post("/days/compose")
     def days_compose(req: DayComposeRequest) -> dict:
-        segments = [parse_dataclass(PayloadSegment, s) for s in req.segments]
-        transitions = [parse_dataclass(PayloadTransition, t) for t in req.transitions]
+        segments = [_parse_payload(PayloadSegment, s, "segment") for s in req.segments]
+        transitions = [_parse_payload(PayloadTransition, t, "transition")
+                       for t in req.transitions]
         try:
             day = compose_day(segments, transitions, index=req.index, kind=req.kind)
         except ValueError as exc:
@@ -3110,7 +3122,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         # Only built when the request names a spine of two or more anchors.
         if len(req.anchors) >= 2:
             try:
-                anchors = [parse_dataclass(Anchor, a) for a in req.anchors]
+                anchors = [_parse_payload(Anchor, a, "anchor") for a in req.anchors]
                 if len(day.segments) == len(anchors) - 1:
                     # Already the one-passage-per-anchor-pair shape.
                     legs = day.segments
@@ -3148,9 +3160,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         # dataclass parse, so the assembled trip and its roll-ups never carry
         # a name the schema no longer allows.
         migrated = migrate_payload_modes({"days": req.days})["days"]
-        days = [parse_dataclass(PayloadDay, d) for d in migrated]
+        days = [_parse_payload(PayloadDay, d, "day") for d in migrated]
         default_weights = (
-            parse_dataclass(PayloadWeightProfile, req.default_weights)
+            _parse_payload(PayloadWeightProfile, req.default_weights, "default_weights")
             if req.default_weights else None
         )
         try:
