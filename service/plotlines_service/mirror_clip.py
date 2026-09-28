@@ -759,7 +759,12 @@ def _write_cache(
     except OSError as exc:
         log.warning("clip cache write failed for %s (serving uncached): %s", cached_pbf, exc)
         return
-    _evict_cache(cache_dir, max_bytes)
+    try:
+        _evict_cache(cache_dir, max_bytes)
+    except OSError as exc:
+        # A concurrent clip's eviction can remove an entry between this
+        # one's glob and its `stat()` — the same best-effort rule as above.
+        log.warning("clip cache eviction failed under %s: %s", cache_dir, exc)
 
 
 def _evict_cache(cache_dir: Path, max_bytes: int) -> None:
