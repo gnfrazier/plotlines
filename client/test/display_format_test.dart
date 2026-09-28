@@ -156,6 +156,19 @@ void main() {
       expect(imperial.parseSmallLengthToMetres('150'), closeTo(45.72, 1e-3));
     });
 
+    test('a non-finite entry reads as not a number, never as metres', () {
+      // `double.tryParse` accepts `NaN`, `Infinity` and an overflowing
+      // `1e999`; any of them reaching a DayLimit / TargetDistance / narration
+      // radius makes every later `toJson` throw on `finite()`, so the trip
+      // can no longer be saved.
+      for (final text in ['NaN', 'Infinity', '-Infinity', '1e999']) {
+        expect(metric.parseDistanceToMetres(text), isNull, reason: text);
+        expect(imperial.parseDistanceToMetres(text), isNull, reason: text);
+        expect(metric.parseSmallLengthToMetres(text), isNull, reason: text);
+        expect(imperial.parseSmallLengthToMetres(text), isNull, reason: text);
+      }
+    });
+
     test('a value typed in one unit round-trips through parse+format', () {
       final metres = imperial.parseDistanceToMetres('26.2')!; // a marathon
       expect(imperial.distanceInputValue(metres), '26.2');

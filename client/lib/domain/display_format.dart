@@ -282,7 +282,7 @@ class DisplayFormat {
   /// metres, so the value reaching the payload is always SI. Returns null
   /// when [text] is not a number.
   double? parseDistanceToMetres(String text) {
-    final v = double.tryParse(text.trim());
+    final v = _parseFinite(text);
     if (v == null) return null;
     return useMiles ? v * _metresPerMile : v * 1000;
   }
@@ -291,8 +291,17 @@ class DisplayFormat {
   /// canonical metres. The inverse of [smallLengthValue]; returns null when
   /// [text] is not a number.
   double? parseSmallLengthToMetres(String text) {
-    final v = double.tryParse(text.trim());
+    final v = _parseFinite(text);
     if (v == null) return null;
     return useMiles ? v / _feetPerMetre : v;
+  }
+
+  /// `double.tryParse` also accepts `NaN`, `Infinity` and an overflowing
+  /// `1e999` — none of them a length, and any of them would make the
+  /// payload's `finite()` guard throw on every save after it. Read as "not a
+  /// number", the same as any other unparseable entry.
+  static double? _parseFinite(String text) {
+    final v = double.tryParse(text.trim());
+    return (v == null || !v.isFinite) ? null : v;
   }
 }
