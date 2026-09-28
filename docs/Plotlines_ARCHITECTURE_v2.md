@@ -9,7 +9,7 @@ companion: Plotlines_PRD_v2.md
 
 **Status:** Draft · **Version:** 2.0 · **Companion docs:** `Plotlines_PRD_v2.md` (FR1–FR145 plus lettered sub-requirements, a few numbers retired —  the source of truth for *what* and *why*), `Plotlines_MVP_Redirection_Punchlist.md` (verification of the v1.0→v2.0 recomposition), `Plotlines_Research_Spikes.md` (feasibility unknowns). This document covers *how*.
 
-> **What changed in v2.0.** PRD v2.0 restored a set of concepts that v1.0 had reduced from structure to vocabulary — the curation pipeline, the anchor-and-role object model, area geometry, reveal policy, node-anchored activities, setting, compose mode, and mode-legal routability. Most of that lands on this architecture as **addition**, and the design absorbed it well: `ShapeDataProvider` (§13.2) was already the area seam, `content/` (§6.2) was already a package, and P8's canon-vs-layers separation is exactly the right home for reveal state and arrivals. **Four things are breaking changes, not additions**, and they are collected in §0 so they cannot be missed. A later pass added the roster and Author-note model (§11.1), destructive sync (§11.7), the edit-cascade boundary (§7.10), clone semantics (§11.8), and the usability foundation (§10.4) — all additive, and all absent from any earlier reading. Sections new in this revision are marked **[NEW v2.0]**; sections whose content changed are marked **[AMENDED v2.0]** with the prior reading stated.
+> **What changed in v2.0.** PRD v2.0 restored a set of concepts that v1.0 had reduced from structure to vocabulary — the curation pipeline, the anchor-and-role object model, area geometry, reveal policy, node-anchored activities, setting, compose mode, and mode-legal routability. Most of that lands on this architecture as **addition**, and the design absorbed it well: `ShapeDataProvider` (§14.2) was already the area seam, `content/` (§7.8) was already a package, and P8's canon-vs-layers separation is exactly the right home for reveal state and arrivals. **Four things are breaking changes, not additions**, and they are collected in §0 so they cannot be missed. A later pass added the roster and Author-note model (§11.1), destructive sync (§11.7), the edit-cascade boundary (§7.10), clone semantics (§11.8), and the usability foundation (§10.4) — all additive, and all absent from any earlier reading. Sections new in this revision are marked **[NEW v2.0]**; sections whose content changed are marked **[AMENDED v2.0]** with the prior reading stated.
 
 ---
 
@@ -19,12 +19,12 @@ Four places where v2.0 **contradicts** v1.0 of this document. An implementation 
 
 | # | Was (v1.0) | Is (v2.0) | Where |
 |---|---|---|---|
-| **B1** | `/health` returns a single readiness flag; a sidecar still enriching elevation is **not ready**, gating the whole app | `/health` returns **per-capability readiness**; the capabilities are **independent, not ordered** — extraction unlocks authoring, the region graph unlocks routing, elevation unlocks only elevation metrics (D34 as amended) | §7.3, §7.6, D34; PRD FR121, M12a |
-| **B2** | `solve_segment`'s `target_distance` is banded by default and never dropped from the constraint set | Banded in **explore** mode; in **compose** mode it is `None` and the realized distance is a **reported outcome** | §6.7, §7.2, D35; PRD FR118 |
-| **B3** | Nodes and edges are the only spatial objects; coordinates are points | **Areas are first-class.** Anchors and roles may be polygons; the trip payload, GeoJSON export, trigger engine, and local schema all carry polygon geometry | §6.8, §5.2, §10, D37; PRD FR108 |
-| **B4** | Plugin **data-input** is a Leg 7 concern with a deliberately open contract | The data-input contract is **Leg 2.5 and specified**, because the layer picker and cluster analysis read it. Only the **output** contract stays open | §13, D40; PRD FR100 |
+| **B1** | `/health` returns a single readiness flag; a sidecar still enriching elevation is **not ready**, gating the whole app | `/health` returns **per-capability readiness**; the capabilities are **independent, not ordered** — extraction unlocks authoring, the region graph unlocks routing, elevation unlocks only elevation metrics (D34 as amended) | §8.3, §8.4, D34; PRD FR121, M12a |
+| **B2** | `solve_segment`'s `target_distance` is banded by default and never dropped from the constraint set | Banded in **explore** mode; in **compose** mode it is `None` and the realized distance is a **reported outcome** | §7.7, §8.2, D35; PRD FR118 |
+| **B3** | Nodes and edges are the only spatial objects; coordinates are points | **Areas are first-class.** Anchors and roles may be polygons; the trip payload, GeoJSON export, trigger engine, and local schema all carry polygon geometry | §7.8, §6.2, §11, D37; PRD FR108 |
+| **B4** | Plugin **data-input** is a Leg 7 concern with a deliberately open contract | The data-input contract is **Leg 2.5 and specified**, because the layer picker and cluster analysis read it. Only the **output** contract stays open | §14, D40; PRD FR100 |
 
-A fifth item is not a contradiction but a scope correction with the same urgency: **the routing core has never enforced mode-legal passability** (§6.9, PRD FR128). That is a correctness gap, not a missing feature.
+A fifth item is not a contradiction but a scope correction with the same urgency: **the routing core has never enforced mode-legal passability** (§7.9, PRD FR128). That is a correctness gap, not a missing feature.
 
 **Post-v2.0 — issue #315:** the `travel_mode` enum lost three values. `mountain_biking`, `packrafting` and `riverboarding` were "Model B expressed as a Model A row" — a mode sharing another's graph and legality, differing only in weights — and are now **disciplines** (`multimodal/disciplines.py`: `mountain` under `cycling`, `packraft` / `riverboard` under `paddling`). `travel_mode` is now the five traversal **categories** plus `transit`; a new optional `segment.discipline` carries the variant. `multimodal/legacy.py::migrate_payload_modes` rewrites a pre-#315 payload before validation, and `payload.SCHEMA_VERSION` was `1.7.0` at that change (`1.15.0` as of 2026-09-28). A v2.0 reading that treats the eight-mode list as fixed is wrong.
 
@@ -39,7 +39,7 @@ This document describes the system's structure: its components, their boundaries
 1. **§0 (Breaking changes)** — what an older reading of this document gets wrong
 2. §2 (Principles) — the rules everything else follows
 3. §3 (Component Map) — what exists
-4. **§4.5 (The Curation Tier)** — new in v2.0, and the stage that precedes routing
+4. **§4 (The Curation Tier)** — new in v2.0, and the stage that precedes routing
 5. §5 (The Portability Problem) — the most consequential build decision
 6. §6 (Field Execution) — the second, unique to Plotlines
 7. §7–§12 — each tier and cross-cutting concern in detail. **§7.10 (authored vs. derived), §10.4 (the usability foundation), §11.7 (destructive sync) and §11.8 (clone semantics) are new in v2.0** and are the ones an older reading of this document does not contain at all
@@ -197,7 +197,7 @@ Two hard clauses ride on this:
 
 3. **The Curation Workspace sits *beside* the Routing Client, not behind it.** Layer selection, candidate review, cluster analysis, and promotion are a **pre-routing** activity that must be fully usable while elevation enrichment is still running (PRD FR121). If curation were reached through the routing client, it would inherit routing's readiness gate — which is precisely the coupling B1 exists to break. The Curation Workspace calls its own endpoints (§7.2) and depends on layer/POI readiness only.
 
-**And one boundary worth naming explicitly:** the **Reveal Resolver** is the P11 gate. Every path that renders, exports, prints, or packages role content goes through it. It is drawn in the client because that is where all those paths converge, but the *withheld* decision is made against reveal state the client holds, and the offline package builder applies it server-side too (§12.4).
+**And one boundary worth naming explicitly:** the **Reveal Resolver** is the P11 gate. Every path that renders, exports, prints, or packages role content goes through it. It is drawn in the client because that is where all those paths converge, but the *withheld* decision is made against reveal state the client holds, and the offline package builder applies it server-side too (§12.3).
 
 ---
 
@@ -469,7 +469,7 @@ plotlines-core/
 ├── scoring/        # WeightProfile + the one multi-factor scoring function
 ├── routing/        # solve, shape handling, via-anchor constraints (FR8a),
 │                   #   mode-legality constraints (FR128 — §7.9)
-├── multimodal/     # per-mode graph building + water/technical params (§7.5)
+├── multimodal/     # per-mode graph building + water/technical params (§7.4)
 ├── curation/       # ★ NEW — layer extraction, notability ruleset, salience,
 │                   #   co-location analysis (§4)
 ├── trips/          # payload types, day composition, transitions, splitting,
@@ -1244,7 +1244,7 @@ All follow P7: fetch once, cache with a volatility-matched TTL, never re-request
 | **Basemap tiles** — Protomaps Basemap (OSM-derived, PMTiles extracted per bbox, mirrored — D23, FR95) | Map rendering | Long | **Required — ODbL.** `© OpenStreetMap` |
 | **Weather** (Open-Meteo) | Historical + forecast | Forecast short, historical long | **CC BY 4.0 — required** |
 | **Geocoding** (Nominatim via OSMnx) | Location search | Medium | OSM / ODbL |
-| **OSM mirror clip** (Plotlines-operated Geofabrik mirror, `/clip`, D63) | Graph + **candidate layers** ★ — the default path since Phase 3 (#272, 2026-09-17) | Per-pin (monthly, §6.6) | OSM / ODbL — own credit line, graph-attribution since #269 |
+| **OSM mirror clip** (Plotlines-operated Geofabrik mirror, `/clip`, D63) | Graph + **candidate layers** ★ — the default path since Phase 3 (#272, 2026-09-17) | Per-pin (monthly, OSM Review §6.6) | OSM / ODbL — own credit line, graph-attribution since #269 |
 | **OSM Overpass** (via OSMnx) | Fallback on a mirror miss — until #518 narrows it and #284 retires it (D63's phased rule); Phase 5's capped live-refresh affordance (#285, not yet built) | Long | OSM / ODbL |
 | **USGS 3DHP** (waterway network, layer **50** `Flowline`; D27) | Paddling graph | Long | US public domain |
 | **USGS Water Data APIs + NLDI** | Gauge readings, gauge→reach | Values short, linkage long | US public domain |
@@ -1278,7 +1278,7 @@ CC BY and ODbL sources require attribution wherever their data appears: a visibl
 
 Three rules follow:
 
-- **Every layer declares its licence and attribution in the data-input contract** (FR101, §13.2). A layer whose licence metadata is absent or unsatisfiable **does not load** — refused at registration, not warned about at render.
+- **Every layer declares its licence and attribution in the data-input contract** (FR101, §14.2). A layer whose licence metadata is absent or unsatisfiable **does not load** — refused at registration, not warned about at render.
 - **Attribution is derived from the loaded layer set at render time**, not hardcoded. The About surface, exports, and print all enumerate what is actually in use.
 - **The build check becomes dynamic too.** The release gate is no longer "does the About surface contain these three strings" but "does every loaded layer's attribution reach every surface that displays its data." **This is the one place v2.0's plugin decision creates real ongoing cost**, and it is a licence obligation rather than a preference.
 
@@ -1481,7 +1481,7 @@ CI runs the core and service suites on every change and enforces the P1 boundary
 
 ## 16. Risks (Architectural)
 
-Carried risks are abbreviated where unchanged; **v2.0 additions are A20–A25; A26–A30 were added after it.**
+Carried risks are abbreviated where unchanged; **v2.0 additions are A20–A25; A26–A30 were added after it.** **Reference note:** in D62–D67 and A23/A23a, bare section references to §6.x, §8, §10, §11.x and §12 point into `Plotlines_OSM_Acquisition_Review.md` (the review those rows record), not into this document.
 
 | # | Risk | Severity | Mitigation |
 |---|---|---|---|
@@ -1521,7 +1521,7 @@ Carried risks are abbreviated where unchanged; **v2.0 additions are A20–A25; A
 
 ## 17. Decision Log
 
-D1–D33 carry from v1.0 (abbreviated below where unchanged). **D34–D45 are new in v2.0; D46 onward were added after it**, as spikes and issues settled questions.
+D1–D33 carry from v1.0 (abbreviated below where unchanged). **D34–D45 are new in v2.0; D46 onward were added after it**, as spikes and issues settled questions. **Reference note:** in D62–D67 and A23/A23a, bare section references to §6.x, §8, §10, §11.x and §12 point into `Plotlines_OSM_Acquisition_Review.md` (the review those rows record), not into this document.
 
 ### Carried decisions (summary)
 
@@ -1578,6 +1578,10 @@ D1–D33 carry from v1.0 (abbreviated below where unchanged). **D34–D45 are ne
 | **D44** | **Reveal state, arrivals, and story choices are per-Character tables (P8 layers), never payload fields** | Two Characters on one trip have different reveal states, and a Character's experience must never mutate the Author's canon. A useful consequence falls out: these tables are **append-only and owner-scoped**, so they do not participate in FR59's version-check protocol at all — two devices belonging to one Character converge by union, with no conflict to resolve | Reveal state in the payload (mutates canon per Character — P8 violated, and sync conflicts on every trigger); reveal state client-only and unsynced (a Character switching devices mid-trip loses their story, and the recap is wrong) |
 | **D45** | **Attribution is derived from the loaded layer set at render time, and a layer with absent or unsatisfiable licence metadata does not load** | A plugin ecosystem means arbitrary datasets with their own terms flowing into exports and printed cue sheets, so a hardcoded credit list cannot be correct. Refusing at registration rather than warning at render is the only point where the decision is still cheap | A static attribution list (wrong the moment a plugin loads); a warning on unlicenced layers (the warning is ignored and the unattributed data reaches print, which is a licence breach rather than a bug); attribution only on the About surface (the obligation is "wherever the data appears," which includes exports and paper) |
 
+### Added after v2.0
+
+| # | Decision | Rationale | Alternatives rejected |
+|---|---|---|---|
 | **D46** | **`poi_bonus` becomes a scalar `interest` weight biasing toward salience; `detour_budget` is retired** | PRD FR5's reformulation. The type parameter duplicated layer selection with no conflict rule, and density biased toward *quantity* — which means boundary stones and street trees, the same failure that made the flat `historic=*` wildcard useless for clustering. Salience did not exist when `poi_bonus` was written. `detour_budget` was a second dial for one intent once the bias became scalar. Also relieves A18: one fewer ambiguous field | Keeping the per-type dict (two surfaces for *what matters*, and an Author can set them in contradiction); deleting the weight entirely (leaves explore mode with four dials, none of which say anything about *places* — and abandons the legitimate *"forty-mile loop past good stuff, I don't want to review anything"* workflow that clustering does not serve); keeping `detour_budget` alongside the interest weight (two dials, one intent) |
 | **D47** | **Every type in a layer's taxonomy declares one primary role affinity plus a salience weight; clusters propose the union of affinities present. Single-valued, with Author override at promotion** | Without it, §4.4 can only propose role sets for tuples someone enumerated — so a plugin bringing `battlefield` and `manor_house` produces a correct cluster and no proposal, the curation feature silently not working with the extension mechanism built to feed it. Single-valued because a layer author should declare one thing per type rather than reason about a matrix, and an Author should not adjudicate detail irrelevant to their story. **Also gives the station role its first path from analysis**, which the recipe form never had. **SPIKE-B (#169) exercised this end to end**: a synthetic plugin layer declaring `battlefield`/`manor_house`/`covered_bridge` → narrative and `crag` → station clustered alongside OSM candidates and produced correct role-set unions (incl. a `provision+station` proposal) with no core change — the §0 failure mode's regression test. **SPIKE-H (#160) then proved it on real data one layer deeper**: 290 real OSM candidates merged with 82 real NPS candidates — **372 in, 30 cluster proposals out, zero changes to `colocate.py`** — of which **14 mix an NPS candidate with a non-NPS one** (the same real overlooks, reported independently by both sources, clustering unprompted) and **2 carry the `station` affinity** from a real `Mile Marker` type the plugin taxonomy declared. The station path this row claims is no longer only synthetic | Multi-valued affinity per type (a matrix for every layer author, and role sets an Author must prune rather than extend); a core-side type→role table (breaks for every plugin, and is the exact v1.0 enumeration failure); inferring affinity from the layer name (guesswork, and wrong for any mixed layer) |
 | **D48** | **Layer readiness is per layer inside `capabilities.layers`, not one flag** | A plugin dataset may be large or remote (PRD N2). One flag means the slowest layer gates the workspace — B1 reintroduced one level down. Per-layer state lets built-in OSM layers unlock curation immediately, shows a loading layer as loading, and **prevents one failing layer from blocking the others**, which matters more as the plugin ecosystem grows | One layers flag (the slowest plugin gates all authoring); blocking on all layers before showing any (same, with a worse first impression); failing the whole layer capability when one layer fails (one bad plugin disables curation entirely) |

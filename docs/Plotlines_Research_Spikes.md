@@ -4,18 +4,20 @@
 
 **How to read the priority:** **Scope-shaping** spikes can send you back to revise the PRD if they come back negative. **Implementation-informing** spikes won't change scope but determine how a committed feature is built. Do the scope-shaping ones first.
 
-**Companion to:** `Plotlines_PRD.md` (103 FRs / 102 stories).
+**Companion to:** `Plotlines_PRD_v2.md` and `Plotlines_ARCHITECTURE_v2.md` (this file began against the v1.0 pair).
+
+> **Section numbers.** Entries written before ARCH v2.0 (SPIKE-00 through SPIKE-21) cite ARCH by its **v1.0 numbering**. v2.0 inserted §4 (The Curation Tier), so a v1.0 §4–§13 is v2.0's §5–§14: v1.0 §6.1 is §7.1, §7.2 is §8.2, §9.1 is §10.1, §10.3 is §11.3, §11 is §12, and §13.2 is §14.2. The priority list just below uses v2.0 numbers. Later entries (SPIKE-A onward) already use v2.0 numbers.
 
 ---
 
 ## Priority order (by risk of reshaping scope)
 
 **Gates desktop MVP (do first):**
-0. ~~Frozen sidecar packaging — the desktop-MVP foundation~~ — **complete (SPIKE-00, 2026-08-13/14)** — **ARCH §4, A1/A5, Q4/Q5**
-0a. ~~Vector mapping — `maplibre_gl` + PMTiles~~ — **complete (SPIKE-14, 2026-08-15)** — **negative on `maplibre_gl`, positive on the goal.** Neither `maplibre_gl` nor its successor runs on Flutter desktop at all; `flutter_map` + `vector_map_tiles` does, offline, **on both Linux and Windows**, and the basemap source and licence are settled. Both residuals closed the same day — Windows needs no source change (GPU 2–3× faster in the median, no faster in the tail, ~1 GB memory), and the missing basemap labels are fixed by a style transform rather than a renderer change — **ARCH §7.2/§9.2/§11, D22/D23/D24, A15/A16, Q9/Q10, PRD FR95, MVP §1.4.5**
-0b. ~~Elevation data provider & void-handling policy~~ — **complete (SPIKE-18, 2026-08-15, resolved via prior art)** — **ARCH §6.1/§6.5/§11/§11.1, PRD FR85–FR91, MVP §1.4.5**
-0c. ~~Trip payload schema~~ — **complete (SPIKE-20, 2026-08-16)** — one document serves all three consumers with no adapter at any boundary; a real four-day multimodal trip round-trips core → drift → Dart → JSON with **zero field loss**, and Python and Dart emit **byte-identical** canonical files. Schema checked in at [`docs/schemas/trip_payload.schema.json`](schemas/trip_payload.schema.json) — **ARCH §6.1/§9.1/§10.1/§10.3, D28/D29/D30, A18, PRD §6 (all)**
-0d. ~~Cue derivation algorithm~~ — **complete (SPIKE-21, 2026-08-16)** — the algorithm is in `plotlines-core/trips/cues.py` (**ARCH D31**), and all nine fixture routes land inside the declared legibility ceiling; two findings narrow F1's AC (surface coverage, and authored-vs-derived density). **All four of MVP §1.4.5's blocking decisions are now closed, and no unrun spike gates the desktop MVP.** Formerly: F1 is `[MVP]` and no document specifies how a routed polyline becomes a cue sheet — **PRD F1/FR46, ARCH §5.3, §6.1**; its dependency on 0c is **discharged** — `day.cue_sheet` exists, round-trips, and has a stable cue identity to write into
+0. ~~Frozen sidecar packaging — the desktop-MVP foundation~~ — **complete (SPIKE-00, 2026-08-13/14)** — **ARCH §5, A1/A5, Q4/Q5**
+0a. ~~Vector mapping — `maplibre_gl` + PMTiles~~ — **complete (SPIKE-14, 2026-08-15)** — **negative on `maplibre_gl`, positive on the goal.** Neither `maplibre_gl` nor its successor runs on Flutter desktop at all; `flutter_map` + `vector_map_tiles` does, offline, **on both Linux and Windows**, and the basemap source and licence are settled. Both residuals closed the same day — Windows needs no source change (GPU 2–3× faster in the median, no faster in the tail, ~1 GB memory), and the missing basemap labels are fixed by a style transform rather than a renderer change — **ARCH §8.2/§10.2/§12, D22/D23/D24, A15/A16, Q9/Q10, PRD FR95, MVP §1.4.5**
+0b. ~~Elevation data provider & void-handling policy~~ — **complete (SPIKE-18, 2026-08-15, resolved via prior art)** — **ARCH §7.1/§7.5/§12/§12.1, PRD FR85–FR91, MVP §1.4.5**
+0c. ~~Trip payload schema~~ — **complete (SPIKE-20, 2026-08-16)** — one document serves all three consumers with no adapter at any boundary; a real four-day multimodal trip round-trips core → drift → Dart → JSON with **zero field loss**, and Python and Dart emit **byte-identical** canonical files. Schema checked in at [`docs/schemas/trip_payload.schema.json`](schemas/trip_payload.schema.json) — **ARCH §7.1/§10.1/§11.1/§11.3, D28/D29/D30, A18, PRD §6 (all)**
+0d. ~~Cue derivation algorithm~~ — **complete (SPIKE-21, 2026-08-16)** — the algorithm is in `plotlines-core/trips/cues.py` (**ARCH D31**), and all nine fixture routes land inside the declared legibility ceiling; two findings narrow F1's AC (surface coverage, and authored-vs-derived density). **All four of MVP §1.4.5's blocking decisions are now closed, and no unrun spike gates the desktop MVP.** Formerly: F1 is `[MVP]` and no document specifies how a routed polyline becomes a cue sheet — **PRD F1/FR46, ARCH §6.3, §7.1**; its dependency on 0c is **discharged** — `day.cue_sheet` exists, round-trips, and has a stable cue identity to write into
 
 **Scope-shaping (later milestones):**
 1. ~~Multimodal / paddling data availability~~ — **complete (SPIKE-04, 2026-08-14)**, and its build-side successor ~~SPIKE-19~~ is **complete too (2026-08-16)** — the retired-source check came back clean, so scope is untouched; what it changed is ARCH §13.2
