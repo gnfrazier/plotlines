@@ -81,6 +81,21 @@ void main() {
       expect(paragraphs.every((p) => !p.contains('|')), isTrue);
     });
 
+    test('a rest day\'s hazards are woven in too — a hazard is never hidden (FR115)', () {
+      // A rest day has no passages, but `Day.hazards` is day-scoped: the
+      // high-water crossing at camp is exactly the warning a rest day carries.
+      final trip = _trip([
+        Day(
+          id: 'd1', index: 1, kind: 'rest', note: 'Camp at the shelter.',
+          hazards: [Hazard(id: 'h1', severity: 'high', title: 'High-water ford to the privy')],
+        ),
+      ]);
+
+      final paragraphs = buildItinerary(trip).days.single.paragraphs;
+      expect(paragraphs, contains('Watch for High-water ford to the privy.'));
+      expect(paragraphs.first, 'Camp at the shelter.');
+    });
+
     test('a rest day\'s lodging choice reads on the agenda (Story C7, issue #43)', () {
       // FR133's own citation names "rest/lodging detail" as one of the
       // things a day's prose has to weave in — this is `Day.nodes` (not a

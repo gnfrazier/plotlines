@@ -92,13 +92,27 @@ Itinerary buildItinerary(
 
 ItineraryDayEntry _buildDayEntry(Day day, DisplayFormat format, List<String> anchorTitles) {
   final heading = 'Day ${day.index}${day.title != null ? ' — ${day.title}' : ''}';
+  final restHazards = day.isRest ? _hazardSentence(day) : null;
   return ItineraryDayEntry(
     day: day,
     heading: heading,
     paragraphs: day.isRest
-        ? [_restDayAccount(day, anchorTitles)]
+        ? [_restDayAccount(day, anchorTitles), if (restHazards != null) restHazards]
         : _routeDayAccount(day, format, anchorTitles),
   );
+}
+
+/// FR27 / C11 — day-level and passage-level hazards, woven into the account
+/// unconditionally on **every** kind of day: a hazard is never reveal-gated
+/// (FR115), and a rest day's `Day.hazards` (the high-water ford at camp) is
+/// as much a warning as a route day's. `null` when the day carries none.
+String? _hazardSentence(Day day) {
+  final hazards = [
+    ...day.hazards,
+    for (final segment in day.segments) ...segment.hazards,
+  ];
+  if (hazards.isEmpty) return null;
+  return 'Watch for ${hazards.map((h) => h.title ?? h.severity).join(', ')}.';
 }
 
 String _restDayAccount(Day day, List<String> anchorTitles) {
@@ -146,16 +160,8 @@ List<String> _routeDayAccount(Day day, DisplayFormat format, List<String> anchor
     paragraphs.add('Along the way: ${places.join(', ')}.');
   }
 
-  // FR27 / C11 — day-level and passage-level hazards both surface here; a
-  // hazard is never reveal-gated (FR115), so it is woven into the account
-  // unconditionally.
-  final hazards = [
-    ...day.hazards,
-    for (final segment in day.segments) ...segment.hazards,
-  ];
-  if (hazards.isNotEmpty) {
-    paragraphs.add('Watch for ${hazards.map((h) => h.title ?? h.severity).join(', ')}.');
-  }
+  final hazards = _hazardSentence(day);
+  if (hazards != null) paragraphs.add(hazards);
 
   final portages = [
     for (final segment in day.segments) ...segment.portages,
