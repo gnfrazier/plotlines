@@ -312,10 +312,25 @@ def test_the_mirror_clip_flags_reach_create_app_unchanged(monkeypatch, tmp_path)
     assert seen["mirror_clip_client_key"] == "s3cr3t"
 
 
-def test_the_mirror_clip_flags_default_to_unset(tmp_path):
+def test_the_mirror_clip_flags_default_to_unset(monkeypatch, tmp_path):
+    monkeypatch.delenv(entry.MIRROR_CLIP_CLIENT_KEY_ENV, raising=False)
     args = _args(f"--cache-dir={tmp_path}")
     assert args.mirror_clip_url is None
     assert args.mirror_clip_client_key is None
+
+
+def test_the_client_key_is_read_from_the_environment_not_only_argv(monkeypatch,
+                                                                   tmp_path):
+    """The client hands the key over in the environment: argv is readable by
+    any local user through `ps` or /proc/<pid>/cmdline."""
+    monkeypatch.setenv(entry.MIRROR_CLIP_CLIENT_KEY_ENV, "s3cr3t")
+    assert _args(f"--cache-dir={tmp_path}").mirror_clip_client_key == "s3cr3t"
+    # An explicit flag (a dev run by hand) still wins, and an empty variable
+    # is no key rather than an empty one.
+    assert _args(f"--cache-dir={tmp_path}",
+                 "--mirror-clip-client-key=k2").mirror_clip_client_key == "k2"
+    monkeypatch.setenv(entry.MIRROR_CLIP_CLIENT_KEY_ENV, "")
+    assert _args(f"--cache-dir={tmp_path}").mirror_clip_client_key is None
 
 
 # ── graceful stop (ARCH §7.3) ────────────────────────────────────────────

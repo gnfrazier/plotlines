@@ -55,12 +55,27 @@ class RoutingClient {
     }));
   }
 
+  /// Connection refused / reset — the sidecar died, is restarting, or has
+  /// not bound its port yet. `package:http` raises a [http.ClientException]
+  /// (wrapping the `SocketException`) for all of these; left alone it
+  /// escaped every `on RoutingException catch` and reached the screen as
+  /// `ClientException with SocketException: Connection refused … port = …`,
+  /// or as an unhandled error. Same typed exception, same retryable 503, as
+  /// a timeout (issue #496's rule, applied to the other transport failure).
+  Never _unreachable(String doing) {
+    throw RoutingException(503, jsonEncode({
+      'detail': "the sidecar couldn't be reached while $doing — try again in a moment",
+    }));
+  }
+
   Future<Map<String, dynamic>> health() async {
     final http.Response resp;
     try {
       resp = await http.get(_uri('/health')).timeout(healthTimeout);
     } on TimeoutException {
       _timedOut('checking sidecar health');
+    } on http.ClientException {
+      _unreachable('checking sidecar health');
     }
     _checkOk(resp);
     return jsonDecode(resp.body) as Map<String, dynamic>;
@@ -79,6 +94,8 @@ class RoutingClient {
       resp = await http.get(_uri('/about')).timeout(aboutTimeout);
     } on TimeoutException {
       _timedOut('loading the about page');
+    } on http.ClientException {
+      _unreachable('loading the about page');
     }
     _checkOk(resp);
     return jsonDecode(resp.body) as Map<String, dynamic>;
@@ -110,6 +127,8 @@ class RoutingClient {
           .timeout(ensureRegionTimeout);
     } on TimeoutException {
       _timedOut('preparing the routing region');
+    } on http.ClientException {
+      _unreachable('preparing the routing region');
     }
     _checkOk(resp);
     return (jsonDecode(resp.body) as Map<String, dynamic>)['region'] as String;
@@ -166,6 +185,8 @@ class RoutingClient {
           .timeout(generateSegmentTimeout);
     } on TimeoutException {
       _timedOut('generating the route');
+    } on http.ClientException {
+      _unreachable('generating the route');
     }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -262,6 +283,8 @@ class RoutingClient {
           .timeout(envelopeTimeout);
     } on TimeoutException {
       _timedOut('probing the route range');
+    } on http.ClientException {
+      _unreachable('probing the route range');
     }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -301,6 +324,8 @@ class RoutingClient {
           .timeout(submitDiagnoseTimeout);
     } on TimeoutException {
       _timedOut('starting the route diagnosis');
+    } on http.ClientException {
+      _unreachable('starting the route diagnosis');
     }
     _checkOk(resp);
     return (jsonDecode(resp.body) as Map<String, dynamic>)['id'] as String;
@@ -314,6 +339,8 @@ class RoutingClient {
       resp = await http.get(_uri('/segments/diagnose/$jobId')).timeout(pollDiagnoseTimeout);
     } on TimeoutException {
       _timedOut('checking the route diagnosis');
+    } on http.ClientException {
+      _unreachable('checking the route diagnosis');
     }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -374,6 +401,8 @@ class RoutingClient {
           .timeout(cuesForTimeout);
     } on TimeoutException {
       _timedOut('deriving cues');
+    } on http.ClientException {
+      _unreachable('deriving cues');
     }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -419,6 +448,8 @@ class RoutingClient {
           .timeout(composeDayTimeout);
     } on TimeoutException {
       _timedOut('composing the day');
+    } on http.ClientException {
+      _unreachable('composing the day');
     }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -482,6 +513,8 @@ class RoutingClient {
           .timeout(assembleTripTimeout);
     } on TimeoutException {
       _timedOut('assembling the trip');
+    } on http.ClientException {
+      _unreachable('assembling the trip');
     }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -533,6 +566,8 @@ class RoutingClient {
               'again in a moment',
         }),
       );
+    } on http.ClientException {
+      _unreachable('searching for a place');
     }
     _checkOk(resp);
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -605,16 +640,27 @@ class RoutingException implements Exception {
   /// A6/M13: honest, screen-displayable text — FastAPI's `HTTPException`
   /// bodies are `{"detail": "..."}`, which is the message an Author actually
   /// wrote a band/relaxation string into (see `service/app.py`).
-  String get message {
+  String get message => reason ?? 'Request failed ($statusCode)';
+
+  /// The sidecar's own sentence, or null when the body is a diagnostic
+  /// rather than a reason — so a surface with a better fallback of its own
+  /// (`failureSentence`) uses that instead of "Request failed (N)".
+  String? get reason {
+    Object? decoded;
     try {
-      final decoded = jsonDecode(body);
-      if (decoded is Map && decoded['detail'] is String) {
-        return decoded['detail'] as String;
-      }
-    } catch (_) {
-      // Not JSON — fall through to the raw body.
+      decoded = jsonDecode(body);
+    } on FormatException {
+      decoded = null; // Not JSON — a plain-text body, judged below.
     }
-    return body.isEmpty ? 'Request failed ($statusCode)' : body;
+    if (decoded is Map && decoded['detail'] is String) {
+      return decoded['detail'] as String;
+    }
+    // A JSON body with no string `detail` (FastAPI's 422 validation list,
+    // `{"detail": [{"loc": …}]}`) or a plain-text body shaped like a
+    // traceback or repr is a diagnostic, never a sentence for the screen
+    // (FR145, #418) — it used to be returned verbatim.
+    if (decoded != null || looksLikeRawDiagnostic(body)) return null;
+    return body;
   }
 
   @override

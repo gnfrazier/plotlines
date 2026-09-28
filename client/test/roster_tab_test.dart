@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:plotlines_ui/plotlines_ui.dart';
 
 import 'package:plotlines_client/presentation/screens/plan_tabs/roster_tab.dart';
 
@@ -140,5 +141,33 @@ void main() {
     expect(find.text('555-0100'), findsNothing); // no longer the live value
     expect(find.textContaining('replaced the value you had entered (555-0100)'),
         findsOneWidget);
+  });
+
+  // Review fix — the Character cards were unkeyed, so a field picked (not yet
+  // added) in Ann's "Record a field they volunteered" dropdown moved to Bob's
+  // card when Ann was removed, and Add recorded it as volunteered by Bob: a
+  // disclosure attributed to someone who never made it.
+  testWidgets('removing a Character never hands their pending volunteered pick to the next card',
+      (tester) async {
+    await _pump(tester);
+    for (final name in ['Ann', 'Bob']) {
+      await tester.enterText(find.widgetWithText(TextField, 'Character name'), name);
+      await tester.tap(find.text('Add').first);
+      await tester.pump();
+    }
+
+    await tester.tap(find.text('Record a field they volunteered').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Medical conditions').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Remove Ann from roster'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ann'), findsNothing);
+    expect(find.text('Medical conditions'), findsOneWidget); // the catalog row only
+    final add = find.widgetWithText(PlotButton, 'Add').last;
+    expect(tester.widget<PlotButton>(add).onPressed, isNull);
+    expect(find.text('VOLUNTEERED UNPROMPTED'), findsNothing);
   });
 }

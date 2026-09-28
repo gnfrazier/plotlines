@@ -14,6 +14,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
+import '../failure_sentence.dart';
 import 'teaching_block.dart';
 
 /// Shows the stale list if [trip] has any stale route, and returns whether
@@ -103,7 +104,15 @@ class _StaleListDialogState extends ConsumerState<_StaleListDialog> {
                 constraints: const BoxConstraints(maxHeight: 240),
                 child: SingleChildScrollView(
                   child: Column(
-                    children: [for (final item in items) _StaleRow(item: item)],
+                    children: [
+                      // Keyed by what the item is: a re-solved row leaves the
+                      // list, and an unkeyed row would hand its in-flight or
+                      // error state to the item that slides into its place.
+                      for (final item in items)
+                        _StaleRow(
+                            key: ValueKey('${item.segmentId}/${item.alternateId ?? ''}'),
+                            item: item),
+                    ],
                   ),
                 ),
               ),
@@ -129,7 +138,11 @@ class _StaleListDialogState extends ConsumerState<_StaleListDialog> {
     try {
       await ref.read(currentTripProvider.notifier).resolveAllStale();
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      debugPrint('re-solve all failed: $e');
+      if (mounted) {
+        setState(() => _error =
+            failureSentence(e, fallback: 'Re-solving didn\'t finish. Try again.'));
+      }
     } finally {
       if (mounted) setState(() => _resolvingAll = false);
     }
@@ -137,7 +150,7 @@ class _StaleListDialogState extends ConsumerState<_StaleListDialog> {
 }
 
 class _StaleRow extends ConsumerStatefulWidget {
-  const _StaleRow({required this.item});
+  const _StaleRow({super.key, required this.item});
   final StaleItem item;
 
   @override
@@ -167,7 +180,11 @@ class _StaleRowState extends ConsumerState<_StaleRow> {
         await notifier.regenerateSegment(widget.item.dayId, widget.item.segmentId);
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      debugPrint('re-solve failed: $e');
+      if (mounted) {
+        setState(() => _error =
+            failureSentence(e, fallback: 'This couldn\'t be re-solved. Try again.'));
+      }
     } finally {
       if (mounted) setState(() => _resolving = false);
     }

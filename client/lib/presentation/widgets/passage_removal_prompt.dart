@@ -31,6 +31,24 @@ class _PassageRemovalDialog extends StatelessWidget {
   const _PassageRemovalDialog({required this.summary});
   final SegmentContentSummary summary;
 
+  /// Everything the passage carries, named — the nodes (which survive) and
+  /// the passage's own note, media, alternates and portages (which do not).
+  String _describe() {
+    String n(int count, String one, String many) => '$count ${count == 1 ? one : many}';
+    final parts = <String>[
+      if (summary.nodeCount > 0) n(summary.nodeCount, 'node', 'nodes'),
+      if (summary.hazardCount > 0) n(summary.hazardCount, 'hazard', 'hazards'),
+      if (summary.hasNote) 'a note',
+      if (summary.mediaCount > 0) n(summary.mediaCount, 'media item', 'media items'),
+      if (summary.alternateCount > 0) n(summary.alternateCount, 'alternate', 'alternates'),
+      if (summary.portageCount > 0) n(summary.portageCount, 'portage', 'portages'),
+      if (summary.hasArcStage) 'an arc stage',
+    ];
+    if (parts.length == 1) return parts.single;
+    if (parts.length == 2) return '${parts[0]} and ${parts[1]}';
+    return '${parts.sublist(0, parts.length - 1).join(', ')}, and ${parts.last}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
@@ -43,9 +61,7 @@ class _PassageRemovalDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'This passage carries ${summary.nodeCount} '
-              '${summary.nodeCount == 1 ? 'node' : 'nodes'}'
-              '${summary.hazardCount > 0 ? ' and ${summary.hazardCount} ${summary.hazardCount == 1 ? 'hazard' : 'hazards'}' : ''}. '
+              'This passage carries ${_describe()}. '
               'Its anchors survive unattached — findable and re-attachable from the '
               'anchors view — rather than being deleted with it.',
               style: PlotTypography.body(c.textSecondary),

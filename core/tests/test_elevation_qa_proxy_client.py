@@ -23,8 +23,8 @@ def test_qa_proxy_fetch_builds_the_expected_query_and_writes_the_body(
 ) -> None:
     captured: dict = {}
 
-    def _fake_urlopen(url, timeout=None):
-        captured["url"] = url
+    def _fake_urlopen(req, timeout=None):
+        captured["url"] = req.full_url
         captured["timeout"] = timeout
         return io.BytesIO(b"fake-geotiff-bytes")
 
@@ -52,8 +52,8 @@ def test_qa_proxy_fetch_builds_the_expected_query_and_writes_the_body(
 def test_qa_proxy_fetch_carries_no_api_key(tmp_path: Path, monkeypatch) -> None:
     captured: dict = {}
 
-    def _fake_urlopen(url, timeout=None):
-        captured["url"] = url
+    def _fake_urlopen(req, timeout=None):
+        captured["url"] = req.full_url
         return io.BytesIO(b"x")
 
     monkeypatch.setattr(qa_proxy_client.urllib.request, "urlopen", _fake_urlopen)
@@ -64,7 +64,7 @@ def test_qa_proxy_fetch_carries_no_api_key(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_qa_proxy_fetch_propagates_a_transport_failure(tmp_path: Path, monkeypatch) -> None:
-    def _fake_urlopen(url, timeout=None):
+    def _fake_urlopen(req, timeout=None):
         raise OSError("connection refused")
 
     monkeypatch.setattr(qa_proxy_client.urllib.request, "urlopen", _fake_urlopen)
@@ -73,3 +73,40 @@ def test_qa_proxy_fetch_propagates_a_transport_failure(tmp_path: Path, monkeypat
         qa_proxy_client.qa_proxy_fetch("http://pi5.local/dem", _BBOX, tmp_path / "out.tif")
     # Nothing partial left behind on failure.
     assert not (tmp_path / "out.tif").exists()
+
+
+def test_qa_proxy_fetch_identifies_itself_as_plotlines(tmp_path: Path, monkeypatch) -> None:
+    """Every outbound request carries the Plotlines UA with its contact URL,
+    never urllib's `Python-urllib/3.x` default."""
+    captured: dict = {}
+
+    def _fake_urlopen(req, timeout=None):
+        captured["ua"] = req.get_header("User-agent")
+        return io.BytesIO(b"x")
+
+    monkeypatch.setattr(qa_proxy_client.urllib.request, "urlopen", _fake_urlopen)
+    qa_proxy_client.qa_proxy_fetch("http://pi5.local/dem", _BBOX, tmp_path / "out.tif")
+
+    assert captured["ua"].startswith("Plotlines/")
+    assert "(+https://" in captured["ua"]
+
+
+def test_qa_proxy_fetch_leaves_no_part_file_when_the_body_dies_mid_transfer(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    class _Dying(io.RawIOBase):
+        def readinto(self, buf):
+            raise ConnectionResetError("reset mid-body")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(qa_proxy_client.urllib.request, "urlopen",
+                        lambda req, timeout=None: _Dying())
+
+    with pytest.raises(ConnectionResetError):
+        qa_proxy_client.qa_proxy_fetch("http://pi5.local/dem", _BBOX, tmp_path / "out.tif")
+    assert list(tmp_path.iterdir()) == []

@@ -20,6 +20,7 @@ import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import 'conflict_dialog.dart';
+import '../failure_sentence.dart';
 import 'error_states.dart';
 import 'passage_mode_picker.dart';
 import 'passage_removal_prompt.dart';
@@ -524,7 +525,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
           .read(currentTripProvider.notifier)
           .regenerateSegment(widget.dayId, segment.id, mode: mode);
     } on RoutingException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) {
+        setState(() => _error =
+            failureSentence(e, fallback: 'The route couldn\'t be re-solved. Try again.'));
+      }
     } finally {
       if (mounted) setState(() => _regenerating = false);
     }
@@ -565,6 +569,11 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
       orElse: () => _attributes.first,
     );
     double? lo, hi;
+    // Captured before the probe's awaits: switching tabs mid-probe disposes
+    // this rail, and `ref` is unusable after dispose — the band the Author
+    // asked for is still added, to the segment as it stands *after* the
+    // probe rather than the snapshot taken when the button was pressed.
+    final container = ProviderScope.containerOf(context, listen: false);
     final targetM = segment.targetDistance?.valueM ?? segment.metrics?.distanceM;
     if (segment.shape == 'loop' && segment.start != null && targetM != null) {
       setState(() {
@@ -589,15 +598,25 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
           }
         }
       } on RoutingException catch (e) {
-        setState(() => _error = e.message);
+        if (mounted) {
+          setState(() => _error = failureSentence(e,
+              fallback: 'The range this area can deliver couldn\'t be probed.'));
+        }
       } finally {
         if (mounted) setState(() => _addingBand = false);
       }
     }
-    ref.read(currentTripProvider.notifier).updateSegmentBands(
+    final current = [
+      for (final d in container.read(currentTripProvider).days)
+        if (d.id == widget.dayId)
+          for (final s in d.segments)
+            if (s.id == segment.id) s,
+    ];
+    if (current.isEmpty) return; // removed while the probe ran
+    container.read(currentTripProvider.notifier).updateSegmentBands(
           widget.dayId,
           segment.id,
-          [...segment.bands, Band(attribute: attr, min: lo, max: hi, source: lo == null && hi == null ? null : 'envelope')],
+          [...current.single.bands, Band(attribute: attr, min: lo, max: hi, source: lo == null && hi == null ? null : 'envelope')],
         );
   }
 
@@ -658,7 +677,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         onApplyRelaxation: (offer) => _applyRelaxation(segment, offer),
       );
     } on RoutingException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) {
+        setState(() => _error =
+            failureSentence(e, fallback: 'Diagnose didn\'t finish. Try again.'));
+      }
     } finally {
       if (mounted) setState(() => _diagnosing = false);
     }
@@ -708,6 +730,7 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
   late final _controller = TextEditingController(text: _storedAsInput());
   String? _lastSegmentId;
   PlanningMode? _lastMode;
+  double? _lastStoredM;
 
   /// The stored target distance as a bare number in the Author's active
   /// route-distance unit (issue #312) — km or miles — for pre-filling the
@@ -733,12 +756,22 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
     // way this value changes underneath the field (FR119's backfill in
     // `_PlanningModeToggle`), and there is no in-progress edit to clobber
     // coming out of compose, which shows no text field at all.
+    // Also re-sync when the stored target changes underneath the field
+    // (Reset planning controls clears it) and the field no longer reads as
+    // that value — never on the Author's own submit, which stores exactly
+    // what the field already says.
+    final storedM = widget.segment.targetDistance?.valueM;
+    final storedChanged = _lastSegmentId == widget.segment.id &&
+        storedM != _lastStoredM &&
+        df.parseDistanceToMetres(_controller.text) != storedM;
     if (_lastSegmentId != widget.segment.id ||
-        (_lastMode == PlanningMode.compose && widget.mode == PlanningMode.explore)) {
+        (_lastMode == PlanningMode.compose && widget.mode == PlanningMode.explore) ||
+        storedChanged) {
       _controller.text = _storedAsInput();
     }
     _lastSegmentId = widget.segment.id;
     _lastMode = widget.mode;
+    _lastStoredM = storedM;
 
     // FR8/A8's AC: "point-to-point has no target-distance input." Its
     // start/end already govern the route (A7); there is nothing here to set
@@ -910,6 +943,22 @@ class _BandRowState extends State<BandRow> {
   late final _min = TextEditingController(text: widget.band.min?.toString() ?? '');
   late final _max = TextEditingController(text: widget.band.max?.toString() ?? '');
 
+  /// The row outlives the band it was seeded from: the same attribute on
+  /// another segment, a relaxation applied from Diagnose, or a new target
+  /// distance re-banding FR8's distance row all arrive as a new [Band] on a
+  /// kept state. A field whose text no longer reads as the stored bound is
+  /// re-seeded; one that does (the Author mid-edit, e.g. `12.`) is left be.
+  @override
+  void didUpdateWidget(covariant BandRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (double.tryParse(_min.text) != widget.band.min) {
+      _min.text = widget.band.min?.toString() ?? '';
+    }
+    if (double.tryParse(_max.text) != widget.band.max) {
+      _max.text = widget.band.max?.toString() ?? '';
+    }
+  }
+
   @override
   void dispose() {
     _min.dispose();
@@ -917,11 +966,16 @@ class _BandRowState extends State<BandRow> {
     super.dispose();
   }
 
+  /// Built directly rather than through [Band.copyWith], whose `min ??
+  /// this.min` cannot clear a bound: an emptied field used to read empty
+  /// while the stored band kept the old number. A band needs at least one
+  /// bound (the schema's `anyOf`), so emptying both sends nothing.
   void _emit() {
-    widget.onChanged(widget.band.copyWith(
-      min: double.tryParse(_min.text),
-      max: double.tryParse(_max.text),
-    ));
+    final min = double.tryParse(_min.text);
+    final max = double.tryParse(_max.text);
+    if (min == null && max == null) return;
+    widget.onChanged(
+        Band(attribute: widget.band.attribute, min: min, max: max, source: widget.band.source));
   }
 
   @override

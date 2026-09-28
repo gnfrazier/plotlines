@@ -208,6 +208,28 @@ def test_fetch_extract_raises_mirror_unreachable_when_pin_header_missing(tmp_pat
     assert progress.status == "failed"
 
 
+@pytest.mark.parametrize("pin", ["../../escaped", "..", "/abs/pin", "2026/09", ".hidden"])
+def test_fetch_extract_refuses_a_pin_header_that_is_not_one_path_component(
+    tmp_path: Path, pin: str,
+) -> None:
+    """The pin names a directory under `extracts_dir`. A header of `../..`
+    used to write the response body outside the cache root entirely."""
+    cache_dir = tmp_path / "cache"
+
+    def _urlopen(req, timeout=None):
+        return _FakeResponse(b"attacker-bytes", headers={ef.PIN_HEADER: pin})
+
+    progress = ef.DownloadProgress()
+    with pytest.raises(ef.MirrorUnreachable):
+        ef.fetch_extract(_BBOX, mirror_url="http://mirror.example",
+                          cache_dir=cache_dir, progress=progress, urlopen=_urlopen)
+
+    assert progress.status == "failed"
+    assert progress.detail == "bad_pin_header"
+    written = [p for p in tmp_path.rglob("*") if p.is_file()]
+    assert written == []
+
+
 def test_fetch_extract_leaves_no_partial_file_on_an_interrupted_download(tmp_path: Path) -> None:
     class _DyingResponse(_FakeResponse):
         def read(self, n: int = -1) -> bytes:

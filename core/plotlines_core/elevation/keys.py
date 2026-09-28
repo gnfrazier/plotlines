@@ -60,6 +60,7 @@ from typing import Iterable, Mapping
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from plotlines_core.elevation.interface import BBox, Fetcher, OPENTOPO_BASE_URL
+from plotlines_core.osm_identity import osm_user_agent
 
 logger = logging.getLogger("plotlines.elevation")
 
@@ -427,24 +428,41 @@ class OpenTopographyClient:
         url = _build_url(base_url, bbox, self.key.token)
         dest = Path(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        opener = self._opener or urllib.request.build_opener()
+        opener = self._opener or _default_opener()
         logger.info(
             "elevation: fetching %s (remaining free-tier calls: %s)",
             self.redacted_url(bbox, base_url=base_url),
             self.remaining_calls,
         )
-        with opener.open(url, timeout=self.timeout_s) as response:
-            with tempfile.NamedTemporaryFile(
-                dir=str(dest.parent), suffix=".part", delete=False
-            ) as tmp:
-                tmp_path = Path(tmp.name)
-                shutil.copyfileobj(response, tmp)
-        tmp_path.replace(dest)
+        tmp_path: Path | None = None
+        try:
+            with opener.open(url, timeout=self.timeout_s) as response:
+                with tempfile.NamedTemporaryFile(
+                    dir=str(dest.parent), suffix=".part", delete=False
+                ) as tmp:
+                    tmp_path = Path(tmp.name)
+                    shutil.copyfileobj(response, tmp)
+            tmp_path.replace(dest)
+        except BaseException:
+            # A transfer that dies mid-body must not leave its `.part` file
+            # accumulating in the DEM cache, one per failed attempt.
+            if tmp_path is not None:
+                tmp_path.unlink(missing_ok=True)
+            raise
         return dest
 
     def as_fetcher(self) -> Fetcher:
         """This client as the callable `phase1_resolver(fetch=...)` wants."""
         return self.fetch
+
+
+def _default_opener() -> "urllib.request.OpenerDirector":
+    """`build_opener()` identifying itself as Plotlines. Left alone, urllib
+    sends `Python-urllib/3.x` — a library's default, which the outbound-request
+    policy (`osm_identity`) forbids for every request the library makes."""
+    opener = urllib.request.build_opener()
+    opener.addheaders = [("User-agent", osm_user_agent())]
+    return opener
 
 
 def _build_url(base_url: str, bbox: BBox, token: str) -> str:

@@ -58,6 +58,7 @@ guarantees the miss and the later hit compute the same path.
 from __future__ import annotations
 
 import hashlib
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -80,6 +81,19 @@ TILES_DIRNAME = "tiles"
 ELEVATION_DIRNAME = "elevation"
 CANDIDATES_DIRNAME = "candidates"
 EXTRACTS_DIRNAME = "extracts"
+
+#: What an extract pin may look like on disk: one path component, starting
+#: with a letter or digit (`2026-09-01`, `20250101-wnc`). The pin arrives off
+#: the mirror's `X-Plotlines-Clip-Source-Pin` response header
+#: (`graph.extract_fetch.fetch_extract`), so it is untrusted input used as a
+#: directory name — `../../x` or an absolute path must never become one.
+_PIN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
+def is_safe_pin(pin: str) -> bool:
+    """Whether `pin` is usable as the single directory level
+    :meth:`CacheLayout.osm_extract` puts it at."""
+    return isinstance(pin, str) and bool(_PIN_RE.match(pin))
 
 
 def trip_bbox_key(bbox: BBox) -> str:
@@ -169,7 +183,13 @@ class CacheLayout:
         a pure function of the bbox alone, so two pins for the same bbox
         land in sibling directories instead of one overwriting the other.
         See :meth:`sweep_stale_extracts` to clean up a superseded pin.
+
+        Raises `ValueError` for a pin that is not one plain path component
+        (:func:`is_safe_pin`) — it names a directory, so a separator or a
+        `..` in it would land the extract outside `extracts_dir`.
         """
+        if not is_safe_pin(pin):
+            raise ValueError(f"unsafe extract pin {pin!r}: must be one path component")
         return self.extracts_dir / pin / f"{trip_bbox_key(bbox)}.osm.pbf"
 
     # -- helpers --------------------------------------------------------- #

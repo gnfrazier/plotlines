@@ -12,12 +12,15 @@ library;
 import 'dart:async';
 import 'dart:io' show SocketException;
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/data/curation_client.dart';
 import 'package:plotlines_client/domain/candidate.dart';
 import 'package:plotlines_client/domain/trip_bbox.dart';
+import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/trip_candidates_provider.dart';
 
@@ -170,6 +173,51 @@ void main() {
     expect(state.candidates, isEmpty);
     expect(state.error, isNull);
     expect(state.fetchedFor, isNull);
+  });
+
+  // A `/candidates` run takes tens of seconds (SPIKE-D: 15.8–178.5 s). The
+  // Author can start a new trip — or open a saved one — while it runs, and
+  // `reset()` is how that clears the previous trip's set. The run that was
+  // already in flight used to land on the new trip anyway: the old area's
+  // pins on its map, promotable into the wrong trip.
+  test('a run still in flight when reset() is called never lands', () async {
+    final client = _FakeCurationClient()
+      ..result = [_c('old-trip')]
+      ..gate = Completer<void>();
+    final container = _container(client);
+    final notifier = container.read(tripCandidatesProvider.notifier);
+
+    final stale = notifier.fetch(bbox: _bbox, liveLayers: {'sight'});
+    notifier.reset();
+    client.gate!.complete();
+    await stale;
+
+    final state = container.read(tripCandidatesProvider);
+    expect(state.candidates, isEmpty);
+    expect(state.fetchedFor, isNull);
+    expect(state.loading, isFalse);
+  });
+
+  // The library's "open" path runs `TripPersistence.open`, which reset the
+  // bbox but not this — the previous trip's pins stayed on the reopened
+  // trip's Layers tab, promotable into it.
+  test('opening a saved trip clears the previous trip\'s candidates', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final client = _FakeCurationClient()..result = [_c('previous-trip')];
+    final container = ProviderContainer(overrides: [
+      curationClientProvider.overrideWithValue(client),
+      appDatabaseProvider.overrideWithValue(db),
+    ]);
+    addTearDown(container.dispose);
+    final tripId = container.read(currentTripProvider).id;
+    await container.read(tripPersistenceProvider).save();
+
+    await container.read(tripCandidatesProvider.notifier).fetch(bbox: _bbox, liveLayers: {'sight'});
+    expect(container.read(tripCandidatesProvider).candidates, isNotEmpty);
+
+    await container.read(tripPersistenceProvider).open(tripId);
+    expect(container.read(tripCandidatesProvider).candidates, isEmpty);
   });
 
   test('a second fetch while one is in flight is a no-op', () async {

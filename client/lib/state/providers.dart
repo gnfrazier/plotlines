@@ -21,23 +21,30 @@ final sidecarManagerProvider = ChangeNotifierProvider<SidecarManager>((ref) {
   return manager;
 });
 
-/// Rebuilds whenever [SidecarManager] notifies — i.e. on every state
-/// transition, not just once the port is known. Downstream code should read
-/// `.port` off the manager itself rather than caching this URL, since it is
+/// Rebuilds when the sidecar's base URL changes — i.e. once its port is
+/// known, and again on a restart — and on nothing else. It is
 /// `http://127.0.0.1:0` (unusable) until the sidecar has actually bound a
-/// port (ARCH §9.1: RoutingClient holds the base URL; this is where it gets it).
+/// port (ARCH §9.1: RoutingClient holds the base URL; this is where it gets
+/// it). Watching only `baseUrl`, not the whole manager, matters: the manager
+/// notifies on every `/health` change (every 2 s during a region build), and
+/// a client rebuilt on each tick rebuilds everything that watches it.
 final routingClientProvider = Provider<RoutingClient>((ref) {
-  final manager = ref.watch(sidecarManagerProvider);
-  return RoutingClient(manager.baseUrl);
+  final baseUrl = ref.watch(sidecarManagerProvider.select((m) => m.baseUrl));
+  return RoutingClient(baseUrl);
 });
 
 /// FR97/FR98/FR99 (Story N3) — `CurationClient` is deliberately separate
 /// from [routingClientProvider] (ARCH §9.1): curation needs layers ready,
 /// routing needs elevation ready, and one client would hide that distinction
 /// at the call site.
+///
+/// Keyed on `baseUrl` alone for the same reason as [routingClientProvider]:
+/// `proposalsProvider` and `layerCatalogProvider` watch this, and a rebuild
+/// per `/health` tick discarded a co-location review mid-read and re-fetched
+/// `/layers` every 2 s.
 final curationClientProvider = Provider<CurationClient>((ref) {
-  final manager = ref.watch(sidecarManagerProvider);
-  return CurationClient(manager.baseUrl);
+  final baseUrl = ref.watch(sidecarManagerProvider.select((m) => m.baseUrl));
+  return CurationClient(baseUrl);
 });
 
 /// FR142(e) / K12a — one [TeachingDismissals] for the session, keyed inside by

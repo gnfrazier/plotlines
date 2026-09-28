@@ -248,11 +248,15 @@ void main() {
 
     testWidgets('a failure is reported in the panel, not swallowed',
         (tester) async {
+      // The sidecar's own sentence — a bare `Exception`'s toString() is a
+      // diagnostic and is replaced by a fixed phrase (#418).
       await _pump(tester,
-          bbox: _bbox, analyzeThrows: Exception('layer service unavailable'));
+          bbox: _bbox,
+          analyzeThrows:
+              CurationException(503, '{"detail": "the layer service is unavailable"}'));
       await _run(tester);
 
-      expect(find.textContaining('layer service unavailable'), findsOneWidget);
+      expect(find.textContaining('layer service is unavailable'), findsOneWidget);
     });
 
     testWidgets('the cap is stated with the count beyond it', (tester) async {

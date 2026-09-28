@@ -79,8 +79,16 @@ class LogisticsTab extends ConsumerWidget {
               const SizedBox(height: PlotSpacing.s3),
               _OfflineBufferCard(trip: trip),
               const SizedBox(height: PlotSpacing.s3),
+              // Keyed by day id: each card holds stateful editors seeded from
+              // its own day (rest-day title/note, day-limit fields), and an
+              // unkeyed list hands Day 1's state to Day 2 when Day 1 is
+              // removed or a day is inserted before it.
               for (final day in trip.days)
-                _DayCard(day: day, onOpenSegment: onOpenSegment, waterSources: waterSources),
+                _DayCard(
+                    key: ValueKey(day.id),
+                    day: day,
+                    onOpenSegment: onOpenSegment,
+                    waterSources: waterSources),
               const SizedBox(height: PlotSpacing.s4),
               const Divider(height: 1),
               const SizedBox(height: PlotSpacing.s4),
@@ -355,7 +363,8 @@ class _OfflineBufferCardState extends ConsumerState<_OfflineBufferCard> {
 }
 
 class _DayCard extends ConsumerWidget {
-  const _DayCard({required this.day, required this.onOpenSegment, required this.waterSources});
+  const _DayCard(
+      {super.key, required this.day, required this.onOpenSegment, required this.waterSources});
   final Day day;
   final void Function(String dayId, String segmentId) onOpenSegment;
 
@@ -763,7 +772,9 @@ class _DayLimitEditor extends ConsumerWidget {
           for (final mode in limitedModes)
             Padding(
               padding: const EdgeInsets.only(top: PlotSpacing.s2),
-              child: _DayLimitRow(day: day, mode: mode),
+              // Keyed by mode so removing one mode's limit doesn't hand its
+              // field text to the next mode's row.
+              child: _DayLimitRow(key: ValueKey(mode), day: day, mode: mode),
             ),
         ],
       ),
@@ -772,7 +783,7 @@ class _DayLimitEditor extends ConsumerWidget {
 }
 
 class _DayLimitRow extends ConsumerStatefulWidget {
-  const _DayLimitRow({required this.day, required this.mode});
+  const _DayLimitRow({super.key, required this.day, required this.mode});
   final Day day;
   final String mode;
 

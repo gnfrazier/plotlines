@@ -8,7 +8,9 @@
 // nothing can populate would be a second storage path with no producer.
 // `domain/profile_request.dart`'s doc comment carries the full reasoning.
 //
-// Reopening a saved trip or restarting the app resets the request set back
+// Starting, reopening or adopting a trip (the provider watches the open
+// trip's id — see [profileRequestProvider]) or restarting the app resets the
+// request set back
 // to [FieldRequestSet.defaults] and clears any responses — an accepted
 // limitation stated here rather than solved with persistence for a field
 // that, per the above, has nothing real to persist yet.
@@ -17,6 +19,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/domain.dart';
+import 'current_trip_provider.dart';
 
 class ProfileRequestState {
   ProfileRequestState({
@@ -85,6 +88,13 @@ class ProfileRequestNotifier extends StateNotifier<ProfileRequestState> {
   }
 }
 
+/// Scoped to the open trip by watching its id: a new trip (`reset()` mints a
+/// fresh id), a reopened one, or an adopted clone gets a fresh grid. Before
+/// this nothing ever called [ProfileRequestNotifier.reset], so a Character's
+/// grants recorded on one trip were still showing as granted on the next —
+/// FR78's default-closed consent carried across trips (FR74b / FR123).
 final profileRequestProvider =
-    StateNotifierProvider<ProfileRequestNotifier, ProfileRequestState>(
-        (ref) => ProfileRequestNotifier());
+    StateNotifierProvider<ProfileRequestNotifier, ProfileRequestState>((ref) {
+  ref.watch(currentTripProvider.select((t) => t.id));
+  return ProfileRequestNotifier();
+});

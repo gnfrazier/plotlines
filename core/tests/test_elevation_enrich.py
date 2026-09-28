@@ -283,3 +283,22 @@ def test_absent_pass_strips_grades_too():
     enrich_elevation(g, None)
     for _, _, data in g.edges(data=True):
         assert GRADE_KEY not in data and GRADE_ABS_KEY not in data
+
+
+@pytest.mark.parametrize("in_place", [True, False])
+def test_a_solve_after_enrichment_routes_on_the_enriched_graph(in_place):
+    """The region is routable before elevation lands (ARCH B1), so a solve can
+    fill `mode_legal_graph`'s filtered-copy cache first. Enrichment — in place,
+    or onto a `.copy()` the way the sidecar does it — used to leave that cache
+    in force, and every later solve read the pre-enrichment copy: no
+    elevation, no grade, a climb of 0 m."""
+    from plotlines_core.routing.access import mode_legal_graph
+
+    g = _line_graph()
+    mode_legal_graph(g, "cycling")  # a solve before elevation arrived
+    enriched = g if in_place else g.copy()
+    enrich_elevation(enriched, _sampler_for(enriched))
+
+    filtered = mode_legal_graph(enriched, "cycling")
+    assert filtered.nodes[3][ELEVATION_KEY] == pytest.approx(1720.0)
+    assert filtered.edges[2, 3, 0][GRADE_ABS_KEY] == pytest.approx(round(70.0 / 140.0, 3))

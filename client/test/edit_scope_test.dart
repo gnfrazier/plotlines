@@ -173,5 +173,57 @@ void main() {
       expect(summary.instructedTransitionNodes, [instructed]);
       expect(summary.hasAuthoredContent, isTrue);
     });
+
+    test('a passage note, media, alternates and portages are authored content too', () {
+      // Removing a passage drops every one of these with it — none moves to
+      // the day the way its nodes do — so each has to raise the FR139
+      // prompt rather than vanish on one click.
+      final line = LineString(coordinates: const [[0, 0], [0.01, 0.01]], source: 'authored');
+      final cases = <String, Segment>{
+        'note': Segment(id: 's1', mode: 'paddling', shape: 'loop', note: 'Scout the ledge.'),
+        'media': Segment(
+            id: 's1', mode: 'paddling', shape: 'loop',
+            media: [MediaRef(id: 'm1', kind: 'image', path: 'ledge.jpg')]),
+        'alternate': Segment(
+            id: 's1', mode: 'paddling', shape: 'loop',
+            alternates: [Alternate(id: 'a1', kind: 'bypass', geometry: line)]),
+        'portage': Segment(
+            id: 's1', mode: 'paddling', shape: 'loop',
+            portages: [Portage(id: 'p1', geometry: line)]),
+      };
+      for (final entry in cases.entries) {
+        expect(summarizeSegmentContent(entry.value).hasAuthoredContent, isTrue,
+            reason: entry.key);
+      }
+      final summary = summarizeSegmentContent(cases['portage']!);
+      expect(summary.portageCount, 1);
+      expect(summarizeSegmentContent(cases['alternate']!).alternateCount, 1);
+      expect(summarizeSegmentContent(cases['note']!).hasNote, isTrue);
+      expect(summarizeSegmentContent(cases['media']!).mediaCount, 1);
+    });
+  });
+
+  group('DayContentSummary — content that is not a passage or a node', () {
+    test('a day-level hazard is not an empty day', () {
+      // FR115: a hazard is never hidden — removing it without a word is worse.
+      final day = Day(id: 'd1', index: 1, hazards: [Hazard(id: 'h1', severity: 'high')]);
+      final summary = summarizeDayContent(day);
+      expect(summary.isEmpty, isFalse);
+      expect(summary.hazards, 1);
+    });
+
+    test("a day's note, media or rest-day place is not an empty day", () {
+      final noted = Day(id: 'd1', index: 1, note: 'Laundry in town.');
+      final pictured = Day(
+          id: 'd2', index: 2, media: [MediaRef(id: 'm1', kind: 'image', path: 'p.jpg')]);
+      final placed = Day(id: 'd3', index: 3, kind: 'rest', location: const [-82.55, 35.6]);
+      expect(summarizeDayContent(noted).isEmpty, isFalse);
+      expect(summarizeDayContent(pictured).isEmpty, isFalse);
+      expect(summarizeDayContent(placed).isEmpty, isFalse);
+      final summary = summarizeDaysContent([noted, pictured, placed]);
+      expect(summary.notes, 1);
+      expect(summary.media, 1);
+      expect(summary.places, 1);
+    });
   });
 }

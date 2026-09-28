@@ -24,6 +24,7 @@ import 'current_roster_provider.dart';
 import 'providers.dart';
 import 'trip_authoring_meta_provider.dart';
 import 'trip_bbox_provider.dart';
+import 'trip_candidates_provider.dart';
 import 'trip_library_provider.dart';
 
 const _uuid = Uuid();
@@ -1974,6 +1975,9 @@ class TripPersistence {
     // redraw it before anything bbox-scoped can run again.
     _ref.read(tripAuthoringMetaProvider.notifier).reset();
     _ref.read(tripBboxProvider.notifier).reset();
+    // The candidate set was extracted for the previous trip's bbox (#316);
+    // it must not reappear on this trip's Layers tab, promotable here.
+    _ref.read(tripCandidatesProvider.notifier).reset();
   }
 
   Future<void> delete(String id) async {
@@ -2037,6 +2041,9 @@ class TripPersistence {
     _ref.read(currentRosterProvider.notifier).open(outcome.roster);
     _ref.read(tripAuthoringMetaProvider.notifier).reset();
     _ref.read(tripBboxProvider.notifier).reset();
+    // The candidate set was extracted for the previous trip's bbox (#316);
+    // it must not reappear on this trip's Layers tab, promotable here.
+    _ref.read(tripCandidatesProvider.notifier).reset();
   }
 }
 

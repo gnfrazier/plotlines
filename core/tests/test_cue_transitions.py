@@ -116,3 +116,37 @@ class _Hazard:
     severity = "high"
     title = "Weir"
     safety_note = "Portage river left."
+
+
+def test_a_hazard_with_no_position_is_cued_at_the_start_not_dropped():
+    """FR115: a hazard is never hidden. One carrying neither a distance nor a
+    coord (pinned to the passage as a whole) used to be skipped outright, so
+    the cue sheet a Character rides with never mentioned it."""
+
+    class _Unplaced(_Hazard):
+        distance_along_m = None
+        coord = None
+
+    cues = hazard_cues(_route(), [_Unplaced()], CueSettings())
+
+    assert len(cues) == 1
+    assert cues[0].kind == "hazard"
+    assert cues[0].distance_along_m == 0.0
+    assert cues[0].instruction.startswith("HAZARD: Weir")
+
+
+def test_a_provision_cue_survives_the_density_merge_beside_a_turn():
+    """FR133 — a water stop 10 m past a junction used to be absorbed into the
+    turn: its text survived in parentheses, but its `provision` kind and its
+    `ref_id` did not, so a caller selecting provision cues missed it."""
+    cues = [
+        Cue(sequence=0, distance_along_m=500.0, kind="turn", instruction="Turn left"),
+        Cue(sequence=0, distance_along_m=510.0, kind="provision",
+            instruction="Rest stop: Overlook Camp — water", ref_id="n-camp"),
+    ]
+
+    merged, _ = _merge(cues, CueSettings())
+
+    provision = [c for c in merged if c.kind == "provision"]
+    assert len(provision) == 1
+    assert provision[0].ref_id == "n-camp"

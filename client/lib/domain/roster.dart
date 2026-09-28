@@ -229,7 +229,9 @@ class GearItem {
         'label': label,
         if (scope.kind != GearScopeKind.trip) 'scope': scope.toJson(),
         'necessity': necessity.name,
-        if (shared) 'shared': true,
+        // `false` is omitted as the default — except beside assignees, where
+        // [fromJson]'s pre-C8 read would take a missing flag as shared.
+        if (shared || assigneeIds.isNotEmpty) 'shared': shared,
         if (assigneeIds.isNotEmpty) 'assignee_ids': assigneeIds.toList()..sort(),
       };
 }

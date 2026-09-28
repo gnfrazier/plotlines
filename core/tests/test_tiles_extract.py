@@ -87,6 +87,27 @@ def test_extract_bbox_leaves_no_file_on_failure(tmp_path):
     assert not out_path.exists()
 
 
+def test_extract_bbox_leaves_no_archive_behind_when_the_write_dies_part_way(
+    world_archive, tmp_path, monkeypatch,
+):
+    """The region cache reads an existing archive path as a hit. A write that
+    died after the header was on disk used to leave a truncated archive at
+    exactly that path, so every later build skipped re-extracting it."""
+    from pmtiles.writer import Writer
+
+    def _dies(self, header, metadata):
+        self.f.write(b"PMTiles\x03 truncated")
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Writer, "finalize", _dies)
+    out_path = tmp_path / "cache" / "out.pmtiles"
+    with pytest.raises(OSError):
+        extract_bbox(world_archive, (-180.0, -85.0, 180.0, 85.0), out_path,
+                     min_zoom=0, max_zoom=0)
+    assert not out_path.exists()
+    assert list(out_path.parent.iterdir()) == []
+
+
 def test_a_callers_zoom_bound_is_a_ceiling_on_the_archives_own_not_an_override(
     world_archive, tmp_path,
 ):
@@ -170,6 +191,51 @@ def http_server(world_archive):
 @pytest.fixture
 def http_server_url(http_server):
     return http_server[0]
+
+
+class _RangeIgnoringHandler(_RangeRequestHandler):
+    """A server that ignores `Range` and answers 200 with the whole file —
+    legal HTTP, and what a misconfigured proxy in front of the mirror does."""
+
+    def do_GET(self):  # noqa: N802
+        data = self.archive_path.read_bytes()
+        self.user_agents.append(self.headers.get("User-Agent"))
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+
+@pytest.fixture
+def range_ignoring_server(world_archive):
+    handler = type("Handler", (_RangeIgnoringHandler,),
+                   {"archive_path": world_archive, "ranges": [], "user_agents": []})
+    server = http.server.HTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/world.pmtiles", handler
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+
+
+def test_extract_bbox_reads_the_right_bytes_when_the_server_ignores_range(
+    range_ignoring_server, tmp_path,
+):
+    """A 200 carries the whole archive from offset 0. Treating it as the
+    requested range handed the reader the file's first bytes for every
+    directory and tile read."""
+    url, handler = range_ignoring_server
+    out = extract_bbox(url, (-180.0, -85.0, 180.0, 85.0), tmp_path / "out.pmtiles",
+                       allow_unmirrored=True)
+    with Archive(out) as archive:
+        assert archive.tile(0, 0, 0) == b"0/0/0"
+        assert archive.tile(2, 3, 1) == b"2/3/1"
+    # Every request identifies Plotlines with a contact URL (osm_identity).
+    assert handler.user_agents
+    assert all(ua.startswith("Plotlines/") and "(+https://" in ua
+               for ua in handler.user_agents)
 
 
 def test_extract_bbox_reads_an_http_range_upstream(http_server_url, tmp_path):

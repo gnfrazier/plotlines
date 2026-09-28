@@ -46,6 +46,7 @@ import '../../state/trip_authoring_meta_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import '../display_format_of.dart';
 import '../map/tap_to_pick_map.dart';
+import '../failure_sentence.dart';
 import '../widgets/error_states.dart';
 import '../widgets/plot_date_range_picker.dart';
 import '../widgets/plot_toggle_chip.dart';
@@ -780,9 +781,12 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     try {
       final client = ref.read(routingClientProvider);
       final results = await client.geocode(query);
-      setState(() => _searchResults = results);
+      if (mounted) setState(() => _searchResults = results);
     } on RoutingException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) {
+        setState(() => _error = failureSentence(e,
+            fallback: 'Couldn\'t resolve that location. Try again, or click the map instead.'));
+      }
     } finally {
       if (mounted) setState(() => _searching = false);
     }
@@ -814,10 +818,12 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
           );
       ref.read(plannerTargetDayIdProvider.notifier).state = null;
       if (mounted) context.go('/plan');
-    } on RoutingException catch (e) {
-      setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = '$e');
+      debugPrint('generate failed: $e');
+      if (mounted) {
+        setState(() => _error =
+            failureSentence(e, fallback: 'The route couldn\'t be generated. Try again.'));
+      }
     } finally {
       if (mounted) setState(() => _generating = false);
     }

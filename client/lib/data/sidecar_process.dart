@@ -33,13 +33,15 @@ import 'package:win32/win32.dart';
 ///    `GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT)`, hard-killing only if the
 ///    grace period elapses.
 abstract class SidecarProcess {
-  /// Spawns [executable] with [args]. On Windows this applies the creation
-  /// flags and Job Object described above; on POSIX it is `Process.start`.
-  static Future<SidecarProcess> start(String executable, List<String> args) {
+  /// Spawns [executable] with [args], adding [environment] to the inherited
+  /// environment. On Windows this applies the creation flags and Job Object
+  /// described above; on POSIX it is `Process.start`.
+  static Future<SidecarProcess> start(String executable, List<String> args,
+      {Map<String, String> environment = const {}}) {
     if (Platform.isWindows) {
-      return _WindowsSidecarProcess.start(executable, args);
+      return _WindowsSidecarProcess.start(executable, args, environment);
     }
-    return _PosixSidecarProcess.start(executable, args);
+    return _PosixSidecarProcess.start(executable, args, environment);
   }
 
   /// The child PID.
@@ -63,8 +65,18 @@ class _PosixSidecarProcess implements SidecarProcess {
   static Future<SidecarProcess> start(
     String executable,
     List<String> args,
+    Map<String, String> environment,
   ) async {
-    final process = await Process.start(executable, args);
+    final process =
+        await Process.start(executable, args, environment: environment);
+    // The sidecar logs every record to stderr as well as to its own rotating
+    // file (`logging_setup.py`). Nothing here reads either stream, and an
+    // unread pipe fills at ~64 KiB — after which the child blocks in
+    // `write(2)` holding Python's logging lock, wedging every thread that
+    // logs. The file handler is the record; drain both pipes so the OS
+    // buffers never fill.
+    unawaited(process.stdout.drain<void>().catchError((Object _) {}));
+    unawaited(process.stderr.drain<void>().catchError((Object _) {}));
     return _PosixSidecarProcess._(process);
   }
 
@@ -192,7 +204,21 @@ class _WindowsSidecarProcess implements SidecarProcess {
   static Future<SidecarProcess> start(
     String executable,
     List<String> args,
+    Map<String, String> environment,
   ) async {
+    // CreateProcess is handed no environment block, so the child inherits
+    // this process's — set the extra variables here rather than building a
+    // whole block. They are the client's own configuration anyway.
+    for (final MapEntry(:key, :value) in environment.entries) {
+      final namePtr = key.toNativeUtf16();
+      final valuePtr = value.toNativeUtf16();
+      try {
+        SetEnvironmentVariable(namePtr, valuePtr);
+      } finally {
+        malloc.free(namePtr);
+        malloc.free(valuePtr);
+      }
+    }
     final appNamePtr = executable.toNativeUtf16();
     // CreateProcess may write into lpCommandLine, so it gets its own buffer.
     final commandLinePtr =

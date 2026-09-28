@@ -153,6 +153,35 @@ void main() {
     expect(find.textContaining('Sidecar version: unavailable'), findsOneWidget);
   });
 
+  testWidgets('a capability change does not refetch /about or blank the pane',
+      (tester) async {
+    var calls = 0;
+    final manager = _FakeSidecarManager();
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        routingClientProvider.overrideWithValue(_FakeRoutingClient(() {
+          calls++;
+          return _fullAbout();
+        })),
+        sidecarManagerProvider.overrideWith((ref) => manager),
+      ],
+      child: const MaterialApp(home: Scaffold(body: AboutPane())),
+    ));
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+
+    // What a /health tick with changed capabilities does to the pane.
+    manager.notifyListeners();
+    await tester.pump();
+
+    expect(calls, 1);
+    expect(find.text('Sidecar version 0.0.1'), findsOneWidget);
+  });
+
   testWidgets('the privacy statement is one tap from About', (tester) async {
     await _pump(tester, _FakeRoutingClient(_fullAbout));
 

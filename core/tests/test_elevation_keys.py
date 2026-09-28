@@ -354,6 +354,39 @@ def test_a_failed_download_still_spends_the_call(tmp_path):
     assert ledger.calls_in_window() == 1
 
 
+def test_a_download_that_dies_mid_body_leaves_no_part_file_in_the_cache(tmp_path):
+    """Each failed transfer used to leave its `.part` temp file beside the
+    cached DEMs, one per attempt, forever."""
+
+    class _DyingOpener(_StubOpener):
+        @contextmanager
+        def open(self, url, timeout=None):  # noqa: A003
+            self.urls.append(url)
+
+            class _Body(io.RawIOBase):
+                def readinto(self, buf):
+                    raise ConnectionResetError("reset mid-body")
+
+            yield _Body()
+
+    key = _free_key()
+    client = OpenTopographyClient(key, _ledger(tmp_path, key), opener=_DyingOpener())
+    dem_dir = tmp_path / "dem"
+    with pytest.raises(ConnectionResetError):
+        client.fetch(client.base_url, _BBOX, dem_dir / "out.tif")
+    assert list(dem_dir.iterdir()) == []
+
+
+def test_the_default_opener_identifies_itself_as_plotlines():
+    """No opener injected means `urllib`'s own — which says
+    `Python-urllib/3.x` unless told otherwise."""
+    from plotlines_core.elevation.keys import _default_opener
+
+    headers = dict(_default_opener().addheaders)
+    assert headers["User-agent"].startswith("Plotlines/")
+    assert "(+https://" in headers["User-agent"]
+
+
 def test_an_exhausted_budget_refuses_before_the_wire(tmp_path):
     key = _free_key()
     ledger = _ledger(tmp_path, key)

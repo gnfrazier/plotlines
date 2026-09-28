@@ -41,6 +41,10 @@ class _DayRemovalDialog extends StatelessWidget {
       if (summary.anchors > 0) '${summary.anchors} ${summary.anchors == 1 ? 'anchor' : 'anchors'}',
       if (summary.scheduledEvents > 0)
         '${summary.scheduledEvents} scheduled ${summary.scheduledEvents == 1 ? 'event' : 'events'}',
+      if (summary.hazards > 0) '${summary.hazards} ${summary.hazards == 1 ? 'hazard' : 'hazards'}',
+      if (summary.notes > 0) '${summary.notes} day ${summary.notes == 1 ? 'note' : 'notes'}',
+      if (summary.media > 0) '${summary.media} media ${summary.media == 1 ? 'item' : 'items'}',
+      if (summary.places > 0) '${summary.places} rest-day ${summary.places == 1 ? 'place' : 'places'}',
     ];
     if (parts.length == 1) return parts.single;
     if (parts.length == 2) return '${parts[0]} and ${parts[1]}';

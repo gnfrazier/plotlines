@@ -128,6 +128,13 @@ class LayerRegistry:
                                status=PENDING)
             self._entries[layer] = entry
 
+        # A plugin that never loaded (`plugins._BrokenPluginProvider`) reports
+        # its import/constructor error, not the stand-in licence it carries.
+        load_error = getattr(provider, "load_error", None)
+        if load_error:
+            self._fail(layer, str(load_error))
+            return
+
         licence = getattr(provider, "licence", None)
         satisfiable = getattr(licence, "satisfiable", False)
         if not satisfiable:

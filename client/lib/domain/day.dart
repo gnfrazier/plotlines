@@ -200,8 +200,15 @@ class Day {
 /// already sits on the payload, so this needs no solve to answer, and is
 /// the one place both the day-timeline breach chip and the metrics
 /// dashboard compute it, so they can never disagree.
-List<LimitBreach> computeDayLimitBreaches(Day day) {
-  if (day.limits.isEmpty) return const [];
+///
+/// [tripLimits] is the trip default (`Trip.dayLimits`). As in `_breaches`
+/// (`effective = {**limits, **day.limits}`), a day's own band for a mode
+/// replaces the trip's band for that mode whole; a mode the day does not
+/// limit falls back to the trip's.
+List<LimitBreach> computeDayLimitBreaches(Day day,
+    {Map<String, DayLimit> tripLimits = const {}}) {
+  final effective = {...tripLimits, ...day.limits};
+  if (effective.isEmpty) return const [];
   final realisedByMode = <String, double>{};
   for (final segment in day.segments) {
     final distance = segment.metrics?.distanceM;
@@ -210,7 +217,7 @@ List<LimitBreach> computeDayLimitBreaches(Day day) {
   }
   final closesAtResolution = _dayEndsAtResolution(day);
   final breaches = <LimitBreach>[];
-  for (final entry in day.limits.entries) {
+  for (final entry in effective.entries) {
     final realised = realisedByMode[entry.key];
     if (realised == null) continue; // no segment in this mode — nothing realized to breach.
     final limit = entry.value;

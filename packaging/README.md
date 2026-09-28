@@ -71,8 +71,8 @@ measurements behind them.
 
 The Plotlines mirror's one dynamic endpoint, `/clip`, is client-restricted by a shared
 `X-Plotlines-Client-Key` (#263: identifies "a Plotlines-built client," never a person; not an
-account system). The sidecar sends whatever `--mirror-clip-client-key` it was started with,
-and since #434 the Flutter client is what starts it, so **the key has to reach the client
+account system). The sidecar sends whatever `--mirror-clip-client-key` (or `$PLOTLINES_MIRROR_CLIP_CLIENT_KEY`)
+it was started with, and since #434 the Flutter client is what starts it, so **the key has to reach the client
 binary at build time** — and it must not be a literal in this repo.
 
 It travels the way any other deploy secret reaches a built artifact: from the builder's

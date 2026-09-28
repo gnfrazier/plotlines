@@ -92,7 +92,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
 
-from ..cache_layout import BBox, CacheLayout, trip_bbox_key
+from ..cache_layout import BBox, CacheLayout, is_safe_pin, trip_bbox_key
 from ..osm_identity import osm_user_agent
 from ..tiles.mirror_state import MAX_PIN_AGE_DAYS, pin_age_days
 
@@ -352,6 +352,18 @@ def fetch_extract(
                 "The Plotlines map-data mirror answered without naming the "
                 "data snapshot it clipped from. Couldn't safely cache the "
                 "result — try again."
+            )
+        if not is_safe_pin(pin):
+            # The pin becomes a directory name under `extracts_dir`; a header
+            # carrying `../..` or a path separator (a misbehaving mirror, or
+            # anything in the middle of a plain-http LAN hop) would otherwise
+            # write the response body wherever it pointed.
+            progress.status = "failed"
+            progress.detail = "bad_pin_header"
+            raise MirrorUnreachable(
+                "The Plotlines map-data mirror named its data snapshot in a "
+                "form that isn't safe to cache. Couldn't save the result — "
+                "try again."
             )
         content_length = response.headers.get("Content-Length")
         progress.total_bytes = int(content_length) if content_length else None

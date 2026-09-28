@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from plotlines_core.elevation.interface import BBox
+from plotlines_core.osm_identity import osm_user_agent
 
 
 def qa_proxy_fetch(base_url: str, bbox: BBox, dest: Path) -> Path:
@@ -46,11 +47,19 @@ def qa_proxy_fetch(base_url: str, bbox: BBox, dest: Path) -> Path:
     url = f"{base_url}?{query}"
     dest = Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(url, timeout=120.0) as response:
-        with tempfile.NamedTemporaryFile(
-            dir=str(dest.parent), suffix=".part", delete=False
-        ) as tmp:
-            tmp_path = Path(tmp.name)
-            shutil.copyfileobj(response, tmp)
-    tmp_path.replace(dest)
+    req = urllib.request.Request(url, headers={"User-Agent": osm_user_agent()})
+    tmp_path: Path | None = None
+    try:
+        with urllib.request.urlopen(req, timeout=120.0) as response:
+            with tempfile.NamedTemporaryFile(
+                dir=str(dest.parent), suffix=".part", delete=False
+            ) as tmp:
+                tmp_path = Path(tmp.name)
+                shutil.copyfileobj(response, tmp)
+        tmp_path.replace(dest)
+    except BaseException:
+        # No `.part` left in the DEM cache for a transfer that died mid-body.
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
+        raise
     return dest

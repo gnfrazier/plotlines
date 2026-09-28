@@ -119,6 +119,9 @@ class CueSheet {
           'segment_ids': derivedFromSegmentIds.isEmpty ? null : derivedFromSegmentIds,
           'geometry_digest': derivedFromGeometryDigest,
         }),
-        'cues': cues.map((c) => c.toJson()).toList(),
-      });
+      })
+        // `cues` is schema-required (`$defs/cue_sheet.required`); set after
+        // `pruneJson` so an empty sheet keeps it, the same guard `Trip.toJson`
+        // applies to `days`.
+        ..['cues'] = cues.map((c) => c.toJson()).toList();
 }

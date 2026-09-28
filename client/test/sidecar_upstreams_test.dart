@@ -182,13 +182,12 @@ void main() {
   });
 
   group('toSidecarArgs / sidecarSpawnArgs — what the sidecar is started with', () {
-    test('a configured mirror adds --mirror-clip-url and the key', () {
+    test('a configured mirror adds --mirror-clip-url; the key goes in the environment', () {
       const u = SidecarUpstreams(
           mirrorUrl: 'https://tiles.plotlines.app', mirrorClipClientKey: 'k');
-      expect(u.toSidecarArgs(), [
-        '--mirror-clip-url=https://tiles.plotlines.app',
-        '--mirror-clip-client-key=k',
-      ]);
+      // argv is readable by any local user (ps, /proc/<pid>/cmdline).
+      expect(u.toSidecarArgs(), ['--mirror-clip-url=https://tiles.plotlines.app']);
+      expect(u.toSidecarEnvironment(), {SidecarUpstreams.mirrorClipClientKeyVar: 'k'});
     });
 
     test('no mirror configured adds nothing — the pre-#434 spawn exactly', () {
@@ -199,9 +198,10 @@ void main() {
       );
     });
 
-    test('a key with no mirror URL is not an argument', () {
+    test('a key with no mirror URL is not passed on', () {
       const u = SidecarUpstreams(mirrorClipClientKey: 'k');
       expect(u.toSidecarArgs(), isEmpty);
+      expect(u.toSidecarEnvironment(), isEmpty);
     });
 
     test('a mirror without a key sends the URL alone (open /clip, local/dev)', () {
@@ -280,8 +280,9 @@ void main() {
       expect(manager.spawnArgsFor(port: 51234, cacheDir: Directory('/tmp/c')), [
         ...baseline,
         '--mirror-clip-url=http://127.0.0.1:8095',
-        '--mirror-clip-client-key=k',
       ]);
+      expect(manager.upstreams.toSidecarEnvironment(),
+          {SidecarUpstreams.mirrorClipClientKeyVar: 'k'});
     });
 
     test('an injected tiles upstream reaches the spawn (issue #453)', () {

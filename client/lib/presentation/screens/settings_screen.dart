@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
+import '../../data/routing_client.dart';
 import '../../data/sidecar_manager.dart';
 import '../../domain/attribution_line.dart';
 import '../../domain/software_notice.dart';
@@ -307,17 +308,33 @@ class _DisplayAndMeasurement extends ConsumerWidget {
 /// surface. `attribution_complete: false` from the service is a build failure;
 /// it is surfaced here rather than hidden. The privacy statement (K11) is one
 /// tap away via `/privacy`, reachable on every platform.
-class AboutPane extends ConsumerWidget {
+class AboutPane extends ConsumerStatefulWidget {
   const AboutPane({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AboutPane> createState() => _AboutPaneState();
+}
+
+class _AboutPaneState extends ConsumerState<AboutPane> {
+  // One `/about` per client, not per build: the pane also watches the
+  // sidecar manager, which notifies on every capability change, and a fresh
+  // future on each of those refetched `/about` and blanked the pane back to
+  // "checking…" while it did.
+  RoutingClient? _aboutClient;
+  Future<Map<String, dynamic>>? _about;
+
+  @override
+  Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final client = ref.watch(routingClientProvider);
     final caps = ref.watch(sidecarManagerProvider).capabilities;
+    if (!identical(client, _aboutClient)) {
+      _aboutClient = client;
+      _about = client.about();
+    }
 
     return FutureBuilder<Map<String, dynamic>>(
-      future: client.about(),
+      future: _about,
       builder: (context, snapshot) {
         final about = snapshot.data;
         final lines = attributionLinesFrom(about?['attributions']);
