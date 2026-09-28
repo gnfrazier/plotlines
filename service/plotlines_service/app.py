@@ -415,16 +415,27 @@ def _fetch_mirror_capability(source: str, pool: ThreadPoolExecutor) -> dict:
     """The uncached read `MirrorStateCache.get_or_fetch` calls through to on
     a cache miss — issue #488's pool/timeout shape, unchanged. Split out of
     `_mirror_capability` by issue #367 so the cache can call it without
-    re-entering the `source`/cache dispatch above."""
+    re-entering the `source`/cache dispatch above.
+
+    Anything else that stops a reading — a truncated body
+    (`http.client.IncompleteRead` is not an `OSError`), or a file that parses
+    as JSON but is not the state object `mirror_health` reads (`[]`, a
+    string where a mapping belongs) — degrades the same way. The file is
+    written by another process on another machine, so its shape is not ours
+    to trust, and a 500 here takes all of `/health` down with it."""
     future = pool.submit(load_mirror_state, source)
     try:
         state = future.result(timeout=_MIRROR_STATE_FETCH_TIMEOUT_S)
     except FutureTimeoutError:
         return {"configured": True, "stale": True,
                 "error": "mirror state fetch timed out"}
-    except (OSError, ValueError) as exc:
+    except Exception as exc:  # noqa: BLE001 — never a 500 on /health
         return {"configured": True, "stale": True, "error": str(exc)}
-    return mirror_health(state)
+    try:
+        return mirror_health(state)
+    except Exception as exc:  # noqa: BLE001 — malformed state, see above
+        return {"configured": True, "stale": True,
+                "error": f"mirror state is malformed: {type(exc).__name__}"}
 
 
 #: Issue #490. `LayerRegistry.fetch_candidates_all`'s Overpass round trip
