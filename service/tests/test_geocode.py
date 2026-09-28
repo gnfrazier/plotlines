@@ -54,6 +54,33 @@ def test_geocode_rejects_an_empty_query(tmp_path: Path) -> None:
     assert resp.status_code == 422
 
 
+def test_geocode_a_point_only_match_is_no_match_not_a_500(tmp_path: Path, monkeypatch) -> None:
+    """`ox.geocode_to_gdf` raises `TypeError` when Nominatim matched only
+    points or lines (a summit, an address) — no polygon to return. That is
+    "no match" to an Author, never a server error."""
+    def point_only(query):
+        raise TypeError(f"Nominatim did not geocode query {query!r} to a "
+                        "geometry of type (Multi)Polygon.")
+    monkeypatch.setattr(ox, "geocode_to_gdf", point_only)
+    client = TestClient(create_app(tmp_path))
+    resp = client.get("/geocode", params={"q": "Mount Mitchell"})
+    assert resp.status_code == 422
+
+
+def test_geocode_offline_is_a_retryable_503_not_a_500(tmp_path: Path, monkeypatch) -> None:
+    """No network: `requests` raises `ConnectionError` (an `OSError`). A
+    transport failure is a retryable 503 (D66), not a 500 and not the 422
+    that says the place does not exist."""
+    import requests
+
+    def offline(_query):
+        raise requests.exceptions.ConnectionError("Name or service not known")
+    monkeypatch.setattr(ox, "geocode_to_gdf", offline)
+    client = TestClient(create_app(tmp_path))
+    resp = client.get("/geocode", params={"q": "Asheville"})
+    assert resp.status_code == 503
+
+
 def test_create_app_stamps_a_contactable_nominatim_user_agent(tmp_path: Path) -> None:
     """Issue #241 / addendum P2: `/geocode` hits public Nominatim, whose
     usage policy names a stock library UA as explicitly insufficient.

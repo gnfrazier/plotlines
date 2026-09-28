@@ -759,7 +759,12 @@ def _write_cache(
     except OSError as exc:
         log.warning("clip cache write failed for %s (serving uncached): %s", cached_pbf, exc)
         return
-    _evict_cache(cache_dir, max_bytes)
+    try:
+        _evict_cache(cache_dir, max_bytes)
+    except OSError as exc:
+        # A concurrent clip's eviction can remove an entry between this
+        # one's glob and its `stat()` — the same best-effort rule as above.
+        log.warning("clip cache eviction failed under %s: %s", cache_dir, exc)
 
 
 def _evict_cache(cache_dir: Path, max_bytes: int) -> None:
@@ -986,17 +991,26 @@ class _RateLimiter:
         self._limit = limit_per_minute
         self._time_fn = time_fn
         self._windows: dict[str, tuple[float, int]] = {}
+        # The dependency runs on the shared thread pool, so two requests can
+        # read-modify-write one caller's count at once and both slip under
+        # the ceiling; the lock makes the check-and-increment atomic.
+        self._lock = threading.Lock()
 
     def allow(self, key: str) -> bool:
         if self._limit <= 0:  # 0 or negative disables the ceiling outright
             return True
-        now = self._time_fn()
-        window_start, count = self._windows.get(key, (now, 0))
-        if now - window_start >= self._WINDOW_S:
-            window_start, count = now, 0
-        count += 1
-        self._windows[key] = (window_start, count)
-        return count <= self._limit
+        with self._lock:
+            now = self._time_fn()
+            # Expired windows are dropped, not just reset on their key's next
+            # visit: every address that ever called would otherwise hold an
+            # entry for the life of the process.
+            for stale in [k for k, (start, _) in self._windows.items()
+                          if now - start >= self._WINDOW_S]:
+                del self._windows[stale]
+            window_start, count = self._windows.get(key, (now, 0))
+            count += 1
+            self._windows[key] = (window_start, count)
+            return count <= self._limit
 
 
 #: Issue #494. Not a promise about how long any particular caller's clip
@@ -1096,6 +1110,19 @@ def create_clip_app(
             )
 
     def _run_clip(bbox: BBox) -> Response:
+        # Validated here, before anything else, so a 400 means the caller's
+        # bbox and nothing else: `clip_bbox` can also raise a `ValueError`
+        # of the mirror's own making (a `MIRROR_STATE.json` that doesn't
+        # parse is a `JSONDecodeError`), which is a server fault, not an
+        # invalid bbox. It also keeps a malformed request from taking a
+        # concurrency slot.
+        try:
+            validate_bbox(bbox)
+        except ValueError as exc:
+            log.warning("clip REFUSED bbox=%s reason=invalid_bbox: %s", bbox, exc)
+            raise HTTPException(
+                400, detail={"error": "invalid_bbox", "message": str(exc)}
+            ) from None
         # Issue #494: bound how many callers may run `clip_bbox` at once,
         # fail-fast rather than queue — see the module docstring's
         # "Concurrency" section and `_ClipConcurrencyLimiter`.
@@ -1125,16 +1152,11 @@ def create_clip_app(
                     bbox, root=root, dest=dest, tmp_dir=work_dir,
                     cache_dir=cache_dir, cache_max_bytes=cache_max_bytes,
                 )
-            except ValueError as exc:
+            except NoMirrorCoverage as exc:
                 dest.unlink(missing_ok=True)
-                if isinstance(exc, NoMirrorCoverage):
-                    log.warning("clip REFUSED bbox=%s reason=no_mirror_coverage: %s", bbox, exc)
-                    raise HTTPException(
-                        404, detail={"error": "no_mirror_coverage", "message": str(exc)}
-                    ) from None
-                log.warning("clip REFUSED bbox=%s reason=invalid_bbox: %s", bbox, exc)
+                log.warning("clip REFUSED bbox=%s reason=no_mirror_coverage: %s", bbox, exc)
                 raise HTTPException(
-                    400, detail={"error": "invalid_bbox", "message": str(exc)}
+                    404, detail={"error": "no_mirror_coverage", "message": str(exc)}
                 ) from None
             except Exception as exc:  # noqa: BLE001 — any clip failure is a finished sentence
                 dest.unlink(missing_ok=True)

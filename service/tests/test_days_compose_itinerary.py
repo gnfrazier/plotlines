@@ -171,3 +171,16 @@ def test_pre_split_multi_segment_day_is_used_as_is(tmp_path: Path) -> None:
     itin = body["itinerary"]
     assert [leg["segment_id"] for leg in itin["legs"]] == ["leg-a", "leg-b"]
     assert itin["distance"]["realised_m"] == 10_000.0
+
+
+@pytest.mark.parametrize("path, body", [
+    # A segment missing every required field — the dataclass constructor's
+    # TypeError used to escape the handler as a 500.
+    ("/days/compose", {"segments": [{}]}),
+    # A scalar where the geometry object belongs.
+    ("/trips/split", {"days": [{"segments": [{"geometry": "x"}]}]}),
+])
+def test_a_malformed_payload_is_a_422_not_a_500(tmp_path: Path, path: str, body: dict) -> None:
+    client = TestClient(create_app(tmp_path), raise_server_exceptions=False)
+    resp = client.post(path, json=body)
+    assert resp.status_code == 422

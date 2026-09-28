@@ -141,6 +141,13 @@ def test_route_adds_distance_to_corridor(client):
     assert p["distance_to_route_m"] >= 0
 
 
+def test_a_route_point_short_of_lon_lat_is_a_422_not_a_500(tmp_path: Path):
+    client = TestClient(create_app(tmp_path), raise_server_exceptions=False)
+    resp = client.post("/clusters/analyze", json={
+        "bbox": _BBOX, "layers": ["sight"], "route": [[-82.0], [-81.9, 36.0]]})
+    assert resp.status_code == 422
+
+
 def test_rejected_membership_is_not_re_proposed(client):
     first = _analyze(client).json()["proposals"][0]
     member_ids = [m["candidate_id"] for m in first["members"]]

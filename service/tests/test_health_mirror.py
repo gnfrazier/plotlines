@@ -90,3 +90,20 @@ def test_mirror_capability_missing_file_degrades_to_stale_not_a_500(tmp_path):
     assert "error" in mirror
     # every other capability must still be reported
     assert "layers" in resp.json()["capabilities"]
+
+
+def test_mirror_capability_malformed_state_degrades_to_stale_not_a_500(tmp_path):
+    """Valid JSON that is not the state object — a list at the top, a string
+    where `basemap`'s mapping belongs — used to reach `mirror_health` and
+    raise `AttributeError` on `/health`'s own thread: a 500 for the whole
+    endpoint, every poll, because a failure was never cached."""
+    state_path = tmp_path / "MIRROR_STATE.json"
+    for body in ([], {"basemap": "20260901-wnc"}, {"geofabrik": {"regions": {"x": 1}}}):
+        state_path.write_text(json.dumps(body))
+        client = TestClient(create_app(tmp_path, mirror_state_url=str(state_path)))
+        resp = client.get("/health")
+        assert resp.status_code == 200, body
+        mirror = resp.json()["capabilities"]["mirror"]
+        assert mirror["configured"] is True
+        assert mirror["stale"] is True
+        assert "error" in mirror

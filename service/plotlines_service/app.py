@@ -17,7 +17,6 @@ wrong.
 from __future__ import annotations
 
 import hashlib
-import http.client
 import logging
 import math
 import threading
@@ -415,16 +414,27 @@ def _fetch_mirror_capability(source: str, pool: ThreadPoolExecutor) -> dict:
     """The uncached read `MirrorStateCache.get_or_fetch` calls through to on
     a cache miss — issue #488's pool/timeout shape, unchanged. Split out of
     `_mirror_capability` by issue #367 so the cache can call it without
-    re-entering the `source`/cache dispatch above."""
+    re-entering the `source`/cache dispatch above.
+
+    Anything else that stops a reading — a truncated body
+    (`http.client.IncompleteRead` is not an `OSError`), or a file that parses
+    as JSON but is not the state object `mirror_health` reads (`[]`, a
+    string where a mapping belongs) — degrades the same way. The file is
+    written by another process on another machine, so its shape is not ours
+    to trust, and a 500 here takes all of `/health` down with it."""
     future = pool.submit(load_mirror_state, source)
     try:
         state = future.result(timeout=_MIRROR_STATE_FETCH_TIMEOUT_S)
     except FutureTimeoutError:
         return {"configured": True, "stale": True,
                 "error": "mirror state fetch timed out"}
-    except (OSError, ValueError) as exc:
+    except Exception as exc:  # noqa: BLE001 — never a 500 on /health
         return {"configured": True, "stale": True, "error": str(exc)}
-    return mirror_health(state)
+    try:
+        return mirror_health(state)
+    except Exception as exc:  # noqa: BLE001 — malformed state, see above
+        return {"configured": True, "stale": True,
+                "error": f"mirror state is malformed: {type(exc).__name__}"}
 
 
 #: Issue #490. `LayerRegistry.fetch_candidates_all`'s Overpass round trip
@@ -528,8 +538,14 @@ def _upstream_tile(reader: UpstreamTileReader, pool: ThreadPoolExecutor,
             return future.result(timeout=_UPSTREAM_TILE_TIMEOUT_S)
         except FutureTimeoutError as exc:
             raise UpstreamTileUnavailable("tile upstream timed out") from exc
-        except (OSError, http.client.HTTPException, ValueError) as exc:
-            raise UpstreamTileUnavailable(f"tile upstream failed: {exc}") from exc
+        except Exception as exc:  # noqa: BLE001 — see below
+            # Not only transport errors (`OSError`, `http.client.
+            # HTTPException`): an upstream answering with something that is
+            # not a PMTiles archive fails in the header/directory parse
+            # (`struct.error`, `zlib.error`). Either way the upstream could
+            # not answer this tile right now — 503, not a 500.
+            raise UpstreamTileUnavailable(
+                f"tile upstream failed: {type(exc).__name__}: {exc}") from exc
     finally:
         waiting.release()
 
@@ -2065,6 +2081,16 @@ class ClustersAnalyzeRequest(BaseModel):
     #: `distance_to_route_m` on every proposal, the corridor filter, the
     #: `sort=corridor` resort, and grows the reviewable cap by route-km.
     route: list[list[float]] = Field(default_factory=list)
+
+    @field_validator("route")
+    @classmethod
+    def _route_points_are_lon_lat(cls, v: list[list[float]]) -> list[list[float]]:
+        # Each point is read as `pt[0], pt[1]` — a shorter one was an
+        # IndexError in the handler, a 500 for a malformed request.
+        if any(len(pt) < 2 for pt in v):
+            raise ValueError("every route point must be [lon, lat]")
+        return v
+
     #: Member-id sets the Author has already rejected for this trip (ARCH
     #: §4.4's small rejection set). A fresh cluster matching one is dropped,
     #: so a re-run does not re-propose it (FR110).
@@ -2999,11 +3025,24 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 f"the search service didn't answer for {q!r} — try again "
                 "in a moment"
             ) from exc
-        except (ValueError, RuntimeError) as exc:
+        except (ValueError, RuntimeError, TypeError) as exc:
             # osmnx raises a mix of exception types for "nothing found" vs.
             # a downstream Nominatim/network failure; both are the same
             # honest answer to an Author — no result, not a system error.
+            # `TypeError` is osmnx's "matched only a point or a line, no
+            # polygon" (`geocoder._get_first_polygon`) — a summit or an
+            # address, not a fault.
             raise HTTPException(422, f"no match for {q!r}: {exc}") from exc
+        except OSError as exc:
+            # `requests`' ConnectionError/Timeout are `OSError`s: no network,
+            # or Nominatim unreachable. A transport failure is a retryable
+            # 503 (D66), never a 500 — and not the 422 that tells the Author
+            # the place does not exist.
+            raise HTTPException(
+                503,
+                f"the search service couldn't be reached for {q!r} — check "
+                "your connection and try again"
+            ) from exc
         results = [
             {
                 "label": row.get("display_name", q),
@@ -3062,10 +3101,22 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         headers = {"Content-Encoding": info.content_encoding} if info.content_encoding else {}
         return Response(content=data, media_type=info.tile_content_type, headers=headers)
 
+    def _parse_payload(cls, data, what: str):
+        """`parse_dataclass` with a malformed payload as a 422. The parse is
+        reflection over the dataclass tree, so a missing required field is a
+        `TypeError` from the constructor and a scalar where an object belongs
+        is a `TypeError`/`AttributeError` from the walk — the caller's
+        mistake either way, never a 500."""
+        try:
+            return parse_dataclass(cls, data)
+        except (TypeError, ValueError, AttributeError, KeyError) as exc:
+            raise HTTPException(422, f"malformed {what}: {exc}") from exc
+
     @app.post("/days/compose")
     def days_compose(req: DayComposeRequest) -> dict:
-        segments = [parse_dataclass(PayloadSegment, s) for s in req.segments]
-        transitions = [parse_dataclass(PayloadTransition, t) for t in req.transitions]
+        segments = [_parse_payload(PayloadSegment, s, "segment") for s in req.segments]
+        transitions = [_parse_payload(PayloadTransition, t, "transition")
+                       for t in req.transitions]
         try:
             day = compose_day(segments, transitions, index=req.index, kind=req.kind)
         except ValueError as exc:
@@ -3081,7 +3132,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         # Only built when the request names a spine of two or more anchors.
         if len(req.anchors) >= 2:
             try:
-                anchors = [parse_dataclass(Anchor, a) for a in req.anchors]
+                anchors = [_parse_payload(Anchor, a, "anchor") for a in req.anchors]
                 if len(day.segments) == len(anchors) - 1:
                     # Already the one-passage-per-anchor-pair shape.
                     legs = day.segments
@@ -3119,9 +3170,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         # dataclass parse, so the assembled trip and its roll-ups never carry
         # a name the schema no longer allows.
         migrated = migrate_payload_modes({"days": req.days})["days"]
-        days = [parse_dataclass(PayloadDay, d) for d in migrated]
+        days = [_parse_payload(PayloadDay, d, "day") for d in migrated]
         default_weights = (
-            parse_dataclass(PayloadWeightProfile, req.default_weights)
+            _parse_payload(PayloadWeightProfile, req.default_weights, "default_weights")
             if req.default_weights else None
         )
         try:

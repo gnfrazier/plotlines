@@ -689,6 +689,31 @@ class TestClipCache:
         assert second.cache_hit is False
         assert second.output_path.read_bytes() == first.output_path.read_bytes()
 
+    def test_an_eviction_failure_never_fails_the_clip(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        # `_evict_cache` stats every entry it globbed; a concurrent clip's
+        # own eviction can remove one in between (FileNotFoundError). That
+        # escaped `_write_cache`'s best-effort net and turned a finished
+        # clip into a failed request.
+        import plotlines_service.mirror_clip as mc
+
+        def racing_eviction(_cache_dir, _max_bytes):
+            raise FileNotFoundError("entry evicted by a concurrent clip")
+
+        monkeypatch.setattr(mc, "_evict_cache", racing_eviction)
+        src = write_pbf(
+            tmp_path / "src.osm.pbf", nodes=[node(1, -82.2, 35.2)], box=_BBOX
+        )
+        mirror = build_mirror_tree(tmp_path / "mirror", regions={"r": src})
+
+        result = clip_bbox(
+            _BBOX, root=mirror, dest=tmp_path / "out.osm.pbf",
+            cache_dir=tmp_path / "cache", cache_max_bytes=1,
+        )
+
+        assert result.output_path.exists()
+
     def test_eviction_drops_the_oldest_entry_once_over_budget(self, tmp_path: Path) -> None:
         # Exercises `_evict_cache` directly against hand-built cache
         # entries of known size and age — a real fixture clip's output is

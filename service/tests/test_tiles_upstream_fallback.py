@@ -136,6 +136,20 @@ def test_a_stuck_upstream_answers_503_by_its_deadline_and_starves_nothing(
         client.app.state.readiness.shutdown()
 
 
+def test_an_upstream_that_is_not_an_archive_is_503_not_a_500(tmp_path: Path) -> None:
+    """A mirror path answering with something that is not a PMTiles archive
+    (a proxy's HTML error page, a truncated upload) fails inside the header
+    or directory parse with `struct.error` / `zlib.error`, not a transport
+    `OSError`. It is still "the upstream could not answer right now" — a
+    retryable 503, never a 500 and never the 404 that means "no tile here"."""
+    bogus = tmp_path / "bogus.pmtiles"
+    bogus.write_bytes(b"<html><body>502 Bad Gateway</body></html>")
+    client = TestClient(create_app(tmp_path / "cache", tiles_upstream=bogus),
+                        raise_server_exceptions=False)
+    resp = client.get("/tiles/{}/{}/{}".format(*_OUTSIDE_HOME))
+    assert resp.status_code == 503
+
+
 def test_past_the_waiting_bound_a_tile_is_503_immediately(
     tmp_path: Path, upstream: Path,
 ) -> None:

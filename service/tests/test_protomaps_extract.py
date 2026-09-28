@@ -85,6 +85,10 @@ def date_probe_server():
         thread.join(timeout=5)
 
 
+def _today() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%d")
+
+
 # --- find_latest_build_date -------------------------------------------------
 
 def test_finds_the_most_recent_live_date(date_probe_server) -> None:
@@ -492,7 +496,9 @@ def test_ttl_days_flag_overrides_the_env_var(monkeypatch, mirror_root) -> None:
 def test_cli_regions_flag_selects_a_named_subset(
     fake_pmtiles_bin, mirror_root, date_probe_server,
 ) -> None:
-    date_probe_server.live_dates.add("20260913")
+    # The CLI probes back from the real clock, so the live build has to be
+    # recent — a fixed date here rots once it falls out of the lookback.
+    date_probe_server.live_dates.add(_today())
     rc = pe.main([
         "--root", str(mirror_root), "--regions", "nc",
         "--upstream-base-url", date_probe_server.base_url,
@@ -514,7 +520,7 @@ def test_cli_unknown_region_key_errors(mirror_root) -> None:
 def test_cli_explicit_bbox_runs_a_single_ad_hoc_region(
     fake_pmtiles_bin, mirror_root, date_probe_server,
 ) -> None:
-    date_probe_server.live_dates.add("20260913")
+    date_probe_server.live_dates.add(_today())
     rc = pe.main([
         "--root", str(mirror_root), "--bbox=-80.0,35.0,-79.0,36.0",
         "--region-name", "custom", "--build-id", "20260913-custom",
