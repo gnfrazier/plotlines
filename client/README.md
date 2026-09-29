@@ -95,7 +95,7 @@ mirror fills on a miss (#518) and is retired by #284 (ARCH D63's phased rule).
 | `PLOTLINES_MIRROR_CLIP_CLIENT_KEY` | the `X-Plotlines-Client-Key` a keyed `/clip` requires (#263) — **never a literal in the repo**; a release build gets it from the builder's environment via `--dart-define`, a source run from your shell | unset (no key sent) |
 | `PLOTLINES_MIRROR_STATE_URL` | where the sidecar reads `MIRROR_STATE.json` for `capabilities.mirror` (#367) | `<PLOTLINES_MIRROR_URL>/MIRROR_STATE.json` — see below |
 | `PLOTLINES_ELEVATION_UPSTREAM` | the Pi5 caching elevation proxy's `/dem` base URL (QA only) | unset |
-| `PLOTLINES_TILES_UPSTREAM` | PMTiles source the sidecar's `--tiles-upstream` extracts basemap tiles from — the Pi serves plain HTTP, same as `PLOTLINES_MIRROR_URL`; the literal `off` disables it | `https://tiles.plotlines.app/basemap/protomaps/20250101-wnc/corridor.pmtiles` — see below |
+| `PLOTLINES_TILES_UPSTREAM` | PMTiles source the sidecar's `--tiles-upstream` extracts basemap tiles from — the Pi serves plain HTTP, same as `PLOTLINES_MIRROR_URL`; the literal `off` disables it | `<PLOTLINES_MIRROR_URL>/basemap/protomaps/20250101-priority/priority.pmtiles` — see below |
 
 Five things worth knowing before you set any of them:
 
@@ -119,14 +119,18 @@ Five things worth knowing before you set any of them:
   `PLOTLINES_OPENTOPOGRAPHY_API_KEY` — only the Pi holds it, and a sidecar started with
   `--elevation-upstream` uses `core/plotlines_core/elevation/qa_proxy_client.py`'s
   unauthenticated fetcher instead.
-- **`PLOTLINES_TILES_UPSTREAM` defaults to the mirror's primary basemap region** (issue #457,
-  ARCH D65): `SidecarUpstreams.defaultTilesUpstream`, which a test pins to
-  `tiles/mirror.py`'s `MIRROR_WNC_CORRIDOR_URL`. `/health` never contacts it; the sidecar reads
+- **`PLOTLINES_TILES_UPSTREAM` defaults to the widest archive the configured mirror
+  publishes** (issue #539): `<PLOTLINES_MIRROR_URL>/`+`SidecarUpstreams.defaultTilesArchivePath`,
+  #515's priority-regions archive (a superset of the WNC corridor), which a test pins to
+  `tiles/mirror.py`'s `PRIORITY_REGIONS_ARCHIVE_PATH`. It follows `PLOTLINES_MIRROR_URL`, so a
+  LAN Pi run reads tiles from the Pi with no extra setting, and `off` there turns tiles off too
+  (the sidecar serves only the shipped home region). Before #539 every launch was pinned to the
+  corridor on the https host, whatever mirror was configured. `/health` never contacts it; the sidecar reads
   single tiles from it only for a viewport the home archive and region caches don't cover (#514). A cold start with no network still renders the committed
   home-region archive (FR96). A trip bbox outside every mirrored region shows the #318
-  graticule, which is an honest gap. Epic #516 owns filling that gap on a miss.
-  `utils/launch-with-mirror.sh` instead points a LAN Pi run over plain http at the pre-warmed
-  priority-regions archive (`20250101-priority/priority.pmtiles`), a superset of the corridor.
+  graticule, which is an honest gap — except over the gaps *between* priority regions, which
+  sit inside the archive's header envelope, so the notice reads them as covered until #519
+  reports per-cell coverage. Epic #516 owns filling gaps on a miss.
   Whatever this names, the client never passes `--allow-unmirrored-tiles`. The sidecar refuses a
   third-party host (`HotlinkRefused`, FR92/FR95) and reports the refusal on `/health`'s
   `capabilities.tiles.upstream` (#454).

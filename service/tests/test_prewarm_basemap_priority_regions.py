@@ -158,3 +158,17 @@ def test_dry_run_makes_no_network_call_and_names_the_client_url(capsys, monkeypa
     out = capsys.readouterr().out
     assert "wnc-corridor" in out and "pct" in out
     assert f"PLOTLINES_TILES_UPSTREAM={pb.published_url()}" in out
+
+
+def test_publish_path_is_the_one_the_client_defaults_to() -> None:
+    # #539: the client's tiles default is `<mirror>/<PRIORITY_REGIONS_ARCHIVE_PATH>`,
+    # so this script must publish exactly there — both through the core import
+    # and through the standalone fallback literals it uses without core.
+    from plotlines_core.tiles import mirror
+
+    assert pb.BUILD_ID == mirror.PRIORITY_REGIONS_BUILD_ID
+    assert pb.FILENAME == mirror.PRIORITY_REGIONS_FILENAME
+    assert pb.published_url("https://h").endswith("/" + mirror.PRIORITY_REGIONS_ARCHIVE_PATH)
+    source = _SCRIPT_PATH.read_text()
+    assert f'BUILD_ID = "{mirror.PRIORITY_REGIONS_BUILD_ID}"' in source
+    assert f'FILENAME = "{mirror.PRIORITY_REGIONS_FILENAME}"' in source

@@ -43,8 +43,8 @@ void main() {
               'instead of re-fetching it on every 2 s poll');
       expect(u.elevationUpstream, isNull, reason: 'QA-only proxy, no default (#148/FR87)');
       expect(u.tilesUpstream, SidecarUpstreams.defaultTilesUpstream,
-          reason: 'issue #457: the mirror\'s primary covered region is now the '
-              'built-in default, same as the mirror URL itself');
+          reason: 'issue #539: the widest archive the default mirror publishes, '
+              'derived from the mirror URL like the state URL');
     });
 
     test('the mirror state URL is derived from the mirror URL, not defaulted independently', () {
@@ -63,6 +63,30 @@ void main() {
           reason: 'no mirror URL to derive a state URL from, and nothing named it explicitly');
     });
 
+    test('the tiles upstream follows a configured mirror, not the https corridor (#539)', () {
+      final u = SidecarUpstreams.resolve(environment: const {
+        SidecarUpstreams.mirrorUrlVar: 'http://tiles.plotlines.app',
+      });
+      expect(u.tilesUpstream,
+          'http://tiles.plotlines.app/basemap/protomaps/20250101-priority/priority.pmtiles');
+    });
+
+    test('turning the mirror off also turns off its derived tiles upstream (#539)', () {
+      final u = SidecarUpstreams.resolve(environment: const {
+        SidecarUpstreams.mirrorUrlVar: 'off',
+      });
+      expect(u.tilesUpstream, isNull,
+          reason: 'no mirror to read tiles from — the sidecar serves the shipped home region');
+    });
+
+    test('an explicit tiles upstream still wins with the mirror off (#539)', () {
+      final u = SidecarUpstreams.resolve(environment: const {
+        SidecarUpstreams.mirrorUrlVar: 'off',
+        SidecarUpstreams.tilesUpstreamVar: '/data/corridor.pmtiles',
+      });
+      expect(u.tilesUpstream, '/data/corridor.pmtiles');
+    });
+
     test('an explicit state URL overrides the derived default', () {
       final u = SidecarUpstreams.resolve(environment: const {
         SidecarUpstreams.mirrorUrlVar: 'http://127.0.0.1:8095',
@@ -76,13 +100,11 @@ void main() {
       expect(Uri.parse(SidecarUpstreams.defaultMirrorUrl).scheme, 'https');
     });
 
-    test("the default tiles upstream matches tiles/mirror.py's MIRROR_WNC_CORRIDOR_URL", () {
-      // `MIRROR_WNC_CORRIDOR_URL` is built from three constants at import
-      // time on the Python side — reconstructed here from the same two
-      // source literals (PROTOMAPS_BASEMAP_BUILD, MIRROR_HOST) plus the
-      // stable "-wnc/corridor.pmtiles" suffix `WNC_CORRIDOR_BUILD_ID` and
-      // the pmtiles filename both hard-code, rather than parsing Python
-      // f-string concatenation out of the source text.
+    test("the default tiles archive matches tiles/mirror.py's PRIORITY_REGIONS_ARCHIVE_PATH", () {
+      // `PRIORITY_REGIONS_ARCHIVE_PATH` is an f-string on the Python side —
+      // reconstructed here from its source literals (PROTOMAPS_BASEMAP_BUILD,
+      // MIRROR_HOST, the "-priority" suffix and the filename) rather than by
+      // evaluating Python.
       final file = File(
           '${Directory.current.parent.path}/core/plotlines_core/tiles/mirror.py');
       final source = file.readAsStringSync();
@@ -90,9 +112,15 @@ void main() {
           .firstMatch(source)!.group(1)!;
       final protomapsBuild = RegExp(r'^PROTOMAPS_BASEMAP_BUILD\s*=\s*"([^"]+)"', multiLine: true)
           .firstMatch(source)!.group(1)!;
-      expect(source, contains('WNC_CORRIDOR_BUILD_ID = f"{PROTOMAPS_BASEMAP_BUILD}-wnc"'));
+      final filename = RegExp(r'^PRIORITY_REGIONS_FILENAME\s*=\s*"([^"]+)"', multiLine: true)
+          .firstMatch(source)!.group(1)!;
+      expect(source, contains('PRIORITY_REGIONS_BUILD_ID = f"{PROTOMAPS_BASEMAP_BUILD}-priority"'));
+      expect(source, contains(
+          'f"basemap/protomaps/{PRIORITY_REGIONS_BUILD_ID}/{PRIORITY_REGIONS_FILENAME}"'));
+      expect(SidecarUpstreams.defaultTilesArchivePath,
+          'basemap/protomaps/$protomapsBuild-priority/$filename');
       expect(SidecarUpstreams.defaultTilesUpstream,
-          'https://$host/basemap/protomaps/$protomapsBuild-wnc/corridor.pmtiles');
+          'https://$host/basemap/protomaps/$protomapsBuild-priority/$filename');
     });
 
     test('an environment variable overrides the default mirror URL', () {
@@ -266,8 +294,8 @@ void main() {
           reason: 'no key without a define or env var — the mirror decides '
               'whether an unkeyed /clip is accepted (#263)');
       expect(args, contains('--tiles-upstream=${SidecarUpstreams.defaultTilesUpstream}'),
-          reason: 'issue #457: a stock launch now points at the mirror\'s primary '
-              'covered region by default');
+          reason: 'issue #539: a stock launch points at the widest archive the '
+              'default mirror publishes');
     });
   });
 
