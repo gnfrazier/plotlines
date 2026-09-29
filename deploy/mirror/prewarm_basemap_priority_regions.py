@@ -184,9 +184,13 @@ def record_parts(root: Path, bboxes: list[BBox]) -> None:
     shows over the gaps between regions instead of reading them as covered.
     Under the same `MIRROR_STATE.json.lock` every other writer takes."""
     state_path = root / "MIRROR_STATE.json"
-    with open(state_path.with_name(state_path.name + ".lock"), "a") as lock_fh:
+    # Read-only: `flock` needs no write access, so a lock the fill worker
+    # created never blocks this script (#517 follow-up).
+    lock_fd = os.open(state_path.with_name(state_path.name + ".lock"),
+                      os.O_RDONLY | os.O_CREAT, 0o644)
+    try:
         if pe.fcntl is not None:
-            pe.fcntl.flock(lock_fh, pe.fcntl.LOCK_EX)
+            pe.fcntl.flock(lock_fd, pe.fcntl.LOCK_EX)
         state = pe._read_state(state_path)
         entry = ((state.get("basemap") or {}).get("covered_regions") or {}).get(REGION_NAME)
         if entry is None:
@@ -196,6 +200,8 @@ def record_parts(root: Path, bboxes: list[BBox]) -> None:
             return
         entry["parts"] = parts
         pe._write_state(root, state_path, state)
+    finally:
+        os.close(lock_fd)
 
 
 def _print_plan(candidates: list[RegionCandidate]) -> None:
