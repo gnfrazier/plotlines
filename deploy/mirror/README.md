@@ -555,14 +555,15 @@ until the next monthly re-pin realigns it.
 
 `MIRROR_FILL_LAYERS=osm,basemap` adds the basemap. A `POST /fill {"layer":
 "basemap", …}` for an area no stored archive covers extracts the covering 2°
-cell (the OSM fill's grid, `cell-wNNN-nNN`) from Protomaps' newest live daily
+cell (`cell-2d-wNNN-nNN`; the OSM fill's 1° grid nests inside it — a basemap
+read doesn't slow with archive size the way `/clip` does) from Protomaps' newest live daily
 build with `pmtiles extract`, z0–15, into
 `basemap/protomaps/cells/<cell>.pmtiles` — `protomaps_extract.py`'s own build
 probe and wrapper, the tool D65 chose; the container installs go-pmtiles
 1.31.2 (BSD-3-Clause), pinned and checksum-verified. The planet build covers
 the world, so the basemap is never `no_upstream_coverage`.
 
-Measured 2026-09-28, the Greensboro cell (`cell-w080-n36`, -80…-78 × 36…38)
+Measured 2026-09-28, the Greensboro cell (`cell-2d-w080-n36`, -80…-78 × 36…38)
 from build `20260928`: **22.0 s, 141.5 MB**. The second request answered
 `ready` in 1 ms with no job.
 

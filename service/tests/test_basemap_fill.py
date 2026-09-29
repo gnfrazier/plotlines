@@ -122,8 +122,8 @@ def test_a_miss_fills_its_cell_from_the_latest_build_and_the_next_request_is_rea
     finally:
         worker.shutdown()
     assert fake.extracts == [("https://build.protomaps.com/20260927.pmtiles", CELL, 15)]
-    row = StoreBook(root).records()["basemap/cell-w080-n36"]
-    assert row["path"] == "basemap/protomaps/cells/cell-w080-n36.pmtiles"
+    row = StoreBook(root).records()["basemap/cell-2d-w080-n36"]
+    assert row["path"] == "basemap/protomaps/cells/cell-2d-w080-n36.pmtiles"
     assert row["upstream"] == "protomaps:20260927"
     assert (root / row["path"]).exists()
 
@@ -134,7 +134,7 @@ def test_a_bbox_spanning_two_cells_fills_both(tmp_path: Path) -> None:
     worker = FillWorker(root, [BasemapFiller(root, extract=fake)], state_dir=tmp_path / "fs")
     try:
         status = worker.request("basemap", (-80.2, 36.05, -79.8, 36.15))
-        assert set(status.areas) == {"cell-w082-n36", "cell-w080-n36"}
+        assert set(status.areas) == {"cell-2d-w082-n36", "cell-2d-w080-n36"}
         _wait(worker, status.fill_id)
     finally:
         worker.shutdown()
@@ -172,11 +172,11 @@ def test_an_extract_failure_is_a_failed_fill(tmp_path: Path) -> None:
 
 def test_a_cell_past_the_ttl_is_served_and_refreshed_behind_it(tmp_path: Path) -> None:
     old = (datetime.now(timezone.utc) - timedelta(days=TTL_DAYS + 1)).isoformat()
-    root = _store(tmp_path, {"areas": {"basemap/cell-w080-n36": {
-        "layer": "basemap", "area": "cell-w080-n36",
-        "path": "basemap/protomaps/cells/cell-w080-n36.pmtiles", "bbox": list(CELL),
+    root = _store(tmp_path, {"areas": {"basemap/cell-2d-w080-n36": {
+        "layer": "basemap", "area": "cell-2d-w080-n36",
+        "path": "basemap/protomaps/cells/cell-2d-w080-n36.pmtiles", "bbox": list(CELL),
         "filled_at": old, "last_read_at": old, "bytes": 1, "pinned": False, "seeded": False}}})
-    build_archive(root / "basemap/protomaps/cells/cell-w080-n36.pmtiles",
+    build_archive(root / "basemap/protomaps/cells/cell-2d-w080-n36.pmtiles",
                   _tiles_for(CELL, "stale"), bounds=CELL)
     fake = FakeProtomaps()
     worker = FillWorker(root, [BasemapFiller(root, extract=fake)], state_dir=tmp_path / "fs")
@@ -189,7 +189,7 @@ def test_a_cell_past_the_ttl_is_served_and_refreshed_behind_it(tmp_path: Path) -
     finally:
         worker.shutdown()
     assert fake.extracts, "a stale cell is refreshed"
-    row = StoreBook(root).records()["basemap/cell-w080-n36"]
+    row = StoreBook(root).records()["basemap/cell-2d-w080-n36"]
     assert row["filled_at"] > old
 
 
@@ -207,18 +207,18 @@ pytestmark_home = pytest.mark.skipif(
 
 def _filled_store(tmp_path: Path) -> Path:
     root = _store(tmp_path, {"areas": {
-        "basemap/cell-w080-n36": {
-            "layer": "basemap", "area": "cell-w080-n36",
-            "path": "basemap/protomaps/cells/cell-w080-n36.pmtiles", "bbox": list(CELL),
+        "basemap/cell-2d-w080-n36": {
+            "layer": "basemap", "area": "cell-2d-w080-n36",
+            "path": "basemap/protomaps/cells/cell-2d-w080-n36.pmtiles", "bbox": list(CELL),
             "filled_at": "2026-09-28T00:00:00Z"},
-        "basemap/cell-w076-n36": {
-            "layer": "basemap", "area": "cell-w076-n36",
-            "path": "basemap/protomaps/cells/cell-w076-n36.pmtiles",
+        "basemap/cell-2d-w076-n36": {
+            "layer": "basemap", "area": "cell-2d-w076-n36",
+            "path": "basemap/protomaps/cells/cell-2d-w076-n36.pmtiles",
             "bbox": [-76.0, 36.0, -74.0, 38.0], "filled_at": "2026-09-28T00:00:00Z"},
     }})
-    build_archive(root / "basemap/protomaps/cells/cell-w080-n36.pmtiles",
+    build_archive(root / "basemap/protomaps/cells/cell-2d-w080-n36.pmtiles",
                   _tiles_for(CELL, "w080"), bounds=CELL)
-    build_archive(root / "basemap/protomaps/cells/cell-w076-n36.pmtiles",
+    build_archive(root / "basemap/protomaps/cells/cell-2d-w076-n36.pmtiles",
                   _tiles_for((-76.0, 36.0, -74.0, 38.0), "w076"),
                   bounds=(-76.0, 36.0, -74.0, 38.0))
     return root
@@ -260,7 +260,7 @@ def test_a_new_cell_changes_the_tile_archive_identity(tmp_path: Path) -> None:
     client.get(f"/tiles/{z}/{x}/{y}")
     before = client.get("/health").json()["capabilities"]["tiles"]["archive"]
     state = json.loads((root / "MIRROR_STATE.json").read_text())
-    state["areas"]["basemap/cell-w080-n36"]["filled_at"] = "2026-10-01T00:00:00Z"
+    state["areas"]["basemap/cell-2d-w080-n36"]["filled_at"] = "2026-10-01T00:00:00Z"
     (root / "MIRROR_STATE.json").write_text(json.dumps(state))
     upstream_set = app.state.readiness.upstream_tiles if hasattr(app.state, "readiness") else None
     if upstream_set is None:
@@ -280,9 +280,9 @@ def test_a_third_party_root_is_refused_on_health_and_never_read(tmp_path: Path) 
 
 def test_a_region_build_stitches_its_tiles_from_two_cells(tmp_path: Path) -> None:
     root = _store(tmp_path, {"areas": {
-        "basemap/cell-w082-n36": {"layer": "basemap", "area": "cell-w082-n36",
+        "basemap/cell-2d-w082-n36": {"layer": "basemap", "area": "cell-2d-w082-n36",
                                   "path": "basemap/w.pmtiles", "bbox": [-82, 36, -80, 38]},
-        "basemap/cell-w080-n36": {"layer": "basemap", "area": "cell-w080-n36",
+        "basemap/cell-2d-w080-n36": {"layer": "basemap", "area": "cell-2d-w080-n36",
                                   "path": "basemap/e.pmtiles", "bbox": list(CELL)},
     }})
     build_archive(root / "basemap/w.pmtiles", _tiles_for((-82, 36, -80, 38), "w"),

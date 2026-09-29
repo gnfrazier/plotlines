@@ -7,10 +7,12 @@ rules D65 set for `protomaps_extract.py`: the `pmtiles extract` CLI (never
 the newest live build found by probing backward (Protomaps keeps only about
 a week), z0–15.
 
-**The unit is a 2° grid cell** (`cell-wNNN-nNN`, the OSM fill's grid, so
-one area name means one piece of ground on both layers). A cell is small
-enough that a fill is one bounded `pmtiles extract` — about the size of the
-WNC corridor archive — and reused by every later trip inside it.
+**The unit is a 2° grid cell** (`cell-2d-wNNN-nNN`). The OSM fill uses 1°
+because `/clip`'s cost is O(pinned extract) (#518's measurement); a basemap
+read is one ranged GET whatever the archive's size, so the larger cell costs
+nothing per tile and halves the fills a wandering Author triggers. Measured
+live: the Greensboro cell in 22.0 s, 141.5 MB. The grids nest, and the
+degree is in the name, so a name never means two pieces of ground.
 
 **Refresh.** D65's TTL carries over: a cell older than
 `mirror_state.DEFAULT_BASEMAP_TTL_DAYS` (30 d) is still served, and a
@@ -33,11 +35,15 @@ from pathlib import Path
 from typing import Mapping
 
 from .mirror_fill import AreaPlan, FillContext, FillFailed, FilledArea, FillPlan
-from .mirror_fill_osm import CELL_DEGREES, cells_for
+from .mirror_fill_osm import cells_for
 
 log = logging.getLogger("plotlines.mirror_fill.basemap")
 
 LAYER = "basemap"
+
+#: The basemap's own grid — see the module docstring for why it is not the
+#: OSM fill's 1°. `BasemapArchiveSet.missing_cells` defaults to the same.
+CELL_DEGREES = 2.0
 
 #: Store directory for filled cells. Stable per cell, like D65's per-region
 #: path pins, so a refresh replaces the archive rather than moving it.
