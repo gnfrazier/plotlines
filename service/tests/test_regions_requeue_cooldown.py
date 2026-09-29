@@ -56,7 +56,10 @@ def _failed_region(*, automatic_requeues: int = 0,
 
 
 def test_automatic_requeue_inside_the_cooldown_is_refused_with_a_countdown():
-    r = _failed_region()
+    # A fixed, exactly representable stamp, not the live clock (#548): when
+    # time.monotonic() sits just below a power of two, `failed_at + 5.0`
+    # rounds, the remaining wait reads a hair over 55 and ceil says 56.
+    r = _failed_region(failed_at=1000.0)
     now = r.failed_at + 5.0  # 5 s into a 60 s window
 
     d = r.plan_requeue_after_failure(manual=False, now=now)
