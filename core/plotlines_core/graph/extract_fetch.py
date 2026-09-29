@@ -185,7 +185,7 @@ class DownloadProgress:
     need a second parsing rule for this capability.
     """
 
-    status: str = "pending"  # pending -> downloading -> ready | failed
+    status: str = "pending"  # pending -> downloading -> ready | failed | pending_upstream
     bytes_downloaded: int = 0
     #: `None` until the mirror's `Content-Length` header is read — some
     #: intermediary could in principle strip it, and this must never fall
@@ -197,12 +197,26 @@ class DownloadProgress:
     #: but the latter never touched `bytes_downloaded`/`total_bytes` as a
     #: transfer rate, only as a final file size.
     reused: bool = False
+    #: Issue #521 — set while the mirror is filling this area (`fetching`).
+    fill_id: str | None = None
+    retry_after_s: float | None = None
 
     @property
     def ready(self) -> bool:
         return self.status == "ready"
 
     def to_dict(self) -> dict:
+        if self.status == "pending_upstream":
+            # A wait, never a failure (ARCH D67): the mirror is fetching
+            # this area from Geofabrik. `progress` keeps an older client
+            # reading it as waiting.
+            d = {"ready": False, "reason": self.detail, "pending_upstream": True,
+                 "progress": 0.0}
+            if self.fill_id:
+                d["fill_id"] = self.fill_id
+            if self.retry_after_s is not None:
+                d["retry_after_s"] = round(self.retry_after_s)
+            return d
         if self.status == "ready":
             d: dict = {"ready": True}
             if self.reused:
@@ -378,8 +392,12 @@ def fetch_extract(
             except (ValueError, UnicodeDecodeError, AttributeError):
                 fill = {}
             retry = response.headers.get("Retry-After")
-        progress.status = "failed"
-        progress.detail = "fetching"
+        progress.status = "pending_upstream"
+        progress.detail = ("The map-data mirror is fetching OSM data for this area "
+                           "from Geofabrik.")
+        progress.fill_id = fill.get("fill_id")
+        progress.retry_after_s = (float(retry) if retry and retry.isdigit()
+                                  else fill.get("retry_after_s"))
         raise ExtractFilling(
             "The Plotlines map-data mirror is fetching OSM data for this area "
             "from Geofabrik. That takes a few minutes; routing will be ready "

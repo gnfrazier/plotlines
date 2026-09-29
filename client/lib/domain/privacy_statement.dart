@@ -58,7 +58,9 @@ const List<PrivacyPoint> privacyStatement = [
   // home archive and no region covers. Issue #148 made OpenTopography a
   // recipient — only on a device set up with a key — and that key is the one
   // identifying thing any of these requests carries, so the last sentence
-  // says so rather than stay true only by omission.
+  // says so rather than stay true only by omission. Issue #521 (ARCH D67): a
+  // mirror miss is now a fill the app waits on, not an Overpass fallback, so
+  // the Overpass sentence narrows to what still reaches it.
   PrivacyPoint(
     id: 'planning_requests',
     title: 'What planning sends, even signed out',
@@ -66,8 +68,13 @@ const List<PrivacyPoint> privacyStatement = [
         "Plotlines-operated OSM mirror, to prepare local map data for the "
         "area. Looking at the map outside the shipped home region asks "
         "that same mirror for the map tiles on screen, which tells it "
-        "roughly where you are looking. If the mirror cannot serve an "
-        "area, the same area goes to "
+        "roughly where you are looking. If the mirror does not hold an "
+        "area yet, it fetches the surrounding region from the public "
+        "OpenStreetMap extract publishers (Geofabrik and Protomaps) and "
+        "keeps it; that request comes from the mirror, not from this "
+        "device, and names only the region, and planning waits for it "
+        "rather than asking anyone else. If no extract covers an area, or "
+        "the mirror cannot be reached, the same area goes to "
         "Overpass instead, a volunteer-run map-data lookup — today hosted "
         "in Germany or Lithuania — so we can still show you what is "
         "nearby. Typing a place to search for it sends that text to "

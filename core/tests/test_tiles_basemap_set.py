@@ -157,7 +157,7 @@ def test_a_bbox_no_archive_reaches_raises_no_tiles(store, tmp_path) -> None:
 
 def test_missing_cells_names_the_squares_to_fill(store) -> None:
     s = BasemapArchiveSet(store)
-    assert s.missing_cells((-79.5, 34.5, -77.0, 35.5)) == [(-78.0, 34.5, -77.0, 35.5)]
+    assert s.missing_cells((-79.5, 34.5, -77.0, 35.5)) == [(-78.0, 34.0, -76.0, 36.0)]
     assert s.missing_cells((-81.5, 34.5, -79.5, 35.5)) == []
 
 

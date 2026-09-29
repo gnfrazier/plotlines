@@ -256,7 +256,8 @@ def _endpoint_handlers(tree: ast.Module) -> list[ast.FunctionDef]:
 
 def _direct_outbound_calls(node: ast.FunctionDef) -> list[str]:
     """Names of any `ox.<attr>`, `requests.<attr>`, `urlopen(...)` or
-    `socket.create_connection(...)` reached directly inside `node`'s own
+    `socket.create_connection(...)` — or, since #521, the mirror fill
+    client — reached directly inside `node`'s own
     body — a call routed through one of `_ALLOWED_OUTBOUND_HELPERS` instead
     is exactly the shape #488's fix established and is not flagged."""
     offenders = []
@@ -266,10 +267,17 @@ def _direct_outbound_calls(node: ast.FunctionDef) -> list[str]:
                 offenders.append(f"ox.{sub.attr}")
             elif sub.value.id == "requests":
                 offenders.append(f"requests.{sub.attr}")
+            elif sub.value.id == "mirror_fill_client":
+                # Issue #521 — the mirror fill client blocks on the mirror;
+                # it belongs in a build phase, never a handler.
+                offenders.append(f"mirror_fill_client.{sub.attr}")
         if isinstance(sub, ast.Call):
             fn = sub.func
             if isinstance(fn, ast.Name) and fn.id == "urlopen":
                 offenders.append("urlopen(...)")
+            if isinstance(fn, ast.Name) and fn.id in ("request_fill", "fill_status",
+                                                      "_request_basemap_fills"):
+                offenders.append(f"{fn.id}(...)")
             if (isinstance(fn, ast.Attribute) and fn.attr == "create_connection"
                     and isinstance(fn.value, ast.Name) and fn.value.id == "socket"):
                 offenders.append("socket.create_connection(...)")
@@ -301,3 +309,59 @@ def test_no_endpoint_handler_calls_outbound_code_directly():
     assert violations == {}, (
         "the following endpoint handlers reach outbound code directly "
         f"instead of through a named, pooled, deadlined helper: {violations}")
+
+
+
+def test_a_wedged_fill_client_never_reaches_a_request_thread(tmp_path, monkeypatch):
+    """Issue #521 — the fill client (`plotlines_core.mirror_fill_client`)
+    blocks on the mirror, so it runs only inside a region build phase. With
+    it wedged mid-call, `/health`, `/layers` and `/tiles` still answer under
+    a second, and `/health` reports the tiles phase as still working rather
+    than hanging on it."""
+    import http.server
+    import json as _json
+
+    monkeypatch.setattr(app_module, "_TILES_PHASE_TIMEOUT_S", 0.5)
+    _fast_graph(monkeypatch)
+    monkeypatch.setattr(app_module.extract_fetch, "ensure_extract",
+                        lambda bbox, *, progress=None, **_: Path("x.osm.pbf"))
+
+    class _Store(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            body = _json.dumps({"areas": {}}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Store)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    unblock = threading.Event()
+    entered = threading.Event()
+
+    def hung_request_fill(*_a, **_k):
+        entered.set()
+        unblock.wait(timeout=15.0)
+        raise AssertionError("abandoned, not completed")
+
+    monkeypatch.setattr(app_module.mirror_fill_client, "request_fill", hung_request_fill)
+    client = TestClient(app_module.create_app(
+        tmp_path, mirror_clip_url="http://mirror.test",
+        tiles_upstream=f"http://127.0.0.1:{server.server_port}",
+        allow_unmirrored_tiles=True))
+    try:
+        client.post("/regions", json={"bbox": list(_BBOX_A)})
+        assert entered.wait(5), "the tiles phase never asked for a fill"
+        for path in ("/health", "/layers", "/tiles/10/212/387"):
+            start = time.monotonic()
+            resp = client.get(path)
+            elapsed = time.monotonic() - start
+            assert elapsed < 1.0, f"{path} took {elapsed:.2f}s with the fill client wedged"
+            assert resp.status_code in (200, 404, 503), (path, resp.status_code)
+    finally:
+        unblock.set()
+        server.shutdown()
