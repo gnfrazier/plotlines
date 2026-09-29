@@ -609,3 +609,121 @@ def test_a_clip_stamps_last_read_at_on_the_area_it_read(tmp_path: Path) -> None:
     finally:
         worker.shutdown()
     assert StoreBook(root).records()["osm/the-region"]["last_read_at"]
+
+
+# -- sharing the store with the mirror's own scripts (#517 follow-up) ----------------
+# Found on the Pi 2026-09-29: the container runs as root, and the worker's
+# state write left MIRROR_STATE.json (and its .lock) root-owned 0600, so the
+# `greg`-run 1° re-cut died with PermissionError at its next state save.
+
+
+def _mode(path: Path) -> int:
+    return path.stat().st_mode & 0o777
+
+
+def test_a_state_write_keeps_the_files_mode_and_never_leaves_0600(tmp_path: Path) -> None:
+    root = _store(tmp_path, _seeded_state())
+    (root / "MIRROR_STATE.json").chmod(0o644)
+    StoreBook(root).update(lambda s: s.setdefault("areas", {}).update(
+        {"fake/x": _area_row("fake/x.bin", read="2026-09-01T00:00:00Z")}))
+    assert _mode(root / "MIRROR_STATE.json") == 0o644
+
+    fresh = tmp_path / "fresh"
+    fresh.mkdir()
+    StoreBook(fresh).update(lambda s: None)
+    assert _mode(fresh / "MIRROR_STATE.json") == 0o644
+
+
+def test_a_lock_file_this_user_cannot_write_does_not_block_a_state_write(tmp_path: Path) -> None:
+    """`flock` needs no write access; the lock is opened read-only, so a
+    lock another user created never stops the worker or the scripts."""
+    root = _store(tmp_path, _seeded_state())
+    lock = root / "MIRROR_STATE.json.lock"
+    lock.touch()
+    lock.chmod(0o444)
+    StoreBook(root).update(lambda s: s.setdefault("areas", {}).update(
+        {"fake/x": _area_row("fake/x.bin", read="2026-09-01T00:00:00Z")}))
+    assert "fake/x" in json.loads((root / "MIRROR_STATE.json").read_text())["areas"]
+
+    from test_geofabrik_pull import _load_geofabrik_pull
+    pull = _load_geofabrik_pull()
+    state = pull.load_state(root / "MIRROR_STATE.json")
+    pull.save_state(root / "MIRROR_STATE.json", state)
+    assert _mode(root / "MIRROR_STATE.json") == 0o644
+
+
+def test_the_worker_then_the_pull_script_share_the_state_file(tmp_path: Path) -> None:
+    """The Pi's sequence: a keyed fill answers ready (a state write), then
+    the re-cut saves its state. Both must succeed."""
+    filler = FakeFiller()
+    filler.release.set()
+    root = _store(tmp_path, _seeded_state())
+    worker = _worker(tmp_path, filler, root=root)
+    try:
+        _wait_state(worker, worker.request("fake", _GREENSBORO).fill_id, READY)
+    finally:
+        worker.shutdown()
+    assert _mode(root / "MIRROR_STATE.json") == 0o644
+    from test_geofabrik_pull import _load_geofabrik_pull
+    pull = _load_geofabrik_pull()
+    pull.save_state(root / "MIRROR_STATE.json", pull.load_state(root / "MIRROR_STATE.json"))
+
+
+def test_a_published_store_file_is_world_readable(tmp_path: Path) -> None:
+    filler = FakeFiller()
+    filler.release.set()
+    worker = _worker(tmp_path, filler)
+    try:
+        _wait_state(worker, worker.request("fake", _GREENSBORO).fill_id, READY)
+    finally:
+        worker.shutdown()
+    assert _mode(tmp_path / "store" / "fake" / "cell_-80_36.bin") == 0o644
+
+
+class _FakeOs:
+    """Records the privilege calls `run_as_store_owner` makes."""
+
+    def __init__(self, euid: int, store_uid: int):
+        self.euid, self.store_uid = euid, store_uid
+        self.calls: list = []
+
+    def geteuid(self):
+        return self.euid
+
+    def stat(self, path):
+        class _St:
+            st_uid = self.store_uid
+            st_gid = self.store_uid
+        return _St()
+
+    def chown(self, path, uid, gid):
+        self.calls.append(("chown", Path(path).name, uid, gid))
+
+    def setgroups(self, groups):
+        self.calls.append(("setgroups", groups))
+
+    def setgid(self, gid):
+        self.calls.append(("setgid", gid))
+
+    def setuid(self, uid):
+        self.calls.append(("setuid", uid))
+
+
+def test_a_root_worker_becomes_the_store_owner_after_handing_it_its_own_dirs(
+    tmp_path: Path,
+) -> None:
+    journal = tmp_path / "fill-state"
+    journal.mkdir()
+    (journal / "fill_jobs.json").write_text("{}")
+    ops = _FakeOs(euid=0, store_uid=1001)
+    assert mirror_fill.run_as_store_owner(tmp_path / "store", [journal], ops=ops) == (1001, 1001)
+    assert ("chown", "fill-state", 1001, 1001) in ops.calls
+    assert ("chown", "fill_jobs.json", 1001, 1001) in ops.calls
+    # Groups and gid before uid: after setuid there is no privilege left.
+    assert ops.calls[-3:] == [("setgroups", []), ("setgid", 1001), ("setuid", 1001)]
+
+
+def test_no_privilege_change_when_not_root_or_when_the_store_is_roots(tmp_path: Path) -> None:
+    for ops in (_FakeOs(euid=1001, store_uid=1001), _FakeOs(euid=0, store_uid=0)):
+        assert mirror_fill.run_as_store_owner(tmp_path, [tmp_path], ops=ops) is None
+        assert ops.calls == []
