@@ -515,12 +515,30 @@ cover is no longer `404 no_mirror_coverage`:
 
 A keyless mirror's open `/clip` never starts a fill; it answers the old `404`.
 
-**The precut unit is a 2° grid cell**, the grid #530's priority precut already
-uses. Fill cells are `cell-wNNN-nNN` and cover the whole square; a filled cell
+**The precut unit is a 1° grid cell**, nested inside #530's 2° grid. Fill
+cells are `cell-1d-wNNN-nNN` and cover the whole square; a filled cell
 supersedes a `priority-…` cell whose clamped extent it contains (the file stays
-on disk). Why that unit — measured on the Pi 5:
+on disk). Why that unit — measured on the Pi 5, pin `2026-09-18`,
+2026-09-28:
 
-PRECUT_TABLE_PLACEHOLDER
+| Pinned extract `/clip` reads | Size | Trip bbox | `/clip` wall time |
+|---|---|---|---|
+| full-state North Carolina (#402) | ~620 MB | Asheville cell | 617 s |
+| #530's 2° cell `priority-w080-n36` | 118 MB | Greensboro, 0.15° × 0.10° | **166.6 s** |
+| a 1° cell cut from the same square | 43 MB | Greensboro, 0.15° × 0.10° | **54.8 s** |
+| the same 1° cell | 43 MB | 0.45° × 0.30° | 70.9 s |
+| four 2° cells (a bbox corner on the grid line — #542) | ~495 MB | Greensboro, 0.3° × 0.2° | 576.3 s |
+
+A precut costs one full scan of its sources whatever the cell size — 450–1,675
+s per 2° cell in #530's run, 636.8 s for the 1° cut above — so the 1° cell
+costs nothing extra per fill and a third per clip. It is the unit that brings
+a typical trip's `/clip` inside SPIKE-I's ≤60 s outer band. A bbox+buffer
+precut would clip faster still but pays that full scan again for every trip
+and reuses nothing; the whole state is the 617 s row.
+
+The seeded priority cells are still 2°: a trip inside one clips in ~170 s
+until they are re-cut with `geofabrik_pull.py --precut-priority-regions
+--precut-cell-degrees 1` (the user's Pi step).
 
 **Etiquette is `geofabrik_pull.py`'s own.** The fill calls `pull_region` —
 at-most-daily cadence, `.md5` before any body, the Plotlines `User-Agent`,

@@ -5,9 +5,9 @@ A `/clip` miss inside a Geofabrik-published region stops being a final
 `geofabrik_pull.py`'s own rules, precut the grid cell the trip sits in, and
 publish the cell as a pinned extract `/clip` then reads.
 
-**The precut unit is a 2° grid cell** (the measurement and the choice are
-recorded in #518 and `deploy/mirror/README.md`). Three candidates were on
-the table:
+**The precut unit is a 1° grid cell** — measured, not assumed (#518; the
+numbers and the choice are recorded there and in `deploy/mirror/README.md`).
+Three candidates were on the table:
 
 - (c) *the whole state* — `/clip` cost is O(pinned extract): 617 s for
   full-state North Carolina on the Pi (#402), ~10× SPIKE-I's band. Out.
@@ -16,14 +16,19 @@ the table:
   Pi, #530's log), paid again for every trip that falls outside the last
   buffer. Nothing is reused.
 - (a) *a fixed grid cell* — the same full-state scan once per cell, then
-  every later trip inside that cell reuses it. It is the unit #530's
-  priority precut already pins (`priority-wNNN-nNN`), so a seeded cell and
-  a filled cell are the same kind of thing and never overlap.
+  every later trip inside it reuses the cell. Measured on the Pi for a
+  Greensboro trip bbox: against #530's **2°** cell (118 MB) the clip took
+  **166.6 s**; against a **1°** cell cut from the same data (43 MB) it took
+  **54.8 s** — inside SPIKE-I's ≤60 s outer band — and 70.9 s for a trip
+  three times the size. The precut costs one full-state scan either way, so
+  the smaller cell costs nothing extra per fill and a third per clip.
 
-Fill cells are named `cell-wNNN-nNN` and cover the *whole* square; a
-`priority-…` cell is clamped to its areas' envelope, so a fill for the rest
-of that square supersedes it (the file stays on disk, as #530's own
-supersede does).
+Fill cells are named `cell-1d-wNNN-nNN` and cover the whole square. The
+grid nests inside #530's 2° one, so a filled cell never straddles a seeded
+`priority-…` cell's edge; a filled cell supersedes a `priority-…` cell whose
+clamped extent it contains (the file stays on disk, as #530's own supersede
+does). #530's cells stay 2° until they are re-cut with
+`--precut-cell-degrees 1`.
 
 **Etiquette is `geofabrik_pull.py`'s, not a second copy of it** (§6.6,
 addendum P5): every Geofabrik request goes through `pull_region` — the
@@ -73,9 +78,9 @@ BBox = tuple[float, float, float, float]
 
 LAYER = "osm"
 
-#: The precut unit, in degrees. Matches `geofabrik_pull.py`'s
-#: `DEFAULT_PRIORITY_CELL_DEGREES`, so filled and seeded cells share a grid.
-CELL_DEGREES = 2.0
+#: The precut unit, in degrees — see the module docstring for the Pi
+#: measurement that chose it over #530's 2°. Nests inside that 2° grid.
+CELL_DEGREES = 1.0
 
 CELL_PREFIX = "cell-"
 
@@ -100,10 +105,14 @@ def load_geofabrik_pull(path: Path = _PULL_SCRIPT):
 
 
 def cell_name(i: int, j: int, degrees: float = CELL_DEGREES) -> str:
+    """`cell-1d-w080-n36`: the size is in the name, because two layers
+    fill on different grids (#519's basemap cells are 2°) and a name should
+    never mean two pieces of ground."""
     west, south = i * degrees, j * degrees
     ew = "w" if west < 0 else "e"
     ns = "s" if south < 0 else "n"
-    return f"{CELL_PREFIX}{ew}{abs(round(west)):03d}-{ns}{abs(round(south)):02d}"
+    return (f"{CELL_PREFIX}{degrees:g}d-{ew}{abs(round(west)):03d}-"
+            f"{ns}{abs(round(south)):02d}")
 
 
 def cells_for(bbox: BBox, degrees: float = CELL_DEGREES) -> list[tuple[str, BBox, BBox]]:

@@ -166,21 +166,21 @@ def test_a_greensboro_miss_fills_its_cell_and_the_next_clip_is_a_store_hit(
 
         second = _clip(tc, GREENSBORO)
         assert second.status_code == 200
-        assert second.headers["x-plotlines-clip-source-regions"] == "cell-w080-n36"
+        assert second.headers["x-plotlines-clip-source-regions"] == "cell-1d-w080-n36"
         assert second.headers["x-plotlines-clip-source-pin"] == PIN
         assert log == requests_after_fill  # a store hit: no Geofabrik request
     finally:
         worker.shutdown()
 
     state = json.loads((root / "MIRROR_STATE.json").read_text())
-    cell = state["geofabrik"]["regions"]["cell-w080-n36"]
-    assert cell["precut_bbox"] == [-80.0, 36.0, -78.0, 38.0]
+    cell = state["geofabrik"]["regions"]["cell-1d-w080-n36"]
+    assert cell["precut_bbox"] == [-80.0, 36.0, -79.0, 37.0]
     assert cell["precut_from"] == [NC]
     # The full-state source is bookkept, but never registered for /clip to
     # scan whole.
     assert NC not in state["geofabrik"]["regions"]
     assert state["geofabrik"]["fill_sources"][NC]["md5"]
-    row = state["areas"]["osm/cell-w080-n36"]
+    row = state["areas"]["osm/cell-1d-w080-n36"]
     assert row["pinned"] is False and row["upstream"] == f"geofabrik:{NC}@{PIN}"
 
 
@@ -249,7 +249,7 @@ def test_a_fill_for_the_rest_of_a_clamped_priority_square_supersedes_it(
     tc, worker = _app(tmp_path, root, base_url)
     try:
         _wait_ready(worker, _clip(tc, GREENSBORO).json()["fill"]["fill_id"])
-        assert _clip(tc, GREENSBORO).headers["x-plotlines-clip-source-regions"] == "cell-w080-n36"
+        assert _clip(tc, GREENSBORO).headers["x-plotlines-clip-source-regions"] == "cell-1d-w080-n36"
     finally:
         worker.shutdown()
     regions = json.loads((root / "MIRROR_STATE.json").read_text())["geofabrik"]["regions"]
@@ -264,12 +264,12 @@ def test_evicting_a_filled_cell_unregisters_it_for_clip(tmp_path: Path, geofabri
     try:
         _wait_ready(worker, _clip(tc, GREENSBORO).json()["fill"]["fill_id"])
         worker.store_cap_bytes = 1
-        assert worker.evict() == ["osm/cell-w080-n36"]
+        assert worker.evict() == ["osm/cell-1d-w080-n36"]
     finally:
         worker.shutdown()
     state = json.loads((root / "MIRROR_STATE.json").read_text())
-    assert "cell-w080-n36" not in state["geofabrik"]["regions"]
-    assert not (root / "osm" / "geofabrik" / PIN / "cell-w080-n36.osm.pbf").exists()
+    assert "cell-1d-w080-n36" not in state["geofabrik"]["regions"]
+    assert not (root / "osm" / "geofabrik" / PIN / "cell-1d-w080-n36.osm.pbf").exists()
 
 
 def test_a_geofabrik_outage_is_a_failed_fill_not_a_coverage_answer(
@@ -310,10 +310,11 @@ def test_a_keyless_mirror_never_starts_an_osm_fill_from_clip(tmp_path: Path, geo
 
 
 def test_cells_for_splits_on_the_grid_and_ignores_an_edge_touch() -> None:
-    assert [c[0] for c in cells_for((-79.9, 36.05, -79.75, 36.15))] == ["cell-w080-n36"]
-    assert [c[0] for c in cells_for((-80.0, 36.0, -79.7, 36.2))] == ["cell-w080-n36"]
+    assert [c[0] for c in cells_for((-79.9, 36.05, -79.75, 36.15))] == ["cell-1d-w080-n36"]
+    assert [c[0] for c in cells_for((-80.0, 36.0, -79.7, 36.2))] == ["cell-1d-w080-n36"]
     assert [c[0] for c in cells_for((-80.1, 35.9, -79.9, 36.1))] == [
-        "cell-w082-n34", "cell-w082-n36", "cell-w080-n34", "cell-w080-n36"]
+        "cell-1d-w081-n35", "cell-1d-w081-n36", "cell-1d-w080-n35", "cell-1d-w080-n36"]
+    assert [c[0] for c in cells_for((-79.9, 36.05, -79.75, 36.15), 2.0)] == ["cell-2d-w080-n36"]
 
 
 def test_covering_regions_prefers_the_state_over_overlapping_leaf_aggregates() -> None:
@@ -349,5 +350,5 @@ def test_the_records_seed_the_filled_cell_as_an_unpinned_row(tmp_path: Path, geo
         _wait_ready(worker, _clip(tc, GREENSBORO).json()["fill"]["fill_id"])
     finally:
         worker.shutdown()
-    row = StoreBook(root).records()["osm/cell-w080-n36"]
+    row = StoreBook(root).records()["osm/cell-1d-w080-n36"]
     assert row["seeded"] is False and row["pinned"] is False
