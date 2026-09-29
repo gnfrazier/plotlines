@@ -51,7 +51,26 @@ def test_docker_compose_defines_the_mirror_clip_service() -> None:
     assert "\n  mirror-clip:\n" in _COMPOSE_CONFIG
     assert "image: plotlines-mirror-clip" in _COMPOSE_CONFIG
     _, clip_block = _COMPOSE_CONFIG.split("\n  mirror-clip:\n", 1)
-    assert "/srv/plotlines-mirror:ro" in clip_block
+    # Read-write since #517: the fill worker publishes into the store.
+    assert "/srv/plotlines-mirror:/srv/plotlines-mirror:rw" in clip_block
+
+
+def test_caddy_mounts_the_store_read_only_and_proxies_only_clip_and_fill() -> None:
+    """#517: the file server never writes and never gains logic. Every path
+    other than the worker's two is plain `file_server`, so the store serves
+    with the worker stopped."""
+    caddy_block, _ = _COMPOSE_CONFIG.split("\n  mirror-clip:\n", 1)
+    assert "/srv/plotlines-mirror:/srv/plotlines-mirror:ro" in caddy_block
+    proxied = [line.split()[1] for line in _CADDYFILE_CONFIG.splitlines()
+               if line.strip().startswith("reverse_proxy")]
+    assert proxied == ["/clip*", "/fill*"]
+    assert _CADDYFILE_CONFIG.index("reverse_proxy /fill*") < _CADDYFILE_CONFIG.index("file_server")
+
+
+def test_mirror_clip_keeps_the_fill_journal_outside_the_store() -> None:
+    _, clip_block = _COMPOSE_CONFIG.split("\n  mirror-clip:\n", 1)
+    assert "MIRROR_FILL_STATE_DIR=${MIRROR_FILL_STATE_DIR:-/var/lib/plotlines-mirror-fill}" in clip_block
+    assert "mirror_fill_state:/var/lib/plotlines-mirror-fill" in clip_block
 
 
 def test_mirror_clip_service_publishes_no_host_port() -> None:

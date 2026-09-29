@@ -112,6 +112,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import contextlib
 import hashlib
 import json
 import logging
@@ -126,6 +127,11 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+try:
+    import fcntl  # POSIX; the mirror host is Linux
+except ImportError:  # pragma: no cover
+    fcntl = None  # type: ignore[assignment]
 from typing import Callable
 
 LOG = logging.getLogger("geofabrik_pull")
@@ -979,8 +985,38 @@ def load_state(state_path: Path) -> dict:
         return json.load(f)
 
 
+@contextlib.contextmanager
+def state_lock(state_path: Path):
+    """Exclusive `flock` on `MIRROR_STATE.json.lock` — the same lock the
+    fill worker (`plotlines_service.mirror_fill.StoreBook`, #517) takes
+    around its own read-modify-write of the file."""
+    lock_path = state_path.with_name(state_path.name + ".lock")
+    with open(lock_path, "a") as fh:
+        if fcntl is not None:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(fh, fcntl.LOCK_UN)
+
+
 def save_state(state_path: Path, state: dict) -> None:
-    _atomic_write(state_path, (json.dumps(state, indent=2) + "\n").encode())
+    """Writes `state`, carrying the on-disk `areas` record forward.
+
+    A run holds its `state` from start to finish — hours, for a priority
+    precut — while the fill worker (#517, ARCH D67) keeps writing `areas`
+    rows for what it fills. Writing the stale copy back would silently
+    drop every row filled meanwhile, and eviction would never find those
+    files again. This script never writes `areas`, so the disk copy wins."""
+    with state_lock(state_path):
+        try:
+            on_disk = json.loads(state_path.read_text())
+        except (FileNotFoundError, ValueError):
+            on_disk = {}
+        if "areas" in on_disk:
+            state["areas"] = on_disk["areas"]
+        _atomic_write(state_path, (json.dumps(state, indent=2) + "\n").encode())
 
 
 def run(

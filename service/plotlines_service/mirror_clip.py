@@ -138,6 +138,7 @@ from starlette.background import BackgroundTask
 from plotlines_core.tiles.mirror_state import load_mirror_state
 
 from .logging_setup import configure_logging
+from .mirror_fill import FillWorker, add_fill_routes
 from .version import VERSION
 
 try:
@@ -1012,6 +1013,14 @@ class _RateLimiter:
             self._windows[key] = (window_start, count)
             return count <= self._limit
 
+    def retry_after_s(self, key: str) -> int:
+        """Seconds until `key`'s window resets — the `Retry-After` a 429
+        carries (#517), so a refused caller knows when asking again can
+        work rather than guessing."""
+        with self._lock:
+            start, _ = self._windows.get(key, (self._time_fn(), 0))
+            return max(1, int(self._WINDOW_S - (self._time_fn() - start)) + 1)
+
 
 #: Issue #494. Not a promise about how long any particular caller's clip
 #: still has to run — this process tracks no per-slot start time, only
@@ -1066,7 +1075,12 @@ def create_clip_app(
     cache_dir: Path | None = None,
     cache_max_bytes: int = 0,
     max_concurrent_clips: int = 1,
+    fill_worker: "FillWorker | None" = None,
+    allow_unkeyed_fills: bool = False,
 ) -> FastAPI:
+    """`fill_worker` (#517) mounts D67's `/fill` contract beside `/clip`,
+    sharing its rate limiter; `None` leaves the mirror exactly as it was
+    before fills existed."""
     app = FastAPI(title="plotlines-mirror-clip", version=VERSION)
     work_dir = Path(tmp_dir) if tmp_dir else Path(tempfile.gettempdir())
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -1103,11 +1117,49 @@ def create_clip_app(
                 detail={
                     "error": "rate_limited",
                     "message": (
-                        f"more than {rate_limit_per_minute} /clip requests in "
-                        "the last minute from this address"
+                        f"more than {rate_limit_per_minute} /clip and /fill "
+                        "requests in the last minute from this address"
                     ),
                 },
+                headers={"Retry-After": str(rate_limiter.retry_after_s(_client_ip(request)))},
             )
+
+    def _require_fill_key(request: Request) -> None:
+        """Issue #517: a fill reaches a volunteer or quota-bound upstream,
+        so — unlike `/clip`, which is open when no key is configured — no
+        caller without the client key can start one or read one, whatever
+        the mirror's configuration. That is what keeps the anonymous web
+        reader (SPIKE-F, D59), which never holds the key, from ever
+        starting a fill. `allow_unkeyed_fills` is the local-dev escape
+        hatch and nothing else."""
+        if configured_key is None:
+            if allow_unkeyed_fills:
+                return
+            log.warning("fill REFUSED reason=no_client_key_configured ip=%s",
+                        _client_ip(request))
+            raise HTTPException(
+                401,
+                detail={
+                    "error": "unauthorized_client",
+                    "message": "fills require a client key and this mirror has "
+                               "none configured",
+                },
+            )
+        presented = request.headers.get(CLIENT_KEY_HEADER)
+        if presented is None or not hmac.compare_digest(presented, configured_key):
+            log.warning("fill REFUSED reason=unauthorized_client ip=%s", _client_ip(request))
+            raise HTTPException(
+                401,
+                detail={
+                    "error": "unauthorized_client",
+                    "message": f"this endpoint requires a {CLIENT_KEY_HEADER} header",
+                },
+            )
+
+    def _enforce_fill_start(request: Request) -> None:
+        # Key first, so an unkeyed caller never spends anyone's rate budget.
+        _require_fill_key(request)
+        _enforce_clip_access(request)
 
     def _run_clip(bbox: BBox) -> Response:
         # Validated here, before anything else, so a 400 means the caller's
@@ -1184,6 +1236,15 @@ def create_clip_app(
                 },
             )
 
+        if fill_worker is not None and not result.cache_hit:
+            # #517: a clip is a read of the areas it drew from — the stamp
+            # eviction orders by. Local file I/O, rate-limited per area.
+            for region in result.source_regions:
+                try:
+                    fill_worker.touch("osm", region)
+                except OSError as exc:  # never fail a finished clip over this
+                    log.warning("fill: could not stamp a read of %s: %s", region, exc)
+
         body = result.output_path.read_bytes()
         headers = {
             "Content-Disposition": 'attachment; filename="clip.osm.pbf"',
@@ -1229,10 +1290,22 @@ def create_clip_app(
     def post_clip(body: ClipRequestBody) -> Response:
         return _run_clip((body.west, body.south, body.east, body.north))
 
+    if fill_worker is not None:
+        add_fill_routes(app, fill_worker, start_gate=_enforce_fill_start,
+                        read_gate=_require_fill_key)
+
     @app.get("/health")
     def clip_health() -> dict:
         extracts = discover_region_extracts(root)
         return {
+            "fill": (
+                {
+                    "layers": sorted(fill_worker.fillers),
+                    "in_flight": fill_worker.in_flight(),
+                    "store_cap_bytes": fill_worker.store_cap_bytes,
+                }
+                if fill_worker is not None else None
+            ),
             "ready": True,
             "root": str(root),
             "pinned_extracts": [e.region for e in extracts],
@@ -1322,6 +1395,40 @@ def main(argv: list[str] | None = None) -> int:
              "given the corridor-precut extract's few-MB clips, but an "
              "operator pinning a much larger area should set one.",
     )
+    _fill_state_env = os.environ.get("MIRROR_FILL_STATE_DIR")
+    parser.add_argument(
+        "--fill-state-dir", type=Path,
+        default=(Path(_fill_state_env) if _fill_state_env else None),
+        help="issue #517 (ARCH D67): enables the fill worker and keeps its "
+             "job journal here. Deliberately outside --root: the journal is "
+             "the worker's state, not the store's. Unset leaves /fill "
+             "unmounted and the mirror exactly as it was before fills.",
+    )
+    parser.add_argument(
+        "--fill-layers",
+        default=os.environ.get("MIRROR_FILL_LAYERS", ""),
+        help="comma-separated layers the worker fills (see "
+             "mirror_fill_layers.FILLER_FACTORIES). Empty mounts the "
+             "contract with no layer.",
+    )
+    parser.add_argument(
+        "--fill-workers", type=int,
+        default=int(os.environ.get("MIRROR_FILL_WORKERS", "1")),
+        help="how many fills may run at once on the worker's own pool",
+    )
+    parser.add_argument(
+        "--store-cap-bytes", type=int,
+        default=int(os.environ.get("MIRROR_STORE_CAP_BYTES", "0")),
+        help="the store's size cap. Past it, the least-recently-read "
+             "unpinned filled areas are evicted; seeded areas are pinned. "
+             "0 disables eviction.",
+    )
+    parser.add_argument(
+        "--allow-unkeyed-fills", action="store_true",
+        default=os.environ.get("MIRROR_ALLOW_UNKEYED_FILLS", "") == "1",
+        help="local dev only: let fills run with no --client-key configured. "
+             "Without it, a keyless mirror refuses every fill with 401.",
+    )
     parser.add_argument(
         "--log-level", default="info", choices=("debug", "info", "warning", "error")
     )
@@ -1345,6 +1452,20 @@ def main(argv: list[str] | None = None) -> int:
         bool(client_key), args.rate_limit_per_minute, args.max_concurrent_clips,
     )
 
+    fill_worker = None
+    if args.fill_state_dir is not None:
+        from .mirror_fill_layers import build_fillers
+
+        fill_worker = FillWorker(
+            args.root,
+            build_fillers(args.fill_layers, root=args.root),
+            state_dir=args.fill_state_dir,
+            max_workers=args.fill_workers,
+            store_cap_bytes=args.store_cap_bytes,
+        )
+        log.info("fill worker enabled layers=%s store_cap_bytes=%s state_dir=%s",
+                 sorted(fill_worker.fillers), args.store_cap_bytes, args.fill_state_dir)
+
     app = create_clip_app(
         args.root,
         tmp_dir=args.tmp_dir,
@@ -1353,6 +1474,8 @@ def main(argv: list[str] | None = None) -> int:
         cache_dir=args.cache_dir,
         cache_max_bytes=args.cache_max_bytes,
         max_concurrent_clips=args.max_concurrent_clips,
+        fill_worker=fill_worker,
+        allow_unkeyed_fills=args.allow_unkeyed_fills,
     )
     config = uvicorn.Config(
         app, host=args.host, port=args.port, log_level=args.log_level, access_log=True
