@@ -505,7 +505,7 @@ cover is no longer `404 no_mirror_coverage`:
   `priority-…` cell, the corridor, a filled `cell-…`): clipped as before.
 - **Missing, inside a Geofabrik region**: `202` with a JSON body
   `{"state": "fetching", "fill": {…}}` and `Retry-After`. The worker pulls the
-  covering Geofabrik region(s) and precuts the 2° grid cell; the next `/clip`
+  covering Geofabrik region(s) and precuts the 1° grid cell; the next `/clip`
   after `ready` is a store hit with no Geofabrik request.
 - **No Geofabrik region reaches it** (open ocean): `404 no_upstream_coverage`,
   at once, with no job and no request. Decided from the mirrored
