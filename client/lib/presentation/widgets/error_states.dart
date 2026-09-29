@@ -242,6 +242,27 @@ class CapabilityWarmingNotice extends StatelessWidget {
         ],
       );
     }
+    // Issue #522 (ARCH D67) — the mirror is fetching this area. A wait with
+    // its own mark, distinct from warming and from failure: nothing to
+    // retry, the sidecar polls the fill itself and the control enables when
+    // it lands. And the mirror's terminal "no upstream covers this" is out
+    // of coverage, not a fault — no failure card, no retry.
+    if (status.pendingUpstream || status.noUpstreamCoverage) {
+      final waiting = status.pendingUpstream;
+      return Row(
+        key: ValueKey(waiting ? 'capability-pending-upstream' : 'capability-no-upstream-coverage'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(waiting ? Icons.cloud_download_outlined : Icons.layers_clear_outlined,
+              size: 15, color: c.textMuted),
+          const SizedBox(width: PlotSpacing.s2),
+          Flexible(
+            child: Text(status.describe(capabilityLabel),
+                style: PlotTypography.small(c.textSecondary)),
+          ),
+        ],
+      );
+    }
     // A capability still warming is the quiet one-line notice it always was:
     // nothing has gone wrong and nothing needs deciding (FR121).
     if (!failed) {

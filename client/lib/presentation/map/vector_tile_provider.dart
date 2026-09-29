@@ -41,9 +41,31 @@ const int basemapMaximumZoom = 15;
 /// expensive enough to be worth caching around that.
 class SidecarVectorTileProvider extends VectorTileProvider {
   SidecarVectorTileProvider(this.baseUrl,
-      {this.minimumZoom = 0, this.maximumZoom = basemapMaximumZoom});
+      {this.minimumZoom = 0,
+      this.maximumZoom = basemapMaximumZoom,
+      this.fillWaitBudget = defaultFillWaitBudget,
+      this.maxFillRetryDelay = defaultMaxFillRetryDelay,
+      Future<void> Function(Duration)? sleep})
+      : _sleep = sleep ?? Future<void>.delayed;
 
   final String baseUrl;
+
+  /// Issue #522 — how long one tile keeps waiting on a mirror fill (a 503
+  /// carrying `Retry-After`, #521) before giving up as a retryable miss. A
+  /// basemap cell fill measured 22 s on the Pi (#519) plus queueing behind
+  /// other cells; ten minutes spans that with room, and the map reloads the
+  /// layer anyway once `/health` shows the fill landed.
+  static const Duration defaultFillWaitBudget = Duration(minutes: 10);
+
+  /// The longest one wait between retries, whatever `Retry-After` says. The
+  /// sidecar answers a filling cell's 503 from memory, so looking again
+  /// sooner than a slow fill's poll hint costs nothing and shows the tile
+  /// sooner once the cell lands.
+  static const Duration defaultMaxFillRetryDelay = Duration(seconds: 15);
+
+  final Duration fillWaitBudget;
+  final Duration maxFillRetryDelay;
+  final Future<void> Function(Duration) _sleep;
 
   @override
   final int minimumZoom;
@@ -72,15 +94,39 @@ class SidecarVectorTileProvider extends VectorTileProvider {
   @override
   Future<Uint8List> provide(TileIdentity tile) async {
     final uri = Uri.parse('$baseUrl/tiles/${tile.z}/${tile.x}/${tile.y}');
-    final http.Response resp;
-    try {
-      resp = await http.get(uri).timeout(const Duration(seconds: 10));
-    } catch (e) {
-      throw ProviderException(
-        message: 'sidecar unreachable for tile ${tile.z}/${tile.x}/${tile.y}: $e',
-        retryable: Retryable.retry,
-      );
+    var waited = Duration.zero;
+    while (true) {
+      final http.Response resp;
+      try {
+        resp = await http.get(uri).timeout(const Duration(seconds: 10));
+      } catch (e) {
+        throw ProviderException(
+          message: 'sidecar unreachable for tile ${tile.z}/${tile.x}/${tile.y}: $e',
+          retryable: Retryable.retry,
+        );
+      }
+      // Issue #522 — a 503 with `Retry-After` is the sidecar saying the
+      // mirror is filling this cell (#521): a not-yet. Wait and ask again
+      // inside this same request, so the tile layer never records a miss
+      // for it. A 503 without the header (a wedged upstream read, #514)
+      // is still thrown as retryable straight away.
+      final retryAfter = resp.statusCode == 503 ? _retryAfter(resp) : null;
+      if (retryAfter != null && waited < fillWaitBudget) {
+        final delay = retryAfter > maxFillRetryDelay ? maxFillRetryDelay : retryAfter;
+        await _sleep(delay);
+        waited += delay;
+        continue;
+      }
+      return _accept(resp, tile);
     }
+  }
+
+  static Duration? _retryAfter(http.Response resp) {
+    final seconds = int.tryParse(resp.headers['retry-after']?.trim() ?? '');
+    return seconds == null ? null : Duration(seconds: seconds < 1 ? 1 : seconds);
+  }
+
+  Uint8List _accept(http.Response resp, TileIdentity tile) {
     if (resp.statusCode == 404) {
       throw ProviderException(
         message: 'no basemap tile at ${tile.z}/${tile.x}/${tile.y}',

@@ -47,6 +47,32 @@ class _RoutingReadySidecarManager extends _FakeSidecarManager {
       );
 }
 
+/// Issue #522 — a sidecar whose region `region-1` waits on a mirror fill
+/// until [land] — the next `/health` poll's change, with nothing tapped.
+class _FillingSidecarManager extends _FakeSidecarManager {
+  CapabilityStatus _routing = CapabilityStatus.fromJson(const {
+    'ready': false,
+    'reason': 'The map-data mirror is fetching OSM data for this area from Geofabrik.',
+    'pending_upstream': true,
+    'progress': 0.0,
+    'fill_id': 'osm-cell-1d-40-106',
+    'retry_after_s': 30,
+  });
+
+  void land() {
+    _routing = const CapabilityStatus(ready: true);
+    notifyListeners();
+  }
+
+  @override
+  Capabilities? get capabilities => Capabilities(
+        tiles: const CapabilityStatus(ready: true),
+        layers: const CapabilityStatus(ready: true),
+        routing: RoutingCapability({'region-1': _routing}),
+        elevation: const CapabilityStatus(ready: false, progress: 0),
+      );
+}
+
 /// #338 — records the `discipline` argument every `generateSegment` was
 /// handed, and returns a segment the way `_segmentFromSolveResponse` would.
 class _RecordingRoutingClient extends RoutingClient {
@@ -354,6 +380,36 @@ void main() {
     expect(find.text('ROUTING'), findsOneWidget);
     expect(find.textContaining('draw the trip area before routing is available'),
         findsOneWidget);
+  });
+
+  testWidgets('a mirror fill reads as a wait, then routing opens when it lands '
+      '(issue #522)', (tester) async {
+    final sidecar = _FillingSidecarManager();
+    await _pumpPanel(tester, extraOverrides: [
+      routingClientProvider.overrideWithValue(_RecordingRoutingClient()),
+      sidecarManagerProvider.overrideWith((ref) => sidecar),
+      tripBboxProvider.overrideWith((ref) => TripBboxNotifier()
+        ..set(const TripBbox(
+            minLat: 40.0, minLon: -105.3, maxLat: 40.1, maxLon: -105.2))),
+      tripRegionKeyProvider.overrideWith(
+          (ref) => TripRegionKeyNotifier(ref, settleWindow: Duration.zero)),
+    ]);
+    await _settle(tester);
+
+    expect(find.byKey(const ValueKey('capability-pending-upstream')), findsOneWidget);
+    expect(find.textContaining(kMirrorFetchingSentence), findsOneWidget);
+    expect(find.text('Routing is unavailable'), findsNothing);
+    expect(find.text('Try again'), findsNothing);
+    expect(find.textContaining('Pick which of the trip\'s modes'), findsNothing);
+
+    sidecar.land();
+    await _settle(tester);
+
+    expect(find.byKey(const ValueKey('capability-pending-upstream')), findsNothing);
+    expect(find.textContaining(kMirrorFetchingSentence), findsNothing);
+    // Routing is the ready thing now, so Generate's reason moves on to what
+    // the Author still owes it (no passage mode is preselected, #319).
+    expect(find.textContaining('Pick which of the trip\'s modes'), findsOneWidget);
   });
 
   testWidgets(
