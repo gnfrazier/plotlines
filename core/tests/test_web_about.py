@@ -349,3 +349,13 @@ def test_privacy_statement_names_map_tiles_as_a_mirror_request():
     # drawn — a request the "drawing an area" sentence alone did not cover.
     body = next(p.body for p in PRIVACY_STATEMENT if p.id == "planning_requests")
     assert "map tiles on screen" in body
+
+
+def test_privacy_statement_names_the_mirror_fill_and_who_makes_it():
+    # Issue #521 (ARCH D67): a mirror miss is a fill. Geofabrik and
+    # Protomaps are reached by the mirror, never the device, and the app
+    # waits rather than sending the area to Overpass.
+    body = next(p.body for p in PRIVACY_STATEMENT if p.id == "planning_requests")
+    assert "Geofabrik and Protomaps" in body
+    assert "comes from the mirror, not from this device" in body
+    assert "If no extract covers an area, or the mirror cannot be reached" in body

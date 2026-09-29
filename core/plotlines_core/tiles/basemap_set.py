@@ -272,8 +272,10 @@ class BasemapArchiveSet:
                                        allow_unmirrored=self._allow_unmirrored, stats=stats)
 
     def missing_cells(self, bbox: BBox, cell_degrees: float = 2.0) -> list[BBox]:
-        """The grid squares `bbox` reaches that no archive part contains —
-        what a caller asks the mirror to fill (#521)."""
+        """The grid squares `bbox` reaches where no archive part contains
+        the piece of `bbox` inside the square — each returned whole, since
+        the square is what a caller asks the mirror to fill (#521) and what
+        `/tiles` answers 503 over while it fills."""
         out = []
         west, south, east, north = bbox
         archives = self.archives()
@@ -287,7 +289,7 @@ class BasemapArchiveSet:
                     continue
                 if not any(p[0] <= piece[0] and p[1] <= piece[1] and p[2] >= piece[2]
                            and p[3] >= piece[3] for a in archives for p in a.parts):
-                    out.append(piece)
+                    out.append(square)
         return out
 
     def close(self) -> None:

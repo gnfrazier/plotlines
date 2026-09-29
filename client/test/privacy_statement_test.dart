@@ -55,6 +55,13 @@ void main() {
       expect(body, contains('Plotlines-operated OSM mirror'));
     });
 
+    test('names the mirror fill and that the mirror, not the device, makes it (#521)', () {
+      final body = point('planning_requests').body;
+      expect(body, contains('Geofabrik and Protomaps'));
+      expect(body, contains('comes from the mirror, not from this device'));
+      expect(body, contains('If no extract covers an area, or the mirror cannot be reached'));
+    });
+
     test('names map tiles on screen as a mirror request (issue #154 reopen)', () {
       // Viewing the map outside the home region reads its tiles from the
       // mirror before any area is drawn.

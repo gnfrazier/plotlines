@@ -71,7 +71,7 @@ from plotlines_core.elevation.keys import (
     OpenTopographyClient,
     client_from_env,
 )
-from plotlines_core.elevation.qa_proxy_client import qa_proxy_fetch
+from plotlines_core.elevation.qa_proxy_client import ElevationFilling, qa_proxy_fetch
 from plotlines_core.elevation.sampler import ElevationSampler
 from plotlines_core.graph import extract_fetch
 from plotlines_core.graph import regions as region_lib
@@ -108,7 +108,8 @@ from plotlines_core.tiles.mirror import (
     classify_upstream,
     resolve_upstream,
 )
-from plotlines_core.tiles.basemap_set import BasemapArchiveSet, is_archive_root
+from plotlines_core import mirror_fill_client
+from plotlines_core.tiles.basemap_set import BasemapArchiveSet, _tile_bbox, is_archive_root
 from plotlines_core.tiles.upstream import UpstreamTileReader
 from plotlines_core.tiles.mirror_state import (
     MIRROR_NOT_CONFIGURED,
@@ -298,6 +299,22 @@ def resolve_elevation_wiring(cache_dir: Path, elevation_upstream: str | None,
 
 #: A region whose graph build failed never reaches the elevation phase.
 _ELEVATION_NEEDS_GRAPH = "Elevation needs this area's routing data first"
+
+#: Issue #521 (ARCH D67) — how long routing may wait on a mirror fill before
+#: the wait itself is reported as `failed:fill_timeout`. A fill is a
+#: Geofabrik pull plus a full-state precut scan (~10–30 min on the Pi,
+#: #518/#530); an hour is a stuck fill, not a slow one. Elevation has no
+#: ceiling of its own: its only long wait is a spent OpenTopography
+#: allowance, bounded by the ledger's own reset (#520).
+FILL_WAIT_CEILING_S = 3600.0
+
+#: How soon to look again at a `fetching` fill that gave no `retry_after_s`,
+#: and the bounds any hint is clamped to — a spent allowance can say
+#: "a day", and a poll every five minutes is cheap and keeps the answer
+#: fresh if the budget frees early.
+_FILL_POLL_DEFAULT_S = 15.0
+_FILL_POLL_MIN_S = 2.0
+_FILL_POLL_MAX_S = 300.0
 
 
 def _elevation_absent_reason(wiring: ElevationWiring | None) -> str:
@@ -764,6 +781,26 @@ def _tiles_archive_identity(home_identity: str, upstream_source: str, *,
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:16]
 
 
+def _pending_upstream_dict(detail: str, *, fill_id: str | None,
+                           retry_after_s: float | None, progress: float | None,
+                           since: float | None) -> dict:
+    """The one `/health` shape for a capability waiting on a mirror fill
+    (issue #521, ARCH D67). `reason` stays a finished sentence and
+    `progress` is always present, so a client that predates the state reads
+    it as a wait, never as a stop (#148's progress-without-ETA rule); the
+    new keys say which fill and when to expect movement. `waiting_s` is
+    observed, never an estimate (#397)."""
+    d: dict = {"ready": False, "reason": detail, "pending_upstream": True,
+               "progress": round(progress, 2) if progress is not None else 0.0}
+    if fill_id:
+        d["fill_id"] = fill_id
+    if retry_after_s is not None:
+        d["retry_after_s"] = round(retry_after_s)
+    if since is not None:
+        d["waiting_s"] = round(time.monotonic() - since)
+    return d
+
+
 class CapabilityState:
     """One capability's readiness lifecycle: pending -> loading -> ready|failed,
     plus a fourth terminal state, **provisional** (issue #432, ARCH D62),
@@ -783,6 +820,11 @@ class CapabilityState:
         self.detail = ""
         self.started_at: float | None = None
         self.estimated_s = estimated_s
+        # Issue #521 — set by `wait_upstream` only.
+        self.fill_id: str | None = None
+        self.retry_after_s: float | None = None
+        self.fill_progress: float | None = None
+        self.upstream_since: float | None = None
 
     @property
     def ready(self) -> bool:
@@ -819,6 +861,21 @@ class CapabilityState:
         self.status = "failed"
         self.detail = detail
 
+    def wait_upstream(self, detail: str, *, fill_id: str | None,
+                      retry_after_s: float | None, progress: float | None = None) -> None:
+        """Issue #521 (ARCH D67) — the mirror is fetching what this
+        capability needs: a retryable *not yet*, never `failed`. `detail` is
+        the finished sentence the client shows; the fill's id and poll hint
+        ride beside it. Not `settled`: the region build polls it again on
+        its own, with no Author action."""
+        if self.status != "pending_upstream":
+            self.upstream_since = time.monotonic()
+        self.status = "pending_upstream"
+        self.detail = detail
+        self.fill_id = fill_id
+        self.retry_after_s = retry_after_s
+        self.fill_progress = progress
+
     def progress(self) -> float:
         if self.status in ("ready", "provisional"):
             return 1.0
@@ -838,6 +895,10 @@ class CapabilityState:
     def to_dict(self) -> dict:
         if self.status == "ready":
             return {"ready": True}
+        if self.status == "pending_upstream":
+            return _pending_upstream_dict(
+                self.detail, fill_id=self.fill_id, retry_after_s=self.retry_after_s,
+                progress=self.fill_progress, since=self.upstream_since)
         if self.status == "provisional":
             # `ready: True` (the Author can route on it now) with
             # `provisional: True` alongside — "visibly distinct from ready"
@@ -870,6 +931,36 @@ class RequeueDecision:
     accepted: bool
     reason: str = ""
     bypassed_cooldown: bool = False
+
+
+def _request_basemap_fills(tile_set: BasemapArchiveSet, bbox, client_key: str | None):
+    """Issue #521 — ask the mirror to fill each basemap cell `bbox` reaches
+    that the store lacks (#519's cells). Runs on the tiles build-phase pool
+    behind its deadline, never a request thread. Returns the `(cell,
+    FillAnswer)` pairs still `fetching`. A cell that answers `ready` has
+    landed since the store record was last read, so the record is dropped
+    and the extract that follows sees it. A local store root (dev, tests
+    without a mirror) has no fill to ask."""
+    if not tile_set.source.startswith(("http://", "https://")):
+        return []
+    pending, landed = [], False
+    for cell in tile_set.missing_cells(bbox):
+        answer = mirror_fill_client.request_fill(
+            tile_set.source, "basemap", cell, client_key=client_key, version=VERSION)
+        if answer.fetching:
+            pending.append((cell, answer))
+        elif answer.state == mirror_fill_client.READY:
+            landed = True
+        else:
+            log.info("region tiles: cell %s fill answered %s: %s", cell, answer.state,
+                     answer.detail)
+    if landed:
+        tile_set.invalidate()
+    return pending
+
+
+def _poll_delay(retry_after_s: float | None) -> float:
+    return min(_FILL_POLL_MAX_S, max(_FILL_POLL_MIN_S, retry_after_s or _FILL_POLL_DEFAULT_S))
 
 
 class RegionState:
@@ -948,6 +1039,15 @@ class RegionState:
         # the same region's build twice concurrently or out of order.
         self.queued_at: float | None = None
         self.build_generation = 0
+        # Issue #521 — mirror fills this region is waiting on. Routing's is
+        # on `graph_state` (`pending_upstream`); `upstream_retry_after_s`
+        # is when `Readiness` looks again (whole build). `tiles_fill` is the
+        # basemap cells still `fetching` (a tiles-only retry), and
+        # `elevation_filling` the elevation proxy's own wait (#520; an
+        # elevation-only retry). All three clear on the retry that lands.
+        self.upstream_retry_after_s: float | None = None
+        self.tiles_fill: list | None = None
+        self.elevation_filling = None
         #: True for the whole span of one `build()` call, including the
         #: tiles/elevation phases that run *after* `graph_state` already
         #: reports `ready` — issue #492. Without this, "graph ready but the
@@ -996,6 +1096,32 @@ class RegionState:
         if st.status == "loading":
             return {"ready": False, "reason": st.detail, "progress": 0.0}
         return st.to_dict()
+
+    def tiles_capability(self) -> dict:
+        """`capabilities.tiles.regions[key]` — issue #521. Additive: a
+        region's own basemap archive, or the mirror fill it is waiting on."""
+        if self.tiles_fill:
+            cell, answer = self.tiles_fill[0]
+            waiting = max((a.retry_after_s or 0.0) for _, a in self.tiles_fill) or None
+            return _pending_upstream_dict(
+                "The map-data mirror is fetching the basemap for this area.",
+                fill_id=answer.fill_id, retry_after_s=waiting, progress=answer.progress,
+                since=None) | {"cells": [list(c) for c, _ in self.tiles_fill]}
+        if self.tiles_archive is not None:
+            return {"ready": True}
+        if self.tiles_error:
+            return {"ready": False, "reason": f"failed:{self.tiles_error}"}
+        return {"ready": False, "reason": "pending"}
+
+    def tiles_filling_at(self, tile_bbox) -> float | None:
+        """`retry_after_s` when a basemap cell this region is waiting on
+        reaches `tile_bbox` (#521: `/tiles` answers 503 for it), else
+        `None`. In-memory only — safe on a request thread."""
+        for cell, answer in self.tiles_fill or ():
+            if (cell[0] < tile_bbox[2] and tile_bbox[0] < cell[2]
+                    and cell[1] < tile_bbox[3] and tile_bbox[1] < cell[3]):
+                return answer.retry_after_s or _FILL_POLL_DEFAULT_S
+        return None
 
     def extract_capability(self) -> dict:
         """`capabilities.extract.regions[key]` — issue #274. Only
@@ -1074,6 +1200,16 @@ class RegionState:
             "last_traceback": self.last_traceback,
             "tiles_error": self.tiles_error,
             "tiles_stats": self.tiles_stats,
+            # Issue #521 — every mirror fill this region waits on, per
+            # capability; empty when none.
+            "upstream_wait": {
+                name: cap for name, cap in (
+                    ("routing", self.graph_state.to_dict()),
+                    ("extract", self.extract_state.to_dict()),
+                    ("tiles", self.tiles_capability()),
+                    ("elevation", self.elevation_state.to_dict()),
+                ) if cap.get("pending_upstream")
+            },
         }
 
     def build(self, cache_dir: Path, tiles_upstream: str | Path,
@@ -1156,6 +1292,21 @@ class RegionState:
                 )
                 log.info("region extract OK key=%s bbox=%s reused=%s",
                          self.key, self.bbox, self.extract_state.reused)
+            except extract_fetch.ExtractFilling as exc:
+                # Issue #521 (ARCH D67, D63 phase 2) — the mirror is fetching
+                # this area from Geofabrik. A retryable not-yet: routing
+                # waits on it (`pending_upstream`) rather than failing, and
+                # does **not** fall back to Overpass. Tiles are independent
+                # (PRD D-E) and still run; `Readiness` requeues this build
+                # after the fill's `retry_after_s`, with no Author action.
+                log.info("region extract FILLING key=%s bbox=%s fill_id=%s retry_after_s=%s",
+                         self.key, self.bbox, exc.fill_id, exc.retry_after_s)
+                self._wait_for_routing_fill(exc)
+                self._build_tiles(cache_dir, tiles_upstream, allow_unmirrored,
+                                  build_phase_pools, tile_archive_set,
+                                  mirror_clip_client_key)
+                self.last_attempt_finished_at = time.time()
+                return
             except (extract_fetch.MirrorUnreachable, extract_fetch.NoExtractCoverage) as exc:
                 # Already finished, user-facing sentences (this module's own
                 # #248-style contract) — `ensure_extract` has already set
@@ -1293,6 +1444,64 @@ class RegionState:
             return  # no graph, no point extracting tiles for this region
         self.last_attempt_finished_at = time.time()
 
+        self._build_tiles(cache_dir, tiles_upstream, allow_unmirrored,
+                          build_phase_pools, tile_archive_set, mirror_clip_client_key)
+
+        self._build_elevation(cache_dir, elevation_upstream, elevation_wiring,
+                              build_phase_pools)
+
+    def _wait_for_routing_fill(self, exc: "extract_fetch.ExtractFilling") -> None:
+        """Issue #521 — routing (and the extract under it) wait on a mirror
+        fill: `pending_upstream`, never `failed`. Past `FILL_WAIT_CEILING_S`
+        of waiting the wait itself becomes the failure,
+        `failed:fill_timeout`, naming the fill — and like any failure a later
+        `POST /regions` resumes it (`ensure_region`)."""
+        since = self.graph_state.upstream_since
+        if since is not None and time.monotonic() - since > FILL_WAIT_CEILING_S:
+            minutes = FILL_WAIT_CEILING_S / 60
+            reason = (f"fill_timeout: The map-data mirror didn't finish fetching this "
+                      f"area within {minutes:.0f} minutes (fill {exc.fill_id}). "
+                      f"Try again to keep waiting.")
+            self.graph_state.fail(reason)
+            self.extract_state.status = "failed"
+            self.extract_state.detail = "fill_timeout"
+            self.elevation_state.fail(_ELEVATION_NEEDS_GRAPH)
+            self.failed_at = time.monotonic()
+            self.upstream_retry_after_s = None
+            log.warning("region build FILL TIMEOUT key=%s fill_id=%s", self.key, exc.fill_id)
+            return
+        self.graph_state.wait_upstream(
+            "The map-data mirror is fetching OpenStreetMap data for this area. "
+            "Routing will be ready when it lands — usually a few minutes.",
+            fill_id=exc.fill_id, retry_after_s=exc.retry_after_s)
+        self.upstream_retry_after_s = exc.retry_after_s or _FILL_POLL_DEFAULT_S
+
+    def _build_tiles(self, cache_dir: Path, tiles_upstream: str | Path,
+                     allow_unmirrored: bool, build_phase_pools: "RegionBuildPhasePools",
+                     tile_archive_set: BasemapArchiveSet | None,
+                     mirror_client_key: str | None) -> None:
+        """The region's on-demand tile archive (FR94). Independent of
+        routing (B1) — also run while routing waits on a fill (#521).
+        Against a store root (#519), a cell the store lacks is asked of the
+        mirror's fill (`POST /fill`, on this phase's pool behind its
+        deadline — never a request thread); while any is `fetching` the
+        extract waits (`tiles_fill`), `/tiles` answers that cell's addresses
+        with a retryable 503, and `Readiness` retries this phase alone."""
+        self.tiles_error = None
+        if tile_archive_set is not None and self.tiles_archive is None:
+            try:
+                pending = _run_build_phase(
+                    build_phase_pools.tiles, _TILES_PHASE_TIMEOUT_S,
+                    lambda: _request_basemap_fills(tile_archive_set, self.bbox,
+                                                   mirror_client_key),
+                )
+            except Exception as exc:  # noqa: BLE001 — best-effort, like the extract below
+                pending = []
+                log.warning("region tiles: fill request FAILED key=%s: %s", self.key, exc)
+            self.tiles_fill = pending or None
+            if pending:
+                log.info("region tiles FILLING key=%s cells=%d", self.key, len(pending))
+                return
         # Tiles are best-effort and independent of routing (B1: one
         # capability's failure never blocks another) — a bbox outside the
         # configured tile source's coverage leaves `/tiles` to answer
@@ -1338,8 +1547,6 @@ class RegionState:
             log.warning("region tiles FAILED key=%s bbox=%s: %s\n%s",
                         self.key, self.bbox, self.tiles_error, traceback.format_exc())
 
-        self._build_elevation(cache_dir, elevation_upstream, elevation_wiring,
-                              build_phase_pools)
 
     def _elevation_resolver(self, cache_dir: Path, wiring: ElevationWiring,
                             elevation_upstream: str | None) -> ElevationResolver:
@@ -1351,12 +1558,24 @@ class RegionState:
         only when no key is configured)."""
         if wiring.source == "qa_proxy":
             e_cache = LocalCacheSource(CacheLayout(cache_dir).elevation_dir)
+
+            def fetch(base_url, bbox, dest):
+                # Issue #521 — `HttpElevationSource` reads any raise as a
+                # miss, which is right for a failure and wrong for the
+                # proxy's `202 fetching` (#520): that is a wait. Kept here
+                # so `_build_elevation` can tell the two apart.
+                try:
+                    return qa_proxy_fetch(base_url, bbox, dest)
+                except ElevationFilling as exc:
+                    self.elevation_filling = exc
+                    raise
+
             return ElevationResolver([
                 e_cache,
                 HttpElevationSource(
                     elevation_upstream,
                     name="qa-elevation-proxy",
-                    fetch=qa_proxy_fetch,
+                    fetch=fetch,
                     write_back=e_cache,
                 ),
             ])
@@ -1387,6 +1606,7 @@ class RegionState:
         if wiring is None:
             wiring = ElevationWiring("local_cache", None, ELEVATION_NOT_CONFIGURED)
         self.elevation_state.start("fetching terrain data for this area")
+        self.elevation_filling = None
         t0 = time.monotonic()
         try:
             resolver = self._elevation_resolver(cache_dir, wiring, elevation_upstream)
@@ -1396,6 +1616,19 @@ class RegionState:
                     lambda: resolver.resolve(self.bbox),
                 )
             except ElevationUnavailable as exc:
+                filling = self.elevation_filling
+                if filling is not None:
+                    # Issue #521 — the proxy is fetching this area (or
+                    # waiting for its shared allowance, #520): a wait, never
+                    # flat terrain and never `elevation_source_not_configured`.
+                    log.info("region elevation FILLING key=%s fill_id=%s retry_after_s=%s",
+                             self.key, filling.fill_id, filling.retry_after_s)
+                    self.sampler = None
+                    self.elevation_state.wait_upstream(
+                        filling.detail or "The elevation service is fetching terrain "
+                                          "data for this area.",
+                        fill_id=filling.fill_id, retry_after_s=filling.retry_after_s)
+                    return
                 log.warning("region elevation UNAVAILABLE key=%s bbox=%s source=%s: %s",
                             self.key, self.bbox, wiring.source, exc)
                 self.sampler = None
@@ -1549,11 +1782,20 @@ class Readiness:
         # in-flight. Written only by `_run_build`, under `_lock`.
         self._active_build_key: str | None = None
         self._active_build_started_at: float | None = None
+        # Issue #521 — the timers that look again at a mirror fill a region
+        # is waiting on. Each fires once, submits onto `_build_pool` (so a
+        # poll never overlaps a build), and is cancelled by `shutdown`.
+        self._fill_timers: list[threading.Timer] = []
+        self._closed = False
 
     def shutdown(self) -> None:
         """Stop accepting builds and abandon any still queued. In-flight
         builds are left to finish (or be killed with the process); this
         only exists so a test / hosted-mode reload does not leak the pool."""
+        with self._lock:
+            self._closed = True
+            for timer in self._fill_timers:
+                timer.cancel()
         self._build_pool.shutdown(wait=False, cancel_futures=True)
         self._mirror_state_pool.shutdown(wait=False, cancel_futures=True)
         self._candidate_fetch_pool.shutdown(wait=False, cancel_futures=True)
@@ -1615,6 +1857,7 @@ class Readiness:
                         region.build_attempts, manual, decision.bypassed_cooldown,
                         region.automatic_requeues, region.last_error)
                     region.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
+                    region.upstream_retry_after_s = None
                     self._queue_build(region)
                 elif region.graph_state.status == "failed":
                     # Leave the region `failed`, but make the wait legible on
@@ -1677,6 +1920,84 @@ class Readiness:
                 if self._active_build_key == region.key:
                     self._active_build_key = None
                     self._active_build_started_at = None
+        self._schedule_fill_polls(region)
+
+    # -- issue #521: waiting on mirror fills ------------------------------------
+
+    def _later(self, delay_s: float, fn: Callable[[], None]) -> None:
+        def fire():
+            with self._lock:
+                if self._closed:
+                    return
+            try:
+                self._build_pool.submit(fn)
+            except RuntimeError:  # pool shut down between the check and here
+                pass
+
+        timer = threading.Timer(delay_s, fire)
+        timer.daemon = True
+        with self._lock:
+            if self._closed:
+                return
+            self._fill_timers = [t for t in self._fill_timers if t.is_alive()]
+            self._fill_timers.append(timer)
+        timer.start()
+
+    def _schedule_fill_polls(self, region: "RegionState") -> None:
+        """After a build or a phase retry: look again, on a timer, at
+        whatever mirror fill this region is still waiting on (issue #521).
+        Routing waiting means the whole build reruns (nothing after the
+        extract ran); otherwise tiles and elevation retry alone, so a
+        ready graph is never reloaded to wait for a basemap cell. The
+        region's `build_generation` is captured, so a newer build (an
+        Author's retry) supersedes a poll scheduled for the old one."""
+        generation = region.build_generation
+        if region.graph_state.status == "pending_upstream":
+            self._later(_poll_delay(region.upstream_retry_after_s),
+                        lambda: self._requeue_for_fill(region, generation))
+            return
+        if region.tiles_fill:
+            wait = min((a.retry_after_s or _FILL_POLL_DEFAULT_S) for _, a in region.tiles_fill)
+            self._later(_poll_delay(wait),
+                        lambda: self._retry_phase(region, generation, "tiles"))
+        if region.elevation_state.status == "pending_upstream":
+            self._later(_poll_delay(region.elevation_state.retry_after_s),
+                        lambda: self._retry_phase(region, generation, "elevation"))
+
+    def _requeue_for_fill(self, region: "RegionState", generation: int) -> None:
+        with self._lock:
+            if (region.build_generation != generation
+                    or region.graph_state.status != "pending_upstream"):
+                return
+        log.info("region build POLL FILL key=%s fill_id=%s", region.key,
+                 region.graph_state.fill_id)
+        self._queue_build(region)
+
+    def _retry_phase(self, region: "RegionState", generation: int, phase: str) -> None:
+        """One phase again, alone — runs on `_build_pool` (via `_later`), so
+        it never overlaps a build, and each network step inside it is on
+        that phase's own pool behind its deadline (D66)."""
+        if region.build_generation != generation:
+            return
+        if phase == "tiles":
+            region._build_tiles(
+                self.cache_dir, self.tiles_upstream, self.allow_unmirrored,
+                self._build_phase_pools,
+                self.upstream_tiles if isinstance(self.upstream_tiles, BasemapArchiveSet)
+                else None,
+                self.mirror_clip_client_key)
+            if region.tiles_fill:
+                self._later(_poll_delay(min((a.retry_after_s or _FILL_POLL_DEFAULT_S)
+                                            for _, a in region.tiles_fill)),
+                            lambda: self._retry_phase(region, generation, "tiles"))
+        elif phase == "elevation":
+            if region.elevation_state.status != "pending_upstream":
+                return
+            region._build_elevation(self.cache_dir, self.elevation_upstream,
+                                    self.elevation_wiring, self._build_phase_pools)
+            if region.elevation_state.status == "pending_upstream":
+                self._later(_poll_delay(region.elevation_state.retry_after_s),
+                            lambda: self._retry_phase(region, generation, "elevation"))
 
     def _apply_build_queue_watchdog(
         self, regions: list[tuple[str, "RegionState"]],
@@ -2415,6 +2736,10 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                     "archive": tiles_archive_id,
                     "upstream": _with_upstream_coverage(
                         tiles_upstream_capability, state.upstream_tiles),
+                    # Issue #521 — each region's own basemap archive, or the
+                    # mirror fill it waits on. Additive.
+                    "regions": {key: region.tiles_capability()
+                                for key, region in state.snapshot()},
                 },
                 "layers": layers_cap,
                 "routing": {"regions": state.routing_capabilities()},
@@ -3129,6 +3454,18 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 raise HTTPException(503, str(exc)) from exc
             if data is not None:
                 return _tile_response(data, info)
+
+        # Issue #521 — a miss inside a basemap cell the mirror is filling
+        # for one of this sidecar's regions is a retryable not-yet: 503 with
+        # Retry-After, never the 404 that means "no tile here". In-memory
+        # only; nothing here waits on the fill.
+        tile_box = _tile_bbox(z, x, y)
+        for _key, region in state.snapshot():
+            wait = region.tiles_filling_at(tile_box)
+            if wait is not None:
+                raise HTTPException(
+                    503, "the map-data mirror is fetching the basemap here",
+                    headers={"Retry-After": str(max(1, round(_poll_delay(wait))))})
 
         raise HTTPException(404, f"no basemap tile at z={z} x={x} y={y}")
 
