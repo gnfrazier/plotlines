@@ -998,14 +998,19 @@ def state_lock(state_path: Path):
     fill worker (`plotlines_service.mirror_fill.StoreBook`, #517) takes
     around its own read-modify-write of the file."""
     lock_path = state_path.with_name(state_path.name + ".lock")
-    with open(lock_path, "a") as fh:
+    # Read-only: `flock` needs no write access, so a lock file another user
+    # created (the fill worker) never blocks this script (#517 follow-up).
+    fd = os.open(lock_path, os.O_RDONLY | os.O_CREAT, 0o644)
+    try:
         if fcntl is not None:
-            fcntl.flock(fh, fcntl.LOCK_EX)
+            fcntl.flock(fd, fcntl.LOCK_EX)
         try:
             yield
         finally:
             if fcntl is not None:
-                fcntl.flock(fh, fcntl.LOCK_UN)
+                fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
 
 
 def save_state(state_path: Path, state: dict) -> None:
@@ -1024,6 +1029,9 @@ def save_state(state_path: Path, state: dict) -> None:
         if "areas" in on_disk:
             state["areas"] = on_disk["areas"]
         _atomic_write(state_path, (json.dumps(state, indent=2) + "\n").encode())
+        # Served as a plain file and shared with the fill worker: never
+        # mkstemp's 0600 (#517 follow-up).
+        os.chmod(state_path, 0o644)
 
 
 def run(

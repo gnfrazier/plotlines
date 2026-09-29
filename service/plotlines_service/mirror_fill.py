@@ -82,6 +82,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from stat import S_IMODE as stat_mode
 from typing import Callable, Iterable, Mapping, Protocol
 
 from pydantic import BaseModel
@@ -239,6 +240,40 @@ class LayerFiller(Protocol):
     def fetch(self, area: AreaPlan, ctx: "FillContext") -> FilledArea: ...
 
 
+#: The mode every file the worker leaves in the store gets: world-readable,
+#: owner-writable. The store is served as plain files, and the mirror's own
+#: scripts run as its owner, not as whoever the worker runs as (#517's
+#: follow-up: a root worker wrote MIRROR_STATE.json 0600 and locked the
+#: `greg`-run re-cut out of its own state file).
+STORE_FILE_MODE = 0o644
+
+
+def open_state_lock(lock_path: Path) -> int:
+    """The state file's `flock` target, opened **read-only** — `flock` needs
+    no write access, so a lock file created by another user (the cron
+    scripts, or a worker running as someone else) never blocks this caller.
+    Created 0644 if absent. Returns an fd; the caller closes it."""
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    return os.open(lock_path, os.O_RDONLY | os.O_CREAT, STORE_FILE_MODE)
+
+
+def replace_keeping_mode(tmp: Path | str, dest: Path) -> None:
+    """`os.replace(tmp, dest)`, but `dest` keeps the mode (and, for a
+    process that may chown, the owner) it had — or gets `STORE_FILE_MODE`
+    and its directory's owner when new. `mkstemp`'s 0600 must never reach a
+    store path: the scripts that share the store run as its owner."""
+    try:
+        st = dest.stat()
+        mode, uid, gid = stat_mode(st.st_mode), st.st_uid, st.st_gid
+    except FileNotFoundError:
+        parent = dest.parent.stat()
+        mode, uid, gid = STORE_FILE_MODE, parent.st_uid, parent.st_gid
+    os.chmod(tmp, mode)
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        os.chown(tmp, uid, gid)
+    os.replace(tmp, dest)
+
+
 class FillContext:
     """What `fetch` gets: a progress callback and the one publish path into
     the store."""
@@ -273,7 +308,7 @@ class FillContext:
         one, never a half-written one."""
         final = self.root / rel_path
         final.parent.mkdir(parents=True, exist_ok=True)
-        os.replace(staged, final)
+        replace_keeping_mode(staged, final)
         return final
 
 
@@ -390,15 +425,20 @@ class StoreBook:
                 self_inner.fh = None
                 if fcntl is not None:
                     lock_path = book.state_path.with_name(book.state_path.name + ".lock")
-                    lock_path.parent.mkdir(parents=True, exist_ok=True)
-                    self_inner.fh = open(lock_path, "a")
-                    fcntl.flock(self_inner.fh, fcntl.LOCK_EX)
+                    try:
+                        self_inner.fh = open_state_lock(lock_path)
+                        fcntl.flock(self_inner.fh, fcntl.LOCK_EX)
+                    except BaseException:
+                        if self_inner.fh is not None:
+                            os.close(self_inner.fh)
+                        book._lock.release()
+                        raise
                 return self_inner
 
             def __exit__(self_inner, *exc):
                 if self_inner.fh is not None:
                     fcntl.flock(self_inner.fh, fcntl.LOCK_UN)
-                    self_inner.fh.close()
+                    os.close(self_inner.fh)
                 book._lock.release()
 
         return _Guard()
@@ -415,7 +455,7 @@ class StoreBook:
         try:
             with os.fdopen(fd, "w") as f:
                 f.write(json.dumps(state, indent=2) + "\n")
-            os.replace(tmp, self.state_path)
+            replace_keeping_mode(tmp, self.state_path)
         except BaseException:
             Path(tmp).unlink(missing_ok=True)
             raise
@@ -1070,3 +1110,44 @@ def add_fill_routes(app, worker: FillWorker, *, start_gate, read_gate) -> None:
                 "message": f"no fill {fill_id!r} on this mirror (finished fills "
                            "drop out after a day; request the area again)"})
         return _respond(status)
+
+
+# --------------------------------------------------------------------------
+# Running as the store's owner
+# --------------------------------------------------------------------------
+
+
+def run_as_store_owner(root: Path, own: Iterable[Path] = (), *, ops=os) -> tuple[int, int] | None:
+    """Drop from root to the store's owner before the worker starts (#517's
+    follow-up, found on the Pi 2026-09-29).
+
+    The container runs as root; the store on the host belongs to the user
+    whose cron scripts write it (`geofabrik_pull.py`, the precut runs). A
+    root worker left root-owned files in a shared tree — `MIRROR_STATE.json`
+    rewritten 0600, and every Geofabrik pull, `.md5`, `.poly` and precut a
+    fill writes — and the next script run died on `PermissionError`.
+    Running as the store root's own uid/gid makes everything the worker
+    writes, through any code path, the same as what the scripts write.
+
+    `own` are the worker's private directories (the fill journal, the clip
+    cache, scratch) — handed to that user first, since a named volume
+    starts root-owned. A no-op when not root, or when the store itself is
+    root-owned. Returns the `(uid, gid)` switched to, else `None`."""
+    if not hasattr(ops, "geteuid") or ops.geteuid() != 0:
+        return None
+    st = ops.stat(root)
+    uid, gid = st.st_uid, st.st_gid
+    if uid == 0:
+        return None
+    for top in own:
+        top = Path(top)
+        top.mkdir(parents=True, exist_ok=True)
+        for dirpath, dirnames, filenames in os.walk(top):
+            ops.chown(dirpath, uid, gid)
+            for name in filenames:
+                ops.chown(os.path.join(dirpath, name), uid, gid)
+    ops.setgroups([])
+    ops.setgid(gid)
+    ops.setuid(uid)
+    log.info("fill worker running as the store's owner uid=%d gid=%d", uid, gid)
+    return uid, gid

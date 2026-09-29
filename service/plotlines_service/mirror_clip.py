@@ -145,6 +145,7 @@ from .mirror_fill import (
     FillWorker,
     add_fill_routes,
     is_failed,
+    run_as_store_owner,
 )
 from .version import VERSION
 
@@ -1455,6 +1456,13 @@ def main(argv: list[str] | None = None) -> int:
         VERSION, args.host, args.port, args.root,
         bool(client_key), args.rate_limit_per_minute, args.max_concurrent_clips,
     )
+
+    # Before anything touches the store: a root process (the container)
+    # becomes the store's owner, so the fill worker's writes — and every
+    # Geofabrik pull a fill makes — belong to the same user the mirror's
+    # own scripts run as (#517 follow-up).
+    run_as_store_owner(args.root, [p for p in (args.fill_state_dir, args.cache_dir,
+                                               args.tmp_dir) if p is not None])
 
     fill_worker = None
     if args.fill_state_dir is not None:

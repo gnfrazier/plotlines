@@ -496,6 +496,18 @@ staging file under the store is removed — a killed worker leaves no partial fi
 at a store path and no job `fetching` forever. A job whose *run* passes an hour
 is `failed:timeout`.
 
+**Who the worker writes as.** The store is shared with the mirror's own
+scripts (`geofabrik_pull.py`, the precut runs), which run as the store's
+owner. The container starts as root, so `mirror_clip` takes its uid/gid from
+the store root (`/srv/plotlines-mirror`), hands the fill journal, clip cache and
+scratch directories to that user, and drops privileges before the worker
+starts. Everything a fill writes, through any code path, is then owned like
+what the scripts write. Beyond that, no write depends on the uid:
+`MIRROR_STATE.json` keeps its mode (0644), published files are 0644, and every
+writer opens `MIRROR_STATE.json.lock` read-only for `flock`, so a lock another
+user created never blocks it. (Found on the Pi on 2026-09-29: a root worker
+rewrote the state file root-owned 0600, and the `greg`-run re-cut died with
+`PermissionError`.) If the store is owned by root, the worker stays root.
 ### The OSM fill (issue #518)
 
 `MIRROR_FILL_LAYERS=osm` puts `/clip` on the fill. A bbox the store doesn't

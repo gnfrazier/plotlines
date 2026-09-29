@@ -412,9 +412,12 @@ def publish_basemap_extract(
         raise
 
     # #517: the fill worker writes this file too, under the same lock.
-    lock_fh = open(state_path.with_name(state_path.name + ".lock"), "a")
+    # Read-only: `flock` needs no write access, so a lock file another user
+    # created (the fill worker) never blocks this script (#517 follow-up).
+    lock_fd = os.open(state_path.with_name(state_path.name + ".lock"),
+                      os.O_RDONLY | os.O_CREAT, 0o644)
     if fcntl is not None:
-        fcntl.flock(lock_fh, fcntl.LOCK_EX)
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
     try:
         state = _read_state(state_path)
         _merge_region(state, region_name=region_name, bbox=bbox, build_id=build_id,
@@ -423,8 +426,8 @@ def publish_basemap_extract(
         _write_state(root, state_path, state)
     finally:
         if fcntl is not None:
-            fcntl.flock(lock_fh, fcntl.LOCK_UN)
-        lock_fh.close()
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
 
     LOG.info("published %s (%d bytes) -> %s", source_url, dest.stat().st_size, dest)
     if cli_output:
@@ -474,6 +477,7 @@ def _write_state(root: Path, state_path: Path, state: dict) -> None:
         with os.fdopen(fd, "w") as f:
             json.dump(state, f, indent=2)
             f.write("\n")
+        os.chmod(tmp_state_name, 0o644)  # never mkstemp's 0600 (#517 follow-up)
         os.replace(tmp_state_name, state_path)
     except BaseException:
         Path(tmp_state_name).unlink(missing_ok=True)

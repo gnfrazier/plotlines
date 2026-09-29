@@ -192,3 +192,24 @@ def test_publish_path_is_the_one_the_client_defaults_to() -> None:
     source = _SCRIPT_PATH.read_text()
     assert f'BUILD_ID = "{mirror.PRIORITY_REGIONS_BUILD_ID}"' in source
     assert f'FILENAME = "{mirror.PRIORITY_REGIONS_FILENAME}"' in source
+
+
+def test_record_parts_works_with_a_lock_this_user_cannot_write(fake_pmtiles_bin, mirror_root) -> None:
+    """#517 follow-up: the lock is opened read-only for `flock`, so one the
+    fill worker created (another user, on the Pi) never blocks this script,
+    and the state file it writes stays 0644, not mkstemp's 0600."""
+    candidates = pb.selected_candidates({"yellowstone"})
+    pb.prewarm(root=mirror_root, candidates=candidates, build_date="20260923",
+               pmtiles_bin=str(fake_pmtiles_bin), now=datetime(2026, 9, 24, tzinfo=timezone.utc))
+    state_path = mirror_root / "MIRROR_STATE.json"
+    state = json.loads(state_path.read_text())
+    del state["basemap"]["covered_regions"]["priority-regions"]["parts"]
+    state_path.write_text(json.dumps(state))
+    lock = mirror_root / "MIRROR_STATE.json.lock"
+    lock.touch()
+    lock.chmod(0o444)
+
+    pb.record_parts(mirror_root, pb.area_bboxes(candidates))
+    entry = json.loads(state_path.read_text())["basemap"]["covered_regions"]["priority-regions"]
+    assert entry["parts"]
+    assert state_path.stat().st_mode & 0o777 == 0o644
