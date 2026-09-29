@@ -150,6 +150,13 @@ DEFAULT_BACKOFF_BASE = timedelta(hours=1)
 DEFAULT_BACKOFF_CAP = timedelta(days=7)
 DEFAULT_REQUEST_SPACING = timedelta(minutes=2)
 
+#: Socket timeout on every Geofabrik request (#518). Run from cron, an
+#: unbounded read only stalled one night's pull; run inside the mirror's
+#: fill worker, it would hold the fill queue for good. It bounds a stalled
+#: read, not a stalled DNS lookup (#488's finding) — the worker's own job
+#: timeout reports that case.
+SOCKET_TIMEOUT_S = 120.0
+
 #: Geofabrik region paths look like `north-america/us/north-carolina`. This
 #: guards against a typo'd or hostile `--region` value being used to build a
 #: filesystem path (e.g. `..`, a leading `/`, or an unexpected scheme).
@@ -258,7 +265,7 @@ def _index_url(base_url: str) -> str:
 
 def _get(url: str, *, user_agent: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": user_agent})
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=SOCKET_TIMEOUT_S) as resp:
         return resp.read()
 
 
@@ -279,7 +286,7 @@ def _get_conditional(
         headers["If-None-Match"] = etag
     req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=SOCKET_TIMEOUT_S) as resp:
             return resp.read(), resp.headers.get("ETag")
     except urllib.error.HTTPError as exc:
         if exc.code == 304:
@@ -289,7 +296,7 @@ def _get_conditional(
 
 def _get_streaming(url: str, dest: Path, *, user_agent: str) -> None:
     req = urllib.request.Request(url, headers={"User-Agent": user_agent})
-    with urllib.request.urlopen(req) as resp, open(dest, "wb") as f:
+    with urllib.request.urlopen(req, timeout=SOCKET_TIMEOUT_S) as resp, open(dest, "wb") as f:
         while True:
             chunk = resp.read(1024 * 1024)
             if not chunk:

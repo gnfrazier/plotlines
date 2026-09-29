@@ -167,6 +167,49 @@ def test_fetch_extract_raises_no_extract_coverage_on_404(tmp_path: Path) -> None
     assert not isinstance(excinfo.value, ef.MirrorUnreachable)
 
 
+def test_fetch_extract_raises_no_extract_coverage_on_no_upstream_coverage(
+    tmp_path: Path,
+) -> None:
+    """#518: a filling mirror's terminal 404 is a coverage fact too — but
+    not one a monthly pin update will change."""
+    def _urlopen(req, timeout=None):
+        raise _http_error(
+            404, b'{"detail": {"error": "no_upstream_coverage", "message": "ocean"}}'
+        )
+
+    progress = ef.DownloadProgress()
+    with pytest.raises(ef.NoExtractCoverage) as excinfo:
+        ef.fetch_extract(_BBOX, mirror_url="http://mirror.example",
+                          cache_dir=tmp_path, progress=progress, urlopen=_urlopen)
+    assert "nothing to fetch it from" in str(excinfo.value)
+    assert progress.detail == "no_upstream_coverage"
+
+
+def test_fetch_extract_raises_extract_filling_on_202_and_caches_nothing(
+    tmp_path: Path,
+) -> None:
+    """#518: a 202 carries JSON, never an extract. It must not land in the
+    cache, and it reads as transient to a caller that knows nothing of
+    fills (a `MirrorUnreachable`)."""
+    body = (b'{"state": "fetching", "fill": {"fill_id": "abc", "state": "fetching", '
+            b'"detail": "pulling north-carolina", "retry_after_s": 30}}')
+
+    def _urlopen(req, timeout=None):
+        response = _FakeResponse(body, {"Retry-After": "30"})
+        response.status = 202
+        return response
+
+    progress = ef.DownloadProgress()
+    with pytest.raises(ef.ExtractFilling) as excinfo:
+        ef.fetch_extract(_BBOX, mirror_url="http://mirror.example",
+                          cache_dir=tmp_path, progress=progress, urlopen=_urlopen)
+    assert isinstance(excinfo.value, ef.MirrorUnreachable)
+    assert excinfo.value.fill_id == "abc"
+    assert excinfo.value.retry_after_s == 30
+    assert "fetching" in str(excinfo.value)
+    assert not list(tmp_path.rglob("*.osm.pbf"))
+
+
 def test_fetch_extract_raises_mirror_unreachable_on_connection_failure(tmp_path: Path) -> None:
     def _urlopen(req, timeout=None):
         raise urllib.error.URLError("connection refused")

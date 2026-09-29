@@ -495,6 +495,61 @@ one that was waiting on a quota deferral is rescheduled, and every `.fill-*`
 staging file under the store is removed — a killed worker leaves no partial file
 at a store path and no job `fetching` forever. A job whose *run* passes an hour
 is `failed:timeout`.
+
+### The OSM fill (issue #518)
+
+`MIRROR_FILL_LAYERS=osm` puts `/clip` on the fill. A bbox the store doesn't
+cover is no longer `404 no_mirror_coverage`:
+
+- **Covered** (every part of the bbox is inside a stored precut — a seeded
+  `priority-…` cell, the corridor, a filled `cell-…`): clipped as before.
+- **Missing, inside a Geofabrik region**: `202` with a JSON body
+  `{"state": "fetching", "fill": {…}}` and `Retry-After`. The worker pulls the
+  covering Geofabrik region(s) and precuts the 1° grid cell; the next `/clip`
+  after `ready` is a store hit with no Geofabrik request.
+- **No Geofabrik region reaches it** (open ocean): `404 no_upstream_coverage`,
+  at once, with no job and no request. Decided from the mirrored
+  `index-v1.json` (`geofabrik_pull.py --pull-index`, #259).
+- **The fill failed** (Geofabrik unreachable, backing off): `503 fill_failed`
+  with `Retry-After` — transient, never a coverage answer.
+
+A keyless mirror's open `/clip` never starts a fill; it answers the old `404`.
+
+**The precut unit is a 1° grid cell**, nested inside #530's 2° grid. Fill
+cells are `cell-1d-wNNN-nNN` and cover the whole square; a filled cell
+supersedes a `priority-…` cell whose clamped extent it contains (the file stays
+on disk). Why that unit — measured on the Pi 5, pin `2026-09-18`,
+2026-09-28:
+
+| Pinned extract `/clip` reads | Size | Trip bbox | `/clip` wall time |
+|---|---|---|---|
+| full-state North Carolina (#402) | ~620 MB | Asheville cell | 617 s |
+| #530's 2° cell `priority-w080-n36` | 118 MB | Greensboro, 0.15° × 0.10° | **166.6 s** |
+| a 1° cell cut from the same square | 43 MB | Greensboro, 0.15° × 0.10° | **54.8 s** |
+| the same 1° cell | 43 MB | 0.45° × 0.30° | 70.9 s |
+| four 2° cells (a bbox corner on the grid line — #542) | ~495 MB | Greensboro, 0.3° × 0.2° | 576.3 s |
+
+A precut costs one full scan of its sources whatever the cell size — 450–1,675
+s per 2° cell in #530's run, 636.8 s for the 1° cut above — so the 1° cell
+costs nothing extra per fill and a third per clip. It is the unit that brings
+a typical trip's `/clip` inside SPIKE-I's ≤60 s outer band. A bbox+buffer
+precut would clip faster still but pays that full scan again for every trip
+and reuses nothing; the whole state is the 617 s row.
+
+The seeded priority cells are still 2°: a trip inside one clips in ~170 s
+until they are re-cut with `geofabrik_pull.py --precut-priority-regions
+--precut-cell-degrees 1` (the user's Pi step).
+
+**Etiquette is `geofabrik_pull.py`'s own.** The fill calls `pull_region` —
+at-most-daily cadence, `.md5` before any body, the Plotlines `User-Agent`,
+verify-before-publish, backoff, and #530's two-minute spacing between
+requests — so two fills in one state inside 24 h make one download (the second
+makes no request at all). Full-state sources are bookkept under
+`geofabrik.fill_sources`, never registered in `geofabrik.regions`: registered,
+every `/clip` touching the state would scan it whole. The container ships
+`geofabrik_pull.py` at `/app/deploy/mirror/` for this; a fill writes the
+source into the current pin directory, so it may be newer than the pin's date
+until the next monthly re-pin realigns it.
 `service/tests/test_mirror_clip_server.py` covers both mechanisms
 hermetically; setting a real key on the live Pi is an operator step, not
 something a hermetic test can exercise.

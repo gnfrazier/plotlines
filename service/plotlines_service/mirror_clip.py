@@ -131,14 +131,20 @@ from typing import Callable, Iterable
 import osmium
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
 from plotlines_core.tiles.mirror_state import load_mirror_state
 
 from .logging_setup import configure_logging
-from .mirror_fill import FillWorker, add_fill_routes
+from .mirror_fill import (
+    FETCHING,
+    NO_UPSTREAM_COVERAGE,
+    FillWorker,
+    add_fill_routes,
+    is_failed,
+)
 from .version import VERSION
 
 try:
@@ -1087,6 +1093,12 @@ def create_clip_app(
     rate_limiter = _RateLimiter(rate_limit_per_minute, time_fn=rate_limit_time_fn)
     concurrency_limiter = _ClipConcurrencyLimiter(max_concurrent_clips)
     configured_key = normalize_client_key(client_key)
+    # #518: /clip starts an OSM fill only where /fill itself could — a
+    # keyless mirror's open /clip never spends Geofabrik's bandwidth.
+    osm_fills = (
+        fill_worker is not None and "osm" in fill_worker.fillers
+        and (configured_key is not None or allow_unkeyed_fills)
+    )
 
     def _enforce_clip_access(request: Request) -> None:
         """Issue #263: gate the one CPU-costing endpoint, not the static
@@ -1175,6 +1187,27 @@ def create_clip_app(
             raise HTTPException(
                 400, detail={"error": "invalid_bbox", "message": str(exc)}
             ) from None
+        # Issue #518 (ARCH D67): with an OSM filler configured, a bbox the
+        # store does not fully cover is a fill, not a 404. The plan is
+        # local and fast; the fetch runs on the worker's pool, never here.
+        if osm_fills:
+            fill = fill_worker.request("osm", bbox)
+            if fill.state == FETCHING:
+                log.info("clip FILLING bbox=%s fill_id=%s", bbox, fill.fill_id)
+                return JSONResponse(
+                    {"state": fill.state, "fill": fill.to_json()}, status_code=202,
+                    headers={"Retry-After": str(max(1, fill.retry_after_s or 1))})
+            if fill.state == NO_UPSTREAM_COVERAGE:
+                log.warning("clip REFUSED bbox=%s reason=no_upstream_coverage", bbox)
+                raise HTTPException(404, detail={
+                    "error": "no_upstream_coverage", "message": fill.detail})
+            if is_failed(fill.state):
+                log.warning("clip REFUSED bbox=%s reason=%s: %s", bbox, fill.state, fill.detail)
+                raise HTTPException(
+                    503,
+                    detail={"error": "fill_failed", "state": fill.state,
+                            "fill_id": fill.fill_id, "message": fill.detail},
+                    headers={"Retry-After": str(max(1, fill.retry_after_s or 60))})
         # Issue #494: bound how many callers may run `clip_bbox` at once,
         # fail-fast rather than queue — see the module docstring's
         # "Concurrency" section and `_ClipConcurrencyLimiter`.
