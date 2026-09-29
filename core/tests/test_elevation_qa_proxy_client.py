@@ -110,3 +110,30 @@ def test_qa_proxy_fetch_leaves_no_part_file_when_the_body_dies_mid_transfer(
     with pytest.raises(ConnectionResetError):
         qa_proxy_client.qa_proxy_fetch("http://pi5.local/dem", _BBOX, tmp_path / "out.tif")
     assert list(tmp_path.iterdir()) == []
+
+
+def test_a_202_from_the_proxy_is_a_wait_and_writes_nothing(tmp_path: Path, monkeypatch) -> None:
+    """#520: the proxy on the fill contract answers a miss with a JSON fill
+    status. It must never land in the DEM cache as a raster."""
+
+    class _Accepted(io.BytesIO):
+        status = 202
+        headers = {"Retry-After": "86000"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    body = (b'{"state": "fetching", "fill": {"fill_id": "f1", "state": "fetching", '
+            b'"detail": "allowance spent", "retry_after_s": 86000}}')
+    monkeypatch.setattr(qa_proxy_client.urllib.request, "urlopen",
+                        lambda req, timeout=None: _Accepted(body))
+
+    with pytest.raises(qa_proxy_client.ElevationFilling) as excinfo:
+        qa_proxy_client.qa_proxy_fetch("http://pi5.local/dem", _BBOX, tmp_path / "out.tif")
+    assert excinfo.value.fill_id == "f1"
+    assert excinfo.value.retry_after_s == 86000
+    assert excinfo.value.detail == "allowance spent"
+    assert list(tmp_path.iterdir()) == []

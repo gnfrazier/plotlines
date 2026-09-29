@@ -167,6 +167,10 @@ class AreaPlan:
     area: str
     path: str
     bbox: BBox | None = None
+    #: The layer's own word that the area is already in its store, for a
+    #: layer whose store is not the `areas` record (#520: the elevation
+    #: proxy's DEM cache). Answered `ready` with no job.
+    present: bool = False
 
 
 @dataclass(frozen=True)
@@ -569,6 +573,13 @@ class FillWorker:
                     removed += 1
                 except OSError as exc:  # pragma: no cover - permissions
                     log.warning("fill: could not remove staging file %s: %s", staged, exc)
+        # A layer whose fetch writes its own temp names (#520: the
+        # OpenTopography client's `*.part`) names them, and they go too.
+        for filler in self.fillers.values():
+            for pattern in getattr(filler, "stale_globs", ()):
+                for stale in self.root.glob(pattern):
+                    stale.unlink(missing_ok=True)
+                    removed += 1
         if removed:
             log.warning("fill: removed %d partial staging file(s) left by a previous run", removed)
 
@@ -643,6 +654,8 @@ class FillWorker:
         disk. A plan can move an area — a Geofabrik re-pin puts the next
         cell under a new pin directory — and the row left at the old path
         must not answer `ready` for it."""
+        if area.present:
+            return True
         row = records.get(area_key(layer, area.area))
         return (row is not None and row["path"] == area.path
                 and (self.root / row["path"]).exists())
@@ -766,7 +779,19 @@ class FillWorker:
                     retry_after_s=getattr(filler, "retry_hint_s", DEFAULT_RETRY_AFTER_S),
                 )
                 self._jobs[job.key] = job
-                self._schedule(job, 0.0)
+                # A layer that already knows it must wait (#520: the
+                # OpenTopography allowance is spent) says so here, so the
+                # very first answer carries the real `retry_after_s` and no
+                # fetch runs just to find that out.
+                deferral = getattr(filler, "deferral", None)
+                wait = deferral(area) if deferral is not None else None
+                if wait is not None:
+                    job.deferred_until = now_wall + wait[0]
+                    job.retry_after_s = wait[0]
+                    job.detail = wait[1]
+                    self._schedule(job, wait[0])
+                else:
+                    self._schedule(job, 0.0)
                 started += 1
             fid = fill_id_for(layer, (a.area for a in missing))
             self._tickets.setdefault(fid, {

@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import enum
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -84,7 +85,8 @@ def _parse_bbox(raw: str) -> BBox:
     return west, south, east, north
 
 
-def prewarm_one_detailed(base_url: str, bbox: BBox, *, timeout: float = 180.0) -> PrewarmResult:
+def prewarm_one_detailed(base_url: str, bbox: BBox, *, timeout: float = 180.0,
+                         sleep=time.sleep) -> PrewarmResult:
     """Fetch one bbox from the proxy. Never raises — a failed bbox (e.g.
     free_tier_exhausted, 503 + Retry-After) must not stop the rest of a list
     from being attempted. Classifies the outcome (see `PrewarmOutcome`) by
@@ -99,8 +101,10 @@ def prewarm_one_detailed(base_url: str, bbox: BBox, *, timeout: float = 180.0) -
     url = f"{base_url}?{query}"
     start = time.monotonic()
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:
+        with urllib.request.urlopen(_request(url), timeout=timeout) as response:
             body = response.read()
+            status = getattr(response, "status", 200)
+            retry_after_raw = response.headers.get("Retry-After")
     except urllib.error.HTTPError as exc:
         elapsed = time.monotonic() - start
         detail = exc.read().decode("utf-8", "replace")
@@ -128,9 +132,73 @@ def prewarm_one_detailed(base_url: str, bbox: BBox, *, timeout: float = 180.0) -
         elapsed = time.monotonic() - start
         print(f"FAILED {bbox}: {exc.reason}", file=sys.stderr)
         return PrewarmResult(bbox, PrewarmOutcome.OTHER_ERROR, str(exc.reason), elapsed, None, None)
+    if status == 202:
+        # #520: the proxy answers a miss on the fill contract. Follow it.
+        return _follow_fill(base_url, url, bbox, body, retry_after_raw,
+                            start=start, timeout=timeout, sleep=sleep)
     elapsed = time.monotonic() - start
     print(f"OK {bbox}: {len(body)} bytes in {elapsed:.1f}s")
     return PrewarmResult(bbox, PrewarmOutcome.OK, "", elapsed, len(body), None)
+
+
+def _request(url: str) -> urllib.request.Request:
+    """A request carrying the proxy's client key when one is set in the
+    environment (#520 — `--client-key` on the proxy gates a miss)."""
+    headers = {}
+    key = os.environ.get("ELEVATION_PROXY_CLIENT_KEY", "").strip()
+    if key:
+        headers["X-Plotlines-Client-Key"] = key
+    return urllib.request.Request(url, headers=headers)
+
+
+def _follow_fill(base_url: str, dem_url: str, bbox: BBox, body: bytes,
+                 retry_after_raw: str | None, *, start: float, timeout: float,
+                 sleep=time.sleep) -> PrewarmResult:
+    """#520: a `202` means the proxy is fetching the DEM on its fill worker.
+    Poll `GET /fill/{id}` until it settles, then read the raster. A fill
+    that is waiting on the spent allowance says so with a `retry_after_s`
+    past this call's own `timeout` — that is the ceiling, reported as
+    `EXHAUSTED` exactly as the old synchronous `503 free_tier_exhausted`
+    was, without spending a call or waiting a day."""
+    try:
+        fill = (json.loads(body.decode("utf-8")) or {}).get("fill") or {}
+    except (ValueError, UnicodeDecodeError, AttributeError):
+        fill = {}
+    fill_id = fill.get("fill_id")
+    fill_url = f"{base_url.rsplit('/dem', 1)[0]}/fill/{fill_id}"
+    retry = fill.get("retry_after_s") or (
+        int(retry_after_raw) if retry_after_raw and retry_after_raw.isdigit() else 5)
+    while True:
+        elapsed = time.monotonic() - start
+        if retry > timeout or elapsed + min(retry, 5) > timeout:
+            print(f"FAILED {bbox}: fill waiting {retry:.0f}s ({fill.get('detail')})",
+                  file=sys.stderr)
+            return PrewarmResult(bbox, PrewarmOutcome.EXHAUSTED, fill.get("detail") or "",
+                                 elapsed, None, int(retry))
+        sleep(min(retry, 5))
+        try:
+            with urllib.request.urlopen(_request(fill_url), timeout=timeout) as response:
+                fill = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, ValueError) as exc:
+            return PrewarmResult(bbox, PrewarmOutcome.OTHER_ERROR, str(exc),
+                                 time.monotonic() - start, None, None)
+        state = fill.get("state", "")
+        if state == "fetching":
+            retry = fill.get("retry_after_s") or 5
+            continue
+        if state == "ready":
+            with urllib.request.urlopen(_request(dem_url), timeout=timeout) as response:
+                raster = response.read()
+            elapsed = time.monotonic() - start
+            print(f"OK {bbox}: {len(raster)} bytes in {elapsed:.1f}s (filled)")
+            return PrewarmResult(bbox, PrewarmOutcome.OK, "", elapsed, len(raster), None)
+        outcome = {
+            "failed:upstream_fetch_failed": PrewarmOutcome.UPSTREAM_FAILED,
+            "failed:enterprise_key_required": PrewarmOutcome.EXHAUSTED,
+        }.get(state, PrewarmOutcome.OTHER_ERROR)
+        print(f"FAILED {bbox}: {state} {fill.get('detail')}", file=sys.stderr)
+        return PrewarmResult(bbox, outcome, fill.get("detail") or state,
+                             time.monotonic() - start, None, None)
 
 
 def prewarm_one(base_url: str, bbox: BBox, *, timeout: float = 180.0) -> bool:

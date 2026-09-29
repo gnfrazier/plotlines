@@ -48,6 +48,10 @@ services:
     environment:
       - PLOTLINES_OPENTOPOGRAPHY_API_KEY=${PLOTLINES_OPENTOPOGRAPHY_API_KEY:?set PLOTLINES_OPENTOPOGRAPHY_API_KEY in deploy/elevation/.env — see .env.example}
       - PLOTLINES_OPENTOPOGRAPHY_KEY_TIER=${PLOTLINES_OPENTOPOGRAPHY_KEY_TIER:-free-non-academic}
+      # Issue #520: optional. Set, a /dem miss (which starts a fill) and
+      # /fill need the X-Plotlines-Client-Key header, as on the mirror.
+      # Unset keeps the proxy's QA posture — LAN-only, no auth of its own.
+      - ELEVATION_PROXY_CLIENT_KEY=${ELEVATION_PROXY_CLIENT_KEY:-}
     volumes:
       - elevation_cache:/data
 

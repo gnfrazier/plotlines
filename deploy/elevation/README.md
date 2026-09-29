@@ -11,6 +11,26 @@ script. **Not** the production elevation path: #148/FR87 shipped that (ARCH D69 
 local cache, then OpenTopography direct with a key in the environment), and
 this proxy stays the QA/UAT stand-in beside it.
 
+**Its contract is the production one (issue #520, ARCH D67).** The proxy is
+QA-scoped for its *source* — one OpenTopography key, shared by every QA
+sidecar — but it answers on the mirror's fill contract (`mirror_fill.py`,
+#517), the same one the OSM and basemap fills use:
+
+| `/dem` for… | Answer |
+|---|---|
+| a cached bbox | `200`, the GeoTIFF — as before |
+| a miss | `202 {"state": "fetching", "fill": {"fill_id", "retry_after_s", …}}` + `Retry-After`. The fetch runs on the fill worker, never inside the request. Poll `GET /fill/{fill_id}`; once it reads `ready`, `/dem` returns the raster. Concurrent misses for one bbox share one job and spend one call. |
+| a miss with the allowance spent | still `202 fetching`, with `retry_after_s` pointing at the moment the ledger frees a call, and **no call spent**. A wait, never flat terrain presented as real (FR88). The job runs by itself once the budget resets. |
+| a fill that failed | `503` with the reason (`upstream_fetch_failed`, `enterprise_key_required`, `timeout`) and `Retry-After` — transient; a later request starts a fresh job. |
+
+`POST /fill {"layer": "elevation", …}` and `GET /fill/{id}` are mounted too.
+`--client-key` (`ELEVATION_PROXY_CLIENT_KEY`) gates a miss and `/fill` the way
+the mirror's key gates `/clip`; unset keeps this proxy's QA posture (LAN-only,
+no auth of its own). A cached `/dem` is always open. The job journal lives in
+`<cache>/fill-journal`; a restart reports a job that was mid-fetch
+`failed:restarted` and removes its `.part` file. Deleting this proxy deletes a
+source, not the contract — #148's direct path is the production source.
+
 **The API key must never reach this repository.** It is supplied at
 `docker compose up` time from a git-ignored `.env` in this directory — the
 same discipline `service/.env.example` and `deploy/mirror/`'s
@@ -88,7 +108,9 @@ Expect `{"ready": true, "remaining_calls_24h": 50, "next_free_at": null}`
 
 A real DEM fetch, to confirm the whole path end to end (bbox inside the
 mirror's WNC corridor, so it also exercises a region this Pi is already
-provisioned for):
+provisioned for). Since #520 an uncached bbox answers `202` first; repeat the
+request once the fill reads `ready` (`GET /fill/<fill_id>`), or let
+`prewarm_cache.py` follow it for you:
 
 ```
 curl -s -D - -o /tmp/test.tif \
@@ -106,8 +128,9 @@ instance** (the acceptance criterion #304's tests already cover
 hermetically — this is the live check). Do this deliberately and sparingly;
 it spends real free-tier calls. Request enough distinct, previously-uncached
 bboxes to exhaust the 50/24h ceiling, then confirm the next request returns
-`503` with a `Retry-After` header and a `free_tier_exhausted` body, never a
-crash or a hang:
+`202` with a fill whose `retry_after_s` points at the ledger's reset (since
+#520 a spent allowance is a wait, not a `503`), never a crash or a hang, and
+that `/health`'s `remaining_calls_24h` does not move:
 
 ```
 curl -s -D - -o /dev/null \
