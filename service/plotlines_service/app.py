@@ -108,6 +108,7 @@ from plotlines_core.tiles.mirror import (
     classify_upstream,
     resolve_upstream,
 )
+from plotlines_core.tiles.basemap_set import BasemapArchiveSet, is_archive_root
 from plotlines_core.tiles.upstream import UpstreamTileReader
 from plotlines_core.tiles.mirror_state import (
     MIRROR_NOT_CONFIGURED,
@@ -521,19 +522,23 @@ class UpstreamTileUnavailable(Exception):
     here"."""
 
 
-def _upstream_tile(reader: UpstreamTileReader, pool: ThreadPoolExecutor,
+def _upstream_tile(reader: "UpstreamTileReader | BasemapArchiveSet", pool: ThreadPoolExecutor,
                    waiting: threading.BoundedSemaphore,
-                   z: int, x: int, y: int) -> bytes | None:
+                   z: int, x: int, y: int):
     """One tile from the configured tile upstream, read on `pool`
     (`Readiness._upstream_tile_pool`, never the shared FastAPI pool `/tiles`
     answers on) behind `_UPSTREAM_TILE_TIMEOUT_S` — the #488 shape. `None`
     is the upstream's honest "no tile here"; anything else that stops an
     answer raises `UpstreamTileUnavailable`. Nothing is latched: the next
-    call tries again, and the reader drops a broken connection itself."""
+    call tries again, and the reader drops a broken connection itself.
+    Returns `(data, info)`; `data` is `None` for "no tile here"."""
     if not waiting.acquire(blocking=False):
         raise UpstreamTileUnavailable("tile upstream busy")
     try:
-        future = pool.submit(reader.tile, z, x, y)
+        # `read_tile` returns `(data, info)`: for a basemap archive set
+        # (#519) which archive answered — and so its encoding — is only
+        # known once the pool has read the store record, never here.
+        future = pool.submit(reader.read_tile, z, x, y)
         try:
             return future.result(timeout=_UPSTREAM_TILE_TIMEOUT_S)
         except FutureTimeoutError as exc:
@@ -726,8 +731,15 @@ def _with_upstream_coverage(capability: dict,
     notice counts the mirror's coverage rather than only the home region and
     the trip bbox. `None` until a `/tiles` read has loaded the upstream's
     header: `/health` itself never reads it (D41/D57)."""
+    if isinstance(reader, BasemapArchiveSet):
+        # Issue #519: a store root reports every covered rectangle, so the
+        # client's #318 notice sees the gaps between cells rather than one
+        # envelope over all of them. `bounds` stays for an older client and
+        # is `None` here — an envelope is exactly the overclaim this fixes.
+        return {**capability, "bounds": None, "coverage": reader.coverage()}
     info = reader.info() if reader is not None else None
-    return {**capability, "bounds": list(info.bounds) if info is not None else None}
+    bounds = list(info.bounds) if info is not None else None
+    return {**capability, "bounds": bounds, "coverage": [bounds] if bounds else None}
 
 
 def _tiles_archive_identity(home_identity: str, upstream_source: str, *,
@@ -1073,7 +1085,8 @@ class RegionState:
                   [tuple[float, float, float, float], str], "RegionState | None"
               ] | None = None,
               build_phase_pools: "RegionBuildPhasePools | None" = None,
-              elevation_wiring: ElevationWiring | None = None) -> None:
+              elevation_wiring: ElevationWiring | None = None,
+              tile_archive_set: BasemapArchiveSet | None = None) -> None:
         """Runs one build attempt. `build_phase_pools` are the #492 deadline
         pools (one per network-phase type — see `RegionBuildPhasePools`)
         every phase submits to (`_run_build_phase`) — `Readiness._queue_build`
@@ -1088,7 +1101,8 @@ class RegionState:
                 self.build(cache_dir, tiles_upstream, allow_unmirrored,
                           elevation_upstream, mirror_clip_url,
                           mirror_clip_client_key, held_graph_lookup,
-                          build_phase_pools, elevation_wiring=elevation_wiring)
+                          build_phase_pools, elevation_wiring=elevation_wiring,
+                          tile_archive_set=tile_archive_set)
             finally:
                 build_phase_pools.shutdown()
             return
@@ -1097,7 +1111,7 @@ class RegionState:
             self._build_impl(cache_dir, tiles_upstream, allow_unmirrored,
                              elevation_upstream, mirror_clip_url,
                              mirror_clip_client_key, held_graph_lookup,
-                             build_phase_pools, elevation_wiring)
+                             build_phase_pools, elevation_wiring, tile_archive_set)
         finally:
             self.build_in_progress = False
 
@@ -1110,7 +1124,8 @@ class RegionState:
                         [tuple[float, float, float, float], str], "RegionState | None"
                     ] | None,
                     build_phase_pools: "RegionBuildPhasePools",
-                    elevation_wiring: ElevationWiring | None) -> None:
+                    elevation_wiring: ElevationWiring | None,
+                    tile_archive_set: BasemapArchiveSet | None = None) -> None:
         self.build_attempts += 1
         attempt = self.build_attempts
         self.last_attempt_started_at = time.time()
@@ -1298,9 +1313,15 @@ class RegionState:
                 stats = ExtractStats()
                 _run_build_phase(
                     build_phase_pools.tiles, _TILES_PHASE_TIMEOUT_S,
-                    lambda: extract_bbox(tiles_upstream, self.bbox, tiles_path,
-                                         max_zoom=BASEMAP_MAX_ZOOM,
-                                         allow_unmirrored=allow_unmirrored, stats=stats),
+                    # Issue #519: against a store root, stitched from the
+                    # cell archives the bbox reaches (read on this phase's
+                    # pool, behind its deadline — never a request thread).
+                    (lambda: tile_archive_set.extract(
+                        self.bbox, tiles_path, max_zoom=BASEMAP_MAX_ZOOM, stats=stats))
+                    if tile_archive_set is not None else
+                    (lambda: extract_bbox(tiles_upstream, self.bbox, tiles_path,
+                                          max_zoom=BASEMAP_MAX_ZOOM,
+                                          allow_unmirrored=allow_unmirrored, stats=stats)),
                 )
                 self.timings["tiles"] = stats.wall_time_s
                 self.tiles_stats = stats.as_dict()
@@ -1508,7 +1529,7 @@ class Readiness:
             max_workers=1, thread_name_prefix="upstream-tile",
         )
         self._upstream_tile_waiting = threading.BoundedSemaphore(_UPSTREAM_TILE_MAX_WAITING)
-        self.upstream_tiles: UpstreamTileReader | None = None
+        self.upstream_tiles: UpstreamTileReader | BasemapArchiveSet | None = None
         # Issue #492 — every network phase inside a region build
         # (`RegionState.build` -> `_run_build_phase`) runs on one of these,
         # never on `_build_pool` itself: that is what lets `_build_pool`'s
@@ -1647,6 +1668,9 @@ class Readiness:
                 self.elevation_upstream, self.mirror_clip_url,
                 self.mirror_clip_client_key, self.find_held_supergraph,
                 self._build_phase_pools, elevation_wiring=self.elevation_wiring,
+                tile_archive_set=(self.upstream_tiles
+                                  if isinstance(self.upstream_tiles, BasemapArchiveSet)
+                                  else None),
             )
         finally:
             with self._lock:
@@ -2254,8 +2278,14 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
     # (FR92/FR95 — `/health`'s `tiles.upstream.refused` says why). Building
     # the reader makes no request (D41/D57); its first `/tiles` miss does.
     if not used_default_tiles_upstream and not tiles_upstream_capability["refused"]:
-        state.upstream_tiles = UpstreamTileReader(
-            tiles_upstream_actual, allow_unmirrored=allow_unmirrored_tiles)
+        # Issue #519: a root (anything not ending `.pmtiles`) is the mirror's
+        # store — archives found by area from its own record.
+        if is_archive_root(tiles_upstream_actual):
+            state.upstream_tiles = BasemapArchiveSet(
+                tiles_upstream_actual, allow_unmirrored=allow_unmirrored_tiles)
+        else:
+            state.upstream_tiles = UpstreamTileReader(
+                tiles_upstream_actual, allow_unmirrored=allow_unmirrored_tiles)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -2365,8 +2395,13 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             for _key, region in state.snapshot()
             if region.tiles_archive is not None
         ]
+        upstream_identity = tiles_upstream_capability["source"]
+        if isinstance(state.upstream_tiles, BasemapArchiveSet):
+            # #519/#455: a newly filled cell changes this, so the client's
+            # cache of the misses it replaces is abandoned.
+            upstream_identity = state.upstream_tiles.identity()
         tiles_archive_id = _tiles_archive_identity(
-            home_tiles_identity, tiles_upstream_capability["source"],
+            home_tiles_identity, upstream_identity,
             used_default_upstream=used_default_tiles_upstream,
             region_identities=region_tile_identities,
         )
@@ -3088,12 +3123,12 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         reader = state.upstream_tiles
         if reader is not None:
             try:
-                data = _upstream_tile(reader, state._upstream_tile_pool,
-                                      state._upstream_tile_waiting, z, x, y)
+                data, info = _upstream_tile(reader, state._upstream_tile_pool,
+                                            state._upstream_tile_waiting, z, x, y)
             except UpstreamTileUnavailable as exc:
                 raise HTTPException(503, str(exc)) from exc
             if data is not None:
-                return _tile_response(data, reader.info())
+                return _tile_response(data, info)
 
         raise HTTPException(404, f"no basemap tile at z={z} x={x} y={y}")
 

@@ -320,54 +320,17 @@ def extract_bbox(source: str | Path, bbox: tuple[float, float, float, float],
         # in memory before a single byte is fetched.
         lo_z = header["min_zoom"] if min_zoom is None else max(min_zoom, header["min_zoom"])
         hi_z = header["max_zoom"] if max_zoom is None else min(max_zoom, header["max_zoom"])
-        west, south, east, north = bbox
-
-        addresses: list[tuple[int, int, int]] = []
-        for z in range(lo_z, hi_z + 1):
-            x0, y0 = _lonlat_to_tile(west, north, z)   # top-left
-            x1, y1 = _lonlat_to_tile(east, south, z)   # bottom-right
-            for x in range(min(x0, x1), max(x0, x1) + 1):
-                for y in range(min(y0, y1), max(y0, y1) + 1):
-                    addresses.append((z, x, y))
-        addresses.sort(key=lambda zxy: zxy_to_tileid(*zxy))
-        own_stats.addresses = len(addresses)
-        tile_ids = [zxy_to_tileid(z, x, y) for z, x, y in addresses]
 
         # Collect before opening the writer: an empty result must never
         # create a partial/unreadable archive file on disk.
-        resolved = _resolve_directory_entries(get_bytes, header, tile_ids)
-        tile_bytes = _fetch_tile_data_coalesced(get_bytes, header, resolved)
-        tiles = [(tid, tile_bytes[tid]) for tid in tile_ids if tid in tile_bytes]
+        tiles = _collect_tiles(get_bytes, header, bbox, lo_z, hi_z, own_stats)
         own_stats.hits = len(tiles)
         if not tiles:
             raise NoTilesInBbox(
                 f"no tile data for bbox={bbox} in zoom range [{lo_z}, {hi_z}] "
                 f"from {source!r}"
             )
-
-        # Written beside `out_path` and renamed onto it only once finalized:
-        # the region cache treats an existing `out_path` as a hit
-        # (`if not tiles_path.exists()`), so a write interrupted part-way
-        # must never leave a truncated archive at the addressable path —
-        # every later build would "hit" it and never re-extract.
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = out_path.with_name(f".{out_path.name}.part")
-        try:
-            with pmtiles_write(str(tmp_path)) as w:
-                for tile_id, data in tiles:
-                    w.write_tile(tile_id, data)
-                w.finalize({
-                    "tile_type": header["tile_type"],
-                    "tile_compression": header["tile_compression"],
-                    "min_lon_e7": int(round(west * 1e7)),
-                    "min_lat_e7": int(round(south * 1e7)),
-                    "max_lon_e7": int(round(east * 1e7)),
-                    "max_lat_e7": int(round(north * 1e7)),
-                }, metadata)
-            tmp_path.replace(out_path)
-        except BaseException:
-            tmp_path.unlink(missing_ok=True)
-            raise
+        _write_archive(out_path, tiles, header, metadata, bbox)
     finally:
         close()
         own_stats.wall_time_s = time.monotonic() - t0
@@ -377,4 +340,112 @@ def extract_bbox(source: str | Path, bbox: tuple[float, float, float, float],
             bbox, lo_z, hi_z, own_stats.addresses, own_stats.hits,
             own_stats.requests, own_stats.bytes, own_stats.wall_time_s, source,
         )
+    return out_path
+
+
+def _addresses(bbox: tuple[float, float, float, float], lo_z: int, hi_z: int) -> list[int]:
+    """Every tile id the bbox touches in `[lo_z, hi_z]`, in tile-id order
+    (the order a clustered archive stores them, which is what makes
+    `_fetch_tile_data_coalesced`'s runs long)."""
+    west, south, east, north = bbox
+    addresses: list[tuple[int, int, int]] = []
+    for z in range(lo_z, hi_z + 1):
+        x0, y0 = _lonlat_to_tile(west, north, z)   # top-left
+        x1, y1 = _lonlat_to_tile(east, south, z)   # bottom-right
+        for x in range(min(x0, x1), max(x0, x1) + 1):
+            for y in range(min(y0, y1), max(y0, y1) + 1):
+                addresses.append((z, x, y))
+    return sorted(zxy_to_tileid(z, x, y) for z, x, y in addresses)
+
+
+def _collect_tiles(get_bytes: GetBytes, header: dict, bbox, lo_z: int, hi_z: int,
+                   stats: ExtractStats) -> list[tuple[int, bytes]]:
+    tile_ids = _addresses(bbox, lo_z, hi_z)
+    stats.addresses += len(tile_ids)
+    resolved = _resolve_directory_entries(get_bytes, header, tile_ids)
+    tile_bytes = _fetch_tile_data_coalesced(get_bytes, header, resolved)
+    return [(tid, tile_bytes[tid]) for tid in tile_ids if tid in tile_bytes]
+
+
+def _write_archive(out_path: Path, tiles: list[tuple[int, bytes]], header: dict,
+                   metadata: dict, bbox) -> None:
+    """Written beside `out_path` and renamed onto it only once finalized:
+    the region cache treats an existing `out_path` as a hit (`if not
+    tiles_path.exists()`), so a write interrupted part-way must never leave
+    a truncated archive at the addressable path — every later build would
+    "hit" it and never re-extract."""
+    west, south, east, north = bbox
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = out_path.with_name(f".{out_path.name}.part")
+    try:
+        with pmtiles_write(str(tmp_path)) as w:
+            for tile_id, data in tiles:
+                w.write_tile(tile_id, data)
+            w.finalize({
+                "tile_type": header["tile_type"],
+                "tile_compression": header["tile_compression"],
+                "min_lon_e7": int(round(west * 1e7)),
+                "min_lat_e7": int(round(south * 1e7)),
+                "max_lon_e7": int(round(east * 1e7)),
+                "max_lat_e7": int(round(north * 1e7)),
+            }, metadata)
+        tmp_path.replace(out_path)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def extract_bbox_from_parts(parts: list[tuple[str | Path, tuple[float, float, float, float]]],
+                            bbox: tuple[float, float, float, float], out_path: Path, *,
+                            max_zoom: int | None = None, allow_unmirrored: bool = False,
+                            stats: ExtractStats | None = None) -> Path:
+    """`extract_bbox` over several archives — issue #519, a trip bbox that
+    spans two basemap cells. Each part is `(source, extent)`: the archive
+    and the area it was cut to. Tiles are read from each part for the
+    piece of `bbox` inside its extent, and written into one archive. A
+    tile on a cell edge exists, whole, in both cells' archives (`pmtiles
+    extract` keeps every tile that intersects its bbox), so taking it from
+    whichever part reaches it first leaves no seam. Every part must share
+    one tile type and compression; the first part's metadata is kept.
+
+    Raises `NoTilesInBbox` when no part holds anything inside `bbox`."""
+    own_stats = stats if stats is not None else ExtractStats()
+    own_stats.source = ",".join(str(src) for src, _ in parts)
+    t0 = time.monotonic()
+    collected: dict[int, bytes] = {}
+    first_header: dict | None = None
+    first_metadata: dict | None = None
+    try:
+        for source, extent in parts:
+            piece = (max(bbox[0], extent[0]), max(bbox[1], extent[1]),
+                     min(bbox[2], extent[2]), min(bbox[3], extent[3]))
+            if piece[0] >= piece[2] or piece[1] >= piece[3]:
+                continue
+            get_bytes, close = _open_source(source, allow_unmirrored=allow_unmirrored)
+            get_bytes = _counting_source(get_bytes, own_stats)
+            try:
+                reader = Reader(get_bytes)
+                header = reader.header()
+                if first_header is None:
+                    first_header, first_metadata = header, reader.metadata()
+                elif (header["tile_type"], header["tile_compression"]) != (
+                        first_header["tile_type"], first_header["tile_compression"]):
+                    raise ValueError(f"{source!r} does not share the first part's tile format")
+                lo_z = header["min_zoom"]
+                hi_z = header["max_zoom"] if max_zoom is None else min(max_zoom, header["max_zoom"])
+                for tile_id, data in _collect_tiles(get_bytes, header, piece, lo_z, hi_z,
+                                                    own_stats):
+                    collected.setdefault(tile_id, data)
+            finally:
+                close()
+        own_stats.hits = len(collected)
+        if not collected or first_header is None:
+            raise NoTilesInBbox(f"no tile data for bbox={bbox} in any of {len(parts)} archive(s)")
+        _write_archive(out_path, sorted(collected.items()), first_header,
+                       first_metadata or {}, bbox)
+    finally:
+        own_stats.wall_time_s = time.monotonic() - t0
+        log.info("tile extract (parts) bbox=%s parts=%d hits=%d requests=%d bytes=%d wall_s=%.3f",
+                 bbox, len(parts), own_stats.hits, own_stats.requests, own_stats.bytes,
+                 own_stats.wall_time_s)
     return out_path

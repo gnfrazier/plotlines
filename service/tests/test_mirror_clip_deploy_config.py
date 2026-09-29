@@ -133,3 +133,14 @@ def test_dockerfile_ships_the_pull_script_where_the_osm_fill_loads_it() -> None:
     assert "COPY deploy/mirror/geofabrik_pull.py /app/deploy/mirror/geofabrik_pull.py" in _DOCKERFILE_CONFIG
     assert mirror_fill_osm._PULL_SCRIPT.parts[-3:] == ("deploy", "mirror", "geofabrik_pull.py")
     assert mirror_fill_osm._PULL_SCRIPT.exists()
+
+
+def test_dockerfile_installs_a_pinned_checksummed_pmtiles_cli() -> None:
+    """#519: the basemap fill runs `pmtiles extract`. BSD-3-Clause, pinned,
+    and verified — never an unpinned `latest` download."""
+    assert "ARG PMTILES_VERSION=1.31.2" in _DOCKERFILE_CONFIG
+    assert "go-pmtiles checksum mismatch" in _DOCKERFILE_CONFIG
+    assert "/usr/local/bin/pmtiles" in _DOCKERFILE_CONFIG
+    assert "latest" not in _DOCKERFILE_CONFIG.split("ARG PMTILES_VERSION", 1)[1].split("PY", 2)[1]
+    assert "COPY deploy/mirror/protomaps_extract.py /app/deploy/mirror/protomaps_extract.py" in _DOCKERFILE_CONFIG
+    assert _DOCKERFILE.splitlines()[0] == "# syntax=docker/dockerfile:1"

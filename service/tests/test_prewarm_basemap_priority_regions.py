@@ -127,6 +127,8 @@ def test_prewarm_publishes_one_non_primary_archive(fake_pmtiles_bin, mirror_root
     assert entry["path"] == f"basemap/protomaps/{pb.BUILD_ID}/priority.pmtiles"
     assert entry["bbox"] == list(pb.envelope(pb.area_bboxes(candidates)))
     assert entry["extracted_at"] == "2026-09-24T12:00:00Z"
+    # #519: the real areas, beside the envelope — what coverage reads.
+    assert entry["parts"] == [list(b) for b in pb.area_bboxes(candidates)]
     # Non-primary: the corridor stays what basemap_health() reports.
     assert state["basemap"]["build_id"] == "20250101-wnc"
     assert "wnc-corridor" in state["basemap"]["covered_regions"]
@@ -148,6 +150,24 @@ def test_prewarm_is_a_no_op_within_ttl(fake_pmtiles_bin, mirror_root) -> None:
     assert forced is not None
 
 
+def test_a_ttl_skip_still_backfills_parts_with_no_extract(fake_pmtiles_bin, mirror_root) -> None:
+    """#519: an archive published before `parts` existed gets them on the
+    next (skipped) run — the sidecar reads coverage from the record."""
+    candidates = pb.selected_candidates({"yellowstone"})
+    kwargs = dict(build_date="20260923", pmtiles_bin=str(fake_pmtiles_bin))
+    pb.prewarm(root=mirror_root, candidates=candidates,
+               now=datetime(2026, 9, 24, tzinfo=timezone.utc), **kwargs)
+    state_path = mirror_root / "MIRROR_STATE.json"
+    state = json.loads(state_path.read_text())
+    del state["basemap"]["covered_regions"]["priority-regions"]["parts"]
+    state_path.write_text(json.dumps(state))
+
+    assert pb.prewarm(root=mirror_root, candidates=candidates,
+                      now=datetime(2026, 9, 25, tzinfo=timezone.utc), **kwargs) is None
+    entry = json.loads(state_path.read_text())["basemap"]["covered_regions"]["priority-regions"]
+    assert entry["parts"] == [list(b) for b in pb.area_bboxes(candidates)]
+
+
 def test_dry_run_makes_no_network_call_and_names_the_client_url(capsys, monkeypatch) -> None:
     def _no_network(*_a, **_k):
         raise AssertionError("dry run reached the network")
@@ -161,9 +181,9 @@ def test_dry_run_makes_no_network_call_and_names_the_client_url(capsys, monkeypa
 
 
 def test_publish_path_is_the_one_the_client_defaults_to() -> None:
-    # #539: the client's tiles default is `<mirror>/<PRIORITY_REGIONS_ARCHIVE_PATH>`,
-    # so this script must publish exactly there — both through the core import
-    # and through the standalone fallback literals it uses without core.
+    # The archive's path is `mirror.PRIORITY_REGIONS_ARCHIVE_PATH` (#539; since
+    # #519 the client reads it through the root by area, not by this name),
+    # both through the core import and the standalone fallback literals.
     from plotlines_core.tiles import mirror
 
     assert pb.BUILD_ID == mirror.PRIORITY_REGIONS_BUILD_ID

@@ -550,6 +550,44 @@ every `/clip` touching the state would scan it whole. The container ships
 `geofabrik_pull.py` at `/app/deploy/mirror/` for this; a fill writes the
 source into the current pin directory, so it may be newer than the pin's date
 until the next monthly re-pin realigns it.
+
+### The basemap fill, and the sidecar reading the store by area (issue #519)
+
+`MIRROR_FILL_LAYERS=osm,basemap` adds the basemap. A `POST /fill {"layer":
+"basemap", …}` for an area no stored archive covers extracts the covering 2°
+cell (`cell-2d-wNNN-nNN`; the OSM fill's 1° grid nests inside it — a basemap
+read doesn't slow with archive size the way `/clip` does) from Protomaps' newest live daily
+build with `pmtiles extract`, z0–15, into
+`basemap/protomaps/cells/<cell>.pmtiles` — `protomaps_extract.py`'s own build
+probe and wrapper, the tool D65 chose; the container installs go-pmtiles
+1.31.2 (BSD-3-Clause), pinned and checksum-verified. The planet build covers
+the world, so the basemap is never `no_upstream_coverage`.
+
+Measured 2026-09-28, the Greensboro cell (`cell-2d-w080-n36`, -80…-78 × 36…38)
+from build `20260928`: **22.0 s, 141.5 MB**. The second request answered
+`ready` in 1 ms with no job.
+
+A filled cell older than 30 days (D65's TTL, `DEFAULT_BASEMAP_TTL_DAYS`) is
+still served, and a refresh is queued behind it; the new file replaces the old
+with the same atomic publish, so a reader never waits on it. Seeded archives
+stay `protomaps_extract.py`'s to refresh.
+
+**The sidecar reads the store root, not one file.** Since #519 the client's
+default `--tiles-upstream` is the mirror URL itself. Anything not ending in
+`.pmtiles` is a root: the sidecar reads `MIRROR_STATE.json`'s `areas` record
+(or `basemap.covered_regions` on an older store) and serves each tile from the
+archive whose area covers it — the corridor, the priority archive, every
+filled cell. `/health`'s `tiles.upstream.coverage` lists one rectangle per
+archive part, so the #318 notice shows over the gaps between cells. A region
+build stitches its on-demand archive from every cell its bbox reaches. The
+record is read on the tile pool or a build phase (never a request thread),
+cached for five minutes, and never read by `/health`.
+
+**The priority archive's parts.** `prewarm_basemap_priority_regions.py` now
+records the archive's real areas as `parts` beside its continental envelope,
+and backfills them on a TTL-skipped run with no extract. The Pi's archive,
+published before this, gets its parts on the next scheduled run; until then
+the sidecar reads its envelope as covered, as before.
 `service/tests/test_mirror_clip_server.py` covers both mechanisms
 hermetically; setting a real key on the live Pi is an operator step, not
 something a hermetic test can exercise.

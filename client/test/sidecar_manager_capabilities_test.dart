@@ -340,6 +340,38 @@ void main() {
       expect(caps.tilesUpstream!.bounds, [-83.6, 35.2, -81.0, 36.4]);
     });
 
+    test('coverage parses as a list of rectangles (issue #519)', () {
+      final caps = Capabilities.fromJson(body({
+        'kind': 'mirror',
+        'source': 'https://tiles.plotlines.app',
+        'refused': false,
+        'reason': null,
+        'bounds': null,
+        'coverage': [
+          [-82, 34, -80, 36],
+          [-78, 34, -76, 36],
+        ],
+      }));
+      expect(caps.tilesUpstream!.bounds, isNull);
+      expect(caps.tilesUpstream!.coverage, [
+        [-82.0, 34.0, -80.0, 36.0],
+        [-78.0, 34.0, -76.0, 36.0],
+      ]);
+    });
+
+    test('an older sidecar\'s one bounds envelope becomes one coverage rectangle', () {
+      final caps = Capabilities.fromJson(body({
+        'kind': 'mirror',
+        'source': 'https://tiles.plotlines.app/basemap/protomaps/x/y.pmtiles',
+        'refused': false,
+        'reason': null,
+        'bounds': [-83.6, 35.2, -81, 36.4],
+      }));
+      expect(caps.tilesUpstream!.coverage, [
+        [-83.6, 35.2, -81.0, 36.4]
+      ]);
+    });
+
     test('the mirror host parses kind mirror, never refused', () {
       final caps = Capabilities.fromJson(body({
         'kind': 'mirror',

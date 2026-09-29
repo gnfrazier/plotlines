@@ -70,7 +70,8 @@ services:
       # MIRROR_FILL_STATE_DIR mounts /fill and keeps the job journal on its
       # own volume, outside the store. Fills need MIRROR_CLIP_CLIENT_KEY
       # set — a keyless mirror refuses every fill. MIRROR_FILL_LAYERS names
-      # the layers to fill (see mirror_fill_layers.py); MIRROR_STORE_CAP_BYTES
+      # the layers to fill (see mirror_fill_layers.py: osm #518, basemap
+      # #519 — e.g. MIRROR_FILL_LAYERS=osm,basemap); MIRROR_STORE_CAP_BYTES
       # bounds the store (0 = no cap; seeded areas are never evicted).
       - MIRROR_FILL_STATE_DIR=${MIRROR_FILL_STATE_DIR:-/var/lib/plotlines-mirror-fill}
       - MIRROR_FILL_LAYERS=${MIRROR_FILL_LAYERS:-}

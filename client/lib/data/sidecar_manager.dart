@@ -187,6 +187,7 @@ class TilesUpstreamCapability {
     required this.refused,
     this.reason,
     this.bounds,
+    this.coverage,
   });
 
   /// `'local'` (a PMTiles archive on disk — the shipped home region, or a
@@ -215,16 +216,32 @@ class TilesUpstreamCapability {
   /// an older sidecar that predates the field.
   final List<double>? bounds;
 
+  /// Every rectangle the upstream covers, each `[west, south, east, north]`
+  /// (issue #519). A store root reports one per archive part — each filled
+  /// cell, each of #515's priority regions — so the gaps between them stay
+  /// uncovered, where the one [bounds] envelope read them as covered. Falls
+  /// back to `[bounds]` on a sidecar that predates the field; null when
+  /// neither is known yet.
+  final List<List<double>>? coverage;
+
   factory TilesUpstreamCapability.fromJson(Map<String, dynamic> json) {
     final rawBounds = json['bounds'] as List<dynamic>?;
+    final rawCoverage = json['coverage'] as List<dynamic>?;
+    final bounds = rawBounds != null && rawBounds.length == 4
+        ? [for (final v in rawBounds) (v as num).toDouble()]
+        : null;
     return TilesUpstreamCapability(
       kind: json['kind'] as String? ?? 'local',
       source: json['source'] as String? ?? '',
       refused: json['refused'] as bool? ?? false,
       reason: json['reason'] as String?,
-      bounds: rawBounds != null && rawBounds.length == 4
-          ? [for (final v in rawBounds) (v as num).toDouble()]
-          : null,
+      bounds: bounds,
+      coverage: rawCoverage != null
+          ? [
+              for (final r in rawCoverage)
+                if (r is List && r.length == 4) [for (final v in r) (v as num).toDouble()]
+            ]
+          : (bounds == null ? null : [bounds]),
     );
   }
 }

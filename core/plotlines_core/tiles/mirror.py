@@ -76,20 +76,28 @@ MIRROR_WNC_CORRIDOR_URL = (
 WNC_CORRIDOR_BBOX = (-83.6, 35.2, -81.0, 36.4)
 WNC_CORRIDOR_REGION_NAME = "wnc-corridor"
 
-#: The widest basemap archive the mirror publishes today — issue #515's
+#: The widest single basemap archive the mirror publishes — issue #515's
 #: `deploy/mirror/prewarm_basemap_priority_regions.py` extracts one archive
 #: over the elevation proxy's priority regions plus the WNC corridor, so it
 #: is a superset of `corridor.pmtiles`. The client's default tiles upstream
-#: is this path under whatever mirror URL it resolved (issue #539), so a
-#: configured mirror is read for tiles instead of the corridor on the https
-#: host. Its header bounds are the whole envelope, not the union of the
-#: regions — #519 owns per-cell coverage.
+#: was this path under the resolved mirror URL from #539 until #519 moved it
+#: to the root. Its header bounds are the whole envelope, not the union of
+#: the regions; `prewarm_basemap_priority_regions.py` now records the
+#: regions as the archive's `parts`, which is what coverage reads.
 PRIORITY_REGIONS_BUILD_ID = f"{PROTOMAPS_BASEMAP_BUILD}-priority"
 PRIORITY_REGIONS_FILENAME = "priority.pmtiles"
 PRIORITY_REGIONS_ARCHIVE_PATH = (
     f"basemap/protomaps/{PRIORITY_REGIONS_BUILD_ID}/{PRIORITY_REGIONS_FILENAME}"
 )
 MIRROR_PRIORITY_REGIONS_URL = f"https://{MIRROR_HOST}/{PRIORITY_REGIONS_ARCHIVE_PATH}"
+
+#: The client's default tiles upstream since #519: the mirror's store root,
+#: not one archive. `basemap_set.BasemapArchiveSet` reads the store's record
+#: under it and finds each tile's archive by area — the corridor, #515's
+#: priority archive (by its recorded parts), every filled cell (ARCH D67).
+#: `client/lib/data/sidecar_upstreams.dart`'s `defaultTilesUpstream` is
+#: pinned to this.
+MIRROR_BASEMAP_ROOT_URL = f"https://{MIRROR_HOST}"
 
 #: The on-demand region cache's zoom ceiling — issue #456. Today this
 #: happens to equal every source archive's own `max_zoom`, so nothing failed

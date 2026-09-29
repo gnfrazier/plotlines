@@ -399,7 +399,7 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
         // before `FlutterMap` has laid out and `camera` is queryable.
         final outOfCoverage =
             _mapReady && !tilesLikelyCoverViewport(_mapController.camera.visibleBounds,
-                upstreamBounds: sidecar.capabilities?.tilesUpstream?.bounds);
+                upstreamCoverage: sidecar.capabilities?.tilesUpstream?.coverage);
 
         return Stack(
           children: [
