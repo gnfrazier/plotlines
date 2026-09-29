@@ -120,6 +120,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+try:
+    import fcntl  # POSIX; the mirror host is Linux
+except ImportError:  # pragma: no cover
+    fcntl = None  # type: ignore[assignment]
+
 LOG = logging.getLogger("protomaps_extract")
 
 DEFAULT_UPSTREAM_BASE_URL = "https://build.protomaps.com"
@@ -406,8 +411,35 @@ def publish_basemap_extract(
         tmp_path.unlink(missing_ok=True)
         raise
 
+    # #517: the fill worker writes this file too, under the same lock.
+    lock_fh = open(state_path.with_name(state_path.name + ".lock"), "a")
+    if fcntl is not None:
+        fcntl.flock(lock_fh, fcntl.LOCK_EX)
+    try:
+        state = _read_state(state_path)
+        _merge_region(state, region_name=region_name, bbox=bbox, build_id=build_id,
+                      filename=filename, dest=dest, planet_build_date=planet_build_date,
+                      source_url=source_url, extracted_at=extracted_at, primary=primary)
+        _write_state(root, state_path, state)
+    finally:
+        if fcntl is not None:
+            fcntl.flock(lock_fh, fcntl.LOCK_UN)
+        lock_fh.close()
+
+    LOG.info("published %s (%d bytes) -> %s", source_url, dest.stat().st_size, dest)
+    if cli_output:
+        LOG.debug("pmtiles extract output:\n%s", cli_output)
+    return dest
+
+
+def _read_state(state_path: Path) -> dict:
     with open(state_path) as f:
-        state = json.load(f)
+        return json.load(f)
+
+
+def _merge_region(state: dict, *, region_name: str, bbox, build_id: str, filename: str,
+                  dest: Path, planet_build_date, source_url: str, extracted_at,
+                  primary: bool) -> None:
     basemap = state.get("basemap") or {}
     covered = basemap.get("covered_regions")
     if not isinstance(covered, dict):
@@ -435,6 +467,8 @@ def publish_basemap_extract(
         basemap["extracted_at"] = extracted_at_iso
     state["basemap"] = basemap
 
+
+def _write_state(root: Path, state_path: Path, state: dict) -> None:
     fd, tmp_state_name = tempfile.mkstemp(dir=root, prefix=".state-")
     try:
         with os.fdopen(fd, "w") as f:
@@ -444,11 +478,6 @@ def publish_basemap_extract(
     except BaseException:
         Path(tmp_state_name).unlink(missing_ok=True)
         raise
-
-    LOG.info("published %s (%d bytes) -> %s", source_url, dest.stat().st_size, dest)
-    if cli_output:
-        LOG.debug("pmtiles extract output:\n%s", cli_output)
-    return dest
 
 
 def acquire(

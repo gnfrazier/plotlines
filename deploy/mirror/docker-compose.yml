@@ -66,11 +66,26 @@ services:
       # get an immediate 503 clip_busy — see mirror_clip.py's
       # --max-concurrent-clips help for why fail-fast beats queuing here.
       - MIRROR_CLIP_MAX_CONCURRENT=${MIRROR_CLIP_MAX_CONCURRENT:-1}
+      # Issue #517 (ARCH D67): the fill worker. Setting
+      # MIRROR_FILL_STATE_DIR mounts /fill and keeps the job journal on its
+      # own volume, outside the store. Fills need MIRROR_CLIP_CLIENT_KEY
+      # set — a keyless mirror refuses every fill. MIRROR_FILL_LAYERS names
+      # the layers to fill (see mirror_fill_layers.py); MIRROR_STORE_CAP_BYTES
+      # bounds the store (0 = no cap; seeded areas are never evicted).
+      - MIRROR_FILL_STATE_DIR=${MIRROR_FILL_STATE_DIR:-/var/lib/plotlines-mirror-fill}
+      - MIRROR_FILL_LAYERS=${MIRROR_FILL_LAYERS:-}
+      - MIRROR_FILL_WORKERS=${MIRROR_FILL_WORKERS:-1}
+      - MIRROR_STORE_CAP_BYTES=${MIRROR_STORE_CAP_BYTES:-0}
     volumes:
-      - /srv/plotlines-mirror:/srv/plotlines-mirror:ro
+      # Read-write since #517: the fill worker publishes into the store
+      # (temp file -> os.replace, the extract scripts' own step). Caddy's
+      # mount above stays read-only — the file server never writes.
+      - /srv/plotlines-mirror:/srv/plotlines-mirror:rw
       - mirror_clip_cache:/var/cache/plotlines-mirror-clip
+      - mirror_fill_state:/var/lib/plotlines-mirror-fill
 
 volumes:
   caddy_data:
   caddy_config:
   mirror_clip_cache:
+  mirror_fill_state:

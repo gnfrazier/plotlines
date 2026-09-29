@@ -173,7 +173,8 @@ def test_health_reports_the_pinned_extracts(tmp_path: Path) -> None:
     # Still an exact key set, so a field cannot appear or vanish here
     # unnoticed — but the `licence` block's *values* belong to
     # test_mirror_clip_licence_notice.py (#364), not restated here.
-    assert set(body) == {"ready", "root", "pinned_extracts", "licence"}
+    assert set(body) == {"ready", "root", "pinned_extracts", "licence", "fill"}
+    assert body["fill"] is None  # #517: no worker configured, no /fill mounted
 
 
 # --------------------------------------------------------------------------

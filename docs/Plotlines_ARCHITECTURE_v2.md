@@ -789,7 +789,23 @@ GET    /trips/{id}/arrivals       # roster-visible arrivals for this trip
 # Reading — hosted mode only ★ NEW v2.0
 GET    /read/{share_token}        # Character-facing web journey view (FR132),
                                   #   reveal-aware (P11)
+
+# The mirror — deploy/mirror, not the sidecar; the sidecar is its client (D63, D67)
+GET|POST /clip?west=…&south=…&east=…&north=…
+                                  # bbox → one clipped .osm.pbf (#262, Q1-C). Client key +
+                                  #   per-IP rate limit (#263); 503 clip_busy past the
+                                  #   concurrency bound (#494)
+POST   /fill {layer, bbox}        # ★ D67 fill contract (#517). 202 fetching + fill_id
+                                  #   while a job runs; 200 ready (already stored, no job),
+                                  #   no_upstream_coverage (terminal, no job) or
+                                  #   failed:<reason> (transient, after a cooldown).
+                                  #   Single-flight per (layer, area). Key required even on
+                                  #   a keyless mirror; shares /clip's rate limit
+GET    /fill/{fill_id}            # poll: {state, detail, retry_after_s, progress}.
+                                  #   Key required, not rate limited
 ```
+
+**The four fill states are four different instructions to a caller.** `fetching` is *wait* — poll no sooner than `retry_after_s`, and never treat it as final (D66: a poll, not a longer deadline). `ready` is *read it*. `no_upstream_coverage` is *won't* — decided locally with no job, not polled. `failed:<reason>` is *didn't, this time* — a new request after the cooldown starts a fresh job. The store the mirror serves stays plain files (`file_server`, read-only); only `/clip*` and `/fill*` are proxied, so the store answers with the worker stopped. Contract detail, bookkeeping and eviction: `deploy/mirror/README.md` "Fills".
 
 **`/candidates/extract` is a job, not a synchronous call.** Extraction over a multi-day bbox across many layers is not a request an Author waits on inline, and it is the operation §8.3's readiness model is built around.
 

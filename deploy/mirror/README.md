@@ -410,6 +410,91 @@ a `--dart-define` from the builder's environment (or the shell, for a source
 run) — see `packaging/README.md` "Mirror client key". The same value goes in
 both places; nothing in the repo holds it. See the module's own docstring and
 `docs/Plotlines_OSM_Acquisition_Review.md` §6.8 for the full reasoning.
+
+## Fills: the mirror fetches what it doesn't have (issue #517, ARCH D67)
+
+ARCH **D67** splits the mirror in two, and the split is what keeps the move to
+hosting "a hostname change":
+
+- **The store** is this tree: immutable paths, plain files, served by Caddy's
+  `file_server` read-only (a zero-egress bucket once hosted). It never gains
+  logic. Every path it served before fills existed, it serves with the worker
+  stopped — only `/clip*` and `/fill*` are proxied
+  (`test_mirror_clip_deploy_config.py` pins that list).
+- **The fill worker** (`service/plotlines_service/mirror_fill.py`) runs inside
+  the `mirror-clip` container. It takes a fill request for an area the store
+  doesn't hold, fetches it from upstream on its own queue, and publishes it
+  with the same temp-file → `os.replace` step the extract scripts use. It is
+  enabled by `MIRROR_FILL_STATE_DIR` (the default in `docker-compose.yml`),
+  and `MIRROR_FILL_LAYERS` names what it fills (#518 OSM, #519 basemap; #520
+  puts the elevation proxy on the same contract).
+
+### The contract
+
+```
+POST /fill   {"layer": "osm", "west": …, "south": …, "east": …, "north": …}
+  202  {"fill_id": "…", "state": "fetching", "retry_after_s": 15, …}   Retry-After: 15
+  200  {"fill_id": null, "state": "ready", …}                          already in the store
+  200  {"fill_id": null, "state": "no_upstream_coverage", "detail": "…"}
+  200  {"fill_id": "…", "state": "failed:<reason>", "retry_after_s": …}
+GET  /fill/{fill_id}
+  202  while fetching, 200 otherwise — same body
+  404  unknown_fill (finished fills drop out after a day)
+```
+
+| `state` | What it means to a caller |
+|---|---|
+| `fetching` | **Wait.** The area is on its way. Poll `GET /fill/{id}` no sooner than `retry_after_s`. Never a final answer — a quota wait (#520) is `fetching` too. |
+| `ready` | The area is in the store. Read it the ordinary way (`/clip`, the static file). |
+| `no_upstream_coverage` | **Won't.** No upstream publishes this area. Decided locally, at once, with no job and no upstream request. Don't poll. |
+| `failed:<reason>` | The fill ran and didn't land: `failed:restarted`, `failed:timeout`, `failed:upstream_error`, a layer's own reason. Transient — a new `POST /fill` after `retry_after_s` (the 5-minute cooldown) starts a fresh job. |
+
+**Single-flight.** A layer's filler maps the bbox to the store *areas* that
+cover it (a Geofabrik region, a grid cell), locally and without a network call.
+One job runs per `(layer, area)`, and `fill_id` is a hash of the layer and the
+missing area keys — so N requests for one missing area get one job and one id,
+and a later request inside an in-flight job's area joins it.
+
+**Gate.** `POST /fill` needs the `X-Plotlines-Client-Key` and counts against
+the same per-IP limit as `/clip` (one limiter; past it, `429` with
+`Retry-After`). Neither refusal starts a job. Unlike `/clip`, a mirror with *no*
+key configured refuses every fill (`401`) — a fill spends a volunteer or
+quota-bound upstream — so the anonymous web reader, which never holds the key
+(SPIKE-F, D59), can never start one. `--allow-unkeyed-fills` exists for local
+dev only. `GET /fill/{id}` needs the key but not the rate limit: polling is the
+contract working.
+
+**Bookkeeping.** `MIRROR_STATE.json` gains an `areas` record, one row per
+stored area:
+
+```json
+"areas": {
+  "osm/wnc-corridor": {"layer": "osm", "area": "wnc-corridor",
+    "path": "osm/geofabrik/2026-09-01/wnc-corridor.osm.pbf",
+    "upstream": "precut:north-carolina,tennessee", "filled_at": "…",
+    "last_read_at": "…", "bytes": 101234567, "pinned": true, "seeded": true}
+}
+```
+
+The existing `geofabrik.regions` and `basemap.covered_regions` entries are its
+first rows — seeded as `pinned: true, seeded: true` whenever the worker touches
+the file, and dropped if their source entry goes — not a second system. The
+pull scripts take the same `MIRROR_STATE.json.lock` `flock` around their writes,
+and `geofabrik_pull.save_state` carries `areas` forward from disk, so an
+hours-long precut run can't write back a stale copy over rows filled meanwhile.
+
+**Eviction.** `MIRROR_STORE_CAP_BYTES` (0 = no cap). Past it, the
+least-recently-read unpinned areas are deleted until the store fits; a pinned
+area never is, and a store whose pinned areas alone exceed the cap is logged,
+not "fixed". `last_read_at` is stamped when `POST /fill` answers `ready` for an
+area and when `/clip` reads one — Caddy records nothing, by design.
+
+**Restarts and stuck jobs.** The job journal lives in `MIRROR_FILL_STATE_DIR`,
+never in the store. On start, a job that was mid-fetch is `failed:restarted`,
+one that was waiting on a quota deferral is rescheduled, and every `.fill-*`
+staging file under the store is removed — a killed worker leaves no partial file
+at a store path and no job `fetching` forever. A job whose *run* passes an hour
+is `failed:timeout`.
 `service/tests/test_mirror_clip_server.py` covers both mechanisms
 hermetically; setting a real key on the live Pi is an operator step, not
 something a hermetic test can exercise.

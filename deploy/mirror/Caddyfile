@@ -24,10 +24,16 @@
 ## `reverse_proxy`'s own path matcher terminates the request before
 ## `file_server` below ever sees a /clip request; everything else here stays
 ## plain static files, per §6.7's "everything else stays dumb."
+##
+## Issue #517 (ARCH D67): /fill* — the fill worker's contract — goes to the
+## same container, and is the only other proxied path. The store itself is
+## still served by file_server alone, read-only, so every existing path
+## answers with the worker stopped; the worker only ever adds files.
 http://tiles.plotlines.app {
 	root * {$MIRROR_ROOT:/srv/plotlines-mirror}
 
 	reverse_proxy /clip* {$MIRROR_CLIP_UPSTREAM:mirror-clip:8095}
+	reverse_proxy /fill* {$MIRROR_CLIP_UPSTREAM:mirror-clip:8095}
 
 	file_server
 
