@@ -73,6 +73,7 @@ import hashlib
 import json
 import logging
 import os
+import shutil
 import tempfile
 import threading
 import time
@@ -186,6 +187,9 @@ class FilledArea:
 
     upstream: str
     extra_paths: tuple[str, ...] = ()
+    #: Layer-specific facts kept on the area's row (`meta`), for the
+    #: filler's own `register` hook to read back.
+    meta: Mapping[str, object] = field(default_factory=dict)
 
 
 class FillDeferred(Exception):
@@ -554,9 +558,12 @@ class FillWorker:
         every staging file under the store is removed."""
         removed = 0
         if self.root.exists():
-            for staged in self.root.rglob(f"{STAGING_PREFIX}*"):
+            for staged in sorted(self.root.rglob(f"{STAGING_PREFIX}*"), reverse=True):
                 try:
-                    staged.unlink()
+                    if staged.is_dir() and not staged.is_symlink():
+                        shutil.rmtree(staged)
+                    else:
+                        staged.unlink()
                     removed += 1
                 except OSError as exc:  # pragma: no cover - permissions
                     log.warning("fill: could not remove staging file %s: %s", staged, exc)
@@ -630,8 +637,13 @@ class FillWorker:
     # -- store -------------------------------------------------------------
 
     def _stored(self, layer: str, area: AreaPlan, records: Mapping[str, dict]) -> bool:
+        """In the store means recorded *at the path the plan names* and on
+        disk. A plan can move an area — a Geofabrik re-pin puts the next
+        cell under a new pin directory — and the row left at the old path
+        must not answer `ready` for it."""
         row = records.get(area_key(layer, area.area))
-        return row is not None and (self.root / row["path"]).exists()
+        return (row is not None and row["path"] == area.path
+                and (self.root / row["path"]).exists())
 
     def touch(self, layer: str, area: str) -> None:
         """Stamps `last_read_at` for eviction, at most once per
@@ -912,6 +924,7 @@ class FillWorker:
             "upstream": filled.upstream, "filled_at": now, "last_read_at": now,
             "bytes": _file_bytes(final), "pinned": False, "seeded": False,
             "extra_paths": list(filled.extra_paths),
+            "meta": dict(filled.meta),
         }
 
         def _record(state: dict) -> None:

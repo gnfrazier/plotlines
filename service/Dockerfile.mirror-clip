@@ -48,6 +48,10 @@ RUN pip install --no-cache-dir uv
 WORKDIR /app
 COPY core/ /app/core/
 COPY service/ /app/service/
+# Issue #518: the OSM fill pulls through geofabrik_pull.py's own etiquette
+# rather than a second copy of it. mirror_fill_osm.py loads it from the same
+# repo-relative place it sits in a checkout (<root>/deploy/mirror/).
+COPY deploy/mirror/geofabrik_pull.py /app/deploy/mirror/geofabrik_pull.py
 
 WORKDIR /app/service
 RUN uv sync --no-dev

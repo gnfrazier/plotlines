@@ -145,6 +145,22 @@ class MirrorUnreachable(RuntimeError):
     verbatim as the `extract` capability's reason."""
 
 
+class ExtractFilling(MirrorUnreachable):
+    """The mirror answered `202`: it doesn't hold this area yet and is
+    fetching it from Geofabrik (ARCH D67, #518). Not a fact about the bbox
+    and not an outage — a *not yet*. A subclass of `MirrorUnreachable` so
+    a caller that only knows the transient/terminal split already treats
+    it as transient; `fill_id` and `retry_after_s` are what a caller that
+    knows about fills (#521) polls on."""
+
+    def __init__(self, message: str, *, fill_id: str | None, retry_after_s: float | None,
+                 detail: str = ""):
+        super().__init__(message)
+        self.fill_id = fill_id
+        self.retry_after_s = retry_after_s
+        self.detail = detail
+
+
 class NoExtractCoverage(RuntimeError):
     """The mirror answered `404 no_mirror_coverage` — a true, finished
     answer about this bbox (nothing pinned on the mirror covers it), not an
@@ -318,6 +334,16 @@ def fetch_extract(
     except urllib.error.HTTPError as exc:
         body = exc.read()
         code = _error_code(body)
+        if exc.code == 404 and code == "no_upstream_coverage":
+            # #518: a filling mirror's terminal answer — no Geofabrik region
+            # publishes this area, so there is nothing to wait for.
+            progress.status = "failed"
+            progress.detail = "no_upstream_coverage"
+            raise NoExtractCoverage(
+                "No OpenStreetMap extract covers this area, so the Plotlines "
+                "map-data mirror has nothing to fetch it from. Routing isn't "
+                "available here."
+            ) from exc
         if exc.code == 404 and code == "no_mirror_coverage":
             progress.status = "failed"
             progress.detail = "no_mirror_coverage"
@@ -342,6 +368,26 @@ def fetch_extract(
             "map data for this area. This is almost always temporary — "
             f"check your connection and try again in a few minutes. ({exc.reason})"
         ) from exc
+
+    if getattr(response, "status", 200) == 202:
+        # #518: the mirror is filling this area. The body is JSON, never
+        # an extract — it must not reach the cache below.
+        with response:
+            try:
+                fill = (json.loads(response.read().decode("utf-8")) or {}).get("fill") or {}
+            except (ValueError, UnicodeDecodeError, AttributeError):
+                fill = {}
+            retry = response.headers.get("Retry-After")
+        progress.status = "failed"
+        progress.detail = "fetching"
+        raise ExtractFilling(
+            "The Plotlines map-data mirror is fetching OSM data for this area "
+            "from Geofabrik. That takes a few minutes; routing will be ready "
+            "once it lands.",
+            fill_id=fill.get("fill_id"),
+            retry_after_s=float(retry) if retry and retry.isdigit() else fill.get("retry_after_s"),
+            detail=fill.get("detail") or "",
+        )
 
     with response:
         pin = response.headers.get(PIN_HEADER)

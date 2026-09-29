@@ -21,3 +21,12 @@ def build_fillers(names: str, *, root: Path) -> list[LayerFiller]:
             f"error: unknown fill layer(s) {unknown}; this build fills "
             f"{sorted(FILLER_FACTORIES)}")
     return [FILLER_FACTORIES[n](Path(root)) for n in wanted]
+
+
+def _osm(root: Path) -> LayerFiller:
+    from .mirror_fill_osm import OsmFiller
+
+    return OsmFiller(root)
+
+
+FILLER_FACTORIES["osm"] = _osm

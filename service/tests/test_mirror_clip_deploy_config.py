@@ -122,3 +122,14 @@ def test_dockerfile_does_not_install_the_wheels_vendored_libraries() -> None:
 
 def test_dockerfile_runs_a_single_worker() -> None:
     assert "--workers" not in _DOCKERFILE_CONFIG
+
+
+def test_dockerfile_ships_the_pull_script_where_the_osm_fill_loads_it() -> None:
+    """#518: `mirror_fill_osm._PULL_SCRIPT` is `<repo>/deploy/mirror/
+    geofabrik_pull.py`, resolved from the module's own path — in the image
+    `/app/service/plotlines_service/…` makes that `/app/deploy/mirror/`."""
+    from plotlines_service import mirror_fill_osm
+
+    assert "COPY deploy/mirror/geofabrik_pull.py /app/deploy/mirror/geofabrik_pull.py" in _DOCKERFILE_CONFIG
+    assert mirror_fill_osm._PULL_SCRIPT.parts[-3:] == ("deploy", "mirror", "geofabrik_pull.py")
+    assert mirror_fill_osm._PULL_SCRIPT.exists()
