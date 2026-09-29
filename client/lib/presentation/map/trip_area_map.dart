@@ -227,7 +227,7 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
         final styleFailed = themeResult != null && !themeResult.ok;
         final outOfCoverage = _mapReady &&
             !tilesLikelyCoverViewport(_mapController.camera.visibleBounds, tripBbox: widget.bbox,
-                upstreamBounds: sidecar.capabilities?.tilesUpstream?.bounds);
+                upstreamCoverage: sidecar.capabilities?.tilesUpstream?.coverage);
 
         // Navigating never alters the extent (FR120): panning is its own
         // gesture, so it's suspended only while a drag *is* the draw

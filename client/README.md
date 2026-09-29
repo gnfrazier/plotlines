@@ -119,18 +119,20 @@ Five things worth knowing before you set any of them:
   `PLOTLINES_OPENTOPOGRAPHY_API_KEY` — only the Pi holds it, and a sidecar started with
   `--elevation-upstream` uses `core/plotlines_core/elevation/qa_proxy_client.py`'s
   unauthenticated fetcher instead.
-- **`PLOTLINES_TILES_UPSTREAM` defaults to the widest archive the configured mirror
-  publishes** (issue #539): `<PLOTLINES_MIRROR_URL>/`+`SidecarUpstreams.defaultTilesArchivePath`,
-  #515's priority-regions archive (a superset of the WNC corridor), which a test pins to
-  `tiles/mirror.py`'s `PRIORITY_REGIONS_ARCHIVE_PATH`. It follows `PLOTLINES_MIRROR_URL`, so a
-  LAN Pi run reads tiles from the Pi with no extra setting, and `off` there turns tiles off too
-  (the sidecar serves only the shipped home region). Before #539 every launch was pinned to the
-  corridor on the https host, whatever mirror was configured. `/health` never contacts it; the sidecar reads
-  single tiles from it only for a viewport the home archive and region caches don't cover (#514). A cold start with no network still renders the committed
-  home-region archive (FR96). A trip bbox outside every mirrored region shows the #318
-  graticule, which is an honest gap — except over the gaps *between* priority regions, which
-  sit inside the archive's header envelope, so the notice reads them as covered until #519
-  reports per-cell coverage. Epic #516 owns filling gaps on a miss.
+- **`PLOTLINES_TILES_UPSTREAM` defaults to the configured mirror's root** (issue #519):
+  `PLOTLINES_MIRROR_URL` itself, which a test pins to `tiles/mirror.py`'s
+  `MIRROR_BASEMAP_ROOT_URL`. A value that doesn't end in `.pmtiles` is a store root: the
+  sidecar reads the mirror's `MIRROR_STATE.json` record and finds each tile's archive by area
+  (the corridor, #515's priority archive by its recorded parts, every cell the mirror has
+  filled — ARCH D67), so a newly filled cell is read without a restart. A value ending in
+  `.pmtiles` still names one archive, as before. It follows `PLOTLINES_MIRROR_URL`, so a LAN
+  Pi run reads tiles from the Pi with no extra setting, and `off` there turns tiles off too
+  (the sidecar serves only the shipped home region). `/health` never contacts it; the sidecar
+  reads the record and single tiles only for a viewport the home archive and region caches
+  don't cover (#514), on its own pool. A cold start with no network still renders the
+  committed home-region archive (FR96). `/health` reports coverage per archive part
+  (`tiles.upstream.coverage`), so a viewport over a gap between filled cells shows the #318
+  graticule honestly rather than reading as covered.
   Whatever this names, the client never passes `--allow-unmirrored-tiles`. The sidecar refuses a
   third-party host (`HotlinkRefused`, FR92/FR95) and reports the refusal on `/health`'s
   `capabilities.tiles.upstream` (#454).

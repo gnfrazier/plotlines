@@ -29,10 +29,9 @@ import 'package:flutter/foundation.dart';
 ///  3. The built-in default: the Plotlines-operated mirror at
 ///     [defaultMirrorUrl], matching `tiles/mirror.py`'s `MIRROR_HOST`
 ///     posture; and, once a mirror URL is configured at all, two paths
-///     derived from it — the tiles upstream at
-///     `<mirrorUrl>/`[defaultTilesArchivePath] (issue #539; the widest
-///     archive the mirror publishes, matching `PRIORITY_REGIONS_ARCHIVE_PATH`)
-///     and the state URL at `<mirrorUrl>/MIRROR_STATE.json` (issue #367 —
+///     derived from it — the tiles upstream, which is the mirror root itself
+///     (issue #519: the sidecar finds each tile's archive from the store's
+///     record, so filled cells are read as they land) — and the state URL at `<mirrorUrl>/MIRROR_STATE.json` (issue #367 —
 ///     safe now that `_mirror_capability` caches the read rather than
 ///     fetching it on every 2s `/health` poll). Tests pin these to the core
 ///     side. The key and the elevation proxy have no default.
@@ -65,18 +64,12 @@ class SidecarUpstreams {
   /// Pinned to `core/plotlines_core/tiles/mirror.py::MIRROR_HOST` by test.
   static const String defaultMirrorUrl = 'https://tiles.plotlines.app';
 
-  /// The basemap archive the tiles default names under the resolved mirror
-  /// URL (issue #539): the widest one the mirror publishes, #515's
-  /// priority-regions archive — a superset of the WNC corridor that #457
-  /// used to pin every launch to, whatever mirror was configured. Pinned to
-  /// `core/plotlines_core/tiles/mirror.py::PRIORITY_REGIONS_ARCHIVE_PATH` by
-  /// test.
-  static const String defaultTilesArchivePath =
-      'basemap/protomaps/20250101-priority/priority.pmtiles';
-
-  /// [defaultTilesArchivePath] under [defaultMirrorUrl] — what a stock
-  /// launch passes. Equal to `mirror.py::MIRROR_PRIORITY_REGIONS_URL`.
-  static const String defaultTilesUpstream = '$defaultMirrorUrl/$defaultTilesArchivePath';
+  /// What a stock launch passes as `--tiles-upstream`: the mirror **root**
+  /// (issue #519), not one archive. The sidecar reads the store's own record
+  /// (`MIRROR_STATE.json`'s `areas`) to learn which archive covers a tile, so
+  /// a cell the mirror fills (ARCH D67) is read without a new flag or a
+  /// rebuild. Equal to `mirror.py::MIRROR_BASEMAP_ROOT_URL`, pinned by test.
+  static const String defaultTilesUpstream = defaultMirrorUrl;
 
   /// Environment-variable / `--dart-define` names. One set of names for both
   /// channels so the README can document each once.
@@ -126,19 +119,17 @@ class SidecarUpstreams {
   /// to #264, tracked apart from #148/FR87). No default.
   final String? elevationUpstream;
 
-  /// The sidecar's `--tiles-upstream`: a PMTiles source a region's on-demand
-  /// tile cache is extracted from (issue #453, epic #458). Defaults to
-  /// [defaultTilesArchivePath] under the resolved [mirrorUrl] (issue #539),
-  /// so a LAN or hosted mirror is read for tiles too, and turning the mirror
-  /// `off` turns this default off with it — the sidecar then serves only the
-  /// shipped home region (FR96). Never the planet build: `MIRROR_ARCHIVE_URL`
-  /// still names that unacquired archive and is never defaulted to. The
-  /// priority archive's header bounds are its whole envelope, so over the
-  /// gaps between its regions the #318 notice reads as covered until #519
-  /// reports per-cell coverage. Never combine this with `--allow-unmirrored-tiles` —
-  /// [toSidecarArgs] never emits that flag, so a third-party host here is
-  /// refused by the sidecar (`HotlinkRefused`, FR92/FR95), not allowed
-  /// through.
+  /// The sidecar's `--tiles-upstream`: a PMTiles archive, or a store root
+  /// the sidecar resolves archives under by area (issue #519). Defaults to
+  /// the resolved [mirrorUrl] itself — the root — so a LAN or hosted mirror
+  /// is read for tiles too, a cell the mirror fills (ARCH D67) shows up
+  /// without a restart, and turning the mirror `off` turns this default off
+  /// with it; the sidecar then serves only the shipped home region (FR96).
+  /// `/health` reports the root's coverage per archive part, so the #318
+  /// notice shows over the gaps between cells. Never combine this with
+  /// `--allow-unmirrored-tiles` — [toSidecarArgs] never emits that flag, so a
+  /// third-party host here is refused by the sidecar (`HotlinkRefused`,
+  /// FR92/FR95), not allowed through.
   final String? tilesUpstream;
 
   /// Whether the sidecar will be told about a mirror at all.
@@ -161,11 +152,10 @@ class SidecarUpstreams {
           mirrorUrl == null ? null : '$mirrorUrl/MIRROR_STATE.json'),
       elevationUpstream:
           _pick(env[elevationUpstreamVar], _defineElevationUpstream, null),
-      // Issue #539 — derived from the resolved mirror URL, like the state
-      // URL above, so a configured mirror is read for tiles and `off` turns
-      // both off. An explicit env/define value still wins outright.
-      tilesUpstream: _pick(env[tilesUpstreamVar], _defineTilesUpstream,
-          mirrorUrl == null ? null : '$mirrorUrl/$defaultTilesArchivePath'),
+      // Issue #539/#519 — the resolved mirror URL itself (the store root),
+      // like the state URL above, so a configured mirror is read for tiles
+      // and `off` turns both off. An explicit env/define value still wins.
+      tilesUpstream: _pick(env[tilesUpstreamVar], _defineTilesUpstream, mirrorUrl),
     );
   }
 

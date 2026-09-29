@@ -64,22 +64,24 @@ void main() {
   group('the tile upstream\'s own coverage counts (issue #154)', () {
     // The reopened #154 screenshot: the WNC corridor outside Buncombe, with
     // the mirror serving it through `/tiles`, still read "no tiles here".
-    const corridor = [-83.6, 35.2, -81.0, 36.4];
+    const corridor = [
+      [-83.6, 35.2, -81.0, 36.4]
+    ];
 
     test('a viewport inside the upstream bounds but outside home is covered', () {
       final viewport = _boundsAround(36.2, -81.7); // Boone, NC
       expect(tilesLikelyCoverViewport(viewport), isFalse);
-      expect(tilesLikelyCoverViewport(viewport, upstreamBounds: corridor), isTrue);
+      expect(tilesLikelyCoverViewport(viewport, upstreamCoverage: corridor), isTrue);
     });
 
     test('unknown upstream bounds leave the answer unchanged', () {
       final viewport = _boundsAround(36.2, -81.7);
-      expect(coveredViewportFraction(viewport, upstreamBounds: null), 0.0);
+      expect(coveredViewportFraction(viewport, upstreamCoverage: null), 0.0);
     });
 
     test('a viewport outside the upstream bounds too is still out-of-coverage', () {
       final viewport = _boundsAround(40.02, -105.27);
-      expect(tilesLikelyCoverViewport(viewport, upstreamBounds: corridor), isFalse);
+      expect(tilesLikelyCoverViewport(viewport, upstreamCoverage: corridor), isFalse);
     });
 
     test('home, trip bbox and upstream overlapping are counted once', () {
@@ -87,9 +89,35 @@ void main() {
       // clip, never more than the whole viewport.
       final viewport = _bounds(south: 35.0, west: -84.0, north: 36.6, east: -80.6);
       const trip = TripBbox(minLat: 35.5, minLon: -82.7, maxLat: 35.7, maxLon: -82.4);
-      final fraction = coveredViewportFraction(viewport, tripBbox: trip, upstreamBounds: corridor);
+      final fraction = coveredViewportFraction(viewport, tripBbox: trip, upstreamCoverage: corridor);
       final expected = (2.6 * 1.2) / (3.4 * 1.6);
       expect(fraction, closeTo(expected, 1e-9));
+    });
+  });
+
+  group('per-part coverage shows the gap between two cells (issue #519)', () {
+    // Two filled 2° cells with a 2° gap between them — the shape #515's one
+    // envelope read as covered end to end.
+    const cells = [
+      [-82.0, 34.0, -80.0, 36.0],
+      [-78.0, 34.0, -76.0, 36.0],
+    ];
+
+    test('a viewport over the gap is out of coverage', () {
+      final viewport = _boundsAround(35.0, -79.0);
+      expect(tilesLikelyCoverViewport(viewport, upstreamCoverage: cells), isFalse);
+      const envelope = [
+        [-82.0, 34.0, -76.0, 36.0]
+      ];
+      expect(tilesLikelyCoverViewport(viewport, upstreamCoverage: envelope), isTrue,
+          reason: 'the envelope is the overclaim this replaces');
+    });
+
+    test('a viewport over either cell is covered', () {
+      expect(tilesLikelyCoverViewport(_boundsAround(35.0, -81.0), upstreamCoverage: cells),
+          isTrue);
+      expect(tilesLikelyCoverViewport(_boundsAround(35.0, -77.0), upstreamCoverage: cells),
+          isTrue);
     });
   });
 

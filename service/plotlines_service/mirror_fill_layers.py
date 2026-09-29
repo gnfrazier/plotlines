@@ -30,3 +30,12 @@ def _osm(root: Path) -> LayerFiller:
 
 
 FILLER_FACTORIES["osm"] = _osm
+
+
+def _basemap(root: Path) -> LayerFiller:
+    from .mirror_fill_basemap import BasemapFiller
+
+    return BasemapFiller(root)
+
+
+FILLER_FACTORIES["basemap"] = _basemap

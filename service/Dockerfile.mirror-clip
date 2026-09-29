@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Plotlines mirror-side bbox clip — issue #262 (Phase 1.8 of epic #264,
 # docs/Plotlines_OSM_Acquisition_Review.md §6.7). Runs on the Pi5 mirror
 # host, containerized for the same reason Dockerfile.elevation-proxy is:
@@ -45,6 +46,32 @@ RUN apt-get update \
 
 RUN pip install --no-cache-dir uv
 
+# Issue #519: the basemap fill runs `pmtiles extract` (protomaps_extract.py's
+# own tool — see that script for why not tiles/extract.py against a planet
+# archive). go-pmtiles is BSD-3-Clause, so addendum L1's no-GPL posture holds.
+# Pinned to the release the Pi's host copy runs (1.31.2), checksum-verified
+# per architecture; slim has no curl, so Python fetches it.
+ARG TARGETARCH
+ARG PMTILES_VERSION=1.31.2
+RUN python - <<'PY'
+import hashlib, io, os, tarfile, urllib.request
+arch = {"arm64": "arm64", "amd64": "x86_64"}[os.environ.get("TARGETARCH") or "amd64"]
+sums = {
+    "arm64": "f8bd47e7ea866863489cad588fbaf2f31f42e5821f7a03f009b3769f05801cb1",
+    "x86_64": "3ed7dbf4ec2e6dfe5e25b6f70d1ffc932729f93c86db353bf514dd71010a312f",
+}
+version = os.environ["PMTILES_VERSION"]
+url = (f"https://github.com/protomaps/go-pmtiles/releases/download/v{version}/"
+       f"go-pmtiles_{version}_Linux_{arch}.tar.gz")
+body = urllib.request.urlopen(url, timeout=120).read()
+assert hashlib.sha256(body).hexdigest() == sums[arch], "go-pmtiles checksum mismatch"
+with tarfile.open(fileobj=io.BytesIO(body)) as tar:
+    member = tar.getmember("pmtiles")
+    with open("/usr/local/bin/pmtiles", "wb") as out:
+        out.write(tar.extractfile(member).read())
+os.chmod("/usr/local/bin/pmtiles", 0o755)
+PY
+
 WORKDIR /app
 COPY core/ /app/core/
 COPY service/ /app/service/
@@ -52,6 +79,9 @@ COPY service/ /app/service/
 # rather than a second copy of it. mirror_fill_osm.py loads it from the same
 # repo-relative place it sits in a checkout (<root>/deploy/mirror/).
 COPY deploy/mirror/geofabrik_pull.py /app/deploy/mirror/geofabrik_pull.py
+# Issue #519: the basemap fill uses protomaps_extract.py's build probe and
+# extract wrapper the same way.
+COPY deploy/mirror/protomaps_extract.py /app/deploy/mirror/protomaps_extract.py
 
 WORKDIR /app/service
 RUN uv sync --no-dev

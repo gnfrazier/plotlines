@@ -155,19 +155,47 @@ def prewarm(
         )
     state = json.loads(state_path.read_text())
     now = acquire_kwargs.pop("now", None) or pe._utcnow()
+    bboxes = area_bboxes(candidates)
     if not force and pe.region_is_fresh(state, REGION_NAME, ttl_days=ttl_days, now=now):
         LOG.info("skip %s: extracted within the last %.1f days", REGION_NAME, ttl_days)
+        # #519: an archive published before `parts` existed still gets them,
+        # with no extract — the record is what the sidecar reads coverage from.
+        record_parts(root, bboxes)
         return None
 
-    bboxes = area_bboxes(candidates)
     with tempfile.TemporaryDirectory(prefix="prewarm-basemap-") as scratch:
         geojson_path = Path(scratch) / "priority-regions.geojson"
         geojson_path.write_text(json.dumps(region_geojson(bboxes)))
-        return pe.acquire(
+        dest = pe.acquire(
             root=root, bbox=envelope(bboxes), region_name=REGION_NAME,
             build_id=BUILD_ID, filename=FILENAME, primary=False,
             region_geojson=geojson_path, now=now, **acquire_kwargs,
         )
+    if dest is not None:
+        record_parts(root, bboxes)
+    return dest
+
+
+def record_parts(root: Path, bboxes: list[BBox]) -> None:
+    """Issue #519: writes the archive's real areas as `parts` beside its
+    envelope `bbox`. The envelope spans a continent; the archive holds a
+    dozen boxes inside it. The sidecar's per-cell coverage (and the mirror's
+    fill planner) read `parts` when a record has them, so the #318 notice
+    shows over the gaps between regions instead of reading them as covered.
+    Under the same `MIRROR_STATE.json.lock` every other writer takes."""
+    state_path = root / "MIRROR_STATE.json"
+    with open(state_path.with_name(state_path.name + ".lock"), "a") as lock_fh:
+        if pe.fcntl is not None:
+            pe.fcntl.flock(lock_fh, pe.fcntl.LOCK_EX)
+        state = pe._read_state(state_path)
+        entry = ((state.get("basemap") or {}).get("covered_regions") or {}).get(REGION_NAME)
+        if entry is None:
+            return
+        parts = [list(b) for b in bboxes]
+        if entry.get("parts") == parts:
+            return
+        entry["parts"] = parts
+        pe._write_state(root, state_path, state)
 
 
 def _print_plan(candidates: list[RegionCandidate]) -> None:

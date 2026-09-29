@@ -341,6 +341,8 @@ def seed_area_records(state: dict, root: Path) -> bool:
                 "area": name,
                 "path": rel,
                 "bbox": list(entry["bbox"]) if entry.get("bbox") else None,
+                # #519: a multi-area archive's real areas, when recorded.
+                "parts": [list(p) for p in entry["parts"]] if entry.get("parts") else None,
                 "upstream": f"protomaps:{source.get('planet_build_date') or 'unknown'}",
                 "filled_at": entry.get("extracted_at"),
                 "last_read_at": None,
@@ -739,6 +741,7 @@ class FillWorker:
         for a in plan.areas:
             if a not in missing:
                 self.touch(layer, a.area)
+                self._maybe_refresh(filler, layer, a, records)
         if not missing:
             return FillStatus(
                 None, layer, READY, "already in the store",
@@ -775,6 +778,32 @@ class FillWorker:
         return FillStatus(
             status.fill_id, status.layer, status.state, status.detail,
             status.retry_after_s, status.progress, status.areas, jobs_started=started)
+
+    def _maybe_refresh(self, filler, layer: str, area: AreaPlan,
+                       records: Mapping[str, dict]) -> None:
+        """D65's TTL, carried into the fill contract (#519): a stored area
+        whose filler says it is due is still answered `ready` — the stored
+        copy serves — and a single-flight job replaces it behind that, with
+        the same atomic publish, so no reader ever waits on a refresh."""
+        refresh_due = getattr(filler, "refresh_due", None)
+        row = records.get(area_key(layer, area.area))
+        if refresh_due is None or row is None or not refresh_due(row):
+            return
+        with self._lock:
+            job = self._jobs.get(area_key(layer, area.area))
+            if job is not None and job.state == FETCHING:
+                return
+            if (job is not None and is_failed(job.state) and job.finished_at is not None
+                    and self._wall() - job.finished_at < self.failed_cooldown_s):
+                return
+            job = _Job(job_id=uuid.uuid4().hex, layer=layer, area=area.area,
+                       path=area.path, bbox=area.bbox, created_at=self._wall(),
+                       detail="refreshing behind the stored copy")
+            self._jobs[job.key] = job
+            self._schedule(job, 0.0)
+            self._save_journal()
+        log.info("fill: %s is past its refresh age; refreshing behind the stored copy",
+                 job.key)
 
     def status(self, fill_id: str) -> FillStatus | None:
         with self._lock:

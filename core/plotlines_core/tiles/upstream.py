@@ -126,6 +126,13 @@ class UpstreamTileReader:
             self._tiles[(z, x, y)] = data
             return data
 
+    def read_tile(self, z: int, x: int, y: int) -> tuple[bytes | None, ArchiveInfo | None]:
+        """`tile()` plus the header info that describes its encoding — the
+        one call `/tiles` makes on its pool, so the same shape serves a
+        single archive and a `basemap_set.BasemapArchiveSet` (#519)."""
+        data = self.tile(z, x, y)
+        return data, self.info()
+
     def _read(self, z: int, x: int, y: int) -> bytes | None:
         if self._get_bytes is None:
             self._get_bytes, self._close = self._opener(self._resolved)

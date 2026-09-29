@@ -13,7 +13,7 @@
 // on-demand region cache once ensured, and — since the #154 reopen — the
 // configured tile upstream (the mirror) read one tile at a time. The first
 // two areas are known client-side (`HomeRegion`'s constants; `TripBbox` the
-// Author drew); the third is `/health`'s `tiles.upstream.bounds`, known once
+// Author drew); the third is `/health`'s `tiles.upstream.coverage`, known once
 // the sidecar has read the upstream's header. [tilesLikelyCoverViewport]
 // answers "should this pan have tiles" with no network call of its own and
 // no reference to any one fixture region.
@@ -42,7 +42,8 @@ const double kMinViewportCoverage = 0.5;
 /// The fraction of [viewport]'s area that lies inside the union of the
 /// shipped home region, (when given) this trip's own bbox, and (when given)
 /// the tile upstream's own coverage, `[west, south, east, north]` as
-/// `/health` reports it in `tiles.upstream.bounds` (issue #154).
+/// `/health` reports it in `tiles.upstream.coverage` — one rectangle per
+/// archive part since #519, so gaps between filled cells stay uncovered.
 ///
 /// Planar in degrees: viewports at authoring zoom are small enough that the
 /// ratio of a lat/lon-rectangle's area to the viewport's is a fair proxy for
@@ -51,13 +52,13 @@ const double kMinViewportCoverage = 0.5;
 /// inside these bounds, and the sidecar's own 404 stays authoritative for
 /// any one tile.
 double coveredViewportFraction(LatLngBounds viewport,
-    {TripBbox? tripBbox, List<double>? upstreamBounds}) {
+    {TripBbox? tripBbox, List<List<double>>? upstreamCoverage}) {
   final vw = viewport.east - viewport.west;
   final vh = viewport.north - viewport.south;
   if (vw <= 0 || vh <= 0) return 0;
   final viewportArea = vw * vh;
 
-  // Each coverage area, clipped to the viewport — at most three.
+  // Each coverage area, clipped to the viewport.
   final clipped = <List<double>>[]; // each: [west, south, east, north]
   void addClip(double west, double south, double east, double north) {
     final cw = math.max(west, viewport.west);
@@ -71,8 +72,8 @@ double coveredViewportFraction(LatLngBounds viewport,
   if (tripBbox != null) {
     addClip(tripBbox.minLon, tripBbox.minLat, tripBbox.maxLon, tripBbox.maxLat);
   }
-  if (upstreamBounds != null && upstreamBounds.length == 4) {
-    addClip(upstreamBounds[0], upstreamBounds[1], upstreamBounds[2], upstreamBounds[3]);
+  for (final r in upstreamCoverage ?? const <List<double>>[]) {
+    if (r.length == 4) addClip(r[0], r[1], r[2], r[3]);
   }
   if (clipped.isEmpty) return 0;
 
@@ -104,8 +105,8 @@ double coveredViewportFraction(LatLngBounds viewport,
 /// return `true`, so the honest-empty notice was suppressed on exactly the
 /// screen that needed it.
 bool tilesLikelyCoverViewport(LatLngBounds viewport,
-        {TripBbox? tripBbox, List<double>? upstreamBounds}) =>
-    coveredViewportFraction(viewport, tripBbox: tripBbox, upstreamBounds: upstreamBounds) >=
+        {TripBbox? tripBbox, List<List<double>>? upstreamCoverage}) =>
+    coveredViewportFraction(viewport, tripBbox: tripBbox, upstreamCoverage: upstreamCoverage) >=
     kMinViewportCoverage;
 
 /// The designed "off the map" ground under every map widget's tile layer: a

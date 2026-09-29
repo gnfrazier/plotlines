@@ -747,7 +747,9 @@ POST   /trips/{id}/export         # → GPX | TCX | FIT | GeoJSON, reveal-aware 
 GET    /geocode?q=…               # Nominatim via OSMnx
 
 # Content — both modes (cache-backed)
-GET    /tiles/{z}/{x}/{y}               # z/x/y range-validated before upstream work (FR93); region cache → home archive → upstream read-through (#154; refused for a non-mirror upstream unless --allow-unmirrored-tiles — FR92)
+GET    /tiles/{z}/{x}/{y}               # z/x/y range-validated before upstream work (FR93); region cache → home archive → upstream read-through (#154; refused for a non-mirror upstream unless --allow-unmirrored-tiles — FR92).
+                                        #   --tiles-upstream may name the mirror's store root (#519): archives found by
+                                        #   area from its MIRROR_STATE.json record; /health reports coverage per part
 GET    /elevation?bbox=…                # never blocks, never raises (FR88, §7.5)  [target — not registered]
 GET    /weather?lat=…&lon=…&date=…      # historical | forecast, age-stamped  [target — not registered]
 GET    /attribution                     # the loaded layer set's credits (D45), incl. basemap ODbL

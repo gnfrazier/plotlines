@@ -43,8 +43,8 @@ void main() {
               'instead of re-fetching it on every 2 s poll');
       expect(u.elevationUpstream, isNull, reason: 'QA-only proxy, no default (#148/FR87)');
       expect(u.tilesUpstream, SidecarUpstreams.defaultTilesUpstream,
-          reason: 'issue #539: the widest archive the default mirror publishes, '
-              'derived from the mirror URL like the state URL');
+          reason: 'issue #519: the mirror root, derived from the mirror URL like '
+              'the state URL');
     });
 
     test('the mirror state URL is derived from the mirror URL, not defaulted independently', () {
@@ -63,12 +63,11 @@ void main() {
           reason: 'no mirror URL to derive a state URL from, and nothing named it explicitly');
     });
 
-    test('the tiles upstream follows a configured mirror, not the https corridor (#539)', () {
+    test('the tiles upstream is the configured mirror\'s root (#539, #519)', () {
       final u = SidecarUpstreams.resolve(environment: const {
         SidecarUpstreams.mirrorUrlVar: 'http://tiles.plotlines.app',
       });
-      expect(u.tilesUpstream,
-          'http://tiles.plotlines.app/basemap/protomaps/20250101-priority/priority.pmtiles');
+      expect(u.tilesUpstream, 'http://tiles.plotlines.app');
     });
 
     test('turning the mirror off also turns off its derived tiles upstream (#539)', () {
@@ -100,27 +99,16 @@ void main() {
       expect(Uri.parse(SidecarUpstreams.defaultMirrorUrl).scheme, 'https');
     });
 
-    test("the default tiles archive matches tiles/mirror.py's PRIORITY_REGIONS_ARCHIVE_PATH", () {
-      // `PRIORITY_REGIONS_ARCHIVE_PATH` is an f-string on the Python side —
-      // reconstructed here from its source literals (PROTOMAPS_BASEMAP_BUILD,
-      // MIRROR_HOST, the "-priority" suffix and the filename) rather than by
-      // evaluating Python.
+    test("the default tiles upstream matches tiles/mirror.py's MIRROR_BASEMAP_ROOT_URL", () {
+      // #519: the root, not an archive — the sidecar resolves archives by area
+      // under it. Read off the Python source rather than evaluating it.
       final file = File(
           '${Directory.current.parent.path}/core/plotlines_core/tiles/mirror.py');
       final source = file.readAsStringSync();
-      final host = RegExp(r'^MIRROR_HOST\s*=\s*"([^"]+)"', multiLine: true)
-          .firstMatch(source)!.group(1)!;
-      final protomapsBuild = RegExp(r'^PROTOMAPS_BASEMAP_BUILD\s*=\s*"([^"]+)"', multiLine: true)
-          .firstMatch(source)!.group(1)!;
-      final filename = RegExp(r'^PRIORITY_REGIONS_FILENAME\s*=\s*"([^"]+)"', multiLine: true)
-          .firstMatch(source)!.group(1)!;
-      expect(source, contains('PRIORITY_REGIONS_BUILD_ID = f"{PROTOMAPS_BASEMAP_BUILD}-priority"'));
-      expect(source, contains(
-          'f"basemap/protomaps/{PRIORITY_REGIONS_BUILD_ID}/{PRIORITY_REGIONS_FILENAME}"'));
-      expect(SidecarUpstreams.defaultTilesArchivePath,
-          'basemap/protomaps/$protomapsBuild-priority/$filename');
-      expect(SidecarUpstreams.defaultTilesUpstream,
-          'https://$host/basemap/protomaps/$protomapsBuild-priority/$filename');
+      expect(source, contains('MIRROR_BASEMAP_ROOT_URL = f"https://{MIRROR_HOST}"'));
+      expect(SidecarUpstreams.defaultTilesUpstream, 'https://${pythonMirrorHost()}');
+      expect(SidecarUpstreams.defaultTilesUpstream.endsWith('.pmtiles'), isFalse,
+          reason: 'a root, so the sidecar reads it as an archive set');
     });
 
     test('an environment variable overrides the default mirror URL', () {
@@ -294,8 +282,7 @@ void main() {
           reason: 'no key without a define or env var — the mirror decides '
               'whether an unkeyed /clip is accepted (#263)');
       expect(args, contains('--tiles-upstream=${SidecarUpstreams.defaultTilesUpstream}'),
-          reason: 'issue #539: a stock launch points at the widest archive the '
-              'default mirror publishes');
+          reason: 'issue #519: a stock launch points at the default mirror\'s root');
     });
   });
 
