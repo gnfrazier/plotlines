@@ -228,6 +228,11 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
         final outOfCoverage = _mapReady &&
             !tilesLikelyCoverViewport(_mapController.camera.visibleBounds, tripBbox: widget.bbox,
                 upstreamCoverage: sidecar.capabilities?.tilesUpstream?.coverage);
+        // Issue #522 — a viewport over a cell the mirror is filling is a wait,
+        // not bare ground: its own notice, and never the out-of-coverage one.
+        final fillingHere = _mapReady &&
+            viewportTouchesFillingCells(_mapController.camera.visibleBounds,
+                sidecar.capabilities?.fillingTileCells ?? const []);
 
         // Navigating never alters the extent (FR120): panning is its own
         // gesture, so it's suspended only while a drag *is* the draw
@@ -268,6 +273,10 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
                   MapGraticule(ground: c.surfaceSunk, line: c.textMuted, label: c.textSecondary),
                   if (tilesAvailable)
                     VectorTileLayer(
+                      // Issue #522 — `archive` moves when a region's basemap lands
+                      // (a mirror fill included, #455/#519): a fresh layer re-requests
+                      // every tile, so the map fills in with no Author action.
+                      key: ValueKey('basemap-$tilesArchiveId'),
                       theme: vectorTheme,
                       tileProviders: TileProviders({'protomaps': provider}),
                       maximumZoom: basemapMaximumZoom.toDouble(),
@@ -285,13 +294,14 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
                 ],
               ),
             ),
-            if (!tilesAvailable || outOfCoverage)
+            if (!tilesAvailable || outOfCoverage || fillingHere)
               Positioned(
                 left: PlotSpacing.s3,
                 bottom: PlotSpacing.s3 + 26,
                 child: NoBasemapNotice(
                   loading: snapshot.connectionState != ConnectionState.done,
-                  outOfCoverage: tilesAvailable && outOfCoverage,
+                  outOfCoverage: tilesAvailable && outOfCoverage && !fillingHere,
+                  pendingUpstream: tilesAvailable && fillingHere,
                   styleFailed: styleFailed,
                 ),
               ),

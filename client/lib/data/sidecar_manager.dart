@@ -78,6 +78,10 @@ class SidecarStatus {
   final int? port;
 }
 
+/// Issue #522 — the one wording for a `pending_upstream` wait, shared by
+/// the readiness notices and the map's basemap notice.
+const kMirrorFetchingSentence = 'Getting map data for this area from the Plotlines mirror…';
+
 /// One capability's readiness, mirroring `/health`'s per-capability entry
 /// (ARCH §8.3, PRD FR121). `progress`/`etaS` are only ever present while
 /// [ready] is false and the capability is actively loading — a settled
@@ -89,6 +93,11 @@ class CapabilityStatus {
     this.progress,
     this.etaS,
     this.provisional = false,
+    this.pendingUpstream = false,
+    this.fillId,
+    this.retryAfterS,
+    this.waitingS,
+    this.cells = const [],
   });
 
   final bool ready;
@@ -104,6 +113,32 @@ class CapabilityStatus {
   /// reading — §6.7a's "no silent 'it's just correct now.'"
   final bool provisional;
 
+  /// Issue #522 (ARCH D67, §8.3) — the Plotlines mirror is fetching the data
+  /// this capability needs from its upstream (`pending_upstream`, #521). A
+  /// wait the sidecar polls on its own, never a failure: [failed] is false
+  /// and no screen offers a retry for it.
+  final bool pendingUpstream;
+
+  /// The mirror fill being waited on, when the sidecar named one.
+  final String? fillId;
+
+  /// When the sidecar next looks at the fill — a poll hint, not an ETA.
+  final double? retryAfterS;
+
+  /// How long this capability has been waiting, observed (#397) — never an
+  /// estimate of how long is left.
+  final double? waitingS;
+
+  /// `tiles.regions[key].cells` — each basemap cell the mirror is filling,
+  /// `[west, south, east, north]`. Empty for every other capability.
+  final List<List<double>> cells;
+
+  /// Issue #522 — the mirror's terminal "won't": no upstream publishes this
+  /// area (`failed:no_upstream_coverage`). Out of coverage, not a fault —
+  /// a retry cannot change it.
+  bool get noUpstreamCoverage =>
+      !ready && (reason?.contains('no_upstream_coverage') ?? false);
+
   /// Stopped trying, one way or another — distinct from `!ready`, which is
   /// also true while still loading. Generalized from a `'failed:'`-prefix
   /// check (issue #154): a capability that will simply never load (e.g.
@@ -113,7 +148,7 @@ class CapabilityStatus {
   /// means "not actively loading" in every case `/health` produces. A
   /// disabled control reads this to decide between an honest wait and an
   /// honest "this isn't happening" (FR121: never silent).
-  bool get failed => !ready && progress == null;
+  bool get failed => !ready && !pendingUpstream && progress == null;
 
   factory CapabilityStatus.fromJson(Map<String, dynamic> json) => CapabilityStatus(
         ready: json['ready'] as bool? ?? false,
@@ -121,6 +156,14 @@ class CapabilityStatus {
         progress: (json['progress'] as num?)?.toDouble(),
         etaS: (json['eta_s'] as num?)?.toDouble(),
         provisional: json['provisional'] as bool? ?? false,
+        pendingUpstream: json['pending_upstream'] as bool? ?? false,
+        fillId: json['fill_id'] as String?,
+        retryAfterS: (json['retry_after_s'] as num?)?.toDouble(),
+        waitingS: (json['waiting_s'] as num?)?.toDouble(),
+        cells: [
+          for (final c in (json['cells'] as List<dynamic>?) ?? const [])
+            if (c is List && c.length == 4) [for (final v in c) (v as num).toDouble()]
+        ],
       );
 
   /// A human-readable, honest line for a disabled control — never a bare
@@ -134,6 +177,18 @@ class CapabilityStatus {
     // bare "$capabilityLabel ready" a real build earns.
     if (ready && provisional) return reason ?? '$capabilityLabel ready (provisional)';
     if (ready) return '$capabilityLabel ready';
+    // Issue #522 — the mirror is fetching this area. The copy names the
+    // mirror, as the privacy statement does (#514), never "the server";
+    // the time is what was observed, never a promise.
+    if (pendingUpstream) {
+      final mins = (waitingS ?? 0) ~/ 60;
+      final waited = mins >= 1 ? ' Waiting $mins min so far.' : '';
+      return '$kMirrorFetchingSentence $capabilityLabel will be ready once it lands.$waited';
+    }
+    if (noUpstreamCoverage) {
+      return 'No map-data source covers this area, so $capabilityLabel '
+          'isn\'t available here.';
+    }
     var r = reason ?? 'not ready';
     // The sidecar tags a settled failure `failed:<detail>` (CapabilityState
     // .to_dict). `failed` is derived from `progress == null` now (issue
@@ -308,6 +363,8 @@ class Capabilities {
     required this.routing,
     required this.elevation,
     this.elevationRegions = const {},
+    this.tilesRegions = const {},
+    this.extractRegions = const {},
     this.tilesArchiveId,
     this.tilesUpstream,
     this.mirror = const MirrorCapability(configured: false),
@@ -357,6 +414,32 @@ class Capabilities {
   CapabilityStatus elevationFor(String? key) =>
       (key == null ? null : elevationRegions[key]) ?? elevation;
 
+  /// `/health`'s `capabilities.tiles.regions` (issue #521) — each region's
+  /// own basemap archive, or the mirror fill it is waiting on. Empty on a
+  /// sidecar that predates the field.
+  final Map<String, CapabilityStatus> tilesRegions;
+
+  /// `/health`'s `capabilities.extract.regions` (issue #274) — each region's
+  /// mirror clip: downloading, ready, waiting on a fill (#521), or failed.
+  /// Empty when no mirror clip URL is configured.
+  final Map<String, CapabilityStatus> extractRegions;
+
+  /// A region's basemap status, or null when not reported.
+  CapabilityStatus? tilesFor(String? key) => key == null ? null : tilesRegions[key];
+
+  /// A region's extract status, or null when not reported.
+  CapabilityStatus? extractFor(String? key) => key == null ? null : extractRegions[key];
+
+  /// Issue #522 — every basemap cell the mirror is filling for any region
+  /// this sidecar holds, `[west, south, east, north]`. The map widgets read
+  /// this rather than one region's entry, so a viewport over a filling cell
+  /// shows the wait whichever trip asked for it; `/tiles` answers those
+  /// cells' addresses 503 + `Retry-After` until the fill lands.
+  List<List<double>> get fillingTileCells => [
+        for (final t in tilesRegions.values)
+          if (t.pendingUpstream) ...t.cells,
+      ];
+
   /// `/health`'s `capabilities.layers.per_layer` — one state string per
   /// layer id: `'ready'`, `'loading'`, or `'failed:<reason>'` (story N2).
   /// The layer picker reads this to show a plugin layer as loading rather
@@ -385,6 +468,11 @@ class Capabilities {
     final tilesUpstreamJson = tilesJson['upstream'] as Map<String, dynamic>?;
     final mirrorJson = json['mirror'] as Map<String, dynamic>?;
     final elevationJson = json['elevation'] as Map<String, dynamic>;
+    final extractJson = json['extract'] as Map<String, dynamic>?;
+    Map<String, CapabilityStatus> regionsOf(Map<String, dynamic>? parent) => {
+          for (final e in ((parent?['regions'] as Map<String, dynamic>?) ?? {}).entries)
+            e.key: CapabilityStatus.fromJson(e.value as Map<String, dynamic>),
+        };
     return Capabilities(
       tiles: CapabilityStatus.fromJson(tilesJson),
       tilesArchiveId: tilesJson['archive'] as String?,
@@ -394,10 +482,9 @@ class Capabilities {
       layers: CapabilityStatus.fromJson(layersJson),
       routing: RoutingCapability.fromJson(json['routing'] as Map<String, dynamic>),
       elevation: CapabilityStatus.fromJson(elevationJson),
-      elevationRegions: {
-        for (final e in ((elevationJson['regions'] as Map<String, dynamic>?) ?? {}).entries)
-          e.key: CapabilityStatus.fromJson(e.value as Map<String, dynamic>),
-      },
+      elevationRegions: regionsOf(elevationJson),
+      tilesRegions: regionsOf(tilesJson),
+      extractRegions: regionsOf(extractJson),
       mirror: mirrorJson == null
           ? const MirrorCapability(configured: false)
           : MirrorCapability.fromJson(mirrorJson),
@@ -542,7 +629,9 @@ class SidecarManager extends ChangeNotifier {
   static Duration healthPollTimeout(Capabilities? caps) {
     final regions = caps?.routing.regions.values;
     final building =
-        regions?.any((c) => !c.ready && c.progress != null) ?? false;
+        // A region waiting on a mirror fill (#522) carries `progress` too,
+        // but nothing is building in the sidecar's process while it waits.
+        regions?.any((c) => !c.ready && !c.pendingUpstream && c.progress != null) ?? false;
     return building ? _healthTimeoutDuringBuild : _healthTimeout;
   }
 

@@ -19,7 +19,9 @@ import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/domain/home_region.dart';
 import 'package:plotlines_client/domain/trip_bbox.dart';
 import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart' show MapTileAssets;
+import 'package:plotlines_client/presentation/map/map_label_scale.dart';
 import 'package:plotlines_client/presentation/map/trip_area_map.dart';
+import 'package:vector_map_tiles/vector_map_tiles.dart' show VectorTileLayer;
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/settings_provider.dart';
 
@@ -29,6 +31,41 @@ class _FakeSidecarManager extends SidecarManager {
 
   @override
   SidecarStatus get status => const SidecarStatus(SidecarState.ready);
+}
+
+/// Issue #522 — a sidecar with a basemap cell filling over the home region
+/// (Greensboro stands in: any cell the viewport reaches), until [land].
+class _FillingTilesSidecarManager extends _FakeSidecarManager {
+  bool _landed = false;
+
+  void land() {
+    _landed = true;
+    notifyListeners();
+  }
+
+  @override
+  Capabilities? get capabilities => Capabilities.fromJson({
+        'tiles': {
+          'ready': true,
+          'archive': _landed ? 'after-fill' : 'before-fill',
+          'regions': {
+            'r1': _landed
+                ? {'ready': true}
+                : {
+                    'ready': false,
+                    'reason': 'The map-data mirror is fetching the basemap for this area.',
+                    'pending_upstream': true,
+                    'progress': 0.0,
+                    'cells': [
+                      [-84.0, 34.0, -80.0, 38.0],
+                    ],
+                  },
+          },
+        },
+        'layers': {'ready': true},
+        'routing': {'regions': <String, dynamic>{}},
+        'elevation': {'ready': true},
+      });
 }
 
 /// flutter_map's vector tile loading leaves a ticker that a single `pump()`
@@ -172,5 +209,49 @@ void main() {
         isTrue,
       );
     });
+  });
+
+  testWidgets('a filling basemap cell shows the mirror wait, and the tiles reload '
+      'when it lands (issue #522)', (tester) async {
+    final sidecar = _FillingTilesSidecarManager();
+    // The style is real file I/O, which never completes under the test's
+    // fake clock — parse it for real first, under the key the map asks for.
+    // Its own DPR gives it its own cache key: an earlier test in this file
+    // left the default key holding a future its fake clock never finished.
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.runAsync(() => MapTileAssets.theme('light',
+        labelScale: resolveMapLabelScale(1, tester.view.devicePixelRatio)));
+    await tester.pumpWidget(ProviderScope(
+      overrides: [sidecarManagerProvider.overrideWith((ref) => sidecar)],
+      child: MaterialApp(
+        home: Scaffold(
+          body: TripAreaMap(
+            center: HomeRegion.center,
+            bbox: null,
+            drawing: false,
+            onProposeChange: (_) {},
+          ),
+        ),
+      ),
+    ));
+    // One real-time turn so the FutureBuilder sees the parsed theme.
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await _settleMap(tester);
+
+    expect(find.text(kMirrorFetchingSentence), findsOneWidget);
+    expect(find.textContaining('No basemap tiles here'), findsNothing);
+    final before = tester.widget<VectorTileLayer>(find.byType(VectorTileLayer)).key;
+
+    sidecar.land();
+    await _settleMap(tester);
+
+    expect(find.text(kMirrorFetchingSentence), findsNothing);
+    // A new archive identity is a fresh layer: every tile is asked again.
+    expect(tester.widget<VectorTileLayer>(find.byType(VectorTileLayer)).key, isNot(before));
+
+    // The live tile layer leaves timers of its own; let them run out.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 5));
   });
 }

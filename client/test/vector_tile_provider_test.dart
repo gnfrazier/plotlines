@@ -52,6 +52,34 @@ class _FakeTileServer {
   Future<void> stop() => _server.close(force: true);
 }
 
+/// Issue #522 — stands in for the sidecar's `/tiles`: answers each request from
+/// [responses] in turn, then 200s with [tile] forever.
+class _ScriptedTileServer {
+  _ScriptedTileServer(this.responses, this.tile);
+  final List<(int, Map<String, String>)> responses;
+  final List<int> tile;
+  int requests = 0;
+  late HttpServer _server;
+  String get baseUrl => 'http://127.0.0.1:${_server.port}';
+
+  Future<void> start() async {
+    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    _server.listen((request) async {
+      final i = requests++;
+      if (i < responses.length) {
+        final (status, headers) = responses[i];
+        request.response.statusCode = status;
+        headers.forEach(request.response.headers.set);
+      } else {
+        request.response.add(tile);
+      }
+      await request.response.close();
+    });
+  }
+
+  Future<void> stop() => _server.close(force: true);
+}
+
 void main() {
   late List<int> realTileBytes;
   late List<int> emptyTileBytes;
@@ -230,6 +258,89 @@ void main() {
             '${logger.warnings}',
       );
     }
+  });
+  group('SidecarVectorTileProvider and a filling cell', () {
+    late List<int> tile;
+    setUpAll(() async {
+      tile = await File('${Directory.current.path}/test/fixtures/buncombe_z10_277_403.mvt')
+          .readAsBytes();
+    });
+
+    test('a 503 Retry-After is waited out and retried, then the tile arrives', () async {
+      final server = _ScriptedTileServer([
+        (503, {'Retry-After': '30'}),
+        (503, {'Retry-After': '30'}),
+      ], tile);
+      await server.start();
+      final slept = <Duration>[];
+      try {
+        final provider = SidecarVectorTileProvider(server.baseUrl, sleep: (d) async => slept.add(d));
+        final bytes = await provider.provide(TileIdentity(10, 277, 403));
+        expect(bytes, tile);
+        expect(server.requests, 3);
+        // Capped below the fill's own poll hint: the 503 is answered from
+        // memory, so looking sooner costs nothing.
+        expect(slept, [
+          SidecarVectorTileProvider.defaultMaxFillRetryDelay,
+          SidecarVectorTileProvider.defaultMaxFillRetryDelay,
+        ]);
+      } finally {
+        await server.stop();
+      }
+    });
+
+    test('past the wait budget it gives up retryable — never cached as empty', () async {
+      final server = _ScriptedTileServer(
+          List.filled(50, (503, {'Retry-After': '5'})), tile);
+      await server.start();
+      try {
+        final provider = SidecarVectorTileProvider(server.baseUrl,
+            fillWaitBudget: const Duration(seconds: 10), sleep: (_) async {});
+        await expectLater(
+          provider.provide(TileIdentity(10, 277, 403)),
+          throwsA(isA<ProviderException>()
+              .having((e) => e.retryable, 'retryable', Retryable.retry)
+              .having((e) => e.statusCode, 'statusCode', 503)),
+        );
+        expect(server.requests, 3); // 0 s, 5 s, 10 s
+      } finally {
+        await server.stop();
+      }
+    });
+
+    test('a 503 without Retry-After (a wedged upstream) is not waited on', () async {
+      final server = _ScriptedTileServer([(503, const {})], tile);
+      await server.start();
+      try {
+        final provider = SidecarVectorTileProvider(server.baseUrl,
+            sleep: (_) async => fail('must not wait'));
+        await expectLater(
+          provider.provide(TileIdentity(10, 277, 403)),
+          throwsA(isA<ProviderException>()
+              .having((e) => e.retryable, 'retryable', Retryable.retry)),
+        );
+        expect(server.requests, 1);
+      } finally {
+        await server.stop();
+      }
+    });
+
+    test('a 404 still means "no tile here"', () async {
+      final server = _ScriptedTileServer([(404, const {})], tile);
+      await server.start();
+      try {
+        final provider = SidecarVectorTileProvider(server.baseUrl,
+            sleep: (_) async => fail('must not wait'));
+        await expectLater(
+          provider.provide(TileIdentity(10, 277, 403)),
+          throwsA(isA<ProviderException>()
+              .having((e) => e.statusCode, 'statusCode', 404)
+              .having((e) => e.retryable, 'retryable', Retryable.none)),
+        );
+      } finally {
+        await server.stop();
+      }
+    });
   });
 }
 

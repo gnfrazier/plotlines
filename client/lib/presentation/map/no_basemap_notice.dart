@@ -26,6 +26,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:plotlines_ui/plotlines_ui.dart';
 
+import '../../data/sidecar_manager.dart' show kMirrorFetchingSentence;
 import '../../domain/home_region.dart';
 import '../../domain/trip_bbox.dart';
 
@@ -108,6 +109,18 @@ bool tilesLikelyCoverViewport(LatLngBounds viewport,
         {TripBbox? tripBbox, List<List<double>>? upstreamCoverage}) =>
     coveredViewportFraction(viewport, tripBbox: tripBbox, upstreamCoverage: upstreamCoverage) >=
     kMinViewportCoverage;
+
+/// Issue #522 — whether [viewport] reaches any basemap cell the mirror is
+/// filling (`Capabilities.fillingTileCells`, each `[west, south, east,
+/// north]`). Any overlap counts: those tiles answer 503 + `Retry-After`
+/// until the fill lands, so the part of the frame they cover is a wait, not
+/// bare ground — and the notice must say so rather than "no tiles here".
+bool viewportTouchesFillingCells(LatLngBounds viewport, List<List<double>> cells) => cells.any(
+    (c) => c.length == 4 &&
+        c[0] < viewport.east &&
+        viewport.west < c[2] &&
+        c[1] < viewport.north &&
+        viewport.south < c[3]);
 
 /// The designed "off the map" ground under every map widget's tile layer: a
 /// recessed surface tone ([ground]) carrying a latitude/longitude graticule
@@ -274,6 +287,7 @@ class NoBasemapNotice extends StatelessWidget {
     required this.loading,
     this.outOfCoverage = false,
     this.styleFailed = false,
+    this.pendingUpstream = false,
   });
 
   /// The tile theme/provider are still being resolved for the first time.
@@ -289,6 +303,12 @@ class NoBasemapNotice extends StatelessWidget {
   /// no tiles"; the cause and the paths tried are in the logs.
   final bool styleFailed;
 
+  /// Issue #522 (ARCH D67) — the viewport reaches a basemap cell the mirror
+  /// is fetching ([viewportTouchesFillingCells]). A wait, distinct from
+  /// [outOfCoverage] (nothing will come) and [styleFailed] (a defect); the
+  /// tiles fill in on their own when the cell lands.
+  final bool pendingUpstream;
+
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
@@ -296,7 +316,9 @@ class NoBasemapNotice extends StatelessWidget {
         ? 'Loading basemap…'
         : styleFailed
             ? 'Basemap unavailable — the map style failed to load (see logs)'
-            : outOfCoverage
+            : pendingUpstream
+                ? kMirrorFetchingSentence
+                : outOfCoverage
                 ? 'No basemap tiles here — outside the shipped home region, '
                   'this trip\'s own area, and the mirrored basemap'
                 : 'No basemap tiles here';
@@ -310,7 +332,10 @@ class NoBasemapNotice extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.layers_outlined, size: 14, color: c.textMuted),
+          Icon(pendingUpstream && !loading && !styleFailed
+                  ? Icons.cloud_download_outlined
+                  : Icons.layers_outlined,
+              size: 14, color: c.textMuted),
           const SizedBox(width: PlotSpacing.s2),
           Text(text, style: PlotTypography.data(c.textMuted)),
         ],

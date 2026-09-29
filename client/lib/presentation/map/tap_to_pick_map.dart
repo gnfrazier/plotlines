@@ -400,6 +400,11 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
         final outOfCoverage =
             _mapReady && !tilesLikelyCoverViewport(_mapController.camera.visibleBounds,
                 upstreamCoverage: sidecar.capabilities?.tilesUpstream?.coverage);
+        // Issue #522 — a viewport over a cell the mirror is filling is a wait,
+        // not bare ground: its own notice, and never the out-of-coverage one.
+        final fillingHere = _mapReady &&
+            viewportTouchesFillingCells(_mapController.camera.visibleBounds,
+                sidecar.capabilities?.fillingTileCells ?? const []);
 
         return Stack(
           children: [
@@ -430,6 +435,10 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                 MapGraticule(ground: c.surfaceSunk, line: c.textMuted, label: c.textSecondary),
                 if (tilesAvailable)
                   VectorTileLayer(
+                    // Issue #522 — `archive` moves when a region's basemap lands
+                    // (a mirror fill included, #455/#519): a fresh layer re-requests
+                    // every tile, so the map fills in with no Author action.
+                    key: ValueKey('basemap-$tilesArchiveId'),
                     theme: vectorTheme,
                     tileProviders: TileProviders({'protomaps': provider}),
                     maximumZoom: basemapMaximumZoom.toDouble(),
@@ -579,13 +588,14 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                 ]),
               ],
             ),
-            if (!tilesAvailable || outOfCoverage)
+            if (!tilesAvailable || outOfCoverage || fillingHere)
               Positioned(
                 left: PlotSpacing.s3,
                 bottom: PlotSpacing.s3 + 26,
                 child: NoBasemapNotice(
                   loading: snapshot.connectionState != ConnectionState.done,
-                  outOfCoverage: tilesAvailable && outOfCoverage,
+                  outOfCoverage: tilesAvailable && outOfCoverage && !fillingHere,
+                  pendingUpstream: tilesAvailable && fillingHere,
                   styleFailed: styleFailed,
                 ),
               ),
