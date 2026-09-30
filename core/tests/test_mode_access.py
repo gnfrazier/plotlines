@@ -691,3 +691,43 @@ def test_diagnose_is_unaffected_for_a_mode_the_exclusion_does_not_apply_to():
     result = diagnose(graph, _CENTER, 2600.0, bands, via=[cafe], mode="hiking")
 
     assert {b.metric for b in result.conflict} == {"distance_m"}
+
+
+def test_the_derived_cue_sheet_carries_the_constraint_at_its_distance():
+    # Issue #421: the engine measured the dismount (#401) but the derived
+    # CueSheet never contained it, so every consumer that takes the sheet as
+    # authoritative (`day.cue_sheet`, `/segments/cues`) rolled silently through.
+    from plotlines_core.routing.access import mode_legal_graph
+    from plotlines_core.routing.loops import solve_circuit
+    from plotlines_core.scoring.metrics import edge_walk
+    from plotlines_core.trips.cues import derive_cue_sheet
+
+    g = nx.MultiDiGraph()
+    for node, x in ((1, -105.3000), (2, -105.2990), (3, -105.2980), (4, -105.2970)):
+        g.add_node(node, y=40.0, x=x, elevation=100.0)
+    for a, b, length, tags in (
+        (1, 2, 85.0, {}),
+        (2, 3, 30.0, {"bicycle": "dismount"}),
+        (3, 4, 85.0, {}),
+    ):
+        g.add_edge(a, b, length=length, highway="residential", **tags)
+        g.add_edge(b, a, length=length, highway="residential", **tags)
+    legal = mode_legal_graph(g, "cycling")
+    profile = WeightProfile("balanced")
+    circuit = solve_circuit(legal, [1, 4], profile, close=False)
+    walk = edge_walk(legal, circuit.path, profile)
+
+    sheet, stats = derive_cue_sheet(legal, walk)
+
+    constraints = [c for c in sheet.cues if c.kind == "constraint"]
+    assert len(constraints) == 1
+    assert constraints[0].instruction == "bicycle=dismount"
+    assert constraints[0].distance_along_m == pytest.approx(85.0, abs=1.0)
+    assert stats["by_kind"]["constraint"] == 1
+
+
+def test_a_constraint_cue_is_never_merged_into_a_nearby_turn():
+    from plotlines_core.trips.cues import _NEVER_MERGED, _SAFETY_CRITICAL
+
+    assert "constraint" in _SAFETY_CRITICAL
+    assert "constraint" in _NEVER_MERGED

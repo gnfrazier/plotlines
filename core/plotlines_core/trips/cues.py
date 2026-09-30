@@ -118,12 +118,16 @@ class CueSettings:
 
 #: Merge priority. A cue never absorbs one above it in this list.
 _PRIORITY = {
-    "hazard": 0, "portage": 1, "transition": 2, "start": 3, "finish": 3,
+    "hazard": 0, "constraint": 0, "portage": 1, "transition": 2, "start": 3, "finish": 3,
     "turn": 4, "event": 5, "alternate": 6, "node": 7, "surface": 8,
 }
 
 #: Kinds that are never merged into a neighbour and never suppressed.
-_SAFETY_CRITICAL = frozenset({"hazard", "portage", "transition", "start", "finish"})
+#: `constraint` (#421) is FR128/A11's dismount / gate / ford: folded into a turn
+#: 20 m away it is the "silently rolling through" `routing/access.py` exists to
+#: prevent.
+_SAFETY_CRITICAL = frozenset({"hazard", "constraint", "portage", "transition",
+                              "start", "finish"})
 
 #: Kinds the density merge never absorbs or lets absorb a neighbour. The
 #: safety-critical set, plus `provision` (FR133): a water/toilets/food stop
@@ -796,6 +800,22 @@ def _retrace_pass(cues: list[Cue], route: Route) -> dict:
 
 # ----------------------------------------------------------------------- entry
 
+def constraint_cues(route: "Route", walk) -> list[Cue]:
+    """FR128 / A11 (issue #421) — one cue per surfaced constraint on the walk
+    (dismount, gate, ford), at the distance `routing.access.flags_along_walk`
+    measured for it (#401). The instruction is the raw `key=value` flags as
+    the engine sent them (#216's rule: never mapped through a lookup that
+    could drop an unknown value)."""
+    from plotlines_core.routing.access import flags_along_walk
+
+    cues = []
+    for entry in flags_along_walk(walk):
+        along = min(float(entry["distance_along_m"]), route.length_m)
+        cues.append(Cue(sequence=0, distance_along_m=along, kind="constraint",
+                        instruction=", ".join(entry["flags"])))
+    return cues
+
+
 def derive_cue_sheet(
     graph,
     walk,
@@ -827,6 +847,7 @@ def derive_cue_sheet(
         Cue(sequence=0, distance_along_m=0.0, kind="start", instruction=start_label),
         *turns, *surfaces, *highlights,
         *hazard_cues(route, hazards, settings),
+        *constraint_cues(route, walk),
         *portage_cues(route, portages),
         *alternate_cues(route, alternates),
         Cue(sequence=0, distance_along_m=route.length_m, kind="finish",
