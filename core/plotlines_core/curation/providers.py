@@ -243,6 +243,14 @@ class CandidateSourceRefused(CandidateFetchUnavailable):
     no mirror clip covers this bbox and the configuration may not reach a
     public Overpass instance. Per-request and never latching, like any
     `CandidateFetchUnavailable`; its `str()` is the Author's sentence."""
+class CandidateSourceUnreadable(CandidateFetchUnavailable):
+    """The shared OSM fetch failed for a reason other than transport: osmium
+    choking on a corrupt or truncated clip, a parse error, an engine bug
+    (issue #534). Like a transport failure it is a fact about this bbox's
+    data on this attempt, not about any one layer, so it rides the same
+    per-request, negative-cached path and never latches the six built-in
+    layers `failed`. The original exception is chained and logged; the
+    `str()` is the finished sentence the Author sees."""
 
 
 class OsmLayerProvider:
@@ -562,9 +570,23 @@ class SharedOsmFetch:
         # per-layer sibling reads the cache rather than re-querying.
         try:
             features = self._engine.fetch(bbox, set(LAYERS))
-        except Exception as exc:
+        except CandidateFetchUnavailable as exc:
             self._failed[key] = (self._clock(), exc)
             raise
+        except Exception as exc:
+            # Issue #534: anything else (a corrupt clip, a parse error) would
+            # otherwise reach the registry as a provider bug and latch all six
+            # siblings `failed` until restart. Log the cause, surface a
+            # sentence, and let the negative cache bound the retry.
+            log.warning("shared OSM fetch failed for %s", key, exc_info=True)
+            unreadable = CandidateSourceUnreadable(
+                "the map data for this area couldn't be read, so no places "
+                "are shown for it — try again in a moment, or redraw the "
+                "trip area."
+            )
+            unreadable.__cause__ = exc
+            self._failed[key] = (self._clock(), unreadable)
+            raise unreadable from exc
         self._cache[key] = features
         self._failed.pop(key, None)
         self._write_disk(key, features)

@@ -16,6 +16,7 @@ wrong.
 
 from __future__ import annotations
 
+import collections
 import hashlib
 import logging
 import math
@@ -140,13 +141,43 @@ from .version import VERSION
 
 log = logging.getLogger("plotlines.sidecar")
 
-# Heuristic wall-clock estimate for the progress/eta a still-building region
-# reports (ARCH §8.3's "terrain data loading — routing available in about 3
-# minutes"), not measured telemetry (SPIKE-D is where that would come from)
-# — it only keeps the estimate from being a bare guess with no relation to
-# elapsed time. A bbox-scoped Overpass fetch + graph build is typically a few
-# seconds for an MVP-sized trip area.
-GRAPH_ESTIMATED_S = 8.0
+class GraphBuildHistory:
+    """Graph-build wall times this sidecar has observed, for the ETA a
+    still-building region reports (ARCH §8.3's "routing available in about
+    3 minutes"). Issue #397: this was a fixed `GRAPH_ESTIMATED_S = 8.0`
+    against SPIKE-D's measured 36.7-116.6 s, and SPIKE-D's finding is that
+    the estimate is "a range or observed progress, never a constant". So the
+    estimate is the median of the last `window` real builds, and there is
+    none (`None`: progress, no ETA) until one has been timed.
+
+    A graph phase under `MIN_OBSERVATION_S` was served from the graph cache
+    rather than built, and says nothing about the next build."""
+
+    MIN_OBSERVATION_S = 1.0
+
+    def __init__(self, window: int = 5) -> None:
+        self._lock = threading.Lock()
+        self._seconds: collections.deque[float] = collections.deque(maxlen=window)
+
+    def record(self, seconds: float) -> None:
+        if seconds < self.MIN_OBSERVATION_S:
+            return
+        with self._lock:
+            self._seconds.append(seconds)
+
+    def estimate_s(self) -> float | None:
+        with self._lock:
+            observed = sorted(self._seconds)
+        if not observed:
+            return None
+        mid = len(observed) // 2
+        if len(observed) % 2:
+            return observed[mid]
+        return (observed[mid - 1] + observed[mid]) / 2
+
+
+#: Process-wide: every region's graph build feeds and reads the same history.
+GRAPH_BUILD_HISTORY = GraphBuildHistory()
 
 # How many region graph builds may run at once. Each build is a full-region
 # OSMnx acquisition — Overpass download, `MultiDiGraph` construction,
@@ -365,6 +396,12 @@ _MIRROR_STATE_FETCH_TIMEOUT_S = 8.0
 _MIRROR_STATE_CACHE_TTL_S = 3600.0
 
 
+#: `capabilities.mirror` before the first background read of a source has
+#: landed (issue #536). Configured, not stale, and says so: the client's
+#: advisory keys on `stale`, and nothing has been found wrong yet.
+MIRROR_NOT_CHECKED_YET = {"configured": True, "stale": False, "checked": False}
+
+
 class MirrorStateCache:
     """One cached `capabilities.mirror` result per source, issue #367.
     Caches a fetch failure for `_MIRROR_STATE_CACHE_TTL_S` exactly as a
@@ -373,20 +410,53 @@ class MirrorStateCache:
     is the exact case #434's rescoping called out, and re-trying it every
     poll would defeat the cache for precisely the deployment (no live
     mirror yet) where it matters most. `clock` is injectable so a test can
-    advance past the TTL without a real sleep."""
+    advance past the TTL without a real sleep.
+
+    Issue #536 — stale-while-revalidate. `/health` never waits on the
+    mirror: `get_or_fetch` answers from the cache at once (or
+    `MIRROR_NOT_CHECKED_YET` before the first read lands) and, when the
+    entry is missing or past its TTL, starts **one** background read of
+    that source on `pool`. The TTL decides when to refresh, not when to
+    block. A read still running after `_MIRROR_STATE_FETCH_TIMEOUT_S` is
+    reported as timed out (stale, with the reason) without starting a
+    second one behind it; its result replaces that when it lands."""
 
     def __init__(self, *, clock: Callable[[], float] = time.monotonic) -> None:
         self._clock = clock
+        self._lock = threading.Lock()
         self._entries: dict[str, tuple[float, dict]] = {}
+        self._in_flight: dict[str, float] = {}
 
     def get_or_fetch(self, source: str, pool: ThreadPoolExecutor) -> dict:
         now = self._clock()
-        cached = self._entries.get(source)
-        if cached is not None and now - cached[0] < _MIRROR_STATE_CACHE_TTL_S:
-            return cached[1]
-        result = _fetch_mirror_capability(source, pool)
-        self._entries[source] = (now, result)
-        return result
+        refresh = False
+        with self._lock:
+            cached = self._entries.get(source)
+            started = self._in_flight.get(source)
+            if started is not None:
+                if (now - started >= _MIRROR_STATE_FETCH_TIMEOUT_S
+                        and (cached is None or cached[0] < started)):
+                    cached = (now, _MIRROR_STATE_TIMED_OUT)
+                    self._entries[source] = cached
+            elif cached is None or now - cached[0] >= _MIRROR_STATE_CACHE_TTL_S:
+                self._in_flight[source] = now
+                refresh = True
+        if refresh:
+            try:
+                pool.submit(self._refresh, source)
+            except RuntimeError:  # pool shut down with the sidecar
+                with self._lock:
+                    self._in_flight.pop(source, None)
+        return dict(cached[1] if cached is not None else MIRROR_NOT_CHECKED_YET)
+
+    def _refresh(self, source: str) -> None:
+        try:
+            result = _read_mirror_capability(source)
+        finally:
+            with self._lock:
+                self._in_flight.pop(source, None)
+        with self._lock:
+            self._entries[source] = (self._clock(), result)
 
 
 def _mirror_capability(source: str | None, pool: ThreadPoolExecutor,
@@ -417,8 +487,8 @@ def _mirror_capability(source: str | None, pool: ThreadPoolExecutor,
 
     Issue #367 — `cache` (`Readiness._mirror_state_cache`), when given,
     answers from `MirrorStateCache.get_or_fetch` instead of fetching on
-    every call: a miss still runs through the same pool/timeout shape
-    below. `None` (every direct caller outside `/health` — tests included)
+    every call; since #536 a miss or an expired entry refreshes in the
+    background and this call never waits on it. `None` (every direct caller outside `/health` — tests included)
     keeps the pre-#367 uncached behaviour, since there is no polled caller
     to protect."""
     if not source:
@@ -428,24 +498,32 @@ def _mirror_capability(source: str | None, pool: ThreadPoolExecutor,
     return _fetch_mirror_capability(source, pool)
 
 
-def _fetch_mirror_capability(source: str, pool: ThreadPoolExecutor) -> dict:
-    """The uncached read `MirrorStateCache.get_or_fetch` calls through to on
-    a cache miss — issue #488's pool/timeout shape, unchanged. Split out of
-    `_mirror_capability` by issue #367 so the cache can call it without
-    re-entering the `source`/cache dispatch above.
+_MIRROR_STATE_TIMED_OUT = {"configured": True, "stale": True,
+                           "error": "mirror state fetch timed out"}
 
-    Anything else that stops a reading — a truncated body
+
+def _fetch_mirror_capability(source: str, pool: ThreadPoolExecutor) -> dict:
+    """The uncached read — issue #488's pool/timeout shape: run the read on
+    `pool` and give up waiting after `_MIRROR_STATE_FETCH_TIMEOUT_S`. The
+    cached path (`MirrorStateCache`, issue #536) no longer waits at all; it
+    runs `_read_mirror_capability` in the background instead."""
+    future = pool.submit(_read_mirror_capability, source)
+    try:
+        return future.result(timeout=_MIRROR_STATE_FETCH_TIMEOUT_S)
+    except FutureTimeoutError:
+        return dict(_MIRROR_STATE_TIMED_OUT)
+
+
+def _read_mirror_capability(source: str) -> dict:
+    """One read of `MIRROR_STATE.json` into `capabilities.mirror`. Never
+    raises. Anything that stops a reading — a truncated body
     (`http.client.IncompleteRead` is not an `OSError`), or a file that parses
     as JSON but is not the state object `mirror_health` reads (`[]`, a
-    string where a mapping belongs) — degrades the same way. The file is
-    written by another process on another machine, so its shape is not ours
-    to trust, and a 500 here takes all of `/health` down with it."""
-    future = pool.submit(load_mirror_state, source)
+    string where a mapping belongs) — degrades to stale with the reason. The
+    file is written by another process on another machine, so its shape is
+    not ours to trust, and a 500 here takes all of `/health` down with it."""
     try:
-        state = future.result(timeout=_MIRROR_STATE_FETCH_TIMEOUT_S)
-    except FutureTimeoutError:
-        return {"configured": True, "stale": True,
-                "error": "mirror state fetch timed out"}
+        state = load_mirror_state(source)
     except Exception as exc:  # noqa: BLE001 — never a 500 on /health
         return {"configured": True, "stale": True, "error": str(exc)}
     try:
@@ -692,8 +770,8 @@ class RegionBuildPhasePools:
 #: worker) before the watchdog stops waiting on its own turn and reports an
 #: honest, named reason instead (ARCH §8.3 rule 3: "never a silent hang; a
 #: reason on every disabled control"). Deliberately **not** derived as "some
-#: multiple of `GRAPH_ESTIMATED_S`" — that constant's own docstring already
-#: says it is too low against the measured 36.7-116.6 s range, and
+#: multiple of `GRAPH_ESTIMATED_S`" — that constant (since replaced by
+#: `GraphBuildHistory`, #397) was too low against the measured 36.7-116.6 s range, and
 #: multiplying a known-dishonest figure forward only relocates the
 #: dishonesty. Sized instead off that measured range plus slack for a couple
 #: of ordinary regions ahead in the queue, each also possibly running tiles/
@@ -815,10 +893,12 @@ class CapabilityState:
     codebase and are reported ready inline in `health()` instead.
     """
 
-    def __init__(self, estimated_s: float) -> None:
+    def __init__(self, estimated_s: "float | None | Callable[[], float | None]") -> None:
         self.status = "pending"
         self.detail = ""
         self.started_at: float | None = None
+        # A number, `None` (no honest estimate), or a callable read at report
+        # time (`GraphBuildHistory.estimate_s`, #397).
         self.estimated_s = estimated_s
         # Issue #521 — set by `wait_upstream` only.
         self.fill_id: str | None = None
@@ -876,21 +956,31 @@ class CapabilityState:
         self.retry_after_s = retry_after_s
         self.fill_progress = progress
 
+    def _estimate(self) -> float | None:
+        estimate = self.estimated_s() if callable(self.estimated_s) else self.estimated_s
+        return estimate if estimate is not None and estimate > 0 else None
+
     def progress(self) -> float:
         if self.status in ("ready", "provisional"):
             return 1.0
-        if self.status != "loading" or self.started_at is None or self.estimated_s <= 0:
+        estimate = self._estimate()
+        if self.status != "loading" or self.started_at is None or estimate is None:
             return 0.0
         elapsed = time.perf_counter() - self.started_at
         # Capped short of 1.0 — the estimate is a heuristic, never a promise
         # that "loading" is about to flip to "ready".
-        return min(0.95, elapsed / self.estimated_s)
+        return min(0.95, elapsed / estimate)
 
     def eta_s(self) -> float | None:
-        if self.status != "loading" or self.started_at is None:
+        """Seconds left on the estimate, or `None` when there is no honest
+        one: no estimate at all, or a build already running past it (#397 —
+        this used to floor at 1.0, so an overrun build said "about a minute"
+        indefinitely)."""
+        estimate = self._estimate()
+        if self.status != "loading" or self.started_at is None or estimate is None:
             return None
-        elapsed = time.perf_counter() - self.started_at
-        return max(self.estimated_s - elapsed, 1.0)
+        remaining = estimate - (time.perf_counter() - self.started_at)
+        return remaining if remaining > 0 else None
 
     def to_dict(self) -> dict:
         if self.status == "ready":
@@ -984,7 +1074,7 @@ class RegionState:
         self.key = key
         self.bbox = bbox
         self.network_type = network_type
-        self.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
+        self.graph_state = CapabilityState(GRAPH_BUILD_HISTORY.estimate_s)
         self.graph: LoadedGraph | None = None
         # Issue #274 — the mirror-clip download's own FR121 capability,
         # independent of graph_state (see `build`'s extract step below).
@@ -995,7 +1085,7 @@ class RegionState:
         # Issue #148 — this region's own elevation outcome, beside
         # `graph_state`. No time estimate: a cache hit is instant and a
         # provider fetch is network-bound, so any fixed ETA would be the
-        # `GRAPH_ESTIMATED_S` mistake again (#397).
+        # fixed-graph-ETA mistake again (#397).
         self.elevation_state = CapabilityState(0.0)
         self.tiles_archive: Archive | None = None
         # Build telemetry (issue #232) — every attempt this session, the last
@@ -1333,6 +1423,7 @@ class RegionState:
                 timeout_message=_GRAPH_PHASE_TIMEOUT_MESSAGE,
             )
             self.timings["ensure_graph"] = time.monotonic() - t_acq
+            GRAPH_BUILD_HISTORY.record(self.timings["ensure_graph"])
             t_load = time.monotonic()
             self.graph = load_graphml(path)
             self.timings["load_graphml"] = time.monotonic() - t_load
@@ -1856,7 +1947,7 @@ class Readiness:
                         "last_error=%r)", key, network_type, label,
                         region.build_attempts, manual, decision.bypassed_cooldown,
                         region.automatic_requeues, region.last_error)
-                    region.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
+                    region.graph_state = CapabilityState(GRAPH_BUILD_HISTORY.estimate_s)
                     region.upstream_retry_after_s = None
                     self._queue_build(region)
                 elif region.graph_state.status == "failed":
@@ -2689,8 +2780,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         a stuck upstream can degrade `mirror` to stale but can no longer
         starve `layers`/`tiles` the way a hung DNS lookup once did. Since
         issue #367 the result is also cached for `_MIRROR_STATE_CACHE_TTL_S`
-        (`Readiness._mirror_state_cache`) — a 2s poll no longer means a 2s
-        fetch, which is what makes it safe for `--mirror-state-url` to
+        (`Readiness._mirror_state_cache`), and since #536 this endpoint
+        answers from that cache without waiting while one background read
+        refreshes it — a 2s poll no longer means a 2s fetch, which is what makes it safe for `--mirror-state-url` to
         default on (`SidecarUpstreams.resolve`) rather than stay dev/QA-only.
 
         `extract` (issue #274, Phase 3.2) reports `{"configured": False}`
