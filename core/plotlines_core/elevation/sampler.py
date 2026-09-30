@@ -112,10 +112,17 @@ class ElevationSampler:
 
         ``{}`` when the sampler is degraded — the same absent shape a solve
         with no sampler reports, never a fabricated flat profile (#473).
+        Also ``{}`` when no point of the route read a real sample (wholly
+        outside the raster, or over nothing but nodata): there is nothing to
+        interpolate from, and a :data:`VOID_FILL` profile would read as a
+        measured flat route (#533).
         """
         if self.degraded:
             return {}
-        elev = self.sample(coords)
+        raw = self.read(coords)
+        if not np.isfinite(raw).any():
+            return {}
+        elev = interpolate_voids(raw, coords)
         finite = elev[np.isfinite(elev)]
         if finite.size < 2:
             return {"ascent_m": 0.0, "descent_m": 0.0, "min_m": None, "max_m": None}
