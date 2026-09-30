@@ -1115,7 +1115,11 @@ it makes the mirror stateful") was evaluated and **not built**, see below.
   wall-time finding existed; this makes it a measured tradeoff rather than
   a default nobody had numbers for, without changing what ships until an
   operator opts in. Keyed on `(pin, bbox)`, so a re-pin never serves a
-  stale answer. `X-Plotlines-Clip-Cache-Hit` on every response says which
+  stale answer. Each entry also records the covering extracts' names,
+  sizes and mtimes, and a read that doesn't match them is a miss (#535).
+  That way a re-cut or an added region under the same pin is re-clipped
+  rather than served stale. Entries written before #535 carry no such
+  record and read as a miss once. `X-Plotlines-Clip-Cache-Hit` on every response says which
   case a given request hit.
 - **A persistent spatial index — evaluated, not built.** SPIKE-I's own
   framing: the largest change of the four, and it makes the mirror
