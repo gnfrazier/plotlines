@@ -112,6 +112,34 @@ class TestSelectCoveringExtracts:
 
         assert [e.region for e in kept] == ["unlabelled"]
 
+    def test_a_header_box_that_only_shares_an_edge_with_the_bbox_is_excluded(
+        self, tmp_path: Path
+    ) -> None:
+        # Issue #542: the #530 priority cells are a 2° grid with shared
+        # edges. A bbox whose corner sits on a grid point touched all four
+        # cells around it and scanned every one whole (576 s on the Pi).
+        cells = {
+            "sw": (-82.0, 34.0, -80.0, 36.0),
+            "nw": (-82.0, 36.0, -80.0, 38.0),
+            "se": (-80.0, 34.0, -78.0, 36.0),
+            "ne": (-80.0, 36.0, -78.0, 38.0),
+        }
+        regions = {
+            name: write_pbf(
+                tmp_path / f"{name}.osm.pbf",
+                nodes=[node(1, (w + e) / 2, (s + n) / 2)],
+                box=(w, s, e, n),
+            )
+            for name, (w, s, e, n) in cells.items()
+        }
+        mirror = build_mirror_tree(tmp_path / "mirror", regions=regions)
+
+        kept = select_covering_extracts(
+            (-80.0, 36.0, -79.7, 36.2), discover_region_extracts(mirror)
+        )
+
+        assert [e.region for e in kept] == ["ne"]
+
 
 class TestCompleteWaysClip:
     def test_a_way_with_only_one_node_in_bbox_is_written_whole(self, tmp_path: Path) -> None:
