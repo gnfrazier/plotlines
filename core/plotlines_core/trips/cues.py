@@ -39,6 +39,11 @@ from plotlines_core.trips.payload import (
 
 _EARTH_R_M = 6_371_000.0
 
+#: How far an alternate's fork may sit from the route and still be cued there
+#: when it carries no `diverges_at_m` (#348). The client's
+#: `kReanchorToleranceM` (`alternate_edit.dart`) is the same figure.
+ALTERNATE_FORK_TOLERANCE_M = 20.0
+
 #: `surface` values that count as paved. Anything not listed in either map is
 #: **unknown**, never "other" — see `surface_class`.
 _PAVED = {
@@ -701,7 +706,11 @@ def alternate_cues(route: Route, alternates) -> list[Cue]:
     for alternate in alternates:
         along = alternate.diverges_at_m
         if along is None and alternate.geometry and alternate.geometry.coordinates:
-            along, _ = route.project(alternate.geometry.coordinates[0])
+            along, offset = route.project(alternate.geometry.coordinates[0])
+            # #348: a fork that is no longer on the route (the passage was
+            # re-solved elsewhere) gets no cue, never one at the nearest point.
+            if offset > ALTERNATE_FORK_TOLERANCE_M:
+                along = None
         if along is None:
             continue
         is_branch = getattr(alternate, "intent", "accommodation") == "branch"
