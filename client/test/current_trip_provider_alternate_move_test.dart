@@ -364,4 +364,63 @@ void main() {
       expect(tripReadyToExport(trip), isTrue);
     });
   });
+
+  // Issue #348 — a passage re-solve used to carry its alternates across
+  // verbatim, so their marks measured a line that no longer existed.
+  group('regenerateSegment — alternates across a passage re-solve (#348)', () {
+    test('re-measures the marks along the new line and stales a solved alternate', () async {
+      final client = _FakeRoutingClient();
+      final container = _container(client);
+      addTearDown(container.dispose);
+      container.read(currentTripProvider.notifier).open(_trip(
+          _passage(alternates: [_branch(solve: SolveProvenance(stale: false))])));
+
+      await container.read(currentTripProvider.notifier).regenerateSegment('d1', 's1');
+
+      final alt = _read(container);
+      // The fake solve's line runs (-105.3,40) → (-105.2,40.04) → (-105.1,40):
+      // the branch's fork is its first point and its rejoin its last.
+      expect(alt.divergesAtM, closeTo(0.0, 1.0));
+      expect(alt.rejoinsAtM, closeTo(pathLengthM(const [
+        [-105.3, 40.0],
+        [-105.2, 40.04],
+        [-105.1, 40.0],
+      ]), 1.0));
+      expect(alt.solve?.stale, isTrue);
+      expect(alt.label, 'Past the Sugarloaf mine', reason: 'nothing authored is lost');
+    });
+
+    test('a never-solved alternate stays unsolved, not stale', () async {
+      final client = _FakeRoutingClient();
+      final container = _container(client);
+      addTearDown(container.dispose);
+      container
+          .read(currentTripProvider.notifier)
+          .open(_trip(_passage(alternates: [_branch()])));
+
+      await container.read(currentTripProvider.notifier).regenerateSegment('d1', 's1');
+
+      expect(_read(container).solve, isNull);
+    });
+  });
+
+  group('reanchorAlternate (#348)', () {
+    test('clears the marks when the fork has left the new line', () {
+      final moved = reanchorAlternate(_branch(), const [
+        [-105.4, 40.2],
+        [-105.0, 40.2],
+      ]);
+      expect(moved.divergesAtM, isNull);
+      expect(moved.rejoinsAtM, isNull);
+      expect(moved.geometry.coordinates, _branch().geometry.coordinates,
+          reason: 'the drawn line is the Author\'s and never moves');
+    });
+
+    test('keeps a mark the Author never set unset', () {
+      final unset = _branch().copyWith(clearRejoinsAtM: true);
+      final moved = reanchorAlternate(unset, _route);
+      expect(moved.divergesAtM, isNotNull);
+      expect(moved.rejoinsAtM, isNull);
+    });
+  });
 }

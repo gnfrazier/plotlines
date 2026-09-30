@@ -111,6 +111,7 @@ def test_unconfigured_mirror_never_calls_ensure_extract(tmp_path: Path, monkeypa
 
 # --- POST /regions triggers the download, independent of the graph --------
 
+@pytest.mark.usefixtures("public_overpass")
 def test_post_regions_populates_the_extract_capability(tmp_path: Path, monkeypatch) -> None:
     _stub_graph(monkeypatch)
 
@@ -233,6 +234,7 @@ def test_mirror_unreachable_reads_distinctly_from_no_coverage(tmp_path: Path, mo
     assert entry["reason"] == "failed:unreachable"
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_an_extract_failure_never_blocks_the_routing_capability(tmp_path: Path, monkeypatch) -> None:
     _stub_graph(monkeypatch)
 
@@ -254,6 +256,7 @@ def test_an_extract_failure_never_blocks_the_routing_capability(tmp_path: Path, 
     assert caps["routing"]["regions"][key] == {"ready": True}
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_an_unexpected_extract_exception_never_crashes_the_build(tmp_path: Path, monkeypatch) -> None:
     _stub_graph(monkeypatch)
 

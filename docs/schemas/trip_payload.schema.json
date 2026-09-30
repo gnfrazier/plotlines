@@ -762,7 +762,7 @@
         "id": { "$ref": "#/$defs/id" },
         "sequence": { "type": "integer", "minimum": 0 },
         "distance_along_m": { "$ref": "#/$defs/metres" },
-        "kind": { "enum": ["turn", "surface", "node", "hazard", "event", "portage", "transition", "alternate", "start", "finish"] },
+        "kind": { "enum": ["turn", "surface", "node", "hazard", "constraint", "event", "portage", "transition", "alternate", "start", "finish"] },
         "instruction": { "type": "string" },
         "modifier": { "type": "string", "description": "e.g. left / right / slight_left — SPIKE-21's vocabulary, not this schema's." },
         "bearing_deg": { "type": "number", "minimum": 0.0, "maximum": 360.0 },

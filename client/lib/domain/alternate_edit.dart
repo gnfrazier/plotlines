@@ -374,3 +374,45 @@ class AlternateEdit {
   /// `solve`, one level down.
   bool get staleAfterMove => moved && wasSolved;
 }
+
+/// How far an alternate's fork or rejoin may sit from a re-solved passage line
+/// and still be read as on it (#348). A re-solve over the same road goes
+/// through the same graph nodes, so a shared stretch lands within a few metres;
+/// anything further means the new route no longer passes that point.
+const double kReanchorToleranceM = 20.0;
+
+/// #348 — [alternate] carried across a re-solve of its parent passage onto
+/// [route], the new line.
+///
+/// The marks are distances **along the parent's line**, so the old ones
+/// measure a route that no longer exists. The fork and rejoin *coordinates*
+/// are the Author's (the drawn line's first and last points), and they don't
+/// move. Where both still lie on [route] (within [kReanchorToleranceM], fork
+/// before rejoin), the marks are re-measured along it. That measures the
+/// authored points, and doesn't invent a new fork the way snapping a moved
+/// mark would (the reason [AlternateEdit.of] never re-projects). Where either
+/// point has left the line, the marks are cleared: every surface shows "—"
+/// rather than a distance along a discarded route, and no cue is placed at
+/// it.
+///
+/// A solved alternate's [Alternate.solve] is marked stale, because its
+/// difference against the parent was measured against the old line (FR140 /
+/// Q3). A never-solved alternate stays unsolved: that is a different
+/// statement from stale, and the two are never merged (#344).
+Alternate reanchorAlternate(Alternate alternate, List<Coord> route) {
+  final coords = alternate.geometry.coordinates;
+  final fork = snapToPath(route, coords.first);
+  final rejoin = snapToPath(route, coords.last);
+  final onLine = fork != null &&
+      rejoin != null &&
+      fork.offsetM <= kReanchorToleranceM &&
+      rejoin.offsetM <= kReanchorToleranceM &&
+      fork.alongM < rejoin.alongM;
+  return alternate.copyWith(
+    divergesAtM: onLine && alternate.divergesAtM != null ? fork.alongM : null,
+    clearDivergesAtM: !onLine || alternate.divergesAtM == null,
+    rejoinsAtM: onLine && alternate.rejoinsAtM != null ? rejoin.alongM : null,
+    clearRejoinsAtM: !onLine || alternate.rejoinsAtM == null,
+    solve: alternate.solve?.markStale(),
+  );
+}

@@ -334,8 +334,9 @@ trace (acceptance criterion 5).
 > **A 404 on a miss is today's contract, not the decided one.** ARCH **D67** (epic #516) makes a
 > miss inside a Geofabrik-published region a *fill*: the mirror queues a pull and precut of the
 > covering region and answers `fetching` until it lands (#517, #518), and only a bbox outside every
-> region stays a finished `no_upstream_coverage`. Until #518 ships, the 404 below stands, and the
-> sidecar falls back to Overpass on it — ARCH D63's phased rule. Don't harden the 404 into
+> region stays a finished `no_upstream_coverage`. Until #518 ships, the 404 below stands. Since
+> #284 the sidecar no longer falls back to Overpass on it: routing reports the refusal sentence.
+> ARCH D63's phased rule has the detail. Don't harden the 404 into
 > anything a client relies on as final.
 
 **What's recorded, not yet what SPIKE-I measures.** Every successful clip
@@ -1038,7 +1039,7 @@ precut done per-state instead of merged.
 
 The OSM counterpart to the basemap prewarm above. With only `wnc-corridor`
 pinned, a trip anywhere else gets `NoMirrorCoverage` from `/clip`, and the
-sidecar falls back to Overpass, even where `priority.pmtiles` draws the
+sidecar (since #284) refuses the public Overpass fallback, even where `priority.pmtiles` draws the
 map. This flag covers the same areas the elevation proxy and the basemap
 were pre-warmed for: `deploy/elevation/priority_regions.build_priority_candidates()`
 plus the WNC corridor.
@@ -1115,7 +1116,11 @@ it makes the mirror stateful") was evaluated and **not built**, see below.
   wall-time finding existed; this makes it a measured tradeoff rather than
   a default nobody had numbers for, without changing what ships until an
   operator opts in. Keyed on `(pin, bbox)`, so a re-pin never serves a
-  stale answer. `X-Plotlines-Clip-Cache-Hit` on every response says which
+  stale answer. Each entry also records the covering extracts' names,
+  sizes and mtimes, and a read that doesn't match them is a miss (#535).
+  That way a re-cut or an added region under the same pin is re-clipped
+  rather than served stale. Entries written before #535 carry no such
+  record and read as a miss once. `X-Plotlines-Clip-Cache-Hit` on every response says which
   case a given request hit.
 - **A persistent spatial index — evaluated, not built.** SPIKE-I's own
   framing: the largest change of the four, and it makes the mirror

@@ -175,3 +175,15 @@ def boulder_region(tmp_path: Path, monkeypatch,
             raise AssertionError("Boulder region never became ready")
         time.sleep(0.02)
     return client, key
+
+
+@pytest.fixture
+def public_overpass():
+    """Opt one test into the public Overpass fallback (issue #284 refuses it
+    by default). For tests of the Overpass transport's own mechanics, or of
+    capability independence that fakes that transport; never autouse."""
+    region_lib.allow_public_overpass(True)
+    try:
+        yield
+    finally:
+        region_lib.allow_public_overpass(False)

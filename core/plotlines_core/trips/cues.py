@@ -39,6 +39,11 @@ from plotlines_core.trips.payload import (
 
 _EARTH_R_M = 6_371_000.0
 
+#: How far an alternate's fork may sit from the route and still be cued there
+#: when it carries no `diverges_at_m` (#348). The client's
+#: `kReanchorToleranceM` (`alternate_edit.dart`) is the same figure.
+ALTERNATE_FORK_TOLERANCE_M = 20.0
+
 #: `surface` values that count as paved. Anything not listed in either map is
 #: **unknown**, never "other" — see `surface_class`.
 _PAVED = {
@@ -113,12 +118,16 @@ class CueSettings:
 
 #: Merge priority. A cue never absorbs one above it in this list.
 _PRIORITY = {
-    "hazard": 0, "portage": 1, "transition": 2, "start": 3, "finish": 3,
+    "hazard": 0, "constraint": 0, "portage": 1, "transition": 2, "start": 3, "finish": 3,
     "turn": 4, "event": 5, "alternate": 6, "node": 7, "surface": 8,
 }
 
 #: Kinds that are never merged into a neighbour and never suppressed.
-_SAFETY_CRITICAL = frozenset({"hazard", "portage", "transition", "start", "finish"})
+#: `constraint` (#421) is FR128/A11's dismount / gate / ford: folded into a turn
+#: 20 m away it is the "silently rolling through" `routing/access.py` exists to
+#: prevent.
+_SAFETY_CRITICAL = frozenset({"hazard", "constraint", "portage", "transition",
+                              "start", "finish"})
 
 #: Kinds the density merge never absorbs or lets absorb a neighbour. The
 #: safety-critical set, plus `provision` (FR133): a water/toilets/food stop
@@ -701,7 +710,11 @@ def alternate_cues(route: Route, alternates) -> list[Cue]:
     for alternate in alternates:
         along = alternate.diverges_at_m
         if along is None and alternate.geometry and alternate.geometry.coordinates:
-            along, _ = route.project(alternate.geometry.coordinates[0])
+            along, offset = route.project(alternate.geometry.coordinates[0])
+            # #348: a fork that is no longer on the route (the passage was
+            # re-solved elsewhere) gets no cue, never one at the nearest point.
+            if offset > ALTERNATE_FORK_TOLERANCE_M:
+                along = None
         if along is None:
             continue
         is_branch = getattr(alternate, "intent", "accommodation") == "branch"
@@ -787,6 +800,22 @@ def _retrace_pass(cues: list[Cue], route: Route) -> dict:
 
 # ----------------------------------------------------------------------- entry
 
+def constraint_cues(route: "Route", walk) -> list[Cue]:
+    """FR128 / A11 (issue #421) — one cue per surfaced constraint on the walk
+    (dismount, gate, ford), at the distance `routing.access.flags_along_walk`
+    measured for it (#401). The instruction is the raw `key=value` flags as
+    the engine sent them (#216's rule: never mapped through a lookup that
+    could drop an unknown value)."""
+    from plotlines_core.routing.access import flags_along_walk
+
+    cues = []
+    for entry in flags_along_walk(walk):
+        along = min(float(entry["distance_along_m"]), route.length_m)
+        cues.append(Cue(sequence=0, distance_along_m=along, kind="constraint",
+                        instruction=", ".join(entry["flags"])))
+    return cues
+
+
 def derive_cue_sheet(
     graph,
     walk,
@@ -818,6 +847,7 @@ def derive_cue_sheet(
         Cue(sequence=0, distance_along_m=0.0, kind="start", instruction=start_label),
         *turns, *surfaces, *highlights,
         *hazard_cues(route, hazards, settings),
+        *constraint_cues(route, walk),
         *portage_cues(route, portages),
         *alternate_cues(route, alternates),
         Cue(sequence=0, distance_along_m=route.length_m, kind="finish",
