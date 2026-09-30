@@ -719,7 +719,22 @@ def _cache_paths(cache_dir: Path, pin: str, bbox: BBox) -> tuple[Path, Path]:
     return pin_dir / f"{key}.pbf", pin_dir / f"{key}.json"
 
 
-def _read_cache(cache_dir: Path, pin: str, bbox: BBox, dest: Path) -> ClipResult | None:
+def _source_identity(extracts: Iterable["RegionExtract"]) -> list[list]:
+    """What a cached clip was cut from: each covering extract's region name,
+    size and mtime (issue #535). The pin alone did not say, and
+    `geofabrik_pull.py` can re-cut an extract or add a region under an
+    unchanged pin (#402's re-cut, #530's precut, #518's fill). A mismatch on
+    read is a miss, so a stale clip is re-cut rather than served."""
+    identity = []
+    for extract in sorted(extracts, key=lambda e: e.region):
+        st = extract.path.stat()
+        identity.append([extract.region, st.st_size, st.st_mtime_ns])
+    return identity
+
+
+def _read_cache(
+    cache_dir: Path, pin: str, bbox: BBox, dest: Path, sources: list[list]
+) -> ClipResult | None:
     """A hit copies the cached bytes to `dest` and reports the copy itself
     as this call's (near-zero) wall time — `ClipResult.cache_hit=True`
     keeps that from being mistaken for a real scan's cost. Returns `None`
@@ -733,6 +748,9 @@ def _read_cache(cache_dir: Path, pin: str, bbox: BBox, dest: Path) -> ClipResult
     try:
         meta = json.loads(cached_meta.read_text())
         source_regions = tuple(meta["source_regions"])
+        # An entry written before #535 has no "sources"; it reads as a miss.
+        if meta.get("sources") != sources:
+            return None
         shutil.copyfile(cached_pbf, dest)
         cached_pbf.touch()  # LRU freshness for _evict_cache
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -751,7 +769,8 @@ def _read_cache(cache_dir: Path, pin: str, bbox: BBox, dest: Path) -> ClipResult
 
 
 def _write_cache(
-    cache_dir: Path, pin: str, bbox: BBox, result: ClipResult, max_bytes: int
+    cache_dir: Path, pin: str, bbox: BBox, result: ClipResult, max_bytes: int,
+    sources: list[list],
 ) -> None:
     """Stores a freshly-computed `result` into the cache and evicts down to
     `max_bytes` afterward. Best-effort: any failure here is logged and
@@ -764,7 +783,10 @@ def _write_cache(
         os.close(fd)
         shutil.copyfile(result.output_path, tmp_name)
         os.replace(tmp_name, cached_pbf)
-        cached_meta.write_text(json.dumps({"source_regions": list(result.source_regions)}))
+        cached_meta.write_text(json.dumps({
+            "source_regions": list(result.source_regions),
+            "sources": sources,
+        }))
     except OSError as exc:
         log.warning("clip cache write failed for %s (serving uncached): %s", cached_pbf, exc)
         return
@@ -816,25 +838,15 @@ def clip_bbox(
     doing less is exactly what 'the mirror stays dumb' asks for at this
     phase" — a decision made before the wall-time finding existed).
     `cache_dir=None` (the default) reproduces that original behaviour
-    exactly. When given, a cache lookup runs first, keyed on `(pin, bbox)`
-    read from `MIRROR_STATE.json` **before** any extract is touched — the
-    same early-pin-read tradeoff `discover_region_extracts` already makes
-    elsewhere in this function, so a pin bump mid-request costs at most a
-    redundant cache miss, never a wrong-pin hit."""
+    exactly. When given, a cache lookup runs once the covering extracts are
+    known, keyed on `(pin, bbox)` and validated against those extracts'
+    identities (issue #535: the pin alone missed a re-cut or an added
+    region). Selecting them reads only PBF headers, so a hit stays cheap. A
+    pin bump mid-request costs at most a redundant cache miss, never a
+    wrong-pin hit."""
     validate_bbox(bbox)
     started = time.monotonic()
     started_rss_kb = _current_rss_kb()
-
-    if cache_dir is not None:
-        cache_pin = current_pinned_date(root)
-        if cache_pin is not None:
-            cached = _read_cache(cache_dir, cache_pin, bbox, dest)
-            if cached is not None:
-                log.info(
-                    "clip bbox=%s pin=%s cache_hit=true output_bytes=%d",
-                    bbox, cache_pin, cached.output_bytes,
-                )
-                return cached
 
     extracts = discover_region_extracts(root)
     if not extracts:
@@ -846,6 +858,18 @@ def clip_bbox(
         raise NoMirrorCoverage(
             f"no pinned extract covers bbox {bbox} (checked: {checked})"
         )
+
+    sources = _source_identity(candidates) if cache_dir is not None else []
+    if cache_dir is not None:
+        cache_pin = current_pinned_date(root)
+        if cache_pin is not None:
+            cached = _read_cache(cache_dir, cache_pin, bbox, dest, sources)
+            if cached is not None:
+                log.info(
+                    "clip bbox=%s pin=%s cache_hit=true output_bytes=%d",
+                    bbox, cache_pin, cached.output_bytes,
+                )
+                return cached
 
     tmp_dir = tmp_dir or dest.parent
 
@@ -932,7 +956,7 @@ def clip_bbox(
     # request pin bump, and storing under the freshly-read one keeps a
     # cache entry always attributable to the extracts that produced it.
     if cache_dir is not None and result.pin is not None:
-        _write_cache(cache_dir, result.pin, bbox, result, cache_max_bytes)
+        _write_cache(cache_dir, result.pin, bbox, result, cache_max_bytes, sources)
     return result
 
 
