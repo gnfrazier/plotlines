@@ -113,7 +113,11 @@ from plotlines_core.content.anchor import Anchor
 #: list means the leg is Author-drawn or was solved before this bump, and an
 #: entry without a distance is placed at the passage start — exactly what
 #: every consumer did before.
-SCHEMA_VERSION = "1.15.0"
+#: Bumped to 1.16.0 by issue #421: `cue.kind` gains `constraint` — a
+#: FR128/A11 dismount/gate/ford the derived cue sheet now carries itself, at
+#: its measured distance-along, rather than leaving it to the client preview
+#: to insert. Additive: a sheet derived before this bump simply has none.
+SCHEMA_VERSION = "1.16.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7

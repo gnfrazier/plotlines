@@ -362,13 +362,18 @@ List<_CueEntry> _entriesFromCueSheets(
     final segment = day.segments[i];
     final change = modeChanges[segment.id];
     if (change != null) entries.add(_modeChangeEntry(change, distanceAlongM: offset));
+    final sheet = sheets[i];
     // FR128 / A11 — the dismount/gate/ford edges this passage rolls over, at
     // the engine's own distance-along (issue #401) in this preview's
     // day-cumulative frame. A constraint recorded before the engine measured
     // one (a leg solved before schema 1.15.0) still lands at the passage's
     // start rather than at a fabricated position. This list is built in
     // reading order, not sorted, so the rows sit before the passage's cues.
-    for (final sc in segment.surfacedConstraints) {
+    //
+    // Issue #421 — a sheet derived since schema 1.16.0 carries these itself
+    // as `constraint` cues; inserting them here too would list each twice.
+    final sheetHasConstraints = sheet.cues.any((c) => c.kind == 'constraint');
+    for (final sc in sheetHasConstraints ? const <SurfacedConstraint>[] : segment.surfacedConstraints) {
       entries.add(
         _CueEntry(
           distanceAlongM: offset + (sc.distanceAlongM ?? 0),
@@ -378,13 +383,13 @@ List<_CueEntry> _entriesFromCueSheets(
         ),
       );
     }
-    final sheet = sheets[i];
     for (final cue in sheet.cues) {
       final glyph = switch (cue.kind) {
         'turn' => _turnGlyph[cue.modifier] ?? '•',
         'start' => 'S',
         'finish' => 'F',
         'hazard' => '⚠',
+        'constraint' => '⚑',
         'portage' => '▲',
         'surface' => '~',
         // FR133 — C5's amenities, woven into `cue.instruction` server-side
@@ -397,9 +402,17 @@ List<_CueEntry> _entriesFromCueSheets(
       entries.add(
         _CueEntry(
           distanceAlongM: offset + cue.distanceAlongM,
-          label: cue.instruction ?? cue.kind,
+          label: cue.kind == 'constraint'
+              ? _surfacedConstraintLabel((cue.instruction ?? '').split(', '))
+              : (cue.instruction ?? cue.kind),
           glyph: glyph,
-          tag: cue.retrace == true ? 'RETRACE' : (cue.kind == 'provision' ? 'PROVISION' : null),
+          tag: cue.retrace == true
+              ? 'RETRACE'
+              : switch (cue.kind) {
+                  'provision' => 'PROVISION',
+                  'constraint' => 'ON ROUTE',
+                  _ => null,
+                },
         ),
       );
     }
