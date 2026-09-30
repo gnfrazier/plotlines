@@ -63,11 +63,11 @@ landcover range) read 1.7-2.8:1 — well under WCAG 2.2 AA's 4.5:1 floor
 Grayscale's own numbers (its whole ramp sits in a narrower, lighter band than Light's).
 `WATER_LABEL_CONTRAST_FIX` applies a themed override to the three water-label layers'
 `text-color`/`text-halo-color`/`text-halo-width`, so the shipped file is a script step,
-never a hand-patch the script itself can't reproduce — see issue #486 for the
-pre-existing gap where #321's own Light/Dark values are *not* in this script yet and a
-re-run of this module currently regresses them.
+never a hand-patch the script itself can't reproduce. Light/Dark carry #321's values
+the same way (issue #486), so a re-run reproduces every committed theme.
 
 Run from the repo root:  python packaging/build_basemap_theme.py
+CI gate (issue #486):   python packaging/build_basemap_theme.py --check
 """
 
 from __future__ import annotations
@@ -91,10 +91,23 @@ def _source_path(name: str) -> Path:
 _WATER_LABEL_LAYERS = {"water_waterway_label", "water_label_ocean", "water_label_lakes"}
 
 # WCAG 2.2 AA (plotlines-constraints), computed against this theme's own committed
-# landcover/water fills — see the module docstring. Light/Dark's #321 values are not
-# listed here (issue #486): they are a pre-existing hand-patch on the committed file,
-# not yet part of this script.
+# landcover/water fills — see the module docstring. Light/Dark carry #321's values
+# (046a2f2), folded in here by issue #486: before that they were a hand-patch on the
+# committed output, and re-running this script reverted them.
+# `client/test/map_style_contrast_test.dart` enforces the ratio on the output.
 WATER_LABEL_CONTRAST_FIX = {
+    "light": {
+        "text-color": "#345566",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1,
+        "text-halo-blur": 1,
+    },
+    "dark": {
+        "text-color": "#8fbbcf",
+        "text-halo-color": "#1f1f1f",
+        "text-halo-width": 1,
+        "text-halo-blur": 1,
+    },
     "grayscale": {
         "text-color": "#333333",
         "text-halo-color": "#ffffff",
@@ -161,7 +174,9 @@ def strip_zoom_filter(node):
     return node
 
 
-def build_theme(name: str) -> None:
+def build_theme(name: str, *, check: bool = False) -> bool:
+    """Write `style_<name>.json`, or with `check` compare it to the committed file
+    instead. Returns whether the committed file matches (always True when writing)."""
     src = _source_path(name)
     dst = DST_DIR / f"style_{name}.json"
     style = json.loads(src.read_text(encoding="utf-8"))
@@ -204,7 +219,19 @@ def build_theme(name: str) -> None:
 
     contrast_fixed = _apply_water_label_contrast_fix(name, style)
 
-    dst.write_text(json.dumps(style), encoding="utf-8")
+    output = json.dumps(style)
+    if check:
+        # Issue #486 — a committed theme must be exactly what this script makes;
+        # a hand-patch on the output is reverted by the next re-run.
+        committed = dst.read_text(encoding="utf-8") if dst.exists() else None
+        if committed != output:
+            print(f"DRIFT {dst.relative_to(ROOT)}: committed file is not what "
+                  "build_basemap_theme.py generates — re-run it, or fold the "
+                  "hand edit into this script")
+            return False
+        print(f"ok    {dst.relative_to(ROOT)}")
+        return True
+    dst.write_text(output, encoding="utf-8")
     print(f"wrote {dst.relative_to(ROOT)}")
     print(f"  text-field simplified on {len(text_fixed)} symbol layers:")
     for entry in text_fixed:
@@ -216,11 +243,16 @@ def build_theme(name: str) -> None:
           f"{', '.join(zoom_filter_fixed) or '-'}")
     print(f"  WCAG AA water-label contrast fix applied on {len(contrast_fixed)}: "
           f"{', '.join(contrast_fixed) or '-'}")
+    return True
 
 
 def main() -> None:
-    for name in THEMES:
-        build_theme(name)
+    import sys
+
+    check = "--check" in sys.argv[1:]
+    results = [build_theme(name, check=check) for name in THEMES]
+    if not all(results):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

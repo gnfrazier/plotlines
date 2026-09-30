@@ -58,6 +58,7 @@ run client  client  flutter test &
 # Gates: cheap, no toolchain beyond python3. Sequential is fine.
 run gate-reveal  . tools/ci/reveal_gate_lint.sh &
 run gate-schema  . env PYTHONPATH=core python3 spikes/SPIKE-20/run.py --check-committed &
+run gate-basemap-theme . python3 packaging/build_basemap_theme.py --check &
 run gate-sidecar-data . tools/ci/sidecar_bundled_data_lint.sh &
 wait
 
