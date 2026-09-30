@@ -310,6 +310,51 @@ def test_an_overpass_outage_on_all_six_built_ins_costs_one_engine_call_and_recov
     assert cands  # a layer recovers after the transport does
 
 
+def test_an_unreadable_osm_source_does_not_latch_the_six_built_ins_failed():
+    """Issue #534: a non-transport error from the shared OSM fetch (osmium
+    failing on a corrupt or truncated clip, say) used to take the provider-bug
+    path, so all six built-in layers latched `failed` until restart. It is a
+    fact about this bbox's data, not about the layers: report it once per
+    request as a finished sentence, keep every layer `ready`, and retry after
+    the negative cache expires."""
+    from plotlines_core.curation.providers import (
+        NEGATIVE_CACHE_TTL_S, BuiltinOsmLayerProvider, SharedOsmFetch,
+    )
+
+    class CorruptThenGoodEngine:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def fetch(self, bbox, layers):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("PBF error: invalid BlobHeader size")
+            return [RawFeature(id="n/1", coord=(-81.95, 36.0),
+                                tags={"historic": "castle", "name": "Keep"})]
+
+    clock = {"t": 0.0}
+    engine = CorruptThenGoodEngine()
+    shared = SharedOsmFetch(engine, clock=lambda: clock["t"])
+    reg = LayerRegistry()
+    reg.register_builtins(
+        {layer: BuiltinOsmLayerProvider(layer, shared) for layer in LAYERS})
+
+    cands, errors = reg.fetch_candidates_all(_BBOX, set(LAYERS))
+
+    assert engine.calls == 1
+    assert cands == []
+    assert set(errors) == set(LAYERS)
+    assert all(state == "ready" for state in reg.per_layer().values())
+    message = next(iter(errors.values()))
+    assert "RuntimeError" not in message and "BlobHeader" not in message
+    assert "couldn't be read" in message
+
+    clock["t"] += NEGATIVE_CACHE_TTL_S
+    cands, errors = reg.fetch_candidates_all(_BBOX, set(LAYERS))
+    assert errors == {}
+    assert cands
+
+
 def test_fetch_names_an_unknown_layer_without_aborting():
     reg = _registry_with_builtins()
     cands, errors = reg.fetch_candidates_all(_BBOX, {"historic", "not_a_layer"})
