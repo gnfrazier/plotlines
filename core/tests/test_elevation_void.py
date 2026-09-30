@@ -201,6 +201,29 @@ def test_sample_wholly_outside_the_raster_falls_back_to_void_fill(tmp_path):
     assert s.sample([(0.0, 0.0), (1.0, 1.0)]).tolist() == [VOID_FILL, VOID_FILL]
 
 
+def test_a_route_wholly_outside_the_raster_has_no_profile(tmp_path):
+    # Issue #533: with no real sample to interpolate from, every point fell
+    # to VOID_FILL and the profile read as a measured flat 0 m route.
+    dem = _write_dem(tmp_path / "dem.tif", _ramp(), nodata=-9999.0)
+    s = ElevationSampler(dem)
+    assert s.profile([(0.0, 0.0), (1.0, 1.0), (2.0, 2.0)]) == {}
+
+
+def test_a_route_over_only_nodata_pixels_has_no_profile(tmp_path):
+    data = np.full_like(_ramp(), -9999.0)
+    dem = _write_dem(tmp_path / "dem.tif", data, nodata=-9999.0)
+    s = ElevationSampler(dem)
+    assert s.profile([_centre(0, 0), _centre(1, 1)]) == {}
+
+
+def test_one_real_sample_is_enough_for_a_profile(tmp_path):
+    dem = _write_dem(tmp_path / "dem.tif", _ramp(), nodata=-9999.0)
+    s = ElevationSampler(dem)
+    got = s.profile([(0.0, 0.0), _centre(0, 0)])
+    assert got["min_m"] == pytest.approx(100.0)
+    assert got["ascent_m"] == 0.0
+
+
 def test_read_leaves_every_gap_nan_for_the_caller_to_fill(tmp_path):
     data = _ramp()
     data[1, 1] = -9999.0

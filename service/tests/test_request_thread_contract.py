@@ -209,7 +209,10 @@ def test_every_endpoint_answers_under_a_blocked_resolver(tmp_path, monkeypatch):
     health = results["health"]
     assert health["elapsed"] < 2.0, f"/health took {health['elapsed']:.2f}s"
     assert health["response"].status_code == 200
-    assert health["response"].json()["capabilities"]["mirror"]["stale"] is True
+    # Issue #536: the mirror read runs in the background, so a poll with it
+    # stuck answers "not checked yet" at once rather than waiting to say
+    # "timed out".
+    assert health["response"].json()["capabilities"]["mirror"]["checked"] is False
 
     candidates = results["candidates"]
     assert candidates["elapsed"] < 2.0, f"/candidates took {candidates['elapsed']:.2f}s"

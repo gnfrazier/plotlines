@@ -17,6 +17,12 @@ stand-in for a permanently stalled resolver, worse than anything a real
 timeout would produce — and asserts `/health` still answers promptly and
 `/layers` (on the shared pool) is untouched while the stuck fetch is still
 occupying its own pool.
+
+Issue #536 moved the read off `/health` entirely: `MirrorStateCache` answers
+from the cache (or "not checked yet") at once and refreshes in the
+background, one read per source at a time. These tests now pin that shape:
+`/health` never waits, a read stuck past `_MIRROR_STATE_FETCH_TIMEOUT_S`
+reports as timed out, and polls behind a stuck read never start another.
 """
 
 from __future__ import annotations
@@ -29,92 +35,68 @@ from fastapi.testclient import TestClient
 from plotlines_service import app as app_module
 
 
-def test_a_stuck_mirror_state_fetch_does_not_block_other_endpoints(tmp_path, monkeypatch):
-    monkeypatch.setattr(app_module, "_MIRROR_STATE_FETCH_TIMEOUT_S", 0.2)
-
-    # Bounded at 15s purely so a broken test can't hang the whole suite —
-    # the test always calls `unblock.set()` itself, well before that, once
-    # it no longer needs the fetch to be stuck.
+def _stuck_client(tmp_path, monkeypatch):
     unblock = threading.Event()
+    calls: list[str] = []
 
     def hung_fetch(source):
+        calls.append(source)
         unblock.wait(timeout=15.0)
         return {"schema_version": 1, "basemap": {}, "geofabrik": {}}
 
     monkeypatch.setattr(app_module, "load_mirror_state", hung_fetch)
-
     client = TestClient(app_module.create_app(
         tmp_path, mirror_state_url="http://mirror.invalid/MIRROR_STATE.json"))
+    return client, unblock, calls
 
-    health_result: dict = {}
 
-    def poll_health() -> None:
-        start = time.monotonic()
-        resp = client.get("/health")
-        health_result["elapsed"] = time.monotonic() - start
-        health_result["body"] = resp.json()
-
-    health_thread = threading.Thread(target=poll_health)
-    health_thread.start()
-    # Let the stuck fetch actually claim its worker before racing /layers
-    # against it.
-    time.sleep(0.05)
-
+def test_a_stuck_mirror_state_fetch_does_not_block_health_or_other_endpoints(
+    tmp_path, monkeypatch,
+):
+    monkeypatch.setattr(app_module, "_MIRROR_STATE_FETCH_TIMEOUT_S", 0.2)
+    client, unblock, calls = _stuck_client(tmp_path, monkeypatch)
     try:
+        start = time.monotonic()
+        first = client.get("/health").json()["capabilities"]["mirror"]
+        health_elapsed = time.monotonic() - start
+
         start = time.monotonic()
         layers_resp = client.get("/layers")
         layers_elapsed = time.monotonic() - start
+
+        time.sleep(0.3)  # past the fetch timeout, the read still stuck
+        later = client.get("/health").json()["capabilities"]["mirror"]
     finally:
-        health_thread.join(timeout=5.0)
-        unblock.set()  # release the now-orphaned mirror-state worker
+        unblock.set()  # release the orphaned mirror-state worker
         client.app.state.readiness.shutdown()
 
-    assert not health_thread.is_alive(), "/health never returned"
-    assert health_result["elapsed"] < 2.0, (
-        "/health should give up on a stuck fetch, not wait on it")
-    mirror = health_result["body"]["capabilities"]["mirror"]
-    assert mirror["stale"] is True
-    assert "error" in mirror
+    assert health_elapsed < 0.5, (
+        f"/health took {health_elapsed:.2f}s — it must answer from the cache, "
+        "never wait on the mirror")
+    assert first == {"configured": True, "stale": False, "checked": False}
+    assert later["stale"] is True
+    assert later["error"] == "mirror state fetch timed out"
 
     assert layers_resp.status_code == 200
     assert layers_elapsed < 1.0, (
         f"/layers took {layers_elapsed:.2f}s with a stuck mirror-state fetch "
         "in flight — it must never share a thread pool with /health's poll")
+    assert len(calls) == 1
 
 
-def test_repeated_polls_against_a_stuck_fetch_never_touch_the_shared_pool(
-    tmp_path, monkeypatch,
-):
-    """The client polls `/health` every 2s regardless of whether the last
-    poll's mirror fetch ever finished. Each poll submits a fresh fetch onto
-    the dedicated single-worker pool (never the shared one), so however many
-    polls stack up behind one stuck fetch, `/layers` must stay fast.
-
-    Issue #367's `MirrorStateCache` would otherwise answer polls 2-5 from
-    the first poll's cached (timed-out) result without touching the pool
-    again — a real behaviour change worth having (see
-    `test_mirror_state_cache.py`), but not what *this* regression is about,
-    so the TTL is collapsed to 0 to keep every poll a genuine fresh fetch."""
+def test_repeated_polls_against_a_stuck_fetch_start_one_read(tmp_path, monkeypatch):
+    """Issue #536's single-flight half: the client polls `/health` every 2s
+    regardless of whether the last read ever finished. With the TTL
+    collapsed to 0, every poll wants a refresh; none may start a second read
+    while the first is still out, and `/layers` stays fast throughout."""
     monkeypatch.setattr(app_module, "_MIRROR_STATE_FETCH_TIMEOUT_S", 0.1)
     monkeypatch.setattr(app_module, "_MIRROR_STATE_CACHE_TTL_S", 0.0)
-
-    unblock = threading.Event()
-
-    def hung_fetch(source):
-        unblock.wait(timeout=15.0)
-        return {"schema_version": 1, "basemap": {}, "geofabrik": {}}
-
-    monkeypatch.setattr(app_module, "load_mirror_state", hung_fetch)
-
-    client = TestClient(app_module.create_app(
-        tmp_path, mirror_state_url="http://mirror.invalid/MIRROR_STATE.json"))
-
+    client, unblock, calls = _stuck_client(tmp_path, monkeypatch)
     try:
-        # Five polls back to back, as if the sidecar's 2s poll loop had been
-        # running against a resolver that never comes back.
         for _ in range(5):
-            resp = client.get("/health")
-            assert resp.json()["capabilities"]["mirror"]["stale"] is True
+            start = time.monotonic()
+            client.get("/health")
+            assert time.monotonic() - start < 0.5
 
         start = time.monotonic()
         layers_resp = client.get("/layers")
@@ -123,8 +105,6 @@ def test_repeated_polls_against_a_stuck_fetch_never_touch_the_shared_pool(
         unblock.set()
         client.app.state.readiness.shutdown()
 
+    assert len(calls) == 1, f"expected one read behind five polls, got {len(calls)}"
     assert layers_resp.status_code == 200
-    assert layers_elapsed < 1.0, (
-        f"/layers took {layers_elapsed:.2f}s after five stuck mirror-state "
-        "fetches queued up — a growing backlog on the dedicated pool must "
-        "still never spawn threads on the shared one")
+    assert layers_elapsed < 1.0

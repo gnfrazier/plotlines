@@ -269,7 +269,10 @@ class LayerRegistry:
         outage, all six landing `failed` together and staying there since
         nothing outside a test ever calls `mark_ready`. A plugin's
         `load_state()` failure at registration is the case that *may* stay
-        sticky, because a missing licence is a fact about the layer.
+        sticky, because a missing licence is a fact about the layer. Issue
+        #534: `SharedOsmFetch` raises any other built-in fetch failure (a
+        corrupt clip, say) as `CandidateSourceUnreadable`, a
+        `CandidateFetchUnavailable` subclass, so it takes this path too.
 
         The error string is `type(exc).__name__: exc` for an ordinary
         provider bug, but a `CandidateFetchUnavailable` surfaces its
