@@ -334,8 +334,9 @@ trace (acceptance criterion 5).
 > **A 404 on a miss is today's contract, not the decided one.** ARCH **D67** (epic #516) makes a
 > miss inside a Geofabrik-published region a *fill*: the mirror queues a pull and precut of the
 > covering region and answers `fetching` until it lands (#517, #518), and only a bbox outside every
-> region stays a finished `no_upstream_coverage`. Until #518 ships, the 404 below stands, and the
-> sidecar falls back to Overpass on it — ARCH D63's phased rule. Don't harden the 404 into
+> region stays a finished `no_upstream_coverage`. Until #518 ships, the 404 below stands. Since
+> #284 the sidecar no longer falls back to Overpass on it: routing reports the refusal sentence.
+> ARCH D63's phased rule has the detail. Don't harden the 404 into
 > anything a client relies on as final.
 
 **What's recorded, not yet what SPIKE-I measures.** Every successful clip
@@ -1038,7 +1039,7 @@ precut done per-state instead of merged.
 
 The OSM counterpart to the basemap prewarm above. With only `wnc-corridor`
 pinned, a trip anywhere else gets `NoMirrorCoverage` from `/clip`, and the
-sidecar falls back to Overpass, even where `priority.pmtiles` draws the
+sidecar (since #284) refuses the public Overpass fallback, even where `priority.pmtiles` draws the
 map. This flag covers the same areas the elevation proxy and the basemap
 were pre-warmed for: `deploy/elevation/priority_regions.build_priority_candidates()`
 plus the WNC corridor.

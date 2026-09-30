@@ -16,6 +16,8 @@ import uvicorn
 
 import logging
 
+from plotlines_core.graph import regions as region_lib
+
 from .app import create_app
 from .logging_setup import configure_logging, default_log_file
 from .version import VERSION
@@ -51,6 +53,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="dev only: permit --tiles-upstream to point at an "
                              "http(s):// host other than the Plotlines mirror. "
                              "Never the shipped path (FR92/FR95).")
+    parser.add_argument("--allow-unmirrored-osm", action="store_true",
+                        help="dev only: let bulk OSM acquisition fall back to a "
+                             "public Overpass instance when the Plotlines mirror "
+                             "has no clip for the bbox. Refused by default "
+                             "(issue #284, ARCH D63). A private instance goes in "
+                             "PLOTLINES_OVERPASS_ENDPOINTS instead.")
     parser.add_argument("--elevation-upstream", default=None,
                         help="QA/short-term only (companion to epic #264, not the "
                              "#148/FR87 production path): base URL of the Pi5 "
@@ -151,6 +159,12 @@ def main(argv: list[str] | None = None) -> int:
     logging.getLogger("plotlines.sidecar").info(
         "sidecar starting version=%s port=%s host=%s mode=%s cache_dir=%s log=%s",
         VERSION, args.port, args.host, args.mode, args.cache_dir, resolved_log)
+
+    if args.allow_unmirrored_osm:
+        # Issue #284 — process-wide, like the osmnx settings it gates.
+        region_lib.allow_public_overpass(True)
+        logging.getLogger("plotlines.sidecar").warning(
+            "--allow-unmirrored-osm: public Overpass fallback enabled (dev only)")
 
     try:
         app = create_app(cache_dir=args.cache_dir, mode=args.mode,
