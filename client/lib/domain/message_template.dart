@@ -367,6 +367,21 @@ enum MessageId {
   termArcClimax,
   termArcResolution,
 
+  termArcNone,
+
+  // ── Vocabulary: route shapes (FR7 / A7) ─────────────────────────────────
+  termShapeLoop,
+  termShapeOutAndBack,
+  termShapePointToPoint,
+
+  // ── Vocabulary: the Route rail's task spine (#328) ──────────────────────
+  termTaskFrame,
+  termTaskTune,
+  termTaskRefine,
+  termNoTargetDistance,
+  termWeightsDefault,
+  termWeightsCustom,
+
   // ── Vocabulary: travel-mode categories (FR10, FR144) ────────────────────
   termModeCycling,
   termModeHiking,
@@ -447,6 +462,10 @@ enum MessageId {
   anchorCount,
   candidateCount,
   staleItemCount,
+  passageNodeCount,
+  bandCount,
+  alternateCount,
+  spinePlaceCount,
 
   // ── Measures ────────────────────────────────────────────────────────────
   dayDistance,
@@ -502,6 +521,21 @@ const Map<MessageId, MessageTemplate> messageTemplates = {
   MessageId.termArcCrux: MessageTemplate(id: MessageId.termArcCrux, usage: 'ArcStage.crux'),
   MessageId.termArcClimax: MessageTemplate(id: MessageId.termArcClimax, usage: 'ArcStage.climax'),
   MessageId.termArcResolution: MessageTemplate(id: MessageId.termArcResolution, usage: 'ArcStage.resolution'),
+  MessageId.termArcNone: MessageTemplate(id: MessageId.termArcNone, usage: 'a passage with no arc stage (O6)'),
+  MessageId.termShapeLoop: MessageTemplate(id: MessageId.termShapeLoop, usage: 'route shape "loop"'),
+  MessageId.termShapeOutAndBack:
+      MessageTemplate(id: MessageId.termShapeOutAndBack, usage: 'route shape "out_and_back"'),
+  MessageId.termShapePointToPoint:
+      MessageTemplate(id: MessageId.termShapePointToPoint, usage: 'route shape "point_to_point"'),
+  MessageId.termTaskFrame: MessageTemplate(id: MessageId.termTaskFrame, usage: '#328 — what this day is'),
+  MessageId.termTaskTune: MessageTemplate(id: MessageId.termTaskTune, usage: '#328 — how it should feel'),
+  MessageId.termTaskRefine: MessageTemplate(id: MessageId.termTaskRefine, usage: '#328 — what is on it'),
+  MessageId.termNoTargetDistance:
+      MessageTemplate(id: MessageId.termNoTargetDistance, usage: '#328 — a passage with no target distance'),
+  MessageId.termWeightsDefault:
+      MessageTemplate(id: MessageId.termWeightsDefault, usage: '#328 — every weight at its default'),
+  MessageId.termWeightsCustom:
+      MessageTemplate(id: MessageId.termWeightsCustom, usage: '#328 — at least one weight moved'),
   MessageId.termModeCycling: MessageTemplate(id: MessageId.termModeCycling, usage: 'travel category "cycling"'),
   MessageId.termModeHiking: MessageTemplate(id: MessageId.termModeHiking, usage: 'travel category "hiking"'),
   MessageId.termModePaddling: MessageTemplate(id: MessageId.termModePaddling, usage: 'travel category "paddling"'),
@@ -655,6 +689,14 @@ const Map<MessageId, MessageTemplate> messageTemplates = {
       id: MessageId.anchorCount, slots: [MessageSlot(_slotCount, SlotType.count)], usage: 'promoted anchors'),
   MessageId.candidateCount: MessageTemplate(
       id: MessageId.candidateCount, slots: [MessageSlot(_slotCount, SlotType.count)], usage: 'candidates in the bbox'),
+  MessageId.passageNodeCount: MessageTemplate(
+      id: MessageId.passageNodeCount, slots: [MessageSlot(_slotCount, SlotType.count)], usage: '#328 — nodes on a passage'),
+  MessageId.bandCount: MessageTemplate(
+      id: MessageId.bandCount, slots: [MessageSlot(_slotCount, SlotType.count)], usage: '#328 — bands on a passage'),
+  MessageId.alternateCount: MessageTemplate(
+      id: MessageId.alternateCount, slots: [MessageSlot(_slotCount, SlotType.count)], usage: '#328 — alternates on a passage'),
+  MessageId.spinePlaceCount: MessageTemplate(
+      id: MessageId.spinePlaceCount, slots: [MessageSlot(_slotCount, SlotType.count)], usage: '#328 — places in a compose spine'),
   MessageId.staleItemCount: MessageTemplate(
       id: MessageId.staleItemCount,
       slots: [MessageSlot(_slotCount, SlotType.count)],

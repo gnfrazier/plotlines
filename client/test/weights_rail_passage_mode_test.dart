@@ -16,6 +16,8 @@ import 'package:plotlines_client/presentation/widgets/weights_rail.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'support/display_units.dart';
 
+import 'support/rail_tasks.dart';
+
 Segment _segment({String mode = 'cycling'}) => Segment(
       id: 'seg-1',
       mode: mode,
@@ -49,6 +51,7 @@ Future<void> _pump(WidgetTester tester, Segment segment,
     ),
   );
   await tester.pump();
+  await openRailTask(tester, 'frame');
 }
 
 ProviderContainer _container(WidgetTester tester) =>

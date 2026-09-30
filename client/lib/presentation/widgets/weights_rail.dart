@@ -15,6 +15,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../data/routing_client.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
+import '../../state/messages_provider.dart';
 import '../../state/planner_ui_state.dart';
 import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
@@ -37,6 +38,14 @@ const _attributes = [
 const _shapes = ['loop', 'out_and_back', 'point_to_point'];
 const _shapeLabels = {'loop': 'LOOP', 'out_and_back': 'OUT-BACK', 'point_to_point': 'P2P'};
 const _arcStages = ['exposition', 'rising', 'crux', 'climax', 'resolution'];
+
+/// #328 — the arc stages shown before "All …": the common beats. A passage
+/// already set to another stage always shows it too.
+const _arcCommon = {'rising', 'crux'};
+
+/// #328 — the rail's task spine, in the order an Author works: what the day
+/// *is*, how it should *feel*, what is *on* it.
+enum _RailTask { frame, tune, refine }
 
 Violation? _violationFor(List<Violation> violations, String attribute) {
   for (final v in violations) {
@@ -88,6 +97,13 @@ class WeightsRail extends ConsumerStatefulWidget {
 }
 
 class _WeightsRailState extends ConsumerState<WeightsRail> {
+  // #328 — the one open task. Tune by default: it is the task iterated
+  // against the map, many times over.
+  _RailTask _open = _RailTask.tune;
+  bool _surfaceOpen = false;
+  bool _disciplineOpen = false;
+  bool _interestOpen = false;
+  bool _allArcs = false;
   bool _regenerating = false;
   bool _diagnosing = false;
   bool _addingBand = false;
@@ -131,144 +147,373 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
     final mode = ref.watch(dayPlanningModeProvider(widget.dayId));
     final df = ref.watch(displayFormatProvider);
 
+    final messages = ref.watch(messagesProvider);
+    final notifier = ref.read(currentTripProvider.notifier);
+    Widget heading(String text) => Text(text,
+        style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700));
+
+    // #328 — Frame: what this day *is*. Mode, shape, the distance constraint
+    // (and in compose, the spine that defines the route).
+    final frame = <Widget>[
+      // FR139/Q2 — a passage's mode is editable after routing, same as
+      // shape; changing it marks the route stale rather than re-solving
+      // (Q3/FR140), and A11's mode-legal routability re-checks on the next
+      // solve, not here. Issue #319 — offers only the trip's modes, with "add
+      // a mode to the trip" on the same control.
+      heading('PASSAGE MODE'),
+      const SizedBox(height: PlotSpacing.s2),
+      PassageModePicker(
+        selected: segment.mode,
+        offerable: kTravelModes,
+        dense: true,
+        onSelected: (m) => notifier.updateSegmentMode(widget.dayId, segment.id, m),
+      ),
+      // #338 — the discipline under the passage's mode category. #319 —
+      // unlike PASSAGE MODE, changing it does *not* mark the route stale.
+      // #328 — one row naming the current choice until opened: a fourth
+      // level inside Frame, like Tune's Surface.
+      if (disciplinesForCategory(segment.mode).isNotEmpty) ...[
+        const SizedBox(height: PlotSpacing.s2),
+        _GroupToggle(
+          title: 'DISCIPLINE',
+          detail: segment.discipline == null ? 'Category default' : disciplineLabel(segment.discipline!),
+          open: _disciplineOpen,
+          onTap: () => setState(() => _disciplineOpen = !_disciplineOpen),
+        ),
+        if (_disciplineOpen) Wrap(
+          spacing: PlotSpacing.s2,
+          runSpacing: PlotSpacing.s2,
+          children: [
+            ChoiceChip(
+              label: const Text('CATEGORY DEFAULT'),
+              selected: segment.discipline == null,
+              onSelected: (_) => notifier.updateSegmentDiscipline(widget.dayId, segment.id, null),
+            ),
+            for (final k in disciplinesForCategory(segment.mode))
+              ChoiceChip(
+                avatar: Icon(disciplineIcon(k), size: 16, color: c.textSecondary),
+                label: Text(disciplineLabel(k).toUpperCase()),
+                selected: segment.discipline == k,
+                onSelected: (_) => notifier.updateSegmentDiscipline(widget.dayId, segment.id, k),
+              ),
+          ],
+        ),
+        if (_disciplineOpen && segment.discipline != null) ...[
+          const SizedBox(height: PlotSpacing.s2),
+          Text(
+            (kDisciplines[segment.discipline]?.isFirstClass ?? false)
+                ? 'Tuned dials, measured against real routes.'
+                : 'Its own dials — a first estimate, not tuned against real routes yet.',
+            style: PlotTypography.small(c.textMuted),
+          ),
+        ],
+      ],
+      const SizedBox(height: PlotSpacing.s3),
+      heading('SHAPE'),
+      const SizedBox(height: PlotSpacing.s2),
+      Wrap(
+        spacing: PlotSpacing.s2,
+        children: [
+          for (final shape in _shapes)
+            ChoiceChip(
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              label: Text(_shapeLabels[shape]!),
+              selected: segment.shape == shape,
+              onSelected: (_) => notifier.updateSegmentShape(widget.dayId, segment.id, shape),
+            ),
+        ],
+      ),
+      const SizedBox(height: PlotSpacing.s3),
+      _TargetDistanceField(dayId: widget.dayId, segment: segment, mode: mode),
+      if (mode == PlanningMode.explore && segment.via.isNotEmpty) ...[
+        const SizedBox(height: PlotSpacing.s3),
+        heading('VIA (A9)'),
+        const SizedBox(height: PlotSpacing.s2),
+        Wrap(
+          spacing: PlotSpacing.s2,
+          runSpacing: PlotSpacing.s2,
+          children: [
+            for (var i = 0; i < segment.via.length; i++)
+              PlotBadge('Via ${i + 1}', tone: PlotBadgeTone.slate),
+          ],
+        ),
+      ],
+      if (mode == PlanningMode.compose) ...[
+        // Unbounded, like BANDS — compose *is* the POI-spine trip
+        // (FR39/FR117), with no cap on how many places it reaches.
+        const SizedBox(height: PlotSpacing.s4),
+        heading('SPINE'),
+        const SizedBox(height: PlotSpacing.s1),
+        Text('The promoted places this route reaches, in order.',
+            style: PlotTypography.small(c.textMuted)),
+        const SizedBox(height: PlotSpacing.s2),
+        _SpineEditor(dayId: widget.dayId, segment: segment),
+        const SizedBox(height: PlotSpacing.s4),
+        _ComposeDeviationPanel(dayId: widget.dayId, segment: segment),
+      ],
+    ];
+
+    // #328 — Tune: how it should *feel*. Weights grouped by what they are
+    // about — Terrain open, Surface one collapsed row — then Bands.
+    final tune = <Widget>[
+      heading('TERRAIN'),
+      const SizedBox(height: PlotSpacing.s2),
+      WeightSlider(
+        // A1's AC: "'peaks' terminology in UI" — matches the "Peaks —
+        // climbing" / "Cars — traffic tolerance" pattern in
+        // `Flow 4 - Explore and compose.dc.html`.
+        label: 'Peaks — climbing',
+        hint: 'flat ↔ indifferent ↔ seek peaks',
+        value: weights.climbing ?? 2.5,
+        onChanged: (v) => setWeights(weights.copyWith(climbing: v)),
+      ),
+      WeightSlider(
+        // A2's AC: "'cars' terminology".
+        label: 'Cars — traffic tolerance',
+        hint: 'avoid cars ↔ indifferent ↔ seek cars',
+        value: weights.traffic ?? 2.5,
+        onChanged: (v) => setWeights(weights.copyWith(traffic: v)),
+      ),
+      const SizedBox(height: PlotSpacing.s1),
+      _GroupToggle(
+        title: 'INTEREST',
+        detail: mode == PlanningMode.compose
+            ? 'Inactive in compose'
+            : (weights.interest ?? 0.0).toStringAsFixed(1),
+        open: _interestOpen,
+        onTap: () => setState(() => _interestOpen = !_interestOpen),
+      ),
+      if (_interestOpen) WeightSlider(
+        // FR5/A4's AC: a single salience bias, no POI-type control. ARCH
+        // §7.7: inactive in compose, where the promoted anchors are already
+        // the spine.
+        label: 'Interest — good places',
+        hint: mode == PlanningMode.explore
+            ? 'indifferent ↔ seek high-salience places'
+            : 'indifferent ↔ seek high-salience places · inactive in compose — the spine already says what\'s here',
+        value: weights.interest ?? 0.0,
+        onChanged: mode == PlanningMode.compose
+            ? null
+            : (v) => setWeights(weights.copyWith(interest: v)),
+      ),
+      _GroupToggle(
+        title: 'SURFACE',
+        detail: 'Paved, gravel, singletrack',
+        open: _surfaceOpen,
+        onTap: () => setState(() => _surfaceOpen = !_surfaceOpen),
+      ),
+      if (_surfaceOpen)
+        for (final cls in _surfaceClasses)
+          WeightSlider(
+            label: 'Surface — $cls',
+            hint: 'avoid ↔ indifferent ↔ seek',
+            value: weights.surface[cls] ?? 2.5,
+            onChanged: (v) => setWeights(weights.withSurfaceClass(cls, v)),
+          ),
+      const SizedBox(height: PlotSpacing.s4),
+      heading('BANDS'),
+      const SizedBox(height: PlotSpacing.s1),
+      if (mode == PlanningMode.explore) ...[
+        Text('A range on a realised attribute, never on a weight.',
+            style: PlotTypography.small(c.textMuted)),
+        const SizedBox(height: PlotSpacing.s2),
+        for (final band in segment.bands)
+          BandRow(
+            key: ValueKey(band.attribute),
+            band: band,
+            displayFormat: df,
+            violation: _violationFor(segment.violations, band.attribute),
+            onChanged: (updated) => notifier.updateSegmentBands(
+              widget.dayId,
+              segment.id,
+              [for (final b in segment.bands) if (b.attribute == band.attribute) updated else b],
+            ),
+            onRemove: () => notifier.updateSegmentBands(
+              widget.dayId,
+              segment.id,
+              segment.bands.where((b) => b != band).toList(),
+            ),
+          ),
+        // FR9/A6's AC: the best-effort route and its band violations return
+        // with the initial solve — distinct from the slow, async "Diagnose"
+        // action in the action plane.
+        if (segment.violations.isNotEmpty) ...[
+          const SizedBox(height: PlotSpacing.s2),
+          ConflictBanner(explanation: _violationsSummary(segment.violations, df)),
+        ],
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            icon: const Icon(Icons.add, size: 16),
+            label: Text(_addingBand ? 'Adding…' : 'Add band'),
+            onPressed: _addingBand ? null : () => _addBand(segment),
+          ),
+        ),
+      ] else
+        Text(
+          'Bands aren\'t edited here — the route reaches every place in the '
+          'spine regardless. Any band you set is only used under Frame, to '
+          'report how the realized day compares to it.',
+          style: PlotTypography.small(c.textMuted),
+        ),
+    ];
+
+    // #328 — Refine: what is *on* it. Nodes, arc, alternates — last, once
+    // the line is right.
+    final arcShown = _allArcs
+        ? _arcStages
+        : [
+            for (final stage in _arcStages)
+              if (_arcCommon.contains(stage) || segment.arcStage == stage) stage,
+          ];
+    final refine = <Widget>[
+      heading('ON THIS PASSAGE'),
+      const SizedBox(height: PlotSpacing.s2),
+      if (segment.nodes.isEmpty)
+        Text('No nodes yet. Add one from the map toolbar.',
+            style: PlotTypography.small(c.textMuted))
+      else
+        for (final n in segment.nodes)
+          Padding(
+            padding: const EdgeInsets.only(bottom: PlotSpacing.s1),
+            child: Text(n.title ?? n.kind.name, style: PlotTypography.small(c.textSecondary)),
+          ),
+      const SizedBox(height: PlotSpacing.s3),
+      // FR38 / O6 — this passage's own arc stage. "none" is a real, distinct
+      // choice (most segments carry no arc beat).
+      heading('ARC (O6 / FR38)'),
+      const SizedBox(height: PlotSpacing.s2),
+      Wrap(
+        spacing: PlotSpacing.s2,
+        runSpacing: PlotSpacing.s2,
+        children: [
+          ChoiceChip(
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            label: const Text('none'),
+            selected: segment.arcStage == null,
+            onSelected: (_) => notifier.updateSegmentArcStage(widget.dayId, segment.id, null),
+          ),
+          for (final stage in arcShown)
+            ChoiceChip(
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              label: Text(stage),
+              selected: segment.arcStage == stage,
+              onSelected: (_) => notifier.updateSegmentArcStage(widget.dayId, segment.id, stage),
+            ),
+          if (!_allArcs && arcShown.length < _arcStages.length)
+            ActionChip(
+              label: Text('All ${_arcStages.length + 1} …'),
+              onPressed: () => setState(() => _allArcs = true),
+            ),
+        ],
+      ),
+      const SizedBox(height: PlotSpacing.s3),
+      heading('ALTERNATES'),
+      const SizedBox(height: PlotSpacing.s1),
+      Text(
+        segment.alternates.isEmpty
+            ? 'Mark a fork and a rejoin on the map to start one.'
+            : messages.resolve(MessageId.alternateCount,
+                {'count': CountSlot(segment.alternates.length)}),
+        style: PlotTypography.small(c.textMuted),
+      ),
+    ];
+
+    final shapeTerm = messages.shapeTerm(segment.shape);
+    final modeTerm = messages.travelModeTerm(segment.mode);
+    final target = segment.targetDistance?.valueM;
+    final summaries = <_RailTask, List<String>>{
+      _RailTask.frame: [
+        modeTerm == null ? segment.mode : messages.term(modeTerm),
+        shapeTerm == null ? segment.shape : messages.term(shapeTerm),
+        if (mode == PlanningMode.compose)
+          messages.resolve(MessageId.spinePlaceCount, {'count': CountSlot(segment.via.length)})
+        else if (target != null)
+          df.formatDistance(target)
+        else
+          messages.term(MessageId.termNoTargetDistance),
+      ],
+      _RailTask.tune: [
+        messages.term(segment.weights == null ? MessageId.termWeightsDefault : MessageId.termWeightsCustom),
+        messages.resolve(MessageId.bandCount, {'count': CountSlot(segment.bands.length)}),
+      ],
+      _RailTask.refine: [
+        messages.resolve(MessageId.passageNodeCount, {'count': CountSlot(segment.nodes.length)}),
+        segment.arcStage == null
+            ? messages.term(MessageId.termArcNone)
+            : messages.term(messages.arcStageTerm(ArcStage.fromWire(segment.arcStage!))),
+        messages.resolve(MessageId.alternateCount, {'count': CountSlot(segment.alternates.length)}),
+      ],
+    };
+    final bodies = {_RailTask.frame: frame, _RailTask.tune: tune, _RailTask.refine: refine};
+    final titles = {
+      _RailTask.frame: messages.term(MessageId.termTaskFrame),
+      _RailTask.tune: messages.term(MessageId.termTaskTune),
+      _RailTask.refine: messages.term(MessageId.termTaskRefine),
+    };
+
     return Container(
       width: 308,
       decoration: BoxDecoration(border: Border(right: BorderSide(color: c.border))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // #328 — Explore / Compose is the passage's *posture*, not one of
+          // its weights, so it heads the rail. FR117/A0's AC — always the
+          // first thing, visible without scrolling (ARCH §7.7: nothing about
+          // the segment is destroyed by tapping the other mode).
           Padding(
-            padding: const EdgeInsets.fromLTRB(PlotSpacing.s4, PlotSpacing.s4, PlotSpacing.s4, PlotSpacing.s3),
-            child: Text('ROUTE WEIGHTS',
-                style: PlotTypography.data(c.textPrimary).copyWith(fontWeight: FontWeight.w700)),
+            padding: const EdgeInsets.fromLTRB(PlotSpacing.s4, PlotSpacing.s4, PlotSpacing.s4, PlotSpacing.s2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PlanningModeToggle(dayId: widget.dayId, mode: mode, segment: segment),
+                if (segment.solve?.stale ?? false) ...[
+                  const SizedBox(height: PlotSpacing.s2),
+                  const PlotBadge('Stale — needs re-solve', tone: PlotBadgeTone.gold, solid: true),
+                ],
+                const SizedBox(height: PlotSpacing.s2),
+                Text(
+                  mode == PlanningMode.explore
+                      ? 'Weights search; distance is a constraint.'
+                      : 'Your places are the route; weights flavor it.',
+                  style: PlotTypography.small(c.textMuted),
+                ),
+              ],
+            ),
           ),
+          // #328 — an accordion of Frame / Tune / Refine, exactly one open:
+          // independent collapsibles would let an Author open all three and
+          // be back to one 50-control scroll. Closed, each states its answer.
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // FR117/A0's AC — the day's mode, always the first thing in
-                  // the rail: visible without scrolling on open, and the
-                  // switch itself (ARCH §7.7: nothing about the segment is
-                  // destroyed by tapping the other mode).
-                  _PlanningModeToggle(dayId: widget.dayId, mode: mode, segment: segment),
-                  const SizedBox(height: PlotSpacing.s2),
-                  Text(
-                    mode == PlanningMode.explore
-                        ? 'Explore — weights and bands define the search space; the distance below is a constraint.'
-                        : 'Compose — the spine below defines the route; weights only flavor the connections between its places.',
-                    style: PlotTypography.small(c.textMuted),
-                  ),
-                  const SizedBox(height: PlotSpacing.s4),
-                  WeightSlider(
-                    // A1's AC: "'peaks' terminology in UI" — matches the
-                    // "Peaks — climbing" / "Cars — traffic tolerance"
-                    // pattern in `Flow 4 - Explore and compose.dc.html`.
-                    label: 'Peaks — climbing',
-                    hint: 'flat ↔ indifferent ↔ seek peaks',
-                    value: weights.climbing ?? 2.5,
-                    onChanged: (v) => setWeights(weights.copyWith(climbing: v)),
-                  ),
-                  WeightSlider(
-                    // A2's AC: "'cars' terminology" — matches the "Peaks —
-                    // climbing" / "Cars — traffic tolerance" pattern in
-                    // `Flow 4 - Explore and compose.dc.html`.
-                    label: 'Cars — traffic tolerance',
-                    hint: 'avoid cars ↔ indifferent ↔ seek cars',
-                    value: weights.traffic ?? 2.5,
-                    onChanged: (v) => setWeights(weights.copyWith(traffic: v)),
-                  ),
-                  for (final cls in _surfaceClasses)
-                    WeightSlider(
-                      label: 'Surface — $cls',
-                      hint: 'avoid ↔ indifferent ↔ seek',
-                      value: weights.surface[cls] ?? 2.5,
-                      onChanged: (v) => setWeights(weights.withSurfaceClass(cls, v)),
-                    ),
-                  WeightSlider(
-                    // FR5/A4's AC: a single salience bias, no POI-type control —
-                    // layer selection already says what matters (FR97); this
-                    // says only how much to seek it. ARCH §7.7: inactive in
-                    // compose, where the promoted anchors are already the spine.
-                    label: 'Interest — good places',
-                    hint: mode == PlanningMode.explore
-                        ? 'indifferent ↔ seek high-salience places'
-                        : 'indifferent ↔ seek high-salience places · inactive in compose — the spine already says what\'s here',
-                    value: weights.interest ?? 0.0,
-                    onChanged: mode == PlanningMode.compose
-                        ? null
-                        : (v) => setWeights(weights.copyWith(interest: v)),
-                  ),
-                  const SizedBox(height: PlotSpacing.s4),
-                  if (mode == PlanningMode.explore) ...[
-                    Text('BANDS', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: PlotSpacing.s1),
-                    Text('Acceptance range on a realised attribute — never on the weight itself.',
-                        style: PlotTypography.small(c.textMuted)),
-                    const SizedBox(height: PlotSpacing.s2),
-                    for (final band in segment.bands)
-                      BandRow(
-                        key: ValueKey(band.attribute),
-                        band: band,
-                        displayFormat: df,
-                        violation: _violationFor(segment.violations, band.attribute),
-                        onChanged: (updated) => ref.read(currentTripProvider.notifier).updateSegmentBands(
-                              widget.dayId,
-                              segment.id,
-                              [for (final b in segment.bands) if (b.attribute == band.attribute) updated else b],
-                            ),
-                        onRemove: () => ref.read(currentTripProvider.notifier).updateSegmentBands(
-                              widget.dayId,
-                              segment.id,
-                              segment.bands.where((b) => b != band).toList(),
-                            ),
-                      ),
-                    // FR9/A6's AC: the best-effort route and its band
-                    // violations return with the initial solve — this is
-                    // that synchronous surfacing (`bandViolations`,
-                    // `regenerateSegment`), distinct from the "Diagnose"
-                    // action below, which is the slow (SPIKE-02:
-                    // 1.3-15.0s), async named-conflict-plus-relaxations
-                    // half of A6.
-                    if (segment.violations.isNotEmpty) ...[
-                      const SizedBox(height: PlotSpacing.s2),
-                      ConflictBanner(
-                          explanation: _violationsSummary(segment.violations, df)),
-                    ],
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: PlotButton(
-                        label: _addingBand ? 'Adding…' : 'Add band',
-                        variant: PlotButtonVariant.ghost,
-                        icon: Icons.add,
-                        onPressed: _addingBand ? null : () => _addBand(segment),
-                      ),
-                    ),
-                  ] else ...[
+                  // Why Regenerate is disabled, stated where it is seen
+                  // first rather than inside a task that may be closed.
+                  if (_composeNeedsTarget(mode, segment)) ...[
                     Text(
-                      'Bands aren\'t edited here — the route reaches every place in the '
-                      'spine regardless. Any band you set is only used below, to report '
-                      'how the realized day compares to it.',
-                      style: PlotTypography.small(c.textMuted),
-                    ),
-                    const SizedBox(height: PlotSpacing.s4),
-                    // Unbounded, like BANDS above — compose *is* the
-                    // POI-spine trip (FR39/FR117), with no cap on how many
-                    // places it reaches, so this lives in the scrollable
-                    // middle rather than the fixed bottom rail the way the
-                    // capped 1-2-item explore VIA badges still do.
-                    Text('SPINE', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: PlotSpacing.s1),
-                    Text(
-                      'The promoted places this route reaches, in order.',
-                      style: PlotTypography.small(c.textMuted),
+                      'Loop always solves to a target distance, which compose doesn\'t set — '
+                      'pick out-and-back or point-to-point, or switch back to explore.',
+                      style: PlotTypography.small(c.danger),
                     ),
                     const SizedBox(height: PlotSpacing.s2),
-                    _SpineEditor(dayId: widget.dayId, segment: segment),
-                    const SizedBox(height: PlotSpacing.s4),
-                    _ComposeDeviationPanel(dayId: widget.dayId, segment: segment),
                   ],
+                  for (final task in _RailTask.values)
+                    _TaskSection(
+                      key: ValueKey('rail-task-${task.name}'),
+                      title: titles[task]!,
+                      summary: summaries[task]!,
+                      open: _open == task,
+                      onTap: () => setState(() => _open = task),
+                      children: bodies[task]!,
+                    ),
                   if (_error != null) ...[
                     const SizedBox(height: PlotSpacing.s3),
                     ConflictBanner(explanation: _error!),
@@ -278,236 +523,70 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
               ),
             ),
           ),
-          // shape + distance + via — the wireframe's bottom rail section.
-          // FR8/A8 added a per-target band row here (`_TargetDistanceField`),
-          // tall enough with VIA/stale/warning content all present that a
-          // short window can run out of room — `Flexible` lets this whole
-          // section give way to the middle section's scroll area instead of
-          // overflowing, and its own content scrolls internally
-          // (`SingleChildScrollView`) while Diagnose/Regenerate stay pinned
-          // below it, never scrolled out of reach.
-          Flexible(
-            child: Container(
-              decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
-              padding: const EdgeInsets.all(PlotSpacing.s4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // FR139/Q2 — a passage's mode is editable after
-                          // routing, same as shape; changing it marks the
-                          // route stale rather than re-solving (Q3/FR140),
-                          // and A11's mode-legal routability re-checks on
-                          // the next solve, not here. Issue #319 — offers
-                          // only the trip's modes (all eight wire modes
-                          // used to be here), as a single-select pick from
-                          // that parent set, with "add a mode to the trip"
-                          // on the same control so a mode the trip lacks is
-                          // one gesture away rather than silently offered.
-                          Text('PASSAGE MODE',
-                              style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: PlotSpacing.s2),
-                          PassageModePicker(
-                            selected: segment.mode,
-                            offerable: kTravelModes,
-                            dense: true,
-                            onSelected: (m) => ref
-                                .read(currentTripProvider.notifier)
-                                .updateSegmentMode(widget.dayId, segment.id, m),
-                          ),
-                          // #338 — the discipline under the passage's mode
-                          // category: the second axis, revealed once the
-                          // category has disciplines. Single-select and
-                          // optional (CATEGORY DEFAULT = the category's own
-                          // profile). #319 — unlike PASSAGE MODE, changing
-                          // it does *not* mark the route stale: a change
-                          // within a parent mode is not a change of parent
-                          // mode (owner's call, Q8). Tuned-vs-generic is read off
-                          // `Discipline.tier`, not chip order, and no
-                          // difficulty-grading claim is made (SPIKE-C).
-                          if (disciplinesForCategory(segment.mode).isNotEmpty) ...[
-                            const SizedBox(height: PlotSpacing.s3),
-                            Text('DISCIPLINE',
-                                style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-                            const SizedBox(height: PlotSpacing.s2),
-                            Wrap(
-                              spacing: PlotSpacing.s2,
-                              runSpacing: PlotSpacing.s2,
-                              children: [
-                                ChoiceChip(
-                                  label: const Text('CATEGORY DEFAULT'),
-                                  selected: segment.discipline == null,
-                                  onSelected: (_) => ref
-                                      .read(currentTripProvider.notifier)
-                                      .updateSegmentDiscipline(widget.dayId, segment.id, null),
-                                ),
-                                for (final k in disciplinesForCategory(segment.mode))
-                                  ChoiceChip(
-                                    avatar: Icon(disciplineIcon(k), size: 16, color: c.textSecondary),
-                                    label: Text(disciplineLabel(k).toUpperCase()),
-                                    selected: segment.discipline == k,
-                                    onSelected: (_) => ref
-                                        .read(currentTripProvider.notifier)
-                                        .updateSegmentDiscipline(widget.dayId, segment.id, k),
-                                  ),
-                              ],
-                            ),
-                            if (segment.discipline != null) ...[
-                              const SizedBox(height: PlotSpacing.s2),
-                              Text(
-                                (kDisciplines[segment.discipline]?.isFirstClass ?? false)
-                                    ? 'Tuned dials, measured against real routes.'
-                                    : 'Its own dials — a first estimate, not tuned against real routes yet.',
-                                style: PlotTypography.small(c.textMuted),
-                              ),
-                            ],
-                          ],
-                          const SizedBox(height: PlotSpacing.s3),
-                          Text('SHAPE',
-                              style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: PlotSpacing.s2),
-                          Wrap(
-                            spacing: PlotSpacing.s2,
-                            children: [
-                              for (final s in _shapes)
-                                ChoiceChip(
-                                  label: Text(_shapeLabels[s]!),
-                                  selected: segment.shape == s,
-                                  onSelected: (_) => ref
-                                      .read(currentTripProvider.notifier)
-                                      .updateSegmentShape(widget.dayId, segment.id, s),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: PlotSpacing.s3),
-                          // FR38 / O6 — this passage's own arc stage: the
-                          // stretch of route itself can be the rising action,
-                          // not just the anchors at either end. "none" is a
-                          // real, distinct choice (most segments carry no arc
-                          // beat), not just the absence of a selection.
-                          Text('ARC (O6 / FR38)',
-                              style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: PlotSpacing.s2),
-                          Wrap(
-                            spacing: PlotSpacing.s2,
-                            children: [
-                              ChoiceChip(
-                                label: const Text('none'),
-                                selected: segment.arcStage == null,
-                                onSelected: (_) => ref
-                                    .read(currentTripProvider.notifier)
-                                    .updateSegmentArcStage(widget.dayId, segment.id, null),
-                              ),
-                              for (final stage in _arcStages)
-                                ChoiceChip(
-                                  label: Text(stage),
-                                  selected: segment.arcStage == stage,
-                                  onSelected: (_) => ref
-                                      .read(currentTripProvider.notifier)
-                                      .updateSegmentArcStage(widget.dayId, segment.id, stage),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: PlotSpacing.s3),
-                          _TargetDistanceField(dayId: widget.dayId, segment: segment, mode: mode),
-                          if (mode == PlanningMode.explore && segment.via.isNotEmpty) ...[
-                            const SizedBox(height: PlotSpacing.s3),
-                            Text('VIA (A9)',
-                                style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
-                            const SizedBox(height: PlotSpacing.s2),
-                            Wrap(
-                              spacing: PlotSpacing.s2,
-                              runSpacing: PlotSpacing.s2,
-                              children: [
-                                for (var i = 0; i < segment.via.length; i++)
-                                  PlotBadge('Via ${i + 1}', tone: PlotBadgeTone.slate),
-                              ],
-                            ),
-                          ],
-                          if (segment.solve?.stale ?? false) ...[
-                            const SizedBox(height: PlotSpacing.s3),
-                            const PlotBadge('Stale — needs re-solve', tone: PlotBadgeTone.gold, solid: true),
-                          ],
-                          if (_composeNeedsTarget(mode, segment)) ...[
-                            const SizedBox(height: PlotSpacing.s3),
-                            Text(
-                              'Loop always solves to a target distance, which compose doesn\'t set — '
-                              'pick out-and-back or point-to-point, or switch back to explore.',
-                              style: PlotTypography.small(c.danger),
-                            ),
-                          ],
-                          // FR81 / K8 — the single, always-visible reset:
-                          // reverts this passage's shape, start, destination,
-                          // distance and weights to defaults and clears the
-                          // generated route. It never touches promoted
-                          // anchors, roles or reveal settings
-                          // (`resetSegmentPlanning`); discarding those is K8's
-                          // separate, confirmed action. Sits inside the
-                          // scrolling controls section, not the pinned
-                          // Diagnose/Regenerate footer.
-                          const SizedBox(height: PlotSpacing.s3),
-                          PlotButton(
-                            label: 'Reset planning controls',
-                            variant: PlotButtonVariant.ghost,
-                            expand: true,
-                            onPressed: segmentHasResettablePlanning(segment)
-                                ? () => ref
-                                    .read(currentTripProvider.notifier)
-                                    .resetSegmentPlanning(widget.dayId, segment.id)
-                                : null,
-                          ),
-                          if (mode == PlanningMode.compose)
-                            Padding(
-                              padding: const EdgeInsets.only(top: PlotSpacing.s2),
-                              child: Text(
-                                'Your promoted anchors, roles and reveal settings are kept.',
-                                style: PlotTypography.small(c.textMuted),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: PlotSpacing.s3),
-                  Row(
-                    children: [
-                      if (mode == PlanningMode.explore) ...[
-                        Expanded(
+          // #328 — the action bar is its own plane below the rail, outside
+          // any scroll, so it never overlaps the content above it.
+          Container(
+            decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
+            padding: const EdgeInsets.all(PlotSpacing.s4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    if (mode == PlanningMode.explore) ...[
+                      Expanded(
+                        // The reason a disabled Diagnose is disabled rides on
+                        // the button, not in its label: a long label wrapped
+                        // and doubled the action plane's height (#328).
+                        child: Tooltip(
+                          message: segment.bands.isEmpty ? 'Add a band under Tune to diagnose' : '',
                           child: PlotButton(
-                            label: segment.bands.isEmpty
-                                ? 'Add a band to diagnose'
-                                : (_diagnosing ? 'Diagnosing…' : 'Diagnose'),
+                            label: _diagnosing ? 'Diagnosing…' : 'Diagnose',
                             variant: PlotButtonVariant.secondary,
                             onPressed: (_diagnosing || segment.bands.isEmpty || segment.metrics?.distanceM == null)
                                 ? null
                                 : () => _diagnose(segment),
                           ),
                         ),
-                        const SizedBox(width: PlotSpacing.s2),
-                      ],
-                      Expanded(
-                        child: PlotButton(
-                          label: _regenerating ? 'Re-solving…' : 'Regenerate',
-                          onPressed: (_regenerating || _composeNeedsTarget(mode, segment))
-                              ? null
-                              : () => _regenerate(segment, mode),
-                        ),
                       ),
                       const SizedBox(width: PlotSpacing.s2),
-                      IconButton(
-                        tooltip: 'Remove passage',
-                        icon: Icon(Icons.delete_outline, color: PlotColors.of(context).danger),
-                        onPressed: () => _removePassage(segment),
-                      ),
                     ],
+                    Expanded(
+                      child: PlotButton(
+                        label: _regenerating ? 'Re-solving…' : 'Regenerate',
+                        onPressed: (_regenerating || _composeNeedsTarget(mode, segment))
+                            ? null
+                            : () => _regenerate(segment, mode),
+                      ),
+                    ),
+                    const SizedBox(width: PlotSpacing.s2),
+                    IconButton(
+                      tooltip: 'Remove passage',
+                      icon: Icon(Icons.delete_outline, color: PlotColors.of(context).danger),
+                      onPressed: () => _removePassage(segment),
+                    ),
+                  ],
+                ),
+                // FR81 / K8 — the single, always-visible reset: reverts this
+                // passage's shape, start, destination, distance and weights
+                // and clears the generated route. It never touches promoted
+                // anchors, roles or reveal settings (`resetSegmentPlanning`).
+                // In the action plane since #328, so it is always in reach.
+                TextButton.icon(
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  icon: const Icon(Icons.restart_alt, size: 16),
+                  label: const Text('Reset planning controls'),
+                  onPressed: segmentHasResettablePlanning(segment)
+                      ? () => notifier.resetSegmentPlanning(widget.dayId, segment.id)
+                      : null,
+                ),
+                if (mode == PlanningMode.compose)
+                  Text(
+                    'Your promoted anchors, roles and reveal settings are kept.',
+                    style: PlotTypography.small(c.textMuted),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
         ],
@@ -888,7 +967,7 @@ class WeightSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: PlotSpacing.s3),
+      padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -898,7 +977,13 @@ class WeightSlider extends StatelessWidget {
               Text(value.toStringAsFixed(1), style: PlotTypography.data(c.textSecondary)),
             ],
           ),
-          Slider(value: value, min: 0, max: 5, divisions: 20, onChanged: onChanged),
+          // #328 — 32 px rather than Material's 48 px minimum: the rail
+          // holds several of these, and the track needs no more to be
+          // grabbed with a pointer.
+          SizedBox(
+            height: 32,
+            child: Slider(value: value, min: 0, max: 5, divisions: 20, onChanged: onChanged),
+          ),
           Text(hint, style: PlotTypography.small(c.textMuted)),
         ],
       ),
@@ -1075,11 +1160,15 @@ class _PlanningModeToggle extends ConsumerWidget {
       spacing: PlotSpacing.s2,
       children: [
         ChoiceChip(
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           label: const Text('EXPLORE'),
           selected: mode == PlanningMode.explore,
           onSelected: (_) => select(PlanningMode.explore),
         ),
         ChoiceChip(
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           label: const Text('COMPOSE'),
           selected: mode == PlanningMode.compose,
           onSelected: (_) => select(PlanningMode.compose),
@@ -1458,6 +1547,111 @@ class _GhostActionChip extends StatelessWidget {
         borderRadius: PlotRadii.controlShape,
       ),
       child: Text(label, style: PlotTypography.data(c.textPrimary).copyWith(fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+
+/// #328 — one task in the rail's accordion. Closed, it shows [summary] in the
+/// data voice so the rail reads without being opened; open, its [children].
+class _TaskSection extends StatelessWidget {
+  const _TaskSection({
+    super.key,
+    required this.title,
+    required this.summary,
+    required this.open,
+    required this.onTap,
+    required this.children,
+  });
+
+  final String title;
+  final List<String> summary;
+  final bool open;
+  final VoidCallback onTap;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return Container(
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: open ? null : onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: PlotSpacing.s2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 58,
+                    child: Text(title.toUpperCase(),
+                        style: PlotTypography.data(open ? c.textPrimary : c.textSecondary)
+                            .copyWith(fontWeight: FontWeight.w700)),
+                  ),
+                  Expanded(
+                    // One line: the summary is a glance, and the full state is
+                    // one tap away. Each token is its own Text — a row of
+                    // data, never a composed sentence (FR145).
+                    child: open
+                        ? const SizedBox.shrink()
+                        : Text.rich(
+                            TextSpan(children: [
+                              for (var i = 0; i < summary.length; i++) ...[
+                                if (i > 0) const TextSpan(text: ' · '),
+                                TextSpan(text: summary[i].toUpperCase()),
+                              ],
+                            ]),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            style: PlotTypography.data(c.textMuted).copyWith(letterSpacing: 0.4),
+                          ),
+                  ),
+                  Icon(open ? Icons.expand_less : Icons.expand_more, size: 18, color: c.textMuted),
+                ],
+              ),
+            ),
+          ),
+          if (open)
+            Padding(
+              padding: const EdgeInsets.only(bottom: PlotSpacing.s3),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// #328 — a collapsed group inside a task (Tune's Surface): one row that
+/// names what it holds, opening in place.
+class _GroupToggle extends StatelessWidget {
+  const _GroupToggle({required this.title, required this.detail, required this.open, required this.onTap});
+
+  final String title;
+  final String detail;
+  final bool open;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: PlotSpacing.s2),
+        child: Row(
+          children: [
+            Text(title, style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(width: PlotSpacing.s2),
+            Expanded(child: Text(detail, style: PlotTypography.small(c.textMuted))),
+            Icon(open ? Icons.expand_less : Icons.expand_more, size: 18, color: c.textMuted),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -158,6 +158,16 @@ const Map<MessageId, String> baseLocalePatterns = {
   MessageId.termArcResolution: 'resolution',
 
   // Vocabulary — travel-mode categories.
+  MessageId.termArcNone: 'No arc',
+  MessageId.termShapeLoop: 'Loop',
+  MessageId.termShapeOutAndBack: 'Out & back',
+  MessageId.termShapePointToPoint: 'Point to point',
+  MessageId.termTaskFrame: 'Frame',
+  MessageId.termTaskTune: 'Tune',
+  MessageId.termTaskRefine: 'Refine',
+  MessageId.termNoTargetDistance: 'No target',
+  MessageId.termWeightsDefault: 'Default weights',
+  MessageId.termWeightsCustom: 'Custom weights',
   MessageId.termModeCycling: 'Ride',
   MessageId.termModeHiking: 'Hike',
   MessageId.termModePaddling: 'Paddle',
@@ -237,6 +247,10 @@ const Map<MessageId, String> baseLocalePatterns = {
   MessageId.anchorCount: '{count, plural, =0{Nothing promoted yet} one{1 anchor} other{# anchors}}',
   MessageId.candidateCount: '{count, plural, =0{No candidates} one{1 candidate} other{# candidates}}',
   MessageId.staleItemCount: '{count, plural, =0{Nothing stale} one{1 stale item} other{# stale items}}',
+  MessageId.passageNodeCount: '{count, plural, =0{No nodes} one{1 node} other{# nodes}}',
+  MessageId.bandCount: '{count, plural, =0{No bands set} one{1 band} other{# bands}}',
+  MessageId.alternateCount: '{count, plural, =0{No alternate} one{1 alternate} other{# alternates}}',
+  MessageId.spinePlaceCount: '{count, plural, =0{No places} one{1 place} other{# places}}',
 
   // Measures.
   MessageId.dayDistance: 'Distance {distance}',
@@ -382,6 +396,15 @@ class MessageResolver {
   /// The term for one travel mode wire value (`kTravelModes`). Returns
   /// `null` for a mode this build has no term for — a plugin-declared mode,
   /// which the caller names with a [NameSlot] instead.
+  /// The term for one route shape wire value (`loop` | `out_and_back` |
+  /// `point_to_point`), or `null` for one this build has no term for.
+  MessageId? shapeTerm(String shape) => switch (shape) {
+        'loop' => MessageId.termShapeLoop,
+        'out_and_back' => MessageId.termShapeOutAndBack,
+        'point_to_point' => MessageId.termShapePointToPoint,
+        _ => null,
+      };
+
   MessageId? travelModeTerm(String mode) => switch (mode) {
         'cycling' => MessageId.termModeCycling,
         'hiking' => MessageId.termModeHiking,

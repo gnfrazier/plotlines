@@ -21,6 +21,8 @@ import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'support/display_units.dart';
 
+import 'support/rail_tasks.dart';
+
 class _FakeSidecarManager extends SidecarManager {
   @override
   Future<void> start() async {}
@@ -115,6 +117,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await openRailTask(tester, 'frame');
   }
 
   testWidgets('the day opens in explore, with the mode always visible', (tester) async {
@@ -125,7 +128,9 @@ void main() {
     // Explore's distance control is the editable constraint field.
     expect(find.text('Target distance (km)'), findsOneWidget);
     expect(find.text('DISTANCE — REPORTED OUTCOME'), findsNothing);
-    // Bands are explore-only, and the fixture already carries one.
+    // Bands are explore-only, and the fixture already carries one. They sit
+    // under Tune, one accordion task away from Frame's distance (#328).
+    await openRailTask(tester, 'tune');
     expect(find.text('BANDS'), findsOneWidget);
     expect(find.text('Diagnose'), findsOneWidget);
     expect(tester.takeException(), isNull);
