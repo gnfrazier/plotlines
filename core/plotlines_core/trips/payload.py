@@ -323,21 +323,45 @@ class RouteMetrics:
         out["pace_source"] = self.pace_source
         return out
 
+    #: The length-weighted fractional terms `merged` blends.
+    _FRACTIONS = ("traffic", "unpaved_frac", "scenic_frac", "salience",
+                  "overlap_frac", "overlap_near_frac", "overlap_far_frac")
+
+    def known_m(self, name: str) -> float:
+        """The distance over which fractional term `name` is actually known.
+        A measured value on an unmerged leg is known over the whole leg; a
+        merge records less when one side was unknown (#532). Kept as a plain
+        attribute, not a dataclass field: it is roll-up bookkeeping, never
+        serialized."""
+        if getattr(self, name) is None:
+            return 0.0
+        known = getattr(self, "_known_m", {}).get(name)
+        return self.distance_m if known is None else known
+
     def merged(self, other: RouteMetrics) -> RouteMetrics:
         """Sum two metric sets, length-weighting the fractional terms.
 
         Averaging fractions unweighted is the classic roll-up bug: a 2 km connector
         at 90% traffic and a 60 km day at 5% do not average to 47.5%.
+
+        Each fractional term is weighted over the distance where it is
+        **known**, not the whole distance (#532): a 60 km leg with unknown
+        traffic merged with a 2 km leg at 0.9 is 0.9 over the 2 km known,
+        never 3% — an unknown is not a measured zero. The known distance is
+        carried on the result (`known_m`) so a chained roll-up stays right.
         """
         total = self.distance_m + other.distance_m
+        known: dict[str, float] = {}
 
         def blend(name: str) -> float | None:
             a, b = getattr(self, name), getattr(other, name)
             if a is None and b is None:
                 return None
-            av, bv = (a or 0.0), (b or 0.0)
-            return ((av * self.distance_m + bv * other.distance_m) / total
-                    if total else 0.0)
+            ka, kb = self.known_m(name), other.known_m(name)
+            known[name] = ka + kb
+            if ka + kb == 0:
+                return 0.0  # zero-length legs: nothing to weight by
+            return ((a or 0.0) * ka + (b or 0.0) * kb) / (ka + kb)
 
         def add(name: str):
             a, b = getattr(self, name), getattr(other, name)
@@ -345,7 +369,7 @@ class RouteMetrics:
                 return None
             return (a or 0) + (b or 0)
 
-        return RouteMetrics(
+        result = RouteMetrics(
             distance_m=total,
             climb_m=self.climb_m + other.climb_m,
             descent_m=self.descent_m + other.descent_m,
@@ -363,6 +387,8 @@ class RouteMetrics:
             elapsed_time_s=add("elapsed_time_s"),
             pace_source=self.pace_source or other.pace_source,
         )
+        result._known_m = known
+        return result
 
 
 @dataclass
