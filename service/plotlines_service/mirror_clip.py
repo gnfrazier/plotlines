@@ -243,11 +243,16 @@ def _bbox_to_box(bbox: BBox) -> "osmium.osm.Box":
 
 
 def _boxes_intersect(a: "osmium.osm.Box", b: "osmium.osm.Box") -> bool:
+    """True when the two boxes share area. Strict, so boxes that only touch
+    along an edge or at a corner do not count (issue #542): the precut cells
+    tile a grid with shared edges, and a bbox drawn on a grid line would
+    otherwise scan every neighbour whole. `complete_ways` already pulls in a
+    way crossing the line from the extract that holds its nodes."""
     return (
-        a.bottom_left.lon <= b.top_right.lon
-        and b.bottom_left.lon <= a.top_right.lon
-        and a.bottom_left.lat <= b.top_right.lat
-        and b.bottom_left.lat <= a.top_right.lat
+        a.bottom_left.lon < b.top_right.lon
+        and b.bottom_left.lon < a.top_right.lon
+        and a.bottom_left.lat < b.top_right.lat
+        and b.bottom_left.lat < a.top_right.lat
     )
 
 
