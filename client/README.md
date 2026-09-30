@@ -103,8 +103,9 @@ Five things worth knowing before you set any of them:
   (`deploy/mirror/README.md` §6.5) uses, or a plain http URL: `PLOTLINES_MIRROR_URL=http://tiles.plotlines.app
   flutter run -d linux` (the Pi serves plain HTTP; the https default is the hosted posture,
   Phase 4 #279). A stock run with nothing set still passes the https default, and an
-  unreachable mirror is an honest `capabilities.extract` failure plus the Overpass fallback,
-  never a blocked region.
+  unreachable mirror is an honest `capabilities.extract` failure, and the region's routing
+  settles to a finished "the Plotlines mirror couldn't supply map data" sentence. There's no
+  public Overpass fallback since #284 (the sidecar's `--allow-unmirrored-osm` is dev only).
 - **`PLOTLINES_MIRROR_URL=off`** reproduces the pre-#434 spawn exactly — no mirror flag, no
   key, `capabilities.extract = {"configured": false}`.
 - **`PLOTLINES_MIRROR_STATE_URL` defaults to `MIRROR_STATE.json` beside the mirror URL**

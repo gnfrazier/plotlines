@@ -238,6 +238,11 @@ class CandidateFetchUnavailable(RuntimeError):
     the routing path."""
 
 
+class CandidateSourceRefused(CandidateFetchUnavailable):
+    """The candidate path's `graph.regions.OverpassRefused` (issue #284):
+    no mirror clip covers this bbox and the configuration may not reach a
+    public Overpass instance. Per-request and never latching, like any
+    `CandidateFetchUnavailable`; its `str()` is the Author's sentence."""
 class CandidateSourceUnreadable(CandidateFetchUnavailable):
     """The shared OSM fetch failed for a reason other than transport: osmium
     choking on a corrupt or truncated clip, a parse error, an engine bug
@@ -291,12 +296,24 @@ class OsmLayerProvider:
         import osmnx as ox
         import requests
 
+        from ..graph.regions import overpass_endpoints
         from ..osm_identity import (
             OVERPASS_LOCK_TIMEOUT_S,
             OverpassSettingsBusy,
             apply_osm_http_identity,
             overpass_settings,
         )
+
+        # Issue #284 — the same refusal the routing path makes: no clip for
+        # this bbox, and no Overpass instance this configuration may use, is
+        # a finished sentence, not a query against a public instance.
+        endpoints = overpass_endpoints()
+        if not endpoints:
+            raise CandidateSourceRefused(
+                "the Plotlines mirror couldn't supply map data for this area, "
+                "so its places can't be shown — check your connection to the "
+                "mirror, or try an area it covers."
+            )
 
         # Issue #241 / review §3.4: the candidate path must not query Overpass
         # as osmnx's stock UA either. A headless entrypoint already stamps the
@@ -332,7 +349,7 @@ class OsmLayerProvider:
         # it) left this call waiting with no bound of its own, wedging every
         # `/candidates` request behind a build that might never finish.
         try:
-            with overpass_settings(timeout=OVERPASS_LOCK_TIMEOUT_S):
+            with overpass_settings(url=endpoints[0], timeout=OVERPASS_LOCK_TIMEOUT_S):
                 try:
                     gdf = ox.features_from_bbox(
                         (bbox.west, bbox.south, bbox.east, bbox.north), tags)
