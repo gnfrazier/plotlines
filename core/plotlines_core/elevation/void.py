@@ -47,7 +47,9 @@ logger = logging.getLogger("plotlines.elevation")
 #: The last-resort fill for a gap with no finite sample anywhere to interpolate
 #: from (a route lying wholly outside the open raster, a graph component with no
 #: covered node). Never used for a source that did not resolve — that is absent,
-#: not ``0.0`` (#473).
+#: not ``0.0`` (#473). A route's *profile* with no real sample is absent too
+#: (``ElevationSampler.profile``, #533); only per-point reads and per-node
+#: enrichment (FR89) fall to this value.
 VOID_FILL = 0.0
 
 # The reasons a read can be void, in the order §7.5 lists them. Kept as an

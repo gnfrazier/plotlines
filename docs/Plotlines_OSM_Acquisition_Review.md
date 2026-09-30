@@ -348,7 +348,7 @@ resolver is inconvenient.
 > **Amended by ARCH D67 (epic #516, open):** the regions below are *seeding*, not the limit of
 > coverage. Once #518 ships, a `/clip` miss inside a Geofabrik-published region queues a pull and
 > precut of that region under the same etiquette as here. Until then the named list is the whole
-> of it, and a miss falls back to Overpass (ARCH D63's phased rule).
+> of it. A miss used to fall back to Overpass; since #284 it's refused (ARCH D63's phased rule).
 
 Pull each region from Geofabrik **once**, verify against the published `.md5`, and iterate against
 the Pi forever after. All spike iteration then costs an upstream nothing — which is the mistake we

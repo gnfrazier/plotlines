@@ -119,7 +119,9 @@ def test_a_region_with_no_cache_and_no_network_settles_to_failed(tmp_path: Path)
     region = body["capabilities"]["routing"]["regions"][key]
     assert region["ready"] is False
     assert region["reason"].startswith("failed:")
-    assert "RuntimeError" in region["reason"]
+    # Issue #284: no clip and no network used to reach (and fail on) public
+    # Overpass; now it is refused before any query, as a finished sentence.
+    assert "mirror" in region["reason"]
 
 
 def test_routing_endpoint_404s_for_an_unknown_region(tmp_path: Path) -> None:

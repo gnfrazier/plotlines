@@ -94,6 +94,14 @@ GRAPH_RULESET_VERSION = 2
 #:   out-of-region `out count`.
 #: * `overpass.openstreetmap.fr` answers `403 Forbidden — only available to
 #:   white-listed usages` to osmnx's user-agent while serving `curl` fine.
+#:
+#: **The policy is now enforced, not just stated (issue #284, ARCH D63 phase
+#: 3).** These are public, volunteer-run instances, and in the default
+#: configuration nothing may use them: `overpass_endpoints()` passes every
+#: list through `refuse_public_overpass`, which drops these hosts, and
+#: `ensure_graph` raises `OverpassRefused` when that leaves nothing. The list
+#: stays because it is what `--allow-unmirrored-osm` (dev only) turns back
+#: on, and because it is the set of hosts the refusal recognises.
 DEFAULT_OVERPASS_ENDPOINTS: tuple[str, ...] = (
     "https://overpass-api.de/api",
     "https://overpass.kumi.systems/api",
@@ -158,6 +166,29 @@ class OverpassUnavailable(RuntimeError):
     finished, user-facing sentence: the sidecar surfaces it verbatim as the
     `routing` capability's reason (`service/plotlines_service/app.py`), so it
     must read as something an Author can act on, never an exception repr."""
+
+
+class OverpassRefused(OverpassUnavailable):
+    """Bulk OSM acquisition was about to fall back to a public, volunteer-run
+    Overpass instance, and the policy refuses that (issue #284, ARCH D63
+    phase 3; OSM acquisition review §10, addendum P6). The OSM path's
+    counterpart of the tile path's `HotlinkRefused`, and for the same
+    reason: a policy that lives only as prose in a docstring erodes, and
+    `DEFAULT_OVERPASS_ENDPOINTS` kept growing until #251 pinned it.
+
+    Bulk OSM comes from the Plotlines mirror's clip of a pinned Geofabrik
+    extract. A mirror miss inside a Geofabrik region is a fill the sidecar
+    waits on (D67), not a reason to go elsewhere. What remains is a bbox the
+    mirror cannot serve, or a mirror that can't be reached, and neither is a
+    licence to put a region-sized query on someone else's server. Allowed:
+    a private instance named by `PLOTLINES_OVERPASS_ENDPOINTS`, never one of
+    the public defaults; the dev escape hatch `allow_public_overpass(True)`
+    (the sidecar's `--allow-unmirrored-osm`, off by default); and, once it
+    exists, #285's capped, user-initiated live refresh through its own path.
+
+    A subclass of `OverpassUnavailable`, so every reader of that (the
+    sidecar's verbatim reason, the #432 shrink fallback) treats a refusal as
+    "no graph from this transport". Its `str()` is a finished sentence."""
 
 
 class NoRoutableWaysError(RuntimeError):
@@ -296,16 +327,67 @@ def graph_source_pin(region: Region, cache_dir: Path, *, fetched_at: str) -> str
     return overpass_source_pin(fetched_at)
 
 
+#: Issue #284 — whether bulk OSM acquisition may use a public Overpass
+#: instance at all. Off by default; `allow_public_overpass` is the only
+#: writer (the sidecar's `--allow-unmirrored-osm`, and tests).
+_PUBLIC_OVERPASS_ALLOWED = False
+
+#: The finished sentence an `OverpassRefused` carries on the routing path.
+OVERPASS_REFUSED_MESSAGE = (
+    "The Plotlines mirror couldn't supply map data for this area, so "
+    "routing isn't available here. Check your connection to the mirror, or "
+    "try an area it covers."
+)
+
+
+def allow_public_overpass(allowed: bool) -> None:
+    """The dev escape hatch for #284's refusal, named after
+    `--allow-unmirrored-tiles` and with the same property: a build that only
+    works with it on has proven nothing about the mirror."""
+    global _PUBLIC_OVERPASS_ALLOWED
+    _PUBLIC_OVERPASS_ALLOWED = bool(allowed)
+
+
+def public_overpass_allowed() -> bool:
+    return _PUBLIC_OVERPASS_ALLOWED
+
+
+def _is_public_default(endpoint: str) -> bool:
+    host = urlparse(endpoint).hostname
+    return host in {urlparse(e).hostname for e in DEFAULT_OVERPASS_ENDPOINTS}
+
+
+def refuse_public_overpass(endpoints: tuple[str, ...]) -> tuple[str, ...]:
+    """`endpoints` less every public default host, unless the escape hatch
+    is on (#284). Logs what it drops, so a configuration that names one
+    reads as a refusal in the log rather than a silent no-op."""
+    if _PUBLIC_OVERPASS_ALLOWED:
+        return endpoints
+    kept = tuple(e for e in endpoints if not _is_public_default(e))
+    dropped = [e for e in endpoints if e not in kept]
+    if dropped:
+        log.warning(
+            "refusing public Overpass endpoint(s) %s — bulk OSM comes from the "
+            "Plotlines mirror (#284, ARCH D63); --allow-unmirrored-osm is the "
+            "dev escape hatch", dropped)
+    return kept
+
+
 def overpass_endpoints() -> tuple[str, ...]:
-    """The ordered Overpass endpoints `ensure_graph` tries. Env override
+    """The ordered Overpass endpoints `ensure_graph` may try. Env override
     `PLOTLINES_OVERPASS_ENDPOINTS` (comma-separated) replaces the built-in
-    list entirely; blank/absent falls back to `DEFAULT_OVERPASS_ENDPOINTS`."""
+    list entirely; blank/absent falls back to `DEFAULT_OVERPASS_ENDPOINTS`.
+
+    Issue #284: either way the result passes `refuse_public_overpass`, so in
+    the default configuration this is empty and a caller that needs Overpass
+    raises `OverpassRefused` instead of reaching a public instance. A private
+    instance named in the env override is kept."""
     raw = os.environ.get("PLOTLINES_OVERPASS_ENDPOINTS", "").strip()
     if raw:
         picked = tuple(e.strip().rstrip("/") for e in raw.split(",") if e.strip())
         if picked:
-            return picked
-    return DEFAULT_OVERPASS_ENDPOINTS
+            return refuse_public_overpass(picked)
+    return refuse_public_overpass(DEFAULT_OVERPASS_ENDPOINTS)
 
 
 @lru_cache(maxsize=64)
@@ -838,7 +920,15 @@ def ensure_graph(
             graph.number_of_edges(), time.monotonic() - started)
         return out_path
 
-    endpoints = tuple(endpoints) if endpoints is not None else overpass_endpoints()
+    endpoints = (refuse_public_overpass(tuple(endpoints)) if endpoints is not None
+                 else overpass_endpoints())
+    if not endpoints:
+        # Issue #284 — no clip for this bbox, and no Overpass instance this
+        # configuration may use: refuse rather than reach a public one.
+        log.info("ensure_graph key=%s bbox=%s nt=%s: no mirror clip and public "
+                 "Overpass refused (#284)", region.key, region.bbox,
+                 region.network_type)
+        raise OverpassRefused(OVERPASS_REFUSED_MESSAGE)
     endpoints = dedupe_endpoints(endpoints)
     log.info("ensure_graph key=%s bbox=%s nt=%s cache=miss endpoints=%s force=%s",
              region.key, region.bbox, region.network_type, list(endpoints), force)

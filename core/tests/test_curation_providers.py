@@ -94,6 +94,7 @@ def test_feature_from_geometry_uses_centroid_for_polygon_coord():
     assert abs(feature.coord[1] - d / 2) < 1e-9
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_fetch_stamps_the_plotlines_user_agent_before_querying(monkeypatch):
     """Issue #241 / review §3.4: the candidate path must not query Overpass
     as osmnx's stock UA either. `fetch` applies the contactable identity
@@ -127,6 +128,7 @@ def test_fetch_stamps_the_plotlines_user_agent_before_querying(monkeypatch):
 # no-failover Overpass posture still owes an honest error surface.
 # --------------------------------------------------------------------------- #
 
+@pytest.mark.usefixtures("public_overpass")
 def test_fetch_returns_no_candidates_on_a_true_empty_response(monkeypatch):
     """A `200 OK` with zero elements is a true answer about this bbox/layer —
     no such feature here — not an outage, mirroring #248's
@@ -245,6 +247,7 @@ def test_fetch_local_clip_empty_result_is_an_empty_list_not_an_error(tmp_path):
     assert provider.fetch(BBox(*_CLIP_BBOX), {"natural"}) == []
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_fetch_falls_back_to_overpass_when_no_local_clip_is_cached(tmp_path, monkeypatch):
     """A `cache_layout` with nothing fetched yet for this bbox — the
     pre-#275 Overpass transport still runs, unchanged."""
