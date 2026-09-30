@@ -16,6 +16,7 @@ wrong.
 
 from __future__ import annotations
 
+import collections
 import hashlib
 import logging
 import math
@@ -140,13 +141,43 @@ from .version import VERSION
 
 log = logging.getLogger("plotlines.sidecar")
 
-# Heuristic wall-clock estimate for the progress/eta a still-building region
-# reports (ARCH §8.3's "terrain data loading — routing available in about 3
-# minutes"), not measured telemetry (SPIKE-D is where that would come from)
-# — it only keeps the estimate from being a bare guess with no relation to
-# elapsed time. A bbox-scoped Overpass fetch + graph build is typically a few
-# seconds for an MVP-sized trip area.
-GRAPH_ESTIMATED_S = 8.0
+class GraphBuildHistory:
+    """Graph-build wall times this sidecar has observed, for the ETA a
+    still-building region reports (ARCH §8.3's "routing available in about
+    3 minutes"). Issue #397: this was a fixed `GRAPH_ESTIMATED_S = 8.0`
+    against SPIKE-D's measured 36.7-116.6 s, and SPIKE-D's finding is that
+    the estimate is "a range or observed progress, never a constant". So the
+    estimate is the median of the last `window` real builds, and there is
+    none (`None`: progress, no ETA) until one has been timed.
+
+    A graph phase under `MIN_OBSERVATION_S` was served from the graph cache
+    rather than built, and says nothing about the next build."""
+
+    MIN_OBSERVATION_S = 1.0
+
+    def __init__(self, window: int = 5) -> None:
+        self._lock = threading.Lock()
+        self._seconds: collections.deque[float] = collections.deque(maxlen=window)
+
+    def record(self, seconds: float) -> None:
+        if seconds < self.MIN_OBSERVATION_S:
+            return
+        with self._lock:
+            self._seconds.append(seconds)
+
+    def estimate_s(self) -> float | None:
+        with self._lock:
+            observed = sorted(self._seconds)
+        if not observed:
+            return None
+        mid = len(observed) // 2
+        if len(observed) % 2:
+            return observed[mid]
+        return (observed[mid - 1] + observed[mid]) / 2
+
+
+#: Process-wide: every region's graph build feeds and reads the same history.
+GRAPH_BUILD_HISTORY = GraphBuildHistory()
 
 # How many region graph builds may run at once. Each build is a full-region
 # OSMnx acquisition — Overpass download, `MultiDiGraph` construction,
@@ -739,8 +770,8 @@ class RegionBuildPhasePools:
 #: worker) before the watchdog stops waiting on its own turn and reports an
 #: honest, named reason instead (ARCH §8.3 rule 3: "never a silent hang; a
 #: reason on every disabled control"). Deliberately **not** derived as "some
-#: multiple of `GRAPH_ESTIMATED_S`" — that constant's own docstring already
-#: says it is too low against the measured 36.7-116.6 s range, and
+#: multiple of `GRAPH_ESTIMATED_S`" — that constant (since replaced by
+#: `GraphBuildHistory`, #397) was too low against the measured 36.7-116.6 s range, and
 #: multiplying a known-dishonest figure forward only relocates the
 #: dishonesty. Sized instead off that measured range plus slack for a couple
 #: of ordinary regions ahead in the queue, each also possibly running tiles/
@@ -862,10 +893,12 @@ class CapabilityState:
     codebase and are reported ready inline in `health()` instead.
     """
 
-    def __init__(self, estimated_s: float) -> None:
+    def __init__(self, estimated_s: "float | None | Callable[[], float | None]") -> None:
         self.status = "pending"
         self.detail = ""
         self.started_at: float | None = None
+        # A number, `None` (no honest estimate), or a callable read at report
+        # time (`GraphBuildHistory.estimate_s`, #397).
         self.estimated_s = estimated_s
         # Issue #521 — set by `wait_upstream` only.
         self.fill_id: str | None = None
@@ -923,21 +956,31 @@ class CapabilityState:
         self.retry_after_s = retry_after_s
         self.fill_progress = progress
 
+    def _estimate(self) -> float | None:
+        estimate = self.estimated_s() if callable(self.estimated_s) else self.estimated_s
+        return estimate if estimate is not None and estimate > 0 else None
+
     def progress(self) -> float:
         if self.status in ("ready", "provisional"):
             return 1.0
-        if self.status != "loading" or self.started_at is None or self.estimated_s <= 0:
+        estimate = self._estimate()
+        if self.status != "loading" or self.started_at is None or estimate is None:
             return 0.0
         elapsed = time.perf_counter() - self.started_at
         # Capped short of 1.0 — the estimate is a heuristic, never a promise
         # that "loading" is about to flip to "ready".
-        return min(0.95, elapsed / self.estimated_s)
+        return min(0.95, elapsed / estimate)
 
     def eta_s(self) -> float | None:
-        if self.status != "loading" or self.started_at is None:
+        """Seconds left on the estimate, or `None` when there is no honest
+        one: no estimate at all, or a build already running past it (#397 —
+        this used to floor at 1.0, so an overrun build said "about a minute"
+        indefinitely)."""
+        estimate = self._estimate()
+        if self.status != "loading" or self.started_at is None or estimate is None:
             return None
-        elapsed = time.perf_counter() - self.started_at
-        return max(self.estimated_s - elapsed, 1.0)
+        remaining = estimate - (time.perf_counter() - self.started_at)
+        return remaining if remaining > 0 else None
 
     def to_dict(self) -> dict:
         if self.status == "ready":
@@ -1031,7 +1074,7 @@ class RegionState:
         self.key = key
         self.bbox = bbox
         self.network_type = network_type
-        self.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
+        self.graph_state = CapabilityState(GRAPH_BUILD_HISTORY.estimate_s)
         self.graph: LoadedGraph | None = None
         # Issue #274 — the mirror-clip download's own FR121 capability,
         # independent of graph_state (see `build`'s extract step below).
@@ -1042,7 +1085,7 @@ class RegionState:
         # Issue #148 — this region's own elevation outcome, beside
         # `graph_state`. No time estimate: a cache hit is instant and a
         # provider fetch is network-bound, so any fixed ETA would be the
-        # `GRAPH_ESTIMATED_S` mistake again (#397).
+        # fixed-graph-ETA mistake again (#397).
         self.elevation_state = CapabilityState(0.0)
         self.tiles_archive: Archive | None = None
         # Build telemetry (issue #232) — every attempt this session, the last
@@ -1380,6 +1423,7 @@ class RegionState:
                 timeout_message=_GRAPH_PHASE_TIMEOUT_MESSAGE,
             )
             self.timings["ensure_graph"] = time.monotonic() - t_acq
+            GRAPH_BUILD_HISTORY.record(self.timings["ensure_graph"])
             t_load = time.monotonic()
             self.graph = load_graphml(path)
             self.timings["load_graphml"] = time.monotonic() - t_load
@@ -1903,7 +1947,7 @@ class Readiness:
                         "last_error=%r)", key, network_type, label,
                         region.build_attempts, manual, decision.bypassed_cooldown,
                         region.automatic_requeues, region.last_error)
-                    region.graph_state = CapabilityState(GRAPH_ESTIMATED_S)
+                    region.graph_state = CapabilityState(GRAPH_BUILD_HISTORY.estimate_s)
                     region.upstream_retry_after_s = None
                     self._queue_build(region)
                 elif region.graph_state.status == "failed":
