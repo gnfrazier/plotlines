@@ -222,7 +222,13 @@ def test_candidates_extract_reports_a_wholly_failed_extraction_as_empty_not_422(
     body = resp.json()
     assert body["candidates"] == []
     assert body["layers_served"] == []
-    assert "no network" in body["layers_unavailable"]["natural"]
+    # Issue #534: a built-in fetch failure reads as a sentence, not the raw
+    # exception repr, and does not latch the layer failed.
+    reason = body["layers_unavailable"]["natural"]
+    assert "couldn't be read" in reason
+    assert "RuntimeError" not in reason
+    health = client.get("/health").json()
+    assert health["capabilities"]["layers"]["per_layer"]["natural"] == "ready"
 
 
 def test_candidates_extract_422s_only_on_an_empty_layer_set(client: TestClient) -> None:

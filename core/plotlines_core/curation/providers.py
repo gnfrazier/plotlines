@@ -238,6 +238,21 @@ class CandidateFetchUnavailable(RuntimeError):
     the routing path."""
 
 
+class CandidateSourceRefused(CandidateFetchUnavailable):
+    """The candidate path's `graph.regions.OverpassRefused` (issue #284):
+    no mirror clip covers this bbox and the configuration may not reach a
+    public Overpass instance. Per-request and never latching, like any
+    `CandidateFetchUnavailable`; its `str()` is the Author's sentence."""
+class CandidateSourceUnreadable(CandidateFetchUnavailable):
+    """The shared OSM fetch failed for a reason other than transport: osmium
+    choking on a corrupt or truncated clip, a parse error, an engine bug
+    (issue #534). Like a transport failure it is a fact about this bbox's
+    data on this attempt, not about any one layer, so it rides the same
+    per-request, negative-cached path and never latches the six built-in
+    layers `failed`. The original exception is chained and logged; the
+    `str()` is the finished sentence the Author sees."""
+
+
 class OsmLayerProvider:
     """The batched OSM extraction engine for the six built-in layers. One
     call answers every layer asked for in the same `fetch`, so this is *not*
@@ -281,12 +296,24 @@ class OsmLayerProvider:
         import osmnx as ox
         import requests
 
+        from ..graph.regions import overpass_endpoints
         from ..osm_identity import (
             OVERPASS_LOCK_TIMEOUT_S,
             OverpassSettingsBusy,
             apply_osm_http_identity,
             overpass_settings,
         )
+
+        # Issue #284 — the same refusal the routing path makes: no clip for
+        # this bbox, and no Overpass instance this configuration may use, is
+        # a finished sentence, not a query against a public instance.
+        endpoints = overpass_endpoints()
+        if not endpoints:
+            raise CandidateSourceRefused(
+                "the Plotlines mirror couldn't supply map data for this area, "
+                "so its places can't be shown — check your connection to the "
+                "mirror, or try an area it covers."
+            )
 
         # Issue #241 / review §3.4: the candidate path must not query Overpass
         # as osmnx's stock UA either. A headless entrypoint already stamps the
@@ -322,7 +349,7 @@ class OsmLayerProvider:
         # it) left this call waiting with no bound of its own, wedging every
         # `/candidates` request behind a build that might never finish.
         try:
-            with overpass_settings(timeout=OVERPASS_LOCK_TIMEOUT_S):
+            with overpass_settings(url=endpoints[0], timeout=OVERPASS_LOCK_TIMEOUT_S):
                 try:
                     gdf = ox.features_from_bbox(
                         (bbox.west, bbox.south, bbox.east, bbox.north), tags)
@@ -543,9 +570,23 @@ class SharedOsmFetch:
         # per-layer sibling reads the cache rather than re-querying.
         try:
             features = self._engine.fetch(bbox, set(LAYERS))
-        except Exception as exc:
+        except CandidateFetchUnavailable as exc:
             self._failed[key] = (self._clock(), exc)
             raise
+        except Exception as exc:
+            # Issue #534: anything else (a corrupt clip, a parse error) would
+            # otherwise reach the registry as a provider bug and latch all six
+            # siblings `failed` until restart. Log the cause, surface a
+            # sentence, and let the negative cache bound the retry.
+            log.warning("shared OSM fetch failed for %s", key, exc_info=True)
+            unreadable = CandidateSourceUnreadable(
+                "the map data for this area couldn't be read, so no places "
+                "are shown for it — try again in a moment, or redraw the "
+                "trip area."
+            )
+            unreadable.__cause__ = exc
+            self._failed[key] = (self._clock(), unreadable)
+            raise unreadable from exc
         self._cache[key] = features
         self._failed.pop(key, None)
         self._write_disk(key, features)

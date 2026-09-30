@@ -14,6 +14,7 @@ import '../../data/sidecar_manager.dart' show CapabilityStatus;
 import '../../domain/domain.dart';
 import 'error_states.dart' show CapabilityWarmingNotice;
 import 'teaching_block.dart';
+import '../map/hazard_points.dart';
 
 class MetricsRail extends StatelessWidget {
   const MetricsRail({
@@ -259,6 +260,9 @@ class MetricsRail extends StatelessWidget {
                     ElevationProfile(
                       samples: samples,
                       height: 90,
+                      // C11 / FR27 (issue #47) — hazards and cruxes on this
+                      // passage, where they fall along it.
+                      markers: hazardProfileFractions(trip, selectedSegment!),
                       startLabel: '0',
                       endLabel: selectedSegment?.metrics?.distanceM == null
                           ? null

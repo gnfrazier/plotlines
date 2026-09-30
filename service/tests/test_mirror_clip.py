@@ -112,6 +112,34 @@ class TestSelectCoveringExtracts:
 
         assert [e.region for e in kept] == ["unlabelled"]
 
+    def test_a_header_box_that_only_shares_an_edge_with_the_bbox_is_excluded(
+        self, tmp_path: Path
+    ) -> None:
+        # Issue #542: the #530 priority cells are a 2° grid with shared
+        # edges. A bbox whose corner sits on a grid point touched all four
+        # cells around it and scanned every one whole (576 s on the Pi).
+        cells = {
+            "sw": (-82.0, 34.0, -80.0, 36.0),
+            "nw": (-82.0, 36.0, -80.0, 38.0),
+            "se": (-80.0, 34.0, -78.0, 36.0),
+            "ne": (-80.0, 36.0, -78.0, 38.0),
+        }
+        regions = {
+            name: write_pbf(
+                tmp_path / f"{name}.osm.pbf",
+                nodes=[node(1, (w + e) / 2, (s + n) / 2)],
+                box=(w, s, e, n),
+            )
+            for name, (w, s, e, n) in cells.items()
+        }
+        mirror = build_mirror_tree(tmp_path / "mirror", regions=regions)
+
+        kept = select_covering_extracts(
+            (-80.0, 36.0, -79.7, 36.2), discover_region_extracts(mirror)
+        )
+
+        assert [e.region for e in kept] == ["ne"]
+
 
 class TestCompleteWaysClip:
     def test_a_way_with_only_one_node_in_bbox_is_written_whole(self, tmp_path: Path) -> None:
@@ -666,6 +694,56 @@ class TestClipCache:
         # pin's cache holds for the identical bbox.
         assert second.cache_hit is False
         assert second.pin == "2026-09-01"
+
+    def test_a_re_cut_extract_under_the_same_pin_invalidates_the_entry(
+        self, tmp_path: Path
+    ) -> None:
+        # Issue #535: the key was (pin, bbox) only, so a re-cut extract
+        # under an unchanged pin kept serving the clip cut from the old one.
+        old = write_pbf(
+            tmp_path / "old.osm.pbf", nodes=[node(1, -82.2, 35.2)], box=_BBOX
+        )
+        mirror = build_mirror_tree(tmp_path / "mirror", regions={"r": old})
+        cache_dir = tmp_path / "cache"
+        clip_bbox(_BBOX, root=mirror, dest=tmp_path / "out1.osm.pbf", cache_dir=cache_dir)
+
+        recut = write_pbf(
+            tmp_path / "recut.osm.pbf",
+            nodes=[node(1, -82.2, 35.2), node(2, -82.1, 35.3, {"amenity": "cafe"})],
+            box=_BBOX,
+        )
+        build_mirror_tree(tmp_path / "mirror", regions={"r": recut})
+
+        second = clip_bbox(
+            _BBOX, root=mirror, dest=tmp_path / "out2.osm.pbf", cache_dir=cache_dir
+        )
+
+        assert second.cache_hit is False
+        assert second.output_path.read_bytes() != (tmp_path / "out1.osm.pbf").read_bytes()
+
+    def test_a_region_added_under_the_same_pin_invalidates_the_entry(
+        self, tmp_path: Path
+    ) -> None:
+        # Issue #535: #530's precut adds regions under an existing pin; a
+        # clip cached before that must not keep missing the new region.
+        first_src = write_pbf(
+            tmp_path / "a.osm.pbf", nodes=[node(1, -82.2, 35.2)], box=_BBOX
+        )
+        mirror = build_mirror_tree(tmp_path / "mirror", regions={"a": first_src})
+        cache_dir = tmp_path / "cache"
+        clip_bbox(_BBOX, root=mirror, dest=tmp_path / "out1.osm.pbf", cache_dir=cache_dir)
+
+        added = write_pbf(
+            tmp_path / "b.osm.pbf", nodes=[node(2, -82.1, 35.3)], box=_BBOX
+        )
+        build_mirror_tree(tmp_path / "mirror", regions={"a": first_src, "b": added})
+
+        second = clip_bbox(
+            _BBOX, root=mirror, dest=tmp_path / "out2.osm.pbf", cache_dir=cache_dir
+        )
+
+        assert second.cache_hit is False
+        assert set(second.source_regions) == {"a", "b"}
 
     def test_corrupted_cache_metadata_degrades_to_a_miss_not_a_failure(
         self, tmp_path: Path

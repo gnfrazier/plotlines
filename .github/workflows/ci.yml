@@ -86,6 +86,10 @@ jobs:
       # written by packaging/build_desktop_linux.sh and read by
       # sidecar_manager.dart; this fails when the two drift apart.
       - run: tools/ci/desktop_bundle_layout_lint.sh
+      # Issue #486 — every committed basemap theme is exactly what
+      # packaging/build_basemap_theme.py generates, so a hand-patch on the
+      # output (how #321's WCAG fix first landed) can't be silently reverted.
+      - run: python3 packaging/build_basemap_theme.py --check
 
   core-tests:
     name: "core tests"
