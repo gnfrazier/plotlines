@@ -4,7 +4,8 @@ import '../theme/typography.dart';
 
 /// A quiet elevation profile: filled area under a spruce ridgeline, hairline
 /// axes, mono end labels. Pass normalized samples in 0..1 (fraction of max
-/// elevation), left to right.
+/// elevation), left to right. [markers] are positions along the profile, as
+/// fractions 0..1 of its length, drawn as ember ticks (a hazard or crux).
 class ElevationProfile extends StatelessWidget {
   const ElevationProfile({
     super.key,
@@ -13,6 +14,7 @@ class ElevationProfile extends StatelessWidget {
     this.startLabel,
     this.endLabel,
     this.lineColor,
+    this.markers = const [],
   });
 
   final List<double> samples;
@@ -20,6 +22,7 @@ class ElevationProfile extends StatelessWidget {
   final String? startLabel;
   final String? endLabel;
   final Color? lineColor;
+  final List<double> markers;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +38,8 @@ class ElevationProfile extends StatelessWidget {
               samples: samples,
               line: line,
               axis: c.textSecondary,
+              markers: markers,
+              marker: c.danger,
             ),
           ),
         ),
@@ -59,11 +64,15 @@ class _ElevationPainter extends CustomPainter {
     required this.samples,
     required this.line,
     required this.axis,
+    this.markers = const [],
+    this.marker = PlotColors.ember,
   });
 
   final List<double> samples;
   final Color line;
   final Color axis;
+  final List<double> markers;
+  final Color marker;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -108,9 +117,28 @@ class _ElevationPainter extends CustomPainter {
         ..strokeWidth = 2
         ..strokeJoin = StrokeJoin.round,
     );
+
+    final tick = Paint()
+      ..color = marker
+      ..strokeWidth = 2;
+    for (final m in markers) {
+      final x = size.width * m.clamp(0.0, 1.0);
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), tick);
+      canvas.drawPath(
+        Path()
+          ..moveTo(x - 5, 0)
+          ..lineTo(x + 5, 0)
+          ..lineTo(x, 7)
+          ..close(),
+        Paint()..color = marker,
+      );
+    }
   }
 
   @override
   bool shouldRepaint(_ElevationPainter old) =>
-      old.samples != samples || old.line != line || old.axis != axis;
+      old.samples != samples ||
+      old.line != line ||
+      old.axis != axis ||
+      old.markers != markers;
 }
