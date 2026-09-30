@@ -117,6 +117,7 @@ def test_region_centre_is_the_bbox_midpoint():
     assert region.centre == (0.0, 0.0)
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_ensure_graph_builds_and_caches(tmp_path, monkeypatch):
     monkeypatch.setattr(ox, "graph_from_bbox", _fake_graph)
     monkeypatch.setattr(ox, "simplify_graph", lambda g, **_: g)
@@ -131,6 +132,7 @@ def test_ensure_graph_builds_and_caches(tmp_path, monkeypatch):
     assert reloaded.number_of_nodes() == 2
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_ensure_graph_reuses_the_cache_without_hitting_the_network(tmp_path, monkeypatch):
     calls = {"n": 0}
 
@@ -149,6 +151,7 @@ def test_ensure_graph_reuses_the_cache_without_hitting_the_network(tmp_path, mon
     assert calls["n"] == 1
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_ensure_graph_force_rebuilds(tmp_path, monkeypatch):
     calls = {"n": 0}
 
@@ -220,6 +223,7 @@ def test_fold_node_barriers_moves_the_gate_onto_incident_edges():
     assert g[2][3][0]["barrier"] == "gate"
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_ensure_graph_folds_barriers_and_keeps_the_ford_tag(tmp_path, monkeypatch):
     """Issue #206 acceptance: ford exclusion and barrier surfacing are exercised
     on a graph that has been through `ensure_graph` (build -> simplify -> fold ->
@@ -367,9 +371,65 @@ def test_overpass_request_leaves_with_the_plotlines_user_agent(monkeypatch):
 import requests  # noqa: E402 — grouped with the failover tests it belongs to
 
 
-def test_overpass_endpoints_defaults_when_env_unset(monkeypatch):
+@pytest.mark.usefixtures("public_overpass")
+def test_overpass_endpoints_defaults_when_env_unset_and_the_escape_hatch_is_on(monkeypatch):
     monkeypatch.delenv("PLOTLINES_OVERPASS_ENDPOINTS", raising=False)
     assert regions.overpass_endpoints() == regions.DEFAULT_OVERPASS_ENDPOINTS
+
+
+# --------------------------------------------------------------------------- #
+# Issue #284 (Phase 5.1, ARCH D63 phase 3): bulk OSM acquisition refuses a
+# public Overpass instance in the default configuration. These fail on
+# erosion: a default that turns the fallback back on, a public host let in
+# through the env override, or a refusal that stops naming its policy.
+# --------------------------------------------------------------------------- #
+
+
+def test_the_default_configuration_has_no_public_overpass_endpoint(monkeypatch):
+    monkeypatch.delenv("PLOTLINES_OVERPASS_ENDPOINTS", raising=False)
+    assert regions.public_overpass_allowed() is False
+    assert regions.overpass_endpoints() == ()
+
+
+def test_ensure_graph_refuses_rather_than_reaching_public_overpass(tmp_path, monkeypatch):
+    monkeypatch.delenv("PLOTLINES_OVERPASS_ENDPOINTS", raising=False)
+
+    def _must_not_run(_region):
+        raise AssertionError("a public Overpass query was attempted")
+
+    monkeypatch.setattr(regions, "_download_region_graph", _must_not_run)
+    region = regions.Region(key="k", bbox=(-105.3, 40.0, -105.2, 40.1),
+                            network_type="bike")
+
+    with pytest.raises(regions.OverpassRefused) as info:
+        regions.ensure_graph(region, tmp_path)
+
+    assert isinstance(info.value, regions.OverpassUnavailable)
+    message = str(info.value)
+    assert "mirror" in message and "Refused" not in message
+
+
+def test_an_explicit_public_endpoint_is_refused_too(tmp_path, monkeypatch):
+    monkeypatch.setattr(regions, "_download_region_graph",
+                        lambda _r: (_ for _ in ()).throw(AssertionError("queried")))
+    region = regions.Region(key="k", bbox=(-105.3, 40.0, -105.2, 40.1),
+                            network_type="bike")
+    with pytest.raises(regions.OverpassRefused):
+        regions.ensure_graph(region, tmp_path,
+                             endpoints=regions.DEFAULT_OVERPASS_ENDPOINTS)
+
+
+def test_the_env_override_keeps_a_private_instance_but_not_a_public_host(monkeypatch):
+    monkeypatch.setenv(
+        "PLOTLINES_OVERPASS_ENDPOINTS",
+        "https://overpass.internal.example/api,https://overpass-api.de/api",
+    )
+    assert regions.overpass_endpoints() == ("https://overpass.internal.example/api",)
+
+
+def test_the_refusal_names_its_policy():
+    doc = regions.OverpassRefused.__doc__ or ""
+    assert "#284" in doc and "D63" in doc and "HotlinkRefused" in doc
 
 
 def test_overpass_endpoints_env_override_wins(monkeypatch):
@@ -712,6 +772,7 @@ def test_ensure_graph_dedupes_endpoints_before_trying_them(tmp_path, monkeypatch
 # `OSM_SETTINGS_LOCK`, held via `overpass_settings`, serialises the two.
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_candidate_fetch_does_not_inherit_a_concurrent_failover_hop(tmp_path, monkeypatch):
     """Run a failing region build and a candidate fetch on two threads, the
     way FastAPI's threadpool would. The candidate call must observe the
@@ -1224,6 +1285,7 @@ def test_graph_source_pin_reads_the_pin_off_a_local_clip_build(tmp_path, monkeyp
     assert pin == f"geofabrik:{_CLIP_PIN}"
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_graph_source_pin_falls_back_to_overpass_for_an_overpass_built_graph(
     tmp_path, monkeypatch,
 ):
@@ -1246,6 +1308,7 @@ def test_graph_source_pin_falls_back_to_overpass_when_the_region_was_never_built
     assert pin == "overpass:2026-09-02T00:00:00Z"
 
 
+@pytest.mark.usefixtures("public_overpass")
 def test_ensure_graph_falls_back_to_overpass_when_no_local_clip_is_cached(tmp_path, monkeypatch):
     """No mirror configured, or this bbox has not been fetched yet — the
     pre-#275 Overpass transport still runs, unchanged: Phase 3 is additive

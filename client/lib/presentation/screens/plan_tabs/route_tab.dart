@@ -18,6 +18,7 @@ import '../../../state/settings_provider.dart';
 import '../../../state/trip_bbox_provider.dart';
 import '../../display_format_of.dart';
 import '../../map/alternate_markers.dart';
+import '../../map/hazard_points.dart';
 import '../../map/anchor_map_points.dart';
 import '../../map/node_marker_role.dart';
 import '../../map/route_geometry.dart';
@@ -54,7 +55,17 @@ List<MapMarkerPoint> routeTabMarkerPoints(Trip trip) => [
         for (final n in d.nodes)
           (coord: n.coord, role: markerForNodeKind(n.kind), arcStage: n.arcStage),
       ],
+      // C11 / FR27 (issue #47) — every hazard the trip carries, from the same
+      // traversal the itinerary, cue sheet and sync alert read, so the map can
+      // never disagree with them about what exists. Never reveal-gated (FR115):
+      // a hazard carries no reveal field. One with nowhere to stand (a
+      // day-scoped hazard with no point, anchor or node) has no map mark; it
+      // still reads everywhere else.
+      for (final located in HazardRollup.fromTrip(trip).hazards)
+        if (hazardMapCoord(trip, located) case final coord?)
+          (coord: coord, role: NodeMarkerType.hazard, arcStage: null),
     ];
+
 
 /// #322 — a node closer to the line than this is effectively *on* it; a leader
 /// line would be a nub. Farther than [kLeaderLineMaxM] it reads as its own

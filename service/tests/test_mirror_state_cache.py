@@ -16,6 +16,7 @@ import time
 from fastapi.testclient import TestClient
 
 from plotlines_service.app import (
+    MIRROR_NOT_CHECKED_YET,
     MirrorStateCache,
     _MIRROR_STATE_CACHE_TTL_S,
     _mirror_capability,
@@ -28,74 +29,119 @@ from plotlines_service import app as app_module
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def test_a_second_fetch_within_the_ttl_reuses_the_cached_result(monkeypatch):
-    calls = []
+class _InlinePool:
+    """Runs a submitted read at once, so a unit test sees its result land
+    before the next `get_or_fetch` without threads or sleeps."""
 
-    def fetch(source, pool):
+    def submit(self, fn, *args):
+        fn(*args)
+
+
+class _HeldPool:
+    """Records a submitted read without running it: a read still in flight."""
+
+    def __init__(self) -> None:
+        self.submitted: list = []
+
+    def submit(self, fn, *args):
+        self.submitted.append((fn, args))
+
+
+def _counting_read(monkeypatch, result=None):
+    calls: list[str] = []
+
+    def read(source):
         calls.append(source)
-        return {"configured": True, "stale": False}
+        return dict(result or {"configured": True, "stale": False, "source": source})
 
-    monkeypatch.setattr(app_module, "_fetch_mirror_capability", fetch)
+    monkeypatch.setattr(app_module, "_read_mirror_capability", read)
+    return calls
 
-    cache = MirrorStateCache(clock=iter([0.0, 10.0]).__next__)
-    first = cache.get_or_fetch("state.json", pool=None)
-    second = cache.get_or_fetch("state.json", pool=None)
 
-    assert first == {"configured": True, "stale": False}
+def test_the_first_call_answers_not_checked_yet_without_waiting(monkeypatch):
+    """Issue #536: `/health` never waits on the mirror, even the first time."""
+    _counting_read(monkeypatch)
+    cache = MirrorStateCache(clock=lambda: 0.0)
+    pool = _HeldPool()
+
+    assert cache.get_or_fetch("state.json", pool) == MIRROR_NOT_CHECKED_YET
+    assert len(pool.submitted) == 1
+
+
+def test_a_second_call_within_the_ttl_reuses_the_cached_result(monkeypatch):
+    calls = _counting_read(monkeypatch)
+    cache = MirrorStateCache(clock=lambda: 0.0)
+
+    cache.get_or_fetch("state.json", _InlinePool())
+    second = cache.get_or_fetch("state.json", _InlinePool())
+    third = cache.get_or_fetch("state.json", _InlinePool())
+
+    assert second == {"configured": True, "stale": False, "source": "state.json"}
+    assert third == second
+    assert calls == ["state.json"], "a call inside the TTL must not re-read"
+
+
+def test_past_the_ttl_the_stale_entry_is_served_while_one_refresh_runs(monkeypatch):
+    """Issue #536: the TTL decides when to refresh, not when to block."""
+    calls = _counting_read(monkeypatch)
+    now = {"t": 0.0}
+    cache = MirrorStateCache(clock=lambda: now["t"])
+    cache.get_or_fetch("state.json", _InlinePool())
+
+    now["t"] = _MIRROR_STATE_CACHE_TTL_S + 1.0
+    held = _HeldPool()
+    first = cache.get_or_fetch("state.json", held)
+    second = cache.get_or_fetch("state.json", held)
+
+    assert first == {"configured": True, "stale": False, "source": "state.json"}
     assert second == first
-    assert calls == ["state.json"], "the second call inside the TTL must not re-fetch"
+    assert len(held.submitted) == 1, "one refresh per source, however many polls"
+    assert calls == ["state.json"]
 
 
-def test_a_fetch_past_the_ttl_refetches(monkeypatch):
-    calls = []
+def test_a_read_in_flight_past_the_fetch_timeout_reports_timed_out(monkeypatch):
+    _counting_read(monkeypatch)
+    now = {"t": 0.0}
+    cache = MirrorStateCache(clock=lambda: now["t"])
+    held = _HeldPool()
+    cache.get_or_fetch("state.json", held)
 
-    def fetch(source, pool):
-        calls.append(source)
-        return {"configured": True, "stale": False}
+    now["t"] = app_module._MIRROR_STATE_FETCH_TIMEOUT_S + 0.1
+    result = cache.get_or_fetch("state.json", held)
 
-    monkeypatch.setattr(app_module, "_fetch_mirror_capability", fetch)
+    assert result == {"configured": True, "stale": True,
+                      "error": "mirror state fetch timed out"}
+    assert len(held.submitted) == 1, "a stuck read is not doubled up behind"
 
-    times = iter([0.0, _MIRROR_STATE_CACHE_TTL_S + 1.0])
-    cache = MirrorStateCache(clock=lambda: next(times))
-    cache.get_or_fetch("state.json", pool=None)
-    cache.get_or_fetch("state.json", pool=None)
-
-    assert calls == ["state.json", "state.json"], (
-        "a call past the TTL must refetch rather than serve the stale entry")
+    fn, args = held.submitted[0]
+    fn(*args)  # the stuck read finally lands
+    assert cache.get_or_fetch("state.json", held)["stale"] is False
 
 
 def test_a_fetch_failure_is_cached_too(monkeypatch):
     """Issue #434's whole reason for filing the cache half of #367: an
     unreachable mirror must not be re-dialled every 2s poll any more than a
     reachable one is re-read every poll."""
-    calls = []
-
-    def fetch(source, pool):
-        calls.append(source)
-        return {"configured": True, "stale": True, "error": "mirror state fetch timed out"}
-
-    monkeypatch.setattr(app_module, "_fetch_mirror_capability", fetch)
-
+    failure = {"configured": True, "stale": True, "error": "unreachable"}
+    calls = _counting_read(monkeypatch, failure)
     cache = MirrorStateCache(clock=lambda: 0.0)
-    first = cache.get_or_fetch("http://mirror.invalid/MIRROR_STATE.json", pool=None)
-    second = cache.get_or_fetch("http://mirror.invalid/MIRROR_STATE.json", pool=None)
 
-    assert first == second
-    assert calls == ["http://mirror.invalid/MIRROR_STATE.json"], (
-        "a cached failure must not be re-fetched inside the TTL either")
+    cache.get_or_fetch("http://mirror.invalid/MIRROR_STATE.json", _InlinePool())
+    second = cache.get_or_fetch("http://mirror.invalid/MIRROR_STATE.json", _InlinePool())
+    third = cache.get_or_fetch("http://mirror.invalid/MIRROR_STATE.json", _InlinePool())
+
+    assert second == third == failure
+    assert calls == ["http://mirror.invalid/MIRROR_STATE.json"]
 
 
 def test_different_sources_are_cached_independently(monkeypatch):
-    monkeypatch.setattr(
-        app_module, "_fetch_mirror_capability",
-        lambda source, pool: {"configured": True, "stale": False, "source": source})
-
+    _counting_read(monkeypatch)
     cache = MirrorStateCache(clock=lambda: 0.0)
-    a = cache.get_or_fetch("a.json", pool=None)
-    b = cache.get_or_fetch("b.json", pool=None)
+    cache.get_or_fetch("a.json", _InlinePool())
+    cache.get_or_fetch("b.json", _InlinePool())
 
-    assert a["source"] == "a.json"
-    assert b["source"] == "b.json"
+    assert cache.get_or_fetch("a.json", _InlinePool())["source"] == "a.json"
+    assert cache.get_or_fetch("b.json", _InlinePool())["source"] == "b.json"
 
 
 def test_no_cache_given_fetches_every_time(monkeypatch):

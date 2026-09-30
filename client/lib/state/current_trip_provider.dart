@@ -1663,10 +1663,18 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       targetM: composeAwareTargetM(mode, old.targetDistance),
       weights: weightsPayload,
     );
+    // #348 — an alternate's marks are distances along *this* line, so a
+    // re-solve that moves the line re-anchors them (and marks a solved
+    // alternate stale) rather than carrying them across verbatim.
+    final oldLine = old.geometry?.coordinates;
+    final newLine = resolved.geometry?.coordinates;
+    final lineMoved = oldLine == null || newLine == null || !_sameLine(oldLine, newLine);
     final merged = resolved.copyWith(
       nodes: old.nodes,
       hazards: old.hazards,
-      alternates: old.alternates,
+      alternates: lineMoved && newLine != null
+          ? [for (final a in old.alternates) reanchorAlternate(a, newLine)]
+          : old.alternates,
       portages: old.portages,
       weights: old.weights,
       bands: old.bands,

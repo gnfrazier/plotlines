@@ -489,15 +489,39 @@ def test_merging_length_weights_the_fractional_terms():
 
 
 def test_a_component_present_on_only_one_side_is_not_dropped_or_zeroed():
-    """`(a or 0.0)` is there so one side's `None` does not poison the blend —
-    mutating it to `and` zeroed the side that *did* have a value."""
+    """One side's `None` must not poison the blend, and must not dilute it
+    either (#532): an unknown is not a measured 0.0, so the known side's value
+    stands over the distance where it is known."""
     with_value = P.RouteMetrics(distance_m=1000.0, scenic_frac=0.8, edge_count=10)
     without = P.RouteMetrics(distance_m=1000.0)
 
     merged = with_value.merged(without)
 
-    assert merged.scenic_frac == pytest.approx(0.4)  # 0.8 over half the distance
+    assert merged.scenic_frac == pytest.approx(0.8)
+    assert merged.known_m("scenic_frac") == 1000.0
     assert merged.edge_count == 10
+
+
+def test_an_unknown_long_leg_does_not_dilute_a_known_short_one():
+    """#532's reproduction: 60 km of unknown traffic plus 2 km at 0.9 was
+    reported as 3% traffic."""
+    unknown = P.RouteMetrics(distance_m=60_000.0, traffic=None)
+    known = P.RouteMetrics(distance_m=2_000.0, traffic=0.9)
+
+    assert unknown.merged(known).traffic == pytest.approx(0.9)
+    assert known.merged(unknown).traffic == pytest.approx(0.9)
+
+
+def test_a_chained_roll_up_weights_by_known_distance_throughout():
+    """The known distance rides on the merged result, so a third leg is
+    weighted against the 2 km actually known, not the 62 km merged."""
+    first = (P.RouteMetrics(distance_m=60_000.0)
+             .merged(P.RouteMetrics(distance_m=2_000.0, traffic=0.9)))
+    day = first.merged(P.RouteMetrics(distance_m=2_000.0, traffic=0.1))
+
+    assert day.traffic == pytest.approx(0.5)
+    assert day.known_m("traffic") == 4_000.0
+    assert day.distance_m == 64_000.0
 
 
 def test_a_component_absent_on_both_sides_stays_absent():

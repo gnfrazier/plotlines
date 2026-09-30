@@ -144,3 +144,15 @@ def test_a_branch_alternate_is_cued_at_the_divergence_projected_from_geometry():
     cues = alternate_cues(_route(), [alt])
     assert cues[0].distance_along_m == pytest.approx(600.0, abs=1.0)
     assert cues[0].instruction == "Branch — Detour"
+
+
+def test_an_alternate_whose_fork_has_left_the_route_gets_no_cue():
+    """#348: after a passage re-solve moves the line away from a branch's
+    fork, the client clears its marks; a cue projected to the nearest point
+    would announce a divergence where the branch does not leave."""
+    start = [-105.30 + _STEP_DEG * 6, 40.01]  # ~1.1 km off the route
+    alt = payload.Alternate(
+        kind="bypass", geometry=_line(start, [start[0], 40.02]), intent="branch",
+        label="Detour",
+    )
+    assert alternate_cues(_route(), [alt]) == []

@@ -4,8 +4,9 @@ library;
 import 'json_utils.dart';
 
 /// F1/FR46's derived cue (SPIKE-21 owns derivation; this is where its output
-/// lands). `kind` is one of `turn` | `surface` | `node` | `hazard` | `event`
-/// | `portage` | `transition` | `alternate` | `start` | `finish`.
+/// lands). `kind` is one of `turn` | `surface` | `node` | `hazard` |
+/// `constraint` (FR128/A11 dismount/gate/ford, #421) | `event` | `portage` |
+/// `transition` | `alternate` | `start` | `finish`.
 class Cue {
   Cue({
     required this.id,
