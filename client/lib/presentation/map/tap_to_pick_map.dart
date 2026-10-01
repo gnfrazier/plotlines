@@ -14,7 +14,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:plotlines_ui/plotlines_ui.dart';
-import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
 import '../../domain/home_region.dart';
@@ -434,16 +433,8 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                 // coverage the map reads as a map, not as a failed render.
                 MapGraticule(ground: c.surfaceSunk, line: c.textMuted, label: c.textSecondary),
                 if (tilesAvailable)
-                  VectorTileLayer(
-                    // Issue #522 — `archive` moves when a region's basemap lands
-                    // (a mirror fill included, #455/#519): a fresh layer re-requests
-                    // every tile, so the map fills in with no Author action.
-                    key: ValueKey('basemap-$tilesArchiveId'),
-                    theme: vectorTheme,
-                    tileProviders: TileProviders({'protomaps': provider}),
-                    maximumZoom: basemapMaximumZoom.toDouble(),
-                    cacheFolder: basemapCacheFolderCallback(tilesArchiveId),
-                  ),
+                  basemapVectorLayer(
+                    theme: vectorTheme, provider: provider, tilesArchiveId: tilesArchiveId),
                 if (widget.outline != null && widget.outline!.length >= 3)
                   PolygonLayer(polygons: [
                     Polygon(

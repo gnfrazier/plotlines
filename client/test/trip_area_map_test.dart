@@ -21,7 +21,7 @@ import 'package:plotlines_client/domain/trip_bbox.dart';
 import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart' show MapTileAssets;
 import 'package:plotlines_client/presentation/map/map_label_scale.dart';
 import 'package:plotlines_client/presentation/map/trip_area_map.dart';
-import 'package:vector_map_tiles/vector_map_tiles.dart' show VectorTileLayer;
+import 'package:vector_map_tiles/vector_map_tiles.dart' show VectorTileLayer, VectorTileLayerMode;
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/settings_provider.dart';
 
@@ -242,6 +242,10 @@ void main() {
     expect(find.text(kMirrorFetchingSentence), findsOneWidget);
     expect(find.textContaining('No basemap tiles here'), findsNothing);
     final before = tester.widget<VectorTileLayer>(find.byType(VectorTileLayer)).key;
+    // Issue #575 — the basemap re-renders at the camera's zoom, so its labels
+    // hold their size between zoom levels instead of scaling with a raster.
+    expect(tester.widget<VectorTileLayer>(find.byType(VectorTileLayer)).layerMode,
+        VectorTileLayerMode.vector);
 
     sidecar.land();
     await _settleMap(tester);
