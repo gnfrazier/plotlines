@@ -220,9 +220,17 @@ def test_a_deferred_fill_stays_fetching_with_retry_after_and_then_runs(tmp_path:
     worker = _worker(tmp_path, filler)
     try:
         status = worker.request("fake", _GREENSBORO)
+        # Wait for the deferral itself rather than sleeping a fixed time: under
+        # load the job may not have run yet, and the queued status carries a
+        # longer hint than the deferral's (#602). `FillDeferred` floors its
+        # wait at 1 s, so the window this polls for is never shorter.
         import time
-        time.sleep(0.05)
+        deadline = time.monotonic() + 5.0
         mid = worker.status(status.fill_id)
+        while not (mid.retry_after_s is not None and mid.retry_after_s <= 1):
+            assert time.monotonic() < deadline, f"fill never deferred: {mid}"
+            time.sleep(0.01)
+            mid = worker.status(status.fill_id)
         assert mid.state == FETCHING
         assert mid.retry_after_s is not None and mid.retry_after_s <= 1
         assert "allowance" in mid.detail
