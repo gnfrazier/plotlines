@@ -24,7 +24,13 @@ Read `readme.md` in this skill, then explore the other files.
 - **`route-workspace-ia/`** is a worked re-design canvas rather than a flow canvas: the Route
   tab's planning rail (issue **#328**, out of #271's Finding 9), diagnosing 50+ controls at one
   depth across three competing scroll regions and proposing a **Frame / Tune / Refine** task
-  spine. Read its `readme.md` before touching the Route rail. Later re-designs of a single
+  spine. **Built by PR #566 (2026-10-01)**: Frame / Tune / Refine is a one-open-at-a-time
+  accordion with mono summaries from M14 templates, Explore/Compose in the rail header, a
+  fixed action bar below the scroll, and THIS PASSAGE leading the right rail. It must not
+  scroll at 1440×900 with one task open (`route_rail_task_spine_test.dart`, run with the
+  app's real fonts). Its named deviations: Discipline is a collapsed row in Frame, and
+  Interest is one in Tune. Read the canvas's `readme.md` before touching the Route rail.
+  Later re-designs of a single
   surface belong in a sibling directory shaped the same way, not in the numbered flow set.
 - **`uploads/` is scratch input, not source of truth** — it holds the images originally
   uploaded with the design brief. The stale product-doc copies that used to sit beside them
@@ -61,11 +67,23 @@ retires the candidate's pin and ring, so the two never stack.
 Basemap styles are Protomaps Light / Dark / Grayscale, chosen through the
 `BasemapStylePref` setting (#465, default *match appearance*) and resolved in one
 place, `resolveBasemapStyleName`. The style JSONs are **generated** by
-`build_basemap_theme.py` and never hand-edited — a hand patch is silently reverted
-by the next run, which is what #486 (open) found for #321's WCAG water-label fix.
+`build_basemap_theme.py` and never hand-edited. #486 found a hand patch (#321's WCAG
+water-label fix) that the next run would have reverted; the fix now lives in the generator,
+and `build_basemap_theme.py --check` fails CI when a committed style differs from what it
+generates. Every map uses the one shared `basemapVectorLayer` in **vector** mode (#575):
+raster mode scales labels up to 2× between zoom levels.
 Grayscale/White/Black carry no POIs or landcover (SPIKE-K); say so where offered.
 Advisories (a stale mirror, a refused tile upstream) use the warning icon with
-secondary body text — never gold text, never error styling.
+secondary body text — never gold text, never error styling. Waits are not failures: a
+region queued for its build (#573) or an area the mirror is still fetching (#522) shows the
+quiet hourglass notice, never the error card with *Try again*.
+
+The trip shell's app bar carries labelled actions, not bare icons: **← Library** (#577),
+**Settings** (#578) and **Save**. Work autosaves while the shell is showing, so leaving
+never prompts; a quiet line beside Save reads *Saving…* / *Saved*, or *Not saved — press
+Save* when a write fails, with no exception text on screen (#390). Hazards are marked on
+the route map and as ticks on the elevation profile (#47), and they are never subject to
+reveal.
 
 If invoked without guidance, ask what the user wants to build, ask a few focused
 questions, and act as an expert designer who outputs HTML artifacts or Flutter
