@@ -26,6 +26,7 @@ import '../../state/current_trip_provider.dart';
 import '../../state/settings_provider.dart';
 import '../../state/trip_bbox_provider.dart';
 import '../map/trip_area_map.dart';
+import '../map/trip_framing.dart';
 import '../widgets/trip_bbox_shrink_prompt.dart';
 
 class TripAreaScreen extends ConsumerStatefulWidget {
@@ -85,6 +86,10 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
         padding: const EdgeInsets.all(48),
       );
     }
+    // #572 — revising a trip with no bbox (every reopened trip until #570)
+    // frames the trip's own geometry, not the home region. Framing only:
+    // the Author still draws the extent.
+    if (!widget.isCreation) return tripFramingFit(ref.read(currentTripProvider));
     final framing = widget.initialFramingBbox;
     if (framing == null) return null;
     return CameraFit.bounds(

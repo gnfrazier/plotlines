@@ -29,6 +29,7 @@ import '../../../state/trip_bbox_provider.dart';
 import '../../map/anchor_map_points.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/proposal_card.dart';
+import '../../map/trip_framing.dart';
 
 const _uuid = Uuid();
 
@@ -51,6 +52,9 @@ class ProposalsView extends ConsumerWidget {
           child: CandidateMap(
             candidates: const [],
             bbox: bbox,
+            // #572 — no bbox (every reopened trip until #570) frames the
+            // trip's own geometry, not the home region.
+            initialCameraFit: bbox == null ? tripFramingFit(trip) : null,
             // #410 — a promoted proposal's anchor is drawn where the
             // proposal was, so "already promoted" is visible on the map
             // and not only in the list's re-run filter.
