@@ -4,6 +4,8 @@
 // leaving flushes what's pending; the shell has a named Library action.
 library;
 
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -85,6 +87,75 @@ void main() {
     expect(await db.loadTrip(id), isNull);
   });
 
+  test('every flush waits for the last write, even one another flush started', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final writes = <Completer<void>>[];
+    final c = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(db),
+      tripPersistenceProvider.overrideWith((ref) => _GatedPersistence(ref, writes)),
+      // Long enough that only explicit flushes write in this test.
+      tripAutosaveProvider.overrideWith(
+          (ref) => TripAutosave(ref, debounce: const Duration(hours: 1))),
+    ]);
+    addTearDown(c.dispose);
+    final autosave = c.read(tripAutosaveProvider.notifier);
+    autosave.start();
+    await _quiet();
+
+    c.read(currentTripProvider.notifier).renameTrip('first');
+    final timerFlush = autosave.flush(); // the debounce firing: write 1
+    await _until(() => writes.length == 1);
+    c.read(currentTripProvider.notifier).renameTrip('second'); // dirty again
+    // Two callers wait on write 1 (say, the debounce's retry and the Library
+    // action). The first to resume starts write 2; the second must then wait
+    // for it rather than find nothing dirty and return.
+    final otherFlush = autosave.flush();
+    var leftLibrary = false;
+    final libraryFlush = autosave.flush().then((_) => leftLibrary = true);
+
+    writes[0].complete();
+    await _until(() => writes.length == 2); // the change gets its own write
+    await _quiet();
+    expect(leftLibrary, isFalse, reason: 'leaving must wait for the second write');
+
+    writes[1].complete();
+    await Future.wait([timerFlush, libraryFlush, otherFlush]);
+    expect(leftLibrary, isTrue);
+    expect(writes, hasLength(2));
+  });
+
+  test('a failed write is reported once, never thrown at a flush waiting on it', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final writes = <Completer<void>>[];
+    final c = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWithValue(db),
+      tripPersistenceProvider.overrideWith((ref) => _GatedPersistence(ref, writes)),
+      tripAutosaveProvider.overrideWith(
+          (ref) => TripAutosave(ref, debounce: const Duration(hours: 1))),
+    ]);
+    addTearDown(c.dispose);
+    final autosave = c.read(tripAutosaveProvider.notifier);
+    autosave.start();
+    await _quiet();
+
+    c.read(currentTripProvider.notifier).renameTrip('edit');
+    final owner = autosave.flush();
+    await _until(() => writes.length == 1);
+    final waiter = autosave.flush(); // the Library action, mid-write
+    writes[0].completeError(StateError('disk full'));
+
+    await owner;
+    // The waiter finds the change still unsaved and tries it again; that
+    // fails too, and the waiter still completes normally — the indicator
+    // carries the failure, never an exception at the Library action.
+    await _until(() => writes.length == 2);
+    writes[1].completeError(StateError('disk full'));
+    await waiter;
+    expect(c.read(tripAutosaveProvider), AutosaveStatus.failed);
+  });
+
   // The write itself is the unit tests' above (a widget test can't run real
   // drift I/O alongside the map's tile isolates); this pins the shell's half:
   // a new trip, arrived by `go('/plan')`, has a Library action, and it
@@ -136,4 +207,17 @@ class _RecordingAutosave extends TripAutosave {
   Future<void> flush() async => log.add('flush');
   @override
   Future<void> stop() async => log.add('stop');
+}
+
+/// Each autosave write waits on a completer the test controls.
+class _GatedPersistence extends TripPersistence {
+  _GatedPersistence(super.ref, this.writes);
+  final List<Completer<void>> writes;
+
+  @override
+  Future<void> save({bool compose = true}) {
+    final gate = Completer<void>();
+    writes.add(gate);
+    return gate.future;
+  }
 }

@@ -92,6 +92,26 @@ def test_each_tile_comes_from_the_cell_it_sits_in(store) -> None:
     assert s.tile(*_tile_at(-79.0, 35.0)).startswith(b"cell-w080-n34:")
 
 
+def test_a_cell_refreshed_in_place_is_read_from_the_new_file(store) -> None:
+    # #519's TTL refresh replaces a cell's archive at the same path. A reader
+    # kept from before would read the new file through the old header and
+    # directories (and its tile cache), so the new `filled_at` retires it.
+    clock = {"t": 0.0}
+    s = BasemapArchiveSet(store, clock=lambda: clock["t"])
+    tile = _tile_at(-81.0, 35.0)
+    assert s.tile(*tile).startswith(b"cell-w082-n34:")
+
+    name = "cell-w082-n34"
+    build_archive(store / "basemap" / "protomaps" / "cells" / f"{name}.pmtiles",
+                  _tiles_for(WEST_CELL, "refreshed"), bounds=WEST_CELL)
+    state = json.loads((store / "MIRROR_STATE.json").read_text())
+    state["areas"][f"basemap/{name}"]["filled_at"] = "2026-10-28T00:00:00Z"
+    (store / "MIRROR_STATE.json").write_text(json.dumps(state))
+    clock["t"] += 10_000  # past the record TTL
+
+    assert s.tile(*tile).startswith(b"refreshed:")
+
+
 def test_a_tile_in_the_gap_between_cells_is_an_honest_miss(store) -> None:
     s = BasemapArchiveSet(store)
     # z10 tiles are ~0.35° wide, so this one sits wholly inside the 2° gap.

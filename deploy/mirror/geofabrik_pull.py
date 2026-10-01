@@ -112,7 +112,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import contextlib
+import copy
 import hashlib
 import json
 import logging
@@ -1013,25 +1013,70 @@ def state_lock(state_path: Path):
         os.close(fd)
 
 
-def save_state(state_path: Path, state: dict) -> None:
-    """Writes `state`, carrying the on-disk `areas` record forward.
+def _merge_onto_disk(on_disk: dict, state: dict, baseline: dict) -> dict:
+    """What `save_state` writes: the file as it is now, plus this run's own
+    changes. This script owns `geofabrik` and nothing else. Within it, a
+    region entry this run set or removed (it differs from `baseline`, the
+    copy as of the last load or save) is applied; every other entry is the
+    disk's, so a cell the fill worker registered, evicted or superseded
+    meanwhile stands. `fill_sources` is the worker's bookkeeping, and
+    `areas`, `basemap` and every other top-level key belong to other
+    writers, so the disk copy of each wins."""
+    merged = copy.deepcopy(on_disk)
+    gf_state = state.get("geofabrik") or {}
+    gf_base = baseline.get("geofabrik") or {}
+    gf_merged = merged.setdefault("geofabrik", {})
+    for key, value in gf_state.items():
+        if key not in ("regions", "fill_sources"):
+            gf_merged[key] = copy.deepcopy(value)
+    regions = gf_merged.setdefault("regions", {})
+    ours, before = gf_state.get("regions") or {}, gf_base.get("regions") or {}
+    for name in set(ours) | set(before):
+        if name in ours and ours[name] != before.get(name):
+            regions[name] = copy.deepcopy(ours[name])
+        elif name not in ours:
+            regions.pop(name, None)
+    return merged
+
+
+def _replace_in_place(target: dict, source: dict) -> None:
+    """`target` becomes `source` without rebinding any dict a caller holds
+    — `precut_cells` keeps its `regions` reference across checkpoints."""
+    for key in [k for k in target if k not in source]:
+        del target[key]
+    for key, value in source.items():
+        if isinstance(value, dict) and isinstance(target.get(key), dict):
+            _replace_in_place(target[key], value)
+        else:
+            target[key] = value
+
+
+def save_state(state_path: Path, state: dict, baseline: dict | None = None) -> None:
+    """Writes this run's changes onto `MIRROR_STATE.json` as it is *now*.
 
     A run holds its `state` from start to finish — hours, for a priority
-    precut — while the fill worker (#517, ARCH D67) keeps writing `areas`
-    rows for what it fills. Writing the stale copy back would silently
-    drop every row filled meanwhile, and eviction would never find those
-    files again. This script never writes `areas`, so the disk copy wins."""
+    precut — while the fill worker (#517, ARCH D67) writes `areas` rows,
+    registers and evicts the cells it fills under `geofabrik.regions`, and
+    `protomaps_extract.py` writes `basemap`. Writing the stale copy back
+    would silently undo all of that: a filled cell dropped from `/clip`, an
+    evicted one re-registered with no file, a basemap region lost. So only
+    what this run changed since `baseline` is applied (`_merge_onto_disk`);
+    `None` treats every region entry in `state` as this run's. Afterwards
+    `state` (and `baseline`) hold what was written, in place."""
     with state_lock(state_path):
         try:
             on_disk = json.loads(state_path.read_text())
         except (FileNotFoundError, ValueError):
             on_disk = {}
-        if "areas" in on_disk:
-            state["areas"] = on_disk["areas"]
-        _atomic_write(state_path, (json.dumps(state, indent=2) + "\n").encode())
+        merged = _merge_onto_disk(on_disk, state, baseline if baseline is not None else {})
+        _atomic_write(state_path, (json.dumps(merged, indent=2) + "\n").encode())
         # Served as a plain file and shared with the fill worker: never
         # mkstemp's 0600 (#517 follow-up).
         os.chmod(state_path, 0o644)
+    _replace_in_place(state, merged)
+    if baseline is not None:
+        baseline.clear()
+        baseline.update(copy.deepcopy(merged))
 
 
 def run(
@@ -1061,6 +1106,7 @@ def run(
             f"against {root} first."
         )
     state = load_state(state_path)
+    baseline = copy.deepcopy(state)
     throttle = RequestThrottle(request_spacing, sleep=sleep)
     results = []
     for region in regions:
@@ -1071,12 +1117,12 @@ def run(
         results.append(result)
         # Checkpoint after every region so a mid-run crash on region N
         # doesn't lose the state recorded for regions before it.
-        save_state(state_path, state)
+        save_state(state_path, state, baseline)
     if pull_index_too:
         results.append(pull_index(root=root, pinned_date=pinned_date, state=state,
                                    base_url=base_url, min_interval=min_interval,
                                    now=now, throttle=throttle))
-        save_state(state_path, state)
+        save_state(state_path, state, baseline)
     pulls_ok = not any(r.action == "failed" for r in results)
     if precut is not None and pulls_ok:
         results.append(precut_region(
@@ -1084,16 +1130,16 @@ def run(
             dest_region=precut["dest_region"], source_regions=regions,
             bbox=precut["bbox"], replace_sources=precut["replace_sources"],
         ))
-        save_state(state_path, state)
+        save_state(state_path, state, baseline)
     if priority_precut is not None and pulls_ok:
         results.extend(precut_cells(
             root=root, pinned_date=pinned_date, state=state,
             cells=priority_precut["cells"],
             replace_sources=priority_precut["replace_sources"],
             supersedes=priority_precut["supersedes"],
-            checkpoint=lambda: save_state(state_path, state),
+            checkpoint=lambda: save_state(state_path, state, baseline),
         ))
-        save_state(state_path, state)
+        save_state(state_path, state, baseline)
     return results
 
 

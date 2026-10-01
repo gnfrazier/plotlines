@@ -928,6 +928,7 @@ class CapabilityState:
     def succeed(self, detail: str) -> None:
         self.status = "ready"
         self.detail = detail
+        self.upstream_since = None
 
     def provisional_ready(self, detail: str) -> None:
         """Issue #432 — a shrink truncated a held wider graph rather than
@@ -936,10 +937,12 @@ class CapabilityState:
         that and that a real rebuild will replace it once reconnected."""
         self.status = "provisional"
         self.detail = detail
+        self.upstream_since = None
 
     def fail(self, detail: str) -> None:
         self.status = "failed"
         self.detail = detail
+        self.upstream_since = None
 
     def wait_upstream(self, detail: str, *, fill_id: str | None,
                       retry_after_s: float | None, progress: float | None = None) -> None:
@@ -947,8 +950,14 @@ class CapabilityState:
         capability needs: a retryable *not yet*, never `failed`. `detail` is
         the finished sentence the client shows; the fill's id and poll hint
         ride beside it. Not `settled`: the region build polls it again on
-        its own, with no Author action."""
-        if self.status != "pending_upstream":
+        its own, with no Author action.
+
+        The wait is timed from its first report, across the retries that
+        follow it: a phase retry passes back through `start` (`loading`)
+        before it learns the fill is still running, and must not restart
+        the observed `waiting_s`. Only an outcome (`succeed`, `fail`,
+        `provisional_ready`) ends the wait."""
+        if self.upstream_since is None:
             self.upstream_since = time.monotonic()
         self.status = "pending_upstream"
         self.detail = detail

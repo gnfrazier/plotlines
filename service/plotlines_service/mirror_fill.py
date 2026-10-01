@@ -59,8 +59,9 @@ job journal lives outside the store (`state_dir`), and on start every job
 that was mid-fetch is reported `failed:restarted` and every `.fill-*`
 staging file under the store is removed, so a killed worker leaves no
 partial file at a store path and no job `fetching` forever. A job that was
-*waiting* (`FillDeferred`, #520's quota wait) had nothing in flight and is
-simply rescheduled.
+*waiting* (`FillDeferred`, #520's quota wait) or still queued had nothing in
+flight and is simply rescheduled, and a `failed:restarted` area is not held
+to the failure cooldown — the upstream never failed it.
 
 Single process, like the rest of the mirror-clip service: the job table and
 single-flight are in memory, so `--workers > 1` would give each worker its
@@ -629,6 +630,7 @@ class FillWorker:
             journal = {}
         now_wall = self._wall()
         resumed = []
+        restarted_reason = failed("restarted")
         for key, row in (journal.get("jobs") or {}).items():
             job = _Job(
                 job_id=row["job_id"], layer=row["layer"], area=row["area"],
@@ -640,10 +642,12 @@ class FillWorker:
                 retry_after_s=row.get("retry_after_s"),
             )
             if job.state == FETCHING:
-                if row.get("deferred_until") and not row.get("running"):
+                if not row.get("running"):
+                    # Waiting on a deferral, or queued behind another job:
+                    # nothing was in flight, so it simply runs again.
                     resumed.append(job)
                 else:
-                    job.state = failed("restarted")
+                    job.state = restarted_reason
                     job.detail = "the fill worker restarted while this area was being fetched"
                     job.finished_at = now_wall
                     job.retry_after_s = None
@@ -654,8 +658,11 @@ class FillWorker:
             if job.layer in self.fillers:
                 self._schedule(job, max(0.0, (job.deferred_until or now_wall) - now_wall))
             else:
-                job.state = failed("restarted")
+                job.state = restarted_reason
                 job.detail = f"layer {job.layer!r} is no longer configured"
+                job.deferred_until = None
+                job.finished_at = now_wall
+        self._save_journal()
         self.book.update(lambda state: None)  # seed the record once at start
 
     def shutdown(self, wait: bool = False) -> None:
@@ -686,6 +693,15 @@ class FillWorker:
             with os.fdopen(fd, "w") as f:
                 f.write(json.dumps(payload, indent=2))
             os.replace(tmp, self.journal_path)
+
+    def _cooling_down(self, job: _Job | None, now_wall: float) -> bool:
+        """A failed area waits out `failed_cooldown_s` before another job —
+        the cooldown protects the upstream from a failing fetch's retries.
+        A job failed only because this worker restarted never reached the
+        upstream's verdict, so it is not held back."""
+        return (job is not None and is_failed(job.state) and job.state != failed("restarted")
+                and job.finished_at is not None
+                and now_wall - job.finished_at < self.failed_cooldown_s)
 
     # -- store -------------------------------------------------------------
 
@@ -809,8 +825,7 @@ class FillWorker:
                 job = self._jobs.get(area_key(layer, area.area))
                 if job is not None and job.state == FETCHING:
                     continue  # single-flight: join the job already running
-                if (job is not None and is_failed(job.state) and job.finished_at is not None
-                        and now_wall - job.finished_at < self.failed_cooldown_s):
+                if self._cooling_down(job, now_wall):
                     continue  # cooling down; the ticket reports the failure
                 job = _Job(
                     job_id=uuid.uuid4().hex, layer=layer, area=area.area,
@@ -858,8 +873,7 @@ class FillWorker:
             job = self._jobs.get(area_key(layer, area.area))
             if job is not None and job.state == FETCHING:
                 return
-            if (job is not None and is_failed(job.state) and job.finished_at is not None
-                    and self._wall() - job.finished_at < self.failed_cooldown_s):
+            if self._cooling_down(job, self._wall()):
                 return
             job = _Job(job_id=uuid.uuid4().hex, layer=layer, area=area.area,
                        path=area.path, bbox=area.bbox, created_at=self._wall(),
@@ -910,7 +924,8 @@ class FillWorker:
                 if job.progress is not None:
                     progresses.append(job.progress)
             elif is_failed(job.state) and job.finished_at is not None:
-                remaining = self.failed_cooldown_s - (now_wall - job.finished_at)
+                remaining = (self.failed_cooldown_s - (now_wall - job.finished_at)
+                             if self._cooling_down(job, now_wall) else 0.0)
                 retries.append(max(0.0, remaining))
 
         failures = [s for s in states if is_failed(s)]
