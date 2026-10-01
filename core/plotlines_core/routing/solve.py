@@ -19,6 +19,7 @@ from plotlines_core.graph.loader import nearest_node
 from plotlines_core.routing.access import flags_along_walk, mode_legal_graph
 from plotlines_core.scoring.metrics import edge_walk
 from plotlines_core.scoring.profile import WeightProfile, Weights, edge_cost
+from plotlines_core.trips.cues import route_polyline
 
 
 class NoRouteFound(Exception):
@@ -121,18 +122,26 @@ def generate_segment(
         leg = _weighted_path(graph, src, dst, weights)
         path.extend(leg[1:])
 
-    coords_latlon = [(graph.nodes[n]["y"], graph.nodes[n]["x"]) for n in path]
-    coords_lonlat = [[lon, lat] for lat, lon in coords_latlon]
+    # Measurement re-walk: the parallel-edge pick only needs a representative
+    # profile, and the scoped refinement of it is out of M2's scope — the tour
+    # default is exact for the scalar case and a faithful summary otherwise.
+    walk = edge_walk(graph, path, weights.default)
+
+    # #597 — drawn along each edge's own geometry, the same polyline the loop
+    # shapes return (`route_polyline`), not as chords between junctions. On a
+    # simplified graph a chord cuts every bend: measured on a real Greensboro
+    # passage the road ran up to 183 m from the drawn line, and the elevation
+    # profile was sampled along the chord rather than the road.
+    coords_lonlat = route_polyline(graph, walk).coords if walk else [
+        [graph.nodes[n]["x"], graph.nodes[n]["y"]] for n in path
+    ]
+    coords_latlon = [(lat, lon) for lon, lat in coords_lonlat]
 
     # shapely/GEOS on the hot path — this is also what a real implementation needs
     # for simplification and buffer queries.
     line = LineString(coords_lonlat)
 
     elevation = sampler.profile(coords_latlon) if sampler else {}
-    # Measurement re-walk: the parallel-edge pick only needs a representative
-    # profile, and the scoped refinement of it is out of M2's scope — the tour
-    # default is exact for the scalar case and a faithful summary otherwise.
-    walk = edge_walk(graph, path, weights.default)
 
     return Segment(
         mode=mode,

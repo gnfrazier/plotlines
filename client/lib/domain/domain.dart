@@ -42,6 +42,7 @@ export 'reason_phrase.dart';
 export 'reveal_state.dart';
 export 'roster.dart';
 export 'route_metrics.dart';
+export 'route_through.dart';
 export 'segment.dart';
 export 'stale_work.dart';
 export 'station_activity_type.dart';

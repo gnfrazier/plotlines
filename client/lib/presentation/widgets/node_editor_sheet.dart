@@ -132,6 +132,21 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
   late String? _arcStage = widget.existing?.arcStage;
   late final Set<String> _amenities = {...(widget.existing?.amenities ?? const [])};
 
+  /// #589 — "Route through this": the node's coordinate is one of the
+  /// passage's via points. Read from the passage for an existing node; a new
+  /// one starts off, unless its kind is `via`.
+  late bool _routeThrough = _initialRouteThrough();
+
+  bool _initialRouteThrough() {
+    final existing = widget.existing;
+    if (existing == null) return _kind == NodeKind.via;
+    final segment = _segment;
+    return segment != null && nodeRoutesThrough(segment, existing);
+  }
+
+  Segment? get _segment => resolveSelectedSegment(
+      ref.read(currentTripProvider), (widget.dayId, widget.segmentId))?.$2;
+
   /// The node's coordinate. Starts at what was tapped (or the existing node's
   /// own), and "Snap to route" (#322) moves it onto the line.
   late Coord _coord = widget.coord;
@@ -147,6 +162,7 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
       _kind = widget.existing?.kind ?? NodeKind.waypoint;
       _arcStage = widget.existing?.arcStage;
       _coord = widget.coord;
+      _routeThrough = _initialRouteThrough();
       _amenities
         ..clear()
         ..addAll(widget.existing?.amenities ?? const []);
@@ -227,10 +243,18 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
               ChoiceChip(
                 label: Text(kind.wireValue.replaceAll('_', ' ')),
                 selected: _kind == kind,
-                onSelected: (_) => setState(() => _kind = kind),
+                onSelected: (_) => setState(() {
+                  _kind = kind;
+                  // A `via` node is the route-through kind by name; choosing
+                  // it turns the choice on. Leaving `via` keeps the choice as
+                  // it is — the Author may want a waypoint routed through.
+                  if (kind == NodeKind.via && !_composePosture) _routeThrough = true;
+                }),
               ),
           ],
         ),
+        const SizedBox(height: PlotSpacing.s4),
+        ..._routeThroughControl(c),
         const SizedBox(height: PlotSpacing.s4),
         TextField(
           controller: _title,
@@ -298,6 +322,36 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
     );
   }
 
+  /// #589 — Compose builds a day out of promoted places (FR39/FR117): the
+  /// spine is anchor-driven, and a node does not join it. So in Compose the
+  /// choice points to promotion instead. A node already routed through (from
+  /// an Explore pass on the same day) can still be turned off.
+  bool get _composePosture =>
+      ref.read(dayPlanningModeProvider(widget.dayId)) == PlanningMode.compose;
+
+  List<Widget> _routeThroughControl(PlotColors c) {
+    final compose =
+        ref.watch(dayPlanningModeProvider(widget.dayId)) == PlanningMode.compose;
+    final offerable = !compose || _routeThrough;
+    return [
+      CheckboxListTile(
+        key: const ValueKey('node-route-through'),
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        value: _routeThrough,
+        onChanged: offerable ? (v) => setState(() => _routeThrough = v ?? false) : null,
+        title: Text('Route through this', style: PlotTypography.body(c.textPrimary)),
+        subtitle: Text(
+          compose
+              ? 'In Compose the route follows the spine. Promote this place to an '
+                  'anchor and add it to the spine to route through it.'
+              : 'The route must reach this point.',
+          style: PlotTypography.small(c.textSecondary),
+        ),
+      ),
+    ];
+  }
+
   void _save() {
     final triggerM = ref
         .read(displayFormatProvider)
@@ -313,22 +367,13 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
       arcStage: _arcStage,
       narration: triggerM == null ? null : Narration(triggerDistanceM: triggerM),
     );
-    final notifier = ref.read(currentTripProvider.notifier);
-    if (widget.existing == null) {
-      notifier.addNodeToSegment(widget.dayId, widget.segmentId, node);
-    } else {
-      notifier.replaceNodeInSegment(widget.dayId, widget.segmentId, node);
-    }
+    // #589 — one write: the node, its via point, and the stale mark together.
     // #322 / Q3(FR140) — a routing-constraint node (via / start / finish /
-    // portage ends) invalidates a solved geometry the moment it is placed,
-    // moved, or retyped into or out of a constraint kind. Mark the segment
-    // stale; never silently re-solve (an Author mid-run of edits is stopped
-    // zero times). `markSegmentStale` no-ops when nothing is solved yet.
-    if (nodeKindIsRoutingConstraint(node.kind) ||
-        (widget.existing != null &&
-            nodeKindIsRoutingConstraint(widget.existing!.kind))) {
-      notifier.markSegmentStale(widget.dayId, widget.segmentId);
-    }
+    // portage ends) placed, moved, or retyped into or out of a constraint kind
+    // marks the passage stale too; nothing re-solves on its own.
+    ref.read(currentTripProvider.notifier).saveSegmentNode(
+        widget.dayId, widget.segmentId, node,
+        routeThrough: _routeThrough);
     widget.onSaved(node);
   }
 }
