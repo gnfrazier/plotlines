@@ -32,6 +32,15 @@ Future<bool> ensureNoStaleWork(BuildContext context, Trip trip) async {
   return proceeded ?? false;
 }
 
+/// FR142(b) / K12 — the stale list's own path, independent of an export:
+/// the trip shell's stale count opens it (Flow 10's "dashboard count → the
+/// stale list"). Before this a stale item was findable only by trying to
+/// export.
+Future<void> showStaleList(BuildContext context) => showDialog<bool>(
+      context: context,
+      builder: (context) => const _StaleListDialog(),
+    );
+
 class _StaleListDialog extends ConsumerStatefulWidget {
   const _StaleListDialog();
 
