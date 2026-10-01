@@ -14,6 +14,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 import 'package:uuid/uuid.dart';
 
@@ -166,9 +167,13 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                     top: PlotSpacing.s3,
                     left: PlotSpacing.s3,
                     child: _FindCandidatesButton(
-                      enabled: bbox != null && !candidatesState.loading,
+                      hasArea: bbox != null,
                       loading: candidatesState.loading,
                       onPressed: () => _fetchCandidates(live),
+                      // #571 — with no trip area the prompt is the way to
+                      // draw one, not a disabled label pointing at an
+                      // unlabeled app-bar icon.
+                      onDrawArea: () => context.push('/trip-area'),
                     ),
                   ),
                   // #418 — a thrown `candidatesForBbox` (500, unreachable
@@ -378,10 +383,16 @@ class _LayersTabState extends ConsumerState<LayersTab> {
 }
 
 class _FindCandidatesButton extends StatelessWidget {
-  const _FindCandidatesButton({required this.enabled, required this.loading, required this.onPressed});
-  final bool enabled;
+  const _FindCandidatesButton({
+    required this.hasArea,
+    required this.loading,
+    required this.onPressed,
+    required this.onDrawArea,
+  });
+  final bool hasArea;
   final bool loading;
   final VoidCallback onPressed;
+  final VoidCallback onDrawArea;
 
   @override
   Widget build(BuildContext context) {
@@ -397,10 +408,10 @@ class _FindCandidatesButton extends StatelessWidget {
           ? const SizedBox(
               width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
           : InkWell(
-              onTap: enabled ? onPressed : null,
+              onTap: hasArea ? onPressed : onDrawArea,
               child: Text(
-                enabled ? 'Find candidates here' : 'Draw a trip area to find candidates',
-                style: PlotTypography.data(enabled ? c.textPrimary : c.textMuted),
+                hasArea ? 'Find candidates here' : 'Draw trip area',
+                style: PlotTypography.data(c.textPrimary),
               ),
             ),
     );
