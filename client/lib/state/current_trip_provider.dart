@@ -13,6 +13,7 @@ import 'planner_ui_state.dart'
         PlanningMode,
         bandViolations,
         composeAwareTargetM,
+        authoritativeDashboardProvider,
         composeItineraryProvider,
         dayPlanningModeProvider,
         hasTargetDistanceControl,
@@ -98,6 +99,22 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// clears it (`Trip.copyWith`'s `clearOfflineBufferM`, the same "a bare
   /// null would otherwise read as unchanged" reasoning `setDayLocation`
   /// documents) — distinct from `0.0`, a deliberate route-only choice.
+  /// Issue #563 — set [dayId]'s start time: a UTC stamp and the IANA zone
+  /// it was declared in, stored together. A null [startAt] clears both.
+  void setDayStart(String dayId, {String? startAt, String? timezone}) =>
+      _edit(startAt == null ? 'Clear the day start time' : 'Change the day start time', () {
+        final clear = startAt == null || timezone == null;
+        state = state.copyWith(updatedAt: _nowIso(), days: [
+          for (final d in state.days)
+            if (d.id != dayId)
+              d
+            else if (clear)
+              d.copyWith(clearStart: true)
+            else
+              d.copyWith(startAt: startAt, startTimezone: timezone),
+        ]);
+      });
+
   void setOfflineBufferM(double? meters) => _edit('Change the offline buffer',
       () => state = state.copyWith(
             offlineBufferM: meters,
@@ -2003,14 +2020,23 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         day.copyWith(transitions: composed.day.transitions, metrics: composed.day.metrics));
       _setComposeItinerary(day.id, composed.itinerary);
     }
+    // #563 — each day's station holds ride along, so the server's elapsed
+    // time and ETA include them (`build_dashboard` reads each day's own
+    // `start_at` from the payload). The returned dashboard is kept with the
+    // trip it describes, for the metrics rail.
+    final holds = dayStationHoldS(state);
     final assembled = await client.assembleTrip(
       days: composedDays,
       title: state.title,
       limits: state.dayLimits,
       defaultWeights: state.defaultWeights,
+      dayHoldS: holds.isEmpty ? null : holds,
     );
     _derived(() =>
         state = state.copyWith(days: assembled.trip.days, metrics: assembled.trip.metrics));
+    final dashboard = assembled.dashboard;
+    _ref.read(authoritativeDashboardProvider.notifier).state =
+        dashboard == null ? null : (trip: state, dashboard: dashboard);
   }
 
   /// E3 / FR39 (issue #214) — the ordered promoted anchors a compose-mode

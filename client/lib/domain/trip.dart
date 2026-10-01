@@ -75,7 +75,9 @@ import 'weight_profile.dart';
 // FR128/A11 dismount/gate/ford the derived cue sheet now carries itself, so
 // the Export preview no longer inserts its own rows for a sheet that has
 // them. Additive: a sheet derived before this bump has none.
-const String tripSchemaVersion = '1.16.0';
+// Bumped to 1.17.0 by issue #563: `day` gains `start_at` / `start_timezone`,
+// the start time D1's ETA needs. Additive: a day without them has no ETA.
+const String tripSchemaVersion = '1.17.0';
 
 /// FR17 / C1 — single-day, multi-day, or multi-week.
 class TripDuration {

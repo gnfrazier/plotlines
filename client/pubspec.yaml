@@ -60,6 +60,10 @@ dependencies:
   window_manager: ^0.5.2
   printing: ^5.15.0
   pdf: ^3.13.0
+  # Issue #563 — a day's start time is stored in UTC beside its IANA zone;
+  # converting a local wall-clock start (and its ETA) needs the zone rules,
+  # which dart:core lacks. Pure Dart, the database ships in the package.
+  timezone: ^0.11.1
 
 dev_dependencies:
   flutter_test:

@@ -51,7 +51,8 @@ void main() {
         limits: {'cycling': DayLimit(minM: 20000, maxM: 80000)},
       ),
     ]);
-    expect(find.text('Day 1'), findsOneWidget);
+    // BY DAY's bar and DAY TIMING's row (#563) both name the day.
+    expect(find.text('Day 1'), findsNWidgets(2));
     expect(find.byIcon(Icons.warning_amber_rounded), findsNothing);
   });
 
@@ -64,7 +65,8 @@ void main() {
         limits: {'hiking': DayLimit(minM: 20000)},
       ),
     ]);
-    expect(find.text('Day 1'), findsOneWidget);
+    // BY DAY's bar and DAY TIMING's row (#563) both name the day.
+    expect(find.text('Day 1'), findsNWidgets(2));
     expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
   });
 
@@ -83,8 +85,9 @@ void main() {
         limits: {'cycling': DayLimit(maxM: 80000)},
       ),
     ]);
-    expect(find.text('Day 1'), findsOneWidget);
-    expect(find.text('Day 2'), findsOneWidget);
+    // BY DAY's bar and DAY TIMING's row (#563) both name the day.
+    expect(find.text('Day 1'), findsNWidgets(2));
+    expect(find.text('Day 2'), findsNWidgets(2));
     expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
   });
 

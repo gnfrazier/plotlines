@@ -20,6 +20,8 @@ class Day {
     this.kind = 'route',
     this.roles = const {},
     this.date,
+    this.startAt,
+    this.startTimezone,
     this.title,
     this.note,
     this.media = const [],
@@ -46,6 +48,13 @@ class Day {
   /// usually also a route day. Values are `start` | `end`.
   final Set<String> roles;
   final String? date;
+
+  /// Issue #563 — when this day's travel starts, as a UTC `…Z` stamp, and
+  /// the IANA zone the Author declared it in. Set together or not at all
+  /// (the schema's `dependentRequired`); the dashboard's ETA is [startAt]
+  /// plus the day's elapsed time, and with no start there is no ETA.
+  final String? startAt;
+  final String? startTimezone;
   final String? title;
   final String? note;
 
@@ -88,6 +97,8 @@ class Day {
       kind: f.takeString('kind') ?? 'route',
       roles: f.takeStrings('roles').toSet(),
       date: f.takeString('date'),
+      startAt: f.takeString('start_at'),
+      startTimezone: f.takeString('start_timezone'),
       title: f.takeString('title'),
       note: f.takeString('note'),
       media: f.takeList('media', MediaRef.fromJson),
@@ -115,6 +126,8 @@ class Day {
         'kind': kind,
         'roles': roles.isEmpty ? null : roles.toList(),
         'date': date,
+        'start_at': startAt,
+        'start_timezone': startTimezone,
         'title': title,
         'note': note,
         'media': media.isEmpty ? null : media.map((m) => m.toJson()).toList(),
@@ -141,6 +154,9 @@ class Day {
     String? kind,
     Set<String>? roles,
     String? date,
+    String? startAt,
+    String? startTimezone,
+    bool clearStart = false,
     String? title,
     bool clearTitle = false,
     String? note,
@@ -165,6 +181,8 @@ class Day {
         kind: kind ?? this.kind,
         roles: roles ?? this.roles,
         date: date ?? this.date,
+        startAt: clearStart ? null : (startAt ?? this.startAt),
+        startTimezone: clearStart ? null : (startTimezone ?? this.startTimezone),
         title: clearTitle ? null : (title ?? this.title),
         note: clearNote ? null : (note ?? this.note),
         media: media ?? this.media,

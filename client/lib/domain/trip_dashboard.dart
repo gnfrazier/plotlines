@@ -17,14 +17,17 @@
 ///  * it recomputes distance / climb / descent per mode and overall, and fills
 ///    in `movingTimeS` from [modeBaseSpeedKmh] (or a `speeds` override), exactly
 ///    as `dashboard._timed_rollup` does;
+///  * since #563 it also folds each day's station holds (station roles
+///    attached to that day, [dayStationHoldS]) into elapsed time, and sets a
+///    day's ETA from its stored start (`Day.startAt`), exactly as
+///    `build_dashboard` does — both now live on the trip itself;
 ///  * it does **not** reproduce the length-weighted blend of the fractional
-///    terms, C3's limit-breach detection, station/hold durations, or ETA — those
-///    need the server path (holds and start times are not carried on the trip
-///    payload today). `holdS` / `eta` from a local mirror are always null.
+///    terms or C3's limit-breach detection — those need the server path.
 ///
 /// A drift between the arithmetic here and `dashboard.py` is a bug in this file.
 library;
 
+import 'day_start.dart';
 import 'route_metrics.dart';
 import 'segment.dart';
 import 'trip.dart';
@@ -180,18 +183,28 @@ class TripDashboard {
   }) {
     final paceSource = (speeds != null && speeds.isNotEmpty) ? paceCustom : paceSystemDefault;
 
+    final holds = dayStationHoldS(trip);
     final days = <DashboardDayLine>[];
     for (final day in trip.days) {
+      final metrics = _timedRollUp(day.segments, speeds, paceSource, holds[day.id] ?? 0.0);
+      final elapsed = metrics.total?.elapsedTimeS;
+      final start = day.startAt == null ? null : DateTime.tryParse(day.startAt!);
       days.add(DashboardDayLine(
         dayId: day.id,
         index: day.index,
         kind: day.kind,
-        metrics: _timedRollUp(day.segments, speeds, paceSource),
+        metrics: metrics,
+        holdS: holds[day.id],
+        // `dashboard.eta`: start plus elapsed, whole seconds, UTC.
+        eta: (start == null || elapsed == null)
+            ? null
+            : utcStamp(start.add(Duration(microseconds: (elapsed * 1e6).round()))),
       ));
     }
 
     final allSegments = [for (final day in trip.days) ...day.segments];
-    final tripTotal = _timedRollUp(allSegments, speeds, paceSource);
+    final tripHold = holds.values.fold(0.0, (a, b) => a + b);
+    final tripTotal = _timedRollUp(allSegments, speeds, paceSource, tripHold);
 
     DashboardPassageLine? active;
     if (activeSegmentId != null) {
@@ -225,7 +238,16 @@ class TripDashboard {
       activePassage: active,
       days: days,
       tripTotal: tripTotal,
+      tripHoldS: holds.isEmpty ? null : tripHold,
     );
+  }
+
+  /// This dashboard's line for [dayId], or null.
+  DashboardDayLine? dayLine(String dayId) {
+    for (final d in days) {
+      if (d.dayId == dayId) return d;
+    }
+    return null;
   }
 }
 
@@ -233,7 +255,8 @@ class TripDashboard {
 /// distance / climb / descent summed per mode and overall, `movingTimeS` filled
 /// in per mode, and the scope total's `movingTimeS` / `elapsedTimeS` left null
 /// if any contributing mode has no pace (matching `_timed_rollup`).
-RollUp _timedRollUp(List<Segment> segments, Map<String, double>? speeds, String paceSource) {
+RollUp _timedRollUp(
+    List<Segment> segments, Map<String, double>? speeds, String paceSource, double holdS) {
   final byModeDist = <String, ({double dist, double climb, double descent})>{};
   var totalDist = 0.0, totalClimb = 0.0, totalDescent = 0.0;
   var sawSegment = false;
@@ -278,7 +301,8 @@ RollUp _timedRollUp(List<Segment> segments, Map<String, double>? speeds, String 
     climbM: totalClimb,
     descentM: totalDescent,
     movingTimeS: aModeHasNoPace ? null : _round1(totalMoving),
-    elapsedTimeS: aModeHasNoPace ? null : _round1(totalMoving),
+    // The hold belongs to no mode: it lands once, on the scope total.
+    elapsedTimeS: aModeHasNoPace ? null : _round1(totalMoving + holdS),
     paceSource: aModeHasNoPace ? null : paceSource,
   );
   return RollUp(total: total, byMode: byMode);

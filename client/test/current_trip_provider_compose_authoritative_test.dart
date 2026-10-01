@@ -27,6 +27,8 @@ class _FakeRoutingClient extends RoutingClient {
 
   final composeDayCalls = <String>[]; // day kind:index composed, in order
   var assembleTripCallCount = 0;
+  Map<String, double>? lastDayHoldS; // issue #563
+  TripDashboard? dashboard; // issue #563 — returned beside the payload
   RoutingException? composeDayFailure;
 
   // issue #214 — the last two args are the compose spine + A0a readout target;
@@ -78,6 +80,7 @@ class _FakeRoutingClient extends RoutingClient {
     String? tripStartAt,
   }) async {
     assembleTripCallCount++;
+    lastDayHoldS = dayHoldS;
     // split_trip mutates in place: same ids, `metrics.limitBreaches` added.
     final assembled = [
       for (final d in days)
@@ -106,6 +109,7 @@ class _FakeRoutingClient extends RoutingClient {
         metrics: RollUp(total: RouteMetrics(distanceM: 24690)),
       ),
       hazardRollup: const HazardRollup.empty(),
+      dashboard: dashboard,
     );
   }
 }
@@ -286,5 +290,41 @@ void main() {
 
     final row = await db.loadTrip(tripId);
     expect(row, isNotNull);
+  });
+
+  test('#563 — sends each day\'s station holds and keeps the server dashboard for that trip', () async {
+    final server = TripDashboard(
+        tripId: 't1', tripTitle: 'A trip', paceSource: paceSystemDefault, tripTotal: RollUp(), tripHoldS: 5400);
+    final client = _FakeRoutingClient()..dashboard = server;
+    final container = _container(client);
+    addTearDown(container.dispose);
+    final notifier = container.read(currentTripProvider.notifier)
+      ..open(_tripWith([
+        Day(id: 'd1', index: 1, segments: [
+          Segment(id: 's1', mode: 'cycling', shape: 'point_to_point', metrics: RouteMetrics(distanceM: 1000)),
+        ]),
+      ]).copyWith(anchors: [
+        Anchor(id: 'st', title: 'Crag', coord: const [-105.3, 40.0], roles: [
+          Role(
+            id: 'r-st',
+            kind: RoleKind.station,
+            reveal: RevealPolicy.alwaysVisible,
+            activity: StationActivity(activityType: 'climbing', durationS: 5400),
+            dayId: 'd1',
+          ),
+        ]),
+      ]));
+
+    await notifier.composeAuthoritative();
+
+    expect(client.lastDayHoldS, {'d1': 5400.0});
+    final kept = container.read(authoritativeDashboardProvider)!;
+    expect(kept.dashboard, same(server));
+    expect(kept.trip, same(container.read(currentTripProvider)));
+    expect(dashboardFor(container.read(currentTripProvider), kept), same(server));
+
+    notifier.renameTrip('Renamed');
+    expect(dashboardFor(container.read(currentTripProvider), container.read(authoritativeDashboardProvider)),
+        isNot(same(server)), reason: 'an edit falls back to the local mirror until the next save');
   });
 }

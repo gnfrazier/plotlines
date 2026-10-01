@@ -24,8 +24,14 @@ class MetricsRail extends StatefulWidget {
     required this.elevationCapability,
     this.composeItinerary,
     this.displayFormat = const DisplayFormat(),
+    this.dashboard,
   });
   final Trip trip;
+
+  /// D1 / FR31 (issue #563) — the server's dashboard when it was computed for
+  /// exactly [trip] (`dashboardFor`), so the rail shows the authoritative
+  /// numbers after a save. Null falls back to `TripDashboard.fromTrip`.
+  final TripDashboard? dashboard;
   final Segment? selectedSegment;
 
   /// K5 / FR79 (issues #312, #399) — the active display units and clock.
@@ -99,14 +105,20 @@ class _MetricsRailState extends State<MetricsRail> {
       selectedSegment?.elevation?.samples ?? const <double>[],
     );
 
-    // D1 / FR31 / FR16 (issue #213) — the FR16 moving-time model over the trip
-    // as it stands. `build_dashboard` on `/trips/split` is authoritative; this
-    // client mirror keeps the panel populated between saves, the same role
-    // `rollUpTrip` fills for the plain distance sums. ETA needs a start time the
-    // trip payload does not carry yet, so `TripDashboard.fromTrip` never sets
-    // it — the row renders only when the server path supplied one.
-    final dashboard = TripDashboard.fromTrip(trip);
+    // D1 / FR31 / FR16 (issues #213, #563) — the FR16 time model over the trip
+    // as it stands. `build_dashboard` on `/trips/split` is authoritative and is
+    // shown when it was computed for this exact trip; between saves the client
+    // mirror keeps the panel populated. Both fold in station holds and set a
+    // day's ETA from its stored start, so an ETA appears only for a day the
+    // Author gave a start time — never a guessed one.
+    final dashboard = widget.dashboard ?? TripDashboard.fromTrip(trip);
     final tripMovingS = dashboard.tripTotal.total?.movingTimeS;
+    final tripElapsedS = dashboard.tripTotal.total?.elapsedTimeS;
+    final timedDays = [
+      for (final day in trip.days)
+        if (dashboard.dayLine(day.id)?.metrics.total?.elapsedTimeS != null)
+          (day, dashboard.dayLine(day.id)!),
+    ];
     final segment = selectedSegment;
     final passageClimb = segment?.metrics?.climbM ?? segment?.elevation?.ascentM;
     final passageMovingS = segment?.metrics?.distanceM == null
@@ -354,15 +366,20 @@ class _MetricsRailState extends State<MetricsRail> {
                           const SizedBox(width: PlotSpacing.s2),
                           Expanded(
                             child: _StatCard(
-                              label: 'EST. ARRIVAL',
-                              value: dashboard.tripEta == null
-                                  ? '—'
-                                  : formatEta(dashboard.tripEta!, displayFormat),
-                              muted: dashboard.tripEta == null,
+                              label: 'ELAPSED',
+                              value: tripElapsedS == null ? '—' : _formatDuration(tripElapsedS),
+                              muted: tripElapsedS == null,
                             ),
                           ),
                         ],
                       ),
+                      if (timedDays.isNotEmpty) ...[
+                        const SizedBox(height: PlotSpacing.s3),
+                        heading('DAY TIMING'),
+                        const SizedBox(height: PlotSpacing.s1),
+                        for (final (day, line) in timedDays)
+                          _DayTimingRow(day: day, line: line, displayFormat: displayFormat),
+                      ],
                       Padding(
                         padding: const EdgeInsets.only(top: PlotSpacing.s2),
                         child: Text(
@@ -424,18 +441,58 @@ String _formatDuration(double seconds) {
 
 /// An ETA stamp (`2026-09-01T14:30:00Z` from `build_dashboard`) as a clock
 /// time in the Author's 12/24-hour form (`14:30` / `2:30 PM`, FR79 via
-/// issue #399). Falls back to the raw stamp if it is not the shape the
-/// model emits. Rendered in UTC, as the model emits it: nothing in the
-/// client sends `trip_start_at` yet, so which zone an Author's start time
-/// is declared in is a contract still to be made, and converting here
-/// would pre-empt it. Public only so the clock form can be asserted: the
-/// local `TripDashboard.fromTrip` never fills `tripEta`, so no widget test
-/// can reach this branch through the rail yet.
+/// issue #399). With [zone] (#563: the IANA zone the day's start was
+/// declared in) it reads on that zone's wall clock, with the zone's
+/// abbreviation (`10:30 AM EDT`); without one, in UTC, as the model emits
+/// it. Falls back to the raw stamp if it is not the shape the model emits.
 @visibleForTesting
-String formatEta(String iso, DisplayFormat displayFormat) {
+String formatEta(String iso, DisplayFormat displayFormat, {String? zone}) {
   final parsed = DateTime.tryParse(iso);
   if (parsed == null) return iso;
-  return displayFormat.formatTime(parsed.toUtc());
+  final local = zone == null ? null : wallClockIn(iso, zone);
+  if (local == null) return displayFormat.formatTime(parsed.toUtc());
+  return '${displayFormat.formatTime(local)} ${local.timeZoneName}';
+}
+
+/// D1 / FR16 / FR16b (issue #563) — one day's elapsed time (station holds
+/// included) and, when the day has a start time, its ETA on the day's own
+/// clock. A day with no start says so rather than showing an arrival.
+class _DayTimingRow extends StatelessWidget {
+  const _DayTimingRow({required this.day, required this.line, required this.displayFormat});
+  final Day day;
+  final DashboardDayLine line;
+  final DisplayFormat displayFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final elapsed = line.metrics.total!.elapsedTimeS!;
+    final hold = line.holdS;
+    final eta = line.eta;
+    return Padding(
+      key: ValueKey('day-timing-${day.id}'),
+      padding: const EdgeInsets.only(top: PlotSpacing.s1),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Day ${day.index}', style: PlotTypography.small(c.textSecondary)),
+              const Spacer(),
+              Text(_formatDuration(elapsed), style: PlotTypography.data(c.textPrimary)),
+            ],
+          ),
+          Text(
+            eta == null ? 'no start time' : '→ ${formatEta(eta, displayFormat, zone: day.startTimezone)}',
+            style: eta == null ? PlotTypography.small(c.textMuted) : PlotTypography.data(c.textPrimary),
+          ),
+          if (hold != null && hold > 0)
+            Text('incl. ${_formatDuration(hold)} at stations',
+                style: PlotTypography.small(c.textMuted)),
+        ],
+      ),
+    );
+  }
 }
 
 /// #589 — each point the passage must reach, by name, and whether the solved
