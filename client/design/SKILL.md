@@ -87,6 +87,13 @@ out, which is the defect #588 found. **Esc** backs out of any of the three. Sele
 another passage or day, or the passage going away, disarms them too. Abandoning one is
 always free. Node placement also puts a crosshair cursor over the map.
 
+Points a route must reach are one concept on screen (#589). The node editor carries a
+**Route through this** checkbox, which in Compose points the Author to promotion instead.
+The weights rail's ROUTE THROUGH list (Explore) names every via point in order — a node by
+its title, a New Route tap as *Point N* — with reorder and remove. The metrics rail's
+ROUTE THROUGH section reports each one by name, and a miss carries its distance in mono
+beside the warning icon, never a bare *no*.
+
 The trip shell's app bar carries labelled actions, not bare icons: **← Library** (#577),
 **Settings** (#578) and **Save**. Work autosaves while the shell is showing, so leaving
 never prompts; a quiet line beside Save reads *Saving…* / *Saved*, or *Not saved — press

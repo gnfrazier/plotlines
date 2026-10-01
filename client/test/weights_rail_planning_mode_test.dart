@@ -183,7 +183,11 @@ void main() {
     // The spine (via) survives the round trip even though explore doesn't
     // display it as a "SPINE" section — flip back to compose to check.
     await _tap(tester, find.text('COMPOSE'));
-    expect(find.text('Overlook Anchor'), findsOneWidget);
+    // Scoped to the weights rail: since #589 the metrics rail's ROUTE THROUGH
+    // section names the same place.
+    expect(
+        find.descendant(of: find.byType(WeightsRail), matching: find.text('Overlook Anchor')),
+        findsOneWidget);
   });
 
   testWidgets('an authored explore target is never overwritten by the compose backfill',

@@ -228,16 +228,9 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
       _TargetDistanceField(dayId: widget.dayId, segment: segment, mode: mode),
       if (mode == PlanningMode.explore && segment.via.isNotEmpty) ...[
         const SizedBox(height: PlotSpacing.s3),
-        heading('VIA (A9)'),
+        heading('ROUTE THROUGH'),
         const SizedBox(height: PlotSpacing.s2),
-        Wrap(
-          spacing: PlotSpacing.s2,
-          runSpacing: PlotSpacing.s2,
-          children: [
-            for (var i = 0; i < segment.via.length; i++)
-              PlotBadge('Via ${i + 1}', tone: PlotBadgeTone.slate),
-          ],
-        ),
+        _ViaList(dayId: widget.dayId, segment: segment),
       ],
       if (mode == PlanningMode.compose) ...[
         // Unbounded, like BANDS — compose *is* the POI-spine trip
@@ -1195,12 +1188,11 @@ class _SpineEditor extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = PlotColors.of(context);
     final anchors = ref.watch(currentTripProvider.select((t) => t.anchors));
-    String labelFor(Coord coord) {
-      for (final a in anchors) {
-        if (_sameCoord(a.coord, coord)) return a.title ?? 'Untitled place';
-      }
-      return 'Custom point';
-    }
+    // #589 — a node routed through on an Explore pass of the same day reads
+    // by its own name here, not as an anonymous point.
+    String labelFor(Coord coord) =>
+        viaLabel(segment, coord, segment.via.indexWhere((v) => _sameCoord(v, coord)),
+            anchors: anchors);
 
     final available = [
       for (final a in anchors)
@@ -1280,6 +1272,89 @@ class _SpineEditor extends ConsumerWidget {
         else if (anchors.isEmpty)
           Text('Promote a place first (Curation) to add it to this spine.',
               style: PlotTypography.small(c.textMuted)),
+      ],
+    );
+  }
+}
+
+/// #589 — Explore's via list: every point this passage's route must reach,
+/// in the order a re-solve visits them. A routed-through node reads by its
+/// name, and a New Route map tap reads as a numbered point, so the two are one
+/// concept here. Reordering or removing a point goes through
+/// `updateSegmentVia`, which marks the passage stale and keeps the A9a
+/// advisory flag in step. Removing a node's point turns "Route through this"
+/// off and leaves the node where it is.
+class _ViaList extends ConsumerWidget {
+  const _ViaList({required this.dayId, required this.segment});
+  final String dayId;
+  final Segment segment;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = PlotColors.of(context);
+    final anchors = ref.watch(currentTripProvider.select((t) => t.anchors));
+    void setVia(List<Coord> via) =>
+        ref.read(currentTripProvider.notifier).updateSegmentVia(dayId, segment.id, via);
+    final advisory = segment.targetDistance?.advisory ?? false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < segment.via.length; i++)
+          Padding(
+            key: ValueKey('via-row-$i'),
+            padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
+            child: PlotCard(
+              sunk: true,
+              padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
+              child: Row(
+                children: [
+                  Text('${i + 1}.', style: PlotTypography.data(c.textMuted)),
+                  const SizedBox(width: PlotSpacing.s2),
+                  Expanded(
+                    child: Text(viaLabel(segment, segment.via[i], i, anchors: anchors),
+                        style: PlotTypography.body(c.textPrimary)),
+                  ),
+                  IconButton(
+                    tooltip: 'Reach earlier',
+                    icon: const Icon(Icons.arrow_upward, size: 16),
+                    onPressed: i == 0
+                        ? null
+                        : () {
+                            final via = [...segment.via];
+                            via.insert(i - 1, via.removeAt(i));
+                            setVia(via);
+                          },
+                  ),
+                  IconButton(
+                    tooltip: 'Reach later',
+                    icon: const Icon(Icons.arrow_downward, size: 16),
+                    onPressed: i == segment.via.length - 1
+                        ? null
+                        : () {
+                            final via = [...segment.via];
+                            via.insert(i + 1, via.removeAt(i));
+                            setVia(via);
+                          },
+                  ),
+                  IconButton(
+                    tooltip: 'Stop routing through this',
+                    icon: const Icon(Icons.close, size: 16),
+                    onPressed: () => setVia([...segment.via]..removeAt(i)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        // A9a / FR8a — three or more points fix the route's length, so a
+        // banded target becomes a readout rather than a constraint.
+        if (advisory)
+          Text(
+            'With three or more points to reach, the target distance is '
+            'advisory: reported against the route, not used to shape it.',
+            key: const ValueKey('via-advisory'),
+            style: PlotTypography.small(c.textSecondary),
+          ),
       ],
     );
   }
