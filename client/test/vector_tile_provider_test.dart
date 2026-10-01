@@ -13,7 +13,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart'
-    show ProviderException, Retryable, TileIdentity;
+    show ProviderException, Retryable, TileIdentity, VectorTileLayerMode;
 import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
 import 'package:plotlines_client/presentation/map/vector_tile_provider.dart';
@@ -194,6 +194,21 @@ void main() {
       provider.provide(TileIdentity(10, 277, 403)),
       throwsA(isA<ProviderException>().having((e) => e.retryable, 'retryable', Retryable.retry)),
     );
+  });
+
+  // Issue #575 — raster mode drew labels into a tile image scaled with the
+  // camera: they grew between zoom levels and snapped back at each step.
+  test('every map\'s basemap layer renders as vectors, keyed on the archive', () async {
+    final path = '${Directory.current.path}/assets/map_style/style_light.json';
+    final theme = ThemeReader()
+        .read(jsonDecode(await File(path).readAsString()) as Map<String, dynamic>);
+    final layer = basemapVectorLayer(
+        theme: theme, provider: SidecarVectorTileProvider('http://x'), tilesArchiveId: 'a1');
+    expect(layer.layerMode, VectorTileLayerMode.vector);
+    expect(basemapLayerMode, VectorTileLayerMode.vector);
+    expect(layer.key, isNot(basemapVectorLayer(
+            theme: theme, provider: SidecarVectorTileProvider('http://x'), tilesArchiveId: 'a2')
+        .key));
   });
 
   group('basemap raster cache folder (issue #155)', () {
