@@ -13,6 +13,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/data/sidecar_manager.dart';
@@ -224,6 +225,54 @@ void main() {
 
     expect(container.read(selectedSegmentProvider), isNull);
     expect(mapPolyline(), isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  // Issue #578 — nothing in the shell reached `/settings`; an Author had to
+  // leave the trip to change a unit, and a new trip had no way to leave.
+  testWidgets('Settings opens from inside a trip, and Back returns to the same trip and tab',
+      (tester) async {
+    final router = GoRouter(
+      initialLocation: '/plan',
+      routes: [
+        GoRoute(path: '/plan', builder: (_, _) => const TripShellScreen()),
+        GoRoute(
+          path: '/settings',
+          builder: (context, _) => Scaffold(
+            appBar: AppBar(),
+            body: const Text('SETTINGS'),
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+          appDatabaseProvider
+              .overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
+          currentTripProvider.overrideWith((ref) => CurrentTripNotifier(ref)..open(_fixtureTrip())),
+          selectedSegmentProvider.overrideWith((ref) => ('day-1', 'seg-1')),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pump();
+    await _switchTab(tester, 'LOGISTICS');
+
+    await tester.tap(find.text('Settings'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('SETTINGS'), findsOneWidget);
+
+    await tester.pageBack();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('SETTINGS'), findsNothing);
+    expect(find.text('Test Loop'), findsOneWidget);
+    expect(find.text('Add segment'), findsOneWidget); // still on LOGISTICS
     expect(tester.takeException(), isNull);
   });
 }
