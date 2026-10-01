@@ -148,7 +148,15 @@ class CapabilityStatus {
   /// means "not actively loading" in every case `/health` produces. A
   /// disabled control reads this to decide between an honest wait and an
   /// honest "this isn't happening" (FR121: never silent).
-  bool get failed => !ready && !pendingUpstream && progress == null;
+  bool get failed => !ready && !pendingUpstream && !queued && progress == null;
+
+  /// Issue #573 — accepted but not started: the sidecar's bare `"pending"`
+  /// (`CapabilityState.to_dict`, `tiles_capability`), sent with no
+  /// `progress` while a region sits in the settle window or behind another
+  /// build. A wait like any other, never the failure card — the sidecar's
+  /// own queue watchdog (`BUILD_QUEUE_WATCHDOG_S`) replaces it with a named
+  /// reason if the queue genuinely wedges.
+  bool get queued => !ready && reason == 'pending' && progress == null;
 
   factory CapabilityStatus.fromJson(Map<String, dynamic> json) => CapabilityStatus(
         ready: json['ready'] as bool? ?? false,
@@ -189,6 +197,7 @@ class CapabilityStatus {
       return 'No map-data source covers this area, so $capabilityLabel '
           'isn\'t available here.';
     }
+    if (queued) return '$capabilityLabel loading — waiting its turn to start';
     var r = reason ?? 'not ready';
     // The sidecar tags a settled failure `failed:<detail>` (CapabilityState
     // .to_dict). `failed` is derived from `progress == null` now (issue

@@ -134,6 +134,14 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
             icon: const Icon(Icons.crop_free, size: 18),
           ),
           _AutosaveIndicator(status: ref.watch(tripAutosaveProvider)),
+          // Issue #578 — units, basemap style (#465) and the rest are
+          // changed mid-trip, not only from the library. Pushed, so Back
+          // lands on the same trip and tab: the shell stays mounted beneath.
+          TextButton.icon(
+            onPressed: () => context.push('/settings'),
+            icon: const Icon(Icons.settings_outlined, size: 18),
+            label: const Text('Settings'),
+          ),
           TextButton.icon(
             onPressed: () async {
               await ref.read(tripPersistenceProvider).save();

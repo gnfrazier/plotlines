@@ -7,6 +7,7 @@ import '../data/app_database.dart' show TripCardMetrics, TripRow;
 import '../domain/cluster_proposal.dart';
 import '../domain/domain.dart';
 import '../domain/promote.dart' as domain_promote show promoteAnchor;
+import '../domain/trip_bbox.dart';
 import 'planner_ui_state.dart'
     show
         PlanningMode,
@@ -1960,6 +1961,7 @@ class TripPersistence {
       payloadJson: _encode(trip),
       rosterJson: _encodeRoster(roster),
       summaryJson: _summaryFor(trip, roster).toJsonString(),
+      bboxJson: _encodeBbox(_ref.read(tripBboxProvider)),
       updatedAt: DateTime.now(),
     );
     _ref.invalidate(tripLibraryProvider);
@@ -1983,12 +1985,15 @@ class TripPersistence {
     // comment) — a reopened trip starts without whatever was set for the
     // trip open before it, rather than inheriting a stale value. (Travel
     // modes used to be session-only too; FR144/N0 promoted them to
-    // `Trip.modes` above, which *does* survive reopening.) The trip
-    // bbox is the same accepted limitation (trip_bbox_provider.dart) — a
-    // reopened trip needs the "Trip area" action (trip_shell_screen.dart) to
-    // redraw it before anything bbox-scoped can run again.
+    // `Trip.modes` above, which *does* survive reopening.)
     _ref.read(tripAuthoringMetaProvider.notifier).reset();
-    _ref.read(tripBboxProvider.notifier).reset();
+    // Issue #570 — the trip bbox comes back from its own column (ARCH D70),
+    // which re-requests the trip's routing region through the settle window
+    // like any accepted bbox. A row with none (never drawn, or saved before
+    // v7) still clears the previous trip's.
+    final bbox = _decodeBbox(row.bbox);
+    final bboxes = _ref.read(tripBboxProvider.notifier);
+    bbox == null ? bboxes.reset() : bboxes.set(bbox);
     // The candidate set was extracted for the previous trip's bbox (#316);
     // it must not reappear on this trip's Layers tab, promotable here.
     _ref.read(tripCandidatesProvider.notifier).reset();
@@ -2041,6 +2046,9 @@ class TripPersistence {
       payloadJson: _encode(outcome.trip),
       rosterJson: _encodeRoster(outcome.roster),
       summaryJson: _summaryFor(outcome.trip, outcome.roster).toJsonString(),
+      // The bbox belongs to the authored trip (#570): a clone that carries
+      // it carries its extent; one that runs trip initiation draws its own.
+      bboxJson: outcome.runsTripInitiation ? '' : row.bbox,
       updatedAt: DateTime.now(),
     );
     _ref.invalidate(tripLibraryProvider);
@@ -2088,6 +2096,23 @@ TripCardMetrics _summaryFor(Trip trip, TripRoster roster) => TripCardMetrics(
     );
 
 final tripPersistenceProvider = Provider((ref) => TripPersistence(ref));
+
+/// `TripBbox` ↔ `Trips.bbox` (#570): `[west, south, east, north]`, empty for
+/// none. A malformed value reads as not drawn — the Author redraws it, the
+/// same as before v7 — rather than failing the whole trip's open.
+String _encodeBbox(TripBbox? b) => b == null ? '' : jsonEncode(b.bboxWsen);
+
+TripBbox? _decodeBbox(String json) {
+  if (json.isEmpty) return null;
+  try {
+    final v = (jsonDecode(json) as List).cast<num>();
+    if (v.length != 4 || v[0] > v[2] || v[1] > v[3]) return null;
+    return TripBbox(
+        minLon: v[0].toDouble(), minLat: v[1].toDouble(), maxLon: v[2].toDouble(), maxLat: v[3].toDouble());
+  } catch (_) {
+    return null;
+  }
+}
 
 TripRoster _decodeRoster(String json) => json.isEmpty
     ? TripRoster.empty

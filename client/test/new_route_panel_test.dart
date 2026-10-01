@@ -80,6 +80,9 @@ class _RecordingRoutingClient extends RoutingClient {
 
   final List<String?> disciplines = [];
 
+  /// #574 — when set, every `generateSegment` throws this instead.
+  RoutingException? failWith;
+
   @override
   Future<String> ensureRegion(List<double> bboxWsen,
           {String networkType = 'bike', bool retry = false}) async =>
@@ -99,6 +102,7 @@ class _RecordingRoutingClient extends RoutingClient {
     double? targetM,
   }) async {
     disciplines.add(discipline);
+    if (failWith != null) throw failWith!;
     return Segment(
       id: 'solved-1',
       mode: mode,
@@ -556,6 +560,59 @@ void main() {
     await _settle(tester);
 
     expect(client.disciplines, ['gravel']);
+  });
+
+  // ---- #574: a failed Generate says what actually failed ------------------
+
+  /// Drives a point-to-point Generate against a ready region whose solve
+  /// throws [failure].
+  Future<void> generateFailing(WidgetTester tester, RoutingException failure) async {
+    final client = _RecordingRoutingClient()..failWith = failure;
+    await _pumpPanel(tester, extraOverrides: [
+      routingClientProvider.overrideWithValue(client),
+      sidecarManagerProvider.overrideWith((ref) => _RoutingReadySidecarManager()),
+      tripBboxProvider.overrideWith((ref) => TripBboxNotifier()
+        ..set(const TripBbox(
+            minLat: 40.0, minLon: -105.3, maxLat: 40.1, maxLon: -105.2))),
+      tripRegionKeyProvider.overrideWith(
+          (ref) => TripRegionKeyNotifier(ref, settleWindow: Duration.zero)),
+    ]);
+    await _settle(tester);
+    final map = tester.widget<TapToPickMap>(find.byType(TapToPickMap));
+    await tester.ensureVisible(find.widgetWithText(PlotToggleChip, 'point to point'));
+    await tester.tap(find.widgetWithText(PlotToggleChip, 'point to point'));
+    await _settle(tester);
+    map.onTap!(const [-105.27, 40.02]);
+    map.onTap!(const [-105.20, 40.05]);
+    await _settle(tester);
+    await _pickPassageMode(tester, 'Ride');
+    await tester.ensureVisible(find.text('Generate route'));
+    await tester.tap(find.text('Generate route'));
+    await _settle(tester);
+  }
+
+  // Pi QA of #522 saw "This area doesn't have routable data" on a ready
+  // region whose solve had failed for another reason: every failure, even a
+  // geocode one, rendered that one banner.
+  testWidgets('a solve that fails for another reason shows that reason, not "no routable data"',
+      (tester) async {
+    await generateFailing(
+        tester, RoutingException(422, '{"detail": "No route between those points."}'));
+
+    expect(find.text('This area doesn\'t have routable data'), findsNothing);
+    expect(find.text('No route between those points.'), findsOneWidget);
+  });
+
+  testWidgets('a point outside the trip area\'s routing data still says so', (tester) async {
+    await generateFailing(
+        tester,
+        RoutingException(
+            422,
+            '{"detail": "(40.5, -105.27) is 45.0 km from the nearest graph node — '
+            'outside this graph\'s region (max snap 3.0 km)"}'));
+
+    expect(find.text('This area doesn\'t have routable data'), findsOneWidget);
+    expect(find.textContaining('nearest graph node'), findsNothing);
   });
 
   // ---- #399: the DATES chip reads in the Author's date format --------------

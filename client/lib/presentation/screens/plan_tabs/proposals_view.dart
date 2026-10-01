@@ -52,7 +52,7 @@ class ProposalsView extends ConsumerWidget {
           child: CandidateMap(
             candidates: const [],
             bbox: bbox,
-            // #572 — no bbox (every reopened trip until #570) frames the
+            // #572 — no bbox (never drawn, or saved before #570) frames the
             // trip's own geometry, not the home region.
             initialCameraFit: bbox == null ? tripFramingFit(trip) : null,
             // #410 — a promoted proposal's anchor is drawn where the

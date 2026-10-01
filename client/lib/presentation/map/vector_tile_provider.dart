@@ -15,10 +15,11 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/widgets.dart' show ValueKey;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
-import 'package:vector_tile_renderer/vector_tile_renderer.dart' show VectorTileReader;
+import 'package:vector_tile_renderer/vector_tile_renderer.dart' show Theme, VectorTileReader;
 
 /// The deepest zoom the basemap archive is built to. Held here rather than
 /// repeated as a literal on every `VectorTileLayer`, so the provider and
@@ -32,6 +33,40 @@ import 'package:vector_tile_renderer/vector_tile_renderer.dart' show VectorTileR
 /// #230 A3, `e83a744`), not over-zoom — no change is needed here, and the
 /// archive only reaches z15 so the ceiling itself cannot move.
 const int basemapMaximumZoom = 15;
+
+/// Issue #575 — how the basemap is drawn. `vector_map_tiles` defaults to
+/// [VectorTileLayerMode.raster], which renders each tile — labels included —
+/// to an image at its integer zoom and then scales that image with the
+/// camera: between two zoom levels every label grows with the map (up to
+/// ~2×) and snaps back when the next level's tiles replace it (Pi QA of
+/// #321, East Wendover Ave across one step). [VectorTileLayerMode.vector]
+/// re-renders at the camera's zoom and counter-scales text by the fractional
+/// zoom (`vector_tile_renderer`'s `TextRenderer` divides `text-size` by
+/// `zoomScaleFactor`), so a label holds its size between levels. The trade
+/// the library names is frame rate; a desktop Author map is the case it
+/// suits.
+const VectorTileLayerMode basemapLayerMode = VectorTileLayerMode.vector;
+
+/// The one basemap layer every map draws (`TapToPickMap`, `TripAreaMap`,
+/// `CandidateMap`), so the render mode and the archive-keyed reload can't
+/// drift between them. Issue #522 — `archive` moves when a region's
+/// basemap lands (a mirror fill included, #455/#519): a fresh layer
+/// re-requests every tile, so the map fills in with no Author action.
+VectorTileLayer basemapVectorLayer({
+  required Theme theme,
+  required VectorTileProvider provider,
+  required String? tilesArchiveId,
+}) =>
+    VectorTileLayer(
+      key: ValueKey('basemap-$tilesArchiveId'),
+      theme: theme,
+      tileProviders: TileProviders({'protomaps': provider}),
+      layerMode: basemapLayerMode,
+      // Raster mode only — kept so a switch back keeps its ceiling. In
+      // vector mode the provider's own `maximumZoom` caps the request.
+      maximumZoom: basemapMaximumZoom.toDouble(),
+      cacheFolder: basemapCacheFolderCallback(tilesArchiveId),
+    );
 
 /// Reads tiles from the sidecar rather than local disk. `baseUrl` is the
 /// same `SidecarManager.baseUrl` every other client (`RoutingClient`,

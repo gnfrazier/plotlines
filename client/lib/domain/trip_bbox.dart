@@ -1,12 +1,10 @@
 // N1 (PRD FR120) — the trip's authoring bbox, drawn by the Author at trip
-// initiation and revisable throughout authoring. **Not yet part of
-// `trip_payload.schema.json`**: the v2.0 schema growth that adds a bbox
-// field is called out in `docs/Plotlines_ARCHITECTURE_v2.md` (§11.6, D41)
-// as "a schema version bump with a migration, not an additive edit" bundled
-// with anchors/roles/polygons/arc-on-passages — none of which exist in this
-// codebase yet. This type is deliberately outside `domain/domain.dart`'s
-// schema-backed barrel for that reason; see `state/trip_bbox_provider.dart`
-// for how it's held for now.
+// initiation and revisable throughout authoring. **Not part of
+// `trip_payload.schema.json`**: it is local trip metadata, persisted in its
+// own `Trips.bbox` column beside the payload (ARCH D70, #570 — the D64
+// pattern `Trip.modes` set). This type is deliberately outside
+// `domain/domain.dart`'s schema-backed barrel for that reason; see
+// `state/trip_bbox_provider.dart` for how it's held in a session.
 //
 // Distinct from `HomeRegion` (A10's shipped constant) and from the offline
 // corridor buffer (C14, Character-side) — this is the one extent that

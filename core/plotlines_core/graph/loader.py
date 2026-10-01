@@ -148,12 +148,20 @@ def elevation_biased_node(graph: nx.MultiDiGraph, lat: float, lon: float,
     hill to find. A climbing weight with no say in anchor placement is a weight with
     almost no leverage. `bias` is `WeightProfile.peaks`: positive pulls anchors uphill,
     negative pulls them onto the flat, zero reproduces `nearest_node` exactly.
+
+    Never guarded by `nearest_node`'s wrong-region `max_snap_m` (issue #574):
+    every caller passes a *synthesised* point — a loop's shaping ring, an
+    out-and-back's searched turnaround — that a long target can push past
+    the graph's edge. Such a point snaps to the nearest node the graph has,
+    and the solve returns its closest achievable shape; the biased branch
+    below never had the guard either. Points the Author placed are snapped
+    by the callers through the guarded `nearest_node`.
     """
     if not bias or radius_m <= 0:
-        return nearest_node(graph, lat, lon)
+        return nearest_node(graph, lat, lon, max_snap_m=None)
     elev = _elevations(graph)
     if elev is None:
-        return nearest_node(graph, lat, lon)
+        return nearest_node(graph, lat, lon, max_snap_m=None)
 
     ids, dist = _distances(graph, lat, lon)
     near = dist <= radius_m
