@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
@@ -29,6 +30,7 @@ import '../../widgets/alternate_move_bar.dart';
 import '../../widgets/day_timeline_strip.dart';
 import '../../widgets/metrics_rail.dart';
 import '../../widgets/node_editor_sheet.dart';
+import '../../widgets/node_placement_bar.dart';
 import '../../widgets/weights_rail.dart';
 
 /// Every day's segment endpoints plus every authored node, each tagged with
@@ -142,7 +144,43 @@ class RouteTab extends ConsumerStatefulWidget {
 }
 
 class _RouteTabState extends ConsumerState<RouteTab> {
-  bool _addingNode = false;
+  /// #588 — the passage node placement is armed on, or null when it is not.
+  /// Held as the passage rather than a bare flag so a change of selection can
+  /// be told apart from the passage it was armed for: a tap after the Author
+  /// has moved to another passage, day or tab must never place a node on the
+  /// one they left.
+  (String dayId, String segmentId)? _placingOn;
+  bool get _addingNode => _placingOn != null;
+
+  /// #588 — holds keyboard focus while a map gesture is in hand, so Esc backs
+  /// out of it. The button that armed the gesture is replaced by the gesture's
+  /// panel, which would otherwise leave focus nowhere.
+  final FocusNode _gestureFocus = FocusNode(debugLabel: 'route-tab map gesture');
+
+  @override
+  void dispose() {
+    _gestureFocus.dispose();
+    super.dispose();
+  }
+
+  void _focusGesture() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _gestureFocus.requestFocus();
+    });
+  }
+
+  /// #588 — Esc backs out of whichever map gesture is in hand. Every one of
+  /// them is free to abandon: none has reached the trip yet.
+  void _cancelGesture() {
+    if (_placingOn == null && _altDraft == null && _altEdit == null) return;
+    setState(() {
+      _placingOn = null;
+      _altDraft = null;
+      _altDraftOn = null;
+      _altEdit = null;
+      _altEditOn = null;
+    });
+  }
 
   /// #324 — the divergence being drawn, and the passage it is being drawn on.
   /// Alternate creation *starts* here, on the map, on a day that already has a
@@ -158,20 +196,28 @@ class _RouteTabState extends ConsumerState<RouteTab> {
   AlternateEdit? _altEdit;
   (String dayId, String segmentId)? _altEditOn;
 
-  /// Selecting a different passage abandons a half-drawn divergence or a
-  /// half-finished move: a fork measured along one line means nothing on
-  /// another. Nothing authored is lost either way — a draft has not reached
-  /// the trip yet, and a move has not been saved.
-  void _syncDraftToSelection((String, String)? selected) {
-    if (_altDraft != null &&
-        (_altDraftOn == null || selected == null || _altDraftOn != selected)) {
+  /// Selecting a different passage abandons a half-drawn divergence, a
+  /// half-finished move, or armed node placement: a fork measured along one
+  /// line means nothing on another, and a node meant for one passage must not
+  /// land on the next (#588). A day switch moves the selection too (#323), so
+  /// it is covered here. So is the passage going away under the selection —
+  /// an undo, a removal — which leaves the selection naming nothing
+  /// ([selectedExists] false). Nothing authored is lost either way — a draft
+  /// has not reached the trip yet, a move has not been saved, and placement
+  /// has placed nothing.
+  void _syncDraftToSelection((String, String)? selected, {required bool selectedExists}) {
+    bool stale((String, String)? on) =>
+        on == null || selected == null || on != selected || !selectedExists;
+    if (_altDraft != null && stale(_altDraftOn)) {
       _altDraft = null;
       _altDraftOn = null;
     }
-    if (_altEdit != null &&
-        (_altEditOn == null || selected == null || _altEditOn != selected)) {
+    if (_altEdit != null && stale(_altEditOn)) {
       _altEdit = null;
       _altEditOn = null;
+    }
+    if (_placingOn != null && stale(_placingOn)) {
+      _placingOn = null;
     }
   }
 
@@ -227,12 +273,13 @@ class _RouteTabState extends ConsumerState<RouteTab> {
     }
     if (alternate == null) return;
     setState(() {
-      _addingNode = false;
+      _placingOn = null;
       _altDraft = null;
       _altDraftOn = null;
       _altEdit = AlternateEdit.of(alternate!, route!);
       _altEditOn = (dayId, segmentId);
     });
+    _focusGesture();
   }
 
   /// Save the moved path. FR140/D-O: nothing authored was lost, so nothing is
@@ -290,7 +337,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
     final focusCoord =
         nodeCoordById(widget.trip, ref.watch(selectedNodeIdProvider));
 
-    _syncDraftToSelection(selected);
+    _syncDraftToSelection(selected, selectedExists: selectedSegment != null);
     // #344 — a `Move on the map` asked for from the Logistics tab's ALTERNATES
     // list: the request survives the tab switch, and is consumed the moment the
     // gesture opens so it cannot re-fire on the next rebuild.
@@ -316,147 +363,178 @@ class _RouteTabState extends ConsumerState<RouteTab> {
           child: Column(
             children: [
               Expanded(
-                child: Stack(
-                  children: [
-                    TapToPickMap(
-                      points: routeTabMarkerPoints(widget.trip),
-                      // #410 — every promoted anchor, at its own coordinate.
-                      anchors: anchorMapPoints(widget.trip.anchors),
-                      polyline: routeCoords ?? const [],
-                      polylineArcStage: selectedSegment?.arcStage,
-                      leaderLines: routeTabLeaderLines(selectedSegment),
-                      // #324 — the divergence as it is being drawn or moved:
-                      // the path dashed, the stretch of the day it stands in
-                      // for cased underneath, and a mark at each end.
-                      draftLine: draft?.previewLine ?? edit?.previewLine ?? const [],
-                      replacedStretch:
-                          draft?.canonStretch ?? edit?.canonStretch ?? const [],
-                      // #344 — every other alternate on the passage stays
-                      // drawn, muted, so the day's divergences are visible
-                      // while one of them is in hand.
-                      alternateLines:
-                          alternateLinesFor(selectedSegment, exceptId: edit?.alternateId),
-                      annotations: [
-                        if (draft?.leavesPoint != null)
-                          (
-                            coord: draft!.leavesPoint!,
-                            marker: const AlternateEndpointMarker(AlternateEndpoint.fork),
+                // #588 — Esc backs out of whichever map gesture is in hand.
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.escape): _cancelGesture,
+                  },
+                  child: Focus(
+                    focusNode: _gestureFocus,
+                    child: Stack(
+                      children: [
+                        // #588 — while placement is armed the map wears a
+                        // crosshair, so the mode reads on the map itself and not
+                        // only in the panel.
+                        MouseRegion(
+                          cursor: _addingNode ? SystemMouseCursors.precise : MouseCursor.defer,
+                          child: TapToPickMap(
+                            points: routeTabMarkerPoints(widget.trip),
+                            // #410 — every promoted anchor, at its own coordinate.
+                            anchors: anchorMapPoints(widget.trip.anchors),
+                            polyline: routeCoords ?? const [],
+                            polylineArcStage: selectedSegment?.arcStage,
+                            leaderLines: routeTabLeaderLines(selectedSegment),
+                            // #324 — the divergence as it is being drawn or moved:
+                            // the path dashed, the stretch of the day it stands in
+                            // for cased underneath, and a mark at each end.
+                            draftLine: draft?.previewLine ?? edit?.previewLine ?? const [],
+                            replacedStretch:
+                                draft?.canonStretch ?? edit?.canonStretch ?? const [],
+                            // #344 — every other alternate on the passage stays
+                            // drawn, muted, so the day's divergences are visible
+                            // while one of them is in hand.
+                            alternateLines:
+                                alternateLinesFor(selectedSegment, exceptId: edit?.alternateId),
+                            annotations: [
+                              if (draft?.leavesPoint != null)
+                                (
+                                  coord: draft!.leavesPoint!,
+                                  marker: const AlternateEndpointMarker(AlternateEndpoint.fork),
+                                ),
+                              if (draft?.rejoinsPoint != null)
+                                (
+                                  coord: draft!.rejoinsPoint!,
+                                  marker: const AlternateEndpointMarker(AlternateEndpoint.rejoin),
+                                ),
+                              if (edit?.leavesPoint != null)
+                                (
+                                  coord: edit!.leavesPoint!,
+                                  marker: const AlternateEndpointMarker(AlternateEndpoint.fork),
+                                ),
+                              if (edit?.rejoinsPoint != null)
+                                (
+                                  coord: edit!.rejoinsPoint!,
+                                  marker: const AlternateEndpointMarker(AlternateEndpoint.rejoin),
+                                ),
+                            ],
+                            focusCoord: focusCoord,
+                            onTap: draft != null
+                                ? (point) => setState(() => _altDraft = draft.tap(point))
+                                : edit != null
+                                    ? (point) => setState(() => _altEdit = edit.tap(point))
+                                    : _placingOn == null
+                                    ? null
+                                    : (point) async {
+                                        // #588 — the passage placement was armed on,
+                                        // never whatever happens to be selected now.
+                                        final on = _placingOn!;
+                                        setState(() => _placingOn = null);
+                                        final saved = await showNodeEditorSheet(
+                                          context,
+                                          dayId: on.$1,
+                                          segmentId: on.$2,
+                                          coord: point,
+                                          routeGeometry: routeCoords,
+                                        );
+                                        // #322 — select and reveal the node just placed.
+                                        if (saved != null && mounted) {
+                                          ref.read(selectedNodeIdProvider.notifier).state =
+                                              saved.id;
+                                        }
+                                      },
                           ),
-                        if (draft?.rejoinsPoint != null)
-                          (
-                            coord: draft!.rejoinsPoint!,
-                            marker: const AlternateEndpointMarker(AlternateEndpoint.rejoin),
-                          ),
-                        if (edit?.leavesPoint != null)
-                          (
-                            coord: edit!.leavesPoint!,
-                            marker: const AlternateEndpointMarker(AlternateEndpoint.fork),
-                          ),
-                        if (edit?.rejoinsPoint != null)
-                          (
-                            coord: edit!.rejoinsPoint!,
-                            marker: const AlternateEndpointMarker(AlternateEndpoint.rejoin),
+                        ),
+                        if (draft != null)
+                          Positioned(
+                            top: PlotSpacing.s3,
+                            right: PlotSpacing.s3,
+                            child: AlternateDraftBar(
+                              draft: draft,
+                              displayFormat: ref.watch(displayFormatProvider),
+                              onUndo: draft.fork == null
+                                  ? null
+                                  : () => setState(() => _altDraft = draft.undoLast()),
+                              onCancel: () => setState(() {
+                                _altDraft = null;
+                                _altDraftOn = null;
+                              }),
+                              onCreate: draft.isComplete
+                                  ? () => _createAlternate(
+                                      draft, _altDraftOn!.$1, _altDraftOn!.$2)
+                                  : null,
+                            ),
+                          )
+                        else if (edit != null)
+                          Positioned(
+                            top: PlotSpacing.s3,
+                            right: PlotSpacing.s3,
+                            child: AlternateMoveBar(
+                              edit: edit,
+                              label: _alternateLabel(selectedSegment, edit.alternateId),
+                              displayFormat: ref.watch(displayFormatProvider),
+                              onGrab: (handle, index) =>
+                                  setState(() => _altEdit = edit.grab(handle, index: index)),
+                              onAddPoint: () => setState(
+                                  () => _altEdit = edit.grab(AlternateHandle.newShapePoint)),
+                              onRemovePoint: edit.handle == AlternateHandle.shapePoint
+                                  ? () => setState(
+                                      () => _altEdit = edit.removeGrabbedShapePoint())
+                                  : null,
+                              onCancel: () => setState(() {
+                                _altEdit = null;
+                                _altEditOn = null;
+                              }),
+                              onDone: edit.isComplete
+                                  ? () => _finishAlternateMove(
+                                      edit, _altEditOn!.$1, _altEditOn!.$2)
+                                  : null,
+                            ),
+                          )
+                        else if (_placingOn != null)
+                          Positioned(
+                            top: PlotSpacing.s3,
+                            right: PlotSpacing.s3,
+                            child: NodePlacementBar(
+                              onCancel: () => setState(() => _placingOn = null),
+                            ),
+                          )
+                        else if (selected != null)
+                          Positioned(
+                            top: PlotSpacing.s3,
+                            right: PlotSpacing.s3,
+                            child: Row(
+                              children: [
+                                if (canDraftAlternate)
+                                  PlotButton(
+                                    label: 'Add alternate',
+                                    icon: Icons.alt_route,
+                                    variant: PlotButtonVariant.secondary,
+                                    onPressed: () {
+                                      setState(() {
+                                        _placingOn = null;
+                                        _altDraft = AlternateDraft.on(routeCoords!);
+                                        _altDraftOn = selected;
+                                      });
+                                      _focusGesture();
+                                    },
+                                  ),
+                                const SizedBox(width: PlotSpacing.s2),
+                                // #588 — arms placement and gives way to the
+                                // placement panel; the panel is the way out.
+                                PlotButton(
+                                  label: 'Add node',
+                                  icon: Icons.add_location_alt_outlined,
+                                  onPressed: () {
+                                    setState(() => _placingOn = selected);
+                                    _focusGesture();
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                       ],
-                      focusCoord: focusCoord,
-                      onTap: draft != null
-                          ? (point) => setState(() => _altDraft = draft.tap(point))
-                          : edit != null
-                              ? (point) => setState(() => _altEdit = edit.tap(point))
-                              : (!_addingNode || selected == null)
-                              ? null
-                              : (point) async {
-                                  setState(() => _addingNode = false);
-                                  final saved = await showNodeEditorSheet(
-                                    context,
-                                    dayId: selected.$1,
-                                    segmentId: selected.$2,
-                                    coord: point,
-                                    routeGeometry: routeCoords,
-                                  );
-                                  // #322 — select and reveal the node just placed.
-                                  if (saved != null && mounted) {
-                                    ref.read(selectedNodeIdProvider.notifier).state =
-                                        saved.id;
-                                  }
-                                },
                     ),
-                    if (draft != null)
-                      Positioned(
-                        top: PlotSpacing.s3,
-                        right: PlotSpacing.s3,
-                        child: AlternateDraftBar(
-                          draft: draft,
-                          displayFormat: ref.watch(displayFormatProvider),
-                          onUndo: draft.fork == null
-                              ? null
-                              : () => setState(() => _altDraft = draft.undoLast()),
-                          onCancel: () => setState(() {
-                            _altDraft = null;
-                            _altDraftOn = null;
-                          }),
-                          onCreate: draft.isComplete
-                              ? () => _createAlternate(
-                                  draft, _altDraftOn!.$1, _altDraftOn!.$2)
-                              : null,
-                        ),
-                      )
-                    else if (edit != null)
-                      Positioned(
-                        top: PlotSpacing.s3,
-                        right: PlotSpacing.s3,
-                        child: AlternateMoveBar(
-                          edit: edit,
-                          label: _alternateLabel(selectedSegment, edit.alternateId),
-                          displayFormat: ref.watch(displayFormatProvider),
-                          onGrab: (handle, index) =>
-                              setState(() => _altEdit = edit.grab(handle, index: index)),
-                          onAddPoint: () => setState(
-                              () => _altEdit = edit.grab(AlternateHandle.newShapePoint)),
-                          onRemovePoint: edit.handle == AlternateHandle.shapePoint
-                              ? () => setState(
-                                  () => _altEdit = edit.removeGrabbedShapePoint())
-                              : null,
-                          onCancel: () => setState(() {
-                            _altEdit = null;
-                            _altEditOn = null;
-                          }),
-                          onDone: edit.isComplete
-                              ? () => _finishAlternateMove(
-                                  edit, _altEditOn!.$1, _altEditOn!.$2)
-                              : null,
-                        ),
-                      )
-                    else if (selected != null)
-                      Positioned(
-                        top: PlotSpacing.s3,
-                        right: PlotSpacing.s3,
-                        child: Row(
-                          children: [
-                            if (canDraftAlternate)
-                              PlotButton(
-                                label: 'Add alternate',
-                                icon: Icons.alt_route,
-                                variant: PlotButtonVariant.secondary,
-                                onPressed: () => setState(() {
-                                  _addingNode = false;
-                                  _altDraft = AlternateDraft.on(routeCoords!);
-                                  _altDraftOn = selected;
-                                }),
-                              ),
-                            const SizedBox(width: PlotSpacing.s2),
-                            PlotButton(
-                              label: _addingNode ? 'Tap map to place node…' : 'Add node',
-                              icon: Icons.add_location_alt_outlined,
-                              variant: _addingNode
-                                  ? PlotButtonVariant.secondary
-                                  : PlotButtonVariant.primary,
-                              onPressed: () => setState(() => _addingNode = !_addingNode),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               ),
               Divider(height: 1, color: c.border),

@@ -78,6 +78,15 @@ secondary body text — never gold text, never error styling. Waits are not fail
 region queued for its build (#573) or an area the mirror is still fetching (#522) shows the
 quiet hourglass notice, never the error card with *Try again*.
 
+A map gesture in progress on the Route tab is shown one way: a gesture panel in the
+map's top-right corner, in place of the buttons that started it, with a mono heading, one
+line of instruction and an explicit **Cancel**. Three gestures use it:
+`AlternateDraftBar` (#324), `AlternateMoveBar` (#344) and `NodePlacementBar` (#588).
+Never relabel the arming button into an instruction (`Tap map to…`). That leaves no way
+out, which is the defect #588 found. **Esc** backs out of any of the three. Selecting
+another passage or day, or the passage going away, disarms them too. Abandoning one is
+always free. Node placement also puts a crosshair cursor over the map.
+
 The trip shell's app bar carries labelled actions, not bare icons: **← Library** (#577),
 **Settings** (#578) and **Save**. Work autosaves while the shell is showing, so leaving
 never prompts; a quiet line beside Save reads *Saving…* / *Saved*, or *Not saved — press
