@@ -533,17 +533,28 @@ def _read_mirror_capability(source: str) -> dict:
                 "error": f"mirror state is malformed: {type(exc).__name__}"}
 
 
-#: Issue #490. `LayerRegistry.fetch_candidates_all`'s Overpass round trip
-#: (through `plotlines_core.osm_identity.OSM_SETTINGS_LOCK`) can run for the
-#: length of a full attempt regardless of what osmnx does internally — no
-#: caller-side deadline in `curation/providers.py` covers the request itself,
-#: only the wait for the lock. `GET /candidates` is a sync FastAPI endpoint
-#: on the shared thread pool `/health`/`/layers`/`/tiles` also answer on, so
-#: that work runs on its own pool instead (`Readiness._candidate_fetch_pool`)
-#: and this constant is the deadline this call gives up at — generous margin
-#: over `OVERPASS_LOCK_TIMEOUT_S` plus one ordinary Overpass query, so the
-#: common case never trips it, same #488 shape as `_MIRROR_STATE_FETCH_TIMEOUT_S`.
-_CANDIDATE_FETCH_TIMEOUT_S = 60.0
+#: Issue #490. `LayerRegistry.fetch_candidates_all` can run for minutes —
+#: an Overpass round trip on the fallback, or since #275 a local-clip parse
+#: through `osmnx.features_from_xml` (48.6 s idle for a Greensboro-sized
+#: bbox, #590, and slower while the app and a region build share the CPU).
+#: `GET /candidates` is a sync FastAPI endpoint on the shared thread pool
+#: `/health`/`/layers`/`/tiles` also answer on, so that work runs on its own
+#: pool (`Readiness._candidate_fetch_pool`) and this constant is how long one
+#: *request* waits on it — the #488 shape, same as
+#: `_MIRROR_STATE_FETCH_TIMEOUT_S`. Since #590 running out this wait is not a
+#: failure: the fetch is owned by `CandidateFetchJobs`, the request answers
+#: every layer `loading`, and the client asks again. Well under the client's
+#: own `CurationClient.candidatesTimeout` (75 s).
+_CANDIDATE_FETCH_TIMEOUT_S = 15.0
+
+#: Issue #590. How long a candidate fetch may stay unfinished, counted from
+#: when it was asked for, before it is reported stuck —
+#: `failed:candidate_fetch_timed_out` — and dropped so the next request
+#: starts afresh. Deliberately not a multiple of the measured parse: a fixed
+#: figure only moves the edge as the bbox grows (a WNC-corridor clip parses
+#: well past any one number). Sized like `BUILD_QUEUE_WATCHDOG_S`, to catch a
+#: wedged worker rather than a slow one.
+_CANDIDATE_FETCH_WATCHDOG_S = 600.0
 
 
 #: Issue #493. Bounds the dedicated single-worker pool's wait for the actual
@@ -575,24 +586,84 @@ def _geocode_via_nominatim(query: str, pool: ThreadPoolExecutor):
         return future.result(timeout=_GEOCODE_FETCH_TIMEOUT_S)
 
 
+class CandidateFetchJobs:
+    """Owns each candidate fetch from the request that starts it until a
+    request collects its result — issue #590.
+
+    Before #590 a fetch that outran `_CANDIDATE_FETCH_TIMEOUT_S` was
+    abandoned and the request reported every layer
+    `failed:candidate_fetch_timed_out`, while the fetch carried on, finished
+    and wrote the L2 cache: the first load read as failed while the work was
+    succeeding. Now a fetch is single-flight per (bbox, layer set) and kept:
+    a request waits up to `_CANDIDATE_FETCH_TIMEOUT_S` for it, answers
+    `loading` if it is still running, and the next request for the same key
+    joins the same fetch instead of queueing a second one. Only a fetch still
+    unfinished `_CANDIDATE_FETCH_WATCHDOG_S` after it was asked for is
+    reported stuck and dropped. All work stays on `pool`; nothing here runs
+    on a request thread (ARCH §8.6 / D66)."""
+
+    #: A finished result nobody came back for is dropped after this long.
+    RESULT_TTL_S = 600.0
+
+    def __init__(self, pool: ThreadPoolExecutor, clock: Callable[[], float] = time.monotonic):
+        self._pool = pool
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._jobs: dict[tuple, tuple[object, float]] = {}
+
+    def fetch(self, registry, bbox: BBox, layers: set[str]) -> tuple[list, dict[str, str]]:
+        key = (bbox, frozenset(layers))
+        with self._lock:
+            now = self._clock()
+            self._prune(now)
+            job = self._jobs.get(key)
+            if job is None:
+                job = (self._pool.submit(registry.fetch_candidates_all, bbox, layers), now)
+                self._jobs[key] = job
+        future, asked_at = job
+        try:
+            result = future.result(timeout=_CANDIDATE_FETCH_TIMEOUT_S)
+        except FutureTimeoutError:
+            with self._lock:
+                if self._clock() - asked_at < _CANDIDATE_FETCH_WATCHDOG_S:
+                    return [], {layer: "loading" for layer in layers}
+                if self._jobs.get(key) is job:
+                    del self._jobs[key]
+            log.warning("candidate fetch for %s ran past %.0fs; reporting it stuck",
+                        bbox, _CANDIDATE_FETCH_WATCHDOG_S)
+            return [], {layer: "failed:candidate_fetch_timed_out" for layer in layers}
+        except Exception:
+            self._forget(key, job)
+            raise
+        self._forget(key, job)
+        return result
+
+    def _forget(self, key, job) -> None:
+        with self._lock:
+            if self._jobs.get(key) is job:
+                del self._jobs[key]
+
+    def _prune(self, now: float) -> None:
+        for key, (future, asked_at) in list(self._jobs.items()):
+            if future.done() and now - asked_at > self.RESULT_TTL_S:
+                del self._jobs[key]
+
+
 def _fetch_candidates(
-    registry, bbox: BBox, layers: set[str], pool: ThreadPoolExecutor,
+    registry, bbox: BBox, layers: set[str], jobs: CandidateFetchJobs,
 ) -> tuple[list, dict[str, str]]:
-    """Runs `registry.fetch_candidates_all(bbox, layers)` on `pool`
-    (`Readiness._candidate_fetch_pool`, never the shared FastAPI pool
-    `/candidates` itself answers on) and gives up after
-    `_CANDIDATE_FETCH_TIMEOUT_S` regardless of whether the fetch itself ever
-    returns — issue #490, the #488 treatment applied to the candidate path.
-    A stuck fetch degrades every requested layer to
-    `failed:candidate_fetch_timed_out` (the same shape `fetch_candidates_all`
-    itself returns for an ordinary per-layer failure) rather than blocking
-    this call; the abandoned fetch is left running on its own single-worker
-    pool, where it can only ever queue up against itself."""
-    future = pool.submit(registry.fetch_candidates_all, bbox, layers)
-    try:
-        return future.result(timeout=_CANDIDATE_FETCH_TIMEOUT_S)
-    except FutureTimeoutError:
-        return [], {layer: "failed:candidate_fetch_timed_out" for layer in layers}
+    """Runs `registry.fetch_candidates_all(bbox, layers)` through `jobs`
+    (`Readiness._candidate_fetch_jobs`, on `Readiness._candidate_fetch_pool`,
+    never the shared FastAPI pool `/candidates` itself answers on) — issue
+    #490, the #488 treatment applied to the candidate path.
+
+    Waits at most `_CANDIDATE_FETCH_TIMEOUT_S`. A fetch still running after
+    that degrades every requested layer to `loading` (#590: it is kept, and a
+    repeat request joins it); one still unfinished after
+    `_CANDIDATE_FETCH_WATCHDOG_S` degrades them to
+    `failed:candidate_fetch_timed_out` — the same per-layer shape
+    `fetch_candidates_all` itself returns for an ordinary failure."""
+    return jobs.fetch(registry, bbox, layers)
 
 
 #: Issue #154 — how long `/tiles` waits for one tile read from the configured
@@ -1842,6 +1913,7 @@ class Readiness:
         self._candidate_fetch_pool = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="candidate-fetch",
         )
+        self._candidate_fetch_jobs = CandidateFetchJobs(self._candidate_fetch_pool)
         # Issue #493 — same shape again, for `/geocode`. `_NOMINATIM_LOCK`
         # (`plotlines_core.osm_identity`) bounds how long *waiting* for it can
         # take (`NOMINATIM_LOCK_TIMEOUT_S`), but the dispatched
@@ -3053,10 +3125,12 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
 
         The actual fetch runs on `Readiness._candidate_fetch_pool`, never
         this endpoint's own shared-pool thread (issue #490, the #488 shape):
-        a stuck Overpass call degrades every requested layer to
-        `failed:candidate_fetch_timed_out` after `_CANDIDATE_FETCH_TIMEOUT_S`
-        rather than leaving this call — and `/health`/`/layers`/`/tiles`
-        behind it on the shared pool — waiting on it.
+        a fetch still running after `_CANDIDATE_FETCH_TIMEOUT_S` answers
+        every requested layer `loading` and is kept for the next request to
+        collect (#590), and one still unfinished after
+        `_CANDIDATE_FETCH_WATCHDOG_S` answers `failed:candidate_fetch_timed_out`
+        — never leaving this call, and `/health`/`/layers`/`/tiles` behind it
+        on the shared pool, waiting on it.
         """
         live = {layer for layer in layers.split(",") if layer}
         if not live:
@@ -3064,7 +3138,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         registry = app.state.layer_registry
         candidates, errors = _fetch_candidates(
             registry, BBox(west, south, east, north), live,
-            state._candidate_fetch_pool)
+            state._candidate_fetch_jobs)
         body = _candidates_response(candidates)
         body["layers_served"] = sorted(live - set(errors))
         body["layers_unavailable"] = errors
@@ -3146,7 +3220,7 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             raise HTTPException(422, f"unknown sort {req.sort!r}")
 
         candidates, errors = _fetch_candidates(
-            registry, bbox, live, state._candidate_fetch_pool)
+            registry, bbox, live, state._candidate_fetch_jobs)
         params = _colocation_params(req.params)
         route = [(pt[0], pt[1]) for pt in req.route] if len(req.route) >= 2 else None
         rejected = [frozenset(s) for s in req.rejected]

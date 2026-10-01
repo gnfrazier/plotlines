@@ -83,6 +83,7 @@ def test_every_endpoint_answers_under_a_blocked_resolver(tmp_path, monkeypatch):
     # budget rather than each waiting out a production-sized ceiling.
     monkeypatch.setattr(app_module, "_MIRROR_STATE_FETCH_TIMEOUT_S", 0.3)
     monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_TIMEOUT_S", 0.3)
+    monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_WATCHDOG_S", 0.3)
     monkeypatch.setattr(app_module, "_GEOCODE_FETCH_TIMEOUT_S", 0.3)
     monkeypatch.setattr(app_module, "_TILES_PHASE_TIMEOUT_S", 0.3)
     _fast_graph(monkeypatch)

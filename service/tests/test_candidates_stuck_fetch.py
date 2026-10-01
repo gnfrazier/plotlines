@@ -29,6 +29,7 @@ from plotlines_service import app as app_module
 
 def test_a_stuck_candidate_fetch_does_not_block_other_endpoints(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_WATCHDOG_S", 0.2)
 
     # Bounded at 15s purely so a broken test can't hang the whole suite —
     # the test always calls `unblock.set()` itself, well before that, once
@@ -91,6 +92,7 @@ def test_repeated_candidate_calls_against_a_stuck_fetch_never_touch_the_shared_p
     single-worker pool (never the shared one), so however many calls stack
     up behind one stuck fetch, `/layers` must stay fast."""
     monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_TIMEOUT_S", 0.1)
+    monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_WATCHDOG_S", 0.1)
 
     unblock = threading.Event()
 
@@ -124,3 +126,106 @@ def test_repeated_candidate_calls_against_a_stuck_fetch_never_touch_the_shared_p
         f"/layers took {layers_elapsed:.2f}s after five stuck candidate "
         "fetches queued up — a growing backlog on the dedicated pool must "
         "still never spawn threads on the shared one")
+
+
+# ── #590: a slow fetch is a wait, not a failure ──────────────────────────────
+
+
+def _slow_registry(monkeypatch, release: threading.Event, calls: list) -> None:
+    def slow_fetch_candidates_all(self, bbox, layers):
+        calls.append((bbox, frozenset(layers)))
+        assert release.wait(timeout=15.0), "test never released the fetch"
+        return [], {}
+
+    monkeypatch.setattr(LayerRegistry, "fetch_candidates_all", slow_fetch_candidates_all)
+
+
+_PARAMS = {"west": 0.0, "south": 0.0, "east": 0.01, "north": 0.01, "layers": "historic"}
+
+
+def test_a_fetch_still_running_past_the_wait_answers_loading_not_failed(tmp_path, monkeypatch):
+    """#590's Pi retest: a local-clip parse outran the request's wait and the
+    first load read as failed while the fetch was succeeding. Under the
+    watchdog a still-running fetch is a wait — `loading` — and the next
+    request collects the same fetch's result without starting a second."""
+    monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_TIMEOUT_S", 0.1)
+    release = threading.Event()
+    calls: list = []
+    _slow_registry(monkeypatch, release, calls)
+    client = TestClient(app_module.create_app(tmp_path))
+    try:
+        first = client.get("/candidates", params=_PARAMS).json()
+        assert first["layers_unavailable"] == {"historic": "loading"}
+        assert first["layers_served"] == []
+
+        again = client.get("/candidates", params=_PARAMS).json()
+        assert again["layers_unavailable"] == {"historic": "loading"}
+
+        release.set()
+        done = client.get("/candidates", params=_PARAMS).json()
+    finally:
+        release.set()
+        client.app.state.readiness.shutdown()
+
+    assert done["layers_unavailable"] == {}
+    assert done["layers_served"] == ["historic"]
+    assert len(calls) == 1, "a repeat request must join the running fetch, not queue another"
+
+
+def test_a_collected_result_is_not_served_again_from_the_job(tmp_path, monkeypatch):
+    """Once a request has the result the job is gone: the next request asks
+    the registry afresh (which answers from its own L1/L2 cache)."""
+    release = threading.Event()
+    release.set()
+    calls: list = []
+    _slow_registry(monkeypatch, release, calls)
+    client = TestClient(app_module.create_app(tmp_path))
+    try:
+        client.get("/candidates", params=_PARAMS)
+        client.get("/candidates", params=_PARAMS)
+    finally:
+        client.app.state.readiness.shutdown()
+    assert len(calls) == 2
+
+
+def test_a_different_layer_set_is_its_own_fetch(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_TIMEOUT_S", 0.1)
+    release = threading.Event()
+    calls: list = []
+    _slow_registry(monkeypatch, release, calls)
+    client = TestClient(app_module.create_app(tmp_path))
+    try:
+        a = client.get("/candidates", params=_PARAMS).json()
+        b = client.get("/candidates", params={**_PARAMS, "layers": "historic,natural"}).json()
+        release.set()
+    finally:
+        release.set()
+        client.app.state.readiness.shutdown()
+    assert a["layers_unavailable"] == {"historic": "loading"}
+    assert b["layers_unavailable"] == {"historic": "loading", "natural": "loading"}
+
+
+def test_a_fetch_past_the_watchdog_is_reported_stuck_and_the_next_request_starts_afresh(
+    tmp_path, monkeypatch,
+):
+    clock = {"t": 0.0}
+    monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_TIMEOUT_S", 0.05)
+    release = threading.Event()
+    calls: list = []
+    _slow_registry(monkeypatch, release, calls)
+    client = TestClient(app_module.create_app(tmp_path))
+    jobs = client.app.state.readiness._candidate_fetch_jobs
+    jobs._clock = lambda: clock["t"]
+    try:
+        assert client.get("/candidates", params=_PARAMS).json()["layers_unavailable"] == {
+            "historic": "loading"}
+        clock["t"] = app_module._CANDIDATE_FETCH_WATCHDOG_S + 1
+        stuck = client.get("/candidates", params=_PARAMS).json()
+        assert stuck["layers_unavailable"] == {"historic": "failed:candidate_fetch_timed_out"}
+        release.set()
+        fresh = client.get("/candidates", params=_PARAMS).json()
+    finally:
+        release.set()
+        client.app.state.readiness.shutdown()
+    assert fresh["layers_served"] == ["historic"]
+    assert len(calls) == 2, "a fetch reported stuck is dropped; the next request starts its own"
