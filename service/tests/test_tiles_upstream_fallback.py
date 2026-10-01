@@ -162,7 +162,61 @@ def test_past_the_waiting_bound_a_tile_is_503_immediately(
         resp = TestClient(app).get("/tiles/{}/{}/{}".format(*_OUTSIDE_HOME))
         assert resp.status_code == 503
         assert "busy" in resp.json()["detail"]
+        # #587 — busy is a burst outrunning the slots, not a sick upstream:
+        # Retry-After makes the client wait and ask again in the same tile
+        # request rather than record a miss.
+        assert resp.headers["retry-after"] == "1"
         assert time.monotonic() - start < 0.5
     finally:
         for _ in range(app_module._UPSTREAM_TILE_MAX_WAITING):
             waiting.release()
+
+
+def test_a_reopened_trip_serves_its_cached_tiles_while_the_graph_still_builds(
+    tmp_path: Path, upstream: Path, monkeypatch,
+) -> None:
+    """#587: reopening a trip saved the day before answered 503 for tiles
+    its own cached archive held. That archive was only opened by the tiles
+    phase, after the extract and graph phases, so meanwhile every visible
+    tile went upstream and overflowed `_UPSTREAM_TILE_MAX_WAITING`. A
+    region declared over a cached archive now serves it at once, and the
+    upstream is never asked."""
+    from plotlines_core.cache_layout import CacheLayout
+
+    cache = tmp_path / "cache"
+    bbox = (-105.30, 39.99, -105.25, 40.03)
+    cached = CacheLayout(cache).tile_archive(bbox)
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    build_archive(cached, {_OUTSIDE_HOME: b"yesterdays-tile"})
+
+    graph_started = threading.Event()
+    unblock = threading.Event()
+
+    def slow_graph(region, cache_dir):
+        graph_started.set()
+        unblock.wait(timeout=15.0)
+        raise RuntimeError("released")
+
+    upstream_reads: list = []
+
+    def recording_tile(self, z, x, y):
+        upstream_reads.append((z, x, y))
+        return None
+
+    monkeypatch.setattr(app_module.region_lib, "ensure_graph", slow_graph)
+    monkeypatch.setattr(UpstreamTileReader, "tile", recording_tile)
+    client = TestClient(create_app(cache, tiles_upstream=upstream))
+    try:
+        client.post("/regions", json={"bbox": list(bbox)})
+        assert graph_started.wait(5.0)
+        resp = client.get("/tiles/{}/{}/{}".format(*_OUTSIDE_HOME))
+        tiles_ready = client.get("/health").json()["capabilities"]["tiles"]
+    finally:
+        unblock.set()
+        client.app.state.readiness.shutdown()
+
+    assert resp.status_code == 200
+    assert resp.content == b"yesterdays-tile"
+    assert upstream_reads == []
+    key = next(iter(tiles_ready["regions"]))
+    assert tiles_ready["regions"][key] == {"ready": True}

@@ -614,7 +614,19 @@ class UpstreamTileUnavailable(Exception):
     """The upstream could not answer for this tile right now — timed out,
     busy, or a transport failure. Transient by definition (D66): `/tiles`
     reports it as a retryable 503, never as the 404 that means "no tile
-    here"."""
+    here".
+
+    `retry_after_s` is set only for *busy* (#587): every waiting slot was
+    taken, which says nothing about the upstream's health — a viewport's
+    burst outran `_UPSTREAM_TILE_MAX_WAITING`. `/tiles` sends it as
+    `Retry-After`, so the client waits and asks again inside the same tile
+    request (#522's loop) instead of recording a miss. A timeout or a
+    transport failure carries none and fails the tile at once, as #514
+    intended."""
+
+    def __init__(self, message: str, retry_after_s: int | None = None):
+        super().__init__(message)
+        self.retry_after_s = retry_after_s
 
 
 def _upstream_tile(reader: "UpstreamTileReader | BasemapArchiveSet", pool: ThreadPoolExecutor,
@@ -628,7 +640,7 @@ def _upstream_tile(reader: "UpstreamTileReader | BasemapArchiveSet", pool: Threa
     call tries again, and the reader drops a broken connection itself.
     Returns `(data, info)`; `data` is `None` for "no tile here"."""
     if not waiting.acquire(blocking=False):
-        raise UpstreamTileUnavailable("tile upstream busy")
+        raise UpstreamTileUnavailable("tile upstream busy", retry_after_s=1)
     try:
         # `read_tile` returns `(data, info)`: for a basemap archive set
         # (#519) which archive answered — and so its encoding — is only
@@ -1211,6 +1223,28 @@ class RegionState:
         if self.tiles_error:
             return {"ready": False, "reason": f"failed:{self.tiles_error}"}
         return {"ready": False, "reason": "pending"}
+
+    def open_cached_tiles(self, cache_dir: Path) -> bool:
+        """Serve this region's tile archive from an earlier session at once —
+        issue #587. The archive is keyed by the bbox alone and written
+        atomically (`extract_bbox`'s rename), so one on disk is complete. Left
+        to `_build_tiles`, it was only opened after the extract and graph
+        phases, and a reopened trip sent every visible tile upstream
+        meanwhile: past `_UPSTREAM_TILE_MAX_WAITING` they answered 503 while
+        the tiles sat in this file. A local file read; no outbound call."""
+        if self.tiles_archive is not None:
+            return True
+        path = CacheLayout(cache_dir).tile_archive(self.bbox)
+        if not path.exists():
+            return False
+        try:
+            self.tiles_archive = Archive(path)
+        except Exception as exc:  # noqa: BLE001 — the build's own tiles phase decides
+            log.warning("region tiles: cached archive unreadable key=%s path=%s: %s",
+                        self.key, path, exc)
+            return False
+        log.info("region tiles: serving cached archive key=%s path=%s", self.key, path)
+        return True
 
     def tiles_filling_at(self, tile_bbox) -> float | None:
         """`retry_after_s` when a basemap cell this region is waiting on
@@ -1920,6 +1954,7 @@ class Readiness:
             region = self.regions.get(key)
             if region is None:
                 region = RegionState(key, bbox, network_type)
+                region.open_cached_tiles(self.cache_dir)
                 self.regions[key] = region
                 self._queue_build(region)
                 log.info("ensure_region key=%s bbox=%s nt=%s decision=NEW_BUILD",
@@ -3552,7 +3587,9 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 data, info = _upstream_tile(reader, state._upstream_tile_pool,
                                             state._upstream_tile_waiting, z, x, y)
             except UpstreamTileUnavailable as exc:
-                raise HTTPException(503, str(exc)) from exc
+                headers = ({"Retry-After": str(exc.retry_after_s)}
+                           if exc.retry_after_s is not None else None)
+                raise HTTPException(503, str(exc), headers=headers) from exc
             if data is not None:
                 return _tile_response(data, info)
 
