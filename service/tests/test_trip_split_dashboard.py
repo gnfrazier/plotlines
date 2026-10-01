@@ -143,3 +143,22 @@ def test_dashboard_present_for_a_trip_with_no_time_model_inputs(tmp_path: Path) 
     assert dash["trip_eta"] is None
     # the distance panel is still there
     assert dash["trip_total"]["total"]["distance_m"] == 1_000.0
+
+
+def test_a_days_own_start_at_gives_it_an_eta_and_round_trips(tmp_path: Path) -> None:
+    """#563 — the start time is stored on the day, so the dashboard reads it
+    from the posted payload with no extra request field, and the payload
+    hands it back unchanged."""
+    body = _two_day_trip()
+    body["days"][0]["start_at"] = "2026-07-04T11:00:00Z"
+    body["days"][0]["start_timezone"] = "America/New_York"
+    resp = _client(tmp_path).post(
+        "/trips/split", json={**body, "day_hold_s": {}})
+    assert resp.status_code == 200
+    out = resp.json()
+    assert out["days"][0]["start_at"] == "2026-07-04T11:00:00Z"
+    assert out["days"][0]["start_timezone"] == "America/New_York"
+    day1, day2 = out["dashboard"]["days"]
+    # 20 km cycling @ 15 + 5 km hiking @ 5 = 4800 + 3600 s → 13:20Z.
+    assert day1["eta"] == "2026-07-04T13:20:00Z"
+    assert day2["eta"] is None

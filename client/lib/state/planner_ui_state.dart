@@ -219,6 +219,22 @@ final dayPlanningModeProvider =
 final composeItineraryProvider =
     StateProvider.family<ComposeItinerary?, String>((ref, dayId) => null);
 
+/// D1 / FR31 / FR16 (issue #563) — the dashboard `/trips/split` returned on
+/// the last authoritative pass, with the exact [Trip] it describes. The
+/// metrics rail shows it only while that trip is still the one on screen
+/// (`identical`): any edit replaces the trip object, and the rail falls back
+/// to [TripDashboard.fromTrip] until the next save. Ephemeral, like
+/// [composeItineraryProvider] — derived server output, never stored.
+final authoritativeDashboardProvider =
+    StateProvider<({Trip trip, TripDashboard dashboard})?>((ref) => null);
+
+/// The dashboard the rail should show for [trip]: the server's when it was
+/// computed for exactly this trip, else the local mirror.
+TripDashboard dashboardFor(Trip trip, ({Trip trip, TripDashboard dashboard})? authoritative) =>
+    authoritative != null && identical(authoritative.trip, trip)
+        ? authoritative.dashboard
+        : TripDashboard.fromTrip(trip);
+
 /// ARCH §7.7 — the one difference the solve request itself carries between
 /// the two postures: explore sends whatever target distance the Author
 /// authored as a constraint, compose sends none so the engine reports

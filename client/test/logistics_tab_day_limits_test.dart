@@ -106,6 +106,9 @@ void main() {
   testWidgets('adding a mode limit via the menu creates an empty row for that mode', (tester) async {
     final container = await _pump(tester, Day(id: 'd1', index: 1, segments: [_leg('s1', 'cycling')]));
 
+    // The day card grew a START row (#563); bring the menu button into view.
+    await tester.ensureVisible(find.byIcon(Icons.add_circle_outline));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.add_circle_outline));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ride').last);

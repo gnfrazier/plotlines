@@ -181,6 +181,26 @@ def test_day_eta_is_the_day_start_plus_its_elapsed_time():
     assert board.days[1].eta is None   # no start supplied for day 2
 
 
+def test_a_days_stored_start_at_gives_it_an_eta_with_no_caller_input():
+    """#563 — the start time lives on the day itself now, so `/trips/split`
+    yields the ETA from the payload alone."""
+    trip = _trip()
+    trip.days[0].start_at = "2026-08-28T06:00:00Z"
+    trip.days[0].start_timezone = "America/Denver"
+    board = build_dashboard(trip, day_hold_s={trip.days[0].id: 5_400.0})
+    assert board.days[0].eta == "2026-08-28T09:50:00Z"
+    assert board.days[1].eta is None   # no start, no guessed ETA
+
+
+def test_a_caller_start_still_overrides_the_days_own():
+    trip = _trip()
+    trip.days[0].start_at = "2026-08-28T06:00:00Z"
+    trip.days[0].start_timezone = "America/Denver"
+    board = build_dashboard(trip, day_start_at={trip.days[0].id: "2026-08-28T07:00:00Z"})
+    assert board.days[0].eta.startswith("2026-08-28T0")
+    assert board.days[0].eta != build_dashboard(trip).days[0].eta
+
+
 def test_trip_eta_folds_in_every_days_hold():
     trip = _trip()
     board = build_dashboard(

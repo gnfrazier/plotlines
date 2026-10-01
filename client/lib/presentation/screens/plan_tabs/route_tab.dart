@@ -552,6 +552,8 @@ class _RouteTabState extends ConsumerState<RouteTab> {
           elevationCapability: _elevationCapability,
           composeItinerary: composeItinerary,
           displayFormat: displayFormatOf(context, ref),
+          // #563 — the server's dashboard while it still describes this trip.
+          dashboard: dashboardFor(widget.trip, ref.watch(authoritativeDashboardProvider)),
         ),
       ],
     );

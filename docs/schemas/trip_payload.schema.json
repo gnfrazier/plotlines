@@ -829,6 +829,7 @@
       "type": "object",
       "required": ["id", "index", "kind"],
       "additionalProperties": false,
+      "dependentRequired": { "start_at": ["start_timezone"], "start_timezone": ["start_at"] },
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "index": { "type": "integer", "minimum": 1, "description": "1-based position in the trip. Distinct from `date`, which may be absent (FR17 allows a day count with no dates)." },
@@ -840,6 +841,8 @@
           "uniqueItems": true
         },
         "date": { "$ref": "#/$defs/date" },
+        "start_at": { "$ref": "#/$defs/timestamp", "description": "Issue #563 / FR16 / FR31 — when this day's travel starts, as a UTC instant. The dashboard's ETA is this plus the day's elapsed time (station holds included); absent, no ETA is shown, never a guessed one. Stored in UTC with the IANA zone beside it (`start_timezone`), the `scheduled_window` convention: a start time is declared on local time, and an offset alone loses that across a DST boundary." },
+        "start_timezone": { "type": "string", "minLength": 1, "description": "Issue #563 — the IANA zone `start_at` was declared in (e.g. \"America/New_York\"), so the start and the ETA read back on the day's own local clock." },
         "title": { "type": "string" },
         "note": { "$ref": "#/$defs/markdown" },
         "media": { "type": "array", "items": { "$ref": "#/$defs/media_ref" }, "description": "FR37 / E1 — media attached to this day itself, distinct from any role's or passage's own media." },

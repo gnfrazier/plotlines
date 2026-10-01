@@ -32,6 +32,7 @@ import '../../display_format_of.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/alternate_editor_dialog.dart';
 import '../../widgets/day_removal_prompt.dart';
+import '../../widgets/day_start_editor.dart';
 import '../../widgets/empty_state_notice.dart';
 import '../../widgets/gear_section.dart';
 import '../../widgets/meal_section.dart';
@@ -511,6 +512,8 @@ class _DayCard extends ConsumerWidget {
                   ),
                 ),
               const SizedBox(height: PlotSpacing.s3),
+              // #563 — the day's start time, which D1's ETA needs.
+              DayStartRow(trip: ref.watch(currentTripProvider), day: day),
               _DayLimitEditor(day: day),
               _WaterCarrySection(day: day, waterSources: waterSources),
             ],

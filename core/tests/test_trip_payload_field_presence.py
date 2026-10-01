@@ -181,6 +181,7 @@ def _transition() -> P.Transition:
 def _day() -> P.Day:
     return P.Day(
         index=1, kind="riding", id="d1", roles=["driver"], date="2026-09-02",
+        start_at="2026-09-02T12:30:00Z", start_timezone="America/Denver",
         title="Day one", note="Day note.", media=[_media()],
         location=[-105.26, 40.02], location_label="Test Rest Stop", segments=[_segment()],
         transitions=[_transition()], nodes=[_node()], hazards=[_hazard()],

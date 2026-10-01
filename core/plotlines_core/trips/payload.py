@@ -117,7 +117,11 @@ from plotlines_core.content.anchor import Anchor
 #: FR128/A11 dismount/gate/ford the derived cue sheet now carries itself, at
 #: its measured distance-along, rather than leaving it to the client preview
 #: to insert. Additive: a sheet derived before this bump simply has none.
-SCHEMA_VERSION = "1.16.0"
+#: Bumped to 1.17.0 by issue #563: `day` gains `start_at` (UTC) and
+#: `start_timezone` (IANA), set together — the start time D1's ETA needs.
+#: Additive: a day without them has no ETA, which is how every day written
+#: before this bump already read.
+SCHEMA_VERSION = "1.17.0"
 
 #: Decimal places kept on stored coordinates. 7 dp ≈ 1.1 cm at the equator.
 COORD_PRECISION = 7
@@ -968,6 +972,11 @@ class Day:
     id: str = field(default_factory=new_id)
     roles: list[str] = field(default_factory=list)
     date: str | None = None
+    #: Issue #563 — when the day's travel starts (UTC, `…Z`), and the IANA
+    #: zone it was declared in. Set together or not at all; the dashboard's
+    #: ETA reads `start_at` (`trips.dashboard.build_dashboard`).
+    start_at: str | None = None
+    start_timezone: str | None = None
     title: str | None = None
     note: str | None = None
     media: list[MediaRef] = field(default_factory=list)
@@ -990,6 +999,7 @@ class Day:
         return {
             "id": self.id, "index": self.index, "kind": self.kind,
             "roles": list(self.roles) or None, "date": self.date,
+            "start_at": self.start_at, "start_timezone": self.start_timezone,
             "title": self.title, "note": self.note,
             "media": [m.to_dict() for m in self.media] or None,
             "location": self.location,
