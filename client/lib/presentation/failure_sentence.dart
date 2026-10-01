@@ -16,3 +16,14 @@ String failureSentence(Object error, {required String fallback}) {
   if (reason != null && !looksLikeRawDiagnostic(reason)) return reason;
   return fallback;
 }
+
+/// Issue #574 — a solve refused because a point the Author placed (start,
+/// end, via) is farther from the trip area's routing data than the
+/// sidecar's wrong-region guard allows (`OutsideGraphExtent`, a 422 naming
+/// "outside this graph's region"). The one failure that really is "this area
+/// doesn't have routable data" — not a timeout, a not-ready region, or a
+/// solve that found no route.
+bool isOutsideRoutingArea(Object error) =>
+    error is RoutingException &&
+    error.statusCode == 422 &&
+    (error.reason?.contains("outside this graph's region") ?? false);

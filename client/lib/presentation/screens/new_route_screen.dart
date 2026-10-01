@@ -97,6 +97,12 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   bool _generating = false;
   bool _searching = false;
   String? _error;
+
+  /// Issue #574 — true only when [_error] is a point the Author placed
+  /// outside the trip area's routing data, the one case
+  /// [NoDataBanner]'s "this area doesn't have routable data" is true of.
+  /// Every other failure shows [_error], the sentence it actually was.
+  bool _errorIsOutsideArea = false;
   List<GeocodeResult> _searchResults = const [];
 
   _StartMethod _startMethod = _StartMethod.theme;
@@ -602,7 +608,20 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: PlotSpacing.s3),
-                      NoDataBanner(onChooseAnotherArea: () => Navigator.pop(context)),
+                      if (_errorIsOutsideArea)
+                        NoDataBanner(onChooseAnotherArea: () => Navigator.pop(context))
+                      else
+                        Row(
+                          key: const ValueKey('new-route-error'),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.error_outline, size: 18, color: c.textSecondary),
+                            const SizedBox(width: PlotSpacing.s2),
+                            Expanded(
+                              child: Text(_error!, style: PlotTypography.small(c.textPrimary)),
+                            ),
+                          ],
+                        ),
                     ],
                     // Issue #230 B3 — this used to sit directly under the
                     // START / END / VIA readout with no separation, so a
@@ -802,6 +821,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     setState(() {
       _generating = true;
       _error = null;
+      _errorIsOutsideArea = false;
     });
     try {
       final targetDay = ref.read(plannerTargetDayIdProvider);
@@ -821,8 +841,10 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     } catch (e) {
       debugPrint('generate failed: $e');
       if (mounted) {
-        setState(() => _error =
-            failureSentence(e, fallback: 'The route couldn\'t be generated. Try again.'));
+        setState(() {
+          _errorIsOutsideArea = isOutsideRoutingArea(e);
+          _error = failureSentence(e, fallback: 'The route couldn\'t be generated. Try again.');
+        });
       }
     } finally {
       if (mounted) setState(() => _generating = false);
