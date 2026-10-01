@@ -74,8 +74,9 @@ Future<void> _pumps(WidgetTester tester) async {
   }
 }
 
-Future<ProviderContainer> _pumpShell(WidgetTester tester, {bool stale = false}) async {
-  tester.view.physicalSize = const Size(1800, 1000);
+Future<ProviderContainer> _pumpShell(WidgetTester tester,
+    {bool stale = false, Size size = const Size(1800, 1000)}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -205,5 +206,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('stale-count')));
     await _pumps(tester);
     expect(find.text('1 stale item needs re-solving'), findsOneWidget);
+  });
+
+  testWidgets('a narrow window keeps every action, as icons with their tooltips, without overflow',
+      (tester) async {
+    final container = await _pumpShell(tester, stale: true, size: const Size(800, 900));
+    container.read(currentTripProvider.notifier).renameTrip('Black Mountains');
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Undo: Rename the trip'), findsOneWidget);
+    expect(find.byTooltip('1 stale — open the stale list'), findsOneWidget);
   });
 }

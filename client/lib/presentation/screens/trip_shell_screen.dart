@@ -136,6 +136,9 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
       _activeDayId = selected.$1;
     }
     _maybeRaiseSyncAlerts(trip);
+    // The app bar's actions keep their words on a desktop-width window and
+    // drop to icons (tooltips intact) on a narrow one rather than overflow.
+    final compactBar = MediaQuery.sizeOf(context).width < 1280;
 
     return Scaffold(
       appBar: AppBar(
@@ -165,13 +168,21 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
           // FR142(b) — stale work has a path back to it from anywhere in
           // the trip, not only from an export attempt.
           if (tripStaleCount(trip) > 0)
-            TextButton.icon(
-              key: const ValueKey('stale-count'),
-              onPressed: () => showStaleList(context),
-              icon: const Icon(Icons.update, size: 18),
-              label: Text('${tripStaleCount(trip)} stale'),
-            ),
-          const UndoControls(),
+            compactBar
+                ? IconButton(
+                    key: const ValueKey('stale-count'),
+                    tooltip: '${tripStaleCount(trip)} stale — open the stale list',
+                    onPressed: () => showStaleList(context),
+                    icon: Badge.count(
+                        count: tripStaleCount(trip), child: const Icon(Icons.update, size: 18)),
+                  )
+                : TextButton.icon(
+                    key: const ValueKey('stale-count'),
+                    onPressed: () => showStaleList(context),
+                    icon: const Icon(Icons.update, size: 18),
+                    label: Text('${tripStaleCount(trip)} stale'),
+                  ),
+          UndoControls(compact: compactBar),
           _AutosaveIndicator(status: ref.watch(tripAutosaveProvider)),
           // Issue #578 — units, basemap style (#465) and the rest are
           // changed mid-trip, not only from the library. Pushed, so Back

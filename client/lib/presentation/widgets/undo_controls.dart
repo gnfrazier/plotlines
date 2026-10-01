@@ -23,7 +23,11 @@ const undoDerivedNotice =
 const undoNotesNotice = 'Deleting what you hold about a person is never undone.';
 
 class UndoControls extends ConsumerWidget {
-  const UndoControls({super.key});
+  const UndoControls({super.key, this.compact = false});
+
+  /// Icons without their words, for a narrow window — the tooltips still
+  /// name the step, so the affordance stays labelled for a screen reader.
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,21 +38,33 @@ class UndoControls extends ConsumerWidget {
       children: [
         Tooltip(
           message: status.canUndo ? 'Undo: ${status.undoLabel}' : 'Nothing to undo',
-          child: TextButton.icon(
-            key: const ValueKey('undo-button'),
-            onPressed: status.canUndo ? undo.undo : null,
-            icon: const Icon(Icons.undo, size: 18),
-            label: const Text('Undo'),
-          ),
+          child: compact
+              ? IconButton(
+                  key: const ValueKey('undo-button'),
+                  onPressed: status.canUndo ? undo.undo : null,
+                  icon: const Icon(Icons.undo, size: 18),
+                )
+              : TextButton.icon(
+                  key: const ValueKey('undo-button'),
+                  onPressed: status.canUndo ? undo.undo : null,
+                  icon: const Icon(Icons.undo, size: 18),
+                  label: const Text('Undo'),
+                ),
         ),
         Tooltip(
           message: status.canRedo ? 'Redo: ${status.redoLabel}' : 'Nothing to redo',
-          child: TextButton.icon(
-            key: const ValueKey('redo-button'),
-            onPressed: status.canRedo ? undo.redo : null,
-            icon: const Icon(Icons.redo, size: 18),
-            label: const Text('Redo'),
-          ),
+          child: compact
+              ? IconButton(
+                  key: const ValueKey('redo-button'),
+                  onPressed: status.canRedo ? undo.redo : null,
+                  icon: const Icon(Icons.redo, size: 18),
+                )
+              : TextButton.icon(
+                  key: const ValueKey('redo-button'),
+                  onPressed: status.canRedo ? undo.redo : null,
+                  icon: const Icon(Icons.redo, size: 18),
+                  label: const Text('Redo'),
+                ),
         ),
         _HistoryMenu(status: status),
       ],
