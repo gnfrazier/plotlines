@@ -205,6 +205,9 @@ class _MetricsRailState extends State<MetricsRail> {
                       ElevationProfile(
                         samples: samples,
                         height: 90,
+                        // C11 / FR27 (issue #47) — hazards and cruxes on this
+                        // passage, where they fall along it.
+                        markers: hazardProfileFractions(trip, segment),
                         startLabel: '0',
                         endLabel: segment.metrics?.distanceM == null
                             ? null
@@ -379,60 +382,6 @@ class _MetricsRailState extends State<MetricsRail> {
                       itinerary: composeItinerary!,
                       displayFormat: displayFormat,
                     ),
-                  ],
-                  const SizedBox(height: PlotSpacing.s4),
-                  Text(
-                    'ELEVATION',
-                    style: PlotTypography.data(
-                      c.textMuted,
-                    ).copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: PlotSpacing.s2),
-                  if (!elevationReady)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: PlotSpacing.s4,
-                      ),
-                      child: CapabilityWarmingNotice(
-                        capabilityLabel: 'Elevation profile',
-                        status: elevationCapability,
-                      ),
-                    )
-                  else if (samples.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: PlotSpacing.s4,
-                      ),
-                      child: Text(
-                        'Select a segment to see its elevation profile',
-                        style: PlotTypography.small(c.textMuted),
-                      ),
-                    )
-                  else
-                    ElevationProfile(
-                      samples: samples,
-                      height: 90,
-                      // C11 / FR27 (issue #47) — hazards and cruxes on this
-                      // passage, where they fall along it.
-                      markers: hazardProfileFractions(trip, selectedSegment!),
-                      startLabel: '0',
-                      endLabel: selectedSegment?.metrics?.distanceM == null
-                          ? null
-                          : displayFormat.formatDistance(
-                              selectedSegment!.metrics!.distanceM!),
-                    ),
-                  if (selectedSegment != null &&
-                      selectedSegment!.via.isNotEmpty &&
-                      selectedSegment!.shape != 'point_to_point') ...[
-                    const SizedBox(height: PlotSpacing.s4),
-                    Text(
-                      'VIA-ANCHOR ROUTE',
-                      style: PlotTypography.data(
-                        c.textMuted,
-                      ).copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: PlotSpacing.s2),
-                    _ViaAnchorSummary(segment: selectedSegment!),
                   ],
                   const SizedBox(height: PlotSpacing.s3),
                 ],
