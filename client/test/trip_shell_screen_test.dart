@@ -225,5 +225,13 @@ void main() {
     expect(container.read(selectedSegmentProvider), isNull);
     expect(mapPolyline(), isEmpty);
     expect(tester.takeException(), isNull);
+
+    // #577 — this trip was never saved, so leaving the shell writes it
+    // (autosave). The container outlives the tree here; let that write land.
+    await tester.pumpWidget(const SizedBox());
+    for (var i = 0; i < 5; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump(const Duration(milliseconds: 1));
+    }
   });
 }

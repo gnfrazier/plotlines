@@ -1929,7 +1929,11 @@ class TripPersistence {
   TripPersistence(this._ref);
   final Ref _ref;
 
-  Future<void> save() async {
+  /// [compose] false is autosave (#577): persist what is on screen as it
+  /// stands. The composition pass mutates the open trip, so running it on
+  /// every autosave would re-trigger the autosave it came from; the
+  /// Author's explicit Save still runs it.
+  Future<void> save({bool compose = true}) async {
     // B2/D1/C3 (issue #212) — run the authoritative composition pass before
     // persisting, so what's on disk carries `compose_day`'s transition-gap
     // warnings and `split_trip`'s day-limit breaches rather than only the
@@ -1938,11 +1942,13 @@ class TripPersistence {
     // must never block a local save (FR65 — offline is quiet), so failure
     // is swallowed and the trip saves with whatever the local mirrors
     // already computed for it.
-    try {
-      await _ref.read(currentTripProvider.notifier).composeAuthoritative();
-    } catch (_) {
-      // Connection refused/timed out, or compose_day/split_trip reject the
-      // current shape (RoutingException) — either way, save what's local.
+    if (compose) {
+      try {
+        await _ref.read(currentTripProvider.notifier).composeAuthoritative();
+      } catch (_) {
+        // Connection refused/timed out, or compose_day/split_trip reject the
+        // current shape (RoutingException) — either way, save what's local.
+      }
     }
     final trip = _ref.read(currentTripProvider);
     final roster = _ref.read(currentRosterProvider);

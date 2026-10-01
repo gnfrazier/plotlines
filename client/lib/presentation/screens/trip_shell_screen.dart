@@ -10,6 +10,8 @@
 // seam Route and Content both work against.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +20,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
+import '../../state/trip_autosave_provider.dart';
 import 'character_read_screen.dart';
 import 'plan_tabs/content_tab.dart';
 import 'plan_tabs/export_tab.dart';
@@ -43,6 +46,26 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
   /// issue #210).
   String? _syncAlertsRaisedForTripId;
 
+  /// Issue #577 — held from [initState] so [dispose] can stop it without
+  /// touching `ref` on the way out.
+  late final TripAutosave _autosave;
+
+  @override
+  void initState() {
+    super.initState();
+    _autosave = ref.read(tripAutosaveProvider.notifier);
+    // After this frame: starting sets the indicator's state, which a
+    // provider must not have changed while the tree is building.
+    Future.microtask(_autosave.start);
+  }
+
+  /// Issue #577 — the named way back. Pending changes are written first
+  /// and the navigation waits for it, so leaving never drops an edit.
+  Future<void> _toLibrary() async {
+    await _autosave.flush();
+    if (mounted) context.go('/');
+  }
+
   void _handleTabChange() {
     if (_tabController.index != _activeTabIndex) {
       setState(() => _activeTabIndex = _tabController.index);
@@ -51,6 +74,9 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
 
   @override
   void dispose() {
+    // Any other way out (the route popped under us) still writes what's
+    // pending; nothing is waiting on it, so it is not awaited.
+    unawaited(_autosave.stop());
     _tabController.dispose();
     super.dispose();
   }
@@ -84,6 +110,16 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
 
     return Scaffold(
       appBar: AppBar(
+        // Issue #577 — a new trip arrives by `go('/plan')` with nothing
+        // beneath it, so there was no way out at all; one opened from the
+        // library had only the implied back arrow. Both get this.
+        automaticallyImplyLeading: false,
+        leadingWidth: 112,
+        leading: TextButton.icon(
+          onPressed: _toLibrary,
+          icon: const Icon(Icons.arrow_back, size: 18),
+          label: const Text('Library'),
+        ),
         title: GestureDetector(
           onTap: () => _renameTrip(context, trip.title),
           child: Text(trip.title, style: PlotTypography.h2(c.textPrimary).copyWith(fontSize: 20)),
@@ -97,6 +133,7 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
             onPressed: () => context.push('/trip-area'),
             icon: const Icon(Icons.crop_free, size: 18),
           ),
+          _AutosaveIndicator(status: ref.watch(tripAutosaveProvider)),
           TextButton.icon(
             onPressed: () async {
               await ref.read(tripPersistenceProvider).save();
@@ -316,6 +353,33 @@ class _AlertRow extends StatelessWidget {
           Text('Required: ${alert.requiredGear.join(', ')}',
               style: PlotTypography.small(c.textSecondary)),
       ],
+    );
+  }
+}
+
+/// Issue #577 — autosave's quiet status: a word beside Save, never a prompt.
+class _AutosaveIndicator extends StatelessWidget {
+  const _AutosaveIndicator({required this.status});
+  final AutosaveStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    final text = switch (status) {
+      AutosaveStatus.idle => null,
+      AutosaveStatus.pending || AutosaveStatus.saving => 'Saving…',
+      AutosaveStatus.saved => 'Saved',
+      AutosaveStatus.failed => 'Not saved — press Save',
+    };
+    if (text == null) return const SizedBox.shrink();
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(right: PlotSpacing.s2),
+        child: Text(text,
+            key: const ValueKey('autosave-status'),
+            style: PlotTypography.small(
+                status == AutosaveStatus.failed ? c.textPrimary : c.textMuted)),
+      ),
     );
   }
 }
