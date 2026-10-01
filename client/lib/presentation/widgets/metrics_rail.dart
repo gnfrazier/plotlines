@@ -501,17 +501,23 @@ class _ViaReachSection extends StatelessWidget {
                   color: r.reached ? c.textSecondary : c.warning,
                 ),
                 const SizedBox(width: PlotSpacing.s1),
+                // FR145 — the label (an Author's node title) stands alone;
+                // the status beside it is fixed text, never a sentence built
+                // around authored words.
                 Expanded(
-                  child: Text(
-                    r.reached ? '${r.label}: reached' : 'Missed ${r.label}',
-                    style: PlotTypography.small(c.textPrimary),
-                  ),
+                  child: Text(r.label, style: PlotTypography.small(c.textPrimary)),
                 ),
-                if (!r.reached && r.offsetM != null)
+                Text(
+                  r.reached ? 'reached' : 'missed',
+                  style: PlotTypography.small(r.reached ? c.textSecondary : c.textPrimary),
+                ),
+                if (!r.reached && r.offsetM != null) ...[
+                  const SizedBox(width: PlotSpacing.s1),
                   Text(
-                    '${displayFormat.formatDistance(r.offsetM!)} off',
+                    displayFormat.formatDistance(r.offsetM!),
                     style: PlotTypography.data(c.textSecondary),
                   ),
+                ],
               ],
             ),
           ),

@@ -345,8 +345,7 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
           compose
               ? 'In Compose the route follows the spine. Promote this place to an '
                   'anchor and add it to the spine to route through it.'
-              : 'The route must reach this point. Changing this marks the route '
-                  'stale; re-solve to apply it.',
+              : 'The route must reach this point.',
           style: PlotTypography.small(c.textSecondary),
         ),
       ),

@@ -188,16 +188,17 @@ void main() {
       await _pumpMetricsRail(tester, _segment(via: const [_lunch, _overlook]));
 
       expect(find.text('ROUTE THROUGH'), findsOneWidget);
-      expect(find.text('Lunch: reached'), findsOneWidget);
-      expect(find.text('Missed Overlook'), findsOneWidget);
-      expect(find.text('1.1 km off'), findsOneWidget);
+      Finder rowOf(String label) => find.ancestor(of: find.text(label), matching: find.byType(Row)).first;
+      expect(find.descendant(of: rowOf('Lunch'), matching: find.text('reached')), findsOneWidget);
+      expect(find.descendant(of: rowOf('Overlook'), matching: find.text('missed')), findsOneWidget);
+      expect(find.descendant(of: rowOf('Overlook'), matching: find.text('1.1 km')), findsOneWidget);
     });
 
     testWidgets('a stale passage asks for a re-solve rather than reporting', (tester) async {
       await _pumpMetricsRail(tester, _segment(via: const [_lunch, _overlook], stale: true));
 
       expect(find.byKey(const ValueKey('via-reach-pending')), findsOneWidget);
-      expect(find.textContaining('Missed'), findsNothing);
+      expect(find.text('missed'), findsNothing);
       expect(find.text('Overlook'), findsOneWidget);
     });
 
