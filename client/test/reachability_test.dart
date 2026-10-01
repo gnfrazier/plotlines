@@ -1,5 +1,6 @@
 // FR142(b) (Story K12) — reachability verified against an enumeration, not
-// asserted: every ReachableObject must resolve to a named surface.
+// asserted: every ReachableObject must resolve to a named surface. That each
+// named surface really shows its object is `reachability_surfaces_test.dart`.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plotlines_client/domain/domain.dart';
@@ -37,7 +38,8 @@ void main() {
     // And the whole enumeration — K12's rule is that the enumeration is
     // re-run whenever an object type is added, so a new kind arrives with its
     // path named. Added since K12: `alternate` (issue #324), which an Author
-    // now draws on the Route tab's map and finds back on Logistics.
+    // now draws on the Route tab's map and finds back on Logistics; and
+    // `character` (#118's wiring), which the Roster tab lost on every reopen.
     expect(
       ReachableObject.values.toSet(),
       {
@@ -46,6 +48,7 @@ void main() {
         ReachableObject.passage,
         ReachableObject.day,
         ReachableObject.trip,
+        ReachableObject.character,
         ReachableObject.characterNote,
         ReachableObject.groupAssignment,
         ReachableObject.staleItem,

@@ -7,7 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
+import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/roster_tab.dart';
+import 'package:plotlines_client/presentation/widgets/empty_state_notice.dart';
+import 'package:plotlines_client/state/current_roster_provider.dart';
 
 // The tab's content (request catalog + roster cards) runs taller than the
 // default test surface, and `ListView`'s sliver realizes children lazily by
@@ -30,7 +33,49 @@ Future<void> _pump(WidgetTester tester) async {
 void main() {
   testWidgets('shows the empty-roster next action before any Character is added', (tester) async {
     await _pump(tester);
-    expect(find.textContaining('No Characters on this trip\'s roster yet'), findsOneWidget);
+    // FR142(c) — through the registry, not copy written here.
+    expect(find.byKey(EmptyStateNotice.keyFor(EmptyStateContext.rosterNoCharacters)), findsOneWidget);
+  });
+
+  // FR142(a) / FR135a — removing a person deletes the Author's notes on them,
+  // the one deletion undo never reverses; the roster says so before it
+  // happens, and Keep them keeps both.
+  testWidgets('removing a Character with notes states the irreversible deletion first',
+      (tester) async {
+    tester.view.physicalSize = const Size(1000, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    container.read(currentRosterProvider.notifier).open(const TripRoster(
+      entries: [RosterEntry(characterId: 'dana', name: 'Dana')],
+      authorNotes: [
+        AuthorNote(subjectCharacterId: 'dana', body: 'Hates switchbacks', updatedAt: '2026-01-01'),
+        AuthorNote(subjectCharacterId: 'dana', body: 'Vegetarian', updatedAt: '2026-01-02'),
+      ],
+    ));
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: Scaffold(body: RosterTab())),
+    ));
+
+    await tester.tap(find.byTooltip('Remove Dana from roster'));
+    await tester.pumpAndSettle();
+    expect(find.text('Remove this Character and your 2 notes?'), findsOneWidget);
+    expect(find.textContaining('never the notes'), findsOneWidget);
+
+    await tester.tap(find.text('Keep them'));
+    await tester.pumpAndSettle();
+    expect(container.read(currentRosterProvider).entries, hasLength(1));
+    expect(container.read(currentRosterProvider).authorNotes, hasLength(2));
+
+    await tester.tap(find.byTooltip('Remove Dana from roster'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove and delete 2 notes'));
+    await tester.pumpAndSettle();
+    expect(container.read(currentRosterProvider).entries, isEmpty);
+    expect(container.read(currentRosterProvider).authorNotes, isEmpty);
   });
 
   testWidgets('adding a Character shows every default-requested field pending, never granted',

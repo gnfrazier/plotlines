@@ -31,6 +31,7 @@ import '../../../state/trip_candidates_provider.dart';
 import '../../map/anchor_map_points.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/desktop_error_surface.dart';
+import '../../widgets/empty_state_notice.dart';
 import '../../widgets/layer_picker.dart';
 import '../../widgets/teaching_block.dart';
 import '../../../data/curation_client.dart' show LayerCatalog;
@@ -117,7 +118,11 @@ class _LayersTabState extends ConsumerState<LayersTab> {
         final Widget viewBody = switch (_view) {
           _CurationView.candidates => _candidatesView(context, catalog, live, day),
           _CurationView.proposals => ProposalsView(trip: widget.trip, liveLayers: live),
-          _CurationView.anchors => AnchorsView(trip: widget.trip),
+          _CurationView.anchors => AnchorsView(
+              trip: widget.trip,
+              onBrowseCandidates: () => setState(() => _view = _CurationView.candidates),
+              onFindProposals: () => setState(() => _view = _CurationView.proposals),
+            ),
         };
 
         return Column(
@@ -185,6 +190,31 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                   // reads `layerExtractionFailed` from either signal, so a
                   // caller never has to tell "the request failed" from "it
                   // came back empty" apart — both are one whole-set retry.
+                  // FR142(c) / K12 — a run that came back clean and empty is
+                  // not a failure (that is the card below) and not a blank
+                  // map: it names what to change.
+                  if (bbox != null &&
+                      !candidatesState.loading &&
+                      candidatesState.error == null &&
+                      candidatesState.layersUnavailable.isEmpty &&
+                      candidatesState.candidates.isEmpty &&
+                      candidatesState.isCurrentFor(bbox, live))
+                    Center(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: c.surfaceCard.withValues(alpha: 0.95),
+                          borderRadius: PlotRadii.controlShape,
+                          border: Border.all(color: c.border),
+                        ),
+                        child: EmptyStateNotice(
+                          EmptyStateContext.layerSetNoCandidates,
+                          actions: [
+                            EmptyStateAction(
+                                'Widen the trip area', () => context.push('/trip-area')),
+                          ],
+                        ),
+                      ),
+                    ),
                   if (candidatesState.error != null || candidatesState.layersUnavailable.isNotEmpty)
                     Positioned(
                       bottom: PlotSpacing.s3,
@@ -461,8 +491,18 @@ class _CurationViewSwitcher extends StatelessWidget {
 /// **Unattached anchors are ordinary working state, not a problem queue** —
 /// not badged, not counted as errors, never blocking anything (Q2).
 class AnchorsView extends ConsumerStatefulWidget {
-  const AnchorsView({super.key, required this.trip});
+  const AnchorsView({
+    super.key,
+    required this.trip,
+    this.onBrowseCandidates,
+    this.onFindProposals,
+  });
   final Trip trip;
+
+  /// FR142(c) — the empty view's next actions: switch the workspace to the
+  /// candidates or proposals view. Null where the host has no such views.
+  final VoidCallback? onBrowseCandidates;
+  final VoidCallback? onFindProposals;
 
   @override
   ConsumerState<AnchorsView> createState() => _AnchorsViewState();
@@ -490,17 +530,20 @@ class _AnchorsViewState extends ConsumerState<AnchorsView> {
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
     final anchors = widget.trip.anchors;
+    // FR142(c) / K12 — a bbox with nothing promoted names the two ways to
+    // promote, each one press away.
     if (anchors.isEmpty) {
+      final candidates = ref.watch(tripCandidatesProvider).candidates.length;
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(PlotSpacing.s6),
-          child: Text(
-            'Nothing promoted yet. Promote a candidate or a proposal to park a '
-            'place here — an anchor can sit unattached to any day, which is '
-            'ordinary working state, not a problem.',
-            style: PlotTypography.body(c.textMuted),
-            textAlign: TextAlign.center,
-          ),
+        child: EmptyStateNotice(
+          EmptyStateContext.bboxNoPromotedAnchors,
+          detail: candidates == 0 ? null : '$candidates candidates are on the map.',
+          actions: [
+            if (widget.onBrowseCandidates != null)
+              EmptyStateAction('Browse the map', widget.onBrowseCandidates!),
+            if (widget.onFindProposals != null)
+              EmptyStateAction('Find the good spots', widget.onFindProposals!),
+          ],
         ),
       );
     }

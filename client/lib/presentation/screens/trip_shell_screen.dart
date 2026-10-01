@@ -13,14 +13,18 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../domain/domain.dart';
+import '../../state/authoring_undo_provider.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
 import '../../state/trip_autosave_provider.dart';
+import '../widgets/stale_list_dialog.dart';
+import '../widgets/undo_controls.dart';
 import 'character_read_screen.dart';
 import 'plan_tabs/content_tab.dart';
 import 'plan_tabs/export_tab.dart';
@@ -57,12 +61,36 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
     // After this frame: starting sets the indicator's state, which a
     // provider must not have changed while the tree is building.
     Future.microtask(_autosave.start);
+    _undo = ref.read(authoringUndoProvider.notifier);
+    HardwareKeyboard.instance.addHandler(_handleUndoKey);
+  }
+
+  late final AuthoringUndoController _undo;
+
+  /// FR142(a) — Ctrl/Cmd+Z and Ctrl/Cmd+Y on the trip's history, only while
+  /// the shell is the visible route (not under Settings or a dialog) and no
+  /// text field has focus: a field's own undo keeps its keys.
+  bool _handleUndoKey(KeyEvent event) {
+    if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? false)) return false;
+    final shortcut = undoShortcutFor(event, HardwareKeyboard.instance);
+    if (shortcut == null || textFieldHasFocus()) return false;
+    switch (shortcut) {
+      case UndoShortcut.undo:
+        _undo.undo();
+      case UndoShortcut.redo:
+        _undo.redo();
+    }
+    return true;
   }
 
   /// Issue #577 — the named way back. Pending changes are written first
   /// and the navigation waits for it, so leaving never drops an edit.
+  ///
+  /// FR142(a) — leaving is closing the trip, so the session's undo history
+  /// goes with it, after the last write has landed.
   Future<void> _toLibrary() async {
     await _autosave.flush();
+    _undo.clear();
     if (mounted) context.go('/');
   }
 
@@ -77,6 +105,7 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
     // Any other way out (the route popped under us) still writes what's
     // pending; nothing is waiting on it, so it is not awaited.
     unawaited(_autosave.stop());
+    HardwareKeyboard.instance.removeHandler(_handleUndoKey);
     _tabController.dispose();
     super.dispose();
   }
@@ -107,6 +136,9 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
       _activeDayId = selected.$1;
     }
     _maybeRaiseSyncAlerts(trip);
+    // The app bar's actions keep their words on a desktop-width window and
+    // drop to icons (tooltips intact) on a narrow one rather than overflow.
+    final compactBar = MediaQuery.sizeOf(context).width < 1280;
 
     return Scaffold(
       appBar: AppBar(
@@ -133,6 +165,24 @@ class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTi
             onPressed: () => context.push('/trip-area'),
             icon: const Icon(Icons.crop_free, size: 18),
           ),
+          // FR142(b) — stale work has a path back to it from anywhere in
+          // the trip, not only from an export attempt.
+          if (tripStaleCount(trip) > 0)
+            compactBar
+                ? IconButton(
+                    key: const ValueKey('stale-count'),
+                    tooltip: '${tripStaleCount(trip)} stale — open the stale list',
+                    onPressed: () => showStaleList(context),
+                    icon: Badge.count(
+                        count: tripStaleCount(trip), child: const Icon(Icons.update, size: 18)),
+                  )
+                : TextButton.icon(
+                    key: const ValueKey('stale-count'),
+                    onPressed: () => showStaleList(context),
+                    icon: const Icon(Icons.update, size: 18),
+                    label: Text('${tripStaleCount(trip)} stale'),
+                  ),
+          UndoControls(compact: compactBar),
           _AutosaveIndicator(status: ref.watch(tripAutosaveProvider)),
           // Issue #578 — units, basemap style (#465) and the rest are
           // changed mid-trip, not only from the library. Pushed, so Back

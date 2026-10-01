@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plotlines_client/domain/domain.dart';
+import 'package:plotlines_client/state/authoring_undo_provider.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 
 const _start = <double>[-105.40, 40.0];
@@ -213,26 +214,35 @@ void main() {
       expect(_seg(c).solve!.stale, isFalse);
     });
 
-    test('one state change: a snapshot undo restores the node and its via point together',
-        () {
-      // K12's undo (#118) is not wired into the shell yet; when it is, it
-      // snapshots the trip per action, so the node and its via point have to
-      // land in one state change or an undo could split them.
+    test('one state change: undo restores the node and its via point together', () async {
+      // K12's undo (#118) snapshots the trip per action, so the node and its
+      // via point have to land in one state change, and one undo step, or
+      // an undo could split them.
       final (c, n) = _open(_p2p());
-      final undo = TripUndoStack();
-      final before = c.read(currentTripProvider);
       var emissions = 0;
       c.listen(currentTripProvider, (_, _) => emissions++);
 
-      undo.record(before);
       n.saveSegmentNode('d1', 's1', _node('n1', const [-105.2, 40.0]), routeThrough: true);
       expect(emissions, 1);
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(authoringUndoProvider).history, ['Add a place']);
 
-      final restored = undo.undo(c.read(currentTripProvider))!;
-      final s = restored.days.single.segments.single;
+      c.read(authoringUndoProvider.notifier).undo();
+      final s = _seg(c);
       expect(s.nodes, isEmpty);
       expect(s.via, isEmpty);
       expect(s.solve!.stale, isFalse);
+    });
+
+    test('turning route-through off is its own undo step and puts the via point back', () async {
+      final a = _node('a', const [-105.3, 40.0]);
+      final (c, n) = _open(_p2p(nodes: [a], via: [a.coord]));
+      n.setNodeRouteThrough('d1', 's1', 'a', false);
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(authoringUndoProvider).history, ['Stop routing through a place']);
+
+      c.read(authoringUndoProvider.notifier).undo();
+      expect(_seg(c).via, [a.coord]);
     });
 
     test('a third routed-through node makes a banded loop target advisory (A9a)', () {
