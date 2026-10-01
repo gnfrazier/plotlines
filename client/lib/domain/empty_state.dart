@@ -59,23 +59,26 @@ class EmptyStateCopy {
 const Map<EmptyStateContext, EmptyStateCopy> emptyStateRegistry = {
   EmptyStateContext.tripNoDays: EmptyStateCopy(
     message: 'This trip has no days yet.',
-    nextAction: 'Add a day to start building the itinerary.',
+    nextAction: 'Add a day, then give it a passage or make it a rest day.',
   ),
   EmptyStateContext.dayNoPassages: EmptyStateCopy(
-    message: 'This day has no passages yet.',
-    nextAction: 'Promote a candidate or draw a route to add the first passage.',
+    message: 'This day has nowhere to go yet.',
+    nextAction:
+        'Add a passage, or make it a rest day — a rest day holds anchors and detail without a route.',
   ),
   EmptyStateContext.bboxNoPromotedAnchors: EmptyStateCopy(
-    message: 'Nothing in this area has been promoted yet.',
-    nextAction: 'Select a candidate on the map and promote it to an anchor.',
+    message: 'Nothing has been promoted into this trip yet.',
+    nextAction:
+        'Tap a candidate on the map to promote it, or let Proposals find the good spots.',
   ),
   EmptyStateContext.rosterNoCharacters: EmptyStateCopy(
-    message: 'This roster has no Characters yet.',
-    nextAction: 'Add a Character to start assigning them to the trip.',
+    message: 'Nobody is on this trip yet.',
+    nextAction:
+        "Add a Character by name above, or clone a past trip's roster from the Library.",
   ),
   EmptyStateContext.layerSetNoCandidates: EmptyStateCopy(
-    message: 'This layer selection returned no candidates.',
-    nextAction: 'Widen the layer selection or adjust the bbox to bring in more of the map.',
+    message: 'These layers found nothing in this area.',
+    nextAction: 'Turn on more layers, or widen the trip area.',
   ),
   EmptyStateContext.passageNoAlternates: EmptyStateCopy(
     message: 'No alternates on this passage.',

@@ -23,6 +23,7 @@ import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/planner_ui_state.dart';
 import '../../state/settings_provider.dart';
+import 'empty_state_notice.dart';
 import 'transition_editor_sheet.dart';
 import 'transition_strand_prompt.dart';
 import 'travel_mode_icons.dart';
@@ -86,8 +87,26 @@ class DayTimelineStrip extends ConsumerWidget {
                 border: Border(top: BorderSide(color: c.border)),
               ),
               padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s4, vertical: PlotSpacing.s3),
+              // FR142(c) / K12 — a trip with no days names the next action.
               child: activeDay == null
-                  ? Center(child: Text('No days yet', style: PlotTypography.small(c.textMuted)))
+                  ? Center(
+                      child: EmptyStateNotice(
+                        EmptyStateContext.tripNoDays,
+                        compact: true,
+                        actions: [
+                          EmptyStateAction('Add a route day', () {
+                            ref.read(plannerTargetDayIdProvider.notifier).state = null;
+                            context.push('/new');
+                          }),
+                          EmptyStateAction('Add a rest day', () {
+                            final id = ref
+                                .read(currentTripProvider.notifier)
+                                .addBlankDay(kind: 'rest');
+                            onSelectDay(id);
+                          }),
+                        ],
+                      ),
+                    )
                   : _DaySegmentStrip(day: activeDay),
             ),
           ),
@@ -114,10 +133,22 @@ class _DaySegmentStrip extends ConsumerWidget {
         ],
       );
     }
+    // FR142(c) / K12 — the old line sent the Author to another tab; the
+    // actions are here now.
     if (day.segments.isEmpty) {
       return Center(
-        child: Text('No segments yet — Add segment from Logistics.',
-            style: PlotTypography.small(c.textMuted)),
+        child: EmptyStateNotice(
+          EmptyStateContext.dayNoPassages,
+          compact: true,
+          actions: [
+            EmptyStateAction('Add a passage', () {
+              ref.read(plannerTargetDayIdProvider.notifier).state = day.id;
+              context.push('/new');
+            }),
+            EmptyStateAction('Make it a rest day',
+                () => ref.read(currentTripProvider.notifier).setDayKind(day.id, 'rest')),
+          ],
+        ),
       );
     }
     // FR19 / C3 — one chip per breaching mode: `Day.limits` is per-mode, so

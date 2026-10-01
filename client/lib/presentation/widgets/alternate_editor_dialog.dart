@@ -32,6 +32,7 @@ import '../../state/current_trip_provider.dart';
 import '../../state/settings_provider.dart';
 import '../display_format_of.dart';
 import '../failure_sentence.dart';
+import 'empty_state_notice.dart';
 import 'teaching_block.dart';
 
 /// PRD §1.4–1.5, and the model itself: no Author setting hides a hazard. Said
@@ -517,7 +518,7 @@ class _AlternateCardState extends ConsumerState<AlternateCard> {
                 Text('NARRATION ON THIS BRANCH', style: PlotTypography.data(c.textMuted)),
                 const SizedBox(height: PlotSpacing.s1),
                 if (a.narration == null)
-                  const _EmptyLine(EmptyStateContext.branchNoNarration)
+                  const EmptyStateNotice(EmptyStateContext.branchNoNarration, compact: true)
                 else
                   Text('Narration attached.', style: PlotTypography.small(c.textSecondary)),
                 const SizedBox(height: PlotSpacing.s3),
@@ -703,21 +704,6 @@ class _Stat extends StatelessWidget {
   }
 }
 
-/// FR142(c) / K12 — an empty state as one line plus its next action, from the
-/// registry rather than written inline at each surface.
-class _EmptyLine extends StatelessWidget {
-  const _EmptyLine(this.context_);
-  final EmptyStateContext context_;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = PlotColors.of(context);
-    final copy = emptyStateRegistry[context_]!;
-    return Text('${copy.message} ${copy.nextAction}',
-        style: PlotTypography.small(c.textMuted));
-  }
-}
-
 class _BranchAnchors extends StatelessWidget {
   const _BranchAnchors({
     required this.tripId,
@@ -745,7 +731,7 @@ class _BranchAnchors extends StatelessWidget {
         ),
         const SizedBox(height: PlotSpacing.s1),
         if (anchors.isEmpty)
-          const _EmptyLine(EmptyStateContext.branchNoAnchors)
+          const EmptyStateNotice(EmptyStateContext.branchNoAnchors, compact: true)
         else
           for (final anchor in anchors)
             CheckboxListTile(

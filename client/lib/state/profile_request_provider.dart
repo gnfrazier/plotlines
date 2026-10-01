@@ -80,10 +80,16 @@ class ProfileRequestNotifier extends StateNotifier<ProfileRequestState> {
   /// volunteered data in tests without inventing a second, parallel model —
   /// `resolveCharacterStatuses` is the same function real K2 data would run
   /// through.
+  ///
+  /// A Character on the persisted roster but not yet in this session's grid
+  /// (a reopened trip, an undo that brought them back — FR142(b)) gets a row
+  /// here on their first response rather than having it dropped.
   void recordResponse(CharacterResponse response) {
+    final known = state.responses.any((r) => r.characterId == response.characterId);
     state = state.copyWith(responses: [
       for (final r in state.responses)
         if (r.characterId == response.characterId) response else r,
+      if (!known) response,
     ]);
   }
 }

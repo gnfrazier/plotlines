@@ -32,11 +32,13 @@ import '../../display_format_of.dart';
 import '../../map/candidate_map.dart';
 import '../../widgets/alternate_editor_dialog.dart';
 import '../../widgets/day_removal_prompt.dart';
+import '../../widgets/empty_state_notice.dart';
 import '../../widgets/gear_section.dart';
 import '../../widgets/meal_section.dart';
 import '../../widgets/permit_section.dart';
 import '../../widgets/plot_date_range_picker.dart';
 import '../../widgets/plot_toggle_chip.dart';
+import '../../widgets/stale_list_dialog.dart';
 import '../rest_day_location_screen.dart';
 
 const _uuid = Uuid();
@@ -63,16 +65,27 @@ class LogisticsTab extends ConsumerWidget {
               // modal, no banner, no interruption." This is that count —
               // deliberately plain text, not `error_states.dart`'s banner
               // idiom (FR140a: stale work is pending work, not a failure).
+              //
+              // FR142(b) / K12 — and the count is the stale list's path: the
+              // item it counts is reachable from here, not only from export.
               if (staleCount > 0)
                 Padding(
                   padding: const EdgeInsets.only(bottom: PlotSpacing.s3),
-                  child: Text(
-                    // #344 — an alternate whose fork has moved is stale in its
-                    // own right, so the count is no longer routes alone. The
-                    // list itself names each item by what it is; this is only
-                    // the count, and it must not claim a kind it does not know.
-                    '$staleCount stale ${staleCount == 1 ? 'item needs' : 'items need'} re-solving before export',
-                    style: PlotTypography.small(PlotColors.of(context).textMuted),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      key: const ValueKey('logistics-stale-count'),
+                      onPressed: () => showStaleList(context),
+                      child: Text(
+                        // #344 — an alternate whose fork has moved is stale in
+                        // its own right, so the count is no longer routes
+                        // alone. The list itself names each item by what it
+                        // is; this is only the count, and it must not claim a
+                        // kind it does not know.
+                        '$staleCount stale ${staleCount == 1 ? 'item needs' : 'items need'} re-solving before export',
+                        style: PlotTypography.small(PlotColors.of(context).textSecondary),
+                      ),
+                    ),
                   ),
                 ),
               _TripDurationCard(trip: trip),
@@ -83,6 +96,19 @@ class LogisticsTab extends ConsumerWidget {
               // its own day (rest-day title/note, day-limit fields), and an
               // unkeyed list hands Day 1's state to Day 2 when Day 1 is
               // removed or a day is inserted before it.
+              // FR142(c) / K12 — no days is a next action, not an absence.
+              if (trip.days.isEmpty)
+                EmptyStateNotice(
+                  EmptyStateContext.tripNoDays,
+                  actions: [
+                    EmptyStateAction('Add a route day', () {
+                      ref.read(plannerTargetDayIdProvider.notifier).state = null;
+                      context.push('/new');
+                    }),
+                    EmptyStateAction('Add a rest day',
+                        () => ref.read(currentTripProvider.notifier).addBlankDay(kind: 'rest')),
+                  ],
+                ),
               for (final day in trip.days)
                 _DayCard(
                     key: ValueKey(day.id),
@@ -457,18 +483,33 @@ class _DayCard extends ConsumerWidget {
                 ),
             ],
             if (!day.isRest) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: PlotButton(
-                  label: 'Add segment',
-                  variant: PlotButtonVariant.ghost,
-                  icon: Icons.add,
-                  onPressed: () {
-                    ref.read(plannerTargetDayIdProvider.notifier).state = day.id;
-                    context.push('/new');
-                  },
+              // FR142(c) / K12 — a day with no passages names both ways on.
+              if (day.segments.isEmpty)
+                EmptyStateNotice(
+                  EmptyStateContext.dayNoPassages,
+                  compact: true,
+                  actions: [
+                    EmptyStateAction('Add a passage', () {
+                      ref.read(plannerTargetDayIdProvider.notifier).state = day.id;
+                      context.push('/new');
+                    }),
+                    EmptyStateAction('Make it a rest day',
+                        () => ref.read(currentTripProvider.notifier).setDayKind(day.id, 'rest')),
+                  ],
+                )
+              else
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: PlotButton(
+                    label: 'Add segment',
+                    variant: PlotButtonVariant.ghost,
+                    icon: Icons.add,
+                    onPressed: () {
+                      ref.read(plannerTargetDayIdProvider.notifier).state = day.id;
+                      context.push('/new');
+                    },
+                  ),
                 ),
-              ),
               const SizedBox(height: PlotSpacing.s3),
               _DayLimitEditor(day: day),
               _WaterCarrySection(day: day, waterSources: waterSources),
@@ -568,11 +609,9 @@ class _AlternatesSection extends ConsumerWidget {
 
     // Nothing yet — one line and the action that makes one, no card.
     if (segment.alternates.isEmpty) {
-      final copy = emptyStateRegistry[EmptyStateContext.passageNoAlternates]!;
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: PlotSpacing.s1),
-        child: Text('${copy.message} ${copy.nextAction}',
-            style: PlotTypography.small(c.textMuted)),
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: PlotSpacing.s1),
+        child: EmptyStateNotice(EmptyStateContext.passageNoAlternates, compact: true),
       );
     }
 

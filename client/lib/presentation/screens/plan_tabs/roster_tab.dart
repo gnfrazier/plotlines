@@ -31,6 +31,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../../domain/domain.dart';
 import '../../../state/current_roster_provider.dart';
 import '../../../state/profile_request_provider.dart';
+import '../../widgets/empty_state_notice.dart';
 
 class RosterTab extends ConsumerStatefulWidget {
   const RosterTab({super.key});
@@ -58,11 +59,49 @@ class _RosterTabState extends ConsumerState<RosterTab> {
     _nameController.clear();
   }
 
-  void _removeCharacter(String characterId) {
+  Future<void> _removeCharacter(String characterId) async {
+    // FR142(a) / FR135a — removing a person drops the Author's notes on them,
+    // and that deletion is the one thing undo never brings back. Said here,
+    // at the point of deletion, before it happens — not discovered after an
+    // undo restores the person without them.
+    final notes = ref
+        .read(currentRosterProvider)
+        .authorNotes
+        .where((n) => n.subjectCharacterId == characterId)
+        .length;
+    if (notes > 0 && !await _confirmNoteDeletion(notes)) return;
     ref.read(profileRequestProvider.notifier).removeCharacter(characterId);
     // D6a in miniature — the Author's own values for this Character go with
     // them, not left dangling.
     ref.read(currentRosterProvider.notifier).removeEntry(characterId);
+  }
+
+  Future<bool> _confirmNoteDeletion(int notes) async {
+    final c = PlotColors.of(context);
+    final noun = notes == 1 ? 'note' : 'notes';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remove this Character and your $notes $noun?'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Text(
+            'Your $notes $noun on them go too. Undo brings the Character back to '
+            'the roster, but never the $noun: deleting what you hold about a person '
+            'is irreversible.',
+            style: PlotTypography.body(c.textSecondary),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep them')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Remove and delete $notes $noun'),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
   }
 
   @override
@@ -70,6 +109,17 @@ class _RosterTabState extends ConsumerState<RosterTab> {
     final c = PlotColors.of(context);
     final state = ref.watch(profileRequestProvider);
     final roster = ref.watch(currentRosterProvider);
+    // FR142(b) / K12 — the persisted roster is the list, not the session's
+    // response grid: that grid starts empty on every open (it has nothing
+    // real to persist yet), so a reopened trip's Characters — and any an undo
+    // brings back — were on the roster but on no surface. Each entry is
+    // joined to its response where one exists this session.
+    final responses = {for (final r in state.responses) r.characterId: r};
+    final people = [
+      for (final e in roster.entries)
+        responses[e.characterId] ??
+            CharacterResponse(characterId: e.characterId, characterName: e.name),
+    ];
     return ListView(
       padding: const EdgeInsets.all(PlotSpacing.s5),
       children: [
@@ -117,20 +167,17 @@ class _RosterTabState extends ConsumerState<RosterTab> {
           ],
         ),
         const SizedBox(height: PlotSpacing.s3),
-        if (state.responses.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: PlotSpacing.s4),
-            child: Text(
-              'No Characters on this trip\'s roster yet — add one above to '
-              'start tracking what they\'ve shared.',
-              style: PlotTypography.body(c.textMuted),
-            ),
+        // FR142(c) / K12 — nobody yet is a next action.
+        if (people.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: PlotSpacing.s2),
+            child: EmptyStateNotice(EmptyStateContext.rosterNoCharacters, compact: true),
           )
         else
           // Keyed by Character: each card holds a pending "volunteered"
           // pick, and an unkeyed list hands Ann's pick to Bob when Ann is
           // removed — a disclosure attributed to someone who never made it.
-          for (final response in state.responses)
+          for (final response in people)
             Padding(
               key: ValueKey(response.characterId),
               padding: const EdgeInsets.only(bottom: PlotSpacing.s3),
