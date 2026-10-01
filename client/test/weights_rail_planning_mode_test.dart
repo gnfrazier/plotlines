@@ -148,8 +148,9 @@ void main() {
     expect(find.text('BANDS'), findsNothing);
     expect(find.text('SPINE'), findsOneWidget);
     // The via coord already matches a promoted anchor, so the spine shows
-    // its title rather than "Custom point".
-    expect(find.text('Overlook Anchor'), findsOneWidget);
+    // its title rather than "Custom point". Scoped to the weights rail:
+    // since #589 the metrics rail's ROUTE THROUGH section names it too.
+    expect(_inWeightsRail(find.text('Overlook Anchor')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -161,8 +162,14 @@ void main() {
     await _tap(tester, find.text('Add place'));
 
     expect(find.text('Spare Point'), findsOneWidget);
-    // The anchor already in the spine must not also show up in the menu.
-    expect(find.text('Overlook Anchor'), findsNWidgets(1)); // only the spine row, not a duplicate menu entry
+    // The anchor already in the spine must not also show up in the menu
+    // (the menu is an overlay, outside the rail, so look in it directly).
+    expect(_inWeightsRail(find.text('Overlook Anchor')), findsOneWidget); // the spine row
+    expect(
+        find.descendant(
+            of: find.byWidgetPredicate((w) => w is PopupMenuEntry),
+            matching: find.text('Overlook Anchor')),
+        findsNothing);
     expect(tester.takeException(), isNull);
   });
 

@@ -1325,8 +1325,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     for (final n in segment.nodes) {
       if (n.id == node.id) old = n;
     }
-    saveSegmentNode(dayId, segmentId, node,
-        routeThrough: old != null && nodeRoutesThrough(segment, old));
+    _edit('Edit a place', () => saveSegmentNode(dayId, segmentId, node,
+        routeThrough: old != null && nodeRoutesThrough(segment, old)));
   }
 
   /// #589 (ARCH D71) — the one write behind the node editor: add or replace
@@ -1344,7 +1344,19 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// ([_reconcileTargetAdvisory]). So does a node whose *kind* is a routing
   /// constraint (#322). A node that neither routes through nor constrains is
   /// an annotation, and saving it changes nothing about the route.
+  ///
+  /// FR142(a) — one undo step, node and via point together.
   void saveSegmentNode(String dayId, String segmentId, Node node, {required bool routeThrough}) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final isNew = !day.segments
+        .firstWhere((s) => s.id == segmentId)
+        .nodes
+        .any((n) => n.id == node.id);
+    _edit(isNew ? 'Add a place' : 'Edit a place',
+        () => _saveSegmentNode(dayId, segmentId, node, routeThrough: routeThrough));
+  }
+
+  void _saveSegmentNode(String dayId, String segmentId, Node node, {required bool routeThrough}) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segment = day.segments.firstWhere((s) => s.id == segmentId);
     Node? old;
@@ -1393,7 +1405,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     for (final n in segment.nodes) {
       if (n.id != nodeId) continue;
       if (nodeRoutesThrough(segment, n) == routeThrough) return;
-      saveSegmentNode(dayId, segmentId, n, routeThrough: routeThrough);
+      _edit(routeThrough ? 'Route through a place' : 'Stop routing through a place',
+          () => saveSegmentNode(dayId, segmentId, n, routeThrough: routeThrough));
       return;
     }
   }
