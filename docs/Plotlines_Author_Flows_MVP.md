@@ -229,7 +229,7 @@ flowchart TD
 | Sidecar starting / won't start / died | FR91, FR121 | M12, M12a, M13 | Restart **once**, then degrade honestly. Cached trips stay viewable. |
 | Capability warming | FR121 | N2, M12a, M13 | Per-capability, and **per-layer** inside the layers capability. |
 | No route possible | FR9 | A6, M13 | Names the conflict; offers relaxations. |
-| No data for the area | — | M13 | Today a finished answer. **Pending ARCH D67 (#516, #522):** a mirror miss inside a coverable region becomes *fetching* — a waiting state, distinct from failure and from out-of-coverage, never a retry button. |
+| No data for the area | — | M13 | A finished answer only when the area is out of coverage. **ARCH D67 (#516, #522, Pi-verified 2026-10-01):** a mirror miss inside a coverable region is *fetching* — a waiting state, distinct from failure and from out-of-coverage, never a retry button. A routing build that is only queued reads as a wait too (#573). |
 | Elevation void / missing tile | FR88 | M10, M13 | A gap in the raster is interpolated from its neighbours; no raster at all is **absent**, never a flat `0.0` (#473, D68). Logged once per raster. Never raises, never blocks. |
 | Layer extraction failed | — | M13 | **New v2.0 state.** The total case — nothing served. |
 | Layers partially served | — | M13, N2 | **New v2.0 state (SPIKE-D #159, #400).** Some requested layers served, others not; names each missing layer and its reason. Never reads as an empty area. |
