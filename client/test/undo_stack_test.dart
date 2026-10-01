@@ -1,116 +1,101 @@
-// FR142(a) (Story K12) — bounded, session-scoped undo/redo over Trip
-// snapshots.
+// FR142(a) (Story K12) — the bounded, labelled, session-scoped undo history.
+// What a step *captures* (payload, modes, roster, bbox) is the State layer's
+// and is covered in `authoring_undo_provider_test.dart`; this is the ring.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plotlines_client/domain/domain.dart';
 
 void main() {
-  Trip trip(String title, {List<Day> days = const []}) => Trip(
-        id: 't1',
-        title: title,
-        createdAt: '2026-01-01T00:00:00Z',
-        updatedAt: '2026-01-01T00:00:00Z',
-        days: days,
-      );
-
-  test('undo with nothing recorded returns null and does not change canUndo', () {
-    final stack = TripUndoStack();
-    expect(stack.canUndo, isFalse);
-    expect(stack.undo(trip('A')), isNull);
+  test('undo and redo with nothing recorded return null', () {
+    final h = UndoHistory<String>();
+    expect(h.canUndo, isFalse);
+    expect(h.canRedo, isFalse);
+    expect(h.undo('A'), isNull);
+    expect(h.redo('A'), isNull);
   });
 
-  test('redo with nothing to redo returns null', () {
-    final stack = TripUndoStack();
-    expect(stack.canRedo, isFalse);
-    expect(stack.redo(trip('A')), isNull);
+  test('record then undo restores the prior state and names the step', () {
+    final h = UndoHistory<String>();
+    h.record('Rename the trip', 'A');
+    expect(h.undoLabel, 'Rename the trip');
+
+    expect(h.undo('B'), 'A');
+    expect(h.canUndo, isFalse);
+    expect(h.redoLabel, 'Rename the trip');
+    expect(h.redo('A'), 'B');
+    expect(h.undoLabel, 'Rename the trip');
+    expect(h.canRedo, isFalse);
   });
 
-  test('record then undo restores the prior snapshot and enables redo', () {
-    final stack = TripUndoStack();
-    final before = trip('A');
-    final after = trip('B');
-
-    stack.record(before);
-    expect(stack.canUndo, isTrue);
-    expect(stack.undoDepth, 1);
-
-    final restored = stack.undo(after);
-    expect(restored, isNotNull);
-    expect(restored!.title, 'A');
-    expect(stack.canUndo, isFalse);
-    expect(stack.canRedo, isTrue);
+  test('recording a new action clears redo — no stale branch', () {
+    final h = UndoHistory<String>()..record('one', 'A');
+    h.undo('B');
+    expect(h.canRedo, isTrue);
+    h.record('two', 'C');
+    expect(h.canRedo, isFalse);
   });
 
-  test('undo then redo returns to the state before the undo', () {
-    final stack = TripUndoStack();
-    stack.record(trip('A'));
-    final undone = stack.undo(trip('B'))!;
-    final redone = stack.redo(undone);
-    expect(redone, isNotNull);
-    expect(redone!.title, 'B');
-    expect(stack.canRedo, isFalse);
+  test('depth is bounded, dropping the oldest step', () {
+    final h = UndoHistory<String>(maxDepth: 2)
+      ..record('a', 'A')
+      ..record('b', 'B')
+      ..record('c', 'C');
+    expect(h.undoDepth, 2);
+    expect(h.undoLabels, ['c', 'b']);
+    expect(h.undo('D'), 'C');
+    expect(h.undo('C'), 'B');
+    expect(h.canUndo, isFalse);
   });
 
-  test('recording a new action clears the redo stack — no stale branch', () {
-    final stack = TripUndoStack();
-    stack.record(trip('A'));
-    stack.undo(trip('B'));
-    expect(stack.canRedo, isTrue);
-
-    stack.record(trip('C'));
-    expect(stack.canRedo, isFalse);
+  test('clear discards both histories — trip close leaves nothing', () {
+    final h = UndoHistory<String>()..record('a', 'A');
+    h.undo('B');
+    h.clear();
+    expect(h.canUndo, isFalse);
+    expect(h.canRedo, isFalse);
   });
 
-  test('depth is bounded to maxDepth, dropping the oldest entry', () {
-    final stack = TripUndoStack(maxDepth: 2);
-    stack.record(trip('A'));
-    stack.record(trip('B'));
-    stack.record(trip('C'));
-    expect(stack.undoDepth, 2);
-
-    // Oldest ('A') should have been evicted; only 'C' then 'B' are reachable.
-    var current = trip('D');
-    current = stack.undo(current)!;
-    expect(current.title, 'C');
-    current = stack.undo(current)!;
-    expect(current.title, 'B');
-    expect(stack.canUndo, isFalse);
+  test('clearRedo drops only the redo branch', () {
+    final h = UndoHistory<String>()
+      ..record('a', 'A')
+      ..record('b', 'B');
+    h.undo('C');
+    h.clearRedo();
+    expect(h.canRedo, isFalse);
+    expect(h.undoLabels, ['a']);
   });
 
-  test('clear discards both stacks — trip close leaves nothing to undo or redo', () {
-    final stack = TripUndoStack();
-    stack.record(trip('A'));
-    stack.undo(trip('B'));
-    expect(stack.canRedo, isTrue);
+  group('coalescing', () {
+    late DateTime now;
+    late UndoHistory<String> h;
+    setUp(() {
+      now = DateTime(2026, 10, 1, 12);
+      h = UndoHistory<String>(clock: () => now);
+    });
 
-    stack.clear();
-    expect(stack.canUndo, isFalse);
-    expect(stack.canRedo, isFalse);
-  });
+    test('an edit with the newest step\'s key inside the window folds into it', () {
+      h.record('Edit a note', 'A', coalesceKey: 'note:1');
+      now = now.add(const Duration(seconds: 1));
+      expect(h.coalesces('note:1'), isTrue);
+      // Continuous typing refreshes the clock, so it stays one step.
+      now = now.add(const Duration(milliseconds: 1900));
+      expect(h.coalesces('note:1'), isTrue);
+      expect(h.undoDepth, 1);
+    });
 
-  test('undo restores day content, not just top-level scalar fields', () {
-    final stack = TripUndoStack();
-    final before = trip('A', days: [Day(id: 'd1', index: 1)]);
-    final after = trip('A', days: [Day(id: 'd1', index: 1), Day(id: 'd2', index: 2)]);
+    test('a different key, no key, or a pause starts a new step', () {
+      h.record('Edit a note', 'A', coalesceKey: 'note:1');
+      expect(h.coalesces('note:2'), isFalse);
+      expect(h.coalesces(null), isFalse);
+      now = now.add(const Duration(seconds: 3));
+      expect(h.coalesces('note:1'), isFalse);
+    });
 
-    stack.record(before);
-    final restored = stack.undo(after)!;
-    expect(restored.days.map((d) => d.id), ['d1']);
-  });
-
-  test('undo and redo carry the trip mode set, which is not in the payload (#319)', () {
-    // `Trip.modes` rides beside `toJson()`, not in it, so a snapshot taken
-    // through the payload alone restored every trip with no modes at all —
-    // an undo quietly emptying the per-passage mode picker.
-    final stack = TripUndoStack();
-    final before = trip('A').copyWith(modes: {'cycling', 'paddling'});
-    final after = trip('B').copyWith(modes: {'cycling', 'paddling', 'hiking'});
-
-    stack.record(before);
-    final undone = stack.undo(after)!;
-    expect(undone.modes, {'cycling', 'paddling'});
-
-    final redone = stack.redo(undone)!;
-    expect(redone.modes, {'cycling', 'paddling', 'hiking'});
+    test('never coalesces into a step while redo is pending', () {
+      h.record('Edit a note', 'A', coalesceKey: 'note:1');
+      h.record('Rename', 'B');
+      h.undo('C');
+      expect(h.coalesces('note:1'), isFalse);
+    });
   });
 }

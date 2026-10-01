@@ -21,6 +21,7 @@ import 'planner_ui_state.dart'
         selectedSegmentProvider,
         targetDistanceForViaCount,
         viaAnchorsMakeDistanceAdvisory;
+import 'authoring_undo_provider.dart';
 import 'current_roster_provider.dart';
 import 'providers.dart';
 import 'trip_authoring_meta_provider.dart';
@@ -42,6 +43,14 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
 
   final Ref _ref;
 
+  /// FR142(a) / K12 — every authored mutation below runs through here, so
+  /// it is one labelled undo step (`authoring_undo_provider.dart`). Derived
+  /// writes (re-solves, the compose pass) call [_derived] instead.
+  T _edit<T>(String label, T Function() apply, {String? coalesceKey}) =>
+      _ref.read(authoringUndoProvider.notifier).edit(label, apply, coalesceKey: coalesceKey);
+
+  T _derived<T>(T Function() apply) => _ref.read(authoringUndoProvider.notifier).derived(apply);
+
   static Trip _blank() {
     final now = _nowIso();
     return Trip(id: _uuid.v4(), title: 'Untitled plotline', createdAt: now, updatedAt: now);
@@ -49,7 +58,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
 
   /// K8 — one action, no per-control interaction, reverts everything and
   /// clears any generated route.
-  void reset() => state = _blank();
+  void reset() {
+    state = _blank();
+    _ref.read(authoringUndoProvider.notifier).clear();
+  }
 
   /// FR11 / B2 — a trip opened from disk (or from a clone) gets its
   /// transitions rebuilt on the way in, for the same reason [_replaceDay]
@@ -58,28 +70,41 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// Author edited on another device — may carry none at all. Resequencing
   /// is idempotent and preserves B3's authored instructions, so a payload
   /// that `compose_day` already measured comes back with the same numbers.
-  void open(Trip trip) => state = trip.copyWith(
-        days: [for (final day in trip.days) resequencePassages(day)],
-      );
+  ///
+  /// Opening a trip starts a new editing session, so the undo history is
+  /// cleared (FR142(a): session-scoped).
+  void open(Trip trip) {
+    state = trip.copyWith(
+      days: [for (final day in trip.days) resequencePassages(day)],
+    );
+    _ref.read(authoringUndoProvider.notifier).clear();
+  }
 
-  void renameTrip(String title) =>
-      state = state.copyWith(title: title, updatedAt: _nowIso());
+  /// FR142(a) — puts back a recorded undo/redo state. Not an edit and not
+  /// an open: the history stays as the controller left it.
+  void restore(Trip trip) => state = trip;
 
-  void setDefaultWeights(WeightProfile weights) =>
-      state = state.copyWith(defaultWeights: weights, updatedAt: _nowIso());
+  void renameTrip(String title) => _edit('Rename the trip',
+      () => state = state.copyWith(title: title, updatedAt: _nowIso()));
 
-  void setDuration(TripDuration duration) =>
-      state = state.copyWith(duration: duration, updatedAt: _nowIso());
+  void setDefaultWeights(WeightProfile weights) => _edit('Change the trip weights',
+      () => state = state.copyWith(defaultWeights: weights, updatedAt: _nowIso()),
+      coalesceKey: 'trip-weights');
+
+  void setDuration(TripDuration duration) => _edit('Change the trip dates',
+      () => state = state.copyWith(duration: duration, updatedAt: _nowIso()));
 
   /// FR35 / C14 — the offline-package corridor buffer (metres). `null`
   /// clears it (`Trip.copyWith`'s `clearOfflineBufferM`, the same "a bare
   /// null would otherwise read as unchanged" reasoning `setDayLocation`
   /// documents) — distinct from `0.0`, a deliberate route-only choice.
-  void setOfflineBufferM(double? meters) => state = state.copyWith(
-        offlineBufferM: meters,
-        clearOfflineBufferM: meters == null,
-        updatedAt: _nowIso(),
-      );
+  void setOfflineBufferM(double? meters) => _edit('Change the offline buffer',
+      () => state = state.copyWith(
+            offlineBufferM: meters,
+            clearOfflineBufferM: meters == null,
+            updatedAt: _nowIso(),
+          ),
+      coalesceKey: 'offline-buffer');
 
   /// FR144/N0, issue #319 — the trip's one mode set (`Trip.modes`), from
   /// the mode-declaration prompt (trip creation) or a later edit from the
@@ -92,7 +117,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// of what the segments use.
   void setModes(Set<String> modes) {
     if (modes.isEmpty) return;
-    state = state.copyWith(modes: modes, updatedAt: _nowIso());
+    _edit('Change the trip modes',
+        () => state = state.copyWith(modes: modes, updatedAt: _nowIso()));
   }
 
   void toggleMode(String mode) {
@@ -103,7 +129,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     } else {
       modes.add(mode);
     }
-    state = state.copyWith(modes: modes, updatedAt: _nowIso());
+    _edit(modes.contains(mode) ? 'Add a trip mode' : 'Remove a trip mode',
+        () => state = state.copyWith(modes: modes, updatedAt: _nowIso()));
   }
 
   /// New Route's "Blank canvas" start method (wireframe screen 00) — an
@@ -116,7 +143,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// day's id so the caller can select it.
   String addBlankDay({String kind = 'route'}) {
     final day = Day(id: _uuid.v4(), index: state.days.length + 1, kind: kind);
-    _replaceDay(day);
+    _edit(kind == 'rest' ? 'Add a rest day' : 'Add a day', () => _replaceDay(day));
     return day.id;
   }
 
@@ -251,7 +278,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         segmentIds: {for (final s in day.segments) s.id},
       );
 
-  void removeDay(String dayId) {
+  void removeDay(String dayId) => _edit('Remove a day', () => _removeDay(dayId));
+
+  void _removeDay(String dayId) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final content = _contentIdsOf(day);
     state = state.copyWith(
@@ -286,7 +315,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       days.add(d.index >= clamped ? d.copyWith(index: d.index + 1) : d);
     }
     if (!inserted) days.add(newDay);
-    state = state.copyWith(days: days, updatedAt: _nowIso());
+    _edit('Insert a day', () => state = state.copyWith(days: days, updatedAt: _nowIso()));
     return newDay.id;
   }
 
@@ -324,7 +353,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// content, for the caller to show FR139's scope prompt for and resolve
   /// via [mergeDaysIntoAdjacent] or [removeDaysExplicitly] — this call never
   /// removes those on its own.
-  List<Day> reduceDayCount(int targetCount) {
+  List<Day> reduceDayCount(int targetCount) =>
+      _edit('Change the day count', () => _reduceDayCount(targetCount));
+
+  List<Day> _reduceDayCount(int targetCount) {
     final beyond = daysBeyondCount(state.days, targetCount);
     final empty = {
       for (final d in beyond)
@@ -353,6 +385,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// entered elsewhere.
   List<Day> setDayCount(int target) {
     if (target < 0) throw ArgumentError.value(target, 'target', 'must not be negative');
+    return _edit('Change the day count', () => _setDayCount(target));
+  }
+
+  List<Day> _setDayCount(int target) {
     final current = state.days.length;
     var contentBeyond = const <Day>[];
     if (target > current) {
@@ -372,7 +408,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// FR139/Q1's "remove explicitly" choice for a day-count reduction (or any
   /// direct multi-day removal): deletes [dayIds] and their authored content,
   /// then renumbers what remains.
-  void removeDaysExplicitly(Set<String> dayIds) => _removeDaysAndRenumber(dayIds);
+  void removeDaysExplicitly(Set<String> dayIds) => _edit(
+      dayIds.length == 1 ? 'Remove a day' : 'Remove ${dayIds.length} days',
+      () => _removeDaysAndRenumber(dayIds));
 
   /// FR139/Q1's "merge into adjacent day" choice: each of [dayIds]'s
   /// segments, nodes, hazards and transitions move onto the previous day in
@@ -382,6 +420,11 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// shift day N-1's own position.
   void mergeDaysIntoAdjacent(Set<String> dayIds) {
     if (dayIds.isEmpty) return;
+    _edit(dayIds.length == 1 ? 'Merge a day' : 'Merge ${dayIds.length} days',
+        () => _mergeDaysIntoAdjacent(dayIds));
+  }
+
+  void _mergeDaysIntoAdjacent(Set<String> dayIds) {
     final days = [...state.days]..sort((a, b) => a.index.compareTo(b.index));
     final orderedIds = [
       for (final d in days.reversed)
@@ -459,14 +502,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// C2 — mark a day Start / End / Rest. A rest day carries no segments.
   void setDayKind(String dayId, String kind) {
     final day = _dayOrNew(dayId);
-    _replaceDay(day.copyWith(kind: kind, segments: kind == 'rest' ? [] : null));
+    _edit(kind == 'rest' ? 'Make a rest day' : 'Change a day\'s kind',
+        () => _replaceDay(day.copyWith(kind: kind, segments: kind == 'rest' ? [] : null)));
   }
 
   void toggleDayRole(String dayId, String role) {
     final day = _dayOrNew(dayId);
     final roles = {...day.roles};
     roles.contains(role) ? roles.remove(role) : roles.add(role);
-    _replaceDay(day.copyWith(roles: roles));
+    _edit('Change a day\'s role', () => _replaceDay(day.copyWith(roles: roles)));
   }
 
   /// FR18 / C2 — "rest days hold location ... without an active route": the
@@ -483,12 +527,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// tap) must say so explicitly by leaving [label] `null`, not by omission.
   void setDayLocation(String dayId, Coord? location, {String? label}) {
     final day = state.days.firstWhere((d) => d.id == dayId);
-    _replaceDay(day.copyWith(
-      location: location,
-      clearLocation: location == null,
-      locationLabel: label,
-      clearLocationLabel: label == null,
-    ));
+    _edit("Set a day's location", () => _replaceDay(day.copyWith(
+          location: location,
+          clearLocation: location == null,
+          locationLabel: label,
+          clearLocationLabel: label == null,
+        )));
   }
 
   /// FR18 / C2 — a day's itinerary detail: free text, distinct from the
@@ -496,12 +540,17 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// clears the field rather than storing an empty title/note.
   void setDayTitle(String dayId, String title) {
     final day = state.days.firstWhere((d) => d.id == dayId);
-    _replaceDay(day.copyWith(title: title.isEmpty ? null : title, clearTitle: title.isEmpty));
+    _edit("Edit a day's title",
+        () => _replaceDay(
+            day.copyWith(title: title.isEmpty ? null : title, clearTitle: title.isEmpty)),
+        coalesceKey: 'day-title:$dayId');
   }
 
   void setDayNote(String dayId, String note) {
     final day = state.days.firstWhere((d) => d.id == dayId);
-    _replaceDay(day.copyWith(note: note.isEmpty ? null : note, clearNote: note.isEmpty));
+    _edit("Edit a day's note",
+        () => _replaceDay(day.copyWith(note: note.isEmpty ? null : note, clearNote: note.isEmpty)),
+        coalesceKey: 'day-note:$dayId');
   }
 
   /// A1-A9 / B1 — solve a new segment via the sidecar and append it to a day
@@ -558,8 +607,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         ? resolved.copyWith(
             targetDistance: targetDistanceForViaCount(targetDistance.valueM, via.length))
         : resolved;
+    // FR142(a) — adding a passage is authored (undo removes it); its
+    // geometry is derived, but undoing the addition reverses no solve.
     final day = _dayOrNew(dayId);
-    _replaceDay(day.copyWith(segments: [...day.segments, segment]));
+    _edit('Add a passage', () => _replaceDay(day.copyWith(segments: [...day.segments, segment])));
     // Issue #323 — nothing but an explicit tap on a segment card ever wrote
     // `selectedSegmentProvider`, so a freshly generated route drew its line
     // on the map while the segment card, the planning rail and the weights
@@ -579,7 +630,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// (`domain/edit_scope.dart`) and confirm with the Author first when it's
   /// true — this call itself always carries the removal out once asked, the
   /// same division `reviseTripBbox` draws between deciding and doing.
-  void removeSegment(String dayId, String segmentId) {
+  void removeSegment(String dayId, String segmentId) =>
+      _edit('Remove a passage', () => _removeSegment(dayId, segmentId));
+
+  void _removeSegment(String dayId, String segmentId) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final removed = day.segments.firstWhere((s) => s.id == segmentId);
     // FR139/Q2 (issue #384) — a role scoped to this passage (`segment_id`)
@@ -622,7 +676,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       for (final s in day.segments)
         if (s.id == segmentId) resetSegmentPlanningControls(s) else s,
     ];
-    _replaceDay(day.copyWith(segments: segments));
+    _edit('Reset a passage', () => _replaceDay(day.copyWith(segments: segments)));
   }
 
   /// FR11 / B2 — "reorderable to set transition sequence". [newIndex] follows
@@ -638,9 +692,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// [removeSegment] draws.
   void reorderSegments(String dayId, int oldIndex, int newIndex) {
     final day = state.days.firstWhere((d) => d.id == dayId);
-    _replaceDay(day.copyWith(
-      segments: reorderPassages(day.segments, oldIndex, newIndex),
-    ));
+    _edit('Reorder passages', () => _replaceDay(day.copyWith(
+          segments: reorderPassages(day.segments, oldIndex, newIndex),
+        )));
   }
 
   /// FR11 / B2 — move a passage one place earlier or later in its day. The
@@ -704,10 +758,11 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       narration: transition.node?.narration,
       scheduled: transition.node?.scheduled,
     );
-    _replaceDay(day.copyWith(transitions: [
-      for (final t in day.transitions)
-        if (t.id == transitionId) t.copyWith(node: node) else t,
-    ]));
+    _edit('Edit a transition', () => _replaceDay(day.copyWith(transitions: [
+          for (final t in day.transitions)
+            if (t.id == transitionId) t.copyWith(node: node) else t,
+        ])),
+        coalesceKey: 'transition:$transitionId');
     return node;
   }
 
@@ -716,10 +771,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   void removeTransitionNode(String dayId, String transitionId) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     if (!day.transitions.any((t) => t.id == transitionId)) return;
-    _replaceDay(day.copyWith(transitions: [
-      for (final t in day.transitions)
-        if (t.id == transitionId) t.copyWith(clearNode: true) else t,
-    ]));
+    _edit('Remove a transition', () => _replaceDay(day.copyWith(transitions: [
+          for (final t in day.transitions)
+            if (t.id == transitionId) t.copyWith(clearNode: true) else t,
+        ])));
   }
 
   /// SPIKE-20 (ARCH D30): an authored-input edit invalidates the derived
@@ -735,7 +790,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         else
           s,
     ];
-    _replaceDay(day.copyWith(segments: segments));
+    _edit('Mark a passage stale', () => _replaceDay(day.copyWith(segments: segments)));
   }
 
   void addHazardToSegment(String dayId, String segmentId, Hazard hazard) {
@@ -744,7 +799,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       for (final s in day.segments)
         if (s.id == segmentId) s.copyWith(hazards: [...s.hazards, hazard]) else s,
     ];
-    _replaceDay(day.copyWith(segments: segments));
+    _edit('Add a hazard', () => _replaceDay(day.copyWith(segments: segments)));
   }
 
   void addNodeToSegment(String dayId, String segmentId, Node node) {
@@ -753,7 +808,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       for (final s in day.segments)
         if (s.id == segmentId) s.copyWith(nodes: [...s.nodes, node]) else s,
     ];
-    _replaceDay(day.copyWith(segments: segments));
+    _edit('Add a node', () => _replaceDay(day.copyWith(segments: segments)));
   }
 
   /// FR20 [AMENDED v2.0] / C4, Flow 11 — mint an [Alternate] on a passage. The
@@ -792,7 +847,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       for (final s in day.segments)
         if (s.id == segmentId) s.copyWith(alternates: [...s.alternates, alternate]) else s,
     ];
-    _replaceDay(day.copyWith(segments: segments));
+    _edit('Add an alternate', () => _replaceDay(day.copyWith(segments: segments)));
     return alternate;
   }
 
@@ -810,7 +865,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         else
           s,
     ];
-    _replaceDay(day.copyWith(segments: segments));
+    _edit('Edit an alternate', () => _replaceDay(day.copyWith(segments: segments)),
+        coalesceKey: 'alternate:${alternate.id}');
   }
 
   /// Flow 11 §06 — move an alternate between intents. `accommodation` → `branch`
@@ -834,7 +890,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         else
           s,
     ];
-    _replaceDay(day.copyWith(segments: segments));
+    _edit("Change an alternate's intent", () => _replaceDay(day.copyWith(segments: segments)));
   }
 
   /// FR20 [AMENDED v2.0] / C4 + FR140 / Q3, Flow 11 §03–§04 and §06 (issue
@@ -887,7 +943,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       clearRejoinsAtM: rejoinsAtM == null,
       solve: current.solve?.markStale(),
     );
-    updateAlternateInSegment(dayId, segmentId, moved);
+    _edit('Move an alternate', () => updateAlternateInSegment(dayId, segmentId, moved));
   }
 
   static bool _sameLine(List<Coord> a, List<Coord> b) {
@@ -959,7 +1015,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           : 'balanced',
       weights: weightsPayload,
     );
-    updateAlternateInSegment(
+    _derived(() => updateAlternateInSegment(
       dayId,
       segmentId,
       Alternate(
@@ -978,7 +1034,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         narration: current.narration,
         reveal: current.reveal,
       ),
-    );
+    ));
   }
 
   /// The provenance a just-completed alternate solve is stamped with: whatever
@@ -1005,7 +1061,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         else
           s,
     ];
-    _replaceDay(day.copyWith(segments: segments));
+    _edit('Remove an alternate', () => _replaceDay(day.copyWith(segments: segments)));
   }
 
   /// FR21 / C5 — "N4's provision-cluster proposals feed this directly": drop a
@@ -1022,7 +1078,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   ) {
     final node = provisionNodeFromProposal(proposal, id: _uuid.v4());
     if (node == null) return null;
-    addNodeToSegment(dayId, segmentId, node);
+    _edit('Add a rest stop', () => addNodeToSegment(dayId, segmentId, node));
     return node;
   }
 
@@ -1037,7 +1093,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// this mutator's remaining caller is lodging only.
   void promoteCandidate(String dayId, Node node) {
     final day = state.days.firstWhere((d) => d.id == dayId);
-    _replaceDay(day.copyWith(nodes: [...day.nodes, node]));
+    _edit('Add a place to a day', () => _replaceDay(day.copyWith(nodes: [...day.nodes, node])));
   }
 
   /// FR106, FR110 / O1 — the promotion interaction: a candidate, a cluster
@@ -1063,7 +1119,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       area: area,
       provenance: provenance,
     );
-    state = state.copyWith(anchors: [...state.anchors, anchor], updatedAt: _nowIso());
+    // FR145 — an undo label is a fixed string; an anchor's title is authored
+    // text and never composed into one.
+    _edit('Promote a place',
+        () => state = state.copyWith(anchors: [...state.anchors, anchor], updatedAt: _nowIso()));
     return anchor;
   }
 
@@ -1131,7 +1190,22 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         else
           a,
     ];
-    state = state.copyWith(anchors: anchors, updatedAt: _nowIso());
+    // Typing in a role's title or note folds into one step; attaching,
+    // detaching and structured detail are each a step of their own.
+    final attaching = dayId != null || clearDayId || segmentId != null || clearSegmentId;
+    final textOnly = !attaching &&
+        media == null &&
+        activity == null &&
+        !clearActivity &&
+        provision == null &&
+        !clearProvision;
+    final label = attaching
+        ? (clearDayId ? 'Detach an anchor from its day' : 'Attach an anchor to a day')
+        : textOnly
+            ? 'Edit a role'
+            : "Edit a role's detail";
+    _edit(label, () => state = state.copyWith(anchors: anchors, updatedAt: _nowIso()),
+        coalesceKey: textOnly ? 'role-text:$anchorId:$roleId' : null);
   }
 
   /// FR139's carve-out applies here without a prompt: an anchor that holds
@@ -1142,33 +1216,37 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// detaches rather than dangling: neither is destroyed by the anchor's
   /// removal (a hazard is never dropped, FR115; a permit is authored work),
   /// they simply lose that attachment, same shape as a [Role]'s `dayId`.
-  void removeAnchor(String anchorId) => state = state.copyWith(
-        anchors: state.anchors.where((a) => a.id != anchorId).toList(),
-        days: _detachHazardsReferencing(anchorIds: {anchorId}),
-        permits: _detachPermitsReferencing(anchorIds: {anchorId}),
-        updatedAt: _nowIso(),
-      );
+  void removeAnchor(String anchorId) => _edit('Remove an anchor', () => state = state.copyWith(
+            anchors: state.anchors.where((a) => a.id != anchorId).toList(),
+            days: _detachHazardsReferencing(anchorIds: {anchorId}),
+            permits: _detachPermitsReferencing(anchorIds: {anchorId}),
+            updatedAt: _nowIso(),
+          ));
 
   /// FR26 / C10 — a permit, land-access rule, or parking pass, trip-scoped
   /// like [promoteAnchor]'s anchors rather than nested under a day or
   /// segment (`Trip.permits`'s own doc explains why).
-  void addPermit(Permit permit) => state = state.copyWith(
-        permits: [...state.permits, permit],
-        updatedAt: _nowIso(),
-      );
+  void addPermit(Permit permit) => _edit('Add a permit',
+      () => state = state.copyWith(
+            permits: [...state.permits, permit],
+            updatedAt: _nowIso(),
+          ));
 
   /// FR26 / C10 — the only mutator that edits an existing permit after it is
   /// added (status changes, a confirmation number arrives, a link gets
   /// pasted in) — mirrors [updateRole]'s "set here or later" shape.
-  void updatePermit(Permit permit) => state = state.copyWith(
-        permits: [for (final p in state.permits) if (p.id == permit.id) permit else p],
-        updatedAt: _nowIso(),
-      );
+  void updatePermit(Permit permit) => _edit('Edit a permit',
+      () => state = state.copyWith(
+            permits: [for (final p in state.permits) if (p.id == permit.id) permit else p],
+            updatedAt: _nowIso(),
+          ),
+      coalesceKey: 'permit:${permit.id}');
 
-  void removePermit(String permitId) => state = state.copyWith(
-        permits: state.permits.where((p) => p.id != permitId).toList(),
-        updatedAt: _nowIso(),
-      );
+  void removePermit(String permitId) => _edit('Remove a permit',
+      () => state = state.copyWith(
+            permits: state.permits.where((p) => p.id != permitId).toList(),
+            updatedAt: _nowIso(),
+          ));
 
   /// N1's bbox shrink prompt (`trip_bbox_shrink_prompt.dart`'s
   /// `onRemoveAnchors`) — an Author explicitly choosing to drop the anchors
@@ -1189,6 +1267,11 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// what's actually still there.
   void removeNodesById(Set<String> ids) {
     if (ids.isEmpty) return;
+    _edit(ids.length == 1 ? 'Remove a place' : 'Remove ${ids.length} places',
+        () => _removeNodesById(ids));
+  }
+
+  void _removeNodesById(Set<String> ids) {
     final staleTargets = <(String, String)>{
       for (final day in state.days)
         for (final s in day.segments)
@@ -1214,7 +1297,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     }
   }
 
-  void replaceNodeInSegment(String dayId, String segmentId, Node node) {
+  void replaceNodeInSegment(String dayId, String segmentId, Node node) => _edit('Edit a place', () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1226,12 +1309,13 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           s,
     ];
     _replaceDay(day.copyWith(segments: segments));
-  }
+  }, coalesceKey: 'node:${node.id}');
 
   /// A1-A5 — Author edits a segment's weight profile or bands. Marks the
   /// segment stale (ARCH D30): the geometry on screen no longer matches
   /// what was asked for until [regenerateSegment] re-solves it.
-  void updateSegmentWeights(String dayId, String segmentId, WeightProfile weights) {
+  void updateSegmentWeights(String dayId, String segmentId, WeightProfile weights) =>
+      _edit("Change a passage's weights", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1239,9 +1323,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
-  }
+  }, coalesceKey: 'segment-weights:$segmentId');
 
-  void updateSegmentBands(String dayId, String segmentId, List<Band> bands) {
+  void updateSegmentBands(String dayId, String segmentId, List<Band> bands) =>
+      _edit("Change a passage's bands", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1249,13 +1334,14 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
-  }
+  }, coalesceKey: 'segment-bands:$segmentId');
 
   /// Route tab's shape/target-distance rail (wireframe screen 01) — edits
   /// the authored inputs a re-solve should honor. Marks stale like weights
   /// and bands (ARCH D30): the geometry on screen no longer matches what's
   /// asked for until [regenerateSegment] re-solves it.
-  void updateSegmentShape(String dayId, String segmentId, String shape) {
+  void updateSegmentShape(String dayId, String segmentId, String shape) =>
+      _edit("Change a passage's shape", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1263,7 +1349,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
-  }
+  });
 
   /// FR139/Q2 — a passage's mode is editable after routing like shape,
   /// weights and bands; this marks the segment stale (Q3/FR140) rather than
@@ -1278,7 +1364,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// one (a `mountain` discipline makes no sense on a `hiking` passage); the
   /// per-passage discipline picker (a fast-follow) is where a new one is
   /// chosen.
-  void updateSegmentMode(String dayId, String segmentId, String mode) {
+  void updateSegmentMode(String dayId, String segmentId, String mode) =>
+      _edit("Change a passage's mode", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1291,7 +1378,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
-  }
+  });
 
   /// FR10 / FR130 [#338] — a passage's discipline (the second axis under its
   /// mode category, `discipline.dart`) is editable after routing like its
@@ -1309,7 +1396,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// the picker only ever offers `disciplinesForCategory(mode)`, so a mismatch
   /// means a caller raced a mode change, and stamping an illegal
   /// `(mode, discipline)` pair onto the passage would be the worse outcome.
-  void updateSegmentDiscipline(String dayId, String segmentId, String? discipline) {
+  void updateSegmentDiscipline(String dayId, String segmentId, String? discipline) =>
+      _edit("Change a passage's discipline", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segment = day.segments.firstWhere((s) => s.id == segmentId);
     if (discipline != null && categoryOfDiscipline(discipline) != segment.mode) return;
@@ -1322,14 +1410,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           s,
     ];
     _replaceDay(day.copyWith(segments: segments));
-  }
+  });
 
   /// FR139/Q2 — a passage's endpoints are editable after routing too, same
   /// stale treatment as [updateSegmentShape]/[updateSegmentMode]. Omitting
   /// [end] leaves it as it was (a loop has none to begin with); there is no
   /// way to clear an endpoint back to unset here, matching every other
   /// caller of `Segment.copyWith`.
-  void updateSegmentEndpoints(String dayId, String segmentId, {Coord? start, Coord? end}) {
+  void updateSegmentEndpoints(String dayId, String segmentId, {Coord? start, Coord? end}) =>
+      _edit("Move a passage's start or end", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1337,14 +1426,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
-  }
+  });
 
   /// FR38 / O6 — a passage's own arc stage: the stretch of route between two
   /// anchors can itself be the rising action, not just the places at either
   /// end. Unlike [updateSegmentShape]/[updateSegmentWeights]/[updateSegmentBands],
   /// this never marks the segment stale — arc is narrative structure, not a
   /// solver input, and doesn't change what a re-solve would produce.
-  void updateSegmentArcStage(String dayId, String segmentId, String? arcStage) {
+  void updateSegmentArcStage(String dayId, String segmentId, String? arcStage) =>
+      _edit("Change a passage's arc stage", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1354,11 +1444,12 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           s,
     ];
     _replaceDay(day.copyWith(segments: segments));
-  }
+  });
 
   /// FR37 / E1 — a passage's (segment's) own note, distinct from any role's.
   /// An empty string clears the field, mirroring [setDayNote].
-  void updateSegmentNote(String dayId, String segmentId, String note) {
+  void updateSegmentNote(String dayId, String segmentId, String note) =>
+      _edit("Edit a passage's note", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1368,24 +1459,25 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
           s,
     ];
     _replaceDay(day.copyWith(segments: segments));
-  }
+  }, coalesceKey: 'segment-note:$segmentId');
 
   /// FR37 / E1 — a passage's (segment's) own media.
-  void updateSegmentMedia(String dayId, String segmentId, List<MediaRef> media) {
+  void updateSegmentMedia(String dayId, String segmentId, List<MediaRef> media) =>
+      _edit("Change a passage's media", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
         if (s.id == segmentId) s.copyWith(media: media) else s,
     ];
     _replaceDay(day.copyWith(segments: segments));
-  }
+  });
 
   /// FR37 / E1 — a day's own media (its note, [Day.note], already had a
   /// mutator: [setDayNote]).
-  void updateDayMedia(String dayId, List<MediaRef> media) {
+  void updateDayMedia(String dayId, List<MediaRef> media) => _edit("Change a day's media", () {
     final day = _dayOrNew(dayId);
     _replaceDay(day.copyWith(media: media));
-  }
+  });
 
   /// FR117/A0 — compose mode's spine editor (`WeightsRail`'s `_SpineEditor`):
   /// replaces a segment's via-anchor order wholesale, since reordering the
@@ -1393,7 +1485,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// it. Explore's own via-node UI (`new_route_screen.dart`) can use this
   /// too; there is only ever one `via` field to edit (ARCH §7.7 — "not a
   /// second solver").
-  void updateSegmentVia(String dayId, String segmentId, List<Coord> via) {
+  void updateSegmentVia(String dayId, String segmentId, List<Coord> via) =>
+      _edit("Change a passage's via points", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1401,7 +1494,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
-  }
+  });
 
   /// A9a / FR8a — keep a banded target distance's `advisory` flag in step
   /// with the via-anchor count whenever that count changes. Three or more
@@ -1432,7 +1525,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// segment to receive it — an empty day has nowhere for the anchor to go,
   /// and creating one here would mean inventing a mode/shape/start with no
   /// Author input behind them.
-  void moveViaToDay(String dayId, String segmentId, Coord coord, String toDayId) {
+  void moveViaToDay(String dayId, String segmentId, Coord coord, String toDayId) =>
+      _edit('Move a via point to another day', () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segment = day.segments.firstWhere((s) => s.id == segmentId);
     updateSegmentVia(
@@ -1444,7 +1538,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final toDay = state.days.firstWhere((d) => d.id == toDayId);
     final toSegment = toDay.segments.first;
     updateSegmentVia(toDayId, toSegment.id, [...toSegment.via, coord]);
-  }
+  });
 
   /// FR118/A0a — "split the day," another deviation-panel affordance: moves
   /// the tail of this segment's spine — everything from [splitIndex] on —
@@ -1458,7 +1552,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// [splitIndex] must fall strictly between 0 and `segment.via.length` —
   /// both a real head and a real tail — which the panel enforces by only
   /// offering the action when the spine has at least two places.
-  String splitDayAt(String dayId, String segmentId, int splitIndex) {
+  String splitDayAt(String dayId, String segmentId, int splitIndex) => _edit('Split a day', () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segment = day.segments.firstWhere((s) => s.id == segmentId);
     if (splitIndex <= 0 || splitIndex >= segment.via.length) {
@@ -1479,7 +1573,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final newDay = state.days.firstWhere((d) => d.id == newDayId);
     _replaceDay(newDay.copyWith(segments: [newSegment]));
     return newDayId;
-  }
+  });
 
   /// FR8/A8's AC: "banded by default in explore mode." Loop and out-and-back
   /// get a fresh default band (`bandedTargetDistance`) every time the Author
@@ -1489,7 +1583,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// [_withTargetDistance] rather than `copyWith` — `copyWith`'s
   /// `targetDistance` parameter can't tell an explicit `null` from "leave it
   /// alone", so it would silently keep the old value instead of clearing it.
-  void updateSegmentTargetDistance(String dayId, String segmentId, double? valueM) {
+  void updateSegmentTargetDistance(String dayId, String segmentId, double? valueM) =>
+      _edit("Change a passage's target distance", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1508,7 +1603,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
-  }
+  }, coalesceKey: 'segment-target:$segmentId');
 
   /// `Segment.copyWith(targetDistance: ...)` uses `targetDistance ??
   /// this.targetDistance` like every other nullable field there, so it
@@ -1546,7 +1641,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// AC's "never dropped from the explore search's constraint set." A no-op
   /// when the segment has no target distance to band in the first place.
   void updateSegmentTargetDistanceBand(String dayId, String segmentId,
-      {double? minM, double? maxM}) {
+      {double? minM, double? maxM}) => _edit("Change a passage's distance band", () {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
@@ -1562,15 +1657,16 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
-  }
+  }, coalesceKey: 'segment-target-band:$segmentId');
 
   /// C3 — Logistics tab's per-day distance limits, overriding the trip
   /// default (`Trip.dayLimits`). Feeds `/days/compose`'s existing breach
   /// detection; doesn't itself re-solve anything.
-  void updateDayLimits(String dayId, Map<String, DayLimit> limits) {
+  void updateDayLimits(String dayId, Map<String, DayLimit> limits) =>
+      _edit("Change a day's limits", () {
     final day = _dayOrNew(dayId);
     _replaceDay(day.copyWith(limits: limits));
-  }
+  }, coalesceKey: 'day-limits:$dayId');
 
   /// The solver-scale weight spread a passage's Author-facing [WeightProfile]
   /// becomes on the wire, or null when the Author has set none (the server
@@ -1730,7 +1826,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       solve: merged.solve,
     );
     final segments = [for (final s in day.segments) if (s.id == segmentId) replaced else s];
-    _replaceDay(day.copyWith(segments: segments));
+    // FR142(a) — a re-solve is derived work: re-solved, never undone.
+    _derived(() => _replaceDay(day.copyWith(segments: segments)));
     // Issue #323 — a re-solve is a "here is your route" moment too: bind the
     // map and both rails to the segment that just changed shape, the same as
     // `generateSegment`. A bulk `resolveAllStale` run lands on whichever
@@ -1812,7 +1909,8 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       limits: state.dayLimits,
       defaultWeights: state.defaultWeights,
     );
-    state = state.copyWith(days: assembled.trip.days, metrics: assembled.trip.metrics);
+    _derived(() =>
+        state = state.copyWith(days: assembled.trip.days, metrics: assembled.trip.metrics));
   }
 
   /// E3 / FR39 (issue #214) — the ordered promoted anchors a compose-mode

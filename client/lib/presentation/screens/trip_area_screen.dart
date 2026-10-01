@@ -22,6 +22,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../domain/home_region.dart' hide LatLon;
 import '../../domain/trip_bbox.dart';
+import '../../state/authoring_undo_provider.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/settings_provider.dart';
 import '../../state/trip_bbox_provider.dart';
@@ -106,7 +107,14 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
       context,
       proposed: proposed,
       anchors: ref.read(tripAnchorsProvider),
-      onApply: (b) => ref.read(tripBboxProvider.notifier).set(b),
+      // FR142(a) — revising the extent of an open trip is an authored edit
+      // (Flow 10 lists bbox changes as covered). Drawing it at creation is
+      // not: the session it would be undone in has not started yet.
+      onApply: (b) => widget.isCreation
+          ? ref.read(tripBboxProvider.notifier).set(b)
+          : ref
+              .read(authoringUndoProvider.notifier)
+              .edit('Change the trip area', () => ref.read(tripBboxProvider.notifier).set(b)),
       onRemoveAnchors: (outside) => ref
           .read(currentTripProvider.notifier)
           .removeNodesById({for (final a in outside) a.id}),

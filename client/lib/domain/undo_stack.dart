@@ -1,95 +1,123 @@
 /// FR142(a) (Story K12) — undo/redo for authoring actions (promotion,
 /// removal, edits, arrangement, reveal changes, group assignment, day
-/// restructuring), implemented as bounded snapshots of the canonical trip
-/// payload. Session-scoped: this stack lives in memory only and is never
-/// persisted, so it is inherently cleared on trip close (a fresh
-/// [TripUndoStack] per open trip) as well as by an explicit [clear] call.
+/// restructuring), implemented as a bounded ring of snapshots rather than a
+/// command stack (ARCH §10.4): D28 already made `trip.payload` one canonical,
+/// serializable blob, so a step is "the state before", never an inverse
+/// operation per feature.
+///
+/// Session-scoped: the history lives in memory only and is never persisted,
+/// so it is cleared on trip close (`AuthoringUndoController.clear`) and gone
+/// on restart.
+///
+/// The snapshot type is the caller's — this file knows nothing about what a
+/// step captures. `state/authoring_undo_provider.dart` captures the payload,
+/// the trip's mode set, the roster and the bbox, and is where FR142(a)'s
+/// exclusions are enforced: Author-note deletion (FR135a) is never restored,
+/// and derived work (FR140) is re-solved rather than undone.
 ///
 /// Not part of the trip payload schema — this describes editing session
 /// state, not trip content (cf. `diagnosis.dart`).
-///
-/// FR142(a)'s exclusions fall out of what a snapshot *is* rather than needing
-/// their own code path: a snapshot is [Trip.toJson], and Author-note deletion
-/// (FR135a) and Character-layer state are not fields on [Trip] — `FieldNote`
-/// and `Amendment` are account/group-relay layers that never live inside
-/// `trip.payload` (see `domain/README.md`) — so recording a trip snapshot can
-/// never capture or restore either. Callers simply never call [record] around
-/// an already-synced destructive action.
 library;
 
-import 'trip.dart';
+/// One undoable step: what to show the Author ([label]) and the state the
+/// step returns to ([snapshot]).
+class UndoStep<S> {
+  UndoStep(this.label, this.snapshot, {this.coalesceKey, required this.at});
 
-/// A bounded undo/redo stack of [Trip] snapshots for one open trip's editing
-/// session. [maxDepth] is the "stated depth" FR142(a) requires be visible to
-/// the Author.
-class TripUndoStack {
-  TripUndoStack({this.maxDepth = 20}) : assert(maxDepth > 0, 'maxDepth must be positive');
+  /// Sentence-case description of the action, e.g. "Remove an anchor" — the
+  /// undo control reads "Undo: <label>".
+  final String label;
+  final S snapshot;
 
-  final int maxDepth;
-
-  final List<_Snapshot> _undoStack = [];
-  final List<_Snapshot> _redoStack = [];
-
-  bool get canUndo => _undoStack.isNotEmpty;
-  bool get canRedo => _redoStack.isNotEmpty;
-
-  /// How many steps back an Author could currently undo, for the "visible
-  /// affordance" half of FR142(a) — e.g. a disabled/enabled state or a count
-  /// badge on the undo control.
-  int get undoDepth => _undoStack.length;
-  int get redoDepth => _redoStack.length;
-
-  /// Records [before] as the state to return to if the action about to be
-  /// applied is undone. Call this immediately before applying an authoring
-  /// action. Starting a new action clears the redo stack — redo only replays
-  /// actions undone since the last recorded action, never a stale branch.
-  void record(Trip before) {
-    _undoStack.add(_Snapshot.of(before));
-    if (_undoStack.length > maxDepth) {
-      _undoStack.removeAt(0);
-    }
-    _redoStack.clear();
-  }
-
-  /// Steps back one recorded action. [current] is the live trip, captured
-  /// onto the redo stack so [redo] can step forward again. Returns `null`
-  /// when [canUndo] is false.
-  Trip? undo(Trip current) {
-    if (_undoStack.isEmpty) return null;
-    final previous = _undoStack.removeLast();
-    _redoStack.add(_Snapshot.of(current));
-    return previous.restore();
-  }
-
-  /// Steps forward one previously-undone action. Returns `null` when
-  /// [canRedo] is false.
-  Trip? redo(Trip current) {
-    if (_redoStack.isEmpty) return null;
-    final next = _redoStack.removeLast();
-    _undoStack.add(_Snapshot.of(current));
-    return next.restore();
-  }
-
-  /// Discards all undo/redo history. Called on trip close; also correct to
-  /// call whenever a trip is re-solved from scratch, since FR142(a) draws
-  /// undo's boundary at authored work and derived work is re-solved instead
-  /// (Q3/FR140), never undone.
-  void clear() {
-    _undoStack.clear();
-    _redoStack.clear();
-  }
+  /// Edits sharing a key within [UndoHistory.coalesceWindow] of each other
+  /// fold into one step — typing a note is one step, not one per keystroke.
+  final String? coalesceKey;
+  DateTime at;
 }
 
-/// One recorded state: the payload, plus [Trip.modes], which rides beside
-/// the payload rather than in it (#319, `trip.dart`) — a snapshot of
-/// [Trip.toJson] alone restores every trip with an empty mode set.
-class _Snapshot {
-  _Snapshot.of(Trip trip)
-      : payload = trip.toJson(),
-        modes = Set.unmodifiable(trip.modes);
+/// A bounded undo/redo history of labelled snapshots for one open trip's
+/// editing session. [maxDepth] is the "stated depth" FR142(a) requires be
+/// visible to the Author.
+class UndoHistory<S> {
+  UndoHistory({
+    this.maxDepth = 30,
+    this.coalesceWindow = const Duration(seconds: 2),
+    DateTime Function()? clock,
+  })  : assert(maxDepth > 0, 'maxDepth must be positive'),
+        _clock = clock ?? DateTime.now;
 
-  final Map<String, dynamic> payload;
-  final Set<String> modes;
+  final int maxDepth;
+  final Duration coalesceWindow;
+  final DateTime Function() _clock;
 
-  Trip restore() => Trip.fromJson(payload).copyWith(modes: modes);
+  final List<UndoStep<S>> _undo = [];
+  final List<UndoStep<S>> _redo = [];
+
+  bool get canUndo => _undo.isNotEmpty;
+  bool get canRedo => _redo.isNotEmpty;
+  int get undoDepth => _undo.length;
+  int get redoDepth => _redo.length;
+
+  /// What [undo] would reverse, or null.
+  String? get undoLabel => _undo.isEmpty ? null : _undo.last.label;
+
+  /// What [redo] would replay, or null.
+  String? get redoLabel => _redo.isEmpty ? null : _redo.last.label;
+
+  /// Every undoable step's label, newest first — the session list the undo
+  /// menu shows.
+  List<String> get undoLabels => [for (final s in _undo.reversed) s.label];
+
+  /// True when an edit keyed [coalesceKey] belongs to the newest step rather
+  /// than starting one, and refreshes that step's clock so continuous typing
+  /// stays one step. Never true with redo pending: the edit is a new branch.
+  bool coalesces(String? coalesceKey) {
+    if (coalesceKey == null || _undo.isEmpty || _redo.isNotEmpty) return false;
+    final top = _undo.last;
+    final now = _clock();
+    if (top.coalesceKey != coalesceKey || now.difference(top.at) > coalesceWindow) {
+      return false;
+    }
+    top.at = now;
+    return true;
+  }
+
+  /// Records [before] as the state to return to if the action just applied
+  /// is undone. Starting a new action clears the redo history — redo only
+  /// replays actions undone since the last recorded action, never a stale
+  /// branch.
+  void record(String label, S before, {String? coalesceKey}) {
+    _undo.add(UndoStep(label, before, coalesceKey: coalesceKey, at: _clock()));
+    if (_undo.length > maxDepth) _undo.removeAt(0);
+    _redo.clear();
+  }
+
+  /// Steps back one recorded action. [current] is the live state, kept so
+  /// [redo] can step forward again. Returns null when [canUndo] is false.
+  S? undo(S current) {
+    if (_undo.isEmpty) return null;
+    final step = _undo.removeLast();
+    _redo.add(UndoStep(step.label, current, at: _clock()));
+    return step.snapshot;
+  }
+
+  /// Steps forward one previously-undone action. Returns null when [canRedo]
+  /// is false.
+  S? redo(S current) {
+    if (_redo.isEmpty) return null;
+    final step = _redo.removeLast();
+    _undo.add(UndoStep(step.label, current, at: _clock()));
+    return step.snapshot;
+  }
+
+  /// Drops the redo history alone — derived work written after an undo (a
+  /// re-solve) is a new branch, and replaying the undone state over it would
+  /// silently discard the solve.
+  void clearRedo() => _redo.clear();
+
+  /// Discards all history. Called on trip close.
+  void clear() {
+    _undo.clear();
+    _redo.clear();
+  }
 }
