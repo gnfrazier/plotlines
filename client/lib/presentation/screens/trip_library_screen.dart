@@ -525,7 +525,23 @@ class _TripCard extends ConsumerWidget {
   }
 
   Future<void> _open(BuildContext context, WidgetRef ref) async {
-    await ref.read(tripPersistenceProvider).open(trip.id);
+    try {
+      await ref.read(tripPersistenceProvider).open(trip.id);
+    } catch (err, stack) {
+      // A row whose payload no longer parses (e.g. saved before #324, with an
+      // alternate that has no path) used to throw out of this tap handler and
+      // leave the Author on the library with no word. Say so in a fixed
+      // sentence — never the exception's toString (#390) — and keep the
+      // detail in the log.
+      debugPrint('trip open failed (${trip.id}): $err\n$stack');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${trip.title}" couldn\'t be opened — its saved data can\'t be read.'),
+        ),
+      );
+      return;
+    }
     if (context.mounted) context.push('/plan');
   }
 

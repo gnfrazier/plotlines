@@ -130,6 +130,33 @@ void main() {
     expect(find.text('Pisgah Gravel Loop'), findsNothing); // 1 day
   });
 
+  testWidgets('a trip that cannot be read says so on the library, not only in the terminal',
+      (tester) async {
+    final db = await _seed();
+    addTearDown(db.close);
+    // A row whose payload no longer parses — e.g. one saved before #324,
+    // carrying an alternate with no path. Opening it used to throw out of
+    // the card's tap handler and leave the Author on the library with no word.
+    await db.saveTrip(
+      id: 'broken',
+      title: 'Otis Road',
+      modes: const ['cycling'],
+      payloadJson: '{not json',
+      summaryJson: '{"day_count":3}',
+      updatedAt: DateTime.utc(2026, 8, 29),
+    );
+    await tester.pumpWidget(_harness(db));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Otis Road'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PLAN'), findsNothing);
+    expect(find.text('"Otis Road" couldn\'t be opened — its saved data can\'t be read.'),
+        findsOneWidget);
+    expect(find.textContaining('FormatException'), findsNothing);
+  });
+
   testWidgets('the per-card menu offers the FR74 actions and Clone opens the scope picker',
       (tester) async {
     final db = await _seed();
