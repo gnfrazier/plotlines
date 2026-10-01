@@ -1192,16 +1192,34 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final staleTargets = <(String, String)>{
       for (final day in state.days)
         for (final s in day.segments)
-          if (s.nodes.any((n) => ids.contains(n.id) && nodeKindIsRoutingConstraint(n.kind)))
+          if (s.nodes.any((n) =>
+              ids.contains(n.id) &&
+              (nodeKindIsRoutingConstraint(n.kind) || nodeRoutesThrough(s, n))))
             (day.id, s.id),
     };
+    // #589 — a routed-through node takes its via point with it. Leaving the
+    // point behind would keep routing to a place the Author just deleted.
+    List<Coord> viaAfter(Segment s) {
+      var via = s.via;
+      for (final n in s.nodes) {
+        if (ids.contains(n.id)) via = viaWithout(via, n.coord);
+      }
+      return via;
+    }
+
     final withNodesRemoved = [
       for (final day in state.days)
         day.copyWith(
           nodes: [for (final n in day.nodes) if (!ids.contains(n.id)) n],
           segments: [
             for (final s in day.segments)
-              s.copyWith(nodes: [for (final n in s.nodes) if (!ids.contains(n.id)) n]),
+              if (s.nodes.any((n) => ids.contains(n.id)))
+                _reconcileTargetAdvisory(s.copyWith(
+                  nodes: [for (final n in s.nodes) if (!ids.contains(n.id)) n],
+                  via: viaAfter(s),
+                ))
+              else
+                s,
           ],
         ),
     ];
@@ -1214,18 +1232,87 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     }
   }
 
+  /// Replace a passage node with an edited copy. #589 — a routed-through
+  /// node keeps routing through: moving it moves its via point in place, so
+  /// it keeps its position in the order, and marks the passage stale.
   void replaceNodeInSegment(String dayId, String segmentId, Node node) {
     final day = state.days.firstWhere((d) => d.id == dayId);
-    final segments = [
-      for (final s in day.segments)
-        if (s.id == segmentId)
-          s.copyWith(nodes: [
-            for (final n in s.nodes) if (n.id == node.id) node else n,
-          ])
-        else
-          s,
-    ];
-    _replaceDay(day.copyWith(segments: segments));
+    final segment = day.segments.firstWhere((s) => s.id == segmentId);
+    Node? old;
+    for (final n in segment.nodes) {
+      if (n.id == node.id) old = n;
+    }
+    saveSegmentNode(dayId, segmentId, node,
+        routeThrough: old != null && nodeRoutesThrough(segment, old));
+  }
+
+  /// #589 (ARCH D71) — the one write behind the node editor: add or replace
+  /// [node] on a passage and keep `Segment.via` in step with its
+  /// [routeThrough] choice, in a single state change. A node routes through
+  /// when its coordinate is a via point, so:
+  ///
+  /// - turning it on inserts the coordinate where it falls along the day
+  ///   ([viaWithInserted]);
+  /// - moving a node that routes through replaces its via point in place;
+  /// - turning it off removes the via point and leaves the node where it is.
+  ///
+  /// Any change to `via` marks the passage stale and never re-solves (ARCH
+  /// D52, A28), and keeps the A9a advisory flag in step
+  /// ([_reconcileTargetAdvisory]). So does a node whose *kind* is a routing
+  /// constraint (#322). A node that neither routes through nor constrains is
+  /// an annotation, and saving it changes nothing about the route.
+  void saveSegmentNode(String dayId, String segmentId, Node node, {required bool routeThrough}) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segment = day.segments.firstWhere((s) => s.id == segmentId);
+    Node? old;
+    for (final n in segment.nodes) {
+      if (n.id == node.id) old = n;
+    }
+    final wasThrough = old != null && nodeRoutesThrough(segment, old);
+
+    var via = segment.via;
+    if (wasThrough && !routeThrough) {
+      via = viaWithout(via, old.coord);
+    } else if (wasThrough && routeThrough) {
+      via = viaWithMoved(via, old.coord, node.coord);
+    } else if (routeThrough) {
+      via = viaWithInserted(segment, node.coord);
+    }
+    final viaChanged = via.length != segment.via.length ||
+        [for (var i = 0; i < via.length; i++) sameCoord(via[i], segment.via[i])].contains(false);
+
+    final constraintKind = nodeKindIsRoutingConstraint(node.kind) ||
+        (old != null && nodeKindIsRoutingConstraint(old.kind));
+    final moved = old != null && !sameCoord(old.coord, node.coord);
+    final stale = viaChanged || (constraintKind && (old == null || moved || old.kind != node.kind));
+
+    var updated = segment.copyWith(
+      nodes: old == null
+          ? [...segment.nodes, node]
+          : [for (final n in segment.nodes) if (n.id == node.id) node else n],
+      via: via,
+    );
+    updated = _reconcileTargetAdvisory(updated);
+    if (stale && updated.solve != null) {
+      updated = updated.copyWith(solve: updated.solve!.markStale());
+    }
+    _replaceDay(day.copyWith(segments: [
+      for (final s in day.segments) if (s.id == segmentId) updated else s,
+    ]));
+  }
+
+  /// #589 — turn "Route through this" on or off for a node already on the
+  /// passage, without opening the editor. A no-op when the node is gone or
+  /// already in the state asked for.
+  void setNodeRouteThrough(String dayId, String segmentId, String nodeId, bool routeThrough) {
+    final day = state.days.firstWhere((d) => d.id == dayId);
+    final segment = day.segments.firstWhere((s) => s.id == segmentId);
+    for (final n in segment.nodes) {
+      if (n.id != nodeId) continue;
+      if (nodeRoutesThrough(segment, n) == routeThrough) return;
+      saveSegmentNode(dayId, segmentId, n, routeThrough: routeThrough);
+      return;
+    }
   }
 
   /// A1-A5 — Author edits a segment's weight profile or bands. Marks the

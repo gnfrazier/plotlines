@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/node_editor_sheet.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'support/display_units.dart';
 
 const Coord _coord = [-105.2797, 40.0175];
@@ -84,6 +85,9 @@ Future<(ProviderContainer, List<Node>)> _pumpForm(
 
 SolveProvenance? _solveOf(ProviderContainer container) =>
     container.read(currentTripProvider).days.single.segments.single.solve;
+
+List<Coord> _viaOf(ProviderContainer container) =>
+    container.read(currentTripProvider).days.single.segments.single.via;
 
 List<Node> _nodesOf(ProviderContainer container) =>
     container.read(currentTripProvider).days.single.segments.single.nodes;
@@ -552,6 +556,99 @@ void main() {
 
       expect(find.text('New node'), findsNothing);
       expect(_nodesOf(container), hasLength(1));
+    });
+  });
+
+  // #589 (ARCH D71) — "Route through this": when placing, and later from the
+  // node itself (this same form is the Content tab's inspector).
+  group('Route through this', () {
+    final routeThrough = find.byKey(const ValueKey('node-route-through'));
+
+    testWidgets('is offered, off by default, and on save puts the node into via',
+        (tester) async {
+      final (container, _) = await _pumpForm(tester, solved: true);
+      addTearDown(container.dispose);
+
+      expect(find.text('Route through this'), findsOneWidget);
+      expect(tester.widget<CheckboxListTile>(routeThrough).value, isFalse);
+
+      await _tap(tester, routeThrough);
+      await _tap(tester, find.text('Save node'));
+
+      expect(_viaOf(container), [_coord]);
+      // Marks stale and does not re-solve (D52 / A28).
+      expect(_solveOf(container)?.stale, isTrue);
+    });
+
+    testWidgets('choosing the via kind turns it on', (tester) async {
+      final (container, _) = await _pumpForm(tester);
+      addTearDown(container.dispose);
+
+      await _tap(tester, find.widgetWithText(ChoiceChip, 'via'));
+      expect(tester.widget<CheckboxListTile>(routeThrough).value, isTrue);
+    });
+
+    testWidgets('an existing routed-through node opens ticked; unticking keeps the node',
+        (tester) async {
+      final existing = Node(id: 'n1', kind: NodeKind.restStop, coord: _coord);
+      final container = ProviderContainer(overrides: [metricUnits()]);
+      addTearDown(container.dispose);
+      _useTallWindow(tester);
+      final trip = _trip(nodes: [existing], solved: true);
+      container.read(currentTripProvider.notifier).open(trip.copyWith(days: [
+        trip.days.single.copyWith(segments: [
+          trip.days.single.segments.single.copyWith(via: [_coord]),
+        ]),
+      ]));
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: Scaffold(
+            body: NodeEditorForm(
+              dayId: 'd1',
+              segmentId: 's1',
+              coord: _coord,
+              existing: existing,
+              onSaved: (_) {},
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<CheckboxListTile>(routeThrough).value, isTrue);
+      await _tap(tester, routeThrough);
+      await _tap(tester, find.text('Save node'));
+
+      expect(_viaOf(container), isEmpty);
+      expect(_nodesOf(container).single.id, 'n1');
+      expect(_solveOf(container)?.stale, isTrue);
+    });
+
+    testWidgets('in Compose it points to promotion instead of joining the spine',
+        (tester) async {
+      _useTallWindow(tester);
+      final container = ProviderContainer(overrides: [metricUnits()]);
+      addTearDown(container.dispose);
+      container.read(currentTripProvider.notifier).open(_trip());
+      container.read(dayPlanningModeProvider('d1').notifier).state = PlanningMode.compose;
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: Scaffold(
+            body: NodeEditorForm(
+              dayId: 'd1', segmentId: 's1', coord: _coord, existing: null, onSaved: (_) {}),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<CheckboxListTile>(routeThrough).onChanged, isNull);
+      expect(find.textContaining('Promote this place'), findsOneWidget);
+      // Even the via kind does not join a Compose spine.
+      await _tap(tester, find.widgetWithText(ChoiceChip, 'via'));
+      await _tap(tester, find.text('Save node'));
+      expect(_viaOf(container), isEmpty);
     });
   });
 }
