@@ -81,13 +81,14 @@ the client key (passed as `$PLOTLINES_MIRROR_CLIP_CLIENT_KEY` in the sidecar's e
 on argv, where any local user can read it), `--mirror-state-url`, `--elevation-upstream`,
 `--tiles-upstream` (#453) — resolved by `lib/data/sidecar_upstreams.dart` from, in precedence order, a **process
 environment variable** at launch, a **`--dart-define`** at build time, and a **built-in
-default**. Only the mirror URL has a default (`https://tiles.plotlines.app`, pinned by test to
-`tiles/mirror.py`'s `MIRROR_HOST`); the other four are unset unless you set them. This is
+default**. The mirror URL has a default (`https://tiles.plotlines.app`, pinned by test to
+`tiles/mirror.py`'s `MIRROR_HOST`), and the state URL and tiles upstream are derived from it; the
+key and the elevation upstream are unset unless you set them. This is
 what makes Phase 3's transport swap (#272) reachable from the app: with the URL passed, the
 sidecar asks the mirror's `/clip` for the trip bbox **when the Author declares an extent, and
-never before** (D41/D57), builds the region graph and the candidate set from that clip, and
-falls through to Overpass only when the mirror cannot serve it — a fallback that narrows once the
-mirror fills on a miss (#518) and is retired by #284 (ARCH D63's phased rule).
+never before** (D41/D57), builds the region graph and the candidate set from that clip. There is no Overpass fallback
+(#284, ARCH D63's phased rule): a mirror miss is a fill the sidecar waits on — see "While the
+mirror fetches an area" below.
 
 | Variable / define | Meaning | Default |
 |---|---|---|
@@ -95,7 +96,7 @@ mirror fills on a miss (#518) and is retired by #284 (ARCH D63's phased rule).
 | `PLOTLINES_MIRROR_CLIP_CLIENT_KEY` | the `X-Plotlines-Client-Key` a keyed `/clip` requires (#263) — **never a literal in the repo**; a release build gets it from the builder's environment via `--dart-define`, a source run from your shell | unset (no key sent) |
 | `PLOTLINES_MIRROR_STATE_URL` | where the sidecar reads `MIRROR_STATE.json` for `capabilities.mirror` (#367) | `<PLOTLINES_MIRROR_URL>/MIRROR_STATE.json` — see below |
 | `PLOTLINES_ELEVATION_UPSTREAM` | the Pi5 caching elevation proxy's `/dem` base URL (QA only) | unset |
-| `PLOTLINES_TILES_UPSTREAM` | PMTiles source the sidecar's `--tiles-upstream` extracts basemap tiles from — the Pi serves plain HTTP, same as `PLOTLINES_MIRROR_URL`; the literal `off` disables it | `<PLOTLINES_MIRROR_URL>/basemap/protomaps/20250101-priority/priority.pmtiles` — see below |
+| `PLOTLINES_TILES_UPSTREAM` | PMTiles source the sidecar's `--tiles-upstream` extracts basemap tiles from — the Pi serves plain HTTP, same as `PLOTLINES_MIRROR_URL`; the literal `off` disables it | `<PLOTLINES_MIRROR_URL>` (the mirror root, read by area — #519) — see below |
 
 Five things worth knowing before you set any of them:
 
@@ -137,6 +138,29 @@ Five things worth knowing before you set any of them:
   Whatever this names, the client never passes `--allow-unmirrored-tiles`. The sidecar refuses a
   third-party host (`HotlinkRefused`, FR92/FR95) and reports the refusal on `/health`'s
   `capabilities.tiles.upstream` (#454).
+
+### While the mirror fetches an area (epic #516, ARCH D67)
+
+The mirror fetches what it doesn't have. When an extent lands on an area the mirror's store
+doesn't cover yet, the mirror pulls it from upstream (Geofabrik for OSM, Protomaps for the
+basemap, the Pi's elevation proxy for elevation), keeps it, and answers `fetching` until it's
+there. The sidecar reports that as `pending_upstream: true` on the capability that's waiting
+(ARCH §8.3), and the client shows it as a **waiting state**, distinct from a failure and from
+out-of-coverage (#522):
+
+- A readiness notice reads "Getting map data for this area from the Plotlines mirror…", with no
+  retry button. The Author doesn't poll; the sidecar does, at the fill's `retry_after_s`.
+- A map over a basemap cell that's filling shows the same sentence in place of the
+  out-of-coverage notice. The tile provider waits out the sidecar's `503 Retry-After` and asks
+  again rather than recording a miss, and the tile layer reloads when `tiles.archive` moves, so
+  the landed cell paints with no restart.
+- Routing waits on the OSM fill, then builds. An extent outside every Geofabrik region is
+  `no_upstream_coverage`: a finished out-of-coverage sentence at once, with no wait.
+- Once filled, an area is a plain store hit for every later launch.
+
+A first fill can take minutes: a 2° basemap cell measured 22 s on the Pi, and a 1° OSM cell's pull and
+precut runs longer. Fills need the client key: a run with `PLOTLINES_MIRROR_CLIP_CLIENT_KEY` unset
+gets `401` from `/clip`, not a fill.
 
 ## Testing
 

@@ -331,13 +331,15 @@ zero real features from it, is `NoMirrorCoverage` — a 404 with a
 `{"error": "no_mirror_coverage", "message": "..."}` body, never a stack
 trace (acceptance criterion 5).
 
-> **A 404 on a miss is today's contract, not the decided one.** ARCH **D67** (epic #516) makes a
-> miss inside a Geofabrik-published region a *fill*: the mirror queues a pull and precut of the
-> covering region and answers `fetching` until it lands (#517, #518), and only a bbox outside every
-> region stays a finished `no_upstream_coverage`. Until #518 ships, the 404 below stands. Since
-> #284 the sidecar no longer falls back to Overpass on it: routing reports the refusal sentence.
-> ARCH D63's phased rule has the detail. Don't harden the 404 into
-> anything a client relies on as final.
+> **With OSM fills on, a miss is a fill, not a 404** (ARCH **D67**, #518, live on the Pi since
+> 2026-09-29). When `MIRROR_FILL_LAYERS` includes `osm`, a bbox the store doesn't fully cover
+> inside a Geofabrik-published region answers `202 {"state": "fetching", "fill": {…}}` with
+> `Retry-After`, and the next `/clip` after the fill reads `ready` clips as below. A bbox outside
+> every Geofabrik region is `404 no_upstream_coverage` at once, with no job started; a failed fill
+> is `503 fill_failed` with `Retry-After`. The `404 no_mirror_coverage` above is what a mirror with
+> OSM fills **off** still answers. Since #284 the sidecar no longer falls back to Overpass on any
+> of them: routing waits on `fetching` (`pending_upstream`) and reports the refusal sentence on a
+> 404. See "Fills" below and ARCH D63's phased rule.
 
 **What's recorded, not yet what SPIKE-I measures.** Every successful clip
 logs, and returns as response headers, wall time, output size, peak RSS
