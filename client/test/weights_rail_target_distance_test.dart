@@ -13,6 +13,8 @@ import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'support/display_units.dart';
 
+import 'support/rail_tasks.dart';
+
 Segment _segment({required String shape, TargetDistance? targetDistance}) => Segment(
       id: 'seg-1',
       mode: 'cycling',
@@ -49,6 +51,7 @@ Future<void> _pump(WidgetTester tester, Segment segment,
     ),
   );
   await tester.pump();
+  await openRailTask(tester, 'frame');
 }
 
 void main() {

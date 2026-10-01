@@ -16,7 +16,7 @@ import 'error_states.dart' show CapabilityWarmingNotice;
 import 'teaching_block.dart';
 import '../map/hazard_points.dart';
 
-class MetricsRail extends StatelessWidget {
+class MetricsRail extends StatefulWidget {
   const MetricsRail({
     super.key,
     required this.trip,
@@ -49,6 +49,22 @@ class MetricsRail extends StatelessWidget {
   /// not-configured pending #148) would read as a real measurement rather
   /// than "unknown." This rail states the honest reason instead.
   final CapabilityStatus elevationCapability;
+
+  @override
+  State<MetricsRail> createState() => _MetricsRailState();
+}
+
+class _MetricsRailState extends State<MetricsRail> {
+  /// #328 — whole-trip figures collapse to one row while a passage is
+  /// selected (the rail belongs to what is selected); with nothing selected
+  /// they are all there is to show, so they open.
+  bool _tripOpen = false;
+
+  Trip get trip => widget.trip;
+  Segment? get selectedSegment => widget.selectedSegment;
+  DisplayFormat get displayFormat => widget.displayFormat;
+  ComposeItinerary? get composeItinerary => widget.composeItinerary;
+  CapabilityStatus get elevationCapability => widget.elevationCapability;
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +107,15 @@ class MetricsRail extends StatelessWidget {
     // it — the row renders only when the server path supplied one.
     final dashboard = TripDashboard.fromTrip(trip);
     final tripMovingS = dashboard.tripTotal.total?.movingTimeS;
+    final segment = selectedSegment;
+    final passageClimb = segment?.metrics?.climbM ?? segment?.elevation?.ascentM;
+    final passageMovingS = segment?.metrics?.distanceM == null
+        ? null
+        : movingTimeSeconds(segment!.metrics!.distanceM!, segment.mode);
+    final tripOpen = segment == null || _tripOpen;
+    const messages = MessageResolver(catalog: baseLocaleCatalog);
+    Widget heading(String text) => Text(text,
+        style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700));
 
     return Container(
       width: 308,
@@ -120,167 +145,243 @@ class MetricsRail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          label: 'TRIP DISTANCE',
-                          value: displayFormat.formatDistance(distance),
-                        ),
-                      ),
-                      const SizedBox(width: PlotSpacing.s2),
-                      Expanded(
-                        child: _StatCard(
-                          label: 'TOTAL CLIMB',
-                          value: elevationReady
-                              ? '↑ ${displayFormat.formatElevation(climb)}'
-                              : '↑ —',
-                          muted: !elevationReady,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (!elevationReady) ...[
+                  // #328 — THIS PASSAGE leads: the rail belongs to what is
+                  // selected. Trip figures follow as one collapsible row.
+                  if (segment != null) ...[
+                    heading('THIS PASSAGE'),
                     const SizedBox(height: PlotSpacing.s2),
-                    CapabilityWarmingNotice(
-                      capabilityLabel: 'Elevation',
-                      status: elevationCapability,
-                    ),
-                  ],
-                  if (byDay.isNotEmpty) ...[
-                    const SizedBox(height: PlotSpacing.s4),
-                    Text(
-                      'BY DAY',
-                      style: PlotTypography.data(
-                        c.textMuted,
-                      ).copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: PlotSpacing.s2),
-                    for (final (index, dist, breached) in byDay)
-                      _BarRow(
-                        label: 'Day $index',
-                        fraction: maxDayDistance <= 0
-                            ? 0
-                            : dist / maxDayDistance,
-                        valueLabel: displayFormat.formatDistance(dist),
-                        color: breached ? c.warning : c.primary,
-                        breached: breached,
-                      ),
-                  ],
-                  if (byMode.isNotEmpty) ...[
-                    const SizedBox(height: PlotSpacing.s4),
-                    Text(
-                      'BY MODE',
-                      style: PlotTypography.data(
-                        c.textMuted,
-                      ).copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: PlotSpacing.s2),
-                    for (final entry in byMode.entries)
-                      _BarRow(
-                        label: entry.key,
-                        fraction: maxModeDistance <= 0
-                            ? 0
-                            : entry.value / maxModeDistance,
-                        valueLabel: displayFormat.formatDistance(entry.value),
-                        color: c.success,
-                      ),
-                  ],
-                  if (tripMovingS != null) ...[
-                    const SizedBox(height: PlotSpacing.s4),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: _StatCard(
-                            label: 'MOVING TIME',
-                            value: _formatDuration(tripMovingS),
+                            label: 'DISTANCE',
+                            value: segment.metrics?.distanceM == null
+                                ? '—'
+                                : displayFormat.formatDistance(segment.metrics!.distanceM!),
+                            muted: segment.metrics?.distanceM == null,
                           ),
                         ),
                         const SizedBox(width: PlotSpacing.s2),
                         Expanded(
                           child: _StatCard(
-                            label: 'EST. ARRIVAL',
-                            value: dashboard.tripEta == null
-                                ? '—'
-                                : formatEta(dashboard.tripEta!, displayFormat),
-                            muted: dashboard.tripEta == null,
+                            label: 'CLIMB',
+                            value: elevationReady && passageClimb != null
+                                ? '↑ ${displayFormat.formatElevation(passageClimb)}'
+                                : '↑ —',
+                            muted: !elevationReady || passageClimb == null,
                           ),
                         ),
                       ],
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: PlotSpacing.s2),
-                      child: Text(
-                        dashboard.paceSource == paceCustom
-                            ? 'Pace: custom'
-                            : 'Pace: system default',
-                        style: PlotTypography.small(c.textMuted),
+                    if (!elevationReady && !tripOpen) ...[
+                      const SizedBox(height: PlotSpacing.s2),
+                      CapabilityWarmingNotice(capabilityLabel: 'Elevation', status: elevationCapability),
+                    ],
+                    if (passageMovingS != null) ...[
+                      const SizedBox(height: PlotSpacing.s2),
+                      _StatCard(label: 'PASSAGE MOVING TIME', value: _formatDuration(passageMovingS)),
+                    ],
+                    const SizedBox(height: PlotSpacing.s4),
+                    heading('ELEVATION'),
+                    const SizedBox(height: PlotSpacing.s2),
+                    if (!elevationReady)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: PlotSpacing.s4),
+                        child: CapabilityWarmingNotice(
+                          capabilityLabel: 'Elevation profile',
+                          status: elevationCapability,
+                        ),
+                      )
+                    else if (samples.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: PlotSpacing.s4),
+                        child: Text(
+                          'No elevation profile for this passage yet.',
+                          style: PlotTypography.small(c.textMuted),
+                        ),
+                      )
+                    else
+                      ElevationProfile(
+                        samples: samples,
+                        height: 90,
+                        // C11 / FR27 (issue #47) — hazards and cruxes on this
+                        // passage, where they fall along it.
+                        markers: hazardProfileFractions(trip, segment),
+                        startLabel: '0',
+                        endLabel: segment.metrics?.distanceM == null
+                            ? null
+                            : displayFormat.formatDistance(segment.metrics!.distanceM!),
+                      ),
+                    if (segment.via.isNotEmpty && segment.shape != 'point_to_point') ...[
+                      const SizedBox(height: PlotSpacing.s4),
+                      heading('VIA-ANCHOR ROUTE'),
+                      const SizedBox(height: PlotSpacing.s2),
+                      _ViaAnchorSummary(segment: segment),
+                    ],
+                    if (composeItinerary != null) ...[
+                      const SizedBox(height: PlotSpacing.s4),
+                      _ComposeItinerarySection(
+                        tripId: trip.id,
+                        itinerary: composeItinerary!,
+                        displayFormat: displayFormat,
+                      ),
+                    ],
+                    const SizedBox(height: PlotSpacing.s4),
+                  ],
+                  // #328 — WHOLE TRIP: one summary row while a passage is
+                  // selected; open, the trip's own figures.
+                  InkWell(
+                    key: const ValueKey('metrics-whole-trip'),
+                    onTap: segment == null ? null : () => setState(() => _tripOpen = !_tripOpen),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: PlotSpacing.s2),
+                      child: Row(
+                        children: [
+                          heading('WHOLE TRIP'),
+                          const SizedBox(width: PlotSpacing.s2),
+                          Expanded(
+                            child: tripOpen
+                                ? const SizedBox.shrink()
+                                : Wrap(
+                                    spacing: PlotSpacing.s1,
+                                    children: [
+                                      Text(messages.resolve(MessageId.dayCount, {'count': CountSlot(trip.days.length)}).toUpperCase(),
+                                          style: PlotTypography.data(c.textMuted)),
+                                      Text('·', style: PlotTypography.data(c.textMuted)),
+                                      Text(displayFormat.formatDistance(distance).toUpperCase(),
+                                          style: PlotTypography.data(c.textMuted)),
+                                    ],
+                                  ),
+                          ),
+                          if (segment != null)
+                            Icon(tripOpen ? Icons.expand_less : Icons.expand_more, size: 18, color: c.textMuted),
+                        ],
                       ),
                     ),
+                  ),
+                  if (tripOpen) ...[
+                    const SizedBox(height: PlotSpacing.s2),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _StatCard(
+                            label: 'TRIP DISTANCE',
+                            value: displayFormat.formatDistance(distance),
+                          ),
+                        ),
+                        const SizedBox(width: PlotSpacing.s2),
+                        Expanded(
+                          child: _StatCard(
+                            label: 'TOTAL CLIMB',
+                            value: elevationReady
+                                ? '↑ ${displayFormat.formatElevation(climb)}'
+                                : '↑ —',
+                            muted: !elevationReady,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (!elevationReady) ...[
+                      const SizedBox(height: PlotSpacing.s2),
+                      CapabilityWarmingNotice(
+                        capabilityLabel: 'Elevation',
+                        status: elevationCapability,
+                      ),
+                    ],
+                    if (byDay.isNotEmpty) ...[
+                      const SizedBox(height: PlotSpacing.s4),
+                      Text(
+                        'BY DAY',
+                        style: PlotTypography.data(
+                          c.textMuted,
+                        ).copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: PlotSpacing.s2),
+                      for (final (index, dist, breached) in byDay)
+                        _BarRow(
+                          label: 'Day $index',
+                          fraction: maxDayDistance <= 0
+                              ? 0
+                              : dist / maxDayDistance,
+                          valueLabel: displayFormat.formatDistance(dist),
+                          color: breached ? c.warning : c.primary,
+                          breached: breached,
+                        ),
+                    ],
+                    if (byMode.isNotEmpty) ...[
+                      const SizedBox(height: PlotSpacing.s4),
+                      Text(
+                        'BY MODE',
+                        style: PlotTypography.data(
+                          c.textMuted,
+                        ).copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: PlotSpacing.s2),
+                      for (final entry in byMode.entries)
+                        _BarRow(
+                          label: entry.key,
+                          fraction: maxModeDistance <= 0
+                              ? 0
+                              : entry.value / maxModeDistance,
+                          valueLabel: displayFormat.formatDistance(entry.value),
+                          color: c.success,
+                        ),
+                    ],
+                    if (tripMovingS != null) ...[
+                      const SizedBox(height: PlotSpacing.s4),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _StatCard(
+                              label: 'MOVING TIME',
+                              value: _formatDuration(tripMovingS),
+                            ),
+                          ),
+                          const SizedBox(width: PlotSpacing.s2),
+                          Expanded(
+                            child: _StatCard(
+                              label: 'EST. ARRIVAL',
+                              value: dashboard.tripEta == null
+                                  ? '—'
+                                  : formatEta(dashboard.tripEta!, displayFormat),
+                              muted: dashboard.tripEta == null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: PlotSpacing.s2),
+                        child: Text(
+                          dashboard.paceSource == paceCustom
+                              ? 'Pace: custom'
+                              : 'Pace: system default',
+                          style: PlotTypography.small(c.textMuted),
+                        ),
+                      ),
+                    ],
                   ],
-                  if (composeItinerary != null) ...[
+                  // With no passage selected, the profile's place still says
+                  // why it is empty: pick one, or elevation isn't ready yet.
+                  if (segment == null) ...[
+                    const SizedBox(height: PlotSpacing.s4),
+                    heading('ELEVATION'),
+                    const SizedBox(height: PlotSpacing.s2),
+                    if (!elevationReady)
+                      CapabilityWarmingNotice(capabilityLabel: 'Elevation profile', status: elevationCapability)
+                    else
+                      Text('Select a segment to see its elevation profile',
+                          style: PlotTypography.small(c.textMuted)),
+                  ],
+                  if (segment == null && composeItinerary != null) ...[
                     const SizedBox(height: PlotSpacing.s4),
                     _ComposeItinerarySection(
                       tripId: trip.id,
                       itinerary: composeItinerary!,
                       displayFormat: displayFormat,
                     ),
-                  ],
-                  const SizedBox(height: PlotSpacing.s4),
-                  Text(
-                    'ELEVATION',
-                    style: PlotTypography.data(
-                      c.textMuted,
-                    ).copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: PlotSpacing.s2),
-                  if (!elevationReady)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: PlotSpacing.s4,
-                      ),
-                      child: CapabilityWarmingNotice(
-                        capabilityLabel: 'Elevation profile',
-                        status: elevationCapability,
-                      ),
-                    )
-                  else if (samples.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: PlotSpacing.s4,
-                      ),
-                      child: Text(
-                        'Select a segment to see its elevation profile',
-                        style: PlotTypography.small(c.textMuted),
-                      ),
-                    )
-                  else
-                    ElevationProfile(
-                      samples: samples,
-                      height: 90,
-                      // C11 / FR27 (issue #47) — hazards and cruxes on this
-                      // passage, where they fall along it.
-                      markers: hazardProfileFractions(trip, selectedSegment!),
-                      startLabel: '0',
-                      endLabel: selectedSegment?.metrics?.distanceM == null
-                          ? null
-                          : displayFormat.formatDistance(
-                              selectedSegment!.metrics!.distanceM!),
-                    ),
-                  if (selectedSegment != null &&
-                      selectedSegment!.via.isNotEmpty &&
-                      selectedSegment!.shape != 'point_to_point') ...[
-                    const SizedBox(height: PlotSpacing.s4),
-                    Text(
-                      'VIA-ANCHOR ROUTE',
-                      style: PlotTypography.data(
-                        c.textMuted,
-                      ).copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: PlotSpacing.s2),
-                    _ViaAnchorSummary(segment: selectedSegment!),
                   ],
                   const SizedBox(height: PlotSpacing.s3),
                 ],

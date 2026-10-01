@@ -12,6 +12,8 @@ import 'package:plotlines_client/presentation/widgets/weights_rail.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'support/display_units.dart';
 
+import 'support/rail_tasks.dart';
+
 Segment _segment({Map<String, double>? surface}) => Segment(
       id: 'seg-1',
       mode: 'cycling',
@@ -45,6 +47,7 @@ Future<void> _pump(WidgetTester tester, Segment segment) async {
     ),
   );
   await tester.pump();
+  await openSurfaceGroup(tester);
 }
 
 WeightSlider _sliderFor(WidgetTester tester, String label) => tester.widget<WeightSlider>(

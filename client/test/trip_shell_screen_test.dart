@@ -88,7 +88,7 @@ void main() {
     await tester.pump();
 
     // Route tab (default): weights rail + day timeline both mounted.
-    expect(find.text('ROUTE WEIGHTS'), findsOneWidget);
+    expect(find.byKey(const ValueKey('rail-task-tune')), findsOneWidget); // #328 task spine
     expect(find.text('Peaks — climbing'), findsOneWidget); // FR2/A1's "peaks" terminology
     expect(find.text('DAY 1'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -128,7 +128,7 @@ void main() {
 
     // Back to Route — the rail should still reflect the selected segment.
     await _switchTab(tester, 'ROUTE');
-    expect(find.text('ROUTE WEIGHTS'), findsOneWidget);
+    expect(find.byKey(const ValueKey('rail-task-tune')), findsOneWidget); // #328 task spine
     expect(tester.takeException(), isNull);
   });
 

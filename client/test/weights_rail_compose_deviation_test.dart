@@ -21,6 +21,8 @@ import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'support/display_units.dart';
 
+import 'support/rail_tasks.dart';
+
 class _FakeSidecarManager extends SidecarManager {
   @override
   Future<void> start() async {}
@@ -125,6 +127,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await openRailTask(tester, 'frame');
   }
 
   Future<void> switchToCompose(WidgetTester tester) => _tap(tester, find.text('COMPOSE'));

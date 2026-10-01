@@ -53,6 +53,46 @@
   "@termArcResolution": {
     "description": "ArcStage.resolution"
   },
+  "termArcNone": "No arc",
+  "@termArcNone": {
+    "description": "a passage with no arc stage (O6)"
+  },
+  "termShapeLoop": "Loop",
+  "@termShapeLoop": {
+    "description": "route shape \"loop\""
+  },
+  "termShapeOutAndBack": "Out & back",
+  "@termShapeOutAndBack": {
+    "description": "route shape \"out_and_back\""
+  },
+  "termShapePointToPoint": "Point to point",
+  "@termShapePointToPoint": {
+    "description": "route shape \"point_to_point\""
+  },
+  "termTaskFrame": "Frame",
+  "@termTaskFrame": {
+    "description": "#328 — what this day is"
+  },
+  "termTaskTune": "Tune",
+  "@termTaskTune": {
+    "description": "#328 — how it should feel"
+  },
+  "termTaskRefine": "Refine",
+  "@termTaskRefine": {
+    "description": "#328 — what is on it"
+  },
+  "termNoTargetDistance": "No target",
+  "@termNoTargetDistance": {
+    "description": "#328 — a passage with no target distance"
+  },
+  "termWeightsDefault": "Default weights",
+  "@termWeightsDefault": {
+    "description": "#328 — every weight at its default"
+  },
+  "termWeightsCustom": "Custom weights",
+  "@termWeightsCustom": {
+    "description": "#328 — at least one weight moved"
+  },
   "termModeCycling": "Ride",
   "@termModeCycling": {
     "description": "travel category \"cycling\""
@@ -351,6 +391,34 @@
   "staleItemCount": "{count, plural, =0{Nothing stale} one{1 stale item} other{# stale items}}",
   "@staleItemCount": {
     "description": "FR140 — the dashboard count of stale derived work",
+    "placeholders": {
+      "count": {"type": "int", "x-slot-type": "count"}
+    }
+  },
+  "passageNodeCount": "{count, plural, =0{No nodes} one{1 node} other{# nodes}}",
+  "@passageNodeCount": {
+    "description": "#328 — nodes on a passage",
+    "placeholders": {
+      "count": {"type": "int", "x-slot-type": "count"}
+    }
+  },
+  "bandCount": "{count, plural, =0{No bands set} one{1 band} other{# bands}}",
+  "@bandCount": {
+    "description": "#328 — bands on a passage",
+    "placeholders": {
+      "count": {"type": "int", "x-slot-type": "count"}
+    }
+  },
+  "alternateCount": "{count, plural, =0{No alternate} one{1 alternate} other{# alternates}}",
+  "@alternateCount": {
+    "description": "#328 — alternates on a passage",
+    "placeholders": {
+      "count": {"type": "int", "x-slot-type": "count"}
+    }
+  },
+  "spinePlaceCount": "{count, plural, =0{No places} one{1 place} other{# places}}",
+  "@spinePlaceCount": {
+    "description": "#328 — places in a compose spine",
     "placeholders": {
       "count": {"type": "int", "x-slot-type": "count"}
     }

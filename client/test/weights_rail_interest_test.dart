@@ -15,6 +15,7 @@ import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/weights_rail.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'support/display_units.dart';
+import 'support/rail_tasks.dart';
 
 const _label = 'Interest — good places';
 
@@ -51,6 +52,7 @@ Future<void> _pump(WidgetTester tester, Segment segment) async {
     ),
   );
   await tester.pump();
+  await openInterestGroup(tester);
 }
 
 WeightSlider _slider(WidgetTester tester) => tester.widget<WeightSlider>(

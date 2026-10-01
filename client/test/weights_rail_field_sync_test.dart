@@ -17,6 +17,8 @@ import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'support/display_units.dart';
 
+import 'support/rail_tasks.dart';
+
 Finder _field(String hint) =>
     find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == hint);
 
@@ -60,6 +62,7 @@ Future<ProviderContainer> _pumpRail(WidgetTester tester, Segment segment) async 
     ),
   ));
   await tester.pump();
+  await openRailTask(tester, 'frame');
   return container;
 }
 
