@@ -36,6 +36,7 @@ import '../../widgets/teaching_block.dart';
 import '../../../data/curation_client.dart' show LayerCatalog;
 import 'proposals_view.dart';
 import 'route_tab.dart' show routeTabMarkerPoints;
+import '../../map/trip_framing.dart';
 
 const _uuid = Uuid();
 
@@ -157,6 +158,8 @@ class _LayersTabState extends ConsumerState<LayersTab> {
                   CandidateMap(
                       candidates: candidatesState.candidates,
                       bbox: bbox,
+                      // #572 — no bbox frames the trip, not the home region.
+                      initialCameraFit: bbox == null ? tripFramingFit(widget.trip) : null,
                       // #410 — what has already been promoted, drawn as
                       // such: anchors from the proposals view / Content
                       // tab, and the day nodes `_promote` below writes.
