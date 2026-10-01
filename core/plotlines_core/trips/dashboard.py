@@ -290,6 +290,7 @@ def build_dashboard(
       day id. The pre-O4 interface; still honoured, and it *wins* over
       `day_anchors` for any day present in both (an explicit override).
     `trip_start_at` / `day_start_at` — start times for ETA, keyed by day id.
+      A day's own `start_at` (#563) is used when `day_start_at` has none.
     All optional: with none of them the dashboard is the distance/elevation
     panel D1's first AC line requires, and the time fields stay unset.
     """
@@ -306,7 +307,8 @@ def build_dashboard(
         hold = float(day_hold_s.get(day.id, 0.0))
         timed = _timed_rollup(_day_rollup(day), speeds=speeds, hold_s=hold,
                               pace_source=pace_source)
-        start = day_start_at.get(day.id)
+        # #563 — a day's own stored start wins unless the caller overrides it.
+        start = day_start_at.get(day.id) or day.start_at
         day_eta = (eta(start, timed.total.elapsed_time_s)
                    if start and timed.total and timed.total.elapsed_time_s is not None
                    else None)
