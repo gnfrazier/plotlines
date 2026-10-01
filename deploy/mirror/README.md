@@ -483,8 +483,10 @@ The existing `geofabrik.regions` and `basemap.covered_regions` entries are its
 first rows — seeded as `pinned: true, seeded: true` whenever the worker touches
 the file, and dropped if their source entry goes — not a second system. The
 pull scripts take the same `MIRROR_STATE.json.lock` `flock` around their writes,
-and `geofabrik_pull.save_state` carries `areas` forward from disk, so an
-hours-long precut run can't write back a stale copy over rows filled meanwhile.
+and `geofabrik_pull.save_state` applies only what its own run changed onto the
+file as it is at save time, so an hours-long precut run can't write back a stale
+copy over rows filled meanwhile, over a cell the worker registered or evicted
+under `geofabrik.regions`, or over `basemap` entries the extract script wrote.
 
 **Eviction.** `MIRROR_STORE_CAP_BYTES` (0 = no cap). Past it, the
 least-recently-read unpinned areas are deleted until the store fits; a pinned

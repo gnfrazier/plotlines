@@ -145,7 +145,11 @@ class BasemapArchiveSet:
         self._lock = threading.Lock()
         self._archives: list[BasemapArchive] | None = None
         self._loaded_at: float | None = None
-        self._readers: dict[str, UpstreamTileReader] = {}
+        #: One reader per archive path, with the `filled_at` it was opened
+        #: for. A refresh replaces a cell's archive *at the same path*
+        #: (#519's TTL); the old reader's cached header and directories
+        #: describe the file it replaced, so a changed stamp retires it.
+        self._readers: dict[str, tuple[str | None, UpstreamTileReader]] = {}
 
     # -- the record --------------------------------------------------------
 
@@ -179,9 +183,10 @@ class BasemapArchiveSet:
         with self._lock:
             self._archives = archives
             self._loaded_at = self._clock()
-            live = {a.path for a in archives}
-            for path in [p for p in self._readers if p not in live]:
-                self._readers.pop(path).close()
+            live = {a.path: a.filled_at for a in archives}
+            for path in [p for p, (stamp, _) in self._readers.items()
+                         if p not in live or live[p] != stamp]:
+                self._readers.pop(path)[1].close()
         return archives
 
     def invalidate(self) -> None:
@@ -236,10 +241,13 @@ class BasemapArchiveSet:
 
     def _reader(self, archive: BasemapArchive) -> UpstreamTileReader:
         with self._lock:
-            reader = self._readers.get(archive.path)
-            if reader is None:
-                reader = self._reader_factory(self.archive_url(archive.path))
-                self._readers[archive.path] = reader
+            held = self._readers.get(archive.path)
+            if held is not None and held[0] == archive.filled_at:
+                return held[1]
+            if held is not None:
+                held[1].close()
+            reader = self._reader_factory(self.archive_url(archive.path))
+            self._readers[archive.path] = (archive.filled_at, reader)
             return reader
 
     def read_tile(self, z: int, x: int, y: int):
@@ -294,6 +302,6 @@ class BasemapArchiveSet:
 
     def close(self) -> None:
         with self._lock:
-            for reader in self._readers.values():
+            for _, reader in self._readers.values():
                 reader.close()
             self._readers.clear()

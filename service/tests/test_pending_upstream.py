@@ -368,3 +368,23 @@ def test_elevation_waiting_on_the_proxy_reads_pending_upstream_then_ready(
     assert "allowance" in waiting[0]["reason"]
     assert not any(e.get("reason", "").startswith("failed:") for e in seen)
     assert fast_graph == [key], "an elevation retry never rebuilds the graph"
+
+
+def test_waiting_s_counts_from_the_first_report_across_phase_retries(monkeypatch) -> None:
+    # An elevation retry passes back through `start` before it learns the fill
+    # is still running; the observed wait must not restart from zero each poll.
+    now = {"t": 1000.0}
+    monkeypatch.setattr(app_module.time, "monotonic", lambda: now["t"])
+    cap = app_module.CapabilityState(0.0)
+    cap.start("fetching terrain data for this area")
+    cap.wait_upstream("filling", fill_id="f1", retry_after_s=60)
+    for _ in range(3):  # three polls, a minute apart
+        now["t"] += 60
+        cap.start("fetching terrain data for this area")
+        cap.wait_upstream("filling", fill_id="f1", retry_after_s=60)
+    assert cap.to_dict()["waiting_s"] == 180
+
+    cap.succeed("ready")
+    cap.start("fetching terrain data for this area")
+    cap.wait_upstream("filling", fill_id="f2", retry_after_s=60)
+    assert cap.to_dict()["waiting_s"] == 0  # a new wait after an outcome

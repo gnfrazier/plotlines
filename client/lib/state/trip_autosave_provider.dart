@@ -84,15 +84,23 @@ class TripAutosave extends StateNotifier<AutosaveStatus> {
     if (_startCheck != null) await _startCheck;
     _timer?.cancel();
     // A write already running finishes first; a change that landed during
-    // it is still [_dirty] and gets its own write below.
-    if (_inFlight != null) await _inFlight;
+    // it is still [_dirty] and gets its own write below. A loop, not one
+    // wait: another caller waiting on the same write may start the next one
+    // the moment it finishes, and this caller must not return (and the
+    // Library action navigate) while that one is still running.
+    while (_inFlight != null) {
+      await _inFlight;
+    }
     // The scope went away under a pending write (the app closing): nothing
     // left to write with.
     if (!_dirty || !mounted) return;
     _dirty = false;
     if (mounted) state = AutosaveStatus.saving;
     final write = _ref.read(tripPersistenceProvider).save(compose: false);
-    _inFlight = write;
+    // What other callers wait on: completes either way, since only this
+    // caller reports the outcome.
+    final settled = write.then<void>((_) {}, onError: (Object _) {});
+    _inFlight = settled;
     try {
       await write;
       if (mounted && !_dirty) state = AutosaveStatus.saved;
@@ -103,7 +111,7 @@ class TripAutosave extends StateNotifier<AutosaveStatus> {
       _dirty = true;
       if (mounted) state = AutosaveStatus.failed;
     } finally {
-      _inFlight = null;
+      if (identical(_inFlight, settled)) _inFlight = null;
     }
   }
 

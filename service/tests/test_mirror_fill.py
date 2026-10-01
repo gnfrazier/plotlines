@@ -275,6 +275,37 @@ def test_a_worker_killed_mid_job_leaves_no_partial_file_and_no_stuck_job(
         restarted.shutdown()
 
 
+def test_a_queued_job_is_resumed_after_a_restart_and_a_restarted_one_is_not_cooled_down(
+    tmp_path: Path,
+) -> None:
+    # One worker thread: the first area's fetch holds it, so the second area's
+    # job is queued, never started, when the process "dies".
+    filler = FakeFiller()
+    worker = _worker(tmp_path, filler, failed_cooldown_s=3600)
+    running = worker.request("fake", _GREENSBORO)
+    assert filler.entered.wait(5)
+    queued = worker.request("fake", (-78.5, 35.5, -78.2, 35.8))
+    assert queued.state == FETCHING
+
+    second = FakeFiller()
+    second.release.set()
+    restarted = FillWorker(tmp_path / "store", [second], state_dir=tmp_path / "fill-state",
+                           failed_cooldown_s=3600)
+    try:
+        # The queued job had nothing in flight: it runs again, not failed.
+        _wait_state(restarted, queued.fill_id, READY)
+        assert restarted.status(running.fill_id).state == "failed:restarted"
+        # The restart is not the upstream's verdict, so asking again starts a
+        # job at once rather than waiting out the hour's cooldown.
+        again = restarted.request("fake", _GREENSBORO)
+        assert again.jobs_started == 1
+        _wait_state(restarted, again.fill_id, READY)
+    finally:
+        filler.release.set()
+        worker.shutdown(wait=True)
+        restarted.shutdown(wait=True)
+
+
 def test_a_deferred_job_is_resumed_after_a_restart(tmp_path: Path) -> None:
     filler = FakeFiller()
     filler.defer_once = FillDeferred(3600, "quota wait")
@@ -433,6 +464,48 @@ def test_the_pull_script_carries_filled_rows_forward_instead_of_clobbering_them(
         {"fake/filled": _area_row("fake/filled.bin", read="2026-09-01T00:00:00Z")}))
     pull.save_state(root / "MIRROR_STATE.json", stale)  # ...and ends
     assert "fake/filled" in json.loads((root / "MIRROR_STATE.json").read_text())["areas"]
+
+
+def test_a_long_pull_run_applies_only_its_own_changes_to_the_state_file(
+    tmp_path: Path,
+) -> None:
+    """A precut run holds its state for hours. Meanwhile the fill worker
+    registers a cell for `/clip` (and evicts another), and the basemap script
+    records a region. The run's checkpoint must apply what *it* changed and
+    leave every one of those standing."""
+    from test_geofabrik_pull import _load_geofabrik_pull
+    pull = _load_geofabrik_pull()
+
+    seeded = _seeded_state()
+    seeded["geofabrik"]["regions"]["cell-1d-w081-n35"] = {"filled": True, "precut_bbox": [
+        -81.0, 35.0, -80.0, 36.0]}
+    root = _store(tmp_path, seeded)
+    path = root / "MIRROR_STATE.json"
+    state = pull.load_state(path)  # the run starts
+    baseline = json.loads(json.dumps(state))
+
+    def _meanwhile(s: dict) -> None:
+        regions = s["geofabrik"]["regions"]
+        regions["cell-1d-w080-n36"] = {"filled": True, "precut_bbox": [-80.0, 36.0, -79.0, 37.0]}
+        regions.pop("cell-1d-w081-n35")  # evicted by the worker
+        s["geofabrik"].setdefault("fill_sources", {})["us/nc"] = {"md5": "abc"}
+        s.setdefault("basemap", {}).setdefault("covered_regions", {})["cell-2d-w080-n36"] = {
+            "path": "basemap/protomaps/cells/cell-2d-w080-n36.pmtiles"}
+
+    StoreBook(root).update(_meanwhile)
+    # The run's own work: a precut cell it pinned.
+    state["geofabrik"]["regions"]["priority-w080-n34"] = {"precut_bbox": [-80, 34, -78, 36]}
+    pull.save_state(path, state, baseline)
+
+    on_disk = json.loads(path.read_text())
+    regions = on_disk["geofabrik"]["regions"]
+    assert "priority-w080-n34" in regions  # the run's change
+    assert "cell-1d-w080-n36" in regions  # the fill's registration stands
+    assert "cell-1d-w081-n35" not in regions  # an evicted cell isn't re-registered
+    assert on_disk["geofabrik"]["fill_sources"] == {"us/nc": {"md5": "abc"}}
+    assert "cell-2d-w080-n36" in on_disk["basemap"]["covered_regions"]
+    # ...and the run's in-memory copy now matches what it wrote.
+    assert state == on_disk == baseline
 
 
 # -- the HTTP gate ------------------------------------------------------------------
