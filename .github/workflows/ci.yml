@@ -82,6 +82,10 @@ jobs:
       # so this is the only thing that would have caught #509 (every /layers
       # call 500ing because layer_defaults.json was never collected).
       - run: tools/ci/sidecar_bundled_data_lint.sh
+      # Issue #567 — the Linux bundle's layout (sidecar/, version.lock) is
+      # written by packaging/build_desktop_linux.sh and read by
+      # sidecar_manager.dart; this fails when the two drift apart.
+      - run: tools/ci/desktop_bundle_layout_lint.sh
       # Issue #486 — every committed basemap theme is exactly what
       # packaging/build_basemap_theme.py generates, so a hand-patch on the
       # output (how #321's WCAG fix first landed) can't be silently reverted.

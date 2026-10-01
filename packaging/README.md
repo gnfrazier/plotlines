@@ -61,6 +61,24 @@ The geospatial stack breaks freezers through dynamic imports and data files rath
 ordinary imports, so treat any new dependency as guilty until
 `spikes/SPIKE-00/harness/lifecycle.py` passes against a fresh build.
 
+## Building the Linux desktop bundle — issue #567
+
+```bash
+PLOTLINES_MIRROR_CLIP_CLIENT_KEY=... packaging/build_desktop_linux.sh
+# → packaging/dist/desktop/plotlines-linux-x64-<version>.tar.gz
+```
+
+The one step that joins the two builds above into something that runs away from the repo:
+
+1. freezes the sidecar (onedir), unless `--skip-sidecar` is passed;
+2. runs `flutter build linux --release`, passing each upstream define that's set in the environment (key, mirror URL, state URL, elevation, tiles). Nothing is read from a file;
+3. copies the onedir to `bundle/sidecar/` and `version.lock` to `bundle/`. That's where `SidecarManager` looks: `<exeDir>/sidecar/plotlines-sidecar` and `<exeDir>/version.lock`;
+4. refuses the build if the frozen sidecar's `--version` differs from `version.lock` (A8);
+5. includes `packaging/dist/elevation/plotlines-elevation-*.tar.gz` under `bundle/elevation/` when one has been built (see below);
+6. writes `INSTALL.txt` and tars the bundle.
+
+`tools/ci/desktop_bundle_layout_lint.sh` fails if the script and `sidecar_manager.dart` stop agreeing on that layout. The build is unsigned and Linux-only: desktop-MVP scope. Signing and the other platforms are in `TODO.md`.
+
 ## Decisions
 
 Q4 (freezer) and Q5 (bundle vs. download) were **resolved by SPIKE-00** — see `TODO.md`
