@@ -52,8 +52,9 @@ class CurationClient {
   //
   // `/layers` and `/candidates/score` are local reads (no network) — a few
   // seconds is generous margin. `/candidates` and `/clusters/analyze` both
-  // run `LayerRegistry.fetch_candidates_all`, whose own worst case is
-  // `_CANDIDATE_FETCH_TIMEOUT_S = 60.0` server-side (`service/app.py`);
+  // run `LayerRegistry.fetch_candidates_all`, which one request waits on for
+  // at most `_CANDIDATE_FETCH_TIMEOUT_S = 15.0` server-side (`service/app.py`)
+  // before answering `loading` and letting the caller ask again (#590);
   // `/clusters/analyze` also clusters what it extracts, so it carries extra
   // margin on top.
   static Duration layerCatalogTimeout = const Duration(seconds: 10);

@@ -26,6 +26,7 @@ from plotlines_service import app as app_module
 
 def test_a_stuck_cluster_fetch_does_not_block_other_endpoints(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(app_module, "_CANDIDATE_FETCH_WATCHDOG_S", 0.2)
 
     # Bounded at 15s purely so a broken test can't hang the whole suite —
     # the test always calls `unblock.set()` itself, well before that, once

@@ -44,6 +44,8 @@ class _FakeCurationClient extends CurationClient {
   List<Set<String>> requestedLayers = [];
   List<Candidate> result = const [];
   CandidateExtraction? extraction;
+  /// #590 — answered in order, one per call, before [extraction]/[result].
+  List<CandidateExtraction> sequence = [];
   Object? throwThis;
   Completer<void>? gate;
 
@@ -56,6 +58,7 @@ class _FakeCurationClient extends CurationClient {
     requestedLayers.add(liveLayers);
     if (gate != null) await gate!.future;
     if (throwThis != null) throw throwThis!;
+    if (sequence.isNotEmpty) return sequence.removeAt(0);
     return extraction ?? CandidateExtraction(candidates: result, layersServed: liveLayers.toList());
   }
 }
@@ -349,6 +352,97 @@ void main() {
       expect(state.candidates.map((c) => c.id), ['a']);
       expect(state.layersUnavailable, {'historic': 'loading'});
       expect(state.error, contains('sidecar down'));
+    });
+  });
+
+  group('#590 — a fetch the sidecar reports still running is a wait', () {
+    setUp(() {
+      TripCandidatesNotifier.loadingRepollInterval = Duration.zero;
+    });
+    tearDown(() {
+      TripCandidatesNotifier.loadingRepollInterval = const Duration(seconds: 1);
+      TripCandidatesNotifier.loadingRepollLimit = const Duration(minutes: 15);
+    });
+
+    const stillRunning = CandidateExtraction(
+        candidates: [], layersUnavailable: {'sight': 'loading', 'natural': 'loading'});
+
+    test('asks again until it settles, and never shows a failure meanwhile', () async {
+      final client = _FakeCurationClient()
+        ..sequence = [stillRunning, stillRunning]
+        ..result = [_c('a')];
+      final container = _container(client);
+      final states = <TripCandidatesState>[];
+      container.listen(tripCandidatesProvider, (_, next) => states.add(next));
+
+      await container
+          .read(tripCandidatesProvider.notifier)
+          .fetch(bbox: _bbox, liveLayers: {'sight', 'natural'});
+
+      expect(client.calls, 3);
+      expect(client.requestedLayers.toSet().length, 1, reason: 'same layer set every poll');
+      for (final s in states.take(states.length - 1)) {
+        expect(s.loading, isTrue);
+        expect(s.isTotalFailure, isFalse);
+        expect(s.error, isNull);
+      }
+      final done = container.read(tripCandidatesProvider);
+      expect(done.loading, isFalse);
+      expect(done.candidates.map((c) => c.id), ['a']);
+      expect(done.layersUnavailable, isEmpty);
+    });
+
+    test('a stuck fetch ends on the sidecar\'s own finished answer', () async {
+      final client = _FakeCurationClient()
+        ..sequence = [
+          stillRunning,
+          const CandidateExtraction(candidates: [], layersUnavailable: {
+            'sight': 'failed:candidate_fetch_timed_out',
+            'natural': 'failed:candidate_fetch_timed_out',
+          }),
+        ];
+      final container = _container(client);
+
+      await container
+          .read(tripCandidatesProvider.notifier)
+          .fetch(bbox: _bbox, liveLayers: {'sight', 'natural'});
+
+      final state = container.read(tripCandidatesProvider);
+      expect(client.calls, 2);
+      expect(state.loading, isFalse);
+      expect(state.isTotalFailure, isTrue);
+    });
+
+    test('one layer loading beside served ones is the #415 partial case, not a wait', () async {
+      final client = _FakeCurationClient()
+        ..extraction = CandidateExtraction(
+            candidates: [_c('a')], layersServed: ['sight'], layersUnavailable: {'plugin': 'loading'});
+      final container = _container(client);
+
+      await container
+          .read(tripCandidatesProvider.notifier)
+          .fetch(bbox: _bbox, liveLayers: {'sight', 'plugin'});
+
+      expect(client.calls, 1);
+      expect(container.read(tripCandidatesProvider).isPartiallyServed, isTrue);
+    });
+
+    test('the poll stops once the trip is reset', () async {
+      final client = _FakeCurationClient()
+        ..sequence = List.filled(1000, stillRunning, growable: true);
+      final container = _container(client);
+      final notifier = container.read(tripCandidatesProvider.notifier);
+      TripCandidatesNotifier.loadingRepollInterval = const Duration(milliseconds: 5);
+
+      final run = notifier.fetch(bbox: _bbox, liveLayers: {'sight', 'natural'});
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      notifier.reset();
+      await run;
+      final callsAtReset = client.calls;
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      expect(client.calls, callsAtReset);
+      expect(container.read(tripCandidatesProvider), const TripCandidatesState());
     });
   });
 }

@@ -124,8 +124,43 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
 
   bool _superseded(int generation) => !mounted || generation != _generation;
 
+  /// #590 — how often to ask again while the sidecar is still extracting,
+  /// and for how long at most. Mutable only so a test can shrink them.
+  static Duration loadingRepollInterval = const Duration(seconds: 1);
+  static Duration loadingRepollLimit = const Duration(minutes: 15);
+
+  /// #590 — `GET /candidates` answers every requested layer `loading` while
+  /// its fetch is still running (a local-clip parse can outrun one request's
+  /// wait: 48.6 s idle for a Greensboro-sized area). That is a wait, not a
+  /// failure, so ask again for the same (bbox, layer set) — the sidecar joins
+  /// the fetch already running — until it settles. Only the whole-set shape
+  /// is a wait: a run that served some layers and reports another `loading`
+  /// is the #415 partial case and returns as it is. The sidecar's own
+  /// watchdog turns a stuck fetch into `failed:candidate_fetch_timed_out`;
+  /// [loadingRepollLimit] only bounds this loop if that never comes. Returns
+  /// null once [generation] is superseded.
+  Future<CandidateExtraction?> _untilSettled(
+      TripBbox bbox, Set<String> layers, int generation) async {
+    final started = DateTime.now();
+    while (true) {
+      final result = await _ref
+          .read(curationClientProvider)
+          .candidatesForBbox(bbox: bbox, liveLayers: layers);
+      if (_superseded(generation)) return null;
+      final stillRunning = result.layersServed.isEmpty &&
+          result.layersUnavailable.isNotEmpty &&
+          result.layersUnavailable.values.every((r) => r.trim() == 'loading');
+      if (!stillRunning || DateTime.now().difference(started) >= loadingRepollLimit) {
+        return result;
+      }
+      await Future<void>.delayed(loadingRepollInterval);
+      if (_superseded(generation)) return null;
+    }
+  }
+
   /// Extracts and notability-scores [bbox]'s features against [liveLayers]
-  /// (`GET /candidates`). A no-op while a run is already in flight. On
+  /// (`GET /candidates`), waiting out a fetch the sidecar reports still
+  /// running (#590). A no-op while a run is already in flight. On
   /// failure the previous candidates are left in place and [state.error] is
   /// set — one broken run never blanks a warmed workspace.
   Future<void> fetch({
@@ -136,10 +171,8 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
     final generation = _generation;
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final result = await _ref
-          .read(curationClientProvider)
-          .candidatesForBbox(bbox: bbox, liveLayers: liveLayers);
-      if (_superseded(generation)) return;
+      final result = await _untilSettled(bbox, liveLayers, generation);
+      if (result == null) return;
       state = state.copyWith(
         candidates: result.candidates,
         loading: false,
@@ -171,10 +204,8 @@ class TripCandidatesNotifier extends StateNotifier<TripCandidatesState> {
     final generation = _generation;
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final result = await _ref
-          .read(curationClientProvider)
-          .candidatesForBbox(bbox: key.bbox, liveLayers: retry);
-      if (_superseded(generation)) return;
+      final result = await _untilSettled(key.bbox, retry, generation);
+      if (result == null) return;
       state = state.copyWith(
         candidates: [
           for (final c in state.candidates)
