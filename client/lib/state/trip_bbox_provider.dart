@@ -1,14 +1,12 @@
 // N1 (PRD FR120) — the trip's authoring bbox: drawn at trip initiation,
 // revisable throughout authoring.
 //
-// **Session-only, not yet persisted** — the same accepted limitation
-// `trip_authoring_meta_provider.dart` documents for party size/primary
-// modes, and for the same reason: there is no schema home for it yet.
-// `docs/Plotlines_ARCHITECTURE_v2.md` (§11.6, D41) is explicit that adding
-// the trip bbox to `trip_payload.schema.json` is "a schema version bump
-// with a migration, not an additive edit" bundled with anchors/roles/
-// polygons/arc-on-passages — none of which exist in this codebase yet.
-// Reopening a saved trip starts bbox selection over, same as party size.
+// Persisted beside the payload since #570 (ARCH D70): `TripPersistence.save`
+// writes it to `Trips.bbox` and `open` restores it, so a reopened trip keeps
+// its extent. Until then it was session-only, on the reasoning that it
+// waited for the v2.0 payload schema growth (§11.6) — but D64 had already
+// set the pattern for trip-local metadata that isn't canon, and every
+// reopened trip lost its candidates, co-location scope and curation maps.
 library;
 
 import 'dart:async';

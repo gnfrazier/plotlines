@@ -50,6 +50,14 @@ class Trips extends Table {
   /// "no metrics yet".
   TextColumn get summary => text().withDefault(const Constant('{}'))();
 
+  /// FR120/N1, issue #570 — the trip's drawn authoring bbox, as the JSON
+  /// array `[west, south, east, north]` (`TripBbox.bboxWsen`). Beside
+  /// [payload] for the reason [modes] is (ARCH D70, the D64 pattern): it is
+  /// local trip metadata the payload schema has no field for. Empty string =
+  /// not drawn yet (old rows, a trip still at initiation) — never a box
+  /// inferred from anything else (N1).
+  TextColumn get bbox => text().withDefault(const Constant(''))();
+
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -89,7 +97,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.connection);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -175,7 +183,15 @@ class AppDatabase extends _$AppDatabase {
             }
             // Recreates `trips` from the current table definition, which no
             // longer has `declared_modes`, copying every column both share.
-            await m.alterTable(TableMigration(trips));
+            // The definition also carries v7's `bbox` (#570), which this file
+            // has never had — it is created at its default here, and the v7
+            // step below is for a v6 file only.
+            await m.alterTable(TableMigration(trips, newColumns: [trips.bbox]));
+          }
+          if (from == 6) {
+            // Issue #570 — the trip bbox survives a reopen. Old rows read as
+            // "not drawn yet", which is what every reopen used to show.
+            await m.addColumn(trips, trips.bbox);
           }
         },
       );
@@ -217,6 +233,7 @@ class AppDatabase extends _$AppDatabase {
     required DateTime updatedAt,
     String rosterJson = '',
     String summaryJson = '{}',
+    String bboxJson = '',
   }) {
     return into(trips).insertOnConflictUpdate(TripsCompanion.insert(
       id: id,
@@ -225,6 +242,7 @@ class AppDatabase extends _$AppDatabase {
       payload: payloadJson,
       roster: Value(rosterJson),
       summary: Value(summaryJson),
+      bbox: Value(bboxJson),
       createdAt: updatedAt,
       updatedAt: updatedAt,
     ));

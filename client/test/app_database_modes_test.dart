@@ -142,7 +142,7 @@ void main() {
       );
       final version =
           (await db.customSelect('PRAGMA user_version').getSingle()).read<int>('user_version');
-      expect(version, 6);
+      expect(version, 7);
     });
 
     test('a v2 file (before the declared column ever existed) still migrates through', () async {

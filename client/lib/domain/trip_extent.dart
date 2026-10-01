@@ -1,7 +1,7 @@
 // Issue #572 — where a trip *is* when it has no drawn bbox.
 //
-// The trip bbox is session-only until #570, so every reopened trip has none,
-// and the maps that frame on it used to fall back to `HomeRegion` — a
+// A trip can be open with no bbox — never drawn yet, or saved before #570
+// persisted it — and the maps that frame on it used to fall back to `HomeRegion` — a
 // Greensboro trip opened its Proposals map over Asheville. The trip's own
 // geometry is a better answer than any fixed place: every passage's route
 // and placed points, each day's location and nodes, and every anchor.
