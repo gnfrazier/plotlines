@@ -68,6 +68,16 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _bboxMeta = const VerificationMeta('bbox');
+  @override
+  late final GeneratedColumn<String> bbox = GeneratedColumn<String>(
+    'bbox',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -98,6 +108,7 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     payload,
     roster,
     summary,
+    bbox,
     createdAt,
     updatedAt,
   ];
@@ -154,6 +165,12 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
       );
     }
+    if (data.containsKey('bbox')) {
+      context.handle(
+        _bboxMeta,
+        bbox.isAcceptableOrUnknown(data['bbox']!, _bboxMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -202,6 +219,10 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
       summary: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}summary'],
+      )!,
+      bbox: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bbox'],
       )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -257,6 +278,14 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   /// [modes] already does. `{}` for old rows — the card falls back to
   /// "no metrics yet".
   final String summary;
+
+  /// FR120/N1, issue #570 — the trip's drawn authoring bbox, as the JSON
+  /// array `[west, south, east, north]` (`TripBbox.bboxWsen`). Beside
+  /// [payload] for the reason [modes] is (ARCH D70, the D64 pattern): it is
+  /// local trip metadata the payload schema has no field for. Empty string =
+  /// not drawn yet (old rows, a trip still at initiation) — never a box
+  /// inferred from anything else (N1).
+  final String bbox;
   final DateTime createdAt;
   final DateTime updatedAt;
   const TripRow({
@@ -266,6 +295,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     required this.payload,
     required this.roster,
     required this.summary,
+    required this.bbox,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -278,6 +308,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     map['payload'] = Variable<String>(payload);
     map['roster'] = Variable<String>(roster);
     map['summary'] = Variable<String>(summary);
+    map['bbox'] = Variable<String>(bbox);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -291,6 +322,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       payload: Value(payload),
       roster: Value(roster),
       summary: Value(summary),
+      bbox: Value(bbox),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -308,6 +340,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       payload: serializer.fromJson<String>(json['payload']),
       roster: serializer.fromJson<String>(json['roster']),
       summary: serializer.fromJson<String>(json['summary']),
+      bbox: serializer.fromJson<String>(json['bbox']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -322,6 +355,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       'payload': serializer.toJson<String>(payload),
       'roster': serializer.toJson<String>(roster),
       'summary': serializer.toJson<String>(summary),
+      'bbox': serializer.toJson<String>(bbox),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -334,6 +368,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     String? payload,
     String? roster,
     String? summary,
+    String? bbox,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => TripRow(
@@ -343,6 +378,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     payload: payload ?? this.payload,
     roster: roster ?? this.roster,
     summary: summary ?? this.summary,
+    bbox: bbox ?? this.bbox,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -354,6 +390,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       payload: data.payload.present ? data.payload.value : this.payload,
       roster: data.roster.present ? data.roster.value : this.roster,
       summary: data.summary.present ? data.summary.value : this.summary,
+      bbox: data.bbox.present ? data.bbox.value : this.bbox,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -368,6 +405,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           ..write('payload: $payload, ')
           ..write('roster: $roster, ')
           ..write('summary: $summary, ')
+          ..write('bbox: $bbox, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -382,6 +420,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     payload,
     roster,
     summary,
+    bbox,
     createdAt,
     updatedAt,
   );
@@ -395,6 +434,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           other.payload == this.payload &&
           other.roster == this.roster &&
           other.summary == this.summary &&
+          other.bbox == this.bbox &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -406,6 +446,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   final Value<String> payload;
   final Value<String> roster;
   final Value<String> summary;
+  final Value<String> bbox;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -416,6 +457,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     this.payload = const Value.absent(),
     this.roster = const Value.absent(),
     this.summary = const Value.absent(),
+    this.bbox = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -427,6 +469,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     required String payload,
     this.roster = const Value.absent(),
     this.summary = const Value.absent(),
+    this.bbox = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -443,6 +486,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Expression<String>? payload,
     Expression<String>? roster,
     Expression<String>? summary,
+    Expression<String>? bbox,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -454,6 +498,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       if (payload != null) 'payload': payload,
       if (roster != null) 'roster': roster,
       if (summary != null) 'summary': summary,
+      if (bbox != null) 'bbox': bbox,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -467,6 +512,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Value<String>? payload,
     Value<String>? roster,
     Value<String>? summary,
+    Value<String>? bbox,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -478,6 +524,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       payload: payload ?? this.payload,
       roster: roster ?? this.roster,
       summary: summary ?? this.summary,
+      bbox: bbox ?? this.bbox,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -505,6 +552,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     if (summary.present) {
       map['summary'] = Variable<String>(summary.value);
     }
+    if (bbox.present) {
+      map['bbox'] = Variable<String>(bbox.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -526,6 +576,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
           ..write('payload: $payload, ')
           ..write('roster: $roster, ')
           ..write('summary: $summary, ')
+          ..write('bbox: $bbox, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -1040,6 +1091,7 @@ typedef $$TripsTableCreateCompanionBuilder =
       required String payload,
       Value<String> roster,
       Value<String> summary,
+      Value<String> bbox,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -1052,6 +1104,7 @@ typedef $$TripsTableUpdateCompanionBuilder =
       Value<String> payload,
       Value<String> roster,
       Value<String> summary,
+      Value<String> bbox,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -1092,6 +1145,11 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
 
   ColumnFilters<String> get summary => $composableBuilder(
     column: $table.summary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bbox => $composableBuilder(
+    column: $table.bbox,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1145,6 +1203,11 @@ class $$TripsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get bbox => $composableBuilder(
+    column: $table.bbox,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -1182,6 +1245,9 @@ class $$TripsTableAnnotationComposer
 
   GeneratedColumn<String> get summary =>
       $composableBuilder(column: $table.summary, builder: (column) => column);
+
+  GeneratedColumn<String> get bbox =>
+      $composableBuilder(column: $table.bbox, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -1224,6 +1290,7 @@ class $$TripsTableTableManager
                 Value<String> payload = const Value.absent(),
                 Value<String> roster = const Value.absent(),
                 Value<String> summary = const Value.absent(),
+                Value<String> bbox = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -1234,6 +1301,7 @@ class $$TripsTableTableManager
                 payload: payload,
                 roster: roster,
                 summary: summary,
+                bbox: bbox,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -1246,6 +1314,7 @@ class $$TripsTableTableManager
                 required String payload,
                 Value<String> roster = const Value.absent(),
                 Value<String> summary = const Value.absent(),
+                Value<String> bbox = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -1256,6 +1325,7 @@ class $$TripsTableTableManager
                 payload: payload,
                 roster: roster,
                 summary: summary,
+                bbox: bbox,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

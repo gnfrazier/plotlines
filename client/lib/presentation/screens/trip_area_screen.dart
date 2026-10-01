@@ -52,8 +52,8 @@ class TripAreaScreen extends ConsumerStatefulWidget {
   /// True for trip initiation (trip_library_screen.dart, right after the
   /// location prompt); false when reached as a later revision
   /// (trip_shell_screen.dart's app bar). **Not inferred from whether a bbox
-  /// is already set**: the bbox is session-only (trip_bbox_provider.dart)
-  /// and resets when a saved trip is reopened, so "no bbox yet" doesn't
+  /// is already set**: a saved trip can reopen with none (never drawn, or
+  /// saved before the bbox was persisted, #570), so "no bbox yet" doesn't
   /// reliably mean "this is a brand-new trip."
   final bool isCreation;
 
@@ -86,7 +86,7 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
         padding: const EdgeInsets.all(48),
       );
     }
-    // #572 — revising a trip with no bbox (every reopened trip until #570)
+    // #572 — revising a trip with no bbox (never drawn, or saved before #570)
     // frames the trip's own geometry, not the home region. Framing only:
     // the Author still draws the extent.
     if (!widget.isCreation) return tripFramingFit(ref.read(currentTripProvider));
