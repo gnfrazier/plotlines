@@ -17,13 +17,16 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
 import '../../domain/home_region.dart';
+import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
+import '../../state/trip_bbox_provider.dart';
 import 'anchor_area_layer.dart';
 import 'arc_stage_marker.dart';
 import 'map_attribution.dart';
 import 'map_label_scale.dart';
 import 'no_basemap_notice.dart';
+import 'trip_framing.dart';
 import 'vector_tile_provider.dart';
 
 typedef LatLonPoint = List<double>; // [lon, lat]
@@ -377,6 +380,12 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
     );
     final startCenter = widget.center ??
         (widget.points.isNotEmpty ? widget.points.first.coord : HomeRegion.center);
+    // #612/#614/#618/#619 — with nothing of its own to center on, the map
+    // opens over the open trip's area, never `HomeRegion` behind it. Read
+    // once: an initial camera, not one that chases later edits.
+    final areaFit = widget.center == null && widget.points.isEmpty
+        ? tripAreaFit(ref.read(tripBboxProvider), ref.read(currentTripProvider))
+        : null;
     final sidecar = ref.watch(sidecarManagerProvider);
     final baseUrl = sidecar.baseUrl;
     final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
@@ -412,6 +421,7 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
               options: MapOptions(
                 initialCenter: ll.LatLng(startCenter[1], startCenter[0]),
                 initialZoom: widget.initialZoom,
+                initialCameraFit: areaFit,
                 onTap: widget.onTap == null
                     ? null
                     : (tapPosition, point) => widget.onTap!([point.longitude, point.latitude]),

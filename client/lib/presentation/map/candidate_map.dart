@@ -20,8 +20,10 @@ import '../../domain/cluster_proposal.dart';
 import '../../domain/home_region.dart';
 import '../../domain/json_utils.dart' show Coord;
 import '../../domain/trip_bbox.dart';
+import '../../state/current_trip_provider.dart';
 import '../../state/providers.dart';
 import '../../state/settings_provider.dart';
+import '../../state/trip_bbox_provider.dart';
 import 'anchor_area_layer.dart';
 import 'candidate_geometry_layer.dart';
 import 'candidate_point_layer.dart';
@@ -29,6 +31,7 @@ import 'map_attribution.dart';
 import 'map_label_scale.dart';
 import 'no_basemap_notice.dart';
 import 'tap_to_pick_map.dart' show MapAnchorPoint, MapMarkerPoint, MapTileAssets;
+import 'trip_framing.dart';
 import 'vector_tile_provider.dart';
 
 class CandidateMap extends ConsumerStatefulWidget {
@@ -152,6 +155,14 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
     );
     final center = widget.bbox?.center ??
         (widget.candidates.isNotEmpty ? widget.candidates.first.coord : HomeRegion.center);
+    // #612 — a caller that names neither a fit nor a bbox (the lodging
+    // picker) opens over the open trip's area: framed on the whole area
+    // rather than on whichever candidate happens to be first, and never on
+    // `HomeRegion` when there are none.
+    final cameraFit = widget.initialCameraFit ??
+        (widget.bbox == null
+            ? tripAreaFit(ref.read(tripBboxProvider), ref.read(currentTripProvider))
+            : null);
     final sidecar = ref.watch(sidecarManagerProvider);
     final baseUrl = sidecar.baseUrl;
     final tilesArchiveId = sidecar.capabilities?.tilesArchiveId;
@@ -185,7 +196,7 @@ class _CandidateMapState extends ConsumerState<CandidateMap> {
             options: MapOptions(
               initialCenter: ll.LatLng(center[1], center[0]),
               initialZoom: widget.initialZoom,
-              initialCameraFit: widget.initialCameraFit,
+              initialCameraFit: cameraFit,
               onMapEvent: (_) => setState(() {}),
               onMapReady: () => setState(() => _mapReady = true),
               onTap: widget.onMapTap == null

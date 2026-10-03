@@ -1238,9 +1238,14 @@ class _LodgingSectionState extends ConsumerState<_LodgingSection> {
   }
 
   Future<void> _openMap(BuildContext context, List<Candidate> candidates) async {
-    final picked = await showDialog<Candidate>(
-      context: context,
-      builder: (_) => _LodgingMapDialog(candidates: candidates),
+    // #612 — a full-height screen with a confirm bar, the same path the rest
+    // day location picker (#325) takes, rather than a 640×480 dialog whose
+    // notices sat on top of the map's own attribution.
+    final picked = await Navigator.of(context, rootNavigator: true).push<Candidate>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _LodgingMapScreen(candidates: candidates),
+      ),
     );
     if (picked == null || !mounted) return;
     final node = lodgingNodeFromCandidate(picked, id: _uuid.v4());
@@ -1250,47 +1255,74 @@ class _LodgingSectionState extends ConsumerState<_LodgingSection> {
 }
 
 /// The map surface behind "Place lodging on map" — [candidates] arrives
-/// already filtered by [_LodgingSectionState]'s type chips, so this dialog
+/// already filtered by [_LodgingSectionState]'s type chips, so this screen
 /// draws exactly the overlays the Author asked to see and nothing else.
 /// Reuses [CandidateMap] (the Curation Workspace's own candidate rendering)
-/// rather than a second marker implementation, the same reuse #325's rest-day
-/// location redesign calls for.
-class _LodgingMapDialog extends StatelessWidget {
-  const _LodgingMapDialog({required this.candidates});
+/// rather than a second marker implementation, and #325's rest-day screen
+/// shape: full height, framed on the trip area (`CandidateMap`'s own
+/// fallback, #612), a pick confirmed in a bar below the map rather than
+/// committed by the tap itself, and every notice in that bar, never over the
+/// map's attribution.
+class _LodgingMapScreen extends StatefulWidget {
+  const _LodgingMapScreen({required this.candidates});
   final List<Candidate> candidates;
 
   @override
+  State<_LodgingMapScreen> createState() => _LodgingMapScreenState();
+}
+
+class _LodgingMapScreenState extends State<_LodgingMapScreen> {
+  Candidate? _picked;
+
+  @override
   Widget build(BuildContext context) {
-    return Dialog(
-      child: SizedBox(
-        width: 640,
-        height: 480,
-        child: Stack(
-          children: [
-            CandidateMap(
-              candidates: candidates,
-              onCandidateTap: (c) => Navigator.pop(context, c),
+    final c = PlotColors.of(context);
+    final picked = _picked;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Place lodging')),
+      body: Column(
+        children: [
+          Expanded(
+            child: CandidateMap(
+              candidates: widget.candidates,
+              pickedCoord: picked?.coord,
+              onCandidateTap: (candidate) => setState(() => _picked = candidate),
             ),
-            Positioned(
-              top: PlotSpacing.s3,
-              right: PlotSpacing.s3,
-              child: IconButton(
-                tooltip: 'Close',
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(PlotSpacing.s4),
+            decoration: BoxDecoration(
+              color: c.surfaceCard,
+              border: Border(top: BorderSide(color: c.border)),
             ),
-            if (candidates.isEmpty)
-              Positioned(
-                left: PlotSpacing.s3,
-                bottom: PlotSpacing.s3,
-                child: Text(
-                  'No lodging of the selected type in the trip area.',
-                  style: PlotTypography.small(PlotColors.of(context).textMuted),
+            child: Row(
+              children: [
+                Expanded(
+                  child: widget.candidates.isEmpty
+                      ? Text('No lodging of the selected type in the trip area.',
+                          style: PlotTypography.body(c.textMuted))
+                      : picked == null
+                          ? Text('Tap a lodging marker to place it on this day',
+                              style: PlotTypography.body(c.textMuted))
+                          : Text(picked.title ?? 'Lodging',
+                              style: PlotTypography.body(c.textPrimary),
+                              overflow: TextOverflow.ellipsis),
                 ),
-              ),
-          ],
-        ),
+                const SizedBox(width: PlotSpacing.s3),
+                PlotButton(
+                  label: 'Cancel',
+                  variant: PlotButtonVariant.ghost,
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const SizedBox(width: PlotSpacing.s2),
+                PlotButton(
+                  label: 'Confirm',
+                  onPressed: picked == null ? null : () => Navigator.pop(context, picked),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

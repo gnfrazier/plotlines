@@ -20,10 +20,13 @@ import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/domain/trip_bbox.dart';
 import 'package:plotlines_client/domain/trip_extent.dart';
+import 'package:plotlines_client/domain/home_region.dart';
 import 'package:plotlines_client/presentation/map/candidate_map.dart';
+import 'package:plotlines_client/presentation/map/tap_to_pick_map.dart';
 import 'package:plotlines_client/presentation/map/trip_area_map.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/layers_tab.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/proposals_view.dart';
+import 'package:plotlines_client/presentation/screens/new_route_screen.dart';
 import 'package:plotlines_client/presentation/screens/trip_area_screen.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/providers.dart';
@@ -192,5 +195,87 @@ void main() {
     await _settle(tester);
 
     _expectFramesRoute(tester.widget<TripAreaMap>(find.byType(TripAreaMap)).initialCameraFit);
+  });
+
+  // #612/#614/#618/#619 — a map opened with no center of its own (New Route
+  // from "Add a day" / "Add a route day", a blank day's route map, the
+  // lodging picker) used to open over `HomeRegion` whatever the trip area was.
+  group('a map with no center of its own opens over the trip area', () {
+    const greensboro = TripBbox(minLat: 36.0, minLon: -79.9, maxLat: 36.2, maxLon: -79.6);
+
+    CameraFit? fitOf(WidgetTester tester) =>
+        tester.widget<FlutterMap>(find.byType(FlutterMap)).options.initialCameraFit;
+
+    void expectFramesBbox(CameraFit? fit, TripBbox b) {
+      expect(fit, isA<FitBounds>());
+      final bounds = (fit! as FitBounds).bounds;
+      expect(bounds.contains(ll.LatLng(b.centerLat, b.centerLon)), isTrue);
+      expect(bounds.contains(ll.LatLng(HomeRegion.centerLat, HomeRegion.centerLon)), isFalse);
+    }
+
+    testWidgets('TapToPickMap frames the drawn bbox', (tester) async {
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: _container(_emptyTrip(), bbox: greensboro),
+        child: const MaterialApp(home: Scaffold(body: TapToPickMap())),
+      ));
+      await _settle(tester);
+      expectFramesBbox(fitOf(tester), greensboro);
+    });
+
+    testWidgets('TapToPickMap with no bbox frames what the trip has placed', (tester) async {
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: _container(_greensboroTrip()),
+        child: const MaterialApp(home: Scaffold(body: TapToPickMap())),
+      ));
+      await _settle(tester);
+      _expectFramesRoute(fitOf(tester));
+    });
+
+    testWidgets('TapToPickMap keeps HomeRegion only when there is no trip area at all',
+        (tester) async {
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: _container(_emptyTrip()),
+        child: const MaterialApp(home: Scaffold(body: TapToPickMap())),
+      ));
+      await _settle(tester);
+      final options = tester.widget<FlutterMap>(find.byType(FlutterMap)).options;
+      expect(options.initialCameraFit, isNull);
+      expect(options.initialCenter.latitude, closeTo(HomeRegion.centerLat, 1e-9));
+    });
+
+    testWidgets('an explicit center still wins', (tester) async {
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: _container(_emptyTrip(), bbox: greensboro),
+        child: const MaterialApp(
+            home: Scaffold(body: TapToPickMap(center: [-105.27, 40.02]))),
+      ));
+      await _settle(tester);
+      final options = tester.widget<FlutterMap>(find.byType(FlutterMap)).options;
+      expect(options.initialCameraFit, isNull);
+      expect(options.initialCenter.latitude, closeTo(40.02, 1e-9));
+    });
+
+    testWidgets('CandidateMap with neither a fit nor a bbox frames the trip area',
+        (tester) async {
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: _container(_emptyTrip(), bbox: greensboro),
+        child: const MaterialApp(home: Scaffold(body: CandidateMap(candidates: []))),
+      ));
+      await _settle(tester);
+      expectFramesBbox(fitOf(tester), greensboro);
+    });
+
+    testWidgets('New Route opened with no center (Add a day / Add a route day) frames the trip area',
+        (tester) async {
+      tester.view.physicalSize = const Size(1600, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: _container(_emptyTrip(), bbox: greensboro),
+        child: const MaterialApp(home: NewRouteScreen()),
+      ));
+      await _settle(tester);
+      expectFramesBbox(fitOf(tester), greensboro);
+    });
   });
 }
