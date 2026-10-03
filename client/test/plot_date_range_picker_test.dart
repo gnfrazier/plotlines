@@ -222,4 +222,47 @@ void main() {
     expect(completed, isTrue);
     expect(captured, isNull);
   });
+
+  // #610 — the legend's Today mark read as a radio option and did nothing.
+  testWidgets('tapping Today sets a one-day trip on today', (tester) async {
+    DateTimeRange? result;
+    final today = DateUtils.dateOnly(DateTime.now());
+    await tester.pumpWidget(MaterialApp(
+      theme: PlotTheme.light(),
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: ElevatedButton(
+              onPressed: () async => result = await showPlotDateRangePicker(
+                context,
+                firstDate: DateTime(today.year - 1),
+                lastDate: DateTime(today.year + 2),
+                // A range months away, so Today has to page back to be seen.
+                initialRange: DateTimeRange(
+                    start: DateTime(today.year + 1, 6, 1), end: DateTime(today.year + 1, 6, 3)),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Today'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('1 day'), findsOneWidget);
+
+    await tester.tap(find.text('Use these dates'));
+    await tester.pumpAndSettle();
+    expect(result, DateTimeRange(start: today, end: today));
+  });
+
+  testWidgets('Today outside the pickable window stays a plain legend entry', (tester) async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    await _open(tester,
+        first: DateTime(today.year + 1, 1, 1), last: DateTime(today.year + 2, 12, 31));
+    expect(find.ancestor(of: find.text('Today'), matching: find.byType(InkWell)), findsNothing);
+  });
 }
