@@ -15,6 +15,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:plotlines_ui/plotlines_ui.dart';
+
 import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/route_tab.dart';
@@ -69,7 +71,8 @@ int _nodeCount(Trip trip) => [
         for (final s in d.segments) ...s.nodes,
     ].length;
 
-Future<ProviderContainer> _pumpTab(WidgetTester tester) async {
+Future<ProviderContainer> _pumpTab(WidgetTester tester,
+    {Trip? trip, (String, String)? selection = ('d1', 's1')}) async {
   tester.view.physicalSize = const Size(1800, 1200);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -78,8 +81,8 @@ Future<ProviderContainer> _pumpTab(WidgetTester tester) async {
     sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
   ]);
   addTearDown(container.dispose);
-  container.read(currentTripProvider.notifier).open(_trip());
-  container.read(selectedSegmentProvider.notifier).state = ('d1', 's1');
+  container.read(currentTripProvider.notifier).open(trip ?? _trip());
+  container.read(selectedSegmentProvider.notifier).state = selection;
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
     child: MaterialApp(
@@ -250,5 +253,35 @@ void main() {
     expect(find.byType(NodeEditorForm), findsNothing);
     _expectDisarmed(container, before);
     expect(_nodeCount(container.read(currentTripProvider)), 0);
+  });
+
+  // #620 — a day with no passage, and a selection naming a passage that is
+  // not there (left over from another trip or an undo). Add node used to show,
+  // arm, and be disarmed on the next build: a click that did nothing at all.
+  group('a day with no passage', () {
+    Trip blankDay() => Trip(
+          id: 't2',
+          title: 'Blank',
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+          days: [Day(id: 'd1', index: 1)],
+        );
+
+    testWidgets('a stale selection does not offer Add node; the reason is shown',
+        (tester) async {
+      await _pumpTab(tester, trip: blankDay(), selection: ('d1', 'gone'));
+      final button = tester.widget<PlotButton>(find.widgetWithText(PlotButton, 'Add node'));
+      expect(button.onPressed, isNull);
+      expect(find.textContaining('Add a passage to this day first'), findsOneWidget);
+
+      await tester.tap(find.text('Add node'), warnIfMissed: false);
+      await _settle(tester);
+      expect(find.byType(NodePlacementBar), findsNothing);
+    });
+
+    testWidgets('with no selection at all the reason is shown too', (tester) async {
+      await _pumpTab(tester, trip: blankDay(), selection: null);
+      expect(find.textContaining('Add a passage to this day first'), findsOneWidget);
+    });
   });
 }
