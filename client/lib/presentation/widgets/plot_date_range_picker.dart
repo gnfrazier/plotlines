@@ -116,6 +116,20 @@ class _PlotDateRangeDialogState extends State<_PlotDateRangeDialog> {
     });
   }
 
+  /// #610 — the legend's Today mark reads as a control (it sits beside the
+  /// endpoint mark like a radio pair), and it was inert. It now does what it
+  /// reads as: a one-day trip on today, paged into view. Null — drawn as a
+  /// plain legend entry — when today is outside the pickable window.
+  VoidCallback? get _pickToday {
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (today.isBefore(widget.firstDate) || today.isAfter(widget.lastDate)) return null;
+    return () => setState(() {
+          _start = today;
+          _end = today;
+          _leftMonth = DateTime(today.year, today.month);
+        });
+  }
+
   String get _rangeLabel {
     final start = _start;
     if (start == null) return 'Pick the first day';
@@ -183,7 +197,7 @@ class _PlotDateRangeDialogState extends State<_PlotDateRangeDialog> {
               ],
             ),
             const SizedBox(height: PlotSpacing.s3),
-            _Legend(),
+            _Legend(onToday: _pickToday),
           ],
         ),
       ),
@@ -373,6 +387,11 @@ class _DayCell extends StatelessWidget {
 }
 
 class _Legend extends StatelessWidget {
+  const _Legend({this.onToday});
+
+  /// Picks today as a one-day trip (#610); null leaves Today a legend entry.
+  final VoidCallback? onToday;
+
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
@@ -397,18 +416,33 @@ class _Legend extends StatelessWidget {
           ),
           'First and last day',
         ),
-        swatch(
-          Container(
-            width: 16,
-            height: 16,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: c.textSecondary, width: 1.5),
+        _todaySwatch(
+          swatch(
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: c.textSecondary, width: 1.5),
+              ),
             ),
+            'Today',
           ),
-          'Today',
         ),
       ],
+    );
+  }
+
+  Widget _todaySwatch(Widget child) {
+    final onTap = onToday;
+    if (onTap == null) return child;
+    return Tooltip(
+      message: 'Set the trip to today only',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: PlotRadii.controlShape,
+        child: Padding(padding: const EdgeInsets.all(PlotSpacing.s1), child: child),
+      ),
     );
   }
 }
