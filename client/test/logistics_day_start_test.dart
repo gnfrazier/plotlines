@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/day_start_editor.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
+import 'package:plotlines_client/state/settings_provider.dart';
 
 Trip _trip(Day day, {TripDuration? duration}) => Trip(
       id: 't1',
@@ -19,8 +20,12 @@ Trip _trip(Day day, {TripDuration? duration}) => Trip(
       duration: duration,
     );
 
-Future<ProviderContainer> _pump(WidgetTester tester, Trip trip) async {
-  final container = ProviderContainer();
+Future<ProviderContainer> _pump(WidgetTester tester, Trip trip,
+    {ClockPref clock = ClockPref.inherit}) async {
+  final container = ProviderContainer(overrides: [
+    if (clock != ClockPref.inherit)
+      displayFormatProvider.overrideWithValue(DisplayFormat(clockPref: clock)),
+  ]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(trip);
   await tester.pumpWidget(UncontrolledProviderScope(
@@ -100,5 +105,59 @@ void main() {
     await tester.tap(find.text('Clear'));
     await tester.pumpAndSettle();
     expect(container.read(currentTripProvider).days.single.startAt, isNull);
+  });
+
+  // #611 — the hour/minute dropdown pair read `08:00 : 00`. The time is now
+  // Material's own picker, in two-digit entry, on the Author's chosen clock.
+  Future<void> openPicker(WidgetTester tester) async {
+    await tester.tap(find.text('Set start'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('day-start-time')));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('the start time is entered in Material\'s time picker, minutes unrounded',
+      (tester) async {
+    final container = await _pump(tester, _trip(Day(id: 'd1', index: 1, date: '2026-07-04')),
+        clock: ClockPref.hour24);
+    await openPicker(tester);
+    expect(find.byType(TimePickerDialog), findsOneWidget);
+    // No dropdown pair, and no `00` minute list beside an `HH:00` hour list.
+    expect(find.byType(DropdownButton<int>), findsNothing);
+
+    final fields = find.descendant(
+        of: find.byType(TimePickerDialog), matching: find.byType(TextField));
+    await tester.enterText(fields.at(0), '17');
+    await tester.enterText(fields.at(1), '37');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('17:37'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const ValueKey('day-start-zone')), 'America/Denver');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('day-start-save')));
+    await tester.pumpAndSettle();
+    // 17:37 MDT is 23:37Z.
+    expect(container.read(currentTripProvider).days.single.startAt, '2026-07-04T23:37:00Z');
+  });
+
+  testWidgets('a 24-hour preference shows a 24-hour picker', (tester) async {
+    await _pump(tester, _trip(Day(id: 'd1', index: 1, date: '2026-07-04')),
+        clock: ClockPref.hour24);
+    await openPicker(tester);
+    expect(find.text('AM'), findsNothing);
+    expect(find.text('PM'), findsNothing);
+  });
+
+  testWidgets('a 12-hour preference shows a 12-hour picker and label', (tester) async {
+    await _pump(tester, _trip(Day(id: 'd1', index: 1, date: '2026-07-04')),
+        clock: ClockPref.hour12);
+    await tester.tap(find.text('Set start'));
+    await tester.pumpAndSettle();
+    expect(find.text('8:00 AM'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('day-start-time')));
+    await tester.pumpAndSettle();
+    expect(find.text('AM'), findsOneWidget);
+    expect(find.text('PM'), findsOneWidget);
   });
 }
