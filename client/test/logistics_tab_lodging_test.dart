@@ -11,6 +11,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
@@ -24,6 +26,7 @@ import 'package:plotlines_client/presentation/map/candidate_map.dart';
 import 'package:plotlines_client/presentation/screens/plan_tabs/logistics_tab.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/providers.dart';
+import 'package:plotlines_client/state/trip_bbox_provider.dart';
 import 'package:plotlines_client/state/trip_candidates_provider.dart';
 import 'support/display_units.dart';
 
@@ -186,6 +189,12 @@ void main() {
 
     await tester.tap(find.byTooltip('Grand Hotel'));
     await _settle(tester);
+    // #612 — the tap picks; Confirm places (the rest-day picker's path).
+    expect(container.read(currentTripProvider).days.single.nodes, isEmpty);
+    await tester.tap(find.widgetWithText(PlotButton, 'Confirm'));
+    await _settle(tester);
+    await _settle(tester); // the full-screen route's exit transition
+    expect(find.byType(CandidateMap), findsNothing);
 
     final day = container.read(currentTripProvider).days.single;
     expect(day.nodes, hasLength(1));
@@ -217,5 +226,27 @@ void main() {
     await tester.pump();
 
     expect(container.read(currentTripProvider).days.single.nodes, isEmpty);
+  });
+
+  testWidgets('#612 — the lodging map opens over the trip area, notices below the map',
+      (tester) async {
+    final container = await _pump(tester, Day(id: 'd1', index: 1), candidates: [_sight]);
+    container.read(tripBboxProvider.notifier).set(_bbox);
+
+    await tester.ensureVisible(find.text('Place lodging on map'));
+    await tester.pump();
+    await tester.tap(find.text('Place lodging on map'));
+    await _settle(tester);
+
+    final fit = tester.widget<FlutterMap>(find.byType(FlutterMap)).options.initialCameraFit;
+    expect(fit, isA<FitBounds>());
+    expect((fit! as FitBounds).bounds.contains(ll.LatLng(_bbox.centerLat, _bbox.centerLon)),
+        isTrue);
+    // No lodging in the set: said in the bar beneath the map, not on top of it.
+    final notice = find.text('No lodging of the selected type in the trip area.');
+    expect(notice, findsOneWidget);
+    expect(find.ancestor(of: notice, matching: find.byType(CandidateMap)), findsNothing);
+    final confirm = tester.widget<PlotButton>(find.widgetWithText(PlotButton, 'Confirm'));
+    expect(confirm.onPressed, isNull);
   });
 }
