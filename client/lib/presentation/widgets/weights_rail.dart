@@ -191,7 +191,8 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
             ),
             for (final k in disciplinesForCategory(segment.mode))
               ChoiceChip(
-                avatar: Icon(disciplineIcon(k), size: 16, color: c.textSecondary),
+                avatar: Icon(disciplineIcon(k), size: 16,
+                    color: segment.discipline == k ? c.onSelectedControl : c.textSecondary),
                 label: Text(disciplineLabel(k).toUpperCase()),
                 selected: segment.discipline == k,
                 onSelected: (_) => notifier.updateSegmentDiscipline(widget.dayId, segment.id, k),

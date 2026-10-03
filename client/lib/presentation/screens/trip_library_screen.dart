@@ -278,7 +278,7 @@ class _FilterBar extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(right: PlotSpacing.s2),
               child: ChoiceChip(
-                label: Text(d.label, style: PlotTypography.small(c.textSecondary)),
+                label: Text(d.label, style: PlotTypography.small(c.controlInk(duration == d))),
                 selected: duration == d,
                 onSelected: (_) => onDuration(d),
               ),
@@ -289,7 +289,8 @@ class _FilterBar extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(right: PlotSpacing.s2),
                 child: FilterChip(
-                  label: Text(m.toUpperCase(), style: PlotTypography.small(c.textSecondary)),
+                  label: Text(m.toUpperCase(),
+                      style: PlotTypography.small(c.controlInk(selectedModes.contains(m)))),
                   selected: selectedModes.contains(m),
                   onSelected: (_) => onToggleMode(m),
                 ),

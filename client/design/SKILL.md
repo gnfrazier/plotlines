@@ -50,6 +50,11 @@ kinds of control (#319): a set the Author *owns* — the trip's modes — is a r
 checked chips, and a *pick from* that set — a passage's mode — is a `SegmentedButton`;
 two identically-drawn selectors for those two things is the defect #271 found.
 
+A selected chip or segment is filled Riverslate (Material 3's `secondaryContainer`) and
+inked with `PlotColors.onSelectedControl` (paper-white in the light theme, #613). A label
+that sets its own colour on a chip or segment uses `c.controlInk(selected)`, never a fixed
+`textPrimary`/`textSecondary`: that is how dark ink ended up on dark teal.
+
 Cache and canon are drawn differently on the map, by treatment rather than colour.
 A candidate is a salience-scaled `CandidateMarker` ring — but only the top **300** in
 view by salience get one; the rest are canvas dots whose size and opacity carry the

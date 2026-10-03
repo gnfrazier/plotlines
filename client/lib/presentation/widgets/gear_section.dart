@@ -232,7 +232,8 @@ class _GearRow extends ConsumerWidget {
                         for (final e in entries)
                           FilterChip(
                             label: Text(e.name,
-                                style: PlotTypography.small(c.textPrimary)),
+                                style: PlotTypography.small(
+                                    c.controlInk(item.assigneeIds.contains(e.characterId)))),
                             selected: item.assigneeIds.contains(e.characterId),
                             onSelected: (sel) {
                               final next = {...item.assigneeIds};

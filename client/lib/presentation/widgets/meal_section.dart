@@ -135,7 +135,9 @@ class _MealRow extends ConsumerWidget {
                     children: [
                       for (final e in entries)
                         FilterChip(
-                          label: Text(e.name, style: PlotTypography.small(c.textPrimary)),
+                          label: Text(e.name,
+                              style: PlotTypography.small(
+                                  c.controlInk(meal.cookIds.contains(e.characterId)))),
                           selected: meal.cookIds.contains(e.characterId),
                           onSelected: (sel) {
                             final next = {...meal.cookIds};
