@@ -21,6 +21,12 @@ class PlotTheme {
       onPrimary: c.onPrimary,
       secondary: c.info,
       onSecondary: c.onPrimary,
+      // #613 — Material 3 fills a selected chip/segment with
+      // secondaryContainer and inks it with onSecondaryContainer. Stated
+      // rather than left to ColorScheme's fallbacks, so the pair is the
+      // brand's selected-control pair by construction.
+      secondaryContainer: c.selectedControl,
+      onSecondaryContainer: c.onSelectedControl,
       error: c.danger,
       onError: c.onPrimary,
       surface: c.surfaceCard,

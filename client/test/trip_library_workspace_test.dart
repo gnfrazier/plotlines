@@ -15,6 +15,7 @@ import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_client/presentation/screens/trip_library_screen.dart';
 import 'package:plotlines_client/state/providers.dart';
+import 'package:plotlines_ui/plotlines_ui.dart';
 import 'support/display_units.dart';
 
 class _FakeSidecarManager extends SidecarManager {
@@ -179,5 +180,27 @@ void main() {
     expect(find.textContaining('Clone "'), findsOneWidget);
     expect(find.text('CARRIES'), findsOneWidget);
     expect(find.text('DOES NOT CARRY'), findsOneWidget);
+  });
+
+  // #613 — a selected filter pill is Riverslate; its label was set in
+  // textSecondary on top of it, dark on dark teal.
+  testWidgets('a selected filter pill is inked for its selected fill', (tester) async {
+    final db = await _seed();
+    addTearDown(db.close);
+    await tester.pumpWidget(_harness(db));
+    await tester.pumpAndSettle();
+    const c = PlotColors.light;
+
+    Color? ink(String label) => tester
+        .widget<Text>(find.descendant(of: find.byType(RawChip), matching: find.text(label)))
+        .style
+        ?.color;
+    expect(ink('All lengths'), c.onSelectedControl);
+    expect(ink('Day trip'), c.textPrimary);
+    expect(ink('CYCLING'), c.textPrimary);
+
+    await tester.tap(find.descendant(of: find.byType(RawChip), matching: find.text('CYCLING')));
+    await tester.pumpAndSettle();
+    expect(ink('CYCLING'), c.onSelectedControl);
   });
 }

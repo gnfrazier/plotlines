@@ -73,9 +73,11 @@ class PassageModePicker extends ConsumerWidget {
     final c = PlotColors.of(context);
     final tripModes = ref.watch(currentTripProvider.select((t) => t.modes));
     final offered = passageModesOffered(tripModes, offerable: offerable, current: selected);
-    final labelStyle = dense
-        ? PlotTypography.data(c.textPrimary)
-        : PlotTypography.label(c.textPrimary);
+    // #613 — the label's ink follows the segment's state: textPrimary set on
+    // the selected Riverslate fill read as dark-on-dark-teal.
+    TextStyle labelStyle(bool selected) => dense
+        ? PlotTypography.data(c.controlInk(selected))
+        : PlotTypography.label(c.controlInk(selected));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -97,7 +99,7 @@ class PassageModePicker extends ConsumerWidget {
                     icon: Icon(travelModeIcon(m), size: 16),
                     label: Text(
                       dense ? travelModeLabel(m).toUpperCase() : travelModeLabel(m),
-                      style: labelStyle,
+                      style: labelStyle(m == selected),
                     ),
                   ),
               ],

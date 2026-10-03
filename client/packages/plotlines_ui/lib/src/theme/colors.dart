@@ -53,6 +53,17 @@ class PlotColors extends ThemeExtension<PlotColors> {
   final Color warning;
   final Color danger;
 
+  /// #613 — the fill of a *selected* chip or segment (Riverslate) and the
+  /// ink set on it. One pair, so a label or icon on the selected fill never
+  /// reaches for `textPrimary`/`textSecondary`, which is how dark ink ended
+  /// up on dark teal. Paper-white on Riverslate in the light theme; the dark
+  /// and high-contrast themes' lighter slate takes their dark `onPrimary`.
+  Color get selectedControl => info;
+  Color get onSelectedControl => onPrimary;
+
+  /// The ink for a chip/segment label or icon in either state.
+  Color controlInk(bool selected) => selected ? onSelectedControl : textPrimary;
+
   static const light = PlotColors(
     surfaceApp: canvas,
     surfaceCard: paper,
