@@ -93,7 +93,7 @@ class _DayStartDialogState extends ConsumerState<_DayStartDialog> {
     final local = start == null ? null : wallClockIn(start.startAt, start.zone);
     _zone = start?.zone ?? defaultStartZone(widget.trip);
     _hour = local?.hour ?? 8;
-    _minute = local == null ? 0 : (local.minute ~/ 5) * 5;
+    _minute = local?.minute ?? 0;
     _zoneController = TextEditingController(text: _zone);
   }
 
@@ -108,6 +108,29 @@ class _DayStartDialogState extends ConsumerState<_DayStartDialog> {
     ref.read(currentTripProvider.notifier).setDayStart(widget.day.id,
         startAt: startAtFromLocal(date, _hour, _minute, _zone), timezone: _zone);
     Navigator.of(context).pop();
+  }
+
+  /// #611 — Material's own time picker in its keyboard-entry form (two
+  /// digits of hours, two of minutes, the dial a toggle away), on the clock
+  /// the Author's display preference names rather than the platform's: the
+  /// hour/minute dropdown pair this replaced rendered the hour list through
+  /// `formatTime`, so every hour read `08:00` beside a separate `00`.
+  Future<void> _pickTime(DisplayFormat df) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: _hour, minute: _minute),
+      initialEntryMode: TimePickerEntryMode.input,
+      helpText: 'DAY ${widget.day.index} START',
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: df.uses24HourClock),
+        child: child!,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _hour = picked.hour;
+      _minute = picked.minute;
+    });
   }
 
   @override
@@ -130,36 +153,14 @@ class _DayStartDialogState extends ConsumerState<_DayStartDialog> {
                 children: [
                   Text(df.formatDate(DateTime.parse(date)), style: PlotTypography.data(c.textSecondary)),
                   const SizedBox(height: PlotSpacing.s3),
-                  Row(
-                    children: [
-                      DropdownButton<int>(
-                        key: const ValueKey('day-start-hour'),
-                        value: _hour,
-                        items: [
-                          for (var h = 0; h < 24; h++)
-                            DropdownMenuItem(
-                                value: h,
-                                child: Text(df.formatTime(DateTime(2000, 1, 1, h)),
-                                    style: PlotTypography.data(c.textPrimary))),
-                        ],
-                        onChanged: (h) => setState(() => _hour = h ?? _hour),
-                      ),
-                      const SizedBox(width: PlotSpacing.s2),
-                      Text(':', style: PlotTypography.data(c.textPrimary)),
-                      const SizedBox(width: PlotSpacing.s2),
-                      DropdownButton<int>(
-                        key: const ValueKey('day-start-minute'),
-                        value: _minute,
-                        items: [
-                          for (var m = 0; m < 60; m += 5)
-                            DropdownMenuItem(
-                                value: m,
-                                child: Text(m.toString().padLeft(2, '0'),
-                                    style: PlotTypography.data(c.textPrimary))),
-                        ],
-                        onChanged: (m) => setState(() => _minute = m ?? _minute),
-                      ),
-                    ],
+                  Text('START TIME', style: PlotTypography.data(c.textMuted)),
+                  const SizedBox(height: PlotSpacing.s1),
+                  OutlinedButton.icon(
+                    key: const ValueKey('day-start-time'),
+                    icon: const Icon(Icons.schedule, size: 18),
+                    label: Text(df.formatTime(DateTime(2000, 1, 1, _hour, _minute)),
+                        style: PlotTypography.data(c.textPrimary)),
+                    onPressed: () => _pickTime(df),
                   ),
                   const SizedBox(height: PlotSpacing.s3),
                   Text('TIME ZONE', style: PlotTypography.data(c.textMuted)),

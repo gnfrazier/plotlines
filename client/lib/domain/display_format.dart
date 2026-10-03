@@ -122,14 +122,18 @@ class DisplayFormat {
     }
   }
 
+  /// Whether [clockPref] resolves to a 24-hour clock — what [formatTime]
+  /// renders, and what a time *picker* must show too (#611), so an Author
+  /// enters a time in the same clock they read it in.
+  bool get uses24HourClock => switch (clockPref) {
+        ClockPref.hour24 => true,
+        ClockPref.hour12 => false,
+        ClockPref.inherit => platformUses24Hour ?? true,
+      };
+
   /// Renders the wall-clock time of [d] per [clockPref].
   String formatTime(DateTime d) {
-    final use24 = switch (clockPref) {
-      ClockPref.hour24 => true,
-      ClockPref.hour12 => false,
-      ClockPref.inherit => platformUses24Hour ?? true,
-    };
-    if (use24) return '${_pad2(d.hour)}:${_pad2(d.minute)}';
+    if (uses24HourClock) return '${_pad2(d.hour)}:${_pad2(d.minute)}';
     final period = d.hour < 12 ? 'AM' : 'PM';
     var h = d.hour % 12;
     if (h == 0) h = 12;
