@@ -355,6 +355,16 @@ class _RouteTabState extends ConsumerState<RouteTab> {
     // #324 — a passage with no solved line has nothing to diverge from, so
     // the gesture is not offered rather than offered and then refused.
     final canDraftAlternate = selected != null && AlternateDraft.canDraftOn(routeCoords);
+    // #620 — a node sits on a passage. The map's actions used to show for any
+    // selection, including one naming a passage that is not there (a day with
+    // no passage yet, a passage undone away); Add node then armed placement
+    // and `_syncDraftToSelection` disarmed it on the very next build, so the
+    // click did nothing at all. Offered only for a passage that exists, and
+    // on a route day with none yet it is shown disabled with the reason.
+    final placeOn = selectedSegment == null ? null : selected;
+    final railDay = widget.trip.days.where((d) => d.id == railDayId).firstOrNull;
+    final dayHasNoPassage =
+        placeOn == null && railDay != null && !railDay.isRest && railDay.segments.isEmpty;
 
     return Row(
       children: [
@@ -498,7 +508,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                               onCancel: () => setState(() => _placingOn = null),
                             ),
                           )
-                        else if (selected != null)
+                        else if (placeOn != null)
                           Positioned(
                             top: PlotSpacing.s3,
                             right: PlotSpacing.s3,
@@ -513,7 +523,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                                       setState(() {
                                         _placingOn = null;
                                         _altDraft = AlternateDraft.on(routeCoords!);
-                                        _altDraftOn = selected;
+                                        _altDraftOn = placeOn;
                                       });
                                       _focusGesture();
                                     },
@@ -525,12 +535,18 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                                   label: 'Add node',
                                   icon: Icons.add_location_alt_outlined,
                                   onPressed: () {
-                                    setState(() => _placingOn = selected);
+                                    setState(() => _placingOn = placeOn);
                                     _focusGesture();
                                   },
                                 ),
                               ],
                             ),
+                          )
+                        else if (dayHasNoPassage)
+                          Positioned(
+                            top: PlotSpacing.s3,
+                            right: PlotSpacing.s3,
+                            child: _NoPassageForNodes(),
                           ),
                       ],
                     ),
@@ -554,6 +570,40 @@ class _RouteTabState extends ConsumerState<RouteTab> {
           displayFormat: displayFormatOf(context, ref),
           // #563 — the server's dashboard while it still describes this trip.
           dashboard: dashboardFor(widget.trip, ref.watch(authoritativeDashboardProvider)),
+        ),
+      ],
+    );
+  }
+}
+
+/// #620 — Add node on a day with no passage: shown, disabled, and saying why,
+/// rather than offered and silently refused. Points at the day strip's own
+/// "Add a passage" action below the map.
+class _NoPassageForNodes extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        const PlotButton(
+          label: 'Add node',
+          icon: Icons.add_location_alt_outlined,
+          onPressed: null,
+        ),
+        const SizedBox(height: PlotSpacing.s2),
+        Container(
+          constraints: const BoxConstraints(maxWidth: 280),
+          padding: const EdgeInsets.all(PlotSpacing.s2),
+          decoration: BoxDecoration(
+            color: c.surfaceCard.withValues(alpha: 0.96),
+            border: Border.all(color: c.border),
+            borderRadius: PlotRadii.controlShape,
+          ),
+          child: Text(
+            'A node sits on a passage. Add a passage to this day first.',
+            style: PlotTypography.small(c.textSecondary),
+          ),
         ),
       ],
     );
