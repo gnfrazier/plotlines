@@ -56,6 +56,7 @@ import shutil
 import sys
 import tempfile
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -83,6 +84,45 @@ LAYER = "osm"
 CELL_DEGREES = 1.0
 
 CELL_PREFIX = "cell-"
+
+#: Issue #609 — the precut has no byte measure, so its progress runs on
+#: elapsed time against this rate times the sources' size. Measured on the
+#: Pi for #594: a 352 s precut from Connecticut (217 MB) + Rhode Island
+#: (52 MB), ≈ 1.31 s per MB. Capped short of the slice's end, so an overrun
+#: holds rather than claiming done.
+PRECUT_S_PER_BYTE = 352.0 / 269e6
+PRECUT_PROGRESS_CAP = 0.95
+
+#: Issue #609 — at most one progress write per this many seconds, or per
+#: `_PROGRESS_MIN_STEP` of the fill, whichever comes first.
+_PROGRESS_MIN_INTERVAL_S = 1.0
+_PROGRESS_MIN_STEP = 0.01
+
+
+class _SliceProgress:
+    """Maps one phase's own 0..1 onto its slice `[base, base + width)` of
+    the fill, throttled (`ctx.progress` is what `GET /fill/{id}` reads)."""
+
+    def __init__(self, ctx: FillContext, base: float, width: float, detail: str,
+                 clock=time.monotonic) -> None:
+        self.ctx, self.base, self.width, self.detail = ctx, base, width, detail
+        self._clock = clock
+        self._last_at: float | None = None
+        self._last: float | None = None
+
+    def __call__(self, fraction: float) -> None:
+        value = self.base + self.width * max(0.0, min(1.0, fraction))
+        now = self._clock()
+        if (self._last is not None and self._last_at is not None
+                and value - self._last < _PROGRESS_MIN_STEP
+                and now - self._last_at < _PROGRESS_MIN_INTERVAL_S):
+            return
+        self._last, self._last_at = value, now
+        self.ctx.progress(value, self.detail)
+
+    def on_bytes(self, received: int, total: int | None) -> None:
+        if total:
+            self(received / total)
 
 #: `geofabrik_pull.py` lives beside the mirror tree, not in this package —
 #: it is deployed as a standalone stdlib script. The container copies it to
@@ -211,6 +251,37 @@ def covering_regions(regions: list[GeofabrikRegion], bbox: BBox) -> list[Geofabr
 # --------------------------------------------------------------------------
 # The filler
 # --------------------------------------------------------------------------
+
+
+class _elapsed_progress:
+    """While the block runs, reports `elapsed / estimate_s` (capped at
+    `PRECUT_PROGRESS_CAP`) through `report` once a second, from a daemon
+    thread — the precut is one blocking `clip_bbox` call with nothing to
+    hook a callback into. No estimate (no source size) reports nothing."""
+
+    def __init__(self, report: _SliceProgress, estimate_s: float,
+                 interval_s: float = _PROGRESS_MIN_INTERVAL_S) -> None:
+        self.report, self.estimate_s, self.interval_s = report, estimate_s, interval_s
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def _run(self) -> None:
+        started = time.monotonic()
+        while not self._stop.wait(self.interval_s):
+            self.report(min(PRECUT_PROGRESS_CAP,
+                            (time.monotonic() - started) / self.estimate_s))
+
+    def __enter__(self):
+        if self.estimate_s > 0:
+            self._thread = threading.Thread(target=self._run, daemon=True,
+                                            name="fill-osm-precut-progress")
+            self._thread.start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=5)
 
 
 class OsmFiller:
@@ -344,17 +415,34 @@ class OsmFiller:
         if not sources:
             raise NoUpstreamCoverageError(f"no Geofabrik region covers {area.bbox}")
 
+        # Issue #609 — each source's pull and the precut get an equal slice
+        # of the fill, and progress moves *within* a slice: by bytes for a
+        # download, by elapsed time against the sources' size for the
+        # precut. Before this it moved only between phases, so a first fill
+        # read 0.0 for a 20-minute Connecticut download.
+        width = 1.0 / (len(sources) + 1)
         for n, region in enumerate(sources):
-            ctx.progress(n / (len(sources) + 1), f"pulling {region.path} from Geofabrik")
-            self._pull_source(region.path, pin)
-        ctx.progress(len(sources) / (len(sources) + 1),
-                     f"precutting {area.area} from {', '.join(r.path for r in sources)}")
-        self._precut(area, pin, [r.path for r in sources], ctx)
+            detail = f"pulling {region.path} from Geofabrik"
+            ctx.progress(n * width, detail)
+            self._pull_source(region.path, pin,
+                              on_bytes=_SliceProgress(ctx, n * width, width, detail).on_bytes)
+        detail = f"precutting {area.area} from {', '.join(r.path for r in sources)}"
+        ctx.progress(len(sources) * width, detail)
+        source_bytes = 0
+        for r in sources:
+            try:
+                source_bytes += (self.root / "osm" / "geofabrik" / pin
+                                 / f"{r.path}.osm.pbf").stat().st_size
+            except OSError:
+                pass
+        with _elapsed_progress(_SliceProgress(ctx, len(sources) * width, width, detail),
+                               source_bytes * PRECUT_S_PER_BYTE):
+            self._precut(area, pin, [r.path for r in sources], ctx)
         return FilledArea(
             upstream="geofabrik:" + ",".join(r.path for r in sources) + f"@{pin}",
             meta={"precut_from": [r.path for r in sources]})
 
-    def _pull_source(self, region: str, pin: str) -> None:
+    def _pull_source(self, region: str, pin: str, *, on_bytes=None) -> None:
         """One region through `pull_region`, bookkeeping kept under
         `geofabrik.fill_sources` so cadence and backoff survive between
         fills without registering the full-state file for `/clip`."""
@@ -362,7 +450,8 @@ class OsmFiller:
         private = {"geofabrik": {"regions": {region: dict(stored.get(region) or {})}}}
         result = self.pull.pull_region(
             region=region, root=self.root, pinned_date=pin, state=private,
-            base_url=self.base_url, now=self._now, throttle=self.throttle)
+            base_url=self.base_url, now=self._now, throttle=self.throttle,
+            on_bytes=on_bytes)
         entry = private["geofabrik"]["regions"][region]
 
         def _save(state: dict) -> None:

@@ -207,6 +207,26 @@ def test_first_pull_downloads_verifies_and_publishes(upstream, mirror_root) -> N
         assert headers["User-Agent"] == gp.PLOTLINES_USER_AGENT
 
 
+def test_a_download_reports_its_bytes_as_they_arrive(upstream, mirror_root, monkeypatch) -> None:
+    """Issue #609 — progress during the body, not only after it: a body
+    read in several chunks reports a rising count against Content-Length."""
+    monkeypatch.setattr(gp, "STREAM_CHUNK_BYTES", 8)
+    seen: list[tuple[int, int | None]] = []
+    state = {"geofabrik": {"regions": {}}}
+
+    result = gp.pull_region(
+        region=_REGION, root=mirror_root, pinned_date="2026-09-01", state=state,
+        base_url=upstream.base_url, now=_clock(datetime(2026, 9, 1, tzinfo=timezone.utc)),
+        on_bytes=lambda got, total: seen.append((got, total)),
+    )
+
+    assert result.action == "pulled"
+    assert {total for _, total in seen} == {len(_PBF_BODY)}
+    received = [got for got, _ in seen]
+    assert received == sorted(received) and received[-1] == len(_PBF_BODY)
+    assert any(0 < got < len(_PBF_BODY) for got in received)
+
+
 def test_a_failed_poly_fetch_does_not_fail_the_region_pull(upstream, mirror_root) -> None:
     # Issue #402: the extract itself is the thing that must never be put at
     # risk by a boundary-polygon problem — `select_covering_extracts`

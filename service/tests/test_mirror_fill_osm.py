@@ -184,6 +184,52 @@ def test_a_greensboro_miss_fills_its_cell_and_the_next_clip_is_a_store_hit(
     assert row["pinned"] is False and row["upstream"] == f"geofabrik:{NC}@{PIN}"
 
 
+def test_a_fills_progress_rises_within_a_single_sources_download(
+    tmp_path: Path, geofabrik, monkeypatch,
+) -> None:
+    """Issue #609 — a one-source fill used to sit at 0.0 for the whole pull
+    and jump to 0.5 for the precut. Progress now moves with the bytes:
+    some value lands strictly inside the pull's slice (0, 0.5)."""
+    from plotlines_service import mirror_fill, mirror_fill_osm
+
+    monkeypatch.setattr(mirror_fill_osm.load_geofabrik_pull(), "STREAM_CHUNK_BYTES", 64)
+    monkeypatch.setattr(mirror_fill_osm, "_PROGRESS_MIN_STEP", 0.0)
+    seen: list[tuple[float | None, str | None]] = []
+    real = mirror_fill.FillContext.progress
+
+    def recording(self, fraction, detail=None):
+        seen.append((fraction, detail))
+        real(self, fraction, detail)
+    monkeypatch.setattr(mirror_fill.FillContext, "progress", recording)
+
+    base_url, _log = geofabrik
+    root = _mirror(tmp_path)
+    tc, worker = _app(tmp_path, root, base_url)
+    try:
+        fill_id = _clip(tc, GREENSBORO).json()["fill"]["fill_id"]
+        _wait_ready(worker, fill_id)
+    finally:
+        worker.shutdown()
+
+    pulling = [f for f, d in seen if d and d.startswith("pulling") and f is not None]
+    assert any(0.0 < f < 0.5 for f in pulling), pulling
+    assert pulling == sorted(pulling)
+    assert all(f >= 0.5 for f, d in seen if d and d.startswith("precutting"))
+
+
+def test_elapsed_progress_rises_and_holds_under_the_cap() -> None:
+    from plotlines_service.mirror_fill_osm import (
+        PRECUT_PROGRESS_CAP,
+        _elapsed_progress,
+    )
+
+    values: list[float] = []
+    with _elapsed_progress(values.append, estimate_s=0.05, interval_s=0.01):
+        time.sleep(0.2)
+    assert values and values == sorted(values)
+    assert max(values) == PRECUT_PROGRESS_CAP
+
+
 def test_a_bbox_no_geofabrik_region_covers_is_terminal_with_no_job_or_request(
     tmp_path: Path, geofabrik,
 ) -> None:
