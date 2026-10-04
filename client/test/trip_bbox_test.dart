@@ -1,6 +1,8 @@
 // N1 (PRD FR120) — pure geometry for the trip's authoring bbox: corner
 // normalization, containment, the extent readout's width/height, and the
 // shrink prompt's "move the bounds to include all three" expansion.
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plotlines_client/domain/trip_bbox.dart';
@@ -134,5 +136,28 @@ void main() {
     const b = TripBbox(minLat: 40.0, minLon: -105.3, maxLat: 40.2, maxLon: -105.1);
     expect(a, b);
     expect(a.hashCode, b.hashCode);
+  });
+
+  group('isDegenerate (#628)', () {
+    test('the two near-zero boxes #628 caught are degenerate', () {
+      // ~15 m × 1.4 km and ~110 m × 6 m.
+      expect(TripBbox.fromCorners([-81.68861, 36.14579], [-81.68844, 36.15846]).isDegenerate,
+          isTrue);
+      expect(TripBbox.fromCorners([-81.67098, 36.12753], [-81.66975, 36.12758]).isDegenerate,
+          isTrue);
+    });
+
+    test('a small real area and a county are not', () {
+      // ~270 m × 220 m — the core test's own accepted box.
+      expect(TripBbox.fromCorners([-81.690, 36.145], [-81.687, 36.147]).isDegenerate, isFalse);
+      expect(TripBbox.fromCorners([-82.83, 35.36], [-82.14, 35.79]).isDegenerate, isFalse);
+    });
+
+    test('minSideM matches the sidecar refusal in regions.MIN_BBOX_SIDE_M', () {
+      final src = File('../core/plotlines_core/graph/regions.py').readAsStringSync();
+      final m = RegExp(r'^MIN_BBOX_SIDE_M = ([0-9.]+)$', multiLine: true).firstMatch(src);
+      expect(m, isNotNull);
+      expect(double.parse(m!.group(1)!), TripBbox.minSideM);
+    });
   });
 }

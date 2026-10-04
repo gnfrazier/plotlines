@@ -1204,6 +1204,55 @@ def test_ensure_graph_local_clip_empty_result_raises_no_routable_ways(tmp_path, 
         regions.ensure_graph(region, tmp_path)
 
 
+def test_ensure_graph_local_clip_one_node_no_edges_raises_no_routable_ways(
+        tmp_path, monkeypatch):
+    """Issue #628 — a near-zero bbox built a 1-node, 0-edge graph off its
+    clip and reported `OK`, so the region went on to spend an elevation
+    call. A graph nothing can route on is the #248 empty answer, nodes or
+    not."""
+    import networkx as nx
+
+    def _blocked(*_a, **_k):
+        raise AssertionError("must not fall through to Overpass")
+    monkeypatch.setattr(ox, "graph_from_bbox", _blocked)
+    _write_clip(
+        tmp_path,
+        nodes=[_clip_node(1, -105.29, 40.00), _clip_node(2, -105.28, 40.01)],
+        ways=[_clip_way(10, [1, 2], {"highway": "residential"})],
+    )
+
+    def _one_node(*_a, **_k):
+        g = nx.MultiDiGraph(crs="epsg:4326")
+        g.add_node(1, x=-105.29, y=40.00)
+        return g
+    monkeypatch.setattr(regions, "_build_region_graph_from_pbf", _one_node)
+
+    region = regions.region_for(_CLIP_BBOX, "bike")
+    with pytest.raises(regions.NoRoutableWaysError):
+        regions.ensure_graph(region, tmp_path)
+    assert not region.graph_path(tmp_path).exists()
+
+
+@pytest.mark.parametrize("bbox", [
+    # The two #628 caught on the desktop, 2026-10-04.
+    (-81.68861, 36.14579, -81.68844, 36.15846),  # ~15 m × 1.4 km
+    (-81.67098, 36.12753, -81.66975, 36.12758),  # ~110 m × 6 m
+    (-81.0, 36.0, -81.0, 36.1),                  # zero width
+    (-81.0, 36.1, -80.9, 36.0),                  # south > north
+    (-81.0, 36.0, float("nan"), 36.1),
+])
+def test_degenerate_bbox_reason_refuses_a_press_not_a_draw(bbox):
+    reason = regions.degenerate_bbox_reason(bbox)
+    assert reason is not None
+    assert reason.endswith(".")
+
+
+def test_degenerate_bbox_reason_accepts_a_small_real_area():
+    # ~270 m × 220 m: small, but a trip area someone could mean.
+    assert regions.degenerate_bbox_reason((-81.690, 36.145, -81.687, 36.147)) is None
+    assert regions.degenerate_bbox_reason((-82.83, 35.36, -82.14, 35.79)) is None
+
+
 def test_ensure_graph_local_clip_keeps_a_way_tag_and_folds_a_barrier(tmp_path, monkeypatch):
     """Acceptance: `PLOTLINES_WAY_TAGS` and the node `barrier` tag survive
     the local-clip transport, asserted end to end (build -> simplify -> fold

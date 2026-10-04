@@ -81,3 +81,20 @@ def test_empty_response_settles_failed_without_looping(tmp_path: Path, monkeypat
     _wait(client, key, lambda e: "drawn area" in e.get("reason", ""))
 
     assert calls == 1
+
+
+def test_a_degenerate_bbox_is_refused_before_any_build(tmp_path: Path, monkeypatch):
+    """Issue #628 — a 110 m × 6 m box (a press with almost no drag) is a 422
+    with a sentence, not a region: no clip, no graph, no elevation call."""
+    def never(*_a, **_k):
+        raise AssertionError("a degenerate bbox must never reach a build")
+    monkeypatch.setattr(region_lib, "ensure_graph", never)
+
+    client = TestClient(create_app(tmp_path))
+    resp = client.post("/regions", json={
+        "bbox": [-81.67098, 36.12753, -81.66975, 36.12758]})
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert "too small to route in" in detail
+    assert detail.endswith(".")
+    assert client.get("/health").json()["capabilities"]["routing"].get("regions", {}) == {}
