@@ -294,14 +294,30 @@ def _get_conditional(
         raise
 
 
-def _get_streaming(url: str, dest: Path, *, user_agent: str) -> None:
+#: The download's read size. A module constant so a test can make a small
+#: body arrive in several reads.
+STREAM_CHUNK_BYTES = 1024 * 1024
+
+
+def _get_streaming(url: str, dest: Path, *, user_agent: str,
+                   on_bytes: Callable[[int, int | None], None] | None = None) -> None:
+    """Streams `url` to `dest` in 1 MB chunks. `on_bytes(received, total)`
+    runs after each chunk, `total` from `Content-Length` (Geofabrik sends
+    it) or `None` — issue #609, so a fill's progress moves during a
+    20-minute download instead of only between them."""
     req = urllib.request.Request(url, headers={"User-Agent": user_agent})
     with urllib.request.urlopen(req, timeout=SOCKET_TIMEOUT_S) as resp, open(dest, "wb") as f:
+        length = resp.headers.get("Content-Length") if resp.headers else None
+        total = int(length) if length and length.isdigit() else None
+        received = 0
         while True:
-            chunk = resp.read(1024 * 1024)
+            chunk = resp.read(STREAM_CHUNK_BYTES)
             if not chunk:
                 break
             f.write(chunk)
+            received += len(chunk)
+            if on_bytes is not None:
+                on_bytes(received, total)
 
 
 def _parse_md5_file(body: bytes) -> str:
@@ -436,6 +452,7 @@ def pull_region(
     min_interval: timedelta = DEFAULT_MIN_INTERVAL,
     now: Callable[[], datetime] = _utcnow,
     throttle: RequestThrottle = NO_SPACING,
+    on_bytes: Callable[[int, int | None], None] | None = None,
 ) -> PullResult:
     """Pull one region, mutating only
     `state["geofabrik"]["regions"][region]` (and, on a real pull,
@@ -512,7 +529,7 @@ def pull_region(
     try:
         with throttle.spaced():
             _get_streaming(_pbf_url(base_url, region), tmp_path,
-                            user_agent=user_agent)
+                            user_agent=user_agent, on_bytes=on_bytes)
     except (urllib.error.URLError, OSError) as exc:
         tmp_path.unlink(missing_ok=True)
         return _record_failure(region, entry, current_time,
