@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../data/sidecar_manager.dart' show CapabilityStatus;
 import '../../../domain/domain.dart';
@@ -31,6 +32,7 @@ import '../../widgets/day_timeline_strip.dart';
 import '../../widgets/metrics_rail.dart';
 import '../../widgets/node_editor_sheet.dart';
 import '../../widgets/node_placement_bar.dart';
+import '../../widgets/passage_mode_picker.dart';
 import '../../widgets/weights_rail.dart';
 
 /// Every day's segment endpoints plus every authored node, each tagged with
@@ -143,6 +145,8 @@ class RouteTab extends ConsumerStatefulWidget {
   ConsumerState<RouteTab> createState() => _RouteTabState();
 }
 
+const _uuid = Uuid();
+
 class _RouteTabState extends ConsumerState<RouteTab> {
   /// #588 — the passage node placement is armed on, or null when it is not.
   /// Held as the passage rather than a bare flag so a change of selection can
@@ -150,7 +154,14 @@ class _RouteTabState extends ConsumerState<RouteTab> {
   /// has moved to another passage, day or tab must never place a node on the
   /// one they left.
   (String dayId, String segmentId)? _placingOn;
-  bool get _addingNode => _placingOn != null;
+
+  /// #626 (option B) — placement armed on a route day with no passage yet.
+  /// The node, once saved, creates the passage: [segmentId] is the id it will
+  /// have, and [mode] the travel mode picked from the trip's set when Add
+  /// node was pressed (#319: never preselected unless the trip has one mode).
+  ({String dayId, String segmentId, String mode})? _placingNew;
+
+  bool get _addingNode => _placingOn != null || _placingNew != null;
 
   /// #588 — holds keyboard focus while a map gesture is in hand, so Esc backs
   /// out of it. The button that armed the gesture is replaced by the gesture's
@@ -172,9 +183,12 @@ class _RouteTabState extends ConsumerState<RouteTab> {
   /// #588 — Esc backs out of whichever map gesture is in hand. Every one of
   /// them is free to abandon: none has reached the trip yet.
   void _cancelGesture() {
-    if (_placingOn == null && _altDraft == null && _altEdit == null) return;
+    if (_placingOn == null && _placingNew == null && _altDraft == null && _altEdit == null) {
+      return;
+    }
     setState(() {
       _placingOn = null;
+      _placingNew = null;
       _altDraft = null;
       _altDraftOn = null;
       _altEdit = null;
@@ -274,6 +288,7 @@ class _RouteTabState extends ConsumerState<RouteTab> {
     if (alternate == null) return;
     setState(() {
       _placingOn = null;
+      _placingNew = null;
       _altDraft = null;
       _altDraftOn = null;
       _altEdit = AlternateEdit.of(alternate!, route!);
@@ -300,6 +315,71 @@ class _RouteTabState extends ConsumerState<RouteTab> {
     });
     if (!mounted) return;
     await _openAlternateCard(dayId, segmentId, edit.alternateId);
+  }
+
+  /// #626 (option B) — Add node on a route day with no passage. The node
+  /// will start the passage, and a passage needs a travel mode: the trip's one
+  /// mode if it has exactly one, otherwise the Author picks (#319 — never
+  /// preselected). Backing out of the pick arms nothing.
+  Future<void> _armNewPassage(String dayId) async {
+    final mode = await _pickNewPassageMode();
+    if (mode == null || !mounted) return;
+    setState(() {
+      _placingOn = null;
+      _placingNew = (dayId: dayId, segmentId: _uuid.v4(), mode: mode);
+    });
+    _focusGesture();
+  }
+
+  Future<String?> _pickNewPassageMode() async {
+    final modes = widget.trip.modes;
+    if (modes.length == 1) return modes.single;
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        final c = PlotColors.of(context);
+        return AlertDialog(
+          title: const Text('Start a passage'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'A node sits on a passage, and this day has none yet. The node '
+                  'you place starts one. How is this passage travelled?',
+                  style: PlotTypography.body(c.textSecondary),
+                ),
+                const SizedBox(height: PlotSpacing.s3),
+                PassageModePicker(
+                  selected: null,
+                  onSelected: (mode) => Navigator.pop(context, mode),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _placeOnNewPassage(
+      ({String dayId, String segmentId, String mode}) on, Coord point) async {
+    setState(() => _placingNew = null);
+    final saved = await showNodeEditorSheet(
+      context,
+      dayId: on.dayId,
+      segmentId: on.segmentId,
+      coord: point,
+      newPassageMode: on.mode,
+    );
+    if (saved != null && mounted) {
+      ref.read(selectedNodeIdProvider.notifier).state = saved.id;
+    }
   }
 
   /// FR121/N2 — same "no trip-wide flag" reading `new_route_screen.dart`'s
@@ -365,6 +445,12 @@ class _RouteTabState extends ConsumerState<RouteTab> {
     final railDay = widget.trip.days.where((d) => d.id == railDayId).firstOrNull;
     final dayHasNoPassage =
         placeOn == null && railDay != null && !railDay.isRest && railDay.segments.isEmpty;
+    // #626 — placement armed for a new passage belongs to the day it was
+    // armed on, and only while that day still has none.
+    final pendingNew = _placingNew;
+    if (pendingNew != null && (!dayHasNoPassage || pendingNew.dayId != railDayId)) {
+      _placingNew = null;
+    }
 
     return Row(
       children: [
@@ -432,6 +518,8 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                                 ? (point) => setState(() => _altDraft = draft.tap(point))
                                 : edit != null
                                     ? (point) => setState(() => _altEdit = edit.tap(point))
+                                    : _placingNew != null
+                                    ? (point) => _placeOnNewPassage(_placingNew!, point)
                                     : _placingOn == null
                                     ? null
                                     : (point) async {
@@ -500,12 +588,16 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                                   : null,
                             ),
                           )
-                        else if (_placingOn != null)
+                        else if (_placingOn != null || _placingNew != null)
                           Positioned(
                             top: PlotSpacing.s3,
                             right: PlotSpacing.s3,
                             child: NodePlacementBar(
-                              onCancel: () => setState(() => _placingOn = null),
+                              startsPassageIn: _placingNew?.mode,
+                              onCancel: () => setState(() {
+                                _placingOn = null;
+                                _placingNew = null;
+                              }),
                             ),
                           )
                         else if (placeOn != null)
@@ -546,7 +638,13 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                           Positioned(
                             top: PlotSpacing.s3,
                             right: PlotSpacing.s3,
-                            child: _NoPassageForNodes(),
+                            // #626 (option B) — the first node starts the
+                            // day's passage, so Add node is live here too.
+                            child: PlotButton(
+                              label: 'Add node',
+                              icon: Icons.add_location_alt_outlined,
+                              onPressed: () => _armNewPassage(railDayId),
+                            ),
                           ),
                       ],
                     ),
@@ -576,36 +674,3 @@ class _RouteTabState extends ConsumerState<RouteTab> {
   }
 }
 
-/// #620 — Add node on a day with no passage: shown, disabled, and saying why,
-/// rather than offered and silently refused. Points at the day strip's own
-/// "Add a passage" action below the map.
-class _NoPassageForNodes extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final c = PlotColors.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        const PlotButton(
-          label: 'Add node',
-          icon: Icons.add_location_alt_outlined,
-          onPressed: null,
-        ),
-        const SizedBox(height: PlotSpacing.s2),
-        Container(
-          constraints: const BoxConstraints(maxWidth: 280),
-          padding: const EdgeInsets.all(PlotSpacing.s2),
-          decoration: BoxDecoration(
-            color: c.surfaceCard.withValues(alpha: 0.96),
-            border: Border.all(color: c.border),
-            borderRadius: PlotRadii.controlShape,
-          ),
-          child: Text(
-            'A node sits on a passage. Add a passage to this day first.',
-            style: PlotTypography.small(c.textSecondary),
-          ),
-        ),
-      ],
-    );
-  }
-}

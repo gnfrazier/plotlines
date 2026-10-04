@@ -50,6 +50,7 @@ Future<Node?> showNodeEditorSheet(
   required Coord coord,
   List<Coord>? routeGeometry,
   Node? existing,
+  String? newPassageMode,
 }) {
   return showModalBottomSheet<Node>(
     context: context,
@@ -66,6 +67,7 @@ Future<Node?> showNodeEditorSheet(
           coord: coord,
           routeGeometry: routeGeometry,
           existing: existing,
+          newPassageMode: newPassageMode,
           scrollController: scrollController,
           onSaved: (node) => Navigator.pop(context, node),
         ),
@@ -88,6 +90,7 @@ class NodeEditorForm extends ConsumerStatefulWidget {
     this.routeGeometry,
     this.scrollController,
     this.trailing,
+    this.newPassageMode,
   });
   final String dayId;
   final String segmentId;
@@ -98,6 +101,11 @@ class NodeEditorForm extends ConsumerStatefulWidget {
   final List<Coord>? routeGeometry;
 
   final Node? existing;
+
+  /// #626 — set when [segmentId] names a passage that does not exist yet: the
+  /// day has none, and saving this node creates it in this mode
+  /// (`CurrentTripNotifier.addNodeOnNewPassage`).
+  final String? newPassageMode;
 
   /// Called with the saved node after the domain state is updated — the
   /// container decides what to do next (pop a sheet, show a snackbar, …).
@@ -139,7 +147,16 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
 
   bool _initialRouteThrough() {
     final existing = widget.existing;
-    if (existing == null) return _kind == NodeKind.via;
+    if (existing == null) {
+      // #626 — on a passage built from its nodes the nodes are the route, so
+      // a new one joins it unless the Author unticks it (an annotation). Not
+      // in Compose, where the spine is the route.
+      if (_kind == NodeKind.via) return true;
+      if (ref.read(dayPlanningModeProvider(widget.dayId)) == PlanningMode.compose) return false;
+      if (widget.newPassageMode != null) return true;
+      final segment = _segment;
+      return segment != null && routesFromNodes(segment);
+    }
     final segment = _segment;
     return segment != null && nodeRoutesThrough(segment, existing);
   }
@@ -371,9 +388,16 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
     // #322 / Q3(FR140) — a routing-constraint node (via / start / finish /
     // portage ends) placed, moved, or retyped into or out of a constraint kind
     // marks the passage stale too; nothing re-solves on its own.
-    ref.read(currentTripProvider.notifier).saveSegmentNode(
-        widget.dayId, widget.segmentId, node,
-        routeThrough: _routeThrough);
+    final newPassageMode = widget.newPassageMode;
+    if (newPassageMode != null && _segment == null) {
+      ref.read(currentTripProvider.notifier).addNodeOnNewPassage(
+          widget.dayId, widget.segmentId, newPassageMode, node,
+          routeThrough: _routeThrough);
+    } else {
+      ref.read(currentTripProvider.notifier).saveSegmentNode(
+          widget.dayId, widget.segmentId, node,
+          routeThrough: _routeThrough);
+    }
     widget.onSaved(node);
   }
 }

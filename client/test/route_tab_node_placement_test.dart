@@ -255,33 +255,97 @@ void main() {
     expect(_nodeCount(container.read(currentTripProvider)), 0);
   });
 
-  // #620 — a day with no passage, and a selection naming a passage that is
-  // not there (left over from another trip or an undo). Add node used to show,
-  // arm, and be disarmed on the next build: a click that did nothing at all.
+  // #626 (option B, replacing #620's disabled button) — on a route day with
+  // no passage, Add node is live: the node placed starts the passage. A
+  // passage needs a mode, so it is the trip's one mode or the Author's pick.
   group('a day with no passage', () {
-    Trip blankDay() => Trip(
+    Trip blankDay({Set<String> modes = const {'cycling'}}) => Trip(
           id: 't2',
           title: 'Blank',
           createdAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-01-01T00:00:00Z',
+          modes: modes,
           days: [Day(id: 'd1', index: 1)],
         );
 
-    testWidgets('a stale selection does not offer Add node; the reason is shown',
+    testWidgets('with one trip mode, Add node arms at once and says it starts the passage',
         (tester) async {
       await _pumpTab(tester, trip: blankDay(), selection: ('d1', 'gone'));
-      final button = tester.widget<PlotButton>(find.widgetWithText(PlotButton, 'Add node'));
-      expect(button.onPressed, isNull);
-      expect(find.textContaining('Add a passage to this day first'), findsOneWidget);
-
-      await tester.tap(find.text('Add node'), warnIfMissed: false);
-      await _settle(tester);
-      expect(find.byType(NodePlacementBar), findsNothing);
+      expect(find.textContaining('Add a passage to this day first'), findsNothing);
+      await _arm(tester);
+      expect(find.textContaining("It starts this day's passage: Ride"), findsOneWidget);
     });
 
-    testWidgets('with no selection at all the reason is shown too', (tester) async {
-      await _pumpTab(tester, trip: blankDay(), selection: null);
-      expect(find.textContaining('Add a passage to this day first'), findsOneWidget);
+    testWidgets('placing the first node creates the passage with it, routed through',
+        (tester) async {
+      final container = await _pumpTab(tester, trip: blankDay(), selection: null);
+      await _arm(tester);
+      await _tapMap(tester);
+      expect(find.byType(NodeEditorForm), findsOneWidget);
+      final through = tester.widget<CheckboxListTile>(
+          find.byKey(const ValueKey('node-route-through')));
+      expect(through.value, isTrue, reason: 'on a node-built passage the nodes are the route');
+
+      // The form is a lazy list; scroll it until Save is built.
+      await tester.scrollUntilVisible(find.text('Save node'), 300,
+          scrollable: find
+              .descendant(of: find.byType(NodeEditorForm), matching: find.byType(Scrollable))
+              .first);
+      await tester.tap(find.text('Save node'));
+      await _settle(tester);
+
+      final day = container.read(currentTripProvider).days.single;
+      expect(day.segments, hasLength(1));
+      final passage = day.segments.single;
+      expect(passage.mode, 'cycling');
+      expect(passage.shape, 'point_to_point');
+      expect(passage.start, isNull);
+      expect(passage.nodes, hasLength(1));
+      expect(passage.via, [passage.nodes.single.coord]);
+      expect(routesFromNodes(passage), isTrue);
+      expect(container.read(selectedSegmentProvider), ('d1', passage.id));
+      // The next node goes on the passage that now exists: the ordinary path.
+      expect(find.widgetWithText(PlotButton, 'Add node'), findsOneWidget);
+    });
+
+    testWidgets('dismissing the editor creates no passage', (tester) async {
+      final container = await _pumpTab(tester, trip: blankDay(), selection: null);
+      final before = container.read(currentTripProvider);
+      await _arm(tester);
+      await _tapMap(tester);
+      await tester.tapAt(const Offset(20, 20));
+      await _settle(tester);
+
+      expect(identical(container.read(currentTripProvider), before), isTrue);
+    });
+
+    testWidgets('with two trip modes the Author picks; Cancel arms nothing', (tester) async {
+      final container =
+          await _pumpTab(tester, trip: blankDay(modes: {'cycling', 'hiking'}), selection: null);
+      final before = container.read(currentTripProvider);
+      await tester.tap(find.text('Add node'));
+      await _settle(tester);
+      expect(find.text('Start a passage'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await _settle(tester);
+      expect(find.byType(NodePlacementBar), findsNothing);
+      expect(identical(container.read(currentTripProvider), before), isTrue);
+
+      await tester.tap(find.text('Add node'));
+      await _settle(tester);
+      await tester.tap(find.text('Hike'));
+      await _settle(tester);
+      expect(find.textContaining("It starts this day's passage: Hike"), findsOneWidget);
+    });
+
+    testWidgets('Esc backs out of new-passage placement', (tester) async {
+      final container = await _pumpTab(tester, trip: blankDay(), selection: null);
+      final before = container.read(currentTripProvider);
+      await _arm(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await _settle(tester);
+      _expectDisarmed(container, before);
     });
   });
 }

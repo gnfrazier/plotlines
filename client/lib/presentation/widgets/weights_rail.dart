@@ -491,6 +491,16 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                 children: [
                   // Why Regenerate is disabled, stated where it is seen
                   // first rather than inside a task that may be closed.
+                  // #626 — a passage built from placed nodes solves first
+                  // point to last; it needs two to solve between.
+                  if (_needsRoutePoints(segment)) ...[
+                    Text(
+                      'Place two or more route-through nodes, in the order you want, '
+                      'to generate the route between them.',
+                      style: PlotTypography.small(c.textSecondary),
+                    ),
+                    const SizedBox(height: PlotSpacing.s2),
+                  ],
                   if (_composeNeedsTarget(mode, segment)) ...[
                     Text(
                       'Loop always solves to a target distance, which compose doesn\'t set — '
@@ -548,8 +558,14 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                     ],
                     Expanded(
                       child: PlotButton(
-                        label: _regenerating ? 'Re-solving…' : 'Regenerate',
-                        onPressed: (_regenerating || _composeNeedsTarget(mode, segment))
+                        label: _regenerating
+                            ? 'Re-solving…'
+                            : segment.geometry == null
+                                ? 'Generate'
+                                : 'Regenerate',
+                        onPressed: (_regenerating ||
+                                _composeNeedsTarget(mode, segment) ||
+                                _needsRoutePoints(segment))
                             ? null
                             : () => _regenerate(segment, mode),
                       ),
@@ -697,6 +713,9 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
   /// contradicts compose's "no target, length is an outcome" (ARCH §7.7) —
   /// this is the one shape/mode combination Regenerate must refuse rather
   /// than send a request the sidecar will 422.
+  static bool _needsRoutePoints(Segment segment) =>
+      routesFromNodes(segment) && nodeRouteSolveInputs(segment) == null;
+
   static bool _composeNeedsTarget(PlanningMode mode, Segment segment) =>
       mode == PlanningMode.compose && segment.shape == 'loop';
 

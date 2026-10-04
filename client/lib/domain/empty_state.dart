@@ -64,7 +64,8 @@ const Map<EmptyStateContext, EmptyStateCopy> emptyStateRegistry = {
   EmptyStateContext.dayNoPassages: EmptyStateCopy(
     message: 'This day has nowhere to go yet.',
     nextAction:
-        'Add a passage, or make it a rest day — a rest day holds anchors and detail without a route.',
+        'Add a passage, place a node on the map to start one, or make it a rest day — '
+        'a rest day holds anchors and detail without a route.',
   ),
   EmptyStateContext.bboxNoPromotedAnchors: EmptyStateCopy(
     message: 'Nothing has been promoted into this trip yet.',
