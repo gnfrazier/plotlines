@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import socket
 import time
@@ -574,6 +575,43 @@ class Region:
         return self.graph_path(cache_dir).with_name("source.json")
 
 
+#: Issue #628 — the shortest side a trip bbox may have, in meters. Below
+#: this a bbox is a press with no drag, not a trip area: the two #628 caught
+#: (15 m × 1.4 km, 110 m × 6 m) each clipped, built a 1-node 0-edge graph
+#: that reported OK, and spent an OpenTopography call that answered 400.
+#: Mirrored by the client's `TripBbox.minSideM`.
+MIN_BBOX_SIDE_M = 200.0
+
+_EARTH_RADIUS_M = 6_371_000.0
+
+
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = p2 - p1, math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * _EARTH_RADIUS_M * math.asin(math.sqrt(a))
+
+
+def degenerate_bbox_reason(bbox: tuple[float, float, float, float]) -> str | None:
+    """Why `bbox` ([west, south, east, north]) is not a trip area, or None.
+
+    Measured the client's way (`TripBbox.widthKm` / `heightKm`): width along
+    the center latitude, height along the center meridian."""
+    west, south, east, north = bbox
+    if not all(math.isfinite(v) for v in bbox):
+        return "The trip area has a coordinate that isn't a number."
+    if west >= east or south >= north:
+        return "The trip area's edges are out of order or have no extent."
+    mid_lat, mid_lon = (south + north) / 2, (west + east) / 2
+    width = _haversine_m(mid_lat, west, mid_lat, east)
+    height = _haversine_m(south, mid_lon, north, mid_lon)
+    if min(width, height) < MIN_BBOX_SIDE_M:
+        return (f"The trip area is {width:.0f} m × {height:.0f} m, too small to "
+                f"route in. Draw an area at least {MIN_BBOX_SIDE_M:.0f} m on "
+                f"each side.")
+    return None
+
+
 def region_key(bbox: tuple[float, float, float, float], network_type: str = "bike",
                ruleset_version: int = GRAPH_RULESET_VERSION) -> str:
     """A stable, deterministic cache key for `(bbox, network_type,
@@ -893,11 +931,13 @@ def ensure_graph(
                  region.key, region.bbox, region.network_type, local_pbf)
         started = time.monotonic()
         graph = _build_region_graph_from_pbf(region, local_pbf)
-        if graph.number_of_nodes() == 0:
+        if graph.number_of_edges() == 0:
             # A true answer about this bbox/mode (issue #248's contract,
             # extended to the local transport) — no fallback to Overpass:
             # the clip already covers this exact bbox, so a second transport
-            # would only re-ask the same question of the same data.
+            # would only re-ask the same question of the same data. Edges,
+            # not nodes (#628): a 1-node 0-edge graph used to report OK and
+            # go on to spend an elevation call on a region nothing routes in.
             log.info(
                 "ensure_graph key=%s source=local_clip: empty result — "
                 "answer about the bbox, not retried", region.key)
