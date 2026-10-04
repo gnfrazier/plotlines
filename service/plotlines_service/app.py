@@ -150,6 +150,14 @@ class GraphBuildHistory:
     estimate is the median of the last `window` real builds, and there is
     none (`None`: progress, no ETA) until one has been timed.
 
+    Issue #630 — a median of seconds alone says nothing about *this* build
+    when areas differ: one 4.7 s build made a 15,700 km² region read 95% for
+    five minutes. On the local-clip transport the clip's size is known before
+    the graph phase starts, and build time tracks it, so an observation
+    records its clip's bytes and an estimate for a known clip size is the
+    median observed seconds-per-byte scaled to it. Without a size (the
+    Overpass fallback, or no sized observation yet) it is the plain median.
+
     A graph phase under `MIN_OBSERVATION_S` was served from the graph cache
     rather than built, and says nothing about the next build."""
 
@@ -158,22 +166,33 @@ class GraphBuildHistory:
     def __init__(self, window: int = 5) -> None:
         self._lock = threading.Lock()
         self._seconds: collections.deque[float] = collections.deque(maxlen=window)
+        self._rates: collections.deque[float] = collections.deque(maxlen=window)
 
-    def record(self, seconds: float) -> None:
+    def record(self, seconds: float, clip_bytes: int | None = None) -> None:
         if seconds < self.MIN_OBSERVATION_S:
             return
         with self._lock:
             self._seconds.append(seconds)
+            if clip_bytes:
+                self._rates.append(seconds / clip_bytes)
 
-    def estimate_s(self) -> float | None:
+    def estimate_s(self, clip_bytes: int | None = None) -> float | None:
         with self._lock:
-            observed = sorted(self._seconds)
+            observed = list(self._seconds)
+            rates = list(self._rates)
+        if clip_bytes and rates:
+            return _median(rates) * clip_bytes
         if not observed:
             return None
-        mid = len(observed) // 2
-        if len(observed) % 2:
-            return observed[mid]
-        return (observed[mid - 1] + observed[mid]) / 2
+        return _median(observed)
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2
 
 
 #: Process-wide: every region's graph build feeds and reads the same history.
@@ -798,6 +817,54 @@ _GRAPH_PHASE_TIMEOUT_MESSAGE = (
 )
 
 
+#: Issue #630 — on the local-clip transport the graph phase is CPU work on
+#: this machine, not a network call, so its deadline scales with the clip
+#: and its timeout sentence says so. Measured 2026-10-04 on the owner's
+#: desktop (16 vCPU, 15 GB), `_build_region_graph_from_pbf` on cached clips:
+#:
+#:   clip MB   build s   s/MB   peak RSS
+#:      1.2       2.5    2.1    0.24 GB
+#:      4.0      18.3    4.6    0.76 GB
+#:      9.5      39.2    4.1    1.47 GB
+#:     11.1      48.6    4.4    1.70 GB
+#:     16.7      88.0    5.3    2.89 GB
+#:     23.6     172.6    7.3    5.49 GB
+#:     26.7     216.9    8.1    6.63 GB
+#:     47.7     296      6.2    ~10 GB   (#630's Blacksburg–Lynchburg, under app load)
+#:
+#: Time and memory both grow a little faster than the clip (the rate rises
+#: from ~4 to ~8 s/MB). The deadline allows 15 s/MB, about twice the worst
+#: rate observed, and never less than the network-transport ceiling.
+_GRAPH_LOCAL_S_PER_BYTE_CEILING = 15.0 / 1e6
+
+#: Issue #630 — a clip this large is a build of minutes and several GB (the
+#: table above: ~3 GB at 17 MB, ~6.6 GB at 27 MB), so the routing reason
+#: says so up front instead of a bare "building graph".
+LARGE_CLIP_BYTES = 20_000_000
+
+_GRAPH_LOCAL_TIMEOUT_MESSAGE = (
+    "Preparing routing for this area took longer than {minutes} minutes on "
+    "this computer. The area is very large; try a smaller trip area."
+)
+
+
+def _graph_phase_deadline(clip_bytes: int | None) -> tuple[float, str]:
+    """The graph phase's deadline and timeout sentence (#630). With no
+    local clip the build goes to Overpass, and the network sentence and
+    fixed ceiling stand."""
+    if not clip_bytes:
+        return _GRAPH_PHASE_TIMEOUT_S, _GRAPH_PHASE_TIMEOUT_MESSAGE
+    timeout_s = max(_GRAPH_PHASE_TIMEOUT_S, clip_bytes * _GRAPH_LOCAL_S_PER_BYTE_CEILING)
+    return timeout_s, _GRAPH_LOCAL_TIMEOUT_MESSAGE.format(minutes=round(timeout_s / 60))
+
+
+def _graph_phase_detail(clip_bytes: int | None) -> str:
+    if clip_bytes and clip_bytes >= LARGE_CLIP_BYTES:
+        return ("building the routing graph for a large area — this can take "
+                "several minutes and a lot of memory")
+    return "building graph"
+
+
 def _run_build_phase(pool: ThreadPoolExecutor, timeout_s: float,
                      fn: Callable[[], object], *,
                      timeout_message: str | None = None) -> object:
@@ -1166,7 +1233,11 @@ class RegionState:
         self.key = key
         self.bbox = bbox
         self.network_type = network_type
-        self.graph_state = CapabilityState(GRAPH_BUILD_HISTORY.estimate_s)
+        # Issue #630 — the local clip's size, read before the graph phase so
+        # its estimate and deadline scale with the area rather than with
+        # whatever area this session happened to build last.
+        self.graph_clip_bytes: int | None = None
+        self.graph_state = CapabilityState(self.graph_estimate_s)
         self.graph: LoadedGraph | None = None
         # Issue #274 — the mirror-clip download's own FR121 capability,
         # independent of graph_state (see `build`'s extract step below).
@@ -1416,6 +1487,10 @@ class RegionState:
             },
         }
 
+    def graph_estimate_s(self) -> float | None:
+        """The graph phase's time estimate for *this* region (#630)."""
+        return GRAPH_BUILD_HISTORY.estimate_s(self.graph_clip_bytes)
+
     def build(self, cache_dir: Path, tiles_upstream: str | Path,
               allow_unmirrored: bool = False,
               elevation_upstream: str | None = None,
@@ -1524,20 +1599,29 @@ class RegionState:
                          self.key, self.bbox, exc)
 
         t0 = time.monotonic()
-        self.graph_state.start("building graph")
-        log.info("region build START key=%s attempt=%d bbox=%s nt=%s",
-                 self.key, attempt, self.bbox, self.network_type)
+        # Issue #630 — the same lookup `ensure_graph` makes first, so a size
+        # here is the clip that build will read. A stat, no network.
+        clip = extract_fetch.find_reusable_extract(self.bbox, cache_dir)
+        self.graph_clip_bytes = clip.stat().st_size if clip is not None else None
+        graph_timeout_s, graph_timeout_message = _graph_phase_deadline(
+            self.graph_clip_bytes)
+        self.graph_state.start(_graph_phase_detail(self.graph_clip_bytes))
+        log.info("region build START key=%s attempt=%d bbox=%s nt=%s clip_bytes=%s "
+                 "estimate_s=%s deadline_s=%.0f", self.key, attempt, self.bbox,
+                 self.network_type, self.graph_clip_bytes,
+                 self.graph_estimate_s(), graph_timeout_s)
         try:
             region = region_lib.Region(key=self.key, bbox=self.bbox,
                                        network_type=self.network_type)
             t_acq = time.monotonic()
             path = _run_build_phase(
-                build_phase_pools.graph, _GRAPH_PHASE_TIMEOUT_S,
+                build_phase_pools.graph, graph_timeout_s,
                 lambda: region_lib.ensure_graph(region, cache_dir),
-                timeout_message=_GRAPH_PHASE_TIMEOUT_MESSAGE,
+                timeout_message=graph_timeout_message,
             )
             self.timings["ensure_graph"] = time.monotonic() - t_acq
-            GRAPH_BUILD_HISTORY.record(self.timings["ensure_graph"])
+            GRAPH_BUILD_HISTORY.record(self.timings["ensure_graph"],
+                                       self.graph_clip_bytes)
             t_load = time.monotonic()
             self.graph = load_graphml(path)
             self.timings["load_graphml"] = time.monotonic() - t_load
@@ -2063,7 +2147,7 @@ class Readiness:
                         "last_error=%r)", key, network_type, label,
                         region.build_attempts, manual, decision.bypassed_cooldown,
                         region.automatic_requeues, region.last_error)
-                    region.graph_state = CapabilityState(GRAPH_BUILD_HISTORY.estimate_s)
+                    region.graph_state = CapabilityState(region.graph_estimate_s)
                     region.upstream_retry_after_s = None
                     self._queue_build(region)
                 elif region.graph_state.status == "failed":

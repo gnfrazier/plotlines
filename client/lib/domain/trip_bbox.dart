@@ -69,6 +69,17 @@ class TripBbox {
   /// Great-circle height along the box's center meridian, in kilometers.
   double get heightKm => _haversineKm(minLat, centerLon, maxLat, centerLon);
 
+  /// Issue #630 — above this area, the extent readout warns that preparing
+  /// the area for routing takes minutes and several GB. Measured on the
+  /// owner's desktop 2026-10-04: a 15,700 km² rural box was a 47.7 MB clip,
+  /// a 296 s graph build and ~10 GB peak; a 1,880 km² city box was 16.7 MB,
+  /// 88 s and 2.9 GB. Clip size per km² varies about 3× between the two, so
+  /// 5,000 km² is about 15–45 MB: roughly 1.5–5 minutes and 3–9 GB.
+  /// Advisory only, never a ceiling.
+  static const double largeAreaKm2 = 5000.0;
+
+  bool get isLargeArea => widthKm * heightKm > largeAreaKm2;
+
   /// The smallest bbox containing this one plus every one of [points] —
   /// the shrink prompt's "move the bounds to include all three" (Flow 9).
   TripBbox expandToInclude(Iterable<LatLon> points) {

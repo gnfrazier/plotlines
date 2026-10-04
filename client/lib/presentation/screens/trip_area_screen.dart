@@ -333,6 +333,24 @@ class _ExtentReadout extends StatelessWidget {
           '${w.toStringAsFixed(1)} × ${h.toStringAsFixed(1)} $suffix',
           style: PlotTypography.h2(c.textPrimary).copyWith(fontSize: 24, height: 1.15),
         ),
+        // Issue #630 — said before the build, not discovered at 95%.
+        if (bbox.isLargeArea) ...[
+          const SizedBox(height: PlotSpacing.s2),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.warning_amber_rounded, size: 16, color: c.warning),
+              const SizedBox(width: PlotSpacing.s2),
+              Expanded(
+                child: Text(
+                  'A large area. Preparing it for routing can take several '
+                  'minutes and a lot of memory.',
+                  style: PlotTypography.small(c.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: PlotSpacing.s2),
         Container(
           decoration: BoxDecoration(
