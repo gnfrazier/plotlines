@@ -116,6 +116,11 @@ class ElevationSampler:
         outside the raster, or over nothing but nodata): there is nothing to
         interpolate from, and a :data:`VOID_FILL` profile would read as a
         measured flat route (#533).
+
+        ``samples`` is the interpolated elevation at every input coordinate,
+        index-aligned with ``coords`` — what the client's profile chart
+        draws (#627) — and ``void_samples`` counts how many of them were
+        interpolated rather than read.
         """
         if self.degraded:
             return {}
@@ -123,13 +128,18 @@ class ElevationSampler:
         if not np.isfinite(raw).any():
             return {}
         elev = interpolate_voids(raw, coords)
+        samples = {
+            "samples": [round(float(v), 1) for v in elev],
+            "void_samples": int((~np.isfinite(raw)).sum()),
+        }
         finite = elev[np.isfinite(elev)]
         if finite.size < 2:
-            return {"ascent_m": 0.0, "descent_m": 0.0, "min_m": None, "max_m": None}
+            return {"ascent_m": 0.0, "descent_m": 0.0, "min_m": None, "max_m": None, **samples}
         deltas = np.diff(finite)
         return {
             "ascent_m": round(float(deltas[deltas > 0].sum()), 1),
             "descent_m": round(float(-deltas[deltas < 0].sum()), 1),
             "min_m": round(float(finite.min()), 1),
             "max_m": round(float(finite.max()), 1),
+            **samples,
         }

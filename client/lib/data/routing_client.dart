@@ -243,6 +243,13 @@ class RoutingClient {
         descentM: (elevRaw['descent_m'] as num?)?.toDouble(),
         minM: (elevRaw['min_m'] as num?)?.toDouble(),
         maxM: (elevRaw['max_m'] as num?)?.toDouble(),
+        // #627 — per-vertex, index-aligned with `coordinates`: what the
+        // passage's elevation profile draws. Absent on a route with no
+        // elevation source, which leaves the list empty.
+        samples: [
+          for (final v in (elevRaw['samples'] as List?) ?? const []) (v as num).toDouble(),
+        ],
+        voidSamples: (elevRaw['void_samples'] as num?)?.toInt(),
       ),
       solve: SolveProvenance(
         solveMs: (raw['solve_ms'] as num?)?.toDouble(),
