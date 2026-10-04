@@ -69,6 +69,17 @@ class TripBbox {
   /// Great-circle height along the box's center meridian, in kilometers.
   double get heightKm => _haversineKm(minLat, centerLon, maxLat, centerLon);
 
+  /// Issue #628 — the shortest side a trip area may have, in meters. Mirrors
+  /// `plotlines_core.graph.regions.MIN_BBOX_SIDE_M`, which `POST /regions`
+  /// refuses below. The two near-zero boxes #628 caught (15 m × 1.4 km and
+  /// 110 m × 6 m) were a press with almost no drag; each built a 1-node
+  /// graph and spent an elevation call.
+  static const double minSideM = 200.0;
+
+  /// True when either side is shorter than [minSideM] — a tap, not a draw.
+  bool get isDegenerate =>
+      widthKm * 1000 < minSideM || heightKm * 1000 < minSideM;
+
   /// The smallest bbox containing this one plus every one of [points] —
   /// the shrink prompt's "move the bounds to include all three" (Flow 9).
   TripBbox expandToInclude(Iterable<LatLon> points) {

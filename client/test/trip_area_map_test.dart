@@ -143,6 +143,19 @@ void main() {
     expect(proposed!.minLon, lessThan(proposed!.maxLon));
   });
 
+  testWidgets('a drag thinner than TripBbox.minSideM proposes nothing (#628)', (tester) async {
+    // At the harness's z9 one logical pixel is ~250 m here, so half a pixel
+    // of height is a ~125 m sliver: #628's 110 m × 6 m press, scaled.
+    var calls = 0;
+    await tester.pumpWidget(_harness(drawing: true, onProposeChange: (_) => calls++));
+    await _settleMap(tester);
+
+    await tester.dragFrom(const Offset(200, 150), const Offset(120, 0.5));
+    await _settleMap(tester);
+
+    expect(calls, 0);
+  });
+
   testWidgets('dragging while not in draw mode never proposes a new bbox', (tester) async {
     var calls = 0;
     await tester.pumpWidget(_harness(drawing: false, onProposeChange: (_) => calls++));

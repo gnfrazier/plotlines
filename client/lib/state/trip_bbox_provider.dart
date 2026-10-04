@@ -90,6 +90,17 @@ class TripRegionResolved extends TripRegionKeyState {
 
 /// `/regions` could not be reached or errored for the settled bbox. The
 /// error is carried for logging only — never rendered (issue #230 B3).
+/// Issue #628 — the trip area is below [TripBbox.minSideM] on a side, so no
+/// region is requested for it.
+class TripBboxTooSmall implements Exception {
+  const TripBboxTooSmall(this.bbox);
+  final TripBbox bbox;
+
+  @override
+  String toString() => 'The trip area is too small to route in. Draw an '
+      'area at least ${TripBbox.minSideM.round()} m on each side.';
+}
+
 class TripRegionFailed extends TripRegionKeyState {
   const TripRegionFailed(this.error);
   final Object error;
@@ -152,6 +163,14 @@ class TripRegionKeyNotifier extends StateNotifier<TripRegionKeyState> {
       return;
     }
 
+    // Issue #628 — a stored box from before the gesture refused degenerate
+    // draws must not POST: the sidecar would refuse it (422), and before that
+    // refusal it built a 1-node graph and spent an elevation call.
+    if (bbox.isDegenerate) {
+      state = TripRegionFailed(TripBboxTooSmall(bbox));
+      return;
+    }
+
     state = TripRegionSettling(bbox);
     _settleTimer = Timer(_settleWindow, () => _ensure(generation, bbox));
   }
@@ -187,7 +206,7 @@ class TripRegionKeyNotifier extends StateNotifier<TripRegionKeyState> {
   /// on the routing capability, not silently swallowed.
   void retry() {
     final bbox = _lastAccepted;
-    if (bbox == null) return;
+    if (bbox == null || bbox.isDegenerate) return;
     _settleTimer?.cancel();
     _ensure(++_generation, bbox, manual: true);
   }

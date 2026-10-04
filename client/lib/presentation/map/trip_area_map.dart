@@ -149,9 +149,12 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
       _drawStartGlobal = null;
       _drawCurrentGlobal = null;
     });
-    // A drag with no real extent (a tap, not a draw) proposes nothing.
+    // A drag with no real extent (a tap, not a draw) proposes nothing —
+    // nor does one shorter than `TripBbox.minSideM` on either side (#628).
     if (a[0] == b[0] || a[1] == b[1]) return;
-    widget.onProposeChange(TripBbox.fromCorners(a, b));
+    final proposed = TripBbox.fromCorners(a, b);
+    if (proposed.isDegenerate) return;
+    widget.onProposeChange(proposed);
   }
 
   int? _resizePointer;
@@ -187,7 +190,9 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
       _resizeCorner = null;
       _liveResize = null;
     });
-    if (result != null) widget.onProposeChange(result);
+    // A corner dragged onto its opposite edge would collapse the box (#628);
+    // the preview snaps back to the last accepted bbox instead.
+    if (result != null && !result.isDegenerate) widget.onProposeChange(result);
   }
 
   @override

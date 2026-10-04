@@ -206,4 +206,25 @@ void main() {
     final status = routingCapabilityForRegion(state, null);
     expect(status.reason, 'failed:the trip area could not be prepared for routing');
   });
+
+  test('a stored degenerate bbox never POSTs and fails with a sentence (#628)', () async {
+    final h = _harness();
+    addTearDown(h.container.dispose);
+
+    // A ~110 m × 6 m box restored from a trip saved before the gesture
+    // refused one.
+    h.bbox.set(TripBbox.fromCorners([-81.67098, 36.12753], [-81.66975, 36.12758]));
+    await _pump(_window * 3);
+
+    expect(h.client.callCount, 0);
+    final state = h.container.read(tripRegionKeyProvider);
+    expect(state, isA<TripRegionFailed>());
+    expect((state as TripRegionFailed).error, isA<TripBboxTooSmall>());
+    expect(state.error.toString(), contains('too small to route in'));
+
+    // Try again doesn't POST it either.
+    h.container.read(tripRegionKeyProvider.notifier).retry();
+    await _pump();
+    expect(h.client.callCount, 0);
+  });
 }
