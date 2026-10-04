@@ -225,9 +225,12 @@ def test_elevation_upstream_absent_leaves_the_default_untouched(tmp_path: Path) 
     reason="SPIKE-00 fixture graph not present in this checkout",
 )
 def test_unreachable_elevation_upstream_degrades_the_region_without_failing_it(
-    tmp_path: Path, caplog,
+    tmp_path: Path, caplog, monkeypatch,
 ) -> None:
     import shutil
+    import urllib.error
+
+    from plotlines_core.elevation import qa_proxy_client
 
     fixture = (Path(__file__).resolve().parents[2] / "spikes" / "SPIKE-00" / "fixtures"
               / "boulder_bike.graphml")
@@ -236,8 +239,18 @@ def test_unreachable_elevation_upstream_degrades_the_region_without_failing_it(
     dest.parent.mkdir(parents=True)
     shutil.copy(fixture, dest)
 
-    # example.invalid never resolves (RFC 2606) — a real, deterministic
-    # unreachable upstream, no network mocking needed.
+    # Issue #365: the upstream is unreachable at the transport, immediately.
+    # Pointing at example.invalid (RFC 2606) and letting it fail to resolve
+    # made the test's run time the resolver's business — a slow-failing
+    # lookup under full-suite load blew the wall-clock waits below — and in
+    # a sandbox with no resolver it is a real DNS call either way.
+    dialled: list[str] = []
+
+    def _unreachable(req, *args, **kwargs):
+        dialled.append(getattr(req, "full_url", str(req)))
+        raise urllib.error.URLError("unreachable (stubbed, issue #365)")
+
+    monkeypatch.setattr(qa_proxy_client.urllib.request, "urlopen", _unreachable)
     client = TestClient(
         create_app(tmp_path, elevation_upstream="http://example.invalid/dem")
     )
@@ -283,3 +296,6 @@ def test_unreachable_elevation_upstream_degrades_the_region_without_failing_it(
     assert resp.json()["elevation"] == {}
     assert any("UNAVAILABLE" in r.getMessage() for r in caplog.records), (
         "an unresolved elevation upstream must be logged, not silently absent")
+    # …and the miss really went through the proxy client's transport, not
+    # around it.
+    assert dialled and all(u.startswith("http://example.invalid/dem") for u in dialled)

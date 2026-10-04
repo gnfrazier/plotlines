@@ -283,6 +283,30 @@ def test_profile_over_a_partial_void_reports_the_real_climb(tmp_path):
     assert prof["max_m"] == pytest.approx(1600.0)
 
 
+def test_profile_carries_samples_index_aligned_with_the_route(tmp_path):
+    # Issue #627: the profile chart draws `samples`, and nothing produced
+    # them — every passage read "No elevation profile for this passage yet."
+    data = _ramp()
+    data[1, 1] = -9999.0
+    dem = _write_dem(tmp_path / "dem.tif", data, nodata=-9999.0)
+    s = ElevationSampler(dem)
+    route = [_centre(0, 0), _centre(1, 1), _centre(3, 3)]
+    prof = s.profile(route)
+    assert len(prof["samples"]) == len(route)
+    assert all(np.isfinite(prof["samples"]))
+    assert prof["samples"][0] == pytest.approx(100.0)
+    assert prof["samples"][-1] == pytest.approx(1600.0)
+    # the middle point sat on nodata and was interpolated, not read
+    assert prof["void_samples"] == 1
+
+
+def test_profile_with_no_voids_counts_none(tmp_path):
+    dem = _write_dem(tmp_path / "dem.tif", _ramp(), nodata=-9999.0)
+    prof = ElevationSampler(dem).profile([_centre(0, 0), _centre(1, 1)])
+    assert prof["void_samples"] == 0
+    assert len(prof["samples"]) == 2
+
+
 # --------------------------------------------------------------------------- #
 # FR88 — no network call inside a route solve                                 #
 # --------------------------------------------------------------------------- #
