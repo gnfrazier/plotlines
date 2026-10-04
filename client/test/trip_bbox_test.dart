@@ -138,6 +138,15 @@ void main() {
     expect(a.hashCode, b.hashCode);
   });
 
+  test('isLargeArea: above TripBbox.largeAreaKm2 (#630)', () {
+    const blacksburgLynchburg =
+        TripBbox(minLat: 36.981, minLon: -80.763, maxLat: 37.827, maxLon: -78.884);
+    expect(blacksburgLynchburg.widthKm * blacksburgLynchburg.heightKm, greaterThan(15000));
+    expect(blacksburgLynchburg.isLargeArea, isTrue);
+    const greensboro = TripBbox(minLat: 35.907, minLon: -79.941, maxLat: 36.235, maxLon: -79.366);
+    expect(greensboro.isLargeArea, isFalse);
+  });
+
   group('isDegenerate (#628)', () {
     test('the two near-zero boxes #628 caught are degenerate', () {
       // ~15 m × 1.4 km and ~110 m × 6 m.

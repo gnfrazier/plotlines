@@ -252,4 +252,28 @@ void main() {
     await _settleMap(tester);
     expect(find.textContaining('STEP'), findsNothing);
   });
+
+  for (final (label, existing, warned) in [
+    // #630's Blacksburg–Lynchburg box, ~15,700 km².
+    ('a large area warns', const TripBbox(minLat: 36.981, minLon: -80.763, maxLat: 37.827, maxLon: -78.884), true),
+    // Buncombe County, ~2,400 km².
+    ('a county does not', const TripBbox(minLat: 35.36, minLon: -82.83, maxLat: 35.79, maxLon: -82.14), false),
+  ]) {
+    testWidgets('extent readout: $label (#630)', (tester) async {
+      final router = _routerFor(
+        (context, state) => const TripAreaScreen(isCreation: true, initialCenter: [-80.0, 37.0]),
+        onReachedNewRoute: (_) {},
+      );
+      await tester.pumpWidget(_harness(
+        _containerFor(
+          overrides: [tripBboxProvider.overrideWith((ref) => TripBboxNotifier()..set(existing))],
+        ),
+        router: router,
+      ));
+      await _settleMap(tester);
+
+      expect(find.text('AREA'), findsOneWidget);
+      expect(find.textContaining('A large area.'), warned ? findsOneWidget : findsNothing);
+    });
+  }
 }
