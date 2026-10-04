@@ -24,6 +24,22 @@ import 'segment.dart';
 
 bool sameCoord(Coord a, Coord b) => a[0] == b[0] && a[1] == b[1];
 
+/// Issue #626 — a passage built from placed nodes: it has no start or end of
+/// its own, so its route-through points are the whole route, first to last.
+/// Placing a node on a route day with no passage creates one of these, and
+/// the Author orders the points from the rail's ROUTE THROUGH list.
+bool routesFromNodes(Segment segment) =>
+    segment.start == null && segment.end == null && segment.shape == 'point_to_point';
+
+/// What a solve of a node-built passage sends: its first route-through point
+/// as the start, its last as the end, and the ones between as via. Null when
+/// [segment] is not node-built or has fewer than two points to route between.
+({Coord start, Coord end, List<Coord> via})? nodeRouteSolveInputs(Segment segment) {
+  if (!routesFromNodes(segment) || segment.via.length < 2) return null;
+  final via = segment.via;
+  return (start: via.first, end: via.last, via: via.sublist(1, via.length - 1));
+}
+
 /// Does [node] route through — is its coordinate one of [segment]'s via points?
 bool nodeRoutesThrough(Segment segment, Node node) =>
     segment.via.any((v) => sameCoord(v, node.coord));

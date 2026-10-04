@@ -11,11 +11,17 @@ library;
 import 'package:flutter/material.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
+import '../../domain/travel_mode.dart';
+
 class NodePlacementBar extends StatelessWidget {
-  const NodePlacementBar({super.key, required this.onCancel});
+  const NodePlacementBar({super.key, required this.onCancel, this.startsPassageIn});
 
   /// Disarm placement. Nothing has reached the trip, so this costs nothing.
   final VoidCallback onCancel;
+
+  /// #626 — the travel mode of the passage this node will start, when the
+  /// day has none yet; null on a day that already has one.
+  final String? startsPassageIn;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +40,13 @@ class NodePlacementBar extends StatelessWidget {
               'Click the map to place a node. Esc or Cancel stops without placing one.',
               style: PlotTypography.body(c.textSecondary),
             ),
+            if (startsPassageIn != null) ...[
+              const SizedBox(height: PlotSpacing.s2),
+              Text(
+                'It starts this day\'s passage: ${travelModeLabel(startsPassageIn!)}.',
+                style: PlotTypography.small(c.textMuted),
+              ),
+            ],
             const SizedBox(height: PlotSpacing.s3),
             Wrap(
               alignment: WrapAlignment.end,

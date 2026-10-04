@@ -148,8 +148,9 @@ void main() {
   testWidgets('the action bar sits on its own plane, outside the scroll', (tester) async {
     await _pumpRail(tester, _segment());
     final scroll = find.descendant(of: find.byType(WeightsRail), matching: find.byType(SingleChildScrollView));
-    expect(find.descendant(of: scroll, matching: find.text('Regenerate')), findsNothing);
-    expect(find.text('Regenerate'), findsOneWidget);
+    // Never solved, so the action reads Generate (#626); same plane either way.
+    expect(find.descendant(of: scroll, matching: find.text('Generate')), findsNothing);
+    expect(find.text('Generate'), findsOneWidget);
   });
 
   testWidgets('the right rail leads with the passage; the trip folds to one row', (tester) async {

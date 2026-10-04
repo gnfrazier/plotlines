@@ -1373,6 +1373,29 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
         () => _saveSegmentNode(dayId, segmentId, node, routeThrough: routeThrough));
   }
 
+  /// Issue #626 (option B) — placing a node on a route day that has no
+  /// passage yet creates the passage with it, in one undoable edit: an empty
+  /// point-to-point passage in [mode], built from its nodes
+  /// ([routesFromNodes]), with [node] on it. The Author places the rest,
+  /// orders them, and generates the route between them.
+  void addNodeOnNewPassage(String dayId, String segmentId, String mode, Node node,
+      {required bool routeThrough}) {
+    // One state change, as `saveSegmentNode` is (#589): on a passage with no
+    // solve and no other node, its node/via write reduces to this.
+    _edit('Add a place', () {
+      final day = state.days.firstWhere((d) => d.id == dayId);
+      final passage = Segment(
+        id: segmentId,
+        mode: mode,
+        shape: 'point_to_point',
+        nodes: [node],
+        via: routeThrough ? [node.coord] : const [],
+      );
+      _replaceDay(day.copyWith(segments: [...day.segments, passage]));
+    });
+    _ref.read(selectedSegmentProvider.notifier).state = (dayId, segmentId);
+  }
+
   void _saveSegmentNode(String dayId, String segmentId, Node node, {required bool routeThrough}) {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segment = day.segments.firstWhere((s) => s.id == segmentId);
@@ -1839,9 +1862,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   }) async {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final old = day.segments.firstWhere((s) => s.id == segmentId);
+    // #626 — a passage built from placed nodes routes first point to last
+    // through the ones between. Its stored start/end stay empty and its via
+    // keeps every point, so each node still reads as routed through (D71).
+    final fromNodes = nodeRouteSolveInputs(old);
     final needsEnd = old.shape != 'loop';
-    if (old.start == null || (needsEnd && old.end == null)) {
-      throw StateError('segment $segmentId has no start/end to re-solve from');
+    if (fromNodes == null && (old.start == null || (needsEnd && old.end == null))) {
+      throw StateError(routesFromNodes(old)
+          ? 'segment $segmentId needs two route-through points to solve between'
+          : 'segment $segmentId has no start/end to re-solve from');
     }
     final client = _ref.read(routingClientProvider);
     final bbox = _ref.read(tripBboxProvider);
@@ -1854,9 +1883,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final weightsPayload = _solverWeights(weights, mode);
     final resolved = await client.generateSegment(
       region: region,
-      start: old.start!,
-      end: old.shape == 'loop' ? null : old.end!,
-      via: old.via,
+      start: fromNodes?.start ?? old.start!,
+      end: fromNodes?.end ?? (old.shape == 'loop' ? null : old.end!),
+      via: fromNodes?.via ?? old.via,
       mode: old.mode,
       // #315 — carry the passage's discipline through the re-solve. When the
       // Author has set explicit weight sliders (`weightsPayload` below) the
@@ -1923,9 +1952,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       discipline: merged.discipline,
       shape: merged.shape,
       title: merged.title,
-      start: merged.start,
-      end: merged.end,
-      via: merged.via,
+      start: fromNodes != null ? null : merged.start,
+      end: fromNodes != null ? null : merged.end,
+      via: fromNodes != null ? old.via : merged.via,
       targetDistance: merged.targetDistance,
       bands: merged.bands,
       violations: violations,
