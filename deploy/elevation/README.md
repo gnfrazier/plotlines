@@ -20,6 +20,7 @@ sidecar — but it answers on the mirror's fill contract (`mirror_fill.py`,
 |---|---|
 | a cached bbox | `200`, the GeoTIFF — as before |
 | a miss | `202 {"state": "fetching", "fill": {"fill_id", "retry_after_s", …}}` + `Retry-After`. The fetch runs on the fill worker, never inside the request. Poll `GET /fill/{fill_id}`; once it reads `ready`, `/dem` returns the raster. Concurrent misses for one bbox share one job and spend one call. |
+| a miss inside a cached raster (#629) | still `202 fetching`, but the fill worker **crops** the smallest cached DEM that covers the bbox, writes the crop under the bbox's own key, and spends **no call**. This also works when the allowance is spent. The full-state prewarm tiles therefore serve every trip inside them. A bbox that crosses a cached raster's edge still fetches. |
 | a miss with the allowance spent | still `202 fetching`, with `retry_after_s` pointing at the moment the ledger frees a call, and **no call spent**. A wait, never flat terrain presented as real (FR88). The job runs by itself once the budget resets. |
 | a fill that failed | `503` with the reason (`upstream_fetch_failed`, `enterprise_key_required`, `timeout`) and `Retry-After` — transient; a later request starts a fresh job. |
 

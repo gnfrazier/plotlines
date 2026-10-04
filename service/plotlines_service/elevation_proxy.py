@@ -48,12 +48,16 @@ from __future__ import annotations
 import argparse
 import hmac
 import logging
+import math
 import os
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 
+import rasterio
 import uvicorn
+from rasterio.windows import Window, from_bounds
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -76,6 +80,7 @@ from .mirror_fill import (
     FilledArea,
     FillFailed,
     FillPlan,
+    STAGING_PREFIX,
     FillWorker,
     add_fill_routes,
 )
@@ -91,6 +96,104 @@ log = logging.getLogger("plotlines.elevation_proxy")
 #: which, like every synchronous transport's, does not cover a stalled DNS
 #: lookup (#488).
 _DEM_FETCH_TIMEOUT_S = 150.0
+
+
+class CoveringRasters:
+    """Issue #629 — which cached DEM already covers a bbox.
+
+    The cache is keyed by exact bbox (`bbox_key`), so before this the full
+    North Carolina prewarm raster served no trip inside it: every new trip
+    bbox was a miss that spent one of the 50 daily calls. The bounds come
+    from each raster's own header (the key is a hash, not a bbox), read once
+    per file and re-read only when its mtime changes. A file rasterio can't
+    open — an OpenTopography error body saved as `.tif`, a staging file —
+    covers nothing."""
+
+    def __init__(self, cache_dir: Path) -> None:
+        self.cache_dir = Path(cache_dir)
+        self._lock = threading.Lock()
+        #: name -> (mtime_ns, (west, south, east, north, xres, yres) or None)
+        self._index: dict[str, tuple[int, tuple[float, ...] | None]] = {}
+
+    @staticmethod
+    def _read_bounds(path: Path) -> tuple[float, ...] | None:
+        try:
+            with rasterio.open(path) as ds:
+                if ds.crs is None or ds.crs.to_epsg() != 4326:
+                    return None
+                b = ds.bounds
+                xres, yres = ds.res
+                return (b.left, b.bottom, b.right, b.top, xres, yres)
+        except Exception:  # noqa: BLE001 — unreadable covers nothing
+            return None
+
+    def _refresh(self) -> None:
+        seen: set[str] = set()
+        for path in self.cache_dir.glob("*.tif"):
+            if path.name.startswith(STAGING_PREFIX):
+                continue
+            try:
+                mtime = path.stat().st_mtime_ns
+            except OSError:
+                continue
+            seen.add(path.name)
+            held = self._index.get(path.name)
+            if held is None or held[0] != mtime:
+                self._index[path.name] = (mtime, self._read_bounds(path))
+        for gone in set(self._index) - seen:
+            del self._index[gone]
+
+    def refresh(self) -> None:
+        with self._lock:
+            self._refresh()
+
+    def find(self, bbox: BBox, *, exclude: Path | None = None,
+             refresh: bool = True) -> Path | None:
+        """The smallest cached raster whose extent contains `bbox`, or None.
+        A raster may fall short of a requested edge by up to one pixel:
+        OpenTopography snaps a fetch's extent to its pixel grid.
+
+        `refresh=False` reads the index as it stands, with no disk I/O —
+        for `deferral`, which `FillWorker.request` calls on the request
+        thread under the worker's lock."""
+        west, south, east, north = bbox
+        best: tuple[float, Path] | None = None
+        with self._lock:
+            if refresh:
+                self._refresh()
+            entries = list(self._index.items())
+        for name, (_, b) in entries:
+            if b is None or (exclude is not None and name == exclude.name):
+                continue
+            left, bottom, right, top, xres, yres = b
+            if (left <= west + xres and bottom <= south + yres
+                    and right >= east - xres and top >= north - yres):
+                area = (right - left) * (top - bottom)
+                if best is None or area < best[0]:
+                    best = (area, self.cache_dir / name)
+        return best[1] if best else None
+
+
+def crop_raster(src: Path, bbox: BBox, dest: Path) -> None:
+    """Writes the window of `src` covering `bbox` to `dest`, rounded outward
+    to whole pixels so the crop covers the bbox, clamped to `src`. Same
+    dtype, CRS and nodata as the source."""
+    west, south, east, north = bbox
+    with rasterio.open(src) as ds:
+        win = from_bounds(west, south, east, north, transform=ds.transform)
+        col0 = max(0, math.floor(win.col_off))
+        row0 = max(0, math.floor(win.row_off))
+        col1 = min(ds.width, math.ceil(win.col_off + win.width))
+        row1 = min(ds.height, math.ceil(win.row_off + win.height))
+        window = Window(col0, row0, max(1, col1 - col0), max(1, row1 - row0))
+        data = ds.read(window=window)
+        profile = ds.profile.copy()
+        profile.update(driver="GTiff", width=window.width, height=window.height,
+                       transform=ds.window_transform(window), compress="deflate")
+        for k in ("blockxsize", "blockysize", "tiled"):
+            profile.pop(k, None)
+    with rasterio.open(dest, "w", **profile) as out:
+        out.write(data)
 
 
 class ElevationFiller:
@@ -110,6 +213,10 @@ class ElevationFiller:
         self.cache = cache
         self.client = client
         self._now = now
+        self.covering = CoveringRasters(cache.cache_dir)
+        # Index at startup, so `deferral`'s no-I/O lookup knows the prewarm
+        # rasters from the first request on; `fetch` refreshes it after.
+        self.covering.refresh()
 
     def plan(self, bbox: BBox, records) -> FillPlan:
         path = self.cache.reserve(bbox)
@@ -125,7 +232,10 @@ class ElevationFiller:
 
     def deferral(self, area: AreaPlan) -> tuple[float, str] | None:
         """FR87: the allowance is spent — the job waits for the ledger to
-        free a call, and the first answer already says how long."""
+        free a call, and the first answer already says how long. Not when a
+        cached raster covers the area (#629): that serves with no call."""
+        if self.covering.find(area.bbox, refresh=False) is not None:
+            return None
         try:
             self.client.authorize()
         except FreeTierExhausted:
@@ -137,6 +247,26 @@ class ElevationFiller:
         return None
 
     def fetch(self, area: AreaPlan, ctx) -> FilledArea:
+        if self.cache.get(area.bbox) is not None:  # landed meanwhile
+            return FilledArea(upstream="opentopography:cached")
+        covering = self.covering.find(area.bbox)
+        if covering is not None:
+            # Issue #629 — crop, written to this bbox's own key so the next
+            # request is an exact hit. Runs here, on the fill worker, not in
+            # `/dem`: a window read of a 907 MB striped raster reads every
+            # row the window crosses, seconds on the Pi.
+            staged = ctx.staging_path(area.path)
+            ctx.progress(None, "cropping a cached DEM that covers this area")
+            try:
+                crop_raster(covering, area.bbox, staged)
+            except Exception as exc:  # noqa: BLE001 — fall through to a fetch
+                staged.unlink(missing_ok=True)
+                log.warning("dem CROP FAILED bbox=%s from=%s: %s",
+                            area.bbox, covering.name, exc)
+            else:
+                ctx.publish(staged, area.path)
+                log.info("dem CROPPED bbox=%s from=%s", area.bbox, covering.name)
+                return FilledArea(upstream=f"cache-crop:{covering.stem}")
         try:
             self.client.authorize()
         except FreeTierExhausted:
@@ -145,8 +275,6 @@ class ElevationFiller:
                                      "waiting for it to free up") from None
         except EnterpriseKeyRequired as exc:
             raise FillFailed("enterprise_key_required", str(exc)) from None
-        if self.cache.get(area.bbox) is not None:  # landed meanwhile
-            return FilledArea(upstream="opentopography:cached")
         staged = ctx.staging_path(area.path)
         ctx.progress(None, "fetching the DEM from OpenTopography")
         try:

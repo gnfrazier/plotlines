@@ -259,3 +259,104 @@ def test_the_prewarm_script_follows_a_fill_to_the_raster(tmp_path: Path) -> None
         server.should_exit = True
         thread.join(5)
         app.state.fill_worker.shutdown()
+
+
+# ── Issue #629: a cached raster that covers the bbox serves a crop ──────────
+
+
+def _write_dem(path: Path, bbox: tuple[float, float, float, float], *, res: float = 0.01) -> None:
+    import numpy as np
+    import rasterio
+    from rasterio.transform import from_origin
+
+    west, south, east, north = bbox
+    width = round((east - west) / res)
+    height = round((north - south) / res)
+    data = (np.arange(width * height, dtype="float32").reshape(height, width))
+    with rasterio.open(
+        path, "w", driver="GTiff", width=width, height=height, count=1,
+        dtype="float32", crs="EPSG:4326", nodata=-9999.0,
+        transform=from_origin(west, north, res, res),
+    ) as ds:
+        ds.write(data, 1)
+
+
+def _prewarm(tmp_path: Path, bbox) -> Path:
+    from plotlines_core.cache_layout import CacheLayout
+    from plotlines_core.elevation.interface import LocalCacheSource
+
+    layout = CacheLayout(tmp_path).ensure_dirs()
+    path = LocalCacheSource(layout.elevation_dir).reserve(bbox)
+    _write_dem(path, bbox)
+    return path
+
+
+_STATE = (-84.32, 33.75, -75.40, 36.59)  # the Pi's full-NC prewarm tile
+_INSIDE = {"west": -81.70, "south": 36.11, "east": -81.62, "north": 36.16}
+
+
+def test_a_bbox_inside_a_cached_raster_is_served_a_crop_with_no_call(tmp_path: Path) -> None:
+    import rasterio
+
+    source = _prewarm(tmp_path, _STATE)
+    tc, opener, app = _client(tmp_path)
+    try:
+        r1 = tc.get("/dem", params=_INSIDE)
+        assert r1.status_code == 202  # the crop runs on the fill worker
+        done = _settle(tc, r1.json()["fill"]["fill_id"])
+        assert done["state"] == "ready"
+
+        r2 = tc.get("/dem", params=_INSIDE)
+        assert r2.status_code == 200
+        assert opener.calls == 0, "a covered bbox must never spend a call"
+
+        out = tmp_path / "crop.tif"
+        out.write_bytes(r2.content)
+        with rasterio.open(out) as crop, rasterio.open(source) as src:
+            b = crop.bounds
+            assert b.left <= _INSIDE["west"] and b.right >= _INSIDE["east"]
+            assert b.bottom <= _INSIDE["south"] and b.top >= _INSIDE["north"]
+            # Much smaller than the state tile, and the same values.
+            assert crop.width * crop.height < src.width * src.height / 1000
+            r, c = src.index(b.left + 0.005, b.top - 0.005)
+            assert crop.read(1)[0, 0] == src.read(1)[r, c]
+    finally:
+        app.state.fill_worker.shutdown()
+
+
+def test_a_covered_bbox_is_served_even_with_the_allowance_spent(tmp_path: Path) -> None:
+    _prewarm(tmp_path, _STATE)
+    tc, opener, app = _client(tmp_path, ceiling=0)
+    try:
+        r1 = tc.get("/dem", params=_INSIDE)
+        assert _settle(tc, r1.json()["fill"]["fill_id"])["state"] == "ready"
+        assert tc.get("/dem", params=_INSIDE).status_code == 200
+        assert opener.calls == 0
+    finally:
+        app.state.fill_worker.shutdown()
+
+
+def test_a_bbox_crossing_the_cached_edge_still_fetches(tmp_path: Path) -> None:
+    _prewarm(tmp_path, _STATE)
+    tc, opener, app = _client(tmp_path)
+    try:
+        crossing = {"west": -75.50, "south": 36.50, "east": -75.30, "north": 36.70}
+        r1 = tc.get("/dem", params=crossing)
+        assert _settle(tc, r1.json()["fill"]["fill_id"])["state"] == "ready"
+        assert opener.calls == 1
+    finally:
+        app.state.fill_worker.shutdown()
+
+
+def test_an_unreadable_cached_file_covers_nothing(tmp_path: Path) -> None:
+    from plotlines_service.elevation_proxy import CoveringRasters
+
+    tc, opener, app = _client(tmp_path)  # creates the cache layout
+    try:
+        r1 = tc.get("/dem", params=_P1)  # the fake opener's body is not a GeoTIFF
+        _settle(tc, r1.json()["fill"]["fill_id"])
+        from plotlines_core.cache_layout import CacheLayout
+        covering = CoveringRasters(CacheLayout(tmp_path).elevation_dir)
+        assert covering.find((11.0, 47.0, 12.0, 48.0)) is None
+    finally:
+        app.state.fill_worker.shutdown()
