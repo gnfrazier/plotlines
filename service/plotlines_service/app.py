@@ -3062,6 +3062,11 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         `GET /health`'s `capabilities.routing.regions[key]` for progress.
         """
         bbox = tuple(req.bbox)
+        # Issue #628 — a near-zero bbox is a press, not a trip area. Refused
+        # here, before a clip, a 1-node graph, and a spent elevation call.
+        reason = region_lib.degenerate_bbox_reason(bbox)
+        if reason is not None:
+            raise HTTPException(status_code=422, detail=reason)
         key = state.ensure_region(bbox, req.network_type, manual=req.retry)
         return {"region": key}
 
