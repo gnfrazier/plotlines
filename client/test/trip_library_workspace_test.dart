@@ -1,9 +1,11 @@
 // G2 (PRD FR74 / FR76) — the portfolio workspace built on top of G2a's floor:
 // cards carry distance / elevation / day count / group size and a sync badge,
 // the collection filters by mode and by duration, and each card has an
-// actions menu (Edit route / Manage roster & preferences / Export backup /
+// actions menu (Edit route / Manage roster & preferences /
 // Clone). Seeds real rows so the grid renders rather than the cold-start map.
 library;
+
+import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:plotlines_client/data/app_database.dart';
+import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_client/presentation/screens/trip_library_screen.dart';
@@ -36,7 +39,11 @@ Widget _harness(AppDatabase db, {Override? unit}) {
     initialLocation: '/',
     routes: [
       GoRoute(path: '/', builder: (_, _) => const TripLibraryScreen()),
-      GoRoute(path: '/plan', builder: (_, _) => const Scaffold(body: Text('PLAN'))),
+      GoRoute(
+        path: '/plan',
+        builder: (_, state) =>
+            Scaffold(body: Text('PLAN ${state.uri.queryParameters['tab'] ?? ''}'.trim())),
+      ),
       GoRoute(path: '/settings', builder: (_, _) => const Scaffold(body: Text('SETTINGS'))),
     ],
   );
@@ -56,7 +63,14 @@ Future<AppDatabase> _seed() async {
     id: 'ride',
     title: 'Pisgah Gravel Loop',
     modes: const ['cycling'],
-    payloadJson: '{}',
+    // A payload that opens, so a card action can reach the shell (#658).
+    payloadJson: jsonEncode(Trip(
+      id: 'ride',
+      title: 'Pisgah Gravel Loop',
+      createdAt: '2026-08-27T00:00:00Z',
+      updatedAt: '2026-08-27T00:00:00Z',
+      modes: const {'cycling'},
+    ).toJson()),
     summaryJson: '{"distance_m":58000,"ascent_m":1200,"day_count":1,"group_size":4}',
     updatedAt: DateTime.utc(2026, 8, 27),
   );
@@ -170,7 +184,8 @@ void main() {
 
     expect(find.text('Edit route'), findsOneWidget);
     expect(find.text('Manage roster & preferences'), findsOneWidget);
-    expect(find.text('Export backup'), findsOneWidget);
+    // #658 — a trip archive is L3 (#127); offered with nothing behind it.
+    expect(find.text('Export backup'), findsNothing);
     expect(find.text('Clone…'), findsOneWidget);
     expect(find.text('Delete…'), findsOneWidget);
 
@@ -203,4 +218,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(ink('CYCLING'), c.onSelectedControl);
   });
+
+  // Issue #658 — every card action used to open ROUTE.
+  for (final (label, tab) in const [
+    ('Edit route', 'route'),
+    ('Manage roster & preferences', 'roster'),
+  ]) {
+    testWidgets('$label opens the shell on ${tab.toUpperCase()}', (tester) async {
+      final db = await _seed();
+      addTearDown(db.close);
+      await tester.pumpWidget(_harness(db));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+
+      expect(find.text('PLAN $tab'), findsOneWidget);
+    });
+  }
 }

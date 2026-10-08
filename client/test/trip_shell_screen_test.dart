@@ -283,4 +283,44 @@ void main() {
     expect(find.text('Add segment'), findsOneWidget); // still on LOGISTICS
     expect(tester.takeException(), isNull);
   });
+
+  // Issue #658 — the library card's *Manage roster & preferences* opens the
+  // shell on ROSTER (`/plan?tab=roster`); it used to land on ROUTE like
+  // every other action on the card.
+  testWidgets('the shell opens on the tab it is asked for', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+          appDatabaseProvider
+              .overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
+          currentTripProvider.overrideWith((ref) => CurrentTripNotifier(ref)..open(_fixtureTrip())),
+        ],
+        child: const MaterialApp(home: TripShellScreen(initialTab: 'roster')),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('PROFILE & PERMISSIONS REQUEST'), findsOneWidget);
+    expect(find.byKey(const ValueKey('rail-task-tune')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an unknown tab name opens on ROUTE', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
+          appDatabaseProvider
+              .overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
+          currentTripProvider.overrideWith((ref) => CurrentTripNotifier(ref)..open(_fixtureTrip())),
+          selectedSegmentProvider.overrideWith((ref) => ('day-1', 'seg-1')),
+        ],
+        child: const MaterialApp(home: TripShellScreen(initialTab: 'nope')),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('rail-task-tune')), findsOneWidget);
+  });
 }

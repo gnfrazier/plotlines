@@ -6,11 +6,13 @@
 // surface on top: cards carry distance / elevation / day count / variant
 // count / group size and a sync-status badge (FR76); the collection filters
 // by mode and by duration; and every card has an actions menu — Edit route,
-// Manage roster & preferences, Export backup, Clone. G2b (#73) is the Clone
+// Manage roster & preferences, Clone, Delete. G2b (#73) is the Clone
 // action's scope picker (`clone_scope_dialog.dart`) and the four copy scopes
 // behind it (`domain/clone.dart`).
 //
-// Named travel circles (FR143) are Later and not built here.
+// Named travel circles (FR143) are Later and not built here. Nor is *Export
+// backup*: a trip archive is L3 (#127) and restoring one L4 (#128), and the
+// menu offered it with nothing behind it until #658 took it out.
 //
 // Also owns A10's cold-start map (PRD FR96, Author Flows MVP §Flow 1): with
 // no trips yet, this screen shows the shipped Buncombe County home region
@@ -462,7 +464,7 @@ class _TripCollection extends ConsumerWidget {
 
 /// FR74's per-card actions, plus G2a's delete (kept from the long-press it
 /// used to live behind).
-enum _CardAction { editRoute, manageRoster, exportBackup, clone, delete }
+enum _CardAction { editRoute, manageRoster, clone, delete }
 
 class _TripCard extends ConsumerWidget {
   const _TripCard({required this.trip});
@@ -488,7 +490,6 @@ class _TripCard extends ConsumerWidget {
             PopupMenuItem(value: _CardAction.editRoute, child: Text('Edit route')),
             PopupMenuItem(
                 value: _CardAction.manageRoster, child: Text('Manage roster & preferences')),
-            PopupMenuItem(value: _CardAction.exportBackup, child: Text('Export backup')),
             PopupMenuItem(value: _CardAction.clone, child: Text('Clone…')),
             PopupMenuDivider(),
             PopupMenuItem(value: _CardAction.delete, child: Text('Delete…')),
@@ -525,7 +526,9 @@ class _TripCard extends ConsumerWidget {
     return out;
   }
 
-  Future<void> _open(BuildContext context, WidgetRef ref) async {
+  /// Opens the trip in the shell, on [tab] (one of `tripShellTabs`) when
+  /// given.
+  Future<void> _open(BuildContext context, WidgetRef ref, {String? tab}) async {
     try {
       await ref.read(tripPersistenceProvider).open(trip.id);
     } catch (err, stack) {
@@ -543,17 +546,16 @@ class _TripCard extends ConsumerWidget {
       );
       return;
     }
-    if (context.mounted) context.push('/plan');
+    if (context.mounted) context.push(tab == null ? '/plan' : '/plan?tab=$tab');
   }
 
   Future<void> _onAction(BuildContext context, WidgetRef ref, _CardAction action) async {
     switch (action) {
-      // Edit route / Manage roster / Export backup all land in the trip
-      // shell today; deep-linking to a specific tab is a later refinement.
+      // #658 — each action opens the tab it names.
       case _CardAction.editRoute:
+        await _open(context, ref, tab: 'route');
       case _CardAction.manageRoster:
-      case _CardAction.exportBackup:
-        await _open(context, ref);
+        await _open(context, ref, tab: 'roster');
       case _CardAction.clone:
         await _clone(context, ref);
       case _CardAction.delete:
