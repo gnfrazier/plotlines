@@ -30,6 +30,7 @@ import osmnx as ox
 import pytest
 from fastapi.testclient import TestClient
 
+from plotlines_core.cache_areas import AreaIndex, pad_bbox
 from plotlines_core.graph import regions as region_lib
 from plotlines_service.app import Readiness, create_app
 
@@ -66,6 +67,10 @@ def _fake_ensure_graph_offline_except_for(*ready_bboxes: tuple[float, float, flo
     endpoint are unreachable" — for anything else. Mirrors the real
     function's contract (writes `graph.graph_path`, records `source.json`,
     returns the path) without touching the network."""
+    # Since epic #641 a build asks for its trip's padded area (D73), so a
+    # "ready" bbox answers for its padded area too.
+    ready_bboxes = set(ready_bboxes) | {pad_bbox(b) for b in ready_bboxes}
+
     def fake(region, cache_dir, **_kwargs):
         if region.bbox in ready_bboxes:
             path = region.graph_path(cache_dir)
@@ -159,6 +164,14 @@ def test_find_held_supergraph_ignores_a_region_still_building(tmp_path, monkeypa
     assert state.find_held_supergraph(_SHRUNK_BBOX, "bike") is None
 
 
+def _unindex_held_areas(state: Readiness, tmp_path) -> None:
+    """Since epic #641 (D73) a shrink inside an *indexed* held area is a
+    plain hit, not provisional. These tests are about the fallback D73 keeps
+    for a held region the index does not cover, so they hand the next
+    region an empty index."""
+    state.areas = AreaIndex(tmp_path / "empty-index")
+
+
 # ── RegionState.build — the offline shrink fallback itself ─────────────────
 
 
@@ -167,6 +180,7 @@ def test_a_shrink_offline_is_served_provisionally_from_the_held_graph(tmp_path, 
                         _fake_ensure_graph_offline_except_for(_WIDE_BBOX))
     state = Readiness(tmp_path, tmp_path / "home.pmtiles")
     _ready_region(state, _WIDE_BBOX)
+    _unindex_held_areas(state, tmp_path)
 
     shrunk_key = state.ensure_region(_SHRUNK_BBOX, "bike")
     state._build_pool.shutdown(wait=True)
@@ -183,6 +197,29 @@ def test_a_shrink_offline_is_served_provisionally_from_the_held_graph(tmp_path, 
     assert "reconnected" in cap["reason"]
 
 
+def test_a_shrink_inside_an_indexed_held_area_is_plain_ready_with_no_build(
+        tmp_path, monkeypatch):
+    """Epic #641 (D73) — truncation from a held area is the normal path,
+    online or off: no graph build, no `provisional` caveat, and the trip's
+    graph is the held one cut to the trip's padded extent."""
+    fake = _fake_ensure_graph_offline_except_for(_WIDE_BBOX)
+    calls = []
+    monkeypatch.setattr(region_lib, "ensure_graph",
+                        lambda region, cache_dir: calls.append(region.bbox) or fake(region, cache_dir))
+    state = Readiness(tmp_path, tmp_path / "home.pmtiles")
+    _ready_region(state, _WIDE_BBOX)
+    calls.clear()
+
+    shrunk_key = state.ensure_region(_SHRUNK_BBOX, "bike")
+    state._build_pool.shutdown(wait=True)
+
+    shrunk = state.regions[shrunk_key]
+    assert calls == []
+    assert shrunk.graph_state.status == "ready"
+    assert "provisional" not in shrunk.routing_capability()
+    assert shrunk.graph.node_count == 3
+
+
 def test_a_shrink_offline_clears_the_requeue_cooldown_ledger(tmp_path, monkeypatch):
     """Issue #432 — a provisional build is a success, not a failure: the next
     `ensure_region` for this bbox must not be throttled by #247's post-
@@ -191,6 +228,7 @@ def test_a_shrink_offline_clears_the_requeue_cooldown_ledger(tmp_path, monkeypat
                         _fake_ensure_graph_offline_except_for(_WIDE_BBOX))
     state = Readiness(tmp_path, tmp_path / "home.pmtiles")
     _ready_region(state, _WIDE_BBOX)
+    _unindex_held_areas(state, tmp_path)
     shrunk_key = state.ensure_region(_SHRUNK_BBOX, "bike")
     state._build_pool.shutdown(wait=True)
 
@@ -207,6 +245,7 @@ def test_reconnection_replaces_the_provisional_graph_with_a_real_rebuild(tmp_pat
     monkeypatch.setattr(region_lib, "ensure_graph", fake)
     state = Readiness(tmp_path, tmp_path / "home.pmtiles")
     _ready_region(state, _WIDE_BBOX)
+    _unindex_held_areas(state, tmp_path)
     shrunk_key = state.ensure_region(_SHRUNK_BBOX, "bike")
     state._build_pool.shutdown(wait=True)
     assert state.regions[shrunk_key].graph_state.status == "provisional"
@@ -286,6 +325,7 @@ def test_health_reports_provisional_distinctly_from_ready(tmp_path, monkeypatch)
         raise AssertionError("region never settled")
 
     _wait_ready(_WIDE_BBOX)
+    _unindex_held_areas(client.app.state.readiness, tmp_path)
     shrunk_key = _wait_ready(_SHRUNK_BBOX)
 
     entry = client.get("/health").json()["capabilities"]["routing"]["regions"][shrunk_key]
@@ -317,6 +357,7 @@ def test_routing_still_works_against_a_provisional_region(tmp_path, monkeypatch)
         raise AssertionError("region never settled")
 
     _wait_settled(_WIDE_BBOX)
+    _unindex_held_areas(client.app.state.readiness, tmp_path)
     shrunk_key = _wait_settled(_SHRUNK_BBOX)
 
     resp = client.post("/segments/generate", json={

@@ -631,7 +631,10 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     // Issue #432 — a provisional capability is `ready` (the
                     // control below stays enabled) but still earns the
                     // notice: "visibly distinct from ready" per ARCH D62.
-                    if (!_routingCapability.ready || _routingCapability.provisional) ...[
+                    // Epic #641 — so does one refreshing its held data.
+                    if (!_routingCapability.ready ||
+                        _routingCapability.provisional ||
+                        _routingCapability.refreshing) ...[
                       const SizedBox(height: PlotSpacing.s5),
                       _SectionLabel('ROUTING'),
                       CapabilityWarmingNotice(

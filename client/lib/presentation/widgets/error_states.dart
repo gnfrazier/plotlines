@@ -229,6 +229,22 @@ class CapabilityWarmingNotice extends StatelessWidget {
     // but not the final answer: its own quiet one-liner, distinct from both
     // "still warming" and a settled failure, using the sidecar's own
     // finished sentence naming the truncation and the pending real rebuild.
+    // Epic #641 (story #649) — ready on held data while a fresh copy
+    // downloads: the same quiet one-liner, its own key, nothing to retry.
+    if (status.ready && status.refreshing && !status.provisional) {
+      return Row(
+        key: const ValueKey('capability-refreshing'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.sync, size: 15, color: c.textMuted),
+          const SizedBox(width: PlotSpacing.s2),
+          Flexible(
+            child: Text(status.describe(capabilityLabel),
+                style: PlotTypography.small(c.textSecondary)),
+          ),
+        ],
+      );
+    }
     if (status.ready && status.provisional) {
       return Row(
         mainAxisSize: MainAxisSize.min,

@@ -16,6 +16,7 @@ import 'presentation/screens/trip_shell_screen.dart';
 import 'presentation/widgets/desktop_window_frame.dart';
 import 'presentation/widgets/sidecar_gate.dart';
 import 'presentation/widgets/trip_location_prompt.dart';
+import 'state/cache_references_sync.dart';
 import 'state/providers.dart';
 import 'state/settings_provider.dart';
 
@@ -117,6 +118,8 @@ class _PlotlinesAppState extends ConsumerState<PlotlinesApp> {
       await manager.sweepOrphans();
       await manager.start();
     });
+    // Epic #641 — keep the sidecar told which map areas live trips need.
+    ref.read(cacheReferencesSyncProvider);
     // A desktop window close routes through here first. Stop the sidecar
     // gracefully before the process exits, so the Windows CTRL_BREAK stop
     // path (ARCH §7.3) actually runs in production — `ref.onDispose` never

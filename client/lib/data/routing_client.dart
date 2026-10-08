@@ -46,6 +46,9 @@ class RoutingClient {
   static Duration cuesForTimeout = const Duration(seconds: 15);
   static Duration composeDayTimeout = const Duration(seconds: 15);
   static Duration assembleTripTimeout = const Duration(seconds: 15);
+  // Epic #641 — answered from the sidecar's memory; its disk work runs on
+  // its own pool afterwards.
+  static Duration cacheReferencesTimeout = const Duration(seconds: 8);
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
@@ -132,6 +135,28 @@ class RoutingClient {
     }
     _checkOk(resp);
     return (jsonDecode(resp.body) as Map<String, dynamic>)['region'] as String;
+  }
+
+  /// Epic #641 (ARCH D73, story #647) — `PUT /cache/references`: the full
+  /// set of live trips' stored bboxes, `[west, south, east, north]` each, so
+  /// the sidecar keeps the held areas they need and ages out the rest. Only
+  /// bboxes travel — no trip id, no title.
+  Future<void> putCacheReferences(List<List<double>> bboxesWsen) async {
+    final http.Response resp;
+    try {
+      resp = await http
+          .put(
+            _uri('/cache/references'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'bboxes': bboxesWsen}),
+          )
+          .timeout(cacheReferencesTimeout);
+    } on TimeoutException {
+      _timedOut('noting which map areas your trips use');
+    } on http.ClientException {
+      _unreachable('noting which map areas your trips use');
+    }
+    _checkOk(resp);
   }
 
   Map<String, dynamic> _latLon(Coord c) => {'lat': c[1], 'lon': c[0]};

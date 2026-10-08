@@ -44,11 +44,19 @@ bbox alone, and :meth:`CacheLayout.osm_extract` takes the pin as a second
 argument instead of folding it into the hash. That makes a stale pin a
 visible sibling directory rather than an invisible overwrite, and turns a
 pin bump into a directory removal (:meth:`CacheLayout.sweep_stale_extracts`)
-rather than a file-by-file diff. Retention is **not** left unbounded and
-accepted: one extract per bbox per pin is the largest payload in this cache
-and grows without bound across trips and monthly pin bumps, so whoever owns
-the Phase 3 pin bump calls :meth:`CacheLayout.sweep_stale_extracts` with the
-new pin once its extracts are in place.
+rather than a file-by-file diff.
+
+**Retention (ARCH D73, epic #641).** These paths are keyed on a *held
+area's* bbox, which is the trip bbox padded on the first fetch
+(``cache_areas.pad_bbox``). ``cache_areas.AreaIndex`` records each area's
+payloads with their fetch time and pin, and is what every reader asks
+first, so a trip inside a held area reuses its files rather than writing
+new ones. Its prune pass deletes a payload once no live trip's bbox lies
+inside the area and the payload is past its own TTL. It keeps a live
+trip's payloads however old (they refresh in the background on open), and
+it sweeps a pin directory once nothing indexed is left in it
+(:meth:`CacheLayout.sweep_stale_extracts`). So retention is bounded by the
+areas live trips need plus a TTL's worth of everything else.
 
 "On demand" is a property of the *callers*, not of this module: nothing here
 is written until a cache miss makes a pipeline produce it. This module just
@@ -207,17 +215,19 @@ class CacheLayout:
             d.mkdir(parents=True, exist_ok=True)
         return self
 
-    def sweep_stale_extracts(self, current_pin: str) -> list[Path]:
-        """Remove every extract pin directory other than `current_pin`.
+    def sweep_stale_extracts(self, current_pin: str | None, *,
+                             keep_pins: "set[str] | frozenset[str]" = frozenset(),
+                             only_empty: bool = False) -> list[Path]:
+        """Remove every extract pin directory other than `current_pin` and
+        those in `keep_pins`.
 
-        One clipped extract per bbox per pin is the largest payload this
-        cache holds, and grows without bound across trips and monthly pin
-        bumps unless something sweeps it (see this module's docstring). A
-        pin bump is a directory removal because the pin is a path level
-        above the key (:meth:`osm_extract`), never inside it. The Phase 3
-        pin-bump job — mirroring `deploy/mirror/geofabrik_pull.py`'s own
-        monthly cadence — calls this with the *new* pin once its extracts
-        are in place.
+        A pin bump is a directory removal because the pin is a path level
+        above the key (:meth:`osm_extract`), never inside it. The held-area
+        prune (``cache_areas.AreaIndex.prune``, ARCH D73) calls this with
+        ``current_pin=None``, every pin an indexed extract still uses in
+        `keep_pins`, and ``only_empty=True``. A superseded pin's directory
+        therefore goes once a refresh has replaced its last extract, and an
+        area not yet refreshed keeps the extract its graph was built from.
 
         Returns the removed pin directories, sorted by name. A missing
         `extracts_dir` is not an error — there is nothing to sweep yet.
@@ -226,7 +236,10 @@ class CacheLayout:
             return []
         removed = []
         for child in sorted(self.extracts_dir.iterdir()):
-            if child.is_dir() and child.name != current_pin:
-                shutil.rmtree(child)
-                removed.append(child)
+            if not child.is_dir() or child.name == current_pin or child.name in keep_pins:
+                continue
+            if only_empty and any(p.name.endswith(".osm.pbf") for p in child.iterdir()):
+                continue
+            shutil.rmtree(child)
+            removed.append(child)
         return removed

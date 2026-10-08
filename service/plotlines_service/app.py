@@ -34,6 +34,7 @@ import osmnx as ox
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field, field_validator
 
+from plotlines_core import cache_areas
 from plotlines_core.cache_layout import CacheLayout
 from plotlines_core.curation.attribution import (
     MissingAttributionError, attributions_for,
@@ -59,6 +60,7 @@ from plotlines_core.curation.registry import build_default_registry
 from plotlines_core.elevation.enrich import enrich_elevation
 from plotlines_core.elevation.interface import (
     ElevationResolver,
+    OPENTOPO_BASE_URL,
     ElevationUnavailable,
     Fetcher,
     HttpElevationSource,
@@ -1307,6 +1309,23 @@ class RegionState:
         #: worker is still finishing tiles/elevation" was indistinguishable
         #: from "done" on `/health`.
         self.build_in_progress = False
+        #: Epic #641 (ARCH D73) — the held-area index this region resolves
+        #: its payloads through (`Readiness` sets its own; a direct build
+        #: uses the cache root's), the area its graph came from, and the
+        #: `graph_region` whose `source.json` names that graph's pin.
+        self.areas: cache_areas.AreaIndex | None = None
+        self.area_bbox: tuple[float, float, float, float] | None = None
+        self.graph_region: region_lib.Region | None = None
+        #: Epic #641 (story #649) — which of this region's held payloads a
+        #: background refresh is replacing right now (`"osm"`, `"basemap"`,
+        #: `"elevation"`). Additive on `/health` (`refreshing: true`) and
+        #: never folded into plain ready.
+        self.refreshing: set[str] = set()
+
+    def area_index(self, cache_dir: Path) -> cache_areas.AreaIndex:
+        if self.areas is None:
+            self.areas = cache_areas.AreaIndex.for_root(cache_dir)
+        return self.areas
 
     @property
     def routing_ready(self) -> bool:
@@ -1334,6 +1353,10 @@ class RegionState:
         # than reading identical to a fully finished build.
         if self.graph_state.ready and self.build_in_progress:
             d["finishing"] = True
+        # Epic #641 (story #649) — ready on held data while a background
+        # refresh replaces it. Additive and only while set.
+        if self.graph_state.ready and "osm" in self.refreshing:
+            d["refreshing"] = True
         return d
 
     def elevation_capability(self) -> dict:
@@ -1348,7 +1371,10 @@ class RegionState:
                     "progress": 0.0}
         if st.status == "loading":
             return {"ready": False, "reason": st.detail, "progress": 0.0}
-        return st.to_dict()
+        d = st.to_dict()
+        if d.get("ready") and "elevation" in self.refreshing:
+            d["refreshing"] = True
+        return d
 
     def tiles_capability(self) -> dict:
         """`capabilities.tiles.regions[key]` — issue #521. Additive: a
@@ -1361,7 +1387,8 @@ class RegionState:
                 fill_id=answer.fill_id, retry_after_s=waiting, progress=answer.progress,
                 since=None) | {"cells": [list(c) for c, _ in self.tiles_fill]}
         if self.tiles_archive is not None:
-            return {"ready": True}
+            return ({"ready": True, "refreshing": True} if "basemap" in self.refreshing
+                    else {"ready": True})
         if self.tiles_error:
             return {"ready": False, "reason": f"failed:{self.tiles_error}"}
         return {"ready": False, "reason": "pending"}
@@ -1378,7 +1405,12 @@ class RegionState:
             return True
         path = CacheLayout(cache_dir).tile_archive(self.bbox)
         if not path.exists():
-            return False
+            # Epic #641 (D73) — a held area's archive answers every address
+            # inside this bbox; an in-memory lookup, then the same local open.
+            hit = self.area_index(cache_dir).resolve(self.bbox, cache_areas.PAYLOAD_BASEMAP)
+            if hit is None or not hit.path.exists():
+                return False
+            path = hit.path
         try:
             self.tiles_archive = Archive(path)
         except Exception as exc:  # noqa: BLE001 — the build's own tiles phase decides
@@ -1559,18 +1591,65 @@ class RegionState:
         # (--mirror-clip-url, which the desktop client always passes); unset,
         # this is skipped outright, never left half-started (FR120/D41/D57: no
         # eager, unconfigured download).
-        if mirror_clip_url:
+        #
+        # Epic #641 (ARCH D73) — first ask the held-area index. A graph held
+        # for an area covering this bbox serves it with no download; else an
+        # extract held for one does; else a new, padded area is fetched so
+        # the next trip nearby lands inside it. Pre-epic files keyed on this
+        # exact bbox are adopted first (migration is adoption). Local stats
+        # and an in-memory lookup — no network, never a request thread.
+        areas = self.area_index(cache_dir)
+        graph_payload = cache_areas.graph_payload(self.network_type)
+        try:
+            areas.adopt_exact(self.bbox)
+        except Exception:  # noqa: BLE001 — adoption is an optimisation, never a failure
+            log.warning("region areas: adopting pre-epic files failed key=%s", self.key,
+                        exc_info=True)
+        graph_hit = areas.resolve(self.bbox, graph_payload)
+        if graph_hit is not None and not graph_hit.path.exists():
+            areas.forget(graph_hit.area_bbox, graph_payload)
+            graph_hit = None
+        extract_hit = areas.resolve(self.bbox, cache_areas.PAYLOAD_EXTRACT)
+        if extract_hit is not None and not extract_hit.path.exists():
+            areas.forget(extract_hit.area_bbox, cache_areas.PAYLOAD_EXTRACT)
+            extract_hit = None
+        if graph_hit is not None:
+            area_bbox = graph_hit.area_bbox
+        elif extract_hit is not None and not extract_hit.stale:
+            area_bbox = extract_hit.area_bbox
+        else:
+            area_bbox = areas.reserve(self.bbox)
+        self.area_bbox = area_bbox
+        held_extract = (extract_hit is not None and graph_hit is not None
+                        and cache_areas.bbox_contains(extract_hit.area_bbox, area_bbox))
+        log.info("region areas key=%s bbox=%s area=%s graph_held=%s extract_held=%s",
+                 self.key, self.bbox, list(area_bbox), graph_hit is not None,
+                 extract_hit is not None)
+
+        if mirror_clip_url and held_extract:
+            # Everything this build needs is on disk: no `/clip` request.
+            size = extract_hit.path.stat().st_size
+            self.extract_state.status = "ready"
+            self.extract_state.detail = "reused held area"
+            self.extract_state.reused = True
+            self.extract_state.bytes_downloaded = size
+            self.extract_state.total_bytes = size
+        elif mirror_clip_url:
             try:
-                _run_build_phase(
+                extract_path = _run_build_phase(
                     build_phase_pools.extract, _EXTRACT_PHASE_TIMEOUT_S,
                     lambda: extract_fetch.ensure_extract(
-                        self.bbox, mirror_url=mirror_clip_url, cache_dir=cache_dir,
+                        area_bbox, mirror_url=mirror_clip_url, cache_dir=cache_dir,
                         client_key=mirror_clip_client_key, progress=self.extract_state,
-                        version=VERSION,
+                        version=VERSION, areas=areas,
                     ),
                 )
-                log.info("region extract OK key=%s bbox=%s reused=%s",
-                         self.key, self.bbox, self.extract_state.reused)
+                if (extract_path is not None and Path(extract_path).is_file()
+                        and not areas.holds(area_bbox, cache_areas.PAYLOAD_EXTRACT)):
+                    areas.register(area_bbox, cache_areas.PAYLOAD_EXTRACT, Path(extract_path),
+                                   pin=Path(extract_path).parent.name)
+                log.info("region extract OK key=%s bbox=%s area=%s reused=%s",
+                         self.key, self.bbox, list(area_bbox), self.extract_state.reused)
             except extract_fetch.ExtractFilling as exc:
                 # Issue #521 (ARCH D67, D63 phase 2) — the mirror is fetching
                 # this area from Geofabrik. A retryable not-yet: routing
@@ -1601,7 +1680,8 @@ class RegionState:
         t0 = time.monotonic()
         # Issue #630 — the same lookup `ensure_graph` makes first, so a size
         # here is the clip that build will read. A stat, no network.
-        clip = extract_fetch.find_reusable_extract(self.bbox, cache_dir)
+        clip = (None if graph_hit is not None
+                else extract_fetch.find_reusable_extract(area_bbox, cache_dir))
         self.graph_clip_bytes = clip.stat().st_size if clip is not None else None
         graph_timeout_s, graph_timeout_message = _graph_phase_deadline(
             self.graph_clip_bytes)
@@ -1613,17 +1693,27 @@ class RegionState:
         try:
             region = region_lib.Region(key=self.key, bbox=self.bbox,
                                        network_type=self.network_type)
+            area_region = region_lib.region_for(area_bbox, self.network_type)
             t_acq = time.monotonic()
-            path = _run_build_phase(
-                build_phase_pools.graph, graph_timeout_s,
-                lambda: region_lib.ensure_graph(region, cache_dir),
-                timeout_message=graph_timeout_message,
-            )
+            if graph_hit is not None:
+                # A held area's graph: no build, no network (D73).
+                path = graph_hit.path
+            else:
+                path = _run_build_phase(
+                    build_phase_pools.graph, graph_timeout_s,
+                    lambda: region_lib.ensure_graph(area_region, cache_dir),
+                    timeout_message=graph_timeout_message,
+                )
+                GRAPH_BUILD_HISTORY.record(time.monotonic() - t_acq,
+                                           self.graph_clip_bytes)
+                if Path(path).exists():
+                    source = region_lib._read_graph_source(area_region, cache_dir) or {}
+                    areas.register(area_bbox, graph_payload, Path(path),
+                                   pin=source.get("pin"))
             self.timings["ensure_graph"] = time.monotonic() - t_acq
-            GRAPH_BUILD_HISTORY.record(self.timings["ensure_graph"],
-                                       self.graph_clip_bytes)
             t_load = time.monotonic()
-            self.graph = load_graphml(path)
+            self.graph = self._load_trip_graph(path, area_bbox)
+            self.graph_region = area_region
             self.timings["load_graphml"] = time.monotonic() - t_load
             self.timings["total"] = time.monotonic() - t0
             self.last_error = None
@@ -1660,7 +1750,8 @@ class RegionState:
             held = held_graph_lookup(self.bbox, self.network_type) if held_graph_lookup else None
             provisional_path = None
             if held is not None:
-                held_region = region_lib.Region(
+                # Epic #641 — the held region's graph file is its area's.
+                held_region = held.graph_region or region_lib.Region(
                     key=held.key, bbox=held.bbox, network_type=held.network_type)
                 provisional_path = region_lib.build_provisional_graph_from_shrink(
                     region, held_region, cache_dir)
@@ -1739,6 +1830,28 @@ class RegionState:
         self._build_elevation(cache_dir, elevation_upstream, elevation_wiring,
                               build_phase_pools)
 
+    def _load_trip_graph(self, path, area_bbox) -> LoadedGraph:
+        """Load the held area's graph and cut it to this trip's own padded
+        extent (`region_lib.trip_graph_extent`, D73): in memory, never
+        written back, so a trip inside a held area adds nothing on disk.
+        An area that already is that extent is loaded as it is."""
+        loaded = load_graphml(path)
+        target = region_lib.trip_graph_extent(self.bbox, area_bbox)
+        if target is None:
+            return loaded
+        t0 = time.monotonic()
+        cut = region_lib.truncate_graph_to_bbox(loaded.graph, target)
+        if cut.number_of_edges() == 0:
+            raise region_lib.NoRoutableWaysError(
+                "The drawn area has no routable ways for this mode. Try "
+                "a larger area or a different mode."
+            )
+        log.info("region graph key=%s cut from area=%s to %s: %d nodes, %d edges (%.1fs)",
+                 self.key, list(area_bbox), list(target), cut.number_of_nodes(),
+                 cut.number_of_edges(), time.monotonic() - t0)
+        return LoadedGraph(graph=cut, source=Path(path),
+                           load_seconds=loaded.load_seconds + time.monotonic() - t0)
+
     def _wait_for_routing_fill(self, exc: "extract_fetch.ExtractFilling") -> None:
         """Issue #521 — routing (and the extract under it) wait on a mirror
         fill: `pending_upstream`, never `failed`. Past `FILL_WAIT_CEILING_S`
@@ -1777,11 +1890,20 @@ class RegionState:
         extract waits (`tiles_fill`), `/tiles` answers that cell's addresses
         with a retryable 503, and `Readiness` retries this phase alone."""
         self.tiles_error = None
-        if tile_archive_set is not None and self.tiles_archive is None:
+        # Epic #641 (D73) — a held area's archive serves this trip as it is;
+        # a miss extracts the padded area, so the next trip nearby hits.
+        areas = self.area_index(cache_dir)
+        held = areas.resolve(self.bbox, cache_areas.PAYLOAD_BASEMAP)
+        if held is not None and not held.path.exists():
+            areas.forget(held.area_bbox, cache_areas.PAYLOAD_BASEMAP)
+            held = None
+        area_bbox = held.area_bbox if held is not None else (
+            self.area_bbox or areas.reserve(self.bbox))
+        if tile_archive_set is not None and self.tiles_archive is None and held is None:
             try:
                 pending = _run_build_phase(
                     build_phase_pools.tiles, _TILES_PHASE_TIMEOUT_S,
-                    lambda: _request_basemap_fills(tile_archive_set, self.bbox,
+                    lambda: _request_basemap_fills(tile_archive_set, area_bbox,
                                                    mirror_client_key),
                 )
             except Exception as exc:  # noqa: BLE001 — best-effort, like the extract below
@@ -1802,7 +1924,10 @@ class RegionState:
         # graph, which is `regions/<key>/` because it legitimately varies by
         # network type — shared across two trips that drew the same box.
         try:
-            tiles_path = CacheLayout(cache_dir).tile_archive(self.bbox)
+            exact = CacheLayout(cache_dir).tile_archive(self.bbox)
+            tiles_path = (held.path if held is not None
+                          else exact if exact.exists()
+                          else CacheLayout(cache_dir).tile_archive(area_bbox))
             if not tiles_path.exists():
                 # Issue #456: cap explicitly at the client's own render
                 # ceiling (`basemapMaximumZoom`) rather than inheriting
@@ -1815,14 +1940,19 @@ class RegionState:
                     # cell archives the bbox reaches (read on this phase's
                     # pool, behind its deadline — never a request thread).
                     (lambda: tile_archive_set.extract(
-                        self.bbox, tiles_path, max_zoom=BASEMAP_MAX_ZOOM, stats=stats))
+                        area_bbox, tiles_path, max_zoom=BASEMAP_MAX_ZOOM, stats=stats))
                     if tile_archive_set is not None else
-                    (lambda: extract_bbox(tiles_upstream, self.bbox, tiles_path,
+                    (lambda: extract_bbox(tiles_upstream, area_bbox, tiles_path,
                                           max_zoom=BASEMAP_MAX_ZOOM,
                                           allow_unmirrored=allow_unmirrored, stats=stats)),
                 )
                 self.timings["tiles"] = stats.wall_time_s
                 self.tiles_stats = stats.as_dict()
+                areas.register(area_bbox, cache_areas.PAYLOAD_BASEMAP, tiles_path)
+            elif held is None and not areas.holds(self.bbox, cache_areas.PAYLOAD_BASEMAP):
+                # A pre-epic archive keyed on this exact bbox: adopt it.
+                areas.register(self.bbox, cache_areas.PAYLOAD_BASEMAP, tiles_path,
+                               fetched_at=tiles_path.stat().st_mtime)
             self.tiles_archive = Archive(tiles_path)
         except NoTilesInBbox:
             # Expected: the bbox is outside the tile source's coverage. `/tiles`
@@ -1845,8 +1975,9 @@ class RegionState:
         centralising calls behind the shared cache; the production path is
         ARCH §12.1's Phase 1, local cache then the direct provider (cache
         only when no key is configured)."""
+        areas = self.area_index(cache_dir)
         if wiring.source == "qa_proxy":
-            e_cache = LocalCacheSource(CacheLayout(cache_dir).elevation_dir)
+            e_cache = LocalCacheSource(CacheLayout(cache_dir).elevation_dir, areas=areas)
 
             def fetch(base_url, bbox, dest):
                 # Issue #521 — `HttpElevationSource` reads any raise as a
@@ -1868,7 +1999,8 @@ class RegionState:
                     write_back=e_cache,
                 ),
             ])
-        return phase1_resolver_for_layout(CacheLayout(cache_dir), fetch=wiring.fetch)
+        return phase1_resolver_for_layout(CacheLayout(cache_dir), fetch=wiring.fetch,
+                                          areas=areas)
 
     def _build_elevation(self, cache_dir: Path, elevation_upstream: str | None,
                          wiring: ElevationWiring | None,
@@ -1936,7 +2068,8 @@ class RegionState:
                     # "hit" on it and never fetch again. A file that was
                     # already in the cache — the shipped FR90 raster, say —
                     # is the user's, not ours to delete.
-                    raster.path.unlink(missing_ok=True)
+                    LocalCacheSource(CacheLayout(cache_dir).elevation_dir,
+                                     areas=self.area_index(cache_dir)).discard(raster)
                 self.sampler = None
                 self.elevation_state.fail(
                     "The terrain data for this area couldn't be read")
@@ -1962,6 +2095,16 @@ class RegionState:
         finally:
             self.timings["elevation"] = time.monotonic() - t0
 
+#: Epic #641 (story #648) — how often the held-area prune pass runs after
+#: the first one (which follows the first live-trip reference set).
+AREA_PRUNE_INTERVAL_S = 6 * 3600.0
+
+#: Epic #641 (story #649) — after a failed background refresh, how long
+#: before the next open of a trip in that area tries again. Not a latch:
+#: the held payload keeps serving throughout.
+REFRESH_RETRY_COOLDOWN_S = 600.0
+
+
 class Readiness:
     """The sidecar's region registry (ARCH §8.3, breaking change B1; PRD
     FR120/FR121). Before #154, one `Readiness` loaded one committed graph at
@@ -1980,8 +2123,13 @@ class Readiness:
                  elevation_upstream: str | None = None,
                  mirror_clip_url: str | None = None,
                  mirror_clip_client_key: str | None = None,
-                 elevation_wiring: ElevationWiring | None = None) -> None:
+                 elevation_wiring: ElevationWiring | None = None,
+                 area_index: "cache_areas.AreaIndex | None" = None) -> None:
         self.cache_dir = cache_dir
+        #: Epic #641 (ARCH D73) — the held-area index every region resolves
+        #: its payloads through. Loaded once here (one small file read at
+        #: startup); every later lookup is in memory.
+        self.areas = area_index or cache_areas.AreaIndex.for_root(cache_dir)
         self.tiles_upstream = tiles_upstream
         self.allow_unmirrored = allow_unmirrored
         #: QA/UAT-only (companion to epic #264, not #148). See
@@ -2077,6 +2225,28 @@ class Readiness:
         # poll never overlaps a build), and is cancelled by `shutdown`.
         self._fill_timers: list[threading.Timer] = []
         self._closed = False
+        # Epic #641 (ARCH D73) — every disk-touching step of the held-area
+        # cache that a request starts (index writes after a reference set,
+        # adoption of pre-epic files, the prune pass) runs here, never on a
+        # request thread (D66). One worker: these steps serialise on the
+        # index anyway.
+        self._area_cache_pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="area-cache",
+        )
+        self._prune_timer: threading.Timer | None = None
+        # Epic #641 (story #649) — background refreshes of held payloads past
+        # their TTL. Orchestrated here, one at a time, so a refresh never
+        # holds `_build_pool` (an Author's next trip never queues behind
+        # one); each network step inside runs on its phase's own pool behind
+        # its deadline (`_run_build_phase`, D66). Single-flight per (area,
+        # payload): `_refresh_inflight`. A failure is never latched — it only
+        # starts `REFRESH_RETRY_COOLDOWN_S`, after which the next open of a
+        # trip in that area tries again.
+        self._refresh_pool = ThreadPoolExecutor(
+            max_workers=3, thread_name_prefix="area-refresh",
+        )
+        self._refresh_inflight: set[tuple[str, str]] = set()
+        self._refresh_failed_at: dict[tuple[str, str], float] = {}
 
     def shutdown(self) -> None:
         """Stop accepting builds and abandon any still queued. In-flight
@@ -2091,6 +2261,10 @@ class Readiness:
         self._candidate_fetch_pool.shutdown(wait=False, cancel_futures=True)
         self._geocode_pool.shutdown(wait=False, cancel_futures=True)
         self._upstream_tile_pool.shutdown(wait=False, cancel_futures=True)
+        self._area_cache_pool.shutdown(wait=False, cancel_futures=True)
+        self._refresh_pool.shutdown(wait=False, cancel_futures=True)
+        if self._prune_timer is not None:
+            self._prune_timer.cancel()
         self._build_phase_pools.shutdown()
 
     def ensure_region(self, bbox: tuple[float, float, float, float],
@@ -2106,15 +2280,22 @@ class Readiness:
         sets. It is what earns the one-per-window cooldown bypass and is not
         subject to the automatic-requeue cap (issue #247)."""
         key = region_lib.region_key(bbox, network_type)
+        reopened: RegionState | None = None
         with self._lock:
             region = self.regions.get(key)
             if region is None:
                 region = RegionState(key, bbox, network_type)
+                region.areas = self.areas
                 region.open_cached_tiles(self.cache_dir)
                 self.regions[key] = region
                 self._queue_build(region)
                 log.info("ensure_region key=%s bbox=%s nt=%s decision=NEW_BUILD",
                          key, bbox, network_type)
+            elif region.graph_state.status == "ready" and not region.build_in_progress:
+                # Epic #641 (story #649) — reopening a ready trip: refresh any
+                # held payload past its TTL in the background, after this
+                # lock is released. In-memory lookups and a pool submit.
+                reopened = region
             elif region.graph_state.status in ("failed", "provisional"):
                 # A settled failure (typically Overpass unreachable, issue
                 # #229) is retryable, but not without limit (issue #247): a
@@ -2165,6 +2346,8 @@ class Readiness:
                 # than overwriting its stated reason with a cooldown notice
                 # (issue #432: this is a rate limit on rebuild attempts, not
                 # a new fact about the provisional graph itself).
+        if reopened is not None:
+            self.queue_refreshes(reopened)
         return key
 
     def _queue_build(self, region: "RegionState") -> None:
@@ -2212,6 +2395,7 @@ class Readiness:
                     self._active_build_key = None
                     self._active_build_started_at = None
         self._schedule_fill_polls(region)
+        self.queue_refreshes(region)
 
     # -- issue #521: waiting on mirror fills ------------------------------------
 
@@ -2339,6 +2523,299 @@ class Readiness:
         with self._lock:
             return self.regions.get(key)
 
+    # -- epic #641: live-trip references and retention ------------------------
+
+    def set_cache_references(self, bboxes: list[tuple[float, float, float, float]]) -> dict:
+        """`PUT /cache/references` (story #647). The full set of live trips'
+        stored bboxes replaces the last one — in memory, at once, so a
+        missed send is corrected by the next. Adopting pre-epic files those
+        bboxes name, writing the index and the prune pass run on
+        `_area_cache_pool`, never here (D66)."""
+        first = not self.areas.references_known
+        counts = self.areas.set_references(bboxes)
+        try:
+            self._area_cache_pool.submit(self._after_references, list(bboxes), first)
+        except RuntimeError:  # pool shut down
+            pass
+        log.info("cache references: %d live trip bbox(es); %d of %d area(s) referenced",
+                 counts["references"], counts["referenced"], counts["areas"])
+        return counts
+
+    def _after_references(self, bboxes, first: bool) -> None:
+        try:
+            for bbox in bboxes:
+                self.areas.adopt_exact(bbox, persist=False)
+            self.areas.persist()
+        except Exception:  # noqa: BLE001 — retried on the next send
+            log.warning("cache references: index write failed", exc_info=True)
+        if first:
+            # Sidecar start: the first set is what makes a prune safe.
+            self.prune_cache()
+            self._schedule_prune()
+
+    def _schedule_prune(self) -> None:
+        def fire():
+            with self._lock:
+                if self._closed:
+                    return
+            try:
+                self._area_cache_pool.submit(self._prune_and_reschedule)
+            except RuntimeError:
+                pass
+
+        timer = threading.Timer(AREA_PRUNE_INTERVAL_S, fire)
+        timer.daemon = True
+        with self._lock:
+            if self._closed:
+                return
+            self._prune_timer = timer
+        timer.start()
+
+    def _prune_and_reschedule(self) -> None:
+        self.prune_cache()
+        self._schedule_prune()
+
+    def _stale_groups(self, region: "RegionState") -> list[tuple[str, tuple]]:
+        """(group, area bbox) for each held payload `region` uses that is
+        past its TTL and that this sidecar could refresh. In memory only."""
+        groups = []
+        graph = self.areas.resolve(region.bbox, cache_areas.graph_payload(region.network_type))
+        if (graph is not None and graph.stale and self.mirror_clip_url
+                and region.graph_region is not None
+                and region.graph_region.bbox == graph.area_bbox):
+            groups.append((f"osm:{region.network_type}", graph.area_bbox))
+        tiles = self.areas.resolve(region.bbox, cache_areas.PAYLOAD_BASEMAP)
+        if tiles is not None and tiles.stale and region.tiles_archive is not None:
+            groups.append(("basemap", tiles.area_bbox))
+        dem = self.areas.resolve(region.bbox, cache_areas.PAYLOAD_ELEVATION)
+        if (dem is not None and dem.stale and region.sampler is not None
+                and (self.elevation_upstream or self.elevation_wiring.fetch is not None)):
+            groups.append(("elevation", dem.area_bbox))
+        return groups
+
+    def queue_refreshes(self, region: "RegionState") -> None:
+        """Story #649 — queue one background refresh per stale held payload
+        `region` (a trip being opened) uses. Never for a trip not being
+        opened; never twice for one area and payload at once."""
+        now = time.monotonic()
+        for group, area_bbox in self._stale_groups(region):
+            flight = (cache_areas.trip_bbox_key(area_bbox), group)
+            with self._lock:
+                if self._closed or flight in self._refresh_inflight:
+                    continue
+                failed_at = self._refresh_failed_at.get(flight)
+                if failed_at is not None and now - failed_at < REFRESH_RETRY_COOLDOWN_S:
+                    continue
+                self._refresh_inflight.add(flight)
+            self._mark_refreshing(area_bbox, group, True)
+            log.info("area refresh QUEUED area=%s payload=%s (trip key=%s)",
+                     list(area_bbox), group, region.key)
+            try:
+                self._refresh_pool.submit(self._run_refresh, flight, group, area_bbox)
+            except RuntimeError:  # pool shut down
+                with self._lock:
+                    self._refresh_inflight.discard(flight)
+
+    def _regions_on_area(self, area_bbox, group: str) -> list["RegionState"]:
+        out = []
+        for _key, region in self.snapshot():
+            if not cache_areas.bbox_contains(area_bbox, region.bbox):
+                continue
+            if group.startswith("osm:"):
+                if (region.graph_region is None or region.graph_region.bbox != tuple(area_bbox)
+                        or f"osm:{region.network_type}" != group):
+                    continue
+            out.append(region)
+        return out
+
+    def _mark_refreshing(self, area_bbox, group: str, on: bool) -> None:
+        label = "osm" if group.startswith("osm:") else group
+        for region in self._regions_on_area(area_bbox, group):
+            (region.refreshing.add if on else region.refreshing.discard)(label)
+
+    def _run_refresh(self, flight, group: str, area_bbox) -> None:
+        """One refresh, on `_refresh_pool`. The held payload keeps serving
+        throughout; the refreshed one is swapped in whole."""
+        retry_in: float | None = None
+        try:
+            if group.startswith("osm:"):
+                self._refresh_osm(area_bbox, group.split(":", 1)[1])
+            elif group == "basemap":
+                retry_in = self._refresh_basemap(area_bbox)
+            elif group == "elevation":
+                self._refresh_elevation(area_bbox)
+            with self._lock:
+                self._refresh_failed_at.pop(flight, None)
+            log.info("area refresh OK area=%s payload=%s", list(area_bbox), group)
+        except extract_fetch.ExtractFilling as exc:
+            # D67 — the mirror is fetching: a wait, not a failure.
+            retry_in = exc.retry_after_s or _FILL_POLL_DEFAULT_S
+            log.info("area refresh WAITING area=%s payload=%s fill_id=%s",
+                     list(area_bbox), group, exc.fill_id)
+        except Exception as exc:  # noqa: BLE001 — never latched; held data keeps serving
+            with self._lock:
+                self._refresh_failed_at[flight] = time.monotonic()
+            log.warning("area refresh FAILED area=%s payload=%s: %s: %s", list(area_bbox),
+                        group, type(exc).__name__, exc)
+        finally:
+            if retry_in is not None:
+                self._later_refresh(_poll_delay(retry_in), flight, group, area_bbox)
+            else:
+                with self._lock:
+                    self._refresh_inflight.discard(flight)
+                self._mark_refreshing(area_bbox, group, False)
+
+    def _later_refresh(self, delay_s: float, flight, group: str, area_bbox) -> None:
+        def fire():
+            with self._lock:
+                if self._closed:
+                    return
+            try:
+                self._refresh_pool.submit(self._run_refresh, flight, group, area_bbox)
+            except RuntimeError:
+                pass
+
+        timer = threading.Timer(delay_s, fire)
+        timer.daemon = True
+        with self._lock:
+            if self._closed:
+                return
+            self._fill_timers = [t for t in self._fill_timers if t.is_alive()]
+            self._fill_timers.append(timer)
+        timer.start()
+
+    def _refresh_osm(self, area_bbox, network_type: str) -> None:
+        """A fresh clip of the area, its graph rebuilt from it, and every open
+        trip on that graph swapped onto the new one. Stored passages are the
+        client's and are not touched (D52); the next solve uses the new graph
+        and `osm_source` reports its pin (D73)."""
+        pools = self._build_phase_pools
+        progress = extract_fetch.DownloadProgress()
+        clip = _run_build_phase(
+            pools.extract, _EXTRACT_PHASE_TIMEOUT_S,
+            lambda: extract_fetch.fetch_extract(
+                area_bbox, mirror_url=self.mirror_clip_url, cache_dir=self.cache_dir,
+                client_key=self.mirror_clip_client_key, progress=progress, version=VERSION),
+        )
+        extract_fetch._register_fetched(self.areas, area_bbox, Path(clip))
+        area_region = region_lib.region_for(area_bbox, network_type)
+        clip_bytes = Path(clip).stat().st_size
+        deadline_s, message = _graph_phase_deadline(clip_bytes)
+        path = _run_build_phase(
+            pools.graph, deadline_s,
+            lambda: region_lib.ensure_graph(area_region, self.cache_dir, force=True),
+            timeout_message=message,
+        )
+        source = region_lib._read_graph_source(area_region, self.cache_dir) or {}
+        self.areas.register(area_bbox, cache_areas.graph_payload(network_type), Path(path),
+                            pin=source.get("pin"))
+        # The candidate set came from the superseded clip: drop it, so the
+        # next candidate fetch builds it again from the new one.
+        for record in self.areas.areas():
+            if record.bbox == tuple(area_bbox) and cache_areas.PAYLOAD_CANDIDATES in record.payloads:
+                stale_set = self.cache_dir / record.payloads[cache_areas.PAYLOAD_CANDIDATES].path
+                self.areas.forget(area_bbox, cache_areas.PAYLOAD_CANDIDATES)
+                stale_set.unlink(missing_ok=True)
+        for region in self._regions_on_area(area_bbox, f"osm:{network_type}"):
+            fresh = region._load_trip_graph(path, area_bbox)
+            if region.sampler is not None:
+                enrich_elevation(fresh.graph, region.sampler)
+            region.graph = fresh
+            region.last_attempt_finished_at = time.time()
+
+    def _refresh_basemap(self, area_bbox) -> float | None:
+        """A fresh extract of the area's basemap to a new file, then every
+        open trip reading the old archive moved onto it — a new
+        `tiles.archive` fingerprint, so the client drops renders of the old
+        one. Returns a retry delay while the mirror is still filling."""
+        tile_set = (self.upstream_tiles if isinstance(self.upstream_tiles, BasemapArchiveSet)
+                    else None)
+        pools = self._build_phase_pools
+        if tile_set is not None:
+            pending = _run_build_phase(
+                pools.tiles, _TILES_PHASE_TIMEOUT_S,
+                lambda: _request_basemap_fills(tile_set, area_bbox, self.mirror_clip_client_key))
+            if pending:
+                return min((a.retry_after_s or _FILL_POLL_DEFAULT_S) for _, a in pending)
+        layout = CacheLayout(self.cache_dir)
+        key = cache_areas.trip_bbox_key(area_bbox)
+        new_path = layout.tiles_dir / f"{key}.{int(time.time() * 1000)}.pmtiles"
+        _run_build_phase(
+            pools.tiles, _TILES_PHASE_TIMEOUT_S,
+            (lambda: tile_set.extract(area_bbox, new_path, max_zoom=BASEMAP_MAX_ZOOM))
+            if tile_set is not None else
+            (lambda: extract_bbox(self.tiles_upstream, area_bbox, new_path,
+                                  max_zoom=BASEMAP_MAX_ZOOM,
+                                  allow_unmirrored=self.allow_unmirrored)),
+        )
+        old = self.areas.resolve(area_bbox, cache_areas.PAYLOAD_BASEMAP)
+        self.areas.register(area_bbox, cache_areas.PAYLOAD_BASEMAP, new_path)
+        for region in self._regions_on_area(area_bbox, "basemap"):
+            if old is None or region.tiles_archive is None or region.tiles_archive.path == old.path:
+                region.tiles_archive = Archive(new_path)
+        if old is not None and old.path != new_path:
+            try:
+                old.path.unlink(missing_ok=True)
+            except OSError:  # still open (Windows): the prune pass takes it later
+                pass
+        return None
+
+    def _refresh_elevation(self, area_bbox) -> None:
+        """A fresh DEM for the area, at the long elevation TTL (D73) — so an
+        FR87 call is only ever spent on an area past 365 days. The next open
+        reads it; open trips keep the DEM they enriched with."""
+        layout = CacheLayout(self.cache_dir)
+        key = cache_areas.trip_bbox_key(area_bbox)
+        dest = layout.elevation_dir / f"{key}.{int(time.time() * 1000)}.tif"
+        if self.elevation_upstream:
+            fetch, base_url = qa_proxy_fetch, self.elevation_upstream
+        else:
+            fetch, base_url = self.elevation_wiring.fetch, OPENTOPO_BASE_URL
+        written = _run_build_phase(
+            self._build_phase_pools.elevation, _ELEVATION_PHASE_TIMEOUT_S,
+            lambda: fetch(base_url, tuple(area_bbox), dest))
+        if ElevationSampler(Path(written)).degraded:
+            Path(written).unlink(missing_ok=True)
+            raise RuntimeError("the refreshed DEM couldn't be read")
+        self.areas.register(area_bbox, cache_areas.PAYLOAD_ELEVATION, Path(written))
+
+    def cache_in_use(self) -> tuple[list[Path], list[tuple[float, float, float, float]]]:
+        """The files open regions are reading (never deleted under them —
+        Windows refuses, and a mapped archive would go blank) and their
+        bboxes (referenced for the pass, saved or not)."""
+        paths: list[Path] = []
+        bboxes = []
+        for _key, region in self.snapshot():
+            bboxes.append(region.bbox)
+            if region.tiles_archive is not None:
+                paths.append(region.tiles_archive.path)
+            if region.sampler is not None:
+                paths.append(region.sampler.path)
+        return paths, bboxes
+
+    def prune_cache(self) -> list:
+        """One retention pass (story #648, ARCH D73) — on `_area_cache_pool`
+        only. Adopts any payload file still unindexed (the migration), then
+        prunes. Logs each removal; nothing is shown to the Author."""
+        if not self.areas.references_known:
+            return []
+        from plotlines_core.curation.providers import LAYER_SET_VERSION
+        from plotlines_core.curation.notability import RULESET_VERSION
+
+        try:
+            self.areas.adopt_unindexed()
+            in_use, open_bboxes = self.cache_in_use()
+            pruned = self.areas.prune(
+                in_use=in_use, extra_references=open_bboxes,
+                current_versions={cache_areas.PAYLOAD_CANDIDATES: cache_areas.candidate_version(
+                    LAYER_SET_VERSION, RULESET_VERSION)})
+        except Exception:  # noqa: BLE001 — retried on the next pass
+            log.warning("cache prune: pass failed", exc_info=True)
+            return []
+        freed = sum(p.bytes_freed for p in pruned)
+        log.info("cache prune: removed %d payload(s), %d bytes", len(pruned), freed)
+        return pruned
+
     def find_held_supergraph(
         self, bbox: tuple[float, float, float, float], network_type: str,
     ) -> "RegionState | None":
@@ -2395,7 +2872,8 @@ class Readiness:
         if not candidates:
             return region_lib.overpass_source_pin(fetched_at)
         latest = max(candidates, key=lambda r: r.last_attempt_finished_at)
-        region = region_lib.Region(
+        # Epic #641 — the area the graph actually came from names its pin.
+        region = latest.graph_region or region_lib.Region(
             key=latest.key, bbox=latest.bbox, network_type=latest.network_type)
         return region_lib.graph_source_pin(
             region, self.cache_dir, fetched_at=fetched_at)
@@ -2475,6 +2953,22 @@ class RegionRequest(BaseModel):
     #: request from the automatic-requeue cap. The automatic settle-window /
     #: `/health`-poll path leaves it false and always waits the cooldown out.
     retry: bool = False
+
+
+class CacheReferencesRequest(BaseModel):
+    """Epic #641 (story #647) — the full set of live trips' stored bboxes
+    (D70), `[west, south, east, north]` each. Bboxes only: no trip id, no
+    name. A full replacement every time, so a missed send corrects itself."""
+
+    bboxes: list[list[float]]
+
+    @field_validator("bboxes")
+    @classmethod
+    def _four_finite(cls, v: list[list[float]]) -> list[list[float]]:
+        for b in v:
+            if len(b) != 4 or not all(math.isfinite(c) for c in b) or b[0] > b[2] or b[1] > b[3]:
+                raise ValueError("each bbox is [west, south, east, north]")
+        return v
 
 
 class SegmentRequest(BaseModel):
@@ -3003,11 +3497,13 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         # Issue #455 — recomputed every call: a region's own tile archive
         # can be (re-)extracted at any point after startup, and the whole
         # point of this identity is that such a change is visible here.
-        region_tile_identities = [
+        # Epic #641 — two trips sharing one held area's archive count once,
+        # so the fingerprint is the area's, whichever trips are open.
+        region_tile_identities = sorted({
             region.tiles_archive.info().identity
             for _key, region in state.snapshot()
             if region.tiles_archive is not None
-        ]
+        })
         upstream_identity = tiles_upstream_capability["source"]
         if isinstance(state.upstream_tiles, BasemapArchiveSet):
             # #519/#455: a newly filled cell changes this, so the client's
@@ -3052,6 +3548,13 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 "cookie": {"same_site": "Lax", "secure": True, "http_only": True},
             }
         return body
+
+    @app.put("/cache/references")
+    def cache_references(req: CacheReferencesRequest) -> dict:
+        """Epic #641 (story #647, ARCH D73) — which held areas live trips
+        still need. Answers from memory; index writes and the prune pass
+        run on their own pool (D66)."""
+        return state.set_cache_references([tuple(b) for b in req.bboxes])
 
     @app.post("/regions", status_code=202)
     def regions_ensure(req: RegionRequest) -> dict:

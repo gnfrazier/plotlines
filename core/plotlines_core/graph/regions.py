@@ -288,6 +288,9 @@ def geofabrik_source_pin(pin: str) -> str:
 
 
 def _write_graph_source(region: Region, cache_dir: Path, source: dict) -> None:
+    # Epic #641 (D73): the graph file names neither its bbox nor its network
+    # type, so record both here — a lost area index is rebuilt from this.
+    source = {**source, "bbox": list(region.bbox), "network_type": region.network_type}
     region.graph_source_path(cache_dir).write_text(json.dumps(source))
 
 
@@ -692,6 +695,28 @@ def truncate_graph_to_bbox(graph, bbox: tuple[float, float, float, float]):
     return ox.truncate.largest_component(truncated, strongly=True)
 
 
+def trip_graph_extent(trip_bbox: tuple[float, float, float, float],
+                      area_bbox: tuple[float, float, float, float],
+                      ) -> tuple[float, float, float, float] | None:
+    """Epic #641 / ARCH D73 — the extent a trip routes on when its graph
+    comes from a held area: the trip's own padded extent
+    (`cache_areas.pad_bbox`) clipped to the area. A trip then routes on the
+    same graph whether it fetched the area itself (the area *is* its padded
+    extent, so nothing is cut) or found one already held.
+
+    `None` when the area already is that extent, so no truncation is owed.
+    """
+    from ..cache_areas import pad_bbox
+    from ..cache_layout import trip_bbox_key
+
+    pw, ps, pe, pn = pad_bbox(trip_bbox)
+    aw, as_, ae, an = area_bbox
+    target = (max(pw, aw), max(ps, as_), min(pe, ae), min(pn, an))
+    if trip_bbox_key(target) == trip_bbox_key(area_bbox):
+        return None
+    return target
+
+
 def build_provisional_graph_from_shrink(
     shrunk: Region, held: Region, cache_dir: Path,
 ) -> Path | None:
@@ -745,6 +770,22 @@ def build_provisional_graph_from_shrink(
         "%d edges", shrunk.key, held.key, truncated.number_of_nodes(),
         truncated.number_of_edges())
     return out_path
+
+
+def save_graphml_atomic(graph, out_path: Path) -> None:
+    """Write `graph` to `out_path` through a temp file and a rename, so a
+    concurrent reader (another trip loading the same held area's graph, or
+    a background refresh replacing it — epic #641) sees the old file or the
+    new one, never half of either."""
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out_path.with_name(f".{out_path.name}.part")
+    try:
+        ox.io.save_graphml(graph, tmp)
+        tmp.replace(out_path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def fold_node_barriers(graph) -> int:
@@ -946,7 +987,7 @@ def ensure_graph(
                 "a larger area or a different mode."
             )
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        ox.io.save_graphml(graph, out_path)
+        save_graphml_atomic(graph, out_path)
         # Issue #277 — record which pin actually produced this graph. The
         # extract's own on-disk location names it (`CacheLayout.osm_extract`
         # files under `extracts_dir/<pin>/...`), so this reads the pin off
@@ -1051,7 +1092,7 @@ def ensure_graph(
                         type(exc).__name__, f"{type(exc).__name__}: {exc}")
                 continue
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            ox.io.save_graphml(graph, out_path)
+            save_graphml_atomic(graph, out_path)
             # Issue #277 — symmetric with the local-clip branch above, so a
             # later `graph_source_pin` read never has to guess which
             # transport built a given cached graph.
