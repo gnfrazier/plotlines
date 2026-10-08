@@ -20,6 +20,7 @@ import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'support/display_units.dart';
+import 'support/routing_ready.dart';
 import 'support/app_fonts.dart';
 import 'support/rail_tasks.dart';
 
@@ -60,6 +61,7 @@ Future<void> _pumpRail(WidgetTester tester, Segment segment) async {
     overrides: [
       currentTripProvider.overrideWith((ref) => CurrentTripNotifier(ref)..open(_trip(segment))),
       metricUnits(),
+      routingReady(),
     ],
     child: MaterialApp(home: Scaffold(body: WeightsRail(dayId: 'day-1', segment: segment))),
   ));
@@ -125,6 +127,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         metricUnits(),
+        routingReady(),
         sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
         appDatabaseProvider.overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
         currentTripProvider.overrideWith((ref) => CurrentTripNotifier(ref)..open(_trip(_segment()))),

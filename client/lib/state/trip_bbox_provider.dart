@@ -11,6 +11,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/sidecar_manager.dart' show CapabilityStatus;
@@ -267,6 +268,26 @@ CapabilityStatus routingCapabilityForRegion(
       );
   }
 }
+
+/// Routing's readiness for the open trip's own region, as every routing
+/// control reads it: New Route's Generate, and since #656 the trip shell's
+/// Generate / Regenerate / Diagnose, which used to stay enabled while the
+/// region was still building and showed the sidecar's 503 as an error.
+/// The phase → status mapping is [routingCapabilityForRegion].
+final tripRoutingCapabilityProvider = Provider<CapabilityStatus>((ref) {
+  final region = ref.watch(tripRegionKeyProvider);
+  // Issue #230 B3 — the exception is logged, never rendered: the failure to
+  // ensure the region at all is one typed cause with one fixed phrase.
+  if (region case TripRegionFailed(:final error)) {
+    debugPrint('routing region could not be ensured: $error');
+  }
+  final sidecarStatus = switch (region) {
+    TripRegionResolved(:final key) =>
+      ref.watch(sidecarManagerProvider).capabilities?.routing.forRegion(key),
+    _ => null,
+  };
+  return routingCapabilityForRegion(region, sidecarStatus);
+});
 
 /// Anchors currently promoted into the open trip, which a bbox shrink must
 /// never silently drop. Two sources feed this, both counted: `layers_tab

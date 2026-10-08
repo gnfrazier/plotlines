@@ -12,6 +12,7 @@ import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/presentation/widgets/weights_rail.dart';
 import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'support/display_units.dart';
+import 'support/routing_ready.dart';
 
 const _a = <double>[-105.30, 40.0];
 const _b = <double>[-105.20, 40.0];
@@ -31,7 +32,7 @@ Future<void> _pump(WidgetTester tester, Segment s) async {
   tester.view.physicalSize = const Size(1400, 1200);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
-  final container = ProviderContainer(overrides: [metricUnits()]);
+  final container = ProviderContainer(overrides: [metricUnits(), routingReady()]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(Trip(
         id: 't1',
