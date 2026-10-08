@@ -34,6 +34,7 @@ import osmnx as ox
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field, field_validator
 
+from plotlines_core import cache_areas
 from plotlines_core.cache_layout import CacheLayout
 from plotlines_core.curation.attribution import (
     MissingAttributionError, attributions_for,
@@ -1307,6 +1308,18 @@ class RegionState:
         #: worker is still finishing tiles/elevation" was indistinguishable
         #: from "done" on `/health`.
         self.build_in_progress = False
+        #: Epic #641 (ARCH D73) — the held-area index this region resolves
+        #: its payloads through (`Readiness` sets its own; a direct build
+        #: uses the cache root's), the area its graph came from, and the
+        #: `graph_region` whose `source.json` names that graph's pin.
+        self.areas: cache_areas.AreaIndex | None = None
+        self.area_bbox: tuple[float, float, float, float] | None = None
+        self.graph_region: region_lib.Region | None = None
+
+    def area_index(self, cache_dir: Path) -> cache_areas.AreaIndex:
+        if self.areas is None:
+            self.areas = cache_areas.AreaIndex.for_root(cache_dir)
+        return self.areas
 
     @property
     def routing_ready(self) -> bool:
@@ -1559,18 +1572,65 @@ class RegionState:
         # (--mirror-clip-url, which the desktop client always passes); unset,
         # this is skipped outright, never left half-started (FR120/D41/D57: no
         # eager, unconfigured download).
-        if mirror_clip_url:
+        #
+        # Epic #641 (ARCH D73) — first ask the held-area index. A graph held
+        # for an area covering this bbox serves it with no download; else an
+        # extract held for one does; else a new, padded area is fetched so
+        # the next trip nearby lands inside it. Pre-epic files keyed on this
+        # exact bbox are adopted first (migration is adoption). Local stats
+        # and an in-memory lookup — no network, never a request thread.
+        areas = self.area_index(cache_dir)
+        graph_payload = cache_areas.graph_payload(self.network_type)
+        try:
+            areas.adopt_exact(self.bbox)
+        except Exception:  # noqa: BLE001 — adoption is an optimisation, never a failure
+            log.warning("region areas: adopting pre-epic files failed key=%s", self.key,
+                        exc_info=True)
+        graph_hit = areas.resolve(self.bbox, graph_payload)
+        if graph_hit is not None and not graph_hit.path.exists():
+            areas.forget(graph_hit.area_bbox, graph_payload)
+            graph_hit = None
+        extract_hit = areas.resolve(self.bbox, cache_areas.PAYLOAD_EXTRACT)
+        if extract_hit is not None and not extract_hit.path.exists():
+            areas.forget(extract_hit.area_bbox, cache_areas.PAYLOAD_EXTRACT)
+            extract_hit = None
+        if graph_hit is not None:
+            area_bbox = graph_hit.area_bbox
+        elif extract_hit is not None and not extract_hit.stale:
+            area_bbox = extract_hit.area_bbox
+        else:
+            area_bbox = areas.reserve(self.bbox)
+        self.area_bbox = area_bbox
+        held_extract = (extract_hit is not None and graph_hit is not None
+                        and cache_areas.bbox_contains(extract_hit.area_bbox, area_bbox))
+        log.info("region areas key=%s bbox=%s area=%s graph_held=%s extract_held=%s",
+                 self.key, self.bbox, list(area_bbox), graph_hit is not None,
+                 extract_hit is not None)
+
+        if mirror_clip_url and held_extract:
+            # Everything this build needs is on disk: no `/clip` request.
+            size = extract_hit.path.stat().st_size
+            self.extract_state.status = "ready"
+            self.extract_state.detail = "reused held area"
+            self.extract_state.reused = True
+            self.extract_state.bytes_downloaded = size
+            self.extract_state.total_bytes = size
+        elif mirror_clip_url:
             try:
-                _run_build_phase(
+                extract_path = _run_build_phase(
                     build_phase_pools.extract, _EXTRACT_PHASE_TIMEOUT_S,
                     lambda: extract_fetch.ensure_extract(
-                        self.bbox, mirror_url=mirror_clip_url, cache_dir=cache_dir,
+                        area_bbox, mirror_url=mirror_clip_url, cache_dir=cache_dir,
                         client_key=mirror_clip_client_key, progress=self.extract_state,
-                        version=VERSION,
+                        version=VERSION, areas=areas,
                     ),
                 )
-                log.info("region extract OK key=%s bbox=%s reused=%s",
-                         self.key, self.bbox, self.extract_state.reused)
+                if (extract_path is not None and Path(extract_path).is_file()
+                        and not areas.holds(area_bbox, cache_areas.PAYLOAD_EXTRACT)):
+                    areas.register(area_bbox, cache_areas.PAYLOAD_EXTRACT, Path(extract_path),
+                                   pin=Path(extract_path).parent.name)
+                log.info("region extract OK key=%s bbox=%s area=%s reused=%s",
+                         self.key, self.bbox, list(area_bbox), self.extract_state.reused)
             except extract_fetch.ExtractFilling as exc:
                 # Issue #521 (ARCH D67, D63 phase 2) — the mirror is fetching
                 # this area from Geofabrik. A retryable not-yet: routing
@@ -1601,7 +1661,8 @@ class RegionState:
         t0 = time.monotonic()
         # Issue #630 — the same lookup `ensure_graph` makes first, so a size
         # here is the clip that build will read. A stat, no network.
-        clip = extract_fetch.find_reusable_extract(self.bbox, cache_dir)
+        clip = (None if graph_hit is not None
+                else extract_fetch.find_reusable_extract(area_bbox, cache_dir))
         self.graph_clip_bytes = clip.stat().st_size if clip is not None else None
         graph_timeout_s, graph_timeout_message = _graph_phase_deadline(
             self.graph_clip_bytes)
@@ -1613,17 +1674,27 @@ class RegionState:
         try:
             region = region_lib.Region(key=self.key, bbox=self.bbox,
                                        network_type=self.network_type)
+            area_region = region_lib.region_for(area_bbox, self.network_type)
             t_acq = time.monotonic()
-            path = _run_build_phase(
-                build_phase_pools.graph, graph_timeout_s,
-                lambda: region_lib.ensure_graph(region, cache_dir),
-                timeout_message=graph_timeout_message,
-            )
+            if graph_hit is not None:
+                # A held area's graph: no build, no network (D73).
+                path = graph_hit.path
+            else:
+                path = _run_build_phase(
+                    build_phase_pools.graph, graph_timeout_s,
+                    lambda: region_lib.ensure_graph(area_region, cache_dir),
+                    timeout_message=graph_timeout_message,
+                )
+                GRAPH_BUILD_HISTORY.record(time.monotonic() - t_acq,
+                                           self.graph_clip_bytes)
+                if Path(path).exists():
+                    source = region_lib._read_graph_source(area_region, cache_dir) or {}
+                    areas.register(area_bbox, graph_payload, Path(path),
+                                   pin=source.get("pin"))
             self.timings["ensure_graph"] = time.monotonic() - t_acq
-            GRAPH_BUILD_HISTORY.record(self.timings["ensure_graph"],
-                                       self.graph_clip_bytes)
             t_load = time.monotonic()
-            self.graph = load_graphml(path)
+            self.graph = self._load_trip_graph(path, area_bbox)
+            self.graph_region = area_region
             self.timings["load_graphml"] = time.monotonic() - t_load
             self.timings["total"] = time.monotonic() - t0
             self.last_error = None
@@ -1660,7 +1731,8 @@ class RegionState:
             held = held_graph_lookup(self.bbox, self.network_type) if held_graph_lookup else None
             provisional_path = None
             if held is not None:
-                held_region = region_lib.Region(
+                # Epic #641 — the held region's graph file is its area's.
+                held_region = held.graph_region or region_lib.Region(
                     key=held.key, bbox=held.bbox, network_type=held.network_type)
                 provisional_path = region_lib.build_provisional_graph_from_shrink(
                     region, held_region, cache_dir)
@@ -1738,6 +1810,28 @@ class RegionState:
 
         self._build_elevation(cache_dir, elevation_upstream, elevation_wiring,
                               build_phase_pools)
+
+    def _load_trip_graph(self, path, area_bbox) -> LoadedGraph:
+        """Load the held area's graph and cut it to this trip's own padded
+        extent (`region_lib.trip_graph_extent`, D73): in memory, never
+        written back, so a trip inside a held area adds nothing on disk.
+        An area that already is that extent is loaded as it is."""
+        loaded = load_graphml(path)
+        target = region_lib.trip_graph_extent(self.bbox, area_bbox)
+        if target is None:
+            return loaded
+        t0 = time.monotonic()
+        cut = region_lib.truncate_graph_to_bbox(loaded.graph, target)
+        if cut.number_of_edges() == 0:
+            raise region_lib.NoRoutableWaysError(
+                "The drawn area has no routable ways for this mode. Try "
+                "a larger area or a different mode."
+            )
+        log.info("region graph key=%s cut from area=%s to %s: %d nodes, %d edges (%.1fs)",
+                 self.key, list(area_bbox), list(target), cut.number_of_nodes(),
+                 cut.number_of_edges(), time.monotonic() - t0)
+        return LoadedGraph(graph=cut, source=Path(path),
+                           load_seconds=loaded.load_seconds + time.monotonic() - t0)
 
     def _wait_for_routing_fill(self, exc: "extract_fetch.ExtractFilling") -> None:
         """Issue #521 — routing (and the extract under it) wait on a mirror
@@ -1980,8 +2074,13 @@ class Readiness:
                  elevation_upstream: str | None = None,
                  mirror_clip_url: str | None = None,
                  mirror_clip_client_key: str | None = None,
-                 elevation_wiring: ElevationWiring | None = None) -> None:
+                 elevation_wiring: ElevationWiring | None = None,
+                 area_index: "cache_areas.AreaIndex | None" = None) -> None:
         self.cache_dir = cache_dir
+        #: Epic #641 (ARCH D73) — the held-area index every region resolves
+        #: its payloads through. Loaded once here (one small file read at
+        #: startup); every later lookup is in memory.
+        self.areas = area_index or cache_areas.AreaIndex.for_root(cache_dir)
         self.tiles_upstream = tiles_upstream
         self.allow_unmirrored = allow_unmirrored
         #: QA/UAT-only (companion to epic #264, not #148). See
@@ -2110,6 +2209,7 @@ class Readiness:
             region = self.regions.get(key)
             if region is None:
                 region = RegionState(key, bbox, network_type)
+                region.areas = self.areas
                 region.open_cached_tiles(self.cache_dir)
                 self.regions[key] = region
                 self._queue_build(region)
@@ -2395,7 +2495,8 @@ class Readiness:
         if not candidates:
             return region_lib.overpass_source_pin(fetched_at)
         latest = max(candidates, key=lambda r: r.last_attempt_finished_at)
-        region = region_lib.Region(
+        # Epic #641 — the area the graph actually came from names its pin.
+        region = latest.graph_region or region_lib.Region(
             key=latest.key, bbox=latest.bbox, network_type=latest.network_type)
         return region_lib.graph_source_pin(
             region, self.cache_dir, fetched_at=fetched_at)

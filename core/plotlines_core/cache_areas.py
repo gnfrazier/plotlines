@@ -437,6 +437,12 @@ class AreaIndex:
         """The bbox to fetch for a new area around `bbox` (:func:`pad_bbox`)."""
         return pad_bbox(bbox)
 
+    def holds(self, area_bbox: BBox, payload: str) -> bool:
+        """Whether the area at exactly `area_bbox` has a record for `payload`."""
+        with self._lock:
+            area = self._areas.get(trip_bbox_key(area_bbox))
+            return area is not None and payload in area.payloads
+
     def areas(self) -> list[AreaRecord]:
         """A snapshot of every area record (copies; safe to read)."""
         with self._lock:

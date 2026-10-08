@@ -288,6 +288,9 @@ def geofabrik_source_pin(pin: str) -> str:
 
 
 def _write_graph_source(region: Region, cache_dir: Path, source: dict) -> None:
+    # Epic #641 (D73): the graph file names neither its bbox nor its network
+    # type, so record both here — a lost area index is rebuilt from this.
+    source = {**source, "bbox": list(region.bbox), "network_type": region.network_type}
     region.graph_source_path(cache_dir).write_text(json.dumps(source))
 
 
@@ -690,6 +693,28 @@ def truncate_graph_to_bbox(graph, bbox: tuple[float, float, float, float]):
     if truncated.number_of_nodes() == 0:
         return truncated
     return ox.truncate.largest_component(truncated, strongly=True)
+
+
+def trip_graph_extent(trip_bbox: tuple[float, float, float, float],
+                      area_bbox: tuple[float, float, float, float],
+                      ) -> tuple[float, float, float, float] | None:
+    """Epic #641 / ARCH D73 — the extent a trip routes on when its graph
+    comes from a held area: the trip's own padded extent
+    (`cache_areas.pad_bbox`) clipped to the area. A trip then routes on the
+    same graph whether it fetched the area itself (the area *is* its padded
+    extent, so nothing is cut) or found one already held.
+
+    `None` when the area already is that extent, so no truncation is owed.
+    """
+    from ..cache_areas import pad_bbox
+    from ..cache_layout import trip_bbox_key
+
+    pw, ps, pe, pn = pad_bbox(trip_bbox)
+    aw, as_, ae, an = area_bbox
+    target = (max(pw, aw), max(ps, as_), min(pe, ae), min(pn, an))
+    if trip_bbox_key(target) == trip_bbox_key(area_bbox):
+        return None
+    return target
 
 
 def build_provisional_graph_from_shrink(

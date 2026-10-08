@@ -26,7 +26,9 @@ from fastapi.testclient import TestClient
 from rasterio.transform import from_origin
 
 from plotlines_core.elevation.qa_proxy_client import ElevationFilling
+from plotlines_core.cache_areas import pad_bbox
 from plotlines_core.graph import extract_fetch
+from plotlines_core.graph import regions as region_lib
 from plotlines_core.graph.loader import LoadedGraph
 from plotlines_core.tiles.extract import _lonlat_to_tile
 from plotlines_service import app as app_module
@@ -37,6 +39,9 @@ from tiles_helpers import build_archive
 _BBOX = [-79.9, 36.05, -79.75, 36.15]
 _BBOX_T = (-79.9, 36.05, -79.75, 36.15)
 _CELL = (-80.0, 36.0, -78.0, 38.0)
+#: The region a build asks `ensure_graph` for since epic #641: the trip's
+#: padded held area (D73), not the trip bbox itself.
+_AREA_KEY = region_lib.region_key(pad_bbox(_BBOX_T), "bike")
 
 
 def _wait(predicate, timeout=10.0):
@@ -149,7 +154,7 @@ def test_a_fill_answered_fetching_twice_then_ready_ends_ready_with_no_author_act
     assert len(calls) == 3
     # D63 phase 2: no Overpass fallback while fetching — the graph was
     # built once, after the extract landed.
-    assert fast_graph == [key]
+    assert fast_graph == [_AREA_KEY]
 
 
 def test_extract_reports_pending_upstream_too(
@@ -367,7 +372,7 @@ def test_elevation_waiting_on_the_proxy_reads_pending_upstream_then_ready(
     assert waiting and waiting[0]["fill_id"] == "fill-elev-1"
     assert "allowance" in waiting[0]["reason"]
     assert not any(e.get("reason", "").startswith("failed:") for e in seen)
-    assert fast_graph == [key], "an elevation retry never rebuilds the graph"
+    assert fast_graph == [_AREA_KEY], "an elevation retry never rebuilds the graph"
 
 
 def test_waiting_s_counts_from_the_first_report_across_phase_retries(monkeypatch) -> None:

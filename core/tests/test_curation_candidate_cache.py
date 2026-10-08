@@ -66,8 +66,9 @@ def test_extract_is_persisted_under_the_cachelayout_root_and_nowhere_else(tmp_pa
     entry = layout.candidate_set(_KEY)
     assert entry.exists()
     assert entry == tmp_path / "candidates" / f"{trip_bbox_key(_KEY)}.json"
-    # nothing written outside the candidates sub-dir
-    assert [p.name for p in tmp_path.iterdir()] == ["candidates"]
+    # nothing written outside the candidates sub-dir, beside the held-area
+    # index that records it (epic #641)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["areas.json", "candidates"]
     assert [p.name for p in (tmp_path / "candidates").iterdir()] == [entry.name]
 
 

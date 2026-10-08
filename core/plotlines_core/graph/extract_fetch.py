@@ -474,12 +474,17 @@ def ensure_extract(
     timeout_s: float = READ_TIMEOUT_S,
     version: str | None = None,
     urlopen=urllib.request.urlopen,
+    areas=None,
 ) -> Path:
     """The one function a caller needs: reuse an on-disk extract within
     `max_age_days` (`find_reusable_extract`) if one exists, otherwise
     request a fresh clip (`fetch_extract`). This is what
     `service.plotlines_service.app.RegionState.build` calls at the
     FR120 extent-declared-or-revised moment.
+
+    `areas` (a `cache_areas.AreaIndex`, epic #641) records the extract as
+    the payload of the area at `bbox`, so a later trip inside it finds it.
+    Callers pass the *area's* bbox (padded, D73), not the trip's.
     """
     progress = progress if progress is not None else DownloadProgress()
     reusable = find_reusable_extract(bbox, cache_dir, now=now, max_age_days=max_age_days)
@@ -490,8 +495,11 @@ def ensure_extract(
         size = reusable.stat().st_size
         progress.bytes_downloaded = size
         progress.total_bytes = size
+        if areas is not None and not areas.holds(bbox, "extract"):
+            areas.register(bbox, "extract", reusable, pin=reusable.parent.name,
+                           fetched_at=reusable.stat().st_mtime)
         return reusable
-    return fetch_extract(
+    dest = fetch_extract(
         bbox,
         mirror_url=mirror_url,
         cache_dir=cache_dir,
@@ -501,3 +509,22 @@ def ensure_extract(
         version=version,
         urlopen=urlopen,
     )
+    if areas is not None:
+        _register_fetched(areas, bbox, dest)
+    return dest
+
+
+def _register_fetched(areas, bbox: BBox, dest: Path) -> None:
+    """Record a freshly fetched extract for its area, dropping the file a
+    previous pin left for the same area so its directory can be swept."""
+    from ..cache_areas import PAYLOAD_EXTRACT
+
+    previous = None
+    for record in areas.areas():
+        if trip_bbox_key(record.bbox) == trip_bbox_key(bbox):
+            previous = record.payloads.get(PAYLOAD_EXTRACT)
+    areas.register(bbox, PAYLOAD_EXTRACT, dest, pin=dest.parent.name)
+    if previous is not None:
+        old = areas.root / previous.path
+        if old.resolve() != dest.resolve():
+            old.unlink(missing_ok=True)
