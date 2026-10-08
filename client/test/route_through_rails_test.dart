@@ -57,25 +57,34 @@ Trip _trip(Segment s) => Trip(
       days: [Day(id: 'd1', index: 1, segments: [s])],
     );
 
-Future<ProviderContainer> _pumpWeightsRail(WidgetTester tester, Segment s) async {
+Future<ProviderContainer> _pumpMetricsRail(WidgetTester tester, Segment s,
+    {PlanningMode mode = PlanningMode.explore}) async {
+  tester.view.physicalSize = const Size(600, 1600);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
   final container = ProviderContainer(overrides: [metricUnits()]);
   addTearDown(container.dispose);
   container.read(currentTripProvider.notifier).open(_trip(s));
+  container.read(dayPlanningModeProvider('d1').notifier).state = mode;
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
     child: MaterialApp(
       home: Scaffold(
         body: Consumer(
-          builder: (context, ref, _) => WeightsRail(
-            dayId: 'd1',
-            segment: ref.watch(currentTripProvider).days.single.segments.single,
-          ),
+          builder: (context, ref, _) {
+            final trip = ref.watch(currentTripProvider);
+            return MetricsRail(
+              trip: trip,
+              selectedSegment: trip.days.single.segments.single,
+              elevationCapability: const CapabilityStatus(ready: true),
+              displayFormat: const DisplayFormat(),
+            );
+          },
         ),
       ),
     ),
   ));
   await tester.pump();
-  await openRailTask(tester, 'frame');
   return container;
 }
 
@@ -92,43 +101,47 @@ Future<void> _tapInRow(WidgetTester tester, int row, String tooltip) async {
 
 Segment _seg(ProviderContainer c) => c.read(currentTripProvider).days.single.segments.single;
 
-Future<void> _pumpMetricsRail(WidgetTester tester, Segment s) async {
-  await tester.pumpWidget(MaterialApp(
-    home: Scaffold(
-      body: MetricsRail(
-        trip: _trip(s),
-        selectedSegment: s,
-        elevationCapability: const CapabilityStatus(ready: true),
-        displayFormat: const DisplayFormat(),
-      ),
-    ),
-  ));
-  await tester.pump();
-}
-
 void main() {
-  group('weights rail — the via list', () {
+  group('metrics rail — the one route-through list (#640)', () {
     testWidgets('lists a routed-through node by name and a map tap by position',
         (tester) async {
-      await _pumpWeightsRail(tester, _segment());
+      await _pumpMetricsRail(tester, _segment());
 
       expect(find.text('ROUTE THROUGH'), findsOneWidget);
       expect(find.text('Lunch'), findsOneWidget);
       expect(find.text('Point 2'), findsOneWidget);
+      expect(find.byKey(const ValueKey('via-order-hint')), findsOneWidget);
     });
 
     testWidgets('reordering changes via and marks the passage stale', (tester) async {
-      final c = await _pumpWeightsRail(tester, _segment());
+      final c = await _pumpMetricsRail(tester, _segment());
 
-      await _tapInRow(tester, 1, 'Reach earlier');
+      await _tapInRow(tester, 1, 'Move earlier');
 
       expect(_seg(c).via, const [_tap, _lunch]);
       expect(_seg(c).solve!.stale, isTrue);
     });
 
+    testWidgets('a drag reorders too', (tester) async {
+      final c = await _pumpMetricsRail(tester, _segment());
+      final handle = find.descendant(
+          of: find.byKey(const ValueKey('via-row-0')), matching: find.byIcon(Icons.drag_indicator));
+      final rowHeight = tester.getSize(find.byKey(const ValueKey('via-row-0'))).height;
+      final gesture = await tester.startGesture(tester.getCenter(handle));
+      await tester.pump();
+      for (var i = 0; i < 10; i++) {
+        await gesture.moveBy(Offset(0, rowHeight * 0.2));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(_seg(c).via, const [_tap, _lunch]);
+    });
+
     testWidgets('removing a node\'s point turns route-through off and keeps the node',
         (tester) async {
-      final c = await _pumpWeightsRail(tester, _segment());
+      final c = await _pumpMetricsRail(tester, _segment());
 
       await _tapInRow(tester, 0, 'Stop routing through this');
 
@@ -137,8 +150,33 @@ void main() {
       expect(_seg(c).solve!.stale, isTrue);
     });
 
+    testWidgets('a start and a finish are pinned: no move controls, a lock instead',
+        (tester) async {
+      final s = _segment(via: const [_lunch, _tap, _overlook]);
+      final pinnedEnds = s.copyWith(nodes: [
+        Node(id: 'n1', kind: NodeKind.start, coord: _lunch, title: 'Lunch'),
+        Node(id: 'n2', kind: NodeKind.finish, coord: _overlook, title: 'Overlook'),
+      ]);
+      final c = await _pumpMetricsRail(tester, pinnedEnds);
+
+      for (final row in [0, 2]) {
+        final r = find.byKey(ValueKey('via-row-$row'));
+        expect(find.descendant(of: r, matching: find.byIcon(Icons.lock_outline)), findsOneWidget);
+        expect(find.descendant(of: r, matching: find.byTooltip('Move earlier')), findsNothing);
+      }
+      expect(find.text('START'), findsOneWidget);
+      expect(find.text('FINISH'), findsOneWidget);
+      // The middle point can't move past either end.
+      final mid = find.byKey(const ValueKey('via-row-1'));
+      expect(
+          tester.widget<IconButton>(find.descendant(
+              of: mid, matching: find.widgetWithIcon(IconButton, Icons.arrow_upward))).onPressed,
+          isNull);
+      expect(_seg(c).via, const [_lunch, _tap, _overlook]);
+    });
+
     testWidgets('three or more points show the target as advisory (A9a)', (tester) async {
-      await _pumpWeightsRail(
+      await _pumpMetricsRail(
         tester,
         _segment(
           shape: 'loop',
@@ -151,7 +189,7 @@ void main() {
 
     testWidgets('one or two points keep the banded target — no advisory line',
         (tester) async {
-      await _pumpWeightsRail(
+      await _pumpMetricsRail(
         tester,
         _segment(
           shape: 'loop',
@@ -159,6 +197,30 @@ void main() {
         ),
       );
       expect(find.byKey(const ValueKey('via-advisory')), findsNothing);
+    });
+
+    testWidgets('Compose reports only; the spine editor orders its route', (tester) async {
+      await _pumpMetricsRail(tester, _segment(), mode: PlanningMode.compose);
+      expect(find.text('Lunch'), findsOneWidget);
+      expect(find.byTooltip('Move earlier'), findsNothing);
+      expect(find.byKey(const ValueKey('via-order-hint')), findsNothing);
+    });
+  });
+
+  group('weights rail', () {
+    testWidgets('no longer carries a second ROUTE THROUGH list', (tester) async {
+      final container = ProviderContainer(overrides: [metricUnits()]);
+      addTearDown(container.dispose);
+      container.read(currentTripProvider.notifier).open(_trip(_segment()));
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: Scaffold(body: WeightsRail(dayId: 'd1', segment: _segment())),
+        ),
+      ));
+      await tester.pump();
+      await openRailTask(tester, 'frame');
+      expect(find.text('ROUTE THROUGH'), findsNothing);
     });
 
     testWidgets('Compose keeps the anchor spine, which names a routed node too',
@@ -177,7 +239,6 @@ void main() {
       await openRailTask(tester, 'frame');
 
       expect(find.text('SPINE'), findsOneWidget);
-      expect(find.text('ROUTE THROUGH'), findsNothing);
       expect(find.text('Lunch'), findsOneWidget);
     });
   });

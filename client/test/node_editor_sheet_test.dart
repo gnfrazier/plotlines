@@ -580,6 +580,26 @@ void main() {
       expect(_solveOf(container)?.stale, isTrue);
     });
 
+    for (final (chip, reason) in [
+      ('start', 'A start is where the route begins.'),
+      ('finish', 'A finish is where the route ends.'),
+    ]) {
+      testWidgets('#640 — choosing $chip turns it on and locks it, with the reason',
+          (tester) async {
+        final (container, _) = await _pumpForm(tester);
+        addTearDown(container.dispose);
+
+        await _tap(tester, find.widgetWithText(ChoiceChip, chip));
+        final box = tester.widget<CheckboxListTile>(routeThrough);
+        expect(box.value, isTrue);
+        expect(box.onChanged, isNull, reason: 'a $chip routes through by what it is');
+        expect(find.text(reason), findsOneWidget);
+
+        await _tap(tester, find.widgetWithText(ChoiceChip, 'waypoint'));
+        expect(tester.widget<CheckboxListTile>(routeThrough).onChanged, isNotNull);
+      });
+    }
+
     testWidgets('choosing the via kind turns it on', (tester) async {
       final (container, _) = await _pumpForm(tester);
       addTearDown(container.dispose);

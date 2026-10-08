@@ -227,12 +227,6 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
       ),
       const SizedBox(height: PlotSpacing.s3),
       _TargetDistanceField(dayId: widget.dayId, segment: segment, mode: mode),
-      if (mode == PlanningMode.explore && segment.via.isNotEmpty) ...[
-        const SizedBox(height: PlotSpacing.s3),
-        heading('ROUTE THROUGH'),
-        const SizedBox(height: PlotSpacing.s2),
-        _ViaList(dayId: widget.dayId, segment: segment),
-      ],
       if (mode == PlanningMode.compose) ...[
         // Unbounded, like BANDS — compose *is* the POI-spine trip
         // (FR39/FR117), with no cap on how many places it reaches.
@@ -493,10 +487,20 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                   // first rather than inside a task that may be closed.
                   // #626 — a passage built from placed nodes solves first
                   // point to last; it needs two to solve between.
+                  // #640 — and any passage the solve has no ends for says
+                  // what would give it them, rather than throwing on press.
                   if (_needsRoutePoints(segment)) ...[
                     Text(
-                      'Place two or more route-through nodes, in the order you want, '
-                      'to generate the route between them.',
+                      key: const ValueKey('needs-route-points'),
+                      mode == PlanningMode.compose && routesFromNodes(segment)
+                          ? 'Compose routes through promoted anchors. Switch this day to '
+                              'Explore to route through the nodes you placed.'
+                          : routesFromNodes(segment)
+                              ? 'Place two or more route-through nodes to generate the route '
+                                  'between them. A start and a finish set the ends; set the '
+                                  'order under ROUTE THROUGH.'
+                              : 'This passage has no ends to route between. Mark a node as '
+                                  'Start, and as Finish for a one-way route.',
                       style: PlotTypography.small(c.textSecondary),
                     ),
                     const SizedBox(height: PlotSpacing.s2),
@@ -618,6 +622,12 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         setState(() => _error =
             failureSentence(e, fallback: 'The route couldn\'t be re-solved. Try again.'));
       }
+    } on StateError {
+      // The button is disabled when the passage has no ends (#640); this is
+      // the backstop for a race, never a raw error on screen.
+      if (mounted) {
+        setState(() => _error = 'This passage has nothing to route between yet.');
+      }
     } finally {
       if (mounted) setState(() => _regenerating = false);
     }
@@ -713,8 +723,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
   /// contradicts compose's "no target, length is an outcome" (ARCH §7.7) —
   /// this is the one shape/mode combination Regenerate must refuse rather
   /// than send a request the sidecar will 422.
-  static bool _needsRoutePoints(Segment segment) =>
-      routesFromNodes(segment) && nodeRouteSolveInputs(segment) == null;
+  static bool _needsRoutePoints(Segment segment) => routeSolveInputs(segment) == null;
 
   static bool _composeNeedsTarget(PlanningMode mode, Segment segment) =>
       mode == PlanningMode.compose && segment.shape == 'loop';
@@ -1292,89 +1301,6 @@ class _SpineEditor extends ConsumerWidget {
         else if (anchors.isEmpty)
           Text('Promote a place first (Curation) to add it to this spine.',
               style: PlotTypography.small(c.textMuted)),
-      ],
-    );
-  }
-}
-
-/// #589 — Explore's via list: every point this passage's route must reach,
-/// in the order a re-solve visits them. A routed-through node reads by its
-/// name, and a New Route map tap reads as a numbered point, so the two are one
-/// concept here. Reordering or removing a point goes through
-/// `updateSegmentVia`, which marks the passage stale and keeps the A9a
-/// advisory flag in step. Removing a node's point turns "Route through this"
-/// off and leaves the node where it is.
-class _ViaList extends ConsumerWidget {
-  const _ViaList({required this.dayId, required this.segment});
-  final String dayId;
-  final Segment segment;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = PlotColors.of(context);
-    final anchors = ref.watch(currentTripProvider.select((t) => t.anchors));
-    void setVia(List<Coord> via) =>
-        ref.read(currentTripProvider.notifier).updateSegmentVia(dayId, segment.id, via);
-    final advisory = segment.targetDistance?.advisory ?? false;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < segment.via.length; i++)
-          Padding(
-            key: ValueKey('via-row-$i'),
-            padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
-            child: PlotCard(
-              sunk: true,
-              padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
-              child: Row(
-                children: [
-                  Text('${i + 1}.', style: PlotTypography.data(c.textMuted)),
-                  const SizedBox(width: PlotSpacing.s2),
-                  Expanded(
-                    child: Text(viaLabel(segment, segment.via[i], i, anchors: anchors),
-                        style: PlotTypography.body(c.textPrimary)),
-                  ),
-                  IconButton(
-                    tooltip: 'Reach earlier',
-                    icon: const Icon(Icons.arrow_upward, size: 16),
-                    onPressed: i == 0
-                        ? null
-                        : () {
-                            final via = [...segment.via];
-                            via.insert(i - 1, via.removeAt(i));
-                            setVia(via);
-                          },
-                  ),
-                  IconButton(
-                    tooltip: 'Reach later',
-                    icon: const Icon(Icons.arrow_downward, size: 16),
-                    onPressed: i == segment.via.length - 1
-                        ? null
-                        : () {
-                            final via = [...segment.via];
-                            via.insert(i + 1, via.removeAt(i));
-                            setVia(via);
-                          },
-                  ),
-                  IconButton(
-                    tooltip: 'Stop routing through this',
-                    icon: const Icon(Icons.close, size: 16),
-                    onPressed: () => setVia([...segment.via]..removeAt(i)),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        // A9a / FR8a — three or more points fix the route's length, so a
-        // banded target becomes a readout rather than a constraint.
-        if (advisory)
-          Text(
-            'With three or more points to reach, the target distance is '
-            'advisory: reported against the route, not used to shape it.',
-            key: const ValueKey('via-advisory'),
-            style: PlotTypography.small(c.textSecondary),
-          ),
       ],
     );
   }

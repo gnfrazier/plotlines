@@ -127,9 +127,13 @@ class _ContentTabState extends ConsumerState<ContentTab> {
                     spacing: PlotSpacing.s2,
                     runSpacing: PlotSpacing.s2,
                     children: [
-                      for (final n in segment.nodes)
+                      // #640 — in route order, numbered, then the
+                      // annotations; the order is set under ROUTE THROUGH.
+                      for (final (node: n, :order) in nodesInRouteOrder(segment))
                         ChoiceChip(
-                          label: Text(n.title ?? n.kind.wireValue),
+                          label: Text(order == null
+                              ? (n.title ?? n.kind.wireValue)
+                              : '$order  ${n.title ?? n.kind.wireValue}'),
                           selected: n.id == _selectedNodeId,
                           onSelected: (_) => setState(() {
                             _selectedNodeId = n.id;

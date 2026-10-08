@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plotlines_client/data/sidecar_manager.dart' show CapabilityStatus;
@@ -26,12 +27,15 @@ Trip _tripWith(Segment segment) {
 }
 
 Future<void> _pump(WidgetTester tester, Segment segment) async {
-  await tester.pumpWidget(MaterialApp(
-    home: Scaffold(
-      body: MetricsRail(
-        trip: _tripWith(segment),
-        selectedSegment: segment,
-        elevationCapability: const CapabilityStatus(ready: true),
+  // #640 — the rail's route-through list edits the trip, so it needs a scope.
+  await tester.pumpWidget(ProviderScope(
+    child: MaterialApp(
+      home: Scaffold(
+        body: MetricsRail(
+          trip: _tripWith(segment),
+          selectedSegment: segment,
+          elevationCapability: const CapabilityStatus(ready: true),
+        ),
       ),
     ),
   ));

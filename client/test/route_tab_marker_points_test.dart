@@ -498,4 +498,62 @@ void main() {
       expect(find.byType(ArcStageBadge), findsNothing);
     });
   });
+
+  group('#640', () {
+    test('a start or finish node replaces the tapped endpoint on the map', () {
+      const tapped = <double>[-105.3, 40.0];
+      const tappedEnd = <double>[-105.0, 40.1];
+      const node = <double>[-105.2, 40.05];
+      final trip = Trip(
+        id: 't',
+        title: 'T',
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+        days: [
+          Day(id: 'd1', index: 1, segments: [
+            Segment(
+              id: 's1',
+              mode: 'cycling',
+              shape: 'point_to_point',
+              start: tapped,
+              end: tappedEnd,
+              via: const [node],
+              nodes: [Node(id: 'n', kind: NodeKind.start, coord: node)],
+            ),
+          ]),
+        ],
+      );
+      final starts = [
+        for (final p in routeTabMarkerPoints(trip))
+          if (p.role == NodeMarkerType.start) p.coord,
+      ];
+      expect(starts, [node], reason: 'one start on the map, where the route begins');
+      expect(
+          routeTabMarkerPoints(trip).where((p) => p.role == NodeMarkerType.finish).single.coord,
+          tappedEnd);
+    });
+
+    testWidgets('route-through points carry their order as a number', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager())],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: TapToPickMap(
+                center: [-105.005, 40.005],
+                initialZoom: 12,
+                routeOrder: [
+                  (coord: [-105.0, 40.0], order: 1),
+                  (coord: [-105.01, 40.01], order: 2),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+    });
+  });
 }

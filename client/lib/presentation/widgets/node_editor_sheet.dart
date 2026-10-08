@@ -158,7 +158,10 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
       return segment != null && routesFromNodes(segment);
     }
     final segment = _segment;
-    return segment != null && nodeRoutesThrough(segment, existing);
+    if (segment != null && nodeRoutesThrough(segment, existing)) return true;
+    // #640 — a start, finish or via saved before the rule routes through
+    // from the next save on; show it that way.
+    return !_composePosture && nodeKindAlwaysRoutesThrough(existing.kind);
   }
 
   Segment? get _segment => resolveSelectedSegment(
@@ -262,10 +265,11 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
                 selected: _kind == kind,
                 onSelected: (_) => setState(() {
                   _kind = kind;
-                  // A `via` node is the route-through kind by name; choosing
-                  // it turns the choice on. Leaving `via` keeps the choice as
-                  // it is — the Author may want a waypoint routed through.
-                  if (kind == NodeKind.via && !_composePosture) _routeThrough = true;
+                  // A start, finish or via node routes through by what it is
+                  // (#640); choosing one turns the choice on and locks it.
+                  // Leaving one keeps the choice as it is — the Author may
+                  // want a waypoint routed through.
+                  if (nodeKindAlwaysRoutesThrough(kind) && !_composePosture) _routeThrough = true;
                 }),
               ),
           ],
@@ -349,7 +353,9 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
   List<Widget> _routeThroughControl(PlotColors c) {
     final compose =
         ref.watch(dayPlanningModeProvider(widget.dayId)) == PlanningMode.compose;
-    final offerable = !compose || _routeThrough;
+    // #640 — a start, finish or via node routes through by what it is.
+    final locked = !compose && nodeKindAlwaysRoutesThrough(_kind);
+    final offerable = !locked && (!compose || _routeThrough);
     return [
       CheckboxListTile(
         key: const ValueKey('node-route-through'),
@@ -362,7 +368,12 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
           compose
               ? 'In Compose the route follows the spine. Promote this place to an '
                   'anchor and add it to the spine to route through it.'
-              : 'The route must reach this point.',
+              : switch (_kind) {
+                  NodeKind.start when locked => 'A start is where the route begins.',
+                  NodeKind.finish when locked => 'A finish is where the route ends.',
+                  NodeKind.via when locked => 'A via is a point the route must reach.',
+                  _ => 'The route must reach this point.',
+                },
           style: PlotTypography.small(c.textSecondary),
         ),
       ),

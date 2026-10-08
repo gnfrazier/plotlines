@@ -13,6 +13,7 @@ import 'package:plotlines_ui/plotlines_ui.dart';
 import '../../data/sidecar_manager.dart' show CapabilityStatus;
 import '../../domain/domain.dart';
 import 'error_states.dart' show CapabilityWarmingNotice;
+import 'route_through_list.dart';
 import 'teaching_block.dart';
 import '../map/hazard_points.dart';
 
@@ -226,11 +227,13 @@ class _MetricsRailState extends State<MetricsRail> {
                             : displayFormat.formatDistance(segment.metrics!.distanceM!),
                       ),
                     // #589 — did the route reach each point it was asked to?
+                    // #640 — and the one place to set their order.
                     if (segment.via.isNotEmpty) ...[
                       const SizedBox(height: PlotSpacing.s4),
                       heading('ROUTE THROUGH'),
                       const SizedBox(height: PlotSpacing.s2),
-                      _ViaReachSection(
+                      RouteThroughList(
+                        dayId: _dayIdOf(trip, segment),
                         segment: segment,
                         anchors: trip.anchors,
                         displayFormat: displayFormat,
@@ -495,92 +498,12 @@ class _DayTimingRow extends StatelessWidget {
   }
 }
 
-/// #589 — each point the passage must reach, by name, and whether the solved
-/// line reaches it. Measured on the client against the line itself
-/// ([viaReach], [kViaReachedM]) rather than read from `solve.hit_via`: that
-/// flag is a single yes/no, only loops set it, and it counts a point as hit
-/// when its *snapped graph node* is on the path, which can be a long way from
-/// where the Author put it. A missed point is named with its distance, so the
-/// Author can tell a near miss from a point the route never went near.
-///
-/// A stale passage says so instead of reporting: its line answers a question
-/// the Author has since changed.
-class _ViaReachSection extends StatelessWidget {
-  const _ViaReachSection({
-    required this.segment,
-    required this.anchors,
-    required this.displayFormat,
-  });
-  final Segment segment;
-  final List<Anchor> anchors;
-  final DisplayFormat displayFormat;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = PlotColors.of(context);
-    final solved = (segment.geometry?.coordinates.length ?? 0) >= 2;
-    final stale = segment.solve?.stale ?? false;
-    final rows = viaReach(segment, anchors: anchors);
-
-    if (!solved || stale) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final r in rows)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Text(r.label, style: PlotTypography.small(c.textPrimary)),
-            ),
-          const SizedBox(height: PlotSpacing.s1),
-          Text(
-            !solved
-                ? 'Not solved yet. Generate the route to check it reaches these.'
-                : 'Changed since the last solve. Re-solve to check the route reaches these.',
-            key: const ValueKey('via-reach-pending'),
-            style: PlotTypography.small(c.textMuted),
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final r in rows)
-          Padding(
-            padding: const EdgeInsets.only(bottom: PlotSpacing.s1),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  r.reached ? Icons.check : Icons.warning_amber_rounded,
-                  size: 14,
-                  color: r.reached ? c.textSecondary : c.warning,
-                ),
-                const SizedBox(width: PlotSpacing.s1),
-                // FR145 — the label (an Author's node title) stands alone;
-                // the status beside it is fixed text, never a sentence built
-                // around authored words.
-                Expanded(
-                  child: Text(r.label, style: PlotTypography.small(c.textPrimary)),
-                ),
-                Text(
-                  r.reached ? 'reached' : 'missed',
-                  style: PlotTypography.small(r.reached ? c.textSecondary : c.textPrimary),
-                ),
-                if (!r.reached && r.offsetM != null) ...[
-                  const SizedBox(width: PlotSpacing.s1),
-                  Text(
-                    displayFormat.formatDistance(r.offsetM!),
-                    style: PlotTypography.data(c.textSecondary),
-                  ),
-                ],
-              ],
-            ),
-          ),
-      ],
-    );
+/// The day [segment] belongs to, for the route-through list's edits.
+String _dayIdOf(Trip trip, Segment segment) {
+  for (final d in trip.days) {
+    if (d.segments.any((s) => s.id == segment.id)) return d.id;
   }
+  return '';
 }
 
 /// A9/FR8a — the via-anchor AC an Author cannot see just by looking at the
