@@ -164,6 +164,19 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     return day.id;
   }
 
+  /// #655 — an empty passage on [dayId], travelled by [mode], for the
+  /// Author to build from placed nodes (#626): New Route's Blank canvas on a
+  /// day they picked. Selected, so the Route tab opens on it. Returns its id.
+  String addBlankPassage(String dayId, String mode) {
+    final segment = Segment(id: _uuid.v4(), mode: mode, shape: 'point_to_point');
+    _edit('Add a passage', () {
+      final day = state.days.firstWhere((d) => d.id == dayId);
+      _replaceDay(day.copyWith(segments: [...day.segments, segment]));
+    });
+    _ref.read(selectedSegmentProvider.notifier).state = (dayId, segment.id);
+    return segment.id;
+  }
+
   Day _dayOrNew(String? dayId) {
     if (dayId != null) {
       return state.days.firstWhere((d) => d.id == dayId);

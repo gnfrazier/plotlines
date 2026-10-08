@@ -83,6 +83,12 @@ final _router = GoRouter(
       builder: (context, state) =>
           NewRouteScreen(initialCenter: state.extra as List<double>?),
     ),
+    // Issue #655 — New Route from the trip shell: a route added to a trip
+    // that exists, not step 4 of creating one.
+    GoRoute(
+      path: '/add-route',
+      builder: (context, state) => const NewRouteScreen(isCreation: false),
+    ),
     // Wireframe screens 01/02/03/04 — one persistent tabbed shell per trip,
     // not four separate routes (see trip_shell_screen.dart).
     GoRoute(path: '/plan', builder: (context, state) => const TripShellScreen()),

@@ -139,6 +139,7 @@ Future<void> _pumpPanel(
     routes: [
       GoRoute(path: '/new', builder: (_, _) => const NewRouteScreen()),
       GoRoute(path: '/plan', builder: (_, _) => const SizedBox.shrink()),
+      GoRoute(path: '/trip-area', builder: (_, _) => const Text('TRIP AREA')),
     ],
   );
   await tester.pumpWidget(ProviderScope(
@@ -613,6 +614,13 @@ void main() {
 
     expect(find.text('This area doesn\'t have routable data'), findsOneWidget);
     expect(find.textContaining('nearest graph node'), findsNothing);
+
+    // #655 (F6) — its way on is the trip area itself; a pop landed on the
+    // layer step (or, from the shell, the shell).
+    await tester.ensureVisible(find.text('Choose area'));
+    await tester.tap(find.text('Choose area'));
+    await _settle(tester);
+    expect(find.text('TRIP AREA'), findsOneWidget);
   });
 
   // ---- #399: the DATES chip reads in the Author's date format --------------

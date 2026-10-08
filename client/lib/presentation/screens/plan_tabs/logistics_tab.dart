@@ -104,7 +104,7 @@ class LogisticsTab extends ConsumerWidget {
                   actions: [
                     EmptyStateAction('Add a route day', () {
                       ref.read(plannerTargetDayIdProvider.notifier).state = null;
-                      context.push('/new');
+                      context.push('/add-route');
                     }),
                     EmptyStateAction('Add a rest day',
                         () => ref.read(currentTripProvider.notifier).addBlankDay(kind: 'rest')),
@@ -150,7 +150,7 @@ class LogisticsTab extends ConsumerWidget {
                   icon: Icons.add,
                   onPressed: () {
                     ref.read(plannerTargetDayIdProvider.notifier).state = null;
-                    context.push('/new');
+                    context.push('/add-route');
                   },
                 ),
               ),
@@ -492,7 +492,7 @@ class _DayCard extends ConsumerWidget {
                   actions: [
                     EmptyStateAction('Add a passage', () {
                       ref.read(plannerTargetDayIdProvider.notifier).state = day.id;
-                      context.push('/new');
+                      context.push('/add-route');
                     }),
                     EmptyStateAction('Make it a rest day',
                         () => ref.read(currentTripProvider.notifier).setDayKind(day.id, 'rest')),
@@ -507,7 +507,7 @@ class _DayCard extends ConsumerWidget {
                     icon: Icons.add,
                     onPressed: () {
                       ref.read(plannerTargetDayIdProvider.notifier).state = day.id;
-                      context.push('/new');
+                      context.push('/add-route');
                     },
                   ),
                 ),
