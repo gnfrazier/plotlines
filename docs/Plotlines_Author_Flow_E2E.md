@@ -1,6 +1,6 @@
 # Plotlines — Author Flow, End to End (as built)
 
-**Version:** 1.0 · **Traced:** 2026-10-07 against `main` at `a3245b3` (after PR #650)
+**Version:** 1.1 · **Traced:** 2026-10-07 against `main` at `a3245b3` (after PR #650)
 **Companion to:** `Plotlines_Author_Flows_MVP.md` (the flows as specified), `Plotlines_PRD_v2.md` (source of truth)
 
 `Plotlines_Author_Flows_MVP.md` draws each feature area from the PRD, which is what the app was
@@ -441,14 +441,14 @@ unless stated.
 | **F23** | Low | 10 | **Per-day export overwrites same-named files** in the chosen folder without asking. | `plan_tabs/export_tab.dart:1147` |
 | **F24** | Low | 3 | **Trip extent's ← says "Back to the location prompt"** but lands on the Library, because the prompts were dialogs over it. Going forward asks for modes and location again. | `screens/trip_area_screen.dart:164` |
 
-**Proposed grouping into issues.** These group by fix, not one issue per finding:
-1. **Node-built passages through the output pipeline:** F1, F2, F16. This is the #626/#640 follow-on. The fix is one helper that resolves a passage's effective start (`routeSolveInputs`) for cues, Diagnose and the Content map.
-2. **Stale re-solve honours the day's planning mode:** F3.
-3. **New Route opened from the shell:** F4, F6, F7. Target the picked day, drop the creation chrome, and send *Choose area* to the trip area.
-4. **Routing readiness inside the shell:** F5.
-5. **Export and print dead ends and silent failures:** F9, F10, F11, F12, F23.
-6. **Library card actions:** F8. Deep-link the tab, and hide *Export backup* until L3 (#127).
-7. **Copy and consistency sweep:** F13, F14, F15, F17, F19, F20, F21, F22, F24.
+**Filed as issues** (2026-10-07). These group by fix, not one issue per finding:
+1. **#653: node-built passages through the output pipeline:** F1, F2, F16. This is the #626/#640 follow-on. The fix is one helper that resolves a passage's effective start (`routeSolveInputs`) for cues, Diagnose and the Content map.
+2. **#654: stale re-solve honours the day's planning mode:** F3.
+3. **#655: New Route opened from the shell:** F4, F6, F7. Target the picked day, drop the creation chrome, and send *Choose area* to the trip area.
+4. **#656: routing readiness inside the shell:** F5.
+5. **#657: export and print dead ends and silent failures:** F9, F10, F11, F12, F23.
+6. **#658: library card actions:** F8. Deep-link the tab, and hide *Export backup* until L3 (#127).
+7. **#659: copy and consistency sweep:** F13, F14, F15, F17, F19, F20, F21, F22, F24.
 
 ---
 
@@ -484,4 +484,5 @@ unless stated.
 
 | Version | Change |
 |---|---|
+| **1.1** | Findings filed as #653–#659; §11 names each issue. |
 | **1.0** | First code trace, 2026-10-07, at `a3245b3`. Eleven diagrams (the spine plus ten stages) and 24 findings (F1–F24). Diff against `Plotlines_Author_Flows_MVP.md` v1.6. |
