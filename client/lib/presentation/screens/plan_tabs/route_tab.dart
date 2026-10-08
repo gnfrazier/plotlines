@@ -49,8 +49,12 @@ import '../../widgets/weights_rail.dart';
 List<MapMarkerPoint> routeTabMarkerPoints(Trip trip) => [
       for (final d in trip.days) ...[
         for (final s in d.segments) ...[
-          if (s.start != null) (coord: s.start!, role: NodeMarkerType.start, arcStage: null),
-          if (s.end != null) (coord: s.end!, role: NodeMarkerType.finish, arcStage: null),
+          // #640 — a start or finish node is the route's end, so the tapped
+          // endpoint it overrides is not drawn as one too.
+          if (s.start != null && routeEndNode(s, NodeKind.start) == null)
+            (coord: s.start!, role: NodeMarkerType.start, arcStage: null),
+          if (s.end != null && routeEndNode(s, NodeKind.finish) == null)
+            (coord: s.end!, role: NodeMarkerType.finish, arcStage: null),
           for (final n in s.nodes)
             (coord: n.coord, role: markerForNodeKind(n.kind), arcStage: n.arcStage),
         ],
@@ -479,6 +483,12 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                             anchors: anchorMapPoints(widget.trip.anchors),
                             polyline: routeCoords ?? const [],
                             polylineArcStage: selectedSegment?.arcStage,
+                            // #640 — the selected passage's route order.
+                            routeOrder: [
+                              if (selectedSegment != null)
+                                for (var i = 0; i < selectedSegment.via.length; i++)
+                                  (coord: selectedSegment.via[i], order: i + 1),
+                            ],
                             leaderLines: routeTabLeaderLines(selectedSegment),
                             // #324 — the divergence as it is being drawn or moved:
                             // the path dashed, the stretch of the day it stands in

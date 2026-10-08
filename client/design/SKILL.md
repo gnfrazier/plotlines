@@ -94,10 +94,15 @@ always free. Node placement also puts a crosshair cursor over the map.
 
 Points a route must reach are one concept on screen (#589). The node editor carries a
 **Route through this** checkbox, which in Compose points the Author to promotion instead.
-The weights rail's ROUTE THROUGH list (Explore) names every via point in order — a node by
-its title, a New Route tap as *Point N* — with reorder and remove. The metrics rail's
-ROUTE THROUGH section reports each one by name, and a miss carries its distance in mono
-beside the warning icon, never a bare *no*.
+There is **one** ROUTE THROUGH list, in the metrics rail (#640, `RouteThroughList`): every via
+point in order — a node by its title, a New Route tap as *Point N* — numbered, with a drag
+handle, *Move earlier / later* and remove in Explore (report-only in Compose). A start and a
+finish are pinned rows: a lock and a START / FINISH tag, no move controls. Each row reports
+reached or missed once solved, and a miss carries its distance in mono beside the warning
+icon, never a bare *no*. Never add a second list with the same name: #589 had two, and the
+visible one was read-only. Start, finish and via nodes lock *Route through this* on, with the
+reason, and the selected passage's routed points carry their order as a mono number on the
+map.
 
 The trip shell's app bar carries labelled actions, not bare icons: **← Library** (#577),
 **Settings** (#578) and **Save**. Work autosaves while the shell is showing, so leaving

@@ -1397,6 +1397,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   }
 
   void _saveSegmentNode(String dayId, String segmentId, Node node, {required bool routeThrough}) {
+    // #640 — a start, finish or via node always routes through. Not in
+    // Compose, where the spine is the route and a node never joins it (#589).
+    final compose = _ref.read(dayPlanningModeProvider(dayId)) == PlanningMode.compose;
+    routeThrough = routeThrough || (!compose && nodeKindAlwaysRoutesThrough(node.kind));
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segment = day.segments.firstWhere((s) => s.id == segmentId);
     Node? old;
@@ -1421,14 +1425,26 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final moved = old != null && !sameCoord(old.coord, node.coord);
     final stale = viaChanged || (constraintKind && (old == null || moved || old.kind != node.kind));
 
-    var updated = segment.copyWith(
-      nodes: old == null
-          ? [...segment.nodes, node]
-          : [for (final n in segment.nodes) if (n.id == node.id) node else n],
-      via: via,
-    );
+    // #640 — one start and one finish per passage: a second one retypes the
+    // previous holder to a waypoint, in this same edit.
+    var nodes = old == null
+        ? [...segment.nodes, node]
+        : [for (final n in segment.nodes) if (n.id == node.id) node else n];
+    if (node.kind == NodeKind.start || node.kind == NodeKind.finish) {
+      nodes = [
+        for (final n in nodes)
+          if (n.id != node.id && n.kind == node.kind) n.copyWith(kind: NodeKind.waypoint) else n,
+      ];
+    }
+    via = pinRouteEnds(nodes, via);
+    final viaReordered = via.length != segment.via.length ||
+        [for (var i = 0; i < via.length; i++) sameCoord(via[i], segment.via[i])].contains(false);
+    final demoted = nodes.any((n) =>
+        segment.nodes.any((o) => o.id == n.id && o.id != node.id && o.kind != n.kind));
+
+    var updated = segment.copyWith(nodes: nodes, via: via);
     updated = _reconcileTargetAdvisory(updated);
-    if (stale && updated.solve != null) {
+    if ((stale || viaReordered || demoted) && updated.solve != null) {
       updated = updated.copyWith(solve: updated.solve!.markStale());
     }
     _replaceDay(day.copyWith(segments: [
@@ -1630,7 +1646,11 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segments = [
       for (final s in day.segments)
-        if (s.id == segmentId) _reconcileTargetAdvisory(s.copyWith(via: via)) else s,
+        // #640 — the start and finish stay pinned whatever order is asked for.
+        if (s.id == segmentId)
+          _reconcileTargetAdvisory(s.copyWith(via: pinRouteEnds(s.nodes, via)))
+        else
+          s,
     ];
     _replaceDay(day.copyWith(segments: segments));
     markSegmentStale(dayId, segmentId);
@@ -1862,16 +1882,17 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   }) async {
     final day = state.days.firstWhere((d) => d.id == dayId);
     final old = day.segments.firstWhere((s) => s.id == segmentId);
-    // #626 — a passage built from placed nodes routes first point to last
-    // through the ones between. Its stored start/end stay empty and its via
-    // keeps every point, so each node still reads as routed through (D71).
-    final fromNodes = nodeRouteSolveInputs(old);
-    final needsEnd = old.shape != 'loop';
-    if (fromNodes == null && (old.start == null || (needsEnd && old.end == null))) {
+    // #626 / #640 — start and finish nodes are the route's ends on every
+    // passage, and a node-built passage runs first point to last otherwise.
+    // When the ends come from nodes the stored start/end/via stay as they
+    // are, so every node still reads as routed through (D71).
+    final inputs = routeSolveInputs(old);
+    if (inputs == null) {
       throw StateError(routesFromNodes(old)
           ? 'segment $segmentId needs two route-through points to solve between'
           : 'segment $segmentId has no start/end to re-solve from');
     }
+    final keepStoredEnds = routeEndsComeFromNodes(old);
     final client = _ref.read(routingClientProvider);
     final bbox = _ref.read(tripBboxProvider);
     if (bbox == null) {
@@ -1883,9 +1904,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final weightsPayload = _solverWeights(weights, mode);
     final resolved = await client.generateSegment(
       region: region,
-      start: fromNodes?.start ?? old.start!,
-      end: fromNodes?.end ?? (old.shape == 'loop' ? null : old.end!),
-      via: fromNodes?.via ?? old.via,
+      start: inputs.start,
+      end: inputs.end,
+      via: inputs.via,
       mode: old.mode,
       // #315 — carry the passage's discipline through the re-solve. When the
       // Author has set explicit weight sliders (`weightsPayload` below) the
@@ -1952,9 +1973,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       discipline: merged.discipline,
       shape: merged.shape,
       title: merged.title,
-      start: fromNodes != null ? null : merged.start,
-      end: fromNodes != null ? null : merged.end,
-      via: fromNodes != null ? old.via : merged.via,
+      start: keepStoredEnds ? old.start : merged.start,
+      end: keepStoredEnds ? old.end : merged.end,
+      via: keepStoredEnds ? old.via : merged.via,
       targetDistance: merged.targetDistance,
       bands: merged.bands,
       violations: violations,

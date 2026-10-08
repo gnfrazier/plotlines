@@ -31,13 +31,114 @@ bool sameCoord(Coord a, Coord b) => a[0] == b[0] && a[1] == b[1];
 bool routesFromNodes(Segment segment) =>
     segment.start == null && segment.end == null && segment.shape == 'point_to_point';
 
-/// What a solve of a node-built passage sends: its first route-through point
-/// as the start, its last as the end, and the ones between as via. Null when
-/// [segment] is not node-built or has fewer than two points to route between.
-({Coord start, Coord end, List<Coord> via})? nodeRouteSolveInputs(Segment segment) {
-  if (!routesFromNodes(segment) || segment.via.length < 2) return null;
-  final via = segment.via;
-  return (start: via.first, end: via.last, via: via.sublist(1, via.length - 1));
+/// Issue #640 — kinds that always route through: a `start` is where the
+/// route begins, a `finish` where it ends, and a `via` is by definition a
+/// point to reach. The editor ticks and locks "Route through this" for them.
+bool nodeKindAlwaysRoutesThrough(NodeKind kind) =>
+    kind == NodeKind.start || kind == NodeKind.finish || kind == NodeKind.via;
+
+/// The routed-through node of [kind] (`start` or `finish`) on [segment], if
+/// any. A passage holds at most one of each (`saveSegmentNode` retypes the
+/// previous one to a waypoint).
+Node? routeEndNode(Segment segment, NodeKind kind) {
+  for (final n in segment.nodes) {
+    if (n.kind == kind && nodeRoutesThrough(segment, n)) return n;
+  }
+  return null;
+}
+
+/// Issue #640 — [via] with the start node's point first and the finish
+/// node's point last. Every other routed point keeps the Author's order;
+/// a node that does not route through is an annotation and has no place in
+/// the order at all.
+List<Coord> pinRouteEnds(List<Node> nodes, List<Coord> via) {
+  Coord? startAt, finishAt;
+  for (final n in nodes) {
+    if (!via.any((v) => sameCoord(v, n.coord))) continue;
+    if (n.kind == NodeKind.start) startAt ??= n.coord;
+    if (n.kind == NodeKind.finish) finishAt ??= n.coord;
+  }
+  var out = via;
+  if (startAt != null) out = [startAt, ...viaWithout(out, startAt)];
+  if (finishAt != null && !(startAt != null && sameCoord(startAt, finishAt))) {
+    out = [...viaWithout(out, finishAt), finishAt];
+  }
+  return out;
+}
+
+/// Is the via point at [index] pinned by a start or finish node, so the
+/// order can't move it?
+bool viaPointIsPinned(Segment segment, int index) {
+  final v = segment.via[index];
+  return segment.nodes.any((n) =>
+      (n.kind == NodeKind.start || n.kind == NodeKind.finish) && sameCoord(n.coord, v));
+}
+
+/// What a solve of [segment] sends: start, end and the via points between.
+///
+/// A routed `start` node is the start and a routed `finish` node the end, on
+/// every passage — over a New Route passage's own tapped endpoints too (#640,
+/// owner's call). Otherwise a node-built passage ([routesFromNodes]) runs
+/// from its first route-through point to its last, and any other passage
+/// uses its own `start` / `end`. A loop closes on its start and has no end.
+/// Null when there is nothing to start from, or no end for a shape that
+/// needs one.
+({Coord start, Coord? end, List<Coord> via})? routeSolveInputs(Segment segment) {
+  final nodeBuilt = routesFromNodes(segment);
+  var via = [...segment.via];
+  final startNode = routeEndNode(segment, NodeKind.start);
+  Coord? start;
+  if (startNode != null) {
+    start = startNode.coord;
+    via = viaWithout(via, start);
+  } else if (nodeBuilt) {
+    if (via.isEmpty) return null;
+    start = via.removeAt(0);
+  } else {
+    start = segment.start;
+  }
+  if (start == null) return null;
+  if (segment.shape == 'loop') return (start: start, end: null, via: via);
+
+  final finishNode = routeEndNode(segment, NodeKind.finish);
+  Coord? end;
+  if (finishNode != null) {
+    end = finishNode.coord;
+    via = viaWithout(via, end);
+  } else if (nodeBuilt) {
+    if (via.isEmpty) return null;
+    end = via.removeLast();
+  } else {
+    end = segment.end;
+  }
+  if (end == null) return null;
+  return (start: start, end: end, via: via);
+}
+
+/// Does the solve take an endpoint from the nodes rather than from the
+/// passage's own stored `start` / `end`? Then a re-solve keeps those stored
+/// fields as they were, so D71's coordinate link still holds.
+bool routeEndsComeFromNodes(Segment segment) =>
+    routesFromNodes(segment) ||
+    routeEndNode(segment, NodeKind.start) != null ||
+    routeEndNode(segment, NodeKind.finish) != null;
+
+/// Issue #640 — [segment]'s nodes as a reader meets them: the routed ones in
+/// route order, each with its place (1-based), then the annotations in the
+/// order they were placed, with no place.
+List<({Node node, int? order})> nodesInRouteOrder(Segment segment) {
+  final routed = <({Node node, int? order})>[];
+  final rest = <({Node node, int? order})>[];
+  for (final n in segment.nodes) {
+    final i = segment.via.indexWhere((v) => sameCoord(v, n.coord));
+    if (i < 0) {
+      rest.add((node: n, order: null));
+    } else {
+      routed.add((node: n, order: i + 1));
+    }
+  }
+  routed.sort((a, b) => a.order!.compareTo(b.order!));
+  return [...routed, ...rest];
 }
 
 /// Does [node] route through — is its coordinate one of [segment]'s via points?

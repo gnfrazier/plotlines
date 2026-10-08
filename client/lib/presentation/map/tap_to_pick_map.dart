@@ -47,6 +47,10 @@ typedef MapMarkerPoint = ({LatLonPoint coord, NodeMarkerType role, String? arcSt
 /// day is visible rather than left to be guessed from proximity.
 typedef MapLeaderLine = ({LatLonPoint from, LatLonPoint to});
 
+/// #640 — where a route-through point falls in the order a solve visits
+/// them, drawn as a mono number beside the point's own marker.
+typedef MapRouteOrder = ({LatLonPoint coord, int order});
+
 /// #324 — a mark the caller draws itself, at a coordinate. Used for the fork
 /// and rejoin of an alternate being drawn, which are not nodes on the day and
 /// so do not come from [MapMarkerPoint]'s node-role vocabulary.
@@ -276,9 +280,15 @@ class TapToPickMap extends ConsumerStatefulWidget {
     this.initialZoom = 13,
     this.outline,
     this.polylineArcStage,
+    this.routeOrder = const [],
   });
 
   final List<MapMarkerPoint> points;
+
+  /// #640 — the selected passage's route-through points, numbered in route
+  /// order. The marker's own shape and mark still say what the point is; the
+  /// number only says when it is reached.
+  final List<MapRouteOrder> routeOrder;
   final void Function(LatLonPoint)? onTap;
   final List<LatLonPoint> polyline;
 
@@ -576,6 +586,16 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
                                 child: NodeMarker(p.role),
                               ),
                       ),
+                  for (final o in widget.routeOrder)
+                    Marker(
+                      point: ll.LatLng(o.coord[1], o.coord[0]),
+                      width: 44,
+                      height: 44,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: _RouteOrderBadge(o.order),
+                      ),
+                    ),
                   // #324 — fork and rejoin marks sit above the node markers:
                   // while a divergence is being drawn they are what the
                   // Author is working on.
@@ -618,6 +638,35 @@ class _TapToPickMapState extends ConsumerState<TapToPickMap> {
 /// centred in the box, with an [ArcStageBadge] tucked in the bottom-right
 /// corner. A corner tag rather than a halo: arc is an attribute of the point,
 /// and the point's own role marker has to keep reading as itself.
+/// #640 — a route-through point's place in the order: ink numeral on paper,
+/// set in mono like every number (brand rule), small enough to sit off the
+/// marker's corner without covering its mark.
+class _RouteOrderBadge extends StatelessWidget {
+  const _RouteOrderBadge(this.order);
+
+  final int order;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = PlotColors.of(context);
+    return IgnorePointer(
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 16),
+        height: 16,
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: c.surfaceCard,
+          border: Border.all(color: c.textPrimary, width: 1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text('$order',
+            style: PlotTypography.data(c.textPrimary).copyWith(fontSize: 10, height: 1)),
+      ),
+    );
+  }
+}
+
 class _WithArcBadge extends StatelessWidget {
   const _WithArcBadge({required this.arcStage, required this.child});
 
