@@ -290,6 +290,16 @@ class OsmLayerProvider:
 
             bbox_tuple = (bbox.west, bbox.south, bbox.east, bbox.north)
             clip_path = find_reusable_extract(bbox_tuple, self._cache_layout.root)
+            if clip_path is None:
+                # Epic #641 (D73) — a held area's extract covers this bbox
+                # too: read it, clipped to this bbox's polygon, exactly as
+                # the bbox's own clip would be read. Never re-clipped (D62).
+                from ..cache_areas import PAYLOAD_EXTRACT, AreaIndex
+
+                hit = AreaIndex.for_root(self._cache_layout.root).resolve(
+                    bbox_tuple, PAYLOAD_EXTRACT)
+                if hit is not None and hit.path.is_file():
+                    clip_path = hit.path
             if clip_path is not None:
                 return self._fetch_from_local_clip(clip_path, bbox_tuple, tags)
 
@@ -497,6 +507,27 @@ def _raw_feature_from_json(d: dict) -> RawFeature:
 NEGATIVE_CACHE_TTL_S = 60.0
 
 
+def filter_features_to_bbox(
+    features: list[RawFeature], bbox: tuple[float, float, float, float],
+) -> list[RawFeature]:
+    """The features a direct extraction over `bbox` would return (epic
+    #641): those whose geometry intersects the bbox polygon — the same test
+    `osmnx.features_from_xml(..., polygon=...)` applies — or, for a feature
+    with no stored geometry, whose point lies inside it."""
+    from shapely.geometry import box, shape
+
+    poly = box(*bbox)
+    west, south, east, north = bbox
+    kept = []
+    for f in features:
+        if f.geometry is not None:
+            if shape(f.geometry.to_geojson()).intersects(poly):
+                kept.append(f)
+        elif west <= f.coord[0] <= east and south <= f.coord[1] <= north:
+            kept.append(f)
+    return kept
+
+
 class SharedOsmFetch:
     """One bbox -> one `OsmLayerProvider.fetch` call, shared by the six
     per-layer `BuiltinOsmLayerProvider` instances registered against it
@@ -566,6 +597,11 @@ class SharedOsmFetch:
             self._cache[key] = from_disk
             return from_disk
 
+        from_area = self._from_held_area(key)
+        if from_area is not None:
+            self._cache[key] = from_area
+            return from_area
+
         # Always fetch every built-in layer for this bbox, once, so a second
         # per-layer sibling reads the cache rather than re-querying.
         try:
@@ -591,6 +627,44 @@ class SharedOsmFetch:
         self._failed.pop(key, None)
         self._write_disk(key, features)
         return features
+
+    # -- held areas (epic #641, ARCH D73) ---------------------------------- #
+
+    def _from_held_area(
+        self, key: tuple[float, float, float, float],
+    ) -> list[RawFeature] | None:
+        """This bbox's candidates out of a held area that covers it, or
+        `None` when no area does. The area's set is read from disk at the
+        current layer-set and ruleset versions, or built once from the
+        area's extract when it has none yet, then filtered to this bbox. An
+        exact-bbox set is the L2 tier's job, not this one's."""
+        if self._disk is None:
+            return None
+        from ..cache_areas import (
+            PAYLOAD_CANDIDATES,
+            PAYLOAD_EXTRACT,
+            AreaIndex,
+            candidate_version,
+        )
+
+        areas = AreaIndex.for_root(self._disk.root)
+        version = candidate_version(LAYER_SET_VERSION, RULESET_VERSION)
+        hit = areas.resolve(key, PAYLOAD_CANDIDATES, version=version)
+        if hit is not None and not hit.covers_exactly(key):
+            features = self._read_disk(hit.area_bbox)
+            if features is not None:
+                return filter_features_to_bbox(features, key)
+        extract = areas.resolve(key, PAYLOAD_EXTRACT)
+        if extract is None or extract.covers_exactly(key):
+            return None
+        area = extract.area_bbox
+        try:
+            features = self._engine.fetch(BBox(*area), set(LAYERS))
+        except Exception:  # noqa: BLE001 — fall back to this bbox's own path
+            log.warning("candidate set for held area %s failed", area, exc_info=True)
+            return None
+        self._write_disk(area, features)
+        return filter_features_to_bbox(features, key)
 
     # -- L2 disk tier ----------------------------------------------------- #
 
@@ -638,6 +712,14 @@ class SharedOsmFetch:
             tmp.replace(path)  # atomic — a concurrent reader sees whole file or none
         except OSError as exc:
             log.warning("candidate cache write to %s failed: %s", path, exc)
+            return
+        # Epic #641 — index the set as its area's payload, so a trip inside
+        # the area finds it and the prune pass can age it out.
+        from ..cache_areas import PAYLOAD_CANDIDATES, AreaIndex, candidate_version
+
+        AreaIndex.for_root(self._disk.root).register(
+            key, PAYLOAD_CANDIDATES, path,
+            version=candidate_version(LAYER_SET_VERSION, RULESET_VERSION))
 
 
 class BuiltinOsmLayerProvider:

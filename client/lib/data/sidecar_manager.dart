@@ -94,6 +94,7 @@ class CapabilityStatus {
     this.progress,
     this.etaS,
     this.provisional = false,
+    this.refreshing = false,
     this.pendingUpstream = false,
     this.fillId,
     this.retryAfterS,
@@ -113,6 +114,12 @@ class CapabilityStatus {
   /// alongside [ready]; a screen must never fold this into a plain "ready"
   /// reading — §6.7a's "no silent 'it's just correct now.'"
   final bool provisional;
+
+  /// Epic #641 (ARCH D73, story #649) — `ready` on map data held from an
+  /// earlier session that is past its time to live, while the sidecar
+  /// fetches a fresh copy in the background. Usable right now and never a
+  /// failure: a quiet line, no retry, nothing blocked. Clears on its own.
+  final bool refreshing;
 
   /// Issue #522 (ARCH D67, §8.3) — the Plotlines mirror is fetching the data
   /// this capability needs from its upstream (`pending_upstream`, #521). A
@@ -165,6 +172,7 @@ class CapabilityStatus {
         progress: (json['progress'] as num?)?.toDouble(),
         etaS: (json['eta_s'] as num?)?.toDouble(),
         provisional: json['provisional'] as bool? ?? false,
+        refreshing: json['refreshing'] as bool? ?? false,
         pendingUpstream: json['pending_upstream'] as bool? ?? false,
         fillId: json['fill_id'] as String?,
         retryAfterS: (json['retry_after_s'] as num?)?.toDouble(),
@@ -185,6 +193,9 @@ class CapabilityStatus {
     // .provisional_ready`), so this surfaces it verbatim rather than the
     // bare "$capabilityLabel ready" a real build earns.
     if (ready && provisional) return reason ?? '$capabilityLabel ready (provisional)';
+    if (ready && refreshing) {
+      return '$capabilityLabel ready. Refreshing the map data for this area in the background.';
+    }
     if (ready) return '$capabilityLabel ready';
     // Issue #522 — the mirror is fetching this area. The copy names the
     // mirror, as the privacy statement does (#514), never "the server";

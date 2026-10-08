@@ -95,6 +95,11 @@ class Archive:
         self._reader = Reader(lambda offset, length: self._mmap[offset:offset + length])
         self._header = self._reader.header()
 
+    @property
+    def path(self) -> Path:
+        """The file this archive reads (the prune pass skips it while open)."""
+        return self._path
+
     def info(self) -> ArchiveInfo:
         h = self._header
         return ArchiveInfo(

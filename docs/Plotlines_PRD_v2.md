@@ -615,7 +615,7 @@ FR1–FR96 carry forward from v1.0 with their numbering intact. **FR97–FR133 a
 |---|---|---|
 | **FR92** | The client talks **only** to Plotlines' own tile service (`GET /tiles/{z}/{x}/{y}`) for basemap tiles; never a third-party tile host directly. | POC; SPIKE-14 |
 | **FR93** | The tile service **validates `z/x/y` against range** before any upstream work. | POC; SPIKE-14 |
-| **FR94** | Tiles are generated and cached **bbox-scoped and on demand**; the same pipeline is the origin for live map requests and offline packages. The elevation cache follows the identical pattern under a separate cache. **Both are scoped by the trip bbox (FR120).** | POC; SPIKE-14; clarified v2.0 |
+| **FR94** | Tiles are generated and cached **bbox-scoped and on demand**; the same pipeline is the origin for live map requests and offline packages. The elevation cache follows the identical pattern under a separate cache. **Both are scoped by a held area that covers the trip bbox (FR120)**, not by the bbox alone. An area fetched once serves every trip inside it until its time to live runs out. A deleted trip's area is kept until then and then pruned, and a live trip's area is kept past it and refreshed in the background (ARCH D73). | POC; SPIKE-14; clarified v2.0; amended by epic #641 (D73) |
 | **FR95** | Basemap tiles come from the **Protomaps Basemap** (OSM-derived) under **ODbL** as a Produced Work. `© OpenStreetMap` attribution appears on the About surface and anywhere a map is exported or printed — a **separate obligation** from elevation's CC BY (FR86), under a different licence. Plotlines **mirrors** the tile source rather than hotlinking. | SPIKE-14; ARCH D23 |
 ---
 

@@ -170,6 +170,8 @@ def test_every_endpoint_answers_under_a_blocked_resolver(tmp_path, monkeypatch):
             ("tiles", lambda: client.get("/tiles/0/0/0")),
             ("attribution", lambda: client.get("/attribution")),
             ("about", lambda: client.get("/about")),
+            ("cache/references",
+             lambda: client.put("/cache/references", json={"bboxes": [list(_BBOX_A)]})),
         ]:
             start = time.monotonic()
             resp = call()

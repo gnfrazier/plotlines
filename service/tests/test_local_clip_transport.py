@@ -40,12 +40,12 @@ def _clip_way(id_: int, node_ids: list[int], tags: dict[str, str] | None = None)
     return mutable.Way(id=id_, nodes=node_ids, tags=tags or {})
 
 
-def _write_real_clip(cache_dir: Path) -> Path:
+def _write_real_clip(cache_dir: Path, bbox=None) -> Path:
     """A tiny, real `.osm.pbf` at exactly the on-disk location
     `graph.extract_fetch.ensure_extract` would have written it to: one
     routable way for the graph consumer, one tagged POI node for the
     candidates consumer, in the same file."""
-    bbox = tuple(_BBOX)
+    bbox = tuple(bbox or _BBOX)
     path = CacheLayout(cache_dir).osm_extract(bbox, _PIN)
     path.parent.mkdir(parents=True, exist_ok=True)
     with osmium.SimpleWriter(str(path)) as writer:
@@ -74,7 +74,8 @@ def _overpass_blocked(monkeypatch):
 
 def _fake_ensure_extract(bbox, *, mirror_url, cache_dir, client_key=None,
                          progress=None, **_kwargs):
-    path = _write_real_clip(cache_dir)
+    # The bbox asked for — since epic #641 the held area's padded one.
+    path = _write_real_clip(cache_dir, bbox)
     if progress is not None:
         size = path.stat().st_size
         progress.status = "ready"
