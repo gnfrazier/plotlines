@@ -2081,6 +2081,11 @@ class RegionState:
         finally:
             self.timings["elevation"] = time.monotonic() - t0
 
+#: Epic #641 (story #648) — how often the held-area prune pass runs after
+#: the first one (which follows the first live-trip reference set).
+AREA_PRUNE_INTERVAL_S = 6 * 3600.0
+
+
 class Readiness:
     """The sidecar's region registry (ARCH §8.3, breaking change B1; PRD
     FR120/FR121). Before #154, one `Readiness` loaded one committed graph at
@@ -2201,6 +2206,15 @@ class Readiness:
         # poll never overlaps a build), and is cancelled by `shutdown`.
         self._fill_timers: list[threading.Timer] = []
         self._closed = False
+        # Epic #641 (ARCH D73) — every disk-touching step of the held-area
+        # cache that a request starts (index writes after a reference set,
+        # adoption of pre-epic files, the prune pass) runs here, never on a
+        # request thread (D66). One worker: these steps serialise on the
+        # index anyway.
+        self._area_cache_pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="area-cache",
+        )
+        self._prune_timer: threading.Timer | None = None
 
     def shutdown(self) -> None:
         """Stop accepting builds and abandon any still queued. In-flight
@@ -2215,6 +2229,9 @@ class Readiness:
         self._candidate_fetch_pool.shutdown(wait=False, cancel_futures=True)
         self._geocode_pool.shutdown(wait=False, cancel_futures=True)
         self._upstream_tile_pool.shutdown(wait=False, cancel_futures=True)
+        self._area_cache_pool.shutdown(wait=False, cancel_futures=True)
+        if self._prune_timer is not None:
+            self._prune_timer.cancel()
         self._build_phase_pools.shutdown()
 
     def ensure_region(self, bbox: tuple[float, float, float, float],
@@ -2464,6 +2481,95 @@ class Readiness:
         with self._lock:
             return self.regions.get(key)
 
+    # -- epic #641: live-trip references and retention ------------------------
+
+    def set_cache_references(self, bboxes: list[tuple[float, float, float, float]]) -> dict:
+        """`PUT /cache/references` (story #647). The full set of live trips'
+        stored bboxes replaces the last one — in memory, at once, so a
+        missed send is corrected by the next. Adopting pre-epic files those
+        bboxes name, writing the index and the prune pass run on
+        `_area_cache_pool`, never here (D66)."""
+        first = not self.areas.references_known
+        counts = self.areas.set_references(bboxes)
+        try:
+            self._area_cache_pool.submit(self._after_references, list(bboxes), first)
+        except RuntimeError:  # pool shut down
+            pass
+        log.info("cache references: %d live trip bbox(es); %d of %d area(s) referenced",
+                 counts["references"], counts["referenced"], counts["areas"])
+        return counts
+
+    def _after_references(self, bboxes, first: bool) -> None:
+        try:
+            for bbox in bboxes:
+                self.areas.adopt_exact(bbox, persist=False)
+            self.areas.persist()
+        except Exception:  # noqa: BLE001 — retried on the next send
+            log.warning("cache references: index write failed", exc_info=True)
+        if first:
+            # Sidecar start: the first set is what makes a prune safe.
+            self.prune_cache()
+            self._schedule_prune()
+
+    def _schedule_prune(self) -> None:
+        def fire():
+            with self._lock:
+                if self._closed:
+                    return
+            try:
+                self._area_cache_pool.submit(self._prune_and_reschedule)
+            except RuntimeError:
+                pass
+
+        timer = threading.Timer(AREA_PRUNE_INTERVAL_S, fire)
+        timer.daemon = True
+        with self._lock:
+            if self._closed:
+                return
+            self._prune_timer = timer
+        timer.start()
+
+    def _prune_and_reschedule(self) -> None:
+        self.prune_cache()
+        self._schedule_prune()
+
+    def cache_in_use(self) -> tuple[list[Path], list[tuple[float, float, float, float]]]:
+        """The files open regions are reading (never deleted under them —
+        Windows refuses, and a mapped archive would go blank) and their
+        bboxes (referenced for the pass, saved or not)."""
+        paths: list[Path] = []
+        bboxes = []
+        for _key, region in self.snapshot():
+            bboxes.append(region.bbox)
+            if region.tiles_archive is not None:
+                paths.append(region.tiles_archive.path)
+            if region.sampler is not None:
+                paths.append(region.sampler.path)
+        return paths, bboxes
+
+    def prune_cache(self) -> list:
+        """One retention pass (story #648, ARCH D73) — on `_area_cache_pool`
+        only. Adopts any payload file still unindexed (the migration), then
+        prunes. Logs each removal; nothing is shown to the Author."""
+        if not self.areas.references_known:
+            return []
+        from plotlines_core.curation.providers import LAYER_SET_VERSION
+        from plotlines_core.curation.notability import RULESET_VERSION
+
+        try:
+            self.areas.adopt_unindexed()
+            in_use, open_bboxes = self.cache_in_use()
+            pruned = self.areas.prune(
+                in_use=in_use, extra_references=open_bboxes,
+                current_versions={cache_areas.PAYLOAD_CANDIDATES: cache_areas.candidate_version(
+                    LAYER_SET_VERSION, RULESET_VERSION)})
+        except Exception:  # noqa: BLE001 — retried on the next pass
+            log.warning("cache prune: pass failed", exc_info=True)
+            return []
+        freed = sum(p.bytes_freed for p in pruned)
+        log.info("cache prune: removed %d payload(s), %d bytes", len(pruned), freed)
+        return pruned
+
     def find_held_supergraph(
         self, bbox: tuple[float, float, float, float], network_type: str,
     ) -> "RegionState | None":
@@ -2601,6 +2707,22 @@ class RegionRequest(BaseModel):
     #: request from the automatic-requeue cap. The automatic settle-window /
     #: `/health`-poll path leaves it false and always waits the cooldown out.
     retry: bool = False
+
+
+class CacheReferencesRequest(BaseModel):
+    """Epic #641 (story #647) — the full set of live trips' stored bboxes
+    (D70), `[west, south, east, north]` each. Bboxes only: no trip id, no
+    name. A full replacement every time, so a missed send corrects itself."""
+
+    bboxes: list[list[float]]
+
+    @field_validator("bboxes")
+    @classmethod
+    def _four_finite(cls, v: list[list[float]]) -> list[list[float]]:
+        for b in v:
+            if len(b) != 4 or not all(math.isfinite(c) for c in b) or b[0] > b[2] or b[1] > b[3]:
+                raise ValueError("each bbox is [west, south, east, north]")
+        return v
 
 
 class SegmentRequest(BaseModel):
@@ -3180,6 +3302,13 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
                 "cookie": {"same_site": "Lax", "secure": True, "http_only": True},
             }
         return body
+
+    @app.put("/cache/references")
+    def cache_references(req: CacheReferencesRequest) -> dict:
+        """Epic #641 (story #647, ARCH D73) — which held areas live trips
+        still need. Answers from memory; index writes and the prune pass
+        run on their own pool (D66)."""
+        return state.set_cache_references([tuple(b) for b in req.bboxes])
 
     @app.post("/regions", status_code=202)
     def regions_ensure(req: RegionRequest) -> dict:

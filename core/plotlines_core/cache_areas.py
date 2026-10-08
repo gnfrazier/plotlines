@@ -637,7 +637,8 @@ class AreaIndex:
     # -- pruning (story 7, #648) ------------------------------------------- #
 
     def prune(self, *, in_use: Iterable[Path] = (),
-              current_versions: dict[str, str] | None = None) -> list[Pruned]:
+              current_versions: dict[str, str] | None = None,
+              extra_references: Iterable[BBox] = ()) -> list[Pruned]:
         """One retention pass (D73). Does nothing until references are known.
 
         * An unreferenced payload past its TTL is deleted with its record.
@@ -652,11 +653,14 @@ class AreaIndex:
 
         A path in `in_use` (an open archive, a raster a sampler holds), or
         one the OS refuses to delete (Windows keeps open files), is skipped
-        and retried on the next pass.
+        and retried on the next pass. `extra_references` are bboxes that
+        count as referenced for this pass only (the trips open right now,
+        which may not be saved yet).
         """
         if not self.references_known:
             return []
         in_use_set = {Path(p).resolve() for p in in_use}
+        extra = tuple(tuple(float(v) for v in b) for b in extra_references)
         current_versions = current_versions or {}
         now = self._clock()
         pruned: list[Pruned] = []
@@ -678,7 +682,8 @@ class AreaIndex:
             return freed
 
         for area in self.areas():
-            referenced = self.is_referenced(area.bbox)
+            referenced = self.is_referenced(area.bbox) or any(
+                bbox_contains(area.bbox, b) for b in extra)
             for payload, rec in area.payloads.items():
                 stale, _age = self._stale(payload, rec, now)
                 want = current_versions.get(payload)

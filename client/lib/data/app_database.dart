@@ -222,6 +222,19 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
+  /// Epic #641 (ARCH D73, story #647) — every live trip's stored bbox
+  /// (D70), re-emitted whenever a trip is created, cloned, deleted or has
+  /// its bbox edited. Bboxes only: the sidecar is told which held areas are
+  /// still needed, never which trips exist. A trip with no bbox drawn, or an
+  /// unreadable one, is left out.
+  Stream<List<List<double>>> watchTripBboxes() {
+    final q = selectOnly(trips)..addColumns([trips.bbox]);
+    return q.watch().map((rows) => [
+          for (final row in rows)
+            ?decodeTripBboxWsen(row.read(trips.bbox) ?? '')
+        ]);
+  }
+
   Future<TripRow?> loadTrip(String id) =>
       (select(trips)..where((t) => t.id.equals(id))).getSingleOrNull();
 
@@ -389,4 +402,17 @@ class TripListEntry {
   final DateTime updatedAt;
   final TripCardMetrics summary;
   final TripSyncBadge syncBadge;
+}
+
+/// `Trips.bbox` (#570) as `[west, south, east, north]`, or null when empty
+/// or unreadable — the same reading `current_trip_provider` gives a reopen.
+List<double>? decodeTripBboxWsen(String json) {
+  if (json.isEmpty) return null;
+  try {
+    final v = (jsonDecode(json) as List).cast<num>();
+    if (v.length != 4 || v[0] > v[2] || v[1] > v[3]) return null;
+    return [for (final c in v) c.toDouble()];
+  } catch (_) {
+    return null;
+  }
 }

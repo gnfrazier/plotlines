@@ -4,7 +4,8 @@
 // `start()`) and AppDatabase (drift_flutter's native connection opener
 // leaves its own pending timer) — neither leaves anything pending once
 // replaced, so this only exercises the shell, not a real generate/save/
-// export flow.
+// export flow. The cache-references sync (epic #641) is faked for the same
+// reason: cancelling its drift query stream on dispose leaves a timer.
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/data/sidecar_manager.dart';
 import 'package:plotlines_client/main.dart';
+import 'package:plotlines_client/state/cache_references_sync.dart';
 import 'package:plotlines_client/state/providers.dart';
 
 import 'support/fake_window_manager.dart';
@@ -41,6 +43,11 @@ void main() {
           sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
           appDatabaseProvider
               .overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
+          cacheReferencesSyncProvider.overrideWith((ref) => CacheReferencesSync(
+                bboxes: const Stream.empty(),
+                manager: ref.read(sidecarManagerProvider),
+                send: (_, _) async {},
+              )),
         ],
         child: const PlotlinesApp(),
       ),
