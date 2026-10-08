@@ -135,15 +135,23 @@ class CueSheetPrintDocument extends PrintDocument {
 /// Author proceed once it's cleared), a stale printed page is believed for
 /// hours with nothing to re-check it against, so [staleItems] non-empty
 /// blocks outright here rather than routing through that dialog.
-Future<void> showPrintPreview(
+///
+/// #657 (F10) — the block is not a dead end. With [resolveStale] it offers
+/// *Open stale list*, and [resolveStale] says whether the work this
+/// document covers came back clean. Then this returns true, and the caller
+/// rebuilds its document from the re-solved trip and previews again: this
+/// [document] was built from the stale one.
+Future<bool> showPrintPreview(
   BuildContext context, {
   required PrintDocument document,
   required List<StaleItem> staleItems,
   required List<AttributionLine> attribution,
+  Future<bool> Function()? resolveStale,
 }) async {
   if (staleItems.isNotEmpty) {
-    await _showStaleBlock(context, staleItems);
-    return;
+    final open = await _showStaleBlock(context, staleItems, canOpenList: resolveStale != null);
+    if (open && resolveStale != null) return resolveStale();
+    return false;
   }
   await Navigator.of(context).push(
     MaterialPageRoute<void>(
@@ -151,6 +159,7 @@ Future<void> showPrintPreview(
       builder: (_) => _PrintPreviewScreen(document: document, attribution: attribution),
     ),
   );
+  return false;
 }
 
 /// K10/K11 (FR86, FR95, FR101) — attribution for the printed page comes from
@@ -166,26 +175,34 @@ Future<List<AttributionLine>> fetchPrintAttribution(RoutingClient client) async 
   }
 }
 
-Future<void> _showStaleBlock(BuildContext context, List<StaleItem> staleItems) {
+/// True when the Author chose *Open stale list*.
+Future<bool> _showStaleBlock(BuildContext context, List<StaleItem> staleItems,
+    {required bool canOpenList}) async {
   final n = staleItems.length;
-  return showDialog<void>(
+  final open = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: Text('$n stale ${n == 1 ? 'item needs' : 'items need'} re-solving'),
       content: Text(
         "An edit changed what ${n == 1 ? 'this was' : 'these were'} asked to solve for. "
-        "This can't be printed until every stale item is re-solved — open the stale list "
-        'from Export and resolve or drop each one, then print again.',
+        "This can't be printed until every stale item is re-solved or dropped"
+        '${canOpenList ? '. Open the stale list to do that, and the preview comes back.' : ', then print again.'}',
       ),
       actions: [
         PlotButton(
           label: 'Close',
           variant: PlotButtonVariant.ghost,
-          onPressed: () => Navigator.pop(dialogContext),
+          onPressed: () => Navigator.pop(dialogContext, false),
         ),
+        if (canOpenList)
+          PlotButton(
+            label: 'Open stale list',
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
       ],
     ),
   );
+  return open ?? false;
 }
 
 class _PrintPreviewScreen extends StatelessWidget {
