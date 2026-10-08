@@ -1,6 +1,6 @@
 # Plotlines — Author Flow, End to End (as built)
 
-**Version:** 1.1 · **Traced:** 2026-10-07 against `main` at `a3245b3` (after PR #650)
+**Version:** 1.2 · **Traced:** 2026-10-07 against `main` at `a3245b3` (after PR #650); fixes drawn 2026-10-08 (PRs #660–#666)
 **Companion to:** `Plotlines_Author_Flows_MVP.md` (the flows as specified), `Plotlines_PRD_v2.md` (source of truth)
 
 `Plotlines_Author_Flows_MVP.md` draws each feature area from the PRD, which is what the app was
@@ -52,7 +52,7 @@ flowchart LR
 ```mermaid
 flowchart TD
     A[App launch] --> B{Sidecar state}
-    B -->|starting / restarting| W["Full-screen wait<br/>'Plotting the route graph'<br/><b>F19</b>"]:::finding
+    B -->|starting / restarting| W["Full-screen wait<br/>'Starting the routing engine'<br/><i>F19 fixed, #659</i>"]
     W --> B
     B -->|failed after one restart| X["'The routing engine won't start'<br/>Retry"]
     X -.->|Retry| B
@@ -84,7 +84,7 @@ flowchart TD
     OP -->|no| OPF["Snackbar: 'couldn't be opened'"]
     OPF -.-> G
     G --> MN[Card menu]
-    MN -->|"Edit route · Manage roster ·<br/>Export backup"| MNX["All three open the trip on ROUTE<br/><b>F8</b>"]:::finding
+    MN -->|"Edit route · Manage roster"| MNX["Opens the trip on ROUTE / ROSTER<br/><i>F8 fixed, #658: no Export backup until L3</i>"]
     MNX --> OP
     MN -->|Clone…| CS["Clone scope<br/>whole trip · roster only ·<br/>authored trip · per part"]
     CS -.->|Cancel| G
@@ -115,16 +115,16 @@ flowchart TD
     LO -->|Continue, field empty| AR
     LO -->|Continue, a query| GC{Geocode}
     GC -->|a hit| AR
-    GC -->|no hit / failed| GE["Inline sentence: 'continue and<br/>place the map yourself'<br/><b>F22</b>"]:::finding
+    GC -->|no hit / failed| GE["Inline sentence: 'use Buncombe County, NC<br/>and place the map yourself'<br/><i>F22 fixed, #659</i>"]
     GE -.->|edit, Continue| GC
     AR["Trip extent · STEP 2 OF 4<br/>framed on the hit, or the home region"] --> DR{Drag a rectangle}
-    DR -->|a tap, or a side under 200 m| IG["Ignored, no message<br/><b>F13</b>"]:::finding
+    DR -->|a tap, or a side under 200 m| IG["'Too small — at least 200 m on each side'<br/><i>F13 fixed, #659</i>"]
     IG -.-> DR
     DR -->|a real box| BX["Box + readout<br/>advisory at 5,000 km² or more"]
     BX -->|Redraw / drag a corner| DR
     BX -->|Use this extent| LY
     BX --> RB(["Region build starts<br/>after the settle window"])
-    AR -.->|"← 'Back to the location prompt'"| BK["Lands on the Library;<br/>modes and location asked again<br/><b>F24</b>"]:::finding
+    AR -.->|"← 'Back to the library'"| BK["Lands on the Library<br/><i>F24 fixed, #659</i>"]
     LY["Layers · STEP 3 OF 4<br/>mode-derived defaults"] -->|toggle a layer / Reset to defaults| LY
     LY -->|Continue| NR([New Route → §4])
     LY --> CX(["Candidate extraction starts"])
@@ -138,16 +138,17 @@ flowchart TD
 
 `presentation/screens/new_route_screen.dart` · `widgets/error_states.dart`
 
-New Route is reached from two places: trip creation, and *+ New route day*, *Add a passage* or *Add
-segment* inside the shell (§7). It draws the same screen both times. **F7**
+New Route is reached from two places: trip creation (`/new`), and *+ New route day*, *Add a
+passage* or *Add passage* inside the shell (`/add-route`, §7). Since #655 only creation shows the
+step eyebrow and the trip name, dates and party; from the shell the title names the day.
 
 ```mermaid
 flowchart TD
-    NR["New route · 'NEW TRIP · STEP 4 OF 4'<br/>trip name, dates, party<br/><b>F7</b>"]:::finding --> SM{Start from}
+    NR["New route · creation: 'NEW TRIP · STEP 4 OF 4', trip name, dates, party<br/>from the shell: 'Add a passage to Day N'<br/><i>F7 fixed, #655</i>"] --> SM{Start from}
     NR -.->|Reset| NR
     NR -.->|←| PREV[previous screen]
-    SM -->|Blank canvas| CB[Create route]
-    CB --> AD["Adds an empty Day N+1<br/>even when opened from 'Add a passage'<br/><b>F4</b>"]:::finding
+    SM -->|Blank canvas| CB[Create route / Start the passage]
+    CB --> AD["On the picked day: an empty passage, selected<br/>no day picked: an empty Day N+1<br/><i>F4 fixed, #655</i>"]
     AD --> SH([Trip shell → §5])
     SM -->|Generate from a theme| FM["Passage mode · discipline · shape ·<br/>theme · target distance ·<br/>tap start / end / up to 2 via, or search a town"]
     FM --> RC{Routing for this region}
@@ -162,8 +163,8 @@ flowchart TD
     IN -->|yes| GN[Generate route]
     GN --> SV{Solve}
     SV -->|ok| SH
-    SV -->|outside the routable area| ND["'This area doesn't have routable data'<br/>Choose area → pops one screen<br/><b>F6</b>"]:::finding
-    ND -.-> PREV
+    SV -->|outside the routable area| ND["'This area doesn't have routable data'<br/>Choose area → the trip area, and back<br/><i>F6 fixed, #655</i>"]
+    ND -.-> TAE([Trip area → §3])
     SV -->|any other failure| ER["Error sentence"]
     ER -.->|try again| GN
     FM -->|search fails| SE["'Couldn't resolve that location'"]
@@ -225,15 +226,15 @@ flowchart TD
     LT -->|this day| OV["Override for this day / Use trip default"]
     VW -->|Candidates| TP["Tap a candidate on the map"]
     TP -->|active day exists| PR["Promoted at once: role from affinity,<br/>snackbar"]
-    TP -->|no days on the trip| NO["Nothing happens<br/><b>F20</b>"]:::finding
-    TP -->|already an anchor| DU["'edit its roles in the Anchors view'<br/><b>F15</b>"]:::finding
+    TP -->|no days on the trip| NO["Promoted unattached, and said so<br/><i>F20 fixed, #659</i>"]
+    TP -->|already an anchor| DU["'edit its roles on the Content tab'<br/><i>F15 fixed, #659</i>"]
     VW -->|Proposals| PP["Sort · filter · reject (Undo) ·<br/>bulk reject · promote with roles"]
-    PP -->|already an anchor| DU2["'edit it on Content'<br/><b>F15</b>"]:::finding
+    PP -->|already an anchor| DU2["'edit it on the Content tab'<br/><i>F15 fixed, #659</i>"]
     VW -->|Anchors| AN["Attach to a day · passage, or Detach"]
-    CT[CONTENT tab] --> PA["Anchors panel · 'Promote a place' dialog:<br/>roles, area, reveal, arc, water, station<br/><b>F17</b>"]:::finding
+    CT[CONTENT tab] --> PA["Anchors panel · 'Promote a place' dialog:<br/>roles, area, reveal, arc, water, station<br/><i>F17 fixed, #639 / #659</i>"]
     CT --> NE{Passage selected on ROUTE?}
-    NE -->|no| NS["'Select a segment on the Route tab'"]
-    NE -->|yes| NM["Second node map: no route line,<br/>no Cancel · node chips in route order<br/><b>F16</b>"]:::finding
+    NE -->|no| NS["'Select a passage on the Route tab'"]
+    NE -->|yes| NM["Second node map: the passage's line, centred on its start;<br/>no Cancel · node chips in route order<br/><i>F16 fixed, #653</i>"]
     NM --> NF["Node editor form → saved"]
     classDef finding stroke:#c0392b,stroke-width:3px
 ```
@@ -255,8 +256,8 @@ flowchart TD
     MD -.->|Cancel| RT
     MP -->|no| PB
     MD --> PB["Placement bar · crosshair<br/>Esc / Cancel"]
-    SEL -->|a day with passages, none selected| NA["No map action<br/><b>F18</b>"]:::finding
-    NA -->|pick a passage| SEL
+    SEL -->|a day with passages, none selected| NA["Add node on a new passage<br/><i>F18 fixed, #659</i>"]
+    NA --> MP
     SEL -->|a passage| PS["Add node · Add alternate"]
     PS -->|Add node| PB
     PB -.->|Esc / Cancel| RT
@@ -275,14 +276,14 @@ flowchart TD
     RT --> RL["Weights rail · EXPLORE / COMPOSE<br/>Frame · Tune · Refine"]
     RL --> GB{Generate / Regenerate}
     GB -->|no route points, or Compose loop| GD["Disabled + reason"]
-    GB -->|region still building| GW["503 shown as an error banner,<br/>not a wait<br/><b>F5</b>"]:::finding
-    GW -.->|try again later| GB
+    GB -->|region still building| GW["Routing notice: the quiet wait,<br/>or the failure card with Try again;<br/>controls disabled · a racing 503 reads as the wait<br/><i>F5 fixed, #656</i>"]
+    GW -.->|region ready| GB
     GB -->|ok| SOL["Solved: line, metrics, reached / missed,<br/>band violations"]
     GB -->|failure| GF["Error sentence"]
     GF -.-> GB
     RL -->|Explore, bands set, solved| DG{Diagnose}
-    DG -->|"no bands / not solved"| DGD["Disabled; tooltip empty<br/>when unsolved<br/><b>F21</b>"]:::finding
-    DG -->|"passage built from nodes"| DGX["Null-check crash, no message;<br/>poll has no deadline<br/><b>F2</b>"]:::finding
+    DG -->|"no bands / not solved"| DGD["Disabled, and the tooltip says why:<br/>add a band · generate first · routing not ready<br/><i>F21 fixed, #656</i>"]
+    DG -->|"passage built from nodes"| DGX["Diagnosed from its start node;<br/>any failure a sentence · 90 s deadline<br/><i>F2 fixed, #653</i>"]
     DG -->|ok| CD["Conflict dialog · relaxations"]
     CD -->|apply| ST
     RL -->|Compose| CM["Spine: add / reorder / remove anchors<br/>Split the day · Widen the band ·<br/>Drop an anchor · Move to another day"]
@@ -314,7 +315,7 @@ flowchart TD
     DRP -.->|Keep| LG
     LG -->|no days| ND["Empty state: Add a route day / Add a rest day"]
     LG -->|New route day| NR([New Route → §4])
-    LG -->|"a day with no passage: Add a passage<br/>a day with passages: 'Add segment'"| AS["New Route<br/><b>F4 F7 F17</b>"]:::finding
+    LG -->|"a day with no passage: Add a passage<br/>a day with passages: 'Add passage'"| AS["New Route, adding to that day<br/><i>F4 F7 F17 fixed, #655 / #659</i>"]
     AS --> NR
     LG --> RD["Rest day → location screen"]
     LG --> LD["LODGING · Place lodging on map → Confirm / Cancel"]
@@ -338,7 +339,7 @@ flowchart TD
     E["An edit that changes what was solved:<br/>node kind or route-through · ROUTE THROUGH order ·<br/>a band or weight · relaxation · alternate move"] --> S["Passage / alternate marked stale<br/>'N stale' in the app bar"]
     E -.->|Ctrl+Z| U["Undo: one step back"]
     S --> SL["Stale list"]
-    SL -->|Re-solve one| RS["Solved in Explore,<br/>whatever the day's mode<br/><b>F3</b>"]:::finding
+    SL -->|Re-solve one| RS["Solved in the day's own mode<br/><i>F3 fixed, #654</i>"]
     SL -->|Re-solve all| RS
     RS -->|ok| OK["Item leaves the list;<br/>list closes when empty"]
     RS -->|failure| RE["Error sentence on the row"]
@@ -351,7 +352,7 @@ flowchart TD
     PX -->|anchors stay inside| AP["Applied · one undo step"]
     PX -->|anchors fall outside| SP{Shrink prompt}
     SP -->|Move bounds| AP
-    SP -->|Remove anchors| RA["Removed, then applied:<br/>two undo steps<br/><b>F14</b>"]:::finding
+    SP -->|Remove anchors| RA["Removed and applied together:<br/>one undo step<br/><i>F14 fixed, #659</i>"]
     SP -.->|Keep bounds| TA
     AP --> RB(["Only the new strip is fetched"])
     classDef finding stroke:#c0392b,stroke-width:3px
@@ -369,19 +370,19 @@ flowchart TD
     EX[EXPORT tab] -->|no routed days| NRD["'No routed days yet.'<br/>Export disabled"]
     EX --> IT["ITINERARY · MASTER / INDIVIDUAL<br/>individual: days attended, a label"]
     IT -->|Print preview| PG{Stale work on these days?}
-    PG -->|yes| PB["'N stale items need re-solving'<br/>Close only, no way to the list<br/><b>F10</b>"]:::finding
+    PG -->|yes| PB["'N stale items need re-solving'<br/>Open stale list → the preview comes back<br/><i>F10 fixed, #657</i>"]
     PB -.-> EX
     PG -->|no| PV["PDF preview · Print<br/><i>no share, attribution footer</i>"]
     IT -->|Export .md| SD{Save dialog}
     SD -.->|cancel| EX
     SD --> WR{Write}
     WR -->|ok| SN["Snackbar 'Exported …'"]
-    WR -->|fails| UH["Unhandled, no message<br/><b>F9</b>"]:::finding
+    WR -->|fails| UH["'Export didn't finish' dialog<br/><i>F9 fixed, #657</i>"]
     EX --> DC["DAY N cue sheet, per day"]
     DC --> CQ{What passages does the day hold?}
     CQ -->|tapped or generated routes| CU["Turn-by-turn cues + authored points"]
-    CQ -->|only node-built passages| CA["Authored points only, no turns,<br/>no message<br/><b>F1</b>"]:::finding
-    CQ -->|a mix| CM["Client null-check throws →<br/>'unreachable' banner, the whole day<br/>loses its turns, no Retry<br/><b>F1 F11</b>"]:::finding
+    CQ -->|only node-built passages| CA["Turns from its start node to its finish<br/><i>F1 fixed, #653</i>"]
+    CQ -->|a mix| CM["Fetched one passage at a time: a failed one keeps<br/>its authored points and is named · Try again<br/><i>F1 F11 fixed, #653 / #657</i>"]
     CU -->|Print preview| PG
     CA -->|Print preview| PG
     CM -->|Print preview| PG
@@ -392,11 +393,11 @@ flowchart TD
     SLD -.->|Close| BOX
     SLD -->|list empties| CF
     SG -->|no| CF{Cue sheet on?}
-    CF -->|yes| FC["Fetch cues per passage:<br/>node-built skipped, failures swallowed<br/><b>F1 F12</b>"]:::finding
+    CF -->|yes| FC["Fetch cues per passage, node-built included;<br/>failed ones named before writing:<br/>Cancel / Export without their turns<br/><i>F1 F12 fixed, #653 / #657</i>"]
     CF -->|no| PK
     FC --> PK{"Save dialog (single) /<br/>folder picker (per day)"}
     PK -.->|cancel| BOX
-    PK --> WF["Write · FIT also writes .fit.txt<br/>with the ODbL notice<br/>per day overwrites same-named files<br/><b>F23</b>"]:::finding
+    PK --> WF["Write · FIT also writes .fit.txt<br/>with the ODbL notice<br/>per day names files it would replace, and asks<br/><i>F23 fixed, #657</i>"]
     WF -->|ok| XS["Snackbar 'Exported …'"]
     WF -->|fails| XF["Export failed dialog with a reason"]
     XF -.->|try again| XB
@@ -412,34 +413,38 @@ flowchart TD
 Severity: **High** means wrong output, a crash, or work silently lost. **Medium** means a dead end
 or a path that misleads. **Low** means copy or consistency. Each finding was traced in code at
 `a3245b3`; none has been reproduced on the desktop app yet. Line numbers are under `client/lib/`
-unless stated.
+unless stated, and are as found, before the fix.
 
-| ID | Sev | Stage | Finding | Evidence |
-|---|---|---|---|---|
-| **F1** | High | 10 | **A passage built from nodes (#626/#640) gets no turn-by-turn cues anywhere.** Such a passage has no stored `start` (D71), and every cue path keys on `start`. If a day holds only node-built passages, its cue sheet is authored points only, with no message. If a day mixes them with tapped routes, `cuesFor` hits a null check, the day shows the *"unreachable"* banner, and **the routed passages lose their turns too**. Device export with *Cue sheet* on skips them silently, so a FIT file ships with no turns. | `plan_tabs/export_tab.dart:695`, `:1063`; `data/routing_client.dart:373` |
-| **F2** | High | 7 | **Diagnose crashes on a node-built passage.** `segment.start!` is null there. Only `RoutingException` is caught, so the button resets and nothing is said. The poll loop has no deadline either, and the `StateError` for a missing bbox isn't caught. | `widgets/weights_rail.dart:745`, `:765`, `:740` |
-| **F3** | High | 9 | **The stale list re-solves every item in Explore,** including passages on a Compose day. Weights convert per mode (Compose drops `interest`) and so does the target, so the re-solved route can differ from the one the rail's own button would give. This covers *Re-solve*, *Re-solve all*, and both export/print stale gates. | `widgets/stale_list_dialog.dart:189`, `:148`; `state/current_trip_provider.dart:2168` |
-| **F4** | High | 4, 8 | **"Add a passage" plus Blank canvas adds a new empty day** instead of a passage on the day the Author picked. `_createBlank` ignores `plannerTargetDayIdProvider` and leaves it set, so the next New Route can target a stale day. | `screens/new_route_screen.dart:787` |
-| **F5** | Med | 7 | **Inside the shell, a region still building reads as an error.** Generate / Regenerate are enabled while the graph builds. The sidecar's 503 comes back as a red `ConflictBanner`, not the hourglass wait with progress. Only New Route shows routing readiness. This breaks the design rule that waits are not failures. | `widgets/weights_rail.dart:527`, `:565`; `service/plotlines_service/app.py:3473` |
-| **F6** | Med | 4 | **"Choose area" on New Route pops one screen,** which lands on the layer step during creation, or back in the shell when adding a day. Neither is the trip area. | `screens/new_route_screen.dart:612` |
-| **F7** | Med | 4 | **New Route always reads "NEW TRIP · STEP 4 OF 4"** and shows the trip-name / dates / party block, even when it is opened to add a passage to an existing trip. | `screens/new_route_screen.dart:219` |
-| **F8** | Med | 2 | **Three library card actions do one thing.** *Edit route*, *Manage roster & preferences* and *Export backup* all open the trip on ROUTE. *Export backup* has no backup behind it (it is story L3, #127). | `screens/trip_library_screen.dart:555` |
-| **F9** | Med | 10 | **The itinerary `.md` export has no catch.** A write failure is an unhandled exception with nothing on screen, unlike the device export, which has a dialog. | `plan_tabs/export_tab.dart:244` |
-| **F10** | Med | 10 | **Print blocked by stale work is a dead end.** The dialog says *"open the stale list from Export"* but offers only *Close*. | `widgets/print_preview.dart:169` |
-| **F11** | Med | 10 | **A failed cue derivation has no Retry.** The day only reloads when the day or trip changes. | `plan_tabs/export_tab.dart:768` |
-| **F12** | Med | 10 | **Device export swallows per-passage cue failures** (`catch (_) {}`) and still says *"Exported …"*. | `plan_tabs/export_tab.dart:1067` |
-| **F13** | Low | 3 | **A drag with a side under 200 m is ignored with no message** (#628's guard). The Author sees nothing happen. | `map/trip_area_map.dart:156` |
-| **F14** | Low | 9 | **Shrinking the area and removing anchors makes two undo steps** (*Remove N places* and *Change the trip area*) for one decision. | `screens/trip_area_screen.dart:106` |
-| **F15** | Low | 6 | **Anchors have two editors:** the Layers tab's *Anchors* view and the Content tab panel. The two duplicate-promotion snackbars point at different ones. | `plan_tabs/layers_tab.dart:412`; `plan_tabs/proposals_view.dart:379` |
-| **F16** | Low | 6 | **The Content tab is a second node-placement map.** It has no route line and no gesture panel or Cancel, and it centres on `segment.start`, which is null for a node-built passage. | `plan_tabs/content_tab.dart:84` |
-| **F17** | Low | 6, 7, 8 | **Copy leaks internals.** Labels carry FR numbers (*FR106*, *FR108*, *FR25*, *FR109*). One sentence names a *"Curation"* tab that doesn't exist. *Segment* and *passage* are used for the same thing (*Add segment*, *Select a segment*). | `widgets/anchor_promotion_panel.dart:941`, `:972`, `:1172`; `widgets/weights_rail.dart:1302`; `plan_tabs/logistics_tab.dart:505`; `plan_tabs/content_tab.dart:67` |
-| **F18** | Low | 7 | **A day that has passages, with none selected, offers no map action.** The node-built path (#626) can only start a passage on an *empty* day. A second one on the same day has to go through New Route. | `plan_tabs/route_tab.dart:600–655` |
-| **F19** | Low | 1 | **The sidecar start screen says "Plotting the route graph"** while the engine is only starting. No graph is involved yet. | `widgets/sidecar_gate.dart:73` |
-| **F20** | Low | 6 | **Tapping a candidate on a trip with no days does nothing** and says nothing. | `plan_tabs/layers_tab.dart:390` |
-| **F21** | Low | 7 | **Diagnose is disabled with an empty tooltip** when bands exist but nothing is solved yet. | `widgets/weights_rail.dart:551` |
-| **F22** | Low | 3 | **The location error says "continue and place the map yourself"**, but *Continue* re-runs the geocode. The way on is *Use Buncombe County* or clearing the field. | `widgets/trip_location_prompt.dart:147`, `:163` |
-| **F23** | Low | 10 | **Per-day export overwrites same-named files** in the chosen folder without asking. | `plan_tabs/export_tab.dart:1147` |
-| **F24** | Low | 3 | **Trip extent's ← says "Back to the location prompt"** but lands on the Library, because the prompts were dialogs over it. Going forward asks for modes and location again. | `screens/trip_area_screen.dart:164` |
+**All 24 are fixed** (v1.2, 2026-10-08), each in the PR the last column names, and the diagrams
+above now draw the fixed behaviour. The fixes are traced in code and covered by widget tests; none
+has had a desktop run yet. A struck ID is fixed once its PR merges.
+
+| ID | Sev | Stage | Finding | Evidence | Fixed in |
+|---|---|---|---|---|---|
+| ~~**F1**~~ | High | 10 | **A passage built from nodes (#626/#640) gets no turn-by-turn cues anywhere.** Such a passage has no stored `start` (D71), and every cue path keys on `start`. If a day holds only node-built passages, its cue sheet is authored points only, with no message. If a day mixes them with tapped routes, `cuesFor` hits a null check, the day shows the *"unreachable"* banner, and **the routed passages lose their turns too**. Device export with *Cue sheet* on skips them silently, so a FIT file ships with no turns. | `plan_tabs/export_tab.dart:695`, `:1063`; `data/routing_client.dart:373` | PR #660 (#653) |
+| ~~**F2**~~ | High | 7 | **Diagnose crashes on a node-built passage.** `segment.start!` is null there. Only `RoutingException` is caught, so the button resets and nothing is said. The poll loop has no deadline either, and the `StateError` for a missing bbox isn't caught. | `widgets/weights_rail.dart:745`, `:765`, `:740` | PR #660 (#653) |
+| ~~**F3**~~ | High | 9 | **The stale list re-solves every item in Explore,** including passages on a Compose day. Weights convert per mode (Compose drops `interest`) and so does the target, so the re-solved route can differ from the one the rail's own button would give. This covers *Re-solve*, *Re-solve all*, and both export/print stale gates. | `widgets/stale_list_dialog.dart:189`, `:148`; `state/current_trip_provider.dart:2168` | PR #663 (#654) |
+| ~~**F4**~~ | High | 4, 8 | **"Add a passage" plus Blank canvas adds a new empty day** instead of a passage on the day the Author picked. `_createBlank` ignores `plannerTargetDayIdProvider` and leaves it set, so the next New Route can target a stale day. | `screens/new_route_screen.dart:787` | PR #664 (#655) |
+| ~~**F5**~~ | Med | 7 | **Inside the shell, a region still building reads as an error.** Generate / Regenerate are enabled while the graph builds. The sidecar's 503 comes back as a red `ConflictBanner`, not the hourglass wait with progress. Only New Route shows routing readiness. This breaks the design rule that waits are not failures. | `widgets/weights_rail.dart:527`, `:565`; `service/plotlines_service/app.py:3473` | PR #661 (#656) |
+| ~~**F6**~~ | Med | 4 | **"Choose area" on New Route pops one screen,** which lands on the layer step during creation, or back in the shell when adding a day. Neither is the trip area. | `screens/new_route_screen.dart:612` | PR #664 (#655) |
+| ~~**F7**~~ | Med | 4 | **New Route always reads "NEW TRIP · STEP 4 OF 4"** and shows the trip-name / dates / party block, even when it is opened to add a passage to an existing trip. | `screens/new_route_screen.dart:219` | PR #664 (#655) |
+| ~~**F8**~~ | Med | 2 | **Three library card actions do one thing.** *Edit route*, *Manage roster & preferences* and *Export backup* all open the trip on ROUTE. *Export backup* has no backup behind it (it is story L3, #127). | `screens/trip_library_screen.dart:555` | PR #665 (#658) |
+| ~~**F9**~~ | Med | 10 | **The itinerary `.md` export has no catch.** A write failure is an unhandled exception with nothing on screen, unlike the device export, which has a dialog. | `plan_tabs/export_tab.dart:244` | PR #662 (#657) |
+| ~~**F10**~~ | Med | 10 | **Print blocked by stale work is a dead end.** The dialog says *"open the stale list from Export"* but offers only *Close*. | `widgets/print_preview.dart:169` | PR #662 (#657) |
+| ~~**F11**~~ | Med | 10 | **A failed cue derivation has no Retry.** The day only reloads when the day or trip changes. | `plan_tabs/export_tab.dart:768` | PR #662 (#657) |
+| ~~**F12**~~ | Med | 10 | **Device export swallows per-passage cue failures** (`catch (_) {}`) and still says *"Exported …"*. | `plan_tabs/export_tab.dart:1067` | PR #662 (#657) |
+| ~~**F13**~~ | Low | 3 | **A drag with a side under 200 m is ignored with no message** (#628's guard). The Author sees nothing happen. | `map/trip_area_map.dart:156` | PR #666 (#659, #639) |
+| ~~**F14**~~ | Low | 9 | **Shrinking the area and removing anchors makes two undo steps** (*Remove N places* and *Change the trip area*) for one decision. | `screens/trip_area_screen.dart:106` | PR #666 (#659, #639) |
+| ~~**F15**~~ | Low | 6 | **Anchors have two editors:** the Layers tab's *Anchors* view and the Content tab panel. The two duplicate-promotion snackbars point at different ones. | `plan_tabs/layers_tab.dart:412`; `plan_tabs/proposals_view.dart:379` | PR #666 (#659, #639) |
+| ~~**F16**~~ | Low | 6 | **The Content tab is a second node-placement map.** It has no route line and no gesture panel or Cancel, and it centres on `segment.start`, which is null for a node-built passage. | `plan_tabs/content_tab.dart:84` | PR #660 (#653) |
+| ~~**F17**~~ | Low | 6, 7, 8 | **Copy leaks internals.** Labels carry FR numbers (*FR106*, *FR108*, *FR25*, *FR109*). One sentence names a *"Curation"* tab that doesn't exist. *Segment* and *passage* are used for the same thing (*Add segment*, *Select a segment*). | `widgets/anchor_promotion_panel.dart:941`, `:972`, `:1172`; `widgets/weights_rail.dart:1302`; `plan_tabs/logistics_tab.dart:505`; `plan_tabs/content_tab.dart:67` | PR #666 (#659, #639) |
+| ~~**F18**~~ | Low | 7 | **A day that has passages, with none selected, offers no map action.** The node-built path (#626) can only start a passage on an *empty* day. A second one on the same day has to go through New Route. | `plan_tabs/route_tab.dart:600–655` | PR #666 (#659, #639) |
+| ~~**F19**~~ | Low | 1 | **The sidecar start screen says "Plotting the route graph"** while the engine is only starting. No graph is involved yet. | `widgets/sidecar_gate.dart:73` | PR #666 (#659, #639) |
+| ~~**F20**~~ | Low | 6 | **Tapping a candidate on a trip with no days does nothing** and says nothing. | `plan_tabs/layers_tab.dart:390` | PR #666 (#659, #639) |
+| ~~**F21**~~ | Low | 7 | **Diagnose is disabled with an empty tooltip** when bands exist but nothing is solved yet. | `widgets/weights_rail.dart:551` | PR #661 (#656) |
+| ~~**F22**~~ | Low | 3 | **The location error says "continue and place the map yourself"**, but *Continue* re-runs the geocode. The way on is *Use Buncombe County* or clearing the field. | `widgets/trip_location_prompt.dart:147`, `:163` | PR #666 (#659, #639) |
+| ~~**F23**~~ | Low | 10 | **Per-day export overwrites same-named files** in the chosen folder without asking. | `plan_tabs/export_tab.dart:1147` | PR #662 (#657) |
+| ~~**F24**~~ | Low | 3 | **Trip extent's ← says "Back to the location prompt"** but lands on the Library, because the prompts were dialogs over it. Going forward asks for modes and location again. | `screens/trip_area_screen.dart:164` | PR #666 (#659, #639) |
 
 **Filed as issues** (2026-10-07). These group by fix, not one issue per finding:
 1. **#653: node-built passages through the output pipeline:** F1, F2, F16. This is the #626/#640 follow-on. The fix is one helper that resolves a passage's effective start (`routeSolveInputs`) for cues, Diagnose and the Content map.
@@ -456,17 +461,17 @@ unless stated.
 
 | Drawn flow | What the code does | Verdict |
 |---|---|---|
-| **Flow 1:** modes → location → bbox → layers → first route; the region graph gates routing only | Matches, as STEP 1–4 of 4. Routing readiness is shown on New Route only. | Matches. Readiness inside the shell is missing (**F5**). |
+| **Flow 1:** modes → location → bbox → layers → first route; the region graph gates routing only | Matches, as STEP 1–4 of 4. Routing readiness is shown on New Route and, since #656, in the shell's rail. | Matches (**F5** fixed). |
 | **Flow 1:** a roster-only clone runs initiation; other scopes skip it | Matches (`runsTripInitiation`). | Matches. |
-| **Flow 2:** select layers → candidates → promote / proposals | Matches. A candidate tap promotes in one step with its role taken from affinity. | Matches. Two anchor editors (**F15**). |
-| **Flow 4:** Explore and Compose; switch with no work lost | Matches in the rail. | Matches. The stale re-solve ignores the mode (**F3**). |
-| **Flow 4:** conflict named, relaxations offered | Diagnose → conflict dialog → apply. | Matches, except for node-built passages (**F2**). |
+| **Flow 2:** select layers → candidates → promote / proposals | Matches. A candidate tap promotes in one step with its role taken from affinity. | Matches. Anchor roles are edited on the Content tab, and both duplicate-promotion messages say so (**F15** fixed). |
+| **Flow 4:** Explore and Compose; switch with no work lost | Matches in the rail. | Matches (**F3** fixed: the stale re-solve uses the day's mode). |
+| **Flow 4:** conflict named, relaxations offered | Diagnose → conflict dialog → apply. | Matches, node-built passages included (**F2** fixed). |
 | **Flow 5 / Coverage:** C4 alternates and C5 waypoints listed as *not drawn* | Both are built: the draft / move bars (#324, #344), plus node placement (#588) and route-by-nodes (#626, #640). | **The drawn set is behind the code.** Flow 11 lives only in the design skill. |
-| **Flow 6:** cue sheet, reveal-aware, print; export GPX / TCX / FIT, stale-gated, print blocks with no override | Gating matches. Cues are missing for node-built passages. | **F1**, **F10**. |
-| **Flow 8:** *never a silent failure* | Silent at **F1**, **F2**, **F9**, **F12**, **F13**, **F20**. | Six violations. |
-| **Flow 8:** waits are not failures (D67, #573) | Holds in the curation tabs and on New Route. Inside the shell, a routing wait reads as an error. | **F5**. |
-| **Flow 9:** stale, not chased; the stale list resolves or drops | Matches. | Matches, apart from **F3**. |
-| **Flow 10:** undo is one step per authored edit | Holds, except the shrink-and-remove path. | **F14**. |
+| **Flow 6:** cue sheet, reveal-aware, print; export GPX / TCX / FIT, stale-gated, print blocks with no override | Gating matches, and node-built passages have cues. | Matches (**F1**, **F10** fixed). |
+| **Flow 8:** *never a silent failure* | Each of **F1**, **F2**, **F9**, **F12**, **F13**, **F20** now says what happened. | Matches. |
+| **Flow 8:** waits are not failures (D67, #573) | Holds in the curation tabs, on New Route and in the shell's rail. | Matches (**F5** fixed). |
+| **Flow 9:** stale, not chased; the stale list resolves or drops | Matches. | Matches (**F3** fixed). |
+| **Flow 10:** undo is one step per authored edit | Holds, the shrink-and-remove path included. | Matches (**F14** fixed). |
 | **Not in any drawn flow:** library card actions, sidecar gate, READ tab print | Built (G2 is P1). | Drawn here for the first time. |
 
 ---
@@ -484,5 +489,6 @@ unless stated.
 
 | Version | Change |
 |---|---|
+| **1.2** | All 24 findings fixed: #653 (PR #660), #656 (PR #661), #657 (PR #662), #654 (PR #663), #655 (PR #664), #658 (PR #665), #659 with #639 (PR #666). §11 strikes each and names its PR; the diagrams draw the fixed behaviour; §12's verdicts follow. |
 | **1.1** | Findings filed as #653–#659; §11 names each issue. |
 | **1.0** | First code trace, 2026-10-07, at `a3245b3`. Eleven diagrams (the spine plus ten stages) and 24 findings (F1–F24). Diff against `Plotlines_Author_Flows_MVP.md` v1.6. |
