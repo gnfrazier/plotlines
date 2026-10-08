@@ -25,6 +25,7 @@ import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/trip_bbox_provider.dart';
 import 'support/display_units.dart';
+import 'support/routing_ready.dart';
 
 class _FakeSidecarManager extends SidecarManager {
   @override
@@ -96,6 +97,7 @@ Future<(_RecordingRoutingClient, ProviderContainer)> _pumpRouteTab(WidgetTester 
   final client = _RecordingRoutingClient();
   final container = ProviderContainer(overrides: [
     metricUnits(),
+    routingReady(),
     sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
     routingClientProvider.overrideWithValue(client),
     tripBboxProvider.overrideWith((ref) => TripBboxNotifier()

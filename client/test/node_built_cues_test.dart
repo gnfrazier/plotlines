@@ -31,6 +31,7 @@ import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/trip_bbox_provider.dart';
 import 'support/display_units.dart';
+import 'support/routing_ready.dart';
 
 const _a = [-79.50, 36.10];
 const _b = [-79.45, 36.12];
@@ -115,6 +116,7 @@ Trip _trip(List<Segment> segments) => Trip(
 
 List<Override> _overrides(RoutingClient client, List<Segment> segments) => [
       metricUnits(),
+      routingReady(),
       routingClientProvider.overrideWithValue(client),
       tripBboxProvider.overrideWith((ref) => TripBboxNotifier()
         ..set(const TripBbox(minLat: 35.9, minLon: -79.6, maxLat: 36.3, maxLon: -79.2))),

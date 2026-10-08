@@ -20,6 +20,7 @@ import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/planner_ui_state.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'support/display_units.dart';
+import 'support/routing_ready.dart';
 
 import 'support/rail_tasks.dart';
 
@@ -117,6 +118,7 @@ void main() {
       ProviderScope(
         overrides: [
           imperial ? imperialUnits() : metricUnits(),
+          routingReady(),
           sidecarManagerProvider.overrideWith((ref) => sidecar ?? _FakeSidecarManager()),
           appDatabaseProvider.overrideWithValue(AppDatabase.forTesting(NativeDatabase.memory())),
           currentTripProvider

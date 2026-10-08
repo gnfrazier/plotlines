@@ -191,20 +191,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   /// ensured all read as an honest not-ready with a stated reason (FR121:
   /// never a silent disabled control). The phase → status mapping is
   /// `routingCapabilityForRegion`, kept pure so each reading is testable.
-  CapabilityStatus get _routingCapability {
-    final region = ref.watch(tripRegionKeyProvider);
-    // Issue #230 B3 — the exception is logged, never rendered: the failure to
-    // ensure the region at all is one typed cause with one fixed phrase.
-    if (region case TripRegionFailed(:final error)) {
-      debugPrint('routing region could not be ensured: $error');
-    }
-    final sidecarStatus = switch (region) {
-      TripRegionResolved(:final key) =>
-        ref.watch(sidecarManagerProvider).capabilities?.routing.forRegion(key),
-      _ => null,
-    };
-    return routingCapabilityForRegion(region, sidecarStatus);
-  }
+  CapabilityStatus get _routingCapability => ref.watch(tripRoutingCapabilityProvider);
 
   @override
   Widget build(BuildContext context) {
