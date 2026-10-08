@@ -736,13 +736,19 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
     try {
       final client = ref.read(routingClientProvider);
       final bbox = ref.read(tripBboxProvider);
-      if (bbox == null) {
-        throw StateError('no trip bbox — draw the trip area (FR120) before diagnosing bands');
+      // #653 — the solve's own ends, so a passage built from nodes (no
+      // stored start) diagnoses from its first route-through point.
+      final inputs = routeSolveInputs(segment);
+      if (bbox == null || inputs == null) {
+        setState(() => _error = bbox == null
+            ? 'Draw the trip area before diagnosing this passage.'
+            : 'This passage has nothing to route between yet.');
+        return;
       }
       final region = await client.ensureRegion(bbox.bboxWsen, networkType: networkTypeForMode(segment.mode));
       final jobId = await client.submitDiagnose(
         region: region,
-        start: segment.start!,
+        start: inputs.start,
         targetM: segment.metrics!.distanceM!,
         // FR8/A8: distance is never dropped from the explore search's
         // constraint set — the Author's (possibly widened) target-distance
@@ -759,13 +765,9 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
               max: segment.targetDistance!.maxM,
             ),
         ],
-        via: segment.via,
+        via: inputs.via,
       );
-      Diagnosis? result;
-      while (result == null) {
-        await Future<void>.delayed(const Duration(milliseconds: 400));
-        result = await client.pollDiagnose(jobId);
-      }
+      final result = await client.awaitDiagnosis(jobId);
       if (!mounted) return;
       await showConflictDialog(
         context,
@@ -777,7 +779,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         ],
         onApplyRelaxation: (offer) => _applyRelaxation(segment, offer),
       );
-    } on RoutingException catch (e) {
+    } catch (e) {
+      // #653 — every failure is a sentence; a non-routing error used to
+      // escape this handler and reset the button with nothing said.
+      debugPrint('diagnose failed: $e');
       if (mounted) {
         setState(() => _error =
             failureSentence(e, fallback: 'Diagnose didn\'t finish. Try again.'));

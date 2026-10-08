@@ -43,6 +43,11 @@ class RoutingClient {
   static Duration envelopeTimeout = const Duration(seconds: 15);
   static Duration submitDiagnoseTimeout = const Duration(seconds: 8);
   static Duration pollDiagnoseTimeout = const Duration(seconds: 8);
+  // Issue #653 — how long [awaitDiagnosis] keeps polling one job before it
+  // gives up with a sentence. A diagnosis is a bounded search on the
+  // sidecar's own pool; a job still pending past this is not coming back.
+  static Duration diagnoseWaitLimit = const Duration(seconds: 90);
+  static Duration diagnosePollInterval = const Duration(milliseconds: 400);
   static Duration cuesForTimeout = const Duration(seconds: 15);
   static Duration composeDayTimeout = const Duration(seconds: 15);
   static Duration assembleTripTimeout = const Duration(seconds: 15);
@@ -380,13 +385,38 @@ class RoutingClient {
     return Diagnosis.fromJson(raw['diagnosis'] as Map<String, dynamic>);
   }
 
+  /// Polls [jobId] until its diagnosis is ready, for at most
+  /// [diagnoseWaitLimit] (issue #653 — the rail's loop had no deadline, so a
+  /// job that never finished left Diagnose spinning for good).
+  Future<Diagnosis> awaitDiagnosis(String jobId) async {
+    final deadline = DateTime.now().add(diagnoseWaitLimit);
+    while (true) {
+      await Future<void>.delayed(diagnosePollInterval);
+      final result = await pollDiagnose(jobId);
+      if (result != null) return result;
+      if (!DateTime.now().isBefore(deadline)) _timedOut('diagnosing the route');
+    }
+  }
+
   /// F1 — real turn-by-turn cues (SPIKE-21's `derive_cue_sheet`), re-solved
   /// server-side against the graph rather than trusted from client geometry
   /// (same pattern as `/segments/envelope` and `/segments/diagnose`).
   /// [segment] supplies the routing inputs (start/end/via/mode/shape/
   /// weights/target distance); its `nodes`/`hazards`/`portages`/`alternates`
   /// are the curated content the sheet is derived around.
+  ///
+  /// Issue #653 — the ends are the ones a solve sends ([routeSolveInputs]),
+  /// so a passage built from nodes (#626, no stored `start`) re-solves from
+  /// its first route-through point exactly as its Generate did. A passage
+  /// with nothing to route between has no cues to derive and raises the
+  /// typed [RoutingException], never a null check.
   Future<CueSheet> cuesFor(Segment segment, {required String region}) async {
+    final inputs = routeSolveInputs(segment);
+    if (inputs == null) {
+      throw RoutingException(422, jsonEncode({
+        'detail': 'this passage has nothing to route between yet, so it has no turns',
+      }));
+    }
     final http.Response resp;
     try {
       resp = await http
@@ -395,9 +425,9 @@ class RoutingClient {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
             'region': region,
-            'start': _latLon(segment.start!),
-            if (segment.end != null) 'end': _latLon(segment.end!),
-            'via': segment.via.map(_latLon).toList(),
+            'start': _latLon(inputs.start),
+            if (inputs.end != null) 'end': _latLon(inputs.end!),
+            'via': inputs.via.map(_latLon).toList(),
             // #315 — keep the cue re-solve on the same profile the generate used.
             if (segment.discipline != null) 'discipline': segment.discipline,
             'shape': segment.shape,

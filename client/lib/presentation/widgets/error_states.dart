@@ -161,16 +161,21 @@ class NoDataBanner extends StatelessWidget {
 /// generated (elevation void rule) — this only ever narrates the enrichment
 /// gap, never blocks.
 class ProviderUnreachableBanner extends StatelessWidget {
-  const ProviderUnreachableBanner({super.key, required this.provider, this.lastCachedAge});
+  const ProviderUnreachableBanner({super.key, required this.provider, this.lastCachedAge, this.message});
   final String provider;
   final String? lastCachedAge;
+
+  /// The sentence in place of the generic one, when the surface knows more
+  /// than "unavailable" — which passages lost their turns (#653), say.
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
     final c = PlotColors.of(context);
-    final detail = lastCachedAge == null
-        ? '$provider is unavailable right now.'
-        : '$provider is unavailable — showing data from $lastCachedAge ago.';
+    final detail = message ??
+        (lastCachedAge == null
+            ? '$provider is unavailable right now.'
+            : '$provider is unavailable — showing data from $lastCachedAge ago.');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s2),
       decoration: BoxDecoration(
