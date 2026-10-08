@@ -502,7 +502,7 @@ class _DayCard extends ConsumerWidget {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: PlotButton(
-                    label: 'Add segment',
+                    label: 'Add passage',
                     variant: PlotButtonVariant.ghost,
                     icon: Icons.add,
                     onPressed: () {

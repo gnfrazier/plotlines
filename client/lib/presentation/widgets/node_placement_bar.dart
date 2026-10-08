@@ -43,7 +43,7 @@ class NodePlacementBar extends StatelessWidget {
             if (startsPassageIn != null) ...[
               const SizedBox(height: PlotSpacing.s2),
               Text(
-                'It starts this day\'s passage: ${travelModeLabel(startsPassageIn!)}.',
+                'It starts a new passage: ${travelModeLabel(startsPassageIn!)}.',
                 style: PlotTypography.small(c.textMuted),
               ),
             ],

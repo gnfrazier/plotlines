@@ -91,7 +91,7 @@ const List<ProfileField> defaultProfileFieldCatalog = [
   ProfileField(
     id: 'dietary_restrictions',
     label: 'Dietary restrictions',
-    description: 'Allergies or diet needs that shape meal planning (C9).',
+    description: 'Allergies or diet needs that shape meal planning.',
     category: ProfileFieldCategory.profile,
     defaultRequested: false,
   ),
@@ -105,7 +105,7 @@ const List<ProfileField> defaultProfileFieldCatalog = [
   ProfileField(
     id: 'pace_profile',
     label: 'Pace & experience',
-    description: 'Stated pace and preferences (FR16a) feeding planning defaults.',
+    description: 'Stated pace and preferences, which feed planning defaults.',
     category: ProfileFieldCategory.profile,
     defaultRequested: false,
   ),
@@ -119,7 +119,7 @@ const List<ProfileField> defaultProfileFieldCatalog = [
   ProfileField(
     id: 'arrival_visibility',
     label: 'Arrival visibility',
-    description: 'FR123 — when granted, this Character reaching a plot point '
+    description: 'When granted, this Character reaching a plot point '
         'is visible to the trip roster (regroup: "three of us are already at '
         'the overlook"), never to the Author alone. Default nothing shared.',
     category: ProfileFieldCategory.permission,

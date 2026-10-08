@@ -26,6 +26,7 @@ import '../../state/authoring_undo_provider.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/settings_provider.dart';
 import '../../state/trip_bbox_provider.dart';
+import '../display_format_of.dart';
 import '../map/trip_area_map.dart';
 import '../map/trip_framing.dart';
 import '../widgets/trip_bbox_shrink_prompt.dart';
@@ -103,6 +104,18 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
   }
 
   Future<void> _handleProposal(TripBbox proposed) async {
+    // #659 (F14) — *Remove anchors* and the new area are one decision, so
+    // one undo step: the removal is held until the area is applied and
+    // both go in the same edit. They used to be two steps (*Remove N
+    // places*, then *Change the trip area*).
+    Set<String>? remove;
+    void apply(TripBbox b) {
+      if (remove != null) {
+        ref.read(currentTripProvider.notifier).removeNodesById(remove!);
+      }
+      ref.read(tripBboxProvider.notifier).set(b);
+    }
+
     await reviseTripBbox(
       context,
       proposed: proposed,
@@ -111,13 +124,9 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
       // (Flow 10 lists bbox changes as covered). Drawing it at creation is
       // not: the session it would be undone in has not started yet.
       onApply: (b) => widget.isCreation
-          ? ref.read(tripBboxProvider.notifier).set(b)
-          : ref
-              .read(authoringUndoProvider.notifier)
-              .edit('Change the trip area', () => ref.read(tripBboxProvider.notifier).set(b)),
-      onRemoveAnchors: (outside) => ref
-          .read(currentTripProvider.notifier)
-          .removeNodesById({for (final a in outside) a.id}),
+          ? apply(b)
+          : ref.read(authoringUndoProvider.notifier).edit('Change the trip area', () => apply(b)),
+      onRemoveAnchors: (outside) => remove = {for (final a in outside) a.id},
     );
     if (mounted) setState(() => _drawing = false);
   }
@@ -161,7 +170,9 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
         // back arrow, and both name what they do.
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          tooltip: widget.isCreation ? 'Back to the location prompt' : 'Back to the trip',
+          // #659 (F24) — the location prompt was a dialog over the library,
+          // so that is where back lands; the label says so.
+          tooltip: widget.isCreation ? 'Back to the library' : 'Back to the trip',
           onPressed: () => context.pop(),
         ),
         title: Text(widget.isCreation ? 'New trip · trip extent' : 'Trip extent'),
@@ -188,6 +199,12 @@ class _TripAreaScreenState extends ConsumerState<TripAreaScreen> {
               bbox: bbox,
               drawing: _drawing,
               onProposeChange: _handleProposal,
+              onTooSmall: () {
+                final min = displayFormatOf(context, ref).formatDistance(TripBbox.minSideM);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Too small — the area needs to be at least $min on each side.'),
+                ));
+              },
             ),
           ),
           VerticalDivider(width: 1, color: c.border),

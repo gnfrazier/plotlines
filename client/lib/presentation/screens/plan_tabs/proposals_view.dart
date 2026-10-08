@@ -372,11 +372,11 @@ class _Body extends ConsumerWidget {
           );
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Promoted "${p.name}" with roles: '
-            '${p.roleAffinities.map(roleAffinityLabel).join(", ")} — edit on Content'),
+            '${p.roleAffinities.map(roleAffinityLabel).join(", ")} — edit it on the Content tab'),
       ));
     } on DuplicatePromotionException {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('One of these features is already an anchor — edit it on Content')),
+        const SnackBar(content: Text('One of these features is already an anchor — edit it on the Content tab')),
       );
     }
   }

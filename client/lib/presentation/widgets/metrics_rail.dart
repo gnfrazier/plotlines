@@ -403,7 +403,7 @@ class _MetricsRailState extends State<MetricsRail> {
                     if (!elevationReady)
                       CapabilityWarmingNotice(capabilityLabel: 'Elevation profile', status: elevationCapability)
                     else
-                      Text('Select a segment to see its elevation profile',
+                      Text('Select a passage to see its elevation profile',
                           style: PlotTypography.small(c.textMuted)),
                   ],
                   if (segment == null && composeItinerary != null) ...[

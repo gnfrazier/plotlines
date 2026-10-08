@@ -164,7 +164,7 @@ class _DisplayAndMeasurement extends ConsumerWidget {
           padding: EdgeInsets.zero,
           child: SwitchListTile(
             title: const Text('Spoken readout on this device'),
-            subtitle: const Text('H2a — uses the voices installed here; not synced to other devices'),
+            subtitle: const Text('Uses the voices installed here; not synced to other devices'),
             value: settings.ttsReadout,
             onChanged: notifier.setTtsReadout,
           ),
@@ -282,8 +282,8 @@ class _DisplayAndMeasurement extends ConsumerWidget {
                   children: [
                     Text('Reset planning controls', style: PlotTypography.body(c.textPrimary).copyWith(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
-                    Text('K8 — one action, no per-control hunting: reverts weights, '
-                        'bands, and via-nodes, and clears the generated route.',
+                    Text('One action: reverts weights, bands and via-nodes, and clears the '
+                        'generated route.',
                         style: PlotTypography.small(c.textSecondary)),
                   ],
                 ),

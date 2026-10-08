@@ -351,8 +351,8 @@ class _RouteTabState extends ConsumerState<RouteTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'A node sits on a passage, and this day has none yet. The node '
-                  'you place starts one. How is this passage travelled?',
+                  'A node sits on a passage, and none is selected on this day. The '
+                  'node you place starts a new one. How is this passage travelled?',
                   style: PlotTypography.body(c.textSecondary),
                 ),
                 const SizedBox(height: PlotSpacing.s3),
@@ -447,12 +447,14 @@ class _RouteTabState extends ConsumerState<RouteTab> {
     // on a route day with none yet it is shown disabled with the reason.
     final placeOn = selectedSegment == null ? null : selected;
     final railDay = widget.trip.days.where((d) => d.id == railDayId).firstOrNull;
-    final dayHasNoPassage =
-        placeOn == null && railDay != null && !railDay.isRest && railDay.segments.isEmpty;
+    // #626 — on a route day with no passage selected, Add node starts one.
+    // #659 (F18) — on any such day, not only an empty one: a day that has
+    // passages but none selected used to offer no map action at all.
+    final canStartPassage = placeOn == null && railDay != null && !railDay.isRest;
     // #626 — placement armed for a new passage belongs to the day it was
-    // armed on, and only while that day still has none.
+    // armed on, and only while no passage there is selected.
     final pendingNew = _placingNew;
-    if (pendingNew != null && (!dayHasNoPassage || pendingNew.dayId != railDayId)) {
+    if (pendingNew != null && (!canStartPassage || pendingNew.dayId != railDayId)) {
       _placingNew = null;
     }
 
@@ -644,14 +646,15 @@ class _RouteTabState extends ConsumerState<RouteTab> {
                               ],
                             ),
                           )
-                        else if (dayHasNoPassage)
+                        else if (canStartPassage)
                           Positioned(
                             top: PlotSpacing.s3,
                             right: PlotSpacing.s3,
-                            // #626 (option B) — the first node starts the
-                            // day's passage, so Add node is live here too.
+                            // #626 (option B) — the node starts a passage, so
+                            // Add node is live here too. On a day that already
+                            // has passages it says it starts a new one.
                             child: PlotButton(
-                              label: 'Add node',
+                              label: railDay.segments.isEmpty ? 'Add node' : 'Add node on a new passage',
                               icon: Icons.add_location_alt_outlined,
                               onPressed: () => _armNewPassage(railDayId),
                             ),

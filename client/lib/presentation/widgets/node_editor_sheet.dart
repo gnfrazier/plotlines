@@ -290,10 +290,10 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
         const SizedBox(height: PlotSpacing.s3),
         TextField(
           controller: _poiType,
-          decoration: const InputDecoration(labelText: 'POI type (FR5)', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'POI type', border: OutlineInputBorder()),
         ),
         const SizedBox(height: PlotSpacing.s4),
-        Text('AMENITIES (C5)', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        Text('AMENITIES', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: PlotSpacing.s2),
         Wrap(
           spacing: PlotSpacing.s2,
@@ -307,7 +307,7 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
           ],
         ),
         const SizedBox(height: PlotSpacing.s4),
-        Text('NARRATIVE ARC (E2 / FR38)', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
+        Text('NARRATIVE ARC', style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: PlotSpacing.s2),
         Wrap(
           spacing: PlotSpacing.s2,
@@ -322,11 +322,11 @@ class _NodeEditorFormState extends ConsumerState<NodeEditorForm> {
           ],
         ),
         const SizedBox(height: PlotSpacing.s4),
-        Text('NARRATION TRIGGER (E4 — authoring only)',
+        Text('NARRATION TRIGGER',
             style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: PlotSpacing.s2),
-        Text('Playback is field execution and stays out of desktop MVP; this '
-            'just records the distance a future field build should trigger at.',
+        Text('Where along the passage a Character hears this. It plays in the field, '
+            'not here; this records the distance.',
             style: PlotTypography.small(c.textSecondary)),
         const SizedBox(height: PlotSpacing.s2),
         TextField(

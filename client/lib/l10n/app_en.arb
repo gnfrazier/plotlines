@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "@@x-generated-by": "client/tool/gen_message_arb.dart from lib/domain/message_template.dart + message_catalog.dart (FR145 / M14)",
+  "@@x-generated-by": "client/tool/gen_message_arb.dart from lib/domain/message_template.dart + message_catalog.dart",
   "termRoleNarrative": "narrative",
   "@termRoleNarrative": {
     "description": "RoleKind.narrative"
@@ -338,7 +338,7 @@
       "at": {"type": "String", "x-slot-type": "coordinate"}
     }
   },
-  "roleHazardAlwaysVisible": "hazard/technical crux — cannot be hidden (FR115)",
+  "roleHazardAlwaysVisible": "hazard/technical crux — cannot be hidden",
   "@roleHazardAlwaysVisible": {
     "description": "FR115 — a hazard role cannot be hidden, on any trip"
   },
