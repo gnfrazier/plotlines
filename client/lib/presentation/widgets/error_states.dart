@@ -161,9 +161,19 @@ class NoDataBanner extends StatelessWidget {
 /// generated (elevation void rule) — this only ever narrates the enrichment
 /// gap, never blocks.
 class ProviderUnreachableBanner extends StatelessWidget {
-  const ProviderUnreachableBanner({super.key, required this.provider, this.lastCachedAge, this.message});
+  const ProviderUnreachableBanner({
+    super.key,
+    required this.provider,
+    this.lastCachedAge,
+    this.message,
+    this.onRetry,
+  });
   final String provider;
   final String? lastCachedAge;
+
+  /// A *Try again* beside the sentence, when the surface can re-run what
+  /// failed (#657 — the day cue sheet). Null: nothing to retry here.
+  final VoidCallback? onRetry;
 
   /// The sentence in place of the generic one, when the surface knows more
   /// than "unavailable" — which passages lost their turns (#653), say.
@@ -189,6 +199,14 @@ class ProviderUnreachableBanner extends StatelessWidget {
           Icon(Icons.cloud_off, size: 15, color: c.textMuted),
           const SizedBox(width: PlotSpacing.s2),
           Flexible(child: Text(detail, style: PlotTypography.small(c.textSecondary))),
+          if (onRetry != null) ...[
+            const SizedBox(width: PlotSpacing.s2),
+            TextButton(
+              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+              onPressed: onRetry,
+              child: const Text('Try again'),
+            ),
+          ],
         ],
       ),
     );
