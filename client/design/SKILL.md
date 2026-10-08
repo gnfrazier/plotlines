@@ -81,7 +81,11 @@ Grayscale/White/Black carry no POIs or landcover (SPIKE-K); say so where offered
 Advisories (a stale mirror, a refused tile upstream) use the warning icon with
 secondary body text — never gold text, never error styling. Waits are not failures: a
 region queued for its build (#573) or an area the mirror is still fetching (#522) shows the
-quiet hourglass notice, never the error card with *Try again*.
+quiet hourglass notice, never the error card with *Try again*. The same holds inside the
+trip shell (#656): while the trip's region is not ready, the weights rail shows
+`CapabilityWarmingNotice` first in its scroll, not in the fixed action plane, where the
+failure card overflowed a short window. Generate, Regenerate and Diagnose are disabled, and
+each says why in its tooltip.
 
 A map gesture in progress on the Route tab is shown one way: a gesture panel in the
 map's top-right corner, in place of the buttons that started it, with a mono heading, one
@@ -110,6 +114,16 @@ never prompts; a quiet line beside Save reads *Saving…* / *Saved*, or *Not sav
 Save* when a write fails, with no exception text on screen (#390). Hazards are marked on
 the route map and as ticks on the elevation profile (#47), and they are never subject to
 reveal.
+
+New Route has two faces (#655). Opened as trip creation it is *New trip · step 4 of 4*, with
+the trip name, dates and party block. Opened from the shell (`/add-route`) it names what is
+being added, such as *Add a passage to Day N*, and has neither of those. Its *Choose area*
+opens the trip extent and comes back.
+
+Screen copy never carries requirement or story ids: no *(FR106)*, no *E4 —*, no *(C9)*
+(#639). Say what the control does. `no_requirement_ids_on_screen_gate_test` fails on one.
+The unit of a day is a **passage**, never a *segment*, on every surface (#659). Name only
+tabs that exist (ROUTE, LOGISTICS, LAYERS, CONTENT, ROSTER, EXPORT, READ — `tripShellTabs`), never *Curation*.
 
 If invoked without guidance, ask what the user wants to build, ask a few focused
 questions, and act as an expert designer who outputs HTML artifacts or Flutter
