@@ -3,6 +3,7 @@
 **Version:** 1.6
 **Companion to:** `Plotlines_PRD_v2.md` (source of truth), `Plotlines_ARCHITECTURE_v2.md`, `Plotlines_MVP_Redirection_Punchlist.md`
 **Scope:** Every **[MVP]** Author story in PRD v2.0, plus the account, error, and edit behaviours that cut across them.
+**As built:** `Plotlines_Author_Flow_E2E.md` traces the same ground from the client code: one end-to-end flow with its findings and a diff against these flows.
 
 Diagrams are Mermaid so they version-control, diff, and render in the repo. Each carries a traceability table mapping every node to its FR and story. **Where a node has no FR, that is a gap and it is marked as one** — flows 8 and 9 contain most of these.
 
