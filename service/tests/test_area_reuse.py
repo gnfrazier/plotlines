@@ -9,7 +9,7 @@ candidates by feature id, and the area's pin in `osm_source`.
 
 from __future__ import annotations
 
-import shutil
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import networkx as nx
@@ -28,7 +28,9 @@ from plotlines_core.graph import regions as region_lib
 from plotlines_core.graph.loader import load_graphml, nearest_node
 from plotlines_service.app import create_app
 
-_PIN = "2026-09-01"
+#: Relative to today: `find_reusable_extract` only reuses a pin younger than
+#: `MAX_PIN_AGE_DAYS`, so a fixed date would rot.
+_PIN = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
 _TRIP_1 = (-105.30, 39.99, -105.25, 40.03)
 #: A block south-west of trip 1 — outside its bbox, inside its padded area.
 _TRIP_2 = (-105.304, 39.987, -105.254, 40.027)

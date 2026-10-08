@@ -772,6 +772,22 @@ def build_provisional_graph_from_shrink(
     return out_path
 
 
+def save_graphml_atomic(graph, out_path: Path) -> None:
+    """Write `graph` to `out_path` through a temp file and a rename, so a
+    concurrent reader (another trip loading the same held area's graph, or
+    a background refresh replacing it — epic #641) sees the old file or the
+    new one, never half of either."""
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out_path.with_name(f".{out_path.name}.part")
+    try:
+        ox.io.save_graphml(graph, tmp)
+        tmp.replace(out_path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
 def fold_node_barriers(graph) -> int:
     """Copy each `barrier`-tagged node's value onto its incident edges, in place.
 
@@ -971,7 +987,7 @@ def ensure_graph(
                 "a larger area or a different mode."
             )
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        ox.io.save_graphml(graph, out_path)
+        save_graphml_atomic(graph, out_path)
         # Issue #277 — record which pin actually produced this graph. The
         # extract's own on-disk location names it (`CacheLayout.osm_extract`
         # files under `extracts_dir/<pin>/...`), so this reads the pin off
@@ -1076,7 +1092,7 @@ def ensure_graph(
                         type(exc).__name__, f"{type(exc).__name__}: {exc}")
                 continue
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            ox.io.save_graphml(graph, out_path)
+            save_graphml_atomic(graph, out_path)
             # Issue #277 — symmetric with the local-clip branch above, so a
             # later `graph_source_pin` read never has to guess which
             # transport built a given cached graph.

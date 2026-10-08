@@ -60,6 +60,7 @@ from plotlines_core.curation.registry import build_default_registry
 from plotlines_core.elevation.enrich import enrich_elevation
 from plotlines_core.elevation.interface import (
     ElevationResolver,
+    OPENTOPO_BASE_URL,
     ElevationUnavailable,
     Fetcher,
     HttpElevationSource,
@@ -1315,6 +1316,11 @@ class RegionState:
         self.areas: cache_areas.AreaIndex | None = None
         self.area_bbox: tuple[float, float, float, float] | None = None
         self.graph_region: region_lib.Region | None = None
+        #: Epic #641 (story #649) — which of this region's held payloads a
+        #: background refresh is replacing right now (`"osm"`, `"basemap"`,
+        #: `"elevation"`). Additive on `/health` (`refreshing: true`) and
+        #: never folded into plain ready.
+        self.refreshing: set[str] = set()
 
     def area_index(self, cache_dir: Path) -> cache_areas.AreaIndex:
         if self.areas is None:
@@ -1347,6 +1353,10 @@ class RegionState:
         # than reading identical to a fully finished build.
         if self.graph_state.ready and self.build_in_progress:
             d["finishing"] = True
+        # Epic #641 (story #649) — ready on held data while a background
+        # refresh replaces it. Additive and only while set.
+        if self.graph_state.ready and "osm" in self.refreshing:
+            d["refreshing"] = True
         return d
 
     def elevation_capability(self) -> dict:
@@ -1361,7 +1371,10 @@ class RegionState:
                     "progress": 0.0}
         if st.status == "loading":
             return {"ready": False, "reason": st.detail, "progress": 0.0}
-        return st.to_dict()
+        d = st.to_dict()
+        if d.get("ready") and "elevation" in self.refreshing:
+            d["refreshing"] = True
+        return d
 
     def tiles_capability(self) -> dict:
         """`capabilities.tiles.regions[key]` — issue #521. Additive: a
@@ -1374,7 +1387,8 @@ class RegionState:
                 fill_id=answer.fill_id, retry_after_s=waiting, progress=answer.progress,
                 since=None) | {"cells": [list(c) for c, _ in self.tiles_fill]}
         if self.tiles_archive is not None:
-            return {"ready": True}
+            return ({"ready": True, "refreshing": True} if "basemap" in self.refreshing
+                    else {"ready": True})
         if self.tiles_error:
             return {"ready": False, "reason": f"failed:{self.tiles_error}"}
         return {"ready": False, "reason": "pending"}
@@ -2085,6 +2099,11 @@ class RegionState:
 #: the first one (which follows the first live-trip reference set).
 AREA_PRUNE_INTERVAL_S = 6 * 3600.0
 
+#: Epic #641 (story #649) — after a failed background refresh, how long
+#: before the next open of a trip in that area tries again. Not a latch:
+#: the held payload keeps serving throughout.
+REFRESH_RETRY_COOLDOWN_S = 600.0
+
 
 class Readiness:
     """The sidecar's region registry (ARCH §8.3, breaking change B1; PRD
@@ -2215,6 +2234,19 @@ class Readiness:
             max_workers=1, thread_name_prefix="area-cache",
         )
         self._prune_timer: threading.Timer | None = None
+        # Epic #641 (story #649) — background refreshes of held payloads past
+        # their TTL. Orchestrated here, one at a time, so a refresh never
+        # holds `_build_pool` (an Author's next trip never queues behind
+        # one); each network step inside runs on its phase's own pool behind
+        # its deadline (`_run_build_phase`, D66). Single-flight per (area,
+        # payload): `_refresh_inflight`. A failure is never latched — it only
+        # starts `REFRESH_RETRY_COOLDOWN_S`, after which the next open of a
+        # trip in that area tries again.
+        self._refresh_pool = ThreadPoolExecutor(
+            max_workers=3, thread_name_prefix="area-refresh",
+        )
+        self._refresh_inflight: set[tuple[str, str]] = set()
+        self._refresh_failed_at: dict[tuple[str, str], float] = {}
 
     def shutdown(self) -> None:
         """Stop accepting builds and abandon any still queued. In-flight
@@ -2230,6 +2262,7 @@ class Readiness:
         self._geocode_pool.shutdown(wait=False, cancel_futures=True)
         self._upstream_tile_pool.shutdown(wait=False, cancel_futures=True)
         self._area_cache_pool.shutdown(wait=False, cancel_futures=True)
+        self._refresh_pool.shutdown(wait=False, cancel_futures=True)
         if self._prune_timer is not None:
             self._prune_timer.cancel()
         self._build_phase_pools.shutdown()
@@ -2247,6 +2280,7 @@ class Readiness:
         sets. It is what earns the one-per-window cooldown bypass and is not
         subject to the automatic-requeue cap (issue #247)."""
         key = region_lib.region_key(bbox, network_type)
+        reopened: RegionState | None = None
         with self._lock:
             region = self.regions.get(key)
             if region is None:
@@ -2257,6 +2291,11 @@ class Readiness:
                 self._queue_build(region)
                 log.info("ensure_region key=%s bbox=%s nt=%s decision=NEW_BUILD",
                          key, bbox, network_type)
+            elif region.graph_state.status == "ready" and not region.build_in_progress:
+                # Epic #641 (story #649) — reopening a ready trip: refresh any
+                # held payload past its TTL in the background, after this
+                # lock is released. In-memory lookups and a pool submit.
+                reopened = region
             elif region.graph_state.status in ("failed", "provisional"):
                 # A settled failure (typically Overpass unreachable, issue
                 # #229) is retryable, but not without limit (issue #247): a
@@ -2307,6 +2346,8 @@ class Readiness:
                 # than overwriting its stated reason with a cooldown notice
                 # (issue #432: this is a rate limit on rebuild attempts, not
                 # a new fact about the provisional graph itself).
+        if reopened is not None:
+            self.queue_refreshes(reopened)
         return key
 
     def _queue_build(self, region: "RegionState") -> None:
@@ -2354,6 +2395,7 @@ class Readiness:
                     self._active_build_key = None
                     self._active_build_started_at = None
         self._schedule_fill_polls(region)
+        self.queue_refreshes(region)
 
     # -- issue #521: waiting on mirror fills ------------------------------------
 
@@ -2532,6 +2574,210 @@ class Readiness:
     def _prune_and_reschedule(self) -> None:
         self.prune_cache()
         self._schedule_prune()
+
+    def _stale_groups(self, region: "RegionState") -> list[tuple[str, tuple]]:
+        """(group, area bbox) for each held payload `region` uses that is
+        past its TTL and that this sidecar could refresh. In memory only."""
+        groups = []
+        graph = self.areas.resolve(region.bbox, cache_areas.graph_payload(region.network_type))
+        if (graph is not None and graph.stale and self.mirror_clip_url
+                and region.graph_region is not None
+                and region.graph_region.bbox == graph.area_bbox):
+            groups.append((f"osm:{region.network_type}", graph.area_bbox))
+        tiles = self.areas.resolve(region.bbox, cache_areas.PAYLOAD_BASEMAP)
+        if tiles is not None and tiles.stale and region.tiles_archive is not None:
+            groups.append(("basemap", tiles.area_bbox))
+        dem = self.areas.resolve(region.bbox, cache_areas.PAYLOAD_ELEVATION)
+        if (dem is not None and dem.stale and region.sampler is not None
+                and (self.elevation_upstream or self.elevation_wiring.fetch is not None)):
+            groups.append(("elevation", dem.area_bbox))
+        return groups
+
+    def queue_refreshes(self, region: "RegionState") -> None:
+        """Story #649 — queue one background refresh per stale held payload
+        `region` (a trip being opened) uses. Never for a trip not being
+        opened; never twice for one area and payload at once."""
+        now = time.monotonic()
+        for group, area_bbox in self._stale_groups(region):
+            flight = (cache_areas.trip_bbox_key(area_bbox), group)
+            with self._lock:
+                if self._closed or flight in self._refresh_inflight:
+                    continue
+                failed_at = self._refresh_failed_at.get(flight)
+                if failed_at is not None and now - failed_at < REFRESH_RETRY_COOLDOWN_S:
+                    continue
+                self._refresh_inflight.add(flight)
+            self._mark_refreshing(area_bbox, group, True)
+            log.info("area refresh QUEUED area=%s payload=%s (trip key=%s)",
+                     list(area_bbox), group, region.key)
+            try:
+                self._refresh_pool.submit(self._run_refresh, flight, group, area_bbox)
+            except RuntimeError:  # pool shut down
+                with self._lock:
+                    self._refresh_inflight.discard(flight)
+
+    def _regions_on_area(self, area_bbox, group: str) -> list["RegionState"]:
+        out = []
+        for _key, region in self.snapshot():
+            if not cache_areas.bbox_contains(area_bbox, region.bbox):
+                continue
+            if group.startswith("osm:"):
+                if (region.graph_region is None or region.graph_region.bbox != tuple(area_bbox)
+                        or f"osm:{region.network_type}" != group):
+                    continue
+            out.append(region)
+        return out
+
+    def _mark_refreshing(self, area_bbox, group: str, on: bool) -> None:
+        label = "osm" if group.startswith("osm:") else group
+        for region in self._regions_on_area(area_bbox, group):
+            (region.refreshing.add if on else region.refreshing.discard)(label)
+
+    def _run_refresh(self, flight, group: str, area_bbox) -> None:
+        """One refresh, on `_refresh_pool`. The held payload keeps serving
+        throughout; the refreshed one is swapped in whole."""
+        retry_in: float | None = None
+        try:
+            if group.startswith("osm:"):
+                self._refresh_osm(area_bbox, group.split(":", 1)[1])
+            elif group == "basemap":
+                retry_in = self._refresh_basemap(area_bbox)
+            elif group == "elevation":
+                self._refresh_elevation(area_bbox)
+            with self._lock:
+                self._refresh_failed_at.pop(flight, None)
+            log.info("area refresh OK area=%s payload=%s", list(area_bbox), group)
+        except extract_fetch.ExtractFilling as exc:
+            # D67 — the mirror is fetching: a wait, not a failure.
+            retry_in = exc.retry_after_s or _FILL_POLL_DEFAULT_S
+            log.info("area refresh WAITING area=%s payload=%s fill_id=%s",
+                     list(area_bbox), group, exc.fill_id)
+        except Exception as exc:  # noqa: BLE001 — never latched; held data keeps serving
+            with self._lock:
+                self._refresh_failed_at[flight] = time.monotonic()
+            log.warning("area refresh FAILED area=%s payload=%s: %s: %s", list(area_bbox),
+                        group, type(exc).__name__, exc)
+        finally:
+            if retry_in is not None:
+                self._later_refresh(_poll_delay(retry_in), flight, group, area_bbox)
+            else:
+                with self._lock:
+                    self._refresh_inflight.discard(flight)
+                self._mark_refreshing(area_bbox, group, False)
+
+    def _later_refresh(self, delay_s: float, flight, group: str, area_bbox) -> None:
+        def fire():
+            with self._lock:
+                if self._closed:
+                    return
+            try:
+                self._refresh_pool.submit(self._run_refresh, flight, group, area_bbox)
+            except RuntimeError:
+                pass
+
+        timer = threading.Timer(delay_s, fire)
+        timer.daemon = True
+        with self._lock:
+            if self._closed:
+                return
+            self._fill_timers = [t for t in self._fill_timers if t.is_alive()]
+            self._fill_timers.append(timer)
+        timer.start()
+
+    def _refresh_osm(self, area_bbox, network_type: str) -> None:
+        """A fresh clip of the area, its graph rebuilt from it, and every open
+        trip on that graph swapped onto the new one. Stored passages are the
+        client's and are not touched (D52); the next solve uses the new graph
+        and `osm_source` reports its pin (D73)."""
+        pools = self._build_phase_pools
+        progress = extract_fetch.DownloadProgress()
+        clip = _run_build_phase(
+            pools.extract, _EXTRACT_PHASE_TIMEOUT_S,
+            lambda: extract_fetch.fetch_extract(
+                area_bbox, mirror_url=self.mirror_clip_url, cache_dir=self.cache_dir,
+                client_key=self.mirror_clip_client_key, progress=progress, version=VERSION),
+        )
+        extract_fetch._register_fetched(self.areas, area_bbox, Path(clip))
+        area_region = region_lib.region_for(area_bbox, network_type)
+        clip_bytes = Path(clip).stat().st_size
+        deadline_s, message = _graph_phase_deadline(clip_bytes)
+        path = _run_build_phase(
+            pools.graph, deadline_s,
+            lambda: region_lib.ensure_graph(area_region, self.cache_dir, force=True),
+            timeout_message=message,
+        )
+        source = region_lib._read_graph_source(area_region, self.cache_dir) or {}
+        self.areas.register(area_bbox, cache_areas.graph_payload(network_type), Path(path),
+                            pin=source.get("pin"))
+        # The candidate set came from the superseded clip: drop it, so the
+        # next candidate fetch builds it again from the new one.
+        for record in self.areas.areas():
+            if record.bbox == tuple(area_bbox) and cache_areas.PAYLOAD_CANDIDATES in record.payloads:
+                stale_set = self.cache_dir / record.payloads[cache_areas.PAYLOAD_CANDIDATES].path
+                self.areas.forget(area_bbox, cache_areas.PAYLOAD_CANDIDATES)
+                stale_set.unlink(missing_ok=True)
+        for region in self._regions_on_area(area_bbox, f"osm:{network_type}"):
+            fresh = region._load_trip_graph(path, area_bbox)
+            if region.sampler is not None:
+                enrich_elevation(fresh.graph, region.sampler)
+            region.graph = fresh
+            region.last_attempt_finished_at = time.time()
+
+    def _refresh_basemap(self, area_bbox) -> float | None:
+        """A fresh extract of the area's basemap to a new file, then every
+        open trip reading the old archive moved onto it — a new
+        `tiles.archive` fingerprint, so the client drops renders of the old
+        one. Returns a retry delay while the mirror is still filling."""
+        tile_set = (self.upstream_tiles if isinstance(self.upstream_tiles, BasemapArchiveSet)
+                    else None)
+        pools = self._build_phase_pools
+        if tile_set is not None:
+            pending = _run_build_phase(
+                pools.tiles, _TILES_PHASE_TIMEOUT_S,
+                lambda: _request_basemap_fills(tile_set, area_bbox, self.mirror_clip_client_key))
+            if pending:
+                return min((a.retry_after_s or _FILL_POLL_DEFAULT_S) for _, a in pending)
+        layout = CacheLayout(self.cache_dir)
+        key = cache_areas.trip_bbox_key(area_bbox)
+        new_path = layout.tiles_dir / f"{key}.{int(time.time() * 1000)}.pmtiles"
+        _run_build_phase(
+            pools.tiles, _TILES_PHASE_TIMEOUT_S,
+            (lambda: tile_set.extract(area_bbox, new_path, max_zoom=BASEMAP_MAX_ZOOM))
+            if tile_set is not None else
+            (lambda: extract_bbox(self.tiles_upstream, area_bbox, new_path,
+                                  max_zoom=BASEMAP_MAX_ZOOM,
+                                  allow_unmirrored=self.allow_unmirrored)),
+        )
+        old = self.areas.resolve(area_bbox, cache_areas.PAYLOAD_BASEMAP)
+        self.areas.register(area_bbox, cache_areas.PAYLOAD_BASEMAP, new_path)
+        for region in self._regions_on_area(area_bbox, "basemap"):
+            if old is None or region.tiles_archive is None or region.tiles_archive.path == old.path:
+                region.tiles_archive = Archive(new_path)
+        if old is not None and old.path != new_path:
+            try:
+                old.path.unlink(missing_ok=True)
+            except OSError:  # still open (Windows): the prune pass takes it later
+                pass
+        return None
+
+    def _refresh_elevation(self, area_bbox) -> None:
+        """A fresh DEM for the area, at the long elevation TTL (D73) — so an
+        FR87 call is only ever spent on an area past 365 days. The next open
+        reads it; open trips keep the DEM they enriched with."""
+        layout = CacheLayout(self.cache_dir)
+        key = cache_areas.trip_bbox_key(area_bbox)
+        dest = layout.elevation_dir / f"{key}.{int(time.time() * 1000)}.tif"
+        if self.elevation_upstream:
+            fetch, base_url = qa_proxy_fetch, self.elevation_upstream
+        else:
+            fetch, base_url = self.elevation_wiring.fetch, OPENTOPO_BASE_URL
+        written = _run_build_phase(
+            self._build_phase_pools.elevation, _ELEVATION_PHASE_TIMEOUT_S,
+            lambda: fetch(base_url, tuple(area_bbox), dest))
+        if ElevationSampler(Path(written)).degraded:
+            Path(written).unlink(missing_ok=True)
+            raise RuntimeError("the refreshed DEM couldn't be read")
+        self.areas.register(area_bbox, cache_areas.PAYLOAD_ELEVATION, Path(written))
 
     def cache_in_use(self) -> tuple[list[Path], list[tuple[float, float, float, float]]]:
         """The files open regions are reading (never deleted under them —

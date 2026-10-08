@@ -594,7 +594,10 @@ class AreaIndex:
                 continue
             bbox, version, nt = found
             name = graph_payload(nt) if payload == "graph" else payload
-            if name == PAYLOAD_EXTRACT and not self._newer_extract(bbox, pin):
+            if self.holds(bbox, name):
+                # The area already has this payload (a refresh replaced the
+                # file): leave the old one unindexed, so the prune pass
+                # removes it once it is past its TTL and nothing reads it.
                 continue
             target = path.parent if payload == "graph" else path
             self.register(bbox, name, path, fetched_at=target.stat().st_mtime,
