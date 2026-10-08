@@ -40,6 +40,7 @@ import '../../../data/export/itinerary_writer.dart';
 import '../../../data/export/tcx_writer.dart';
 import '../../../data/reveal_resolver.dart';
 import '../../../domain/domain.dart';
+import '../../../state/current_trip_provider.dart';
 import '../../../state/providers.dart';
 import '../../../state/settings_provider.dart';
 import '../../../state/trip_bbox_provider.dart';
@@ -247,15 +248,19 @@ class _ItinerarySectionState extends ConsumerState<_ItinerarySection> {
       final content = itineraryToMarkdown(itinerary,
           attributionNotice: exportAttributionNotice(widget.trip));
       final safeName = itinerary.title.replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '').trim();
-      final location = await getSaveLocation(
-        suggestedName: '${safeName.isEmpty ? 'itinerary' : safeName}.md',
-      );
-      if (location == null) return; // Author cancelled — not a failure.
-      await File(location.path).writeAsString(content);
+      final path = await ExportFileDialogs.saveLocation(
+          '${safeName.isEmpty ? 'itinerary' : safeName}.md');
+      if (path == null) return; // Author cancelled — not a failure.
+      await File(path).writeAsString(content);
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Exported ${location.path}')));
+            .showSnackBar(SnackBar(content: Text('Exported $path')));
       }
+    } catch (e) {
+      // #657 (F9) — the same dialog the device export shows; a failed
+      // write used to escape as an unhandled exception and say nothing.
+      debugPrint('itinerary export failed: $e');
+      if (mounted) await showExportFailedDialog(context, reason: exportFailureReason(e));
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -268,11 +273,12 @@ class _ItinerarySectionState extends ConsumerState<_ItinerarySection> {
   /// any of its days carry stale derived work.
   Future<void> _showPrintPreview(Itinerary itinerary) async {
     final dayIds = itinerary.days.map((e) => e.day.id).toSet();
-    final staleItems =
-        tripStaleItems(widget.trip).where((i) => dayIds.contains(i.dayId)).toList();
+    List<StaleItem> staleNow() => tripStaleItems(ref.read(currentTripProvider))
+        .where((i) => dayIds.contains(i.dayId))
+        .toList();
     final attribution = await fetchPrintAttribution(ref.read(routingClientProvider));
     if (!mounted) return;
-    await showPrintPreview(
+    final resolved = await showPrintPreview(
       context,
       document: ItineraryPrintDocument(
         title: itinerary.title,
@@ -281,9 +287,17 @@ class _ItinerarySectionState extends ConsumerState<_ItinerarySection> {
             ProseSection(heading: entry.heading, paragraphs: entry.paragraphs),
         ],
       ),
-      staleItems: staleItems,
+      staleItems: staleNow(),
       attribution: attribution,
+      // #657 (F10) — the block's way on: the stale list, then the preview
+      // again, rebuilt from the re-solved trip.
+      resolveStale: () async {
+        await showStaleList(context);
+        await WidgetsBinding.instance.endOfFrame;
+        return mounted && staleNow().isEmpty;
+      },
     );
+    if (resolved && mounted) await _showPrintPreview(_itinerary);
   }
 }
 
@@ -776,11 +790,22 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
     );
   }
 
+  /// #657 (F11) — the banner's Try again. The sheet used to reload only
+  /// when the day or the trip changed.
+  void _retry() => setState(() {
+        _future = _load();
+      });
+
   @override
   void didUpdateWidget(covariant DayCueSection oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.day != widget.day || oldWidget.trip != widget.trip) {
-      setState(() => _future = _load());
+      // A block body: `setState(() => _future = …)` returns the Future,
+      // which setState refuses with an assertion (#657 found it here, on
+      // every day edit while EXPORT was open).
+      setState(() {
+        _future = _load();
+      });
     }
   }
 
@@ -826,6 +851,7 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
                       padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
                       child: ProviderUnreachableBanner(
                         provider: 'Turn-by-turn cue derivation',
+                        onRetry: _retry,
                       ),
                     )
                   else if (missing.isNotEmpty)
@@ -833,6 +859,7 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
                       padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
                       child: ProviderUnreachableBanner(
                         provider: 'Turn-by-turn cue derivation',
+                        onRetry: _retry,
                         message: 'Turns couldn\'t be derived for ${missing.join(', ')} — '
                             '${missing.length == 1 ? 'it shows its' : 'they show their'} '
                             'authored points only.',
@@ -885,7 +912,12 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
     final df = ref.read(displayFormatProvider);
     final attribution = await fetchPrintAttribution(ref.read(routingClientProvider));
     if (!mounted) return;
-    await showPrintPreview(
+    List<StaleItem> staleNow() {
+      final fresh = ref.read(currentTripProvider).days.where((d) => d.id == day.id).firstOrNull;
+      return fresh == null ? const [] : dayStaleItems(fresh);
+    }
+
+    final resolved = await showPrintPreview(
       context,
       document: CueSheetPrintDocument(
         title: 'Day ${day.index}${day.title != null ? ' — ${day.title}' : ''}',
@@ -901,11 +933,31 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
       ),
       staleItems: dayStaleItems(day),
       attribution: attribution,
+      // #657 (F10) — the stale list, then this day's preview again once
+      // its re-solved cues have loaded.
+      resolveStale: () async {
+        await showStaleList(context);
+        await WidgetsBinding.instance.endOfFrame;
+        return mounted && staleNow().isEmpty;
+      },
     );
+    if (!resolved || !mounted) return;
+    final reloaded = await _future;
+    if (mounted) await _showPrintPreview(reloaded.entries);
   }
 }
 
 enum _ExportFormat { gpx, tcx, geojson, fit }
+
+/// The native file dialogs every export on this tab opens. Mutable only so a
+/// widget test can answer them (there is no platform channel to in a test);
+/// production code never reassigns them — the same seam `RoutingClient`'s
+/// deadlines use.
+class ExportFileDialogs {
+  static Future<String?> Function(String suggestedName) saveLocation =
+      (suggestedName) async => (await getSaveLocation(suggestedName: suggestedName))?.path;
+  static Future<String?> Function() directory = () => getDirectoryPath();
+}
 
 /// M13 — what reaches the export-failed dialog is a finished sentence, never
 /// an exception's `toString()` (a `FileSystemException`'s path and errno, a
@@ -1084,7 +1136,16 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
     try {
       Map<String, CueSheet> cueSheets = const {};
       if (_includeCueSheet) {
-        cueSheets = await _fetchCueSheets(widget.trip);
+        final fetched = await _fetchCueSheets(widget.trip);
+        cueSheets = fetched.sheets;
+        // #657 (F12) — a passage whose turns didn't derive is named before
+        // anything is written; the file used to ship without them while the
+        // Author was told "Exported".
+        if (fetched.missing.isNotEmpty) {
+          if (!mounted) return;
+          final proceed = await _confirmMissingTurns(fetched.missing);
+          if (!proceed) return;
+        }
       }
       final options = ExportOptions(
         includeWaypoints: _includeWaypoints,
@@ -1105,9 +1166,13 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
     }
   }
 
-  Future<Map<String, CueSheet>> _fetchCueSheets(Trip trip) async {
+  /// The cue sheets device export carries, by passage id, and the passages
+  /// (named as a sentence names them, `Day N, <passage>`) whose turns
+  /// couldn't be derived.
+  Future<({Map<String, CueSheet> sheets, List<String> missing})> _fetchCueSheets(Trip trip) async {
     final client = ref.read(routingClientProvider);
     final result = <String, CueSheet>{};
+    final missing = <String>[];
     // FR120/D41, issue #154 — cues re-solve against the graph, which is
     // region-scoped. A reopened trip that hasn't redrawn its bbox yet
     // (`TripPersistence.open`'s doc comment) has no region to ensure; the
@@ -1115,7 +1180,7 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
     // failure, so this just skips cue derivation entirely rather than
     // failing the whole export.
     final bbox = ref.read(tripBboxProvider);
-    if (bbox == null) return result;
+    if (bbox == null) return (sheets: result, missing: missing);
     // Issue #208 — one region per distinct travel-mode `network_type` across
     // the trip, so a driving passage's cues come off the `drive` graph rather
     // than the `bike` default (SPIKE-E, #171).
@@ -1135,13 +1200,44 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
         try {
           result[segment.id] = await client.cuesFor(segment,
               region: regionByNetworkType[networkTypeForMode(segment.mode)]!);
-        } catch (_) {
+        } catch (e) {
           // Honest degrade (MVP doc §4): a segment whose cues fail to derive
-          // just exports without cue points rather than failing the whole export.
+          // exports without cue points rather than failing the whole export —
+          // and since #657 the Author is told which, before the write.
+          debugPrint('cues for ${segment.id} failed: $e');
+          missing.add('Day ${day.index}, ${_passageName(day, segment)}');
         }
       }
     }
-    return result;
+    return (sheets: result, missing: missing);
+  }
+
+  Future<bool> _confirmMissingTurns(List<String> missing) async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(missing.length == 1
+            ? 'One passage has no turns'
+            : '${missing.length} passages have no turns'),
+        content: Text(
+          'Turn-by-turn cues couldn\'t be derived for ${missing.join('; ')}. '
+          'The file can go without ${missing.length == 1 ? 'its' : 'their'} turns, '
+          'or you can cancel and try again in a moment.',
+        ),
+        actions: [
+          PlotButton(
+            label: 'Cancel',
+            variant: PlotButtonVariant.ghost,
+            onPressed: () => Navigator.pop(dialogContext, false),
+          ),
+          PlotButton(
+            label: 'Export without their turns',
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
+        ],
+      ),
+    );
+    return proceed ?? false;
   }
 
   /// FIT is the one binary format — it writes bytes, not a string. The three
@@ -1189,33 +1285,48 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
 
   Future<void> _exportSingle(ExportOptions options) async {
     final safeName = _safeName(widget.trip.title);
-    final location = await getSaveLocation(
-      suggestedName: '${safeName.isEmpty ? 'plotline' : safeName}.$_extension',
-    );
-    if (location == null) return; // Author cancelled — not a failure.
+    // The OS save dialog asks before it replaces a file.
+    final path = await ExportFileDialogs.saveLocation(
+        '${safeName.isEmpty ? 'plotline' : safeName}.$_extension');
+    if (path == null) return; // Author cancelled — not a failure.
     if (_isBinary) {
-      await File(location.path).writeAsBytes(_writeBytes(widget.trip, options));
-      await _writeFitAttributionSidecar(location.path, widget.trip);
+      await File(path).writeAsBytes(_writeBytes(widget.trip, options));
+      await _writeFitAttributionSidecar(path, widget.trip);
     } else {
-      await File(location.path).writeAsString(_write(widget.trip, options));
+      await File(path).writeAsString(_write(widget.trip, options));
     }
     if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Exported ${location.path}')));
+      ).showSnackBar(SnackBar(content: Text('Exported $path')));
     }
   }
 
   Future<void> _exportPerDay(ExportOptions options) async {
-    final dirPath = await getDirectoryPath();
+    final dirPath = await ExportFileDialogs.directory();
     if (dirPath == null) return; // Author cancelled — not a failure.
     final safeName = _safeName(widget.trip.title);
+    final base = safeName.isEmpty ? 'plotline' : safeName;
+    final days = [
+      for (final day in widget.trip.days)
+        if (day.segments.isNotEmpty) day,
+    ];
+    File fileFor(Day day) => File('$dirPath/${base}_day${day.index}.$_extension');
+    // #657 (F23) — a folder picker never asks about the files it is about to
+    // replace, so this does, by name.
+    final existing = [
+      for (final day in days)
+        if (fileFor(day).existsSync()) fileFor(day).uri.pathSegments.last,
+    ];
+    if (existing.isNotEmpty) {
+      if (!mounted) return;
+      final replace = await _confirmReplace(existing, dirPath);
+      if (!replace) return;
+    }
     var count = 0;
-    for (final day in widget.trip.days) {
-      if (day.segments.isEmpty) continue;
+    for (final day in days) {
       final dayTrip = widget.trip.copyWith(days: [day]);
-      final base = safeName.isEmpty ? 'plotline' : safeName;
-      final file = File('$dirPath/${base}_day${day.index}.$_extension');
+      final file = fileFor(day);
       if (_isBinary) {
         await file.writeAsBytes(_writeBytes(dayTrip, options));
         await _writeFitAttributionSidecar(file.path, dayTrip);
@@ -1229,6 +1340,30 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
         SnackBar(content: Text('Exported $count files to $dirPath')),
       );
     }
+  }
+
+  Future<bool> _confirmReplace(List<String> names, String dirPath) async {
+    final n = names.length;
+    final replace = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(n == 1 ? 'Replace 1 file?' : 'Replace $n files?'),
+        content: Text('$dirPath already has ${names.join(', ')}. '
+            'Exporting replaces ${n == 1 ? 'it' : 'them'}.'),
+        actions: [
+          PlotButton(
+            label: 'Cancel',
+            variant: PlotButtonVariant.ghost,
+            onPressed: () => Navigator.pop(dialogContext, false),
+          ),
+          PlotButton(
+            label: n == 1 ? 'Replace it' : 'Replace them',
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
+        ],
+      ),
+    );
+    return replace ?? false;
   }
 }
 
