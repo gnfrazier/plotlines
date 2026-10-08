@@ -1939,8 +1939,9 @@ class RegionState:
         centralising calls behind the shared cache; the production path is
         ARCH §12.1's Phase 1, local cache then the direct provider (cache
         only when no key is configured)."""
+        areas = self.area_index(cache_dir)
         if wiring.source == "qa_proxy":
-            e_cache = LocalCacheSource(CacheLayout(cache_dir).elevation_dir)
+            e_cache = LocalCacheSource(CacheLayout(cache_dir).elevation_dir, areas=areas)
 
             def fetch(base_url, bbox, dest):
                 # Issue #521 — `HttpElevationSource` reads any raise as a
@@ -1962,7 +1963,8 @@ class RegionState:
                     write_back=e_cache,
                 ),
             ])
-        return phase1_resolver_for_layout(CacheLayout(cache_dir), fetch=wiring.fetch)
+        return phase1_resolver_for_layout(CacheLayout(cache_dir), fetch=wiring.fetch,
+                                          areas=areas)
 
     def _build_elevation(self, cache_dir: Path, elevation_upstream: str | None,
                          wiring: ElevationWiring | None,
@@ -2030,7 +2032,8 @@ class RegionState:
                     # "hit" on it and never fetch again. A file that was
                     # already in the cache — the shipped FR90 raster, say —
                     # is the user's, not ours to delete.
-                    raster.path.unlink(missing_ok=True)
+                    LocalCacheSource(CacheLayout(cache_dir).elevation_dir,
+                                     areas=self.area_index(cache_dir)).discard(raster)
                 self.sampler = None
                 self.elevation_state.fail(
                     "The terrain data for this area couldn't be read")

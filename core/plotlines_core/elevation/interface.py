@@ -86,12 +86,22 @@ class ElevationSource(Protocol):
 
 class LocalCacheSource:
     """On-disk bbox-scoped DEM cache. First link in every phase; also the
-    write-back target when a downstream network source produces a raster."""
+    write-back target when a downstream network source produces a raster.
+
+    With `areas` (a `cache_areas.AreaIndex`, epic #641 / ARCH D73), a bbox
+    with no DEM of its own is served from a held area's DEM that covers it:
+    the area's raster itself, not a crop, because a sampler reads only the
+    points it is asked for and a crop file per trip would grow the disk
+    again. A network source writing back through this cache then fetches
+    the *padded* area (:meth:`fetch_bbox`), so the next trip nearby hits.
+    Without `areas` (the Pi's elevation proxy) the behaviour is the
+    exact-bbox one it always was."""
 
     name = "local-cache"
 
-    def __init__(self, cache_dir: str | Path):
+    def __init__(self, cache_dir: str | Path, *, areas=None):
         self.cache_dir = Path(cache_dir)
+        self.areas = areas
 
     def _path_for(self, bbox: BBox) -> Path:
         return self.cache_dir / f"{bbox_key(bbox)}.tif"
@@ -100,12 +110,58 @@ class LocalCacheSource:
         p = self._path_for(bbox)
         if p.is_file():
             return ElevationRaster(path=p, bbox=bbox, source=self.name)
-        return None
+        if self.areas is None:
+            return None
+        from plotlines_core.cache_areas import PAYLOAD_ELEVATION
+
+        hit = self.areas.resolve(bbox, PAYLOAD_ELEVATION)
+        if hit is None:
+            return None
+        if not hit.path.is_file() or not _raster_covers(hit.path, bbox):
+            # A record whose file is gone, or a DEM that does not actually
+            # reach this bbox, is a miss — never a flat profile (D68).
+            return None
+        return ElevationRaster(path=hit.path, bbox=hit.area_bbox, source=self.name)
+
+    def fetch_bbox(self, bbox: BBox) -> BBox:
+        """The bbox a downstream source should fetch for `bbox`: the padded
+        area (D73) when areas are wired, else `bbox` itself."""
+        return self.areas.reserve(bbox) if self.areas is not None else bbox
 
     def reserve(self, bbox: BBox) -> Path:
         """Where a downstream source should write the DEM it fetched."""
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         return self._path_for(bbox)
+
+    def written(self, bbox: BBox, path: Path) -> None:
+        """Record a DEM a downstream source just wrote for `bbox`."""
+        if self.areas is not None:
+            from plotlines_core.cache_areas import PAYLOAD_ELEVATION
+
+            self.areas.register(bbox, PAYLOAD_ELEVATION, Path(path))
+
+    def discard(self, raster: "ElevationRaster") -> None:
+        """Forget a DEM that turned out unreadable, and delete it."""
+        if self.areas is not None:
+            from plotlines_core.cache_areas import PAYLOAD_ELEVATION
+
+            self.areas.forget(raster.bbox, PAYLOAD_ELEVATION)
+        raster.path.unlink(missing_ok=True)
+
+
+def _raster_covers(path: Path, bbox: BBox) -> bool:
+    """Whether the DEM at `path` spans `bbox` (to half a 30 m pixel)."""
+    import rasterio
+
+    try:
+        with rasterio.open(path) as ds:
+            b = ds.bounds
+            tol = max(abs(ds.res[0]), abs(ds.res[1])) / 2
+    except Exception:  # noqa: BLE001 — an unreadable file covers nothing
+        return False
+    west, south, east, north = bbox
+    return (b.left <= west + tol and b.bottom <= south + tol
+            and b.right >= east - tol and b.top >= north - tol)
 
 
 class HttpElevationSource:
@@ -133,18 +189,23 @@ class HttpElevationSource:
     def get(self, bbox: BBox) -> ElevationRaster | None:
         if self._fetch is None:
             return None
+        # Epic #641 — fetch the padded area, so the next trip nearby hits.
+        fetch_bbox = (self._write_back.fetch_bbox(bbox)
+                      if self._write_back is not None else bbox)
         dest = (
-            self._write_back.reserve(bbox)
+            self._write_back.reserve(fetch_bbox)
             if self._write_back is not None
-            else Path(f"{bbox_key(bbox)}.tif")
+            else Path(f"{bbox_key(fetch_bbox)}.tif")
         )
         try:
-            written = self._fetch(self.base_url, bbox, dest)
+            written = self._fetch(self.base_url, fetch_bbox, dest)
         except Exception:  # noqa: BLE001 — a fetch failure is a miss, not a raise
             return None
         if written is None or not Path(written).is_file():
             return None
-        return ElevationRaster(path=Path(written), bbox=bbox, source=self.name)
+        if self._write_back is not None:
+            self._write_back.written(fetch_bbox, Path(written))
+        return ElevationRaster(path=Path(written), bbox=fetch_bbox, source=self.name)
 
 
 class DirectProviderSource(HttpElevationSource):
@@ -205,22 +266,24 @@ class ElevationResolver:
         return ElevationSampler(raster.path)
 
 
-def phase1_resolver(cache_dir: str | Path, *, fetch: Fetcher | None = None) -> ElevationResolver:
-    """MVP wiring: local cache, then the direct provider (FR62)."""
-    cache = LocalCacheSource(cache_dir)
+def phase1_resolver(cache_dir: str | Path, *, fetch: Fetcher | None = None,
+                    areas=None) -> ElevationResolver:
+    """MVP wiring: local cache, then the direct provider (FR62). `areas`
+    (epic #641) lets the cache serve a covering held area's DEM."""
+    cache = LocalCacheSource(cache_dir, areas=areas)
     return ElevationResolver(
         [cache, DirectProviderSource(fetch=fetch, write_back=cache)]
     )
 
 
 def phase1_resolver_for_layout(
-    layout: CacheLayout, *, fetch: Fetcher | None = None
+    layout: CacheLayout, *, fetch: Fetcher | None = None, areas=None,
 ) -> ElevationResolver:
     """:func:`phase1_resolver` rooted at ``layout.elevation_dir`` — the
     separate, bbox-scoped elevation cache FR94 calls for, a sibling of the
     tile cache under one cache root. The shipped FR90 home-region raster and
     an on-demand OpenTopography fetch both land here."""
-    return phase1_resolver(layout.elevation_dir, fetch=fetch)
+    return phase1_resolver(layout.elevation_dir, fetch=fetch, areas=areas)
 
 
 def phase2_resolver(
