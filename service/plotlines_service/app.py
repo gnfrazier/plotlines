@@ -1391,7 +1391,12 @@ class RegionState:
             return True
         path = CacheLayout(cache_dir).tile_archive(self.bbox)
         if not path.exists():
-            return False
+            # Epic #641 (D73) — a held area's archive answers every address
+            # inside this bbox; an in-memory lookup, then the same local open.
+            hit = self.area_index(cache_dir).resolve(self.bbox, cache_areas.PAYLOAD_BASEMAP)
+            if hit is None or not hit.path.exists():
+                return False
+            path = hit.path
         try:
             self.tiles_archive = Archive(path)
         except Exception as exc:  # noqa: BLE001 — the build's own tiles phase decides
@@ -1871,11 +1876,20 @@ class RegionState:
         extract waits (`tiles_fill`), `/tiles` answers that cell's addresses
         with a retryable 503, and `Readiness` retries this phase alone."""
         self.tiles_error = None
-        if tile_archive_set is not None and self.tiles_archive is None:
+        # Epic #641 (D73) — a held area's archive serves this trip as it is;
+        # a miss extracts the padded area, so the next trip nearby hits.
+        areas = self.area_index(cache_dir)
+        held = areas.resolve(self.bbox, cache_areas.PAYLOAD_BASEMAP)
+        if held is not None and not held.path.exists():
+            areas.forget(held.area_bbox, cache_areas.PAYLOAD_BASEMAP)
+            held = None
+        area_bbox = held.area_bbox if held is not None else (
+            self.area_bbox or areas.reserve(self.bbox))
+        if tile_archive_set is not None and self.tiles_archive is None and held is None:
             try:
                 pending = _run_build_phase(
                     build_phase_pools.tiles, _TILES_PHASE_TIMEOUT_S,
-                    lambda: _request_basemap_fills(tile_archive_set, self.bbox,
+                    lambda: _request_basemap_fills(tile_archive_set, area_bbox,
                                                    mirror_client_key),
                 )
             except Exception as exc:  # noqa: BLE001 — best-effort, like the extract below
@@ -1896,7 +1910,10 @@ class RegionState:
         # graph, which is `regions/<key>/` because it legitimately varies by
         # network type — shared across two trips that drew the same box.
         try:
-            tiles_path = CacheLayout(cache_dir).tile_archive(self.bbox)
+            exact = CacheLayout(cache_dir).tile_archive(self.bbox)
+            tiles_path = (held.path if held is not None
+                          else exact if exact.exists()
+                          else CacheLayout(cache_dir).tile_archive(area_bbox))
             if not tiles_path.exists():
                 # Issue #456: cap explicitly at the client's own render
                 # ceiling (`basemapMaximumZoom`) rather than inheriting
@@ -1909,14 +1926,19 @@ class RegionState:
                     # cell archives the bbox reaches (read on this phase's
                     # pool, behind its deadline — never a request thread).
                     (lambda: tile_archive_set.extract(
-                        self.bbox, tiles_path, max_zoom=BASEMAP_MAX_ZOOM, stats=stats))
+                        area_bbox, tiles_path, max_zoom=BASEMAP_MAX_ZOOM, stats=stats))
                     if tile_archive_set is not None else
-                    (lambda: extract_bbox(tiles_upstream, self.bbox, tiles_path,
+                    (lambda: extract_bbox(tiles_upstream, area_bbox, tiles_path,
                                           max_zoom=BASEMAP_MAX_ZOOM,
                                           allow_unmirrored=allow_unmirrored, stats=stats)),
                 )
                 self.timings["tiles"] = stats.wall_time_s
                 self.tiles_stats = stats.as_dict()
+                areas.register(area_bbox, cache_areas.PAYLOAD_BASEMAP, tiles_path)
+            elif held is None and not areas.holds(self.bbox, cache_areas.PAYLOAD_BASEMAP):
+                # A pre-epic archive keyed on this exact bbox: adopt it.
+                areas.register(self.bbox, cache_areas.PAYLOAD_BASEMAP, tiles_path,
+                               fetched_at=tiles_path.stat().st_mtime)
             self.tiles_archive = Archive(tiles_path)
         except NoTilesInBbox:
             # Expected: the bbox is outside the tile source's coverage. `/tiles`
@@ -3107,11 +3129,13 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         # Issue #455 — recomputed every call: a region's own tile archive
         # can be (re-)extracted at any point after startup, and the whole
         # point of this identity is that such a change is visible here.
-        region_tile_identities = [
+        # Epic #641 — two trips sharing one held area's archive count once,
+        # so the fingerprint is the area's, whichever trips are open.
+        region_tile_identities = sorted({
             region.tiles_archive.info().identity
             for _key, region in state.snapshot()
             if region.tiles_archive is not None
-        ]
+        })
         upstream_identity = tiles_upstream_capability["source"]
         if isinstance(state.upstream_tiles, BasemapArchiveSet):
             # #519/#455: a newly filled cell changes this, so the client's
