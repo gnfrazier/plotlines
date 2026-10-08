@@ -144,9 +144,11 @@ class _TripLocationDialogState extends State<_TripLocationDialog> {
       if (results.isEmpty) {
         setState(() {
           _resolving = false;
+          // #659 (F22) — Continue re-runs the search, so the way on is
+          // named for what it is.
           _error = 'The geocoder is reachable and returned nothing. Check the '
-              'spelling, or continue and place the map yourself — the '
-              'location only centers the view.';
+              'spelling, or use ${HomeRegion.label} and place the map yourself — '
+              'the location only centers the view.';
         });
         return;
       }
@@ -161,7 +163,7 @@ class _TripLocationDialogState extends State<_TripLocationDialog> {
       setState(() {
         _resolving = false;
         _error = "Couldn't resolve that location: "
-            '${failureSentence(e, fallback: 'the geocoder didn\'t answer. Try again, or continue and place the map yourself.')}';
+            '${failureSentence(e, fallback: 'the geocoder didn\'t answer. Try again, or use ${HomeRegion.label} and place the map yourself.')}';
       });
     }
   }

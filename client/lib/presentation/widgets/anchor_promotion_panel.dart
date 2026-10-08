@@ -938,7 +938,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                 ],
               ),
               const SizedBox(height: PlotSpacing.s4),
-              Text('ROLE SET (narrative, provision, station — FR106)',
+              Text('ROLE SET (narrative, provision, station)',
                   style: PlotTypography.data(c.textMuted).copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: PlotSpacing.s2),
               for (final kind in RoleKind.values) _roleRow(c, kind),
@@ -969,7 +969,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
                     onChanged: (checked) => setState(() => _hasArea = checked ?? false),
                   ),
                   const Expanded(
-                    child: Text('This place is an area, not just a point (FR108)'),
+                    child: Text('This place is an area, not just a point'),
                   ),
                 ],
               ),
@@ -1088,7 +1088,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
             Padding(
               padding: const EdgeInsets.only(left: PlotSpacing.s6, bottom: PlotSpacing.s2),
               child: Text(
-                'Reveal: always visible — hazards cannot be hidden (FR115)',
+                'Reveal: always visible — hazards cannot be hidden',
                 style: PlotTypography.small(c.textMuted),
               ),
             ),
@@ -1169,7 +1169,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('WATER & RESUPPLY (FR25)', style: PlotTypography.small(c.textMuted)),
+          Text('WATER & RESUPPLY', style: PlotTypography.small(c.textMuted)),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
@@ -1247,7 +1247,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('STATION ACTIVITY (FR109)', style: PlotTypography.small(c.textMuted)),
+          Text('STATION ACTIVITY', style: PlotTypography.small(c.textMuted)),
           DropdownButton<String?>(
             isDense: true,
             isExpanded: true,
@@ -1351,7 +1351,7 @@ class _PromoteAnchorDialogState extends ConsumerState<_PromoteAnchorDialog> {
       return;
     }
     if (_selectedRoles.isEmpty) {
-      setState(() => _error = 'Assign at least one role (FR106).');
+      setState(() => _error = 'Assign at least one role.');
       return;
     }
     // FR108 / O3 — the anchor's own area, drawn by the Author as a list of

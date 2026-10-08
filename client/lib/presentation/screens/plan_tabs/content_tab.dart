@@ -64,7 +64,7 @@ class _ContentTabState extends ConsumerState<ContentTab> {
         child: Padding(
           padding: const EdgeInsets.all(PlotSpacing.s6),
           child: Text(
-            'Select a segment on the Route tab to curate its nodes.',
+            'Select a passage on the Route tab to curate its nodes.',
             style: PlotTypography.body(c.textMuted),
             textAlign: TextAlign.center,
           ),

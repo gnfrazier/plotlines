@@ -75,7 +75,7 @@ void main() {
     await tester.tap(find.text('Promote'));
     await tester.pump();
 
-    expect(find.text('Assign at least one role (FR106).'), findsOneWidget);
+    expect(find.text('Assign at least one role.'), findsOneWidget);
     expect(find.byType(AlertDialog), findsOneWidget);
   });
 
@@ -384,14 +384,14 @@ void main() {
       // narrative — no station activity block.
       await tester.tap(find.byType(Checkbox).at(0));
       await tester.pump();
-      expect(find.text('STATION ACTIVITY (FR109)'), findsNothing);
+      expect(find.text('STATION ACTIVITY'), findsNothing);
 
       // station (index 2) — the block appears.
       final stationCheckbox = find.byType(Checkbox).at(2);
       await tester.ensureVisible(stationCheckbox);
       await tester.tap(stationCheckbox);
       await tester.pumpAndSettle();
-      expect(find.text('STATION ACTIVITY (FR109)'), findsOneWidget);
+      expect(find.text('STATION ACTIVITY'), findsOneWidget);
       // No new Checkbox — the area checkbox is still found by index 3.
       expect(find.byType(Checkbox), findsNWidgets(4));
     });
@@ -488,7 +488,7 @@ void main() {
       // narrative — no water/resupply block.
       await tester.tap(find.byType(Checkbox).at(0));
       await tester.pump();
-      expect(find.text('WATER & RESUPPLY (FR25)'), findsNothing);
+      expect(find.text('WATER & RESUPPLY'), findsNothing);
       await tester.tap(find.byType(Checkbox).at(0)); // deselect narrative
       await tester.pump();
 
@@ -497,7 +497,7 @@ void main() {
       await tester.ensureVisible(provisionCheckbox);
       await tester.tap(provisionCheckbox);
       await tester.pumpAndSettle();
-      expect(find.text('WATER & RESUPPLY (FR25)'), findsOneWidget);
+      expect(find.text('WATER & RESUPPLY'), findsOneWidget);
     });
 
     testWidgets('promoting a provision role with a water source shows a badge', (tester) async {

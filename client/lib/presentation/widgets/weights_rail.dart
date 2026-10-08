@@ -135,7 +135,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         decoration: BoxDecoration(border: Border(right: BorderSide(color: c.border))),
         padding: const EdgeInsets.all(PlotSpacing.s5),
         child: Text(
-          'Select a segment on the map or in Logistics to edit its weights.',
+          'Select a passage on the map or in Logistics to edit its weights.',
           style: PlotTypography.body(c.textMuted),
         ),
       );
@@ -371,7 +371,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
       const SizedBox(height: PlotSpacing.s3),
       // FR38 / O6 — this passage's own arc stage. "none" is a real, distinct
       // choice (most segments carry no arc beat).
-      heading('ARC (O6 / FR38)'),
+      heading('ARC'),
       const SizedBox(height: PlotSpacing.s2),
       Wrap(
         spacing: PlotSpacing.s2,
@@ -948,7 +948,7 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
         if (banded) ...[
           const SizedBox(height: PlotSpacing.s2),
           Text(
-            'Banded by default — never dropped from the search, only widened (FR8).',
+            'Banded by default — never dropped from the search, only widened.',
             style: PlotTypography.small(c.textMuted),
           ),
           const SizedBox(height: PlotSpacing.s1),
@@ -1299,7 +1299,7 @@ class _SpineEditor extends ConsumerWidget {
             child: const _SpineAddChip(),
           )
         else if (anchors.isEmpty)
-          Text('Promote a place first (Curation) to add it to this spine.',
+          Text('Promote a place on the Layers or Content tab first to add it to this spine.',
               style: PlotTypography.small(c.textMuted)),
       ],
     );

@@ -96,7 +96,7 @@ void main() {
 
     await _switchTab(tester, 'LOGISTICS');
     expect(find.text('Day 1'), findsOneWidget);
-    expect(find.text('Add segment'), findsOneWidget);
+    expect(find.text('Add passage'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     // Regression: "Add rest day" used to call setDayKind with a freshly
@@ -280,7 +280,7 @@ void main() {
     }
     expect(find.text('SETTINGS'), findsNothing);
     expect(find.text('Test Loop'), findsOneWidget);
-    expect(find.text('Add segment'), findsOneWidget); // still on LOGISTICS
+    expect(find.text('Add passage'), findsOneWidget); // still on LOGISTICS
     expect(tester.takeException(), isNull);
   });
 }

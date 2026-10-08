@@ -98,7 +98,7 @@ void main() {
 
     // The profile itself never renders half-loaded/fake data.
     expect(find.byType(ElevationProfile), findsNothing);
-    expect(find.text('Select a segment to see its elevation profile'), findsNothing);
+    expect(find.text('Select a passage to see its elevation profile'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -141,7 +141,7 @@ void main() {
     ));
     await tester.pump();
 
-    expect(find.text('Select a segment to see its elevation profile'), findsNothing);
+    expect(find.text('Select a passage to see its elevation profile'), findsNothing);
     expect(find.text('Elevation profile unavailable — terrain data loading'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -160,7 +160,7 @@ void main() {
     ));
     await tester.pump();
 
-    expect(find.text('Select a segment to see its elevation profile'), findsOneWidget);
+    expect(find.text('Select a passage to see its elevation profile'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
