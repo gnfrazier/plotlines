@@ -298,6 +298,9 @@ class _CueEntry {
   final String label;
   final String glyph;
   final String? tag;
+
+  _CueEntry shiftedBy(double m) =>
+      _CueEntry(distanceAlongM: distanceAlongM + m, label: label, glyph: glyph, tag: tag);
 }
 
 const _turnGlyph = {
@@ -349,7 +352,7 @@ _CueEntry _modeChangeEntry(ModeChangeEntry change, {required double distanceAlon
 
 List<_CueEntry> _entriesFromCueSheets(
   Day day,
-  List<CueSheet> sheets,
+  List<CueSheet?> sheets,
   Trip trip, {
   bool Function(String anchorId)? hasArrived,
 }) {
@@ -363,6 +366,16 @@ List<_CueEntry> _entriesFromCueSheets(
     final change = modeChanges[segment.id];
     if (change != null) entries.add(_modeChangeEntry(change, distanceAlongM: offset));
     final sheet = sheets[i];
+    // Issue #653 — a passage whose cues didn't derive keeps its authored
+    // points, in this day's frame, rather than costing the day's other
+    // passages their turns.
+    if (sheet == null) {
+      entries.addAll(_authoredSegmentEntries(segment, offset: offset));
+      offset += segment.metrics?.distanceM ?? 0;
+      entries.addAll(_anchorEntriesForSegment(trip, segment.id,
+          distanceAlongM: offset, hasArrived: hasArrived));
+      continue;
+    }
     // FR128 / A11 — the dismount/gate/ford edges this passage rolls over, at
     // the engine's own distance-along (issue #401) in this preview's
     // day-cumulative frame. A constraint recorded before the engine measured
@@ -533,6 +546,69 @@ _CueEntry _cueEntryForAnchorRole(
 String _surfacedConstraintLabel(List<String> flags) =>
     flags.map((f) => f.replaceFirst('=', ' ')).join(', ');
 
+/// One passage's authored points — start, nodes, hazards, portages, the
+/// constraints it rolls over, finish — with no derived turns, measured from
+/// the passage's own start plus [offset]. The whole fallback day is these
+/// (at offset 0, since each passage restarts there), and since #653 so is a
+/// passage whose own cue derivation failed inside a day that otherwise has
+/// its turns.
+List<_CueEntry> _authoredSegmentEntries(Segment segment, {double offset = 0}) {
+  final entries = <_CueEntry>[];
+  if (segment.start != null || routeSolveInputs(segment) != null) {
+    entries.add(_CueEntry(distanceAlongM: 0, label: 'Start', glyph: 'S'));
+  }
+  for (final node in segment.nodes) {
+    // FR133 — the same narrative-register weaving `cues.node_cues` does
+    // server-side, kept here too since this fallback runs whenever the
+    // sidecar/region graph is unavailable (`_load`'s other branch).
+    entries.add(_cueEntryForNode(node, distanceAlongM: node.distanceAlongM ?? 0));
+  }
+  for (final hazard in segment.hazards) {
+    entries.add(
+      _CueEntry(
+        distanceAlongM: hazard.distanceAlongM ?? 0,
+        label: hazard.title ?? 'Hazard',
+        glyph: '⚠',
+        tag: hazard.severity.toUpperCase(),
+      ),
+    );
+  }
+  for (final portage in segment.portages) {
+    entries.add(
+      _CueEntry(
+        distanceAlongM: portage.distanceM ?? 0,
+        label: 'Portage',
+        glyph: '▲',
+        tag: portage.mandatory == true ? 'MANDATORY' : null,
+      ),
+    );
+  }
+  // Issue #401 — the engine's per-passage distance-along, which is exactly
+  // this fallback's frame (each passage restarts at zero). Null for a
+  // constraint recorded before the engine measured one: passage start.
+  for (final sc in segment.surfacedConstraints) {
+    entries.add(
+      _CueEntry(
+        distanceAlongM: sc.distanceAlongM ?? 0,
+        label: _surfacedConstraintLabel(sc.flags),
+        glyph: '⚑',
+        tag: 'ON ROUTE',
+      ),
+    );
+  }
+  if (segment.metrics?.distanceM != null) {
+    entries.add(
+      _CueEntry(
+        distanceAlongM: segment.metrics!.distanceM!,
+        label: 'Finish',
+        glyph: 'F',
+      ),
+    );
+  }
+  entries.sort((a, b) => a.distanceAlongM.compareTo(b.distanceAlongM));
+  return [for (final e in entries) offset == 0 ? e : e.shiftedBy(offset)];
+}
+
 /// The pre-F1 proxy: authored stops only, no derived turns. Used when the
 /// real cue derivation call fails.
 List<_CueEntry> _entriesFromAuthoredContent(
@@ -551,57 +627,7 @@ List<_CueEntry> _entriesFromAuthoredContent(
         distanceAlongM: before?.metrics?.distanceM ?? 0));
   }
   for (final segment in day.segments) {
-    if (segment.start != null) {
-      entries.add(_CueEntry(distanceAlongM: 0, label: 'Start', glyph: 'S'));
-    }
-    for (final node in segment.nodes) {
-      // FR133 — the same narrative-register weaving `cues.node_cues` does
-      // server-side, kept here too since this fallback runs whenever the
-      // sidecar/region graph is unavailable (`_load`'s other branch).
-      entries.add(_cueEntryForNode(node, distanceAlongM: node.distanceAlongM ?? 0));
-    }
-    for (final hazard in segment.hazards) {
-      entries.add(
-        _CueEntry(
-          distanceAlongM: hazard.distanceAlongM ?? 0,
-          label: hazard.title ?? 'Hazard',
-          glyph: '⚠',
-          tag: hazard.severity.toUpperCase(),
-        ),
-      );
-    }
-    for (final portage in segment.portages) {
-      entries.add(
-        _CueEntry(
-          distanceAlongM: portage.distanceM ?? 0,
-          label: 'Portage',
-          glyph: '▲',
-          tag: portage.mandatory == true ? 'MANDATORY' : null,
-        ),
-      );
-    }
-    // Issue #401 — the engine's per-passage distance-along, which is exactly
-    // this fallback's frame (each passage restarts at zero). Null for a
-    // constraint recorded before the engine measured one: passage start.
-    for (final sc in segment.surfacedConstraints) {
-      entries.add(
-        _CueEntry(
-          distanceAlongM: sc.distanceAlongM ?? 0,
-          label: _surfacedConstraintLabel(sc.flags),
-          glyph: '⚑',
-          tag: 'ON ROUTE',
-        ),
-      );
-    }
-    if (segment.metrics?.distanceM != null) {
-      entries.add(
-        _CueEntry(
-          distanceAlongM: segment.metrics!.distanceM!,
-          label: 'Finish',
-          glyph: 'F',
-        ),
-      );
-    }
+    entries.addAll(_authoredSegmentEntries(segment));
     // Issue #393 — same segment attachment as `_entriesFromCueSheets`, at
     // this fallback's own "Finish" distance since it has no route to
     // project a finer position onto either.
@@ -688,33 +714,66 @@ class DayCueSection extends ConsumerStatefulWidget {
   ConsumerState<DayCueSection> createState() => DayCueSectionState();
 }
 
-class DayCueSectionState extends ConsumerState<DayCueSection> {
-  late Future<List<_CueEntry>> _future = _load();
+/// One day's cue sheet as loaded: its entries, and the passages whose turns
+/// couldn't be derived (issue #653), named as the banner names them.
+typedef _DayCues = ({List<_CueEntry> entries, List<String> missingTurns});
 
-  Future<List<_CueEntry>> _load() async {
-    if (widget.day.segments.every((s) => s.start == null)) {
-      return _entriesFromAuthoredContent(widget.day, widget.trip, hasArrived: widget.hasArrived);
-    }
+/// How a passage is named in a sentence about the day: its title, else its
+/// place in the day.
+String _passageName(Day day, Segment segment) =>
+    segment.title ?? 'passage ${day.segments.indexOf(segment) + 1}';
+
+class DayCueSectionState extends ConsumerState<DayCueSection> {
+  late Future<_DayCues> _future = _load();
+
+  _DayCues _authoredOnly() => (
+        entries: _entriesFromAuthoredContent(widget.day, widget.trip,
+            hasArrived: widget.hasArrived),
+        missingTurns: const <String>[],
+      );
+
+  Future<_DayCues> _load() async {
+    // Issue #653 — what a passage routes between is what its solve sends
+    // (`routeSolveInputs`), not its stored `start`: a passage built from
+    // nodes (#626) has no start and still has turns.
+    final routable = [
+      for (final s in widget.day.segments)
+        if (routeSolveInputs(s) != null) s,
+    ];
+    if (routable.isEmpty) return _authoredOnly();
     final client = ref.read(routingClientProvider);
     // FR120/D41, issue #154 — cues re-solve against the region-scoped graph;
     // issue #208 — that graph is per travel mode, so a day mixing a ride and
     // a drive to the trailhead ensures one region per distinct `network_type`
     // and each segment's cues come off its own mode's graph.
     final bbox = ref.read(tripBboxProvider);
-    if (bbox == null) {
-      return _entriesFromAuthoredContent(widget.day, widget.trip, hasArrived: widget.hasArrived);
-    }
+    if (bbox == null) return _authoredOnly();
     final regionByNetworkType = <String, String>{};
-    for (final networkType
-        in widget.day.segments.map((s) => networkTypeForMode(s.mode)).toSet()) {
+    for (final networkType in routable.map((s) => networkTypeForMode(s.mode)).toSet()) {
       regionByNetworkType[networkType] =
           await client.ensureRegion(bbox.bboxWsen, networkType: networkType);
     }
-    final sheets = await Future.wait(
-      widget.day.segments.map((s) => client.cuesFor(s,
-          region: regionByNetworkType[networkTypeForMode(s.mode)]!)),
+    // #653 — one passage at a time: a passage whose derivation fails keeps
+    // its authored points and is named, and the rest keep their turns. A
+    // single `Future.wait` used to fail the whole day on one passage.
+    final missing = <String>{};
+    final sheets = await Future.wait(widget.day.segments.map((s) async {
+      if (!routable.contains(s)) return null;
+      try {
+        return await client.cuesFor(s, region: regionByNetworkType[networkTypeForMode(s.mode)]!);
+      } catch (e) {
+        debugPrint('cues for ${s.id} failed: $e');
+        missing.add(s.id);
+        return null;
+      }
+    }));
+    return (
+      entries: _entriesFromCueSheets(widget.day, sheets, widget.trip, hasArrived: widget.hasArrived),
+      missingTurns: [
+        for (final s in widget.day.segments)
+          if (missing.contains(s.id)) _passageName(widget.day, s),
+      ],
     );
-    return _entriesFromCueSheets(widget.day, sheets, widget.trip, hasArrived: widget.hasArrived);
   }
 
   @override
@@ -747,7 +806,7 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
             ).copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: PlotSpacing.s2),
-          FutureBuilder<List<_CueEntry>>(
+          FutureBuilder<_DayCues>(
             future: _future,
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
@@ -756,9 +815,9 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
-              final entries = snapshot.data ??
-                  _entriesFromAuthoredContent(widget.day, widget.trip,
-                      hasArrived: widget.hasArrived);
+              final loaded = snapshot.data ?? _authoredOnly();
+              final entries = loaded.entries;
+              final missing = loaded.missingTurns;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -767,6 +826,16 @@ class DayCueSectionState extends ConsumerState<DayCueSection> {
                       padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
                       child: ProviderUnreachableBanner(
                         provider: 'Turn-by-turn cue derivation',
+                      ),
+                    )
+                  else if (missing.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: PlotSpacing.s2),
+                      child: ProviderUnreachableBanner(
+                        provider: 'Turn-by-turn cue derivation',
+                        message: 'Turns couldn\'t be derived for ${missing.join(', ')} — '
+                            '${missing.length == 1 ? 'it shows its' : 'they show their'} '
+                            'authored points only.',
                       ),
                     ),
                   PlotCard(
@@ -1060,7 +1129,9 @@ class _ExportPanelState extends ConsumerState<_ExportPanel> {
     }
     for (final day in trip.days) {
       for (final segment in day.segments) {
-        if (segment.start == null) continue;
+        // #653 — a passage built from nodes has no stored start and still
+        // routes; only one with nothing to route between has no cues.
+        if (routeSolveInputs(segment) == null) continue;
         try {
           result[segment.id] = await client.cuesFor(segment,
               region: regionByNetworkType[networkTypeForMode(segment.mode)]!);

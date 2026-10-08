@@ -375,7 +375,7 @@ void main() {
       await _settle(tester);
 
       expect(find.textContaining('Promoted "Old Fort"'), findsOneWidget);
-      expect(find.textContaining('edit on Content'), findsOneWidget);
+      expect(find.textContaining('edit it on the Content tab'), findsOneWidget);
     });
 
     testWidgets('promoting the same feature twice is refused, not duplicated',

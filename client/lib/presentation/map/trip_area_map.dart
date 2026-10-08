@@ -45,6 +45,7 @@ class TripAreaMap extends ConsumerStatefulWidget {
     required this.bbox,
     required this.drawing,
     required this.onProposeChange,
+    this.onTooSmall,
   });
 
   final LatLon center;
@@ -68,6 +69,10 @@ class TripAreaMap extends ConsumerStatefulWidget {
   final bool drawing;
 
   final ValueChanged<TripBbox> onProposeChange;
+
+  /// #659 (F13) — a drag that drew something, but shorter than
+  /// `TripBbox.minSideM` on a side (#628's guard). Said, never ignored.
+  final VoidCallback? onTooSmall;
 
   @override
   ConsumerState<TripAreaMap> createState() => TripAreaMapState();
@@ -153,7 +158,10 @@ class TripAreaMapState extends ConsumerState<TripAreaMap> {
     // nor does one shorter than `TripBbox.minSideM` on either side (#628).
     if (a[0] == b[0] || a[1] == b[1]) return;
     final proposed = TripBbox.fromCorners(a, b);
-    if (proposed.isDegenerate) return;
+    if (proposed.isDegenerate) {
+      widget.onTooSmall?.call();
+      return;
+    }
     widget.onProposeChange(proposed);
   }
 

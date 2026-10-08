@@ -61,12 +61,19 @@ import '../widgets/travel_mode_icons.dart';
 enum _StartMethod { blank, theme }
 
 class NewRouteScreen extends ConsumerStatefulWidget {
-  const NewRouteScreen({super.key, this.initialCenter});
+  const NewRouteScreen({super.key, this.initialCenter, this.isCreation = true});
 
   /// A10 — where the trip-creation location prompt resolved to, if the
   /// Author entered one. Centers the map only; it is never treated as a
   /// start point or any other kind of extent.
   final List<double>? initialCenter;
+
+  /// Step 4 of trip creation (`/new`), as against adding a route to a trip
+  /// that already exists (`/add-route`, from the trip shell). #655 — the
+  /// shell opened the creation step: its eyebrow, the trip name, dates and
+  /// party, and a Blank canvas that appended a new day whatever day the
+  /// Author had picked. Like `TripAreaScreen(isCreation:)`.
+  final bool isCreation;
 
   @override
   ConsumerState<NewRouteScreen> createState() => _NewRouteScreenState();
@@ -106,13 +113,54 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   List<GeocodeResult> _searchResults = const [];
 
   _StartMethod _startMethod = _StartMethod.theme;
-  late final _tripNameController =
-      TextEditingController(text: ref.read(currentTripProvider).title);
+
+  /// #655 — the day the shell opened this for (*Add a passage*, *Add
+  /// segment*), read once as the screen opens and cleared from
+  /// [plannerTargetDayIdProvider] at once, so no way out of this screen
+  /// leaves a stale target for the next one. Null: the route starts a day.
+  late final String? _targetDayId = ref.read(plannerTargetDayIdProvider);
+  // Made in initState, not lazily: off the creation path the field is never
+  // built, and a lazy first touch in dispose() reads `ref` after it's gone.
+  late final TextEditingController _tripNameController;
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
 
   static const _shapes = ['loop', 'out_and_back', 'point_to_point'];
   static const _themes = ['balanced', 'quiet_scenic', 'fastest', 'gravel'];
+
+  @override
+  void initState() {
+    super.initState();
+    _tripNameController = TextEditingController(text: ref.read(currentTripProvider).title);
+    _clearTarget();
+  }
+
+  void _clearTarget() {
+    // Read into [_targetDayId] first; cleared after the frame, since a
+    // provider can't change while the tree that opened this is building.
+    final target = _targetDayId;
+    if (target == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = ref.read(plannerTargetDayIdProvider.notifier);
+      if (controller.state == target) controller.state = null;
+    });
+  }
+
+  /// The day [_targetDayId] names, if it is still on the trip.
+  Day? get _targetDay {
+    final id = _targetDayId;
+    if (id == null) return null;
+    return ref.read(currentTripProvider).days.where((d) => d.id == id).firstOrNull;
+  }
+
+  /// #655 — Blank canvas on a picked day starts a passage there, so it needs
+  /// that passage's mode: the trip's one mode, else the Author's pick (#319,
+  /// never preselected), as the Route tab's empty-day *Add node* does.
+  String? get _blankMode {
+    if (_mode != null) return _mode;
+    final modes = ref.read(currentTripProvider).modes.where(kTraversalModes.contains).toList();
+    return modes.length == 1 ? modes.single : null;
+  }
 
   @override
   void dispose() {
@@ -191,20 +239,7 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   /// ensured all read as an honest not-ready with a stated reason (FR121:
   /// never a silent disabled control). The phase → status mapping is
   /// `routingCapabilityForRegion`, kept pure so each reading is testable.
-  CapabilityStatus get _routingCapability {
-    final region = ref.watch(tripRegionKeyProvider);
-    // Issue #230 B3 — the exception is logged, never rendered: the failure to
-    // ensure the region at all is one typed cause with one fixed phrase.
-    if (region case TripRegionFailed(:final error)) {
-      debugPrint('routing region could not be ensured: $error');
-    }
-    final sidecarStatus = switch (region) {
-      TripRegionResolved(:final key) =>
-        ref.watch(sidecarManagerProvider).capabilities?.routing.forRegion(key),
-      _ => null,
-    };
-    return routingCapabilityForRegion(region, sidecarStatus);
-  }
+  CapabilityStatus get _routingCapability => ref.watch(tripRoutingCapabilityProvider);
 
   @override
   Widget build(BuildContext context) {
@@ -212,14 +247,21 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
     final unit = ref.watch(settingsProvider).unit;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New route'),
+        title: Text(widget.isCreation
+            ? 'New route'
+            : _targetDay != null
+                ? 'Add a passage to Day ${_targetDay!.index}'
+                : 'New route day'),
         actions: [
-          // Issue #230 B1 — where in trip creation this is.
-          Center(
-            child: Text('NEW TRIP · STEP 4 OF 4',
-                style: PlotTypography.eyebrow(c.textMuted)),
-          ),
-          const SizedBox(width: PlotSpacing.s4),
+          // Issue #230 B1 — where in trip creation this is. #655 — only
+          // during creation; from the shell this is not a creation step.
+          if (widget.isCreation) ...[
+            Center(
+              child: Text('NEW TRIP · STEP 4 OF 4',
+                  style: PlotTypography.eyebrow(c.textMuted)),
+            ),
+            const SizedBox(width: PlotSpacing.s4),
+          ],
           // FR81 / K8 — always-visible reset for the planning controls.
           // Issue #230 C3: as a bare `TextButton` on the tan app bar this
           // read as disabled text whether it was live or not. A bordered
@@ -284,15 +326,19 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _SectionLabel('TRIP NAME'),
-                  TextField(
-                    controller: _tripNameController,
-                    decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-                    onSubmitted: (v) => v.trim().isEmpty
-                        ? null
-                        : ref.read(currentTripProvider.notifier).renameTrip(v.trim()),
-                  ),
-                  const SizedBox(height: PlotSpacing.s4),
+                  // #655 — the trip's name, dates and party are creation
+                  // questions; adding a route to a trip doesn't re-ask them.
+                  if (widget.isCreation) ...[
+                    _SectionLabel('TRIP NAME'),
+                    TextField(
+                      controller: _tripNameController,
+                      decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                      onSubmitted: (v) => v.trim().isEmpty
+                          ? null
+                          : ref.read(currentTripProvider.notifier).renameTrip(v.trim()),
+                    ),
+                    const SizedBox(height: PlotSpacing.s4),
+                  ],
                   // FR144/N0 — this edits the trip's one mode set directly
                   // (already set ahead of the location prompt by
                   // `showTripModePrompt`, `trip_library_screen.dart`):
@@ -311,8 +357,8 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     // discipline (road / gravel / mountain, and so on) is
                     // picked per passage.
                     'Every way this trip travels. A passage can only be one of these — '
-                    'to use another mode on a passage, add it here first. Seeds the '
-                    'trip\'s starting layers, chosen on the previous step.',
+                    'to use another mode on a passage, add it here first.'
+                    '${widget.isCreation ? ' Seeds the trip\'s starting layers, chosen on the previous step.' : ''}',
                     style: PlotTypography.small(c.textSecondary),
                   ),
                   const SizedBox(height: PlotSpacing.s2),
@@ -335,73 +381,75 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     );
                   }),
                   const SizedBox(height: PlotSpacing.s4),
-                  _SectionLabel('DATES'),
-                  InkWell(
-                    onTap: _pickDates,
-                    borderRadius: PlotRadii.controlShape,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: PlotSpacing.s3, vertical: PlotSpacing.s3),
+                  if (widget.isCreation) ...[
+                    _SectionLabel('DATES'),
+                    InkWell(
+                      onTap: _pickDates,
+                      borderRadius: PlotRadii.controlShape,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: PlotSpacing.s3, vertical: PlotSpacing.s3),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: c.border),
+                          borderRadius: PlotRadii.controlShape,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today_outlined, size: 16, color: c.textSecondary),
+                            const SizedBox(width: PlotSpacing.s2),
+                            // Bounded: a numeric or device-inherited pattern
+                            // shows both ends in full, which is wider than the
+                            // wireframe's `Sep 12–15`.
+                            Expanded(
+                              child: Text(_dateRangeLabel(displayFormatOf(context, ref)),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: PlotTypography.body(c.textPrimary)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: PlotSpacing.s4),
+                    _SectionLabel('PARTY SIZE'),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s1),
                       decoration: BoxDecoration(
                         border: Border.all(color: c.border),
                         borderRadius: PlotRadii.controlShape,
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today_outlined, size: 16, color: c.textSecondary),
+                          Icon(Icons.people_outline, size: 18, color: c.textSecondary),
                           const SizedBox(width: PlotSpacing.s2),
-                          // Bounded: a numeric or device-inherited pattern
-                          // shows both ends in full, which is wider than the
-                          // wireframe's `Sep 12–15`.
                           Expanded(
-                            child: Text(_dateRangeLabel(displayFormatOf(context, ref)),
-                                overflow: TextOverflow.ellipsis,
-                                style: PlotTypography.body(c.textPrimary)),
+                            child: Builder(builder: (context) {
+                              final size = ref.watch(tripAuthoringMetaProvider).partySize ?? 1;
+                              return Text('$size ${size == 1 ? 'rider' : 'riders'}',
+                                  style: PlotTypography.body(c.textPrimary));
+                            }),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle_outline, size: 20),
+                            onPressed: () {
+                              final size = ref.read(tripAuthoringMetaProvider).partySize ?? 1;
+                              ref.read(tripAuthoringMetaProvider.notifier).setPartySize(
+                                    size <= 1 ? 1 : size - 1,
+                                  );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline, size: 20),
+                            onPressed: () {
+                              final size = ref.read(tripAuthoringMetaProvider).partySize ?? 1;
+                              ref.read(tripAuthoringMetaProvider.notifier).setPartySize(size + 1);
+                            },
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: PlotSpacing.s4),
-                  _SectionLabel('PARTY SIZE'),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: PlotSpacing.s3, vertical: PlotSpacing.s1),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: c.border),
-                      borderRadius: PlotRadii.controlShape,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.people_outline, size: 18, color: c.textSecondary),
-                        const SizedBox(width: PlotSpacing.s2),
-                        Expanded(
-                          child: Builder(builder: (context) {
-                            final size = ref.watch(tripAuthoringMetaProvider).partySize ?? 1;
-                            return Text('$size ${size == 1 ? 'rider' : 'riders'}',
-                                style: PlotTypography.body(c.textPrimary));
-                          }),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle_outline, size: 20),
-                          onPressed: () {
-                            final size = ref.read(tripAuthoringMetaProvider).partySize ?? 1;
-                            ref.read(tripAuthoringMetaProvider.notifier).setPartySize(
-                                  size <= 1 ? 1 : size - 1,
-                                );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle_outline, size: 20),
-                          onPressed: () {
-                            final size = ref.read(tripAuthoringMetaProvider).partySize ?? 1;
-                            ref.read(tripAuthoringMetaProvider.notifier).setPartySize(size + 1);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: PlotSpacing.s5),
+                    const SizedBox(height: PlotSpacing.s5),
+                  ],
                   _SectionLabel('START FROM'),
                   _StartMethodOption(
                     title: 'Blank canvas',
@@ -609,7 +657,10 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                     if (_error != null) ...[
                       const SizedBox(height: PlotSpacing.s3),
                       if (_errorIsOutsideArea)
-                        NoDataBanner(onChooseAnotherArea: () => Navigator.pop(context))
+                        // #655 — the trip area itself, then back here. A pop
+                        // landed on the layer step during creation and on the
+                        // shell from it, neither of which edits the area.
+                        NoDataBanner(onChooseAnotherArea: () => context.push('/trip-area'))
                       else
                         Row(
                           key: const ValueKey('new-route-error'),
@@ -683,12 +734,32 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
                           ? null
                           : _generate,
                     ),
-                  ] else if (_startMethod == _StartMethod.blank)
+                  ] else if (_startMethod == _StartMethod.blank) ...[
+                    // #655 — on a picked day, Blank canvas starts a passage
+                    // there, and a passage is travelled one way.
+                    if (_targetDay != null) ...[
+                      _SectionLabel('PASSAGE MODE'),
+                      Text(
+                        'How this passage on Day ${_targetDay!.index} is travelled. '
+                        'You place its nodes on the map next.',
+                        style: PlotTypography.small(c.textSecondary),
+                      ),
+                      const SizedBox(height: PlotSpacing.s2),
+                      PassageModePicker(
+                        selected: _blankMode,
+                        onSelected: (m) => setState(() {
+                          _mode = m;
+                          _discipline = null;
+                        }),
+                      ),
+                      const SizedBox(height: PlotSpacing.s5),
+                    ],
                     PlotButton(
-                      label: 'Create route',
+                      label: _targetDay != null ? 'Start the passage' : 'Create route',
                       expand: true,
-                      onPressed: _createBlank,
+                      onPressed: (_targetDay != null && _blankMode == null) ? null : _createBlank,
                     ),
+                  ],
                 ],
               ),
             ),
@@ -788,11 +859,20 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   }
 
   void _createBlank() {
-    final title = _tripNameController.text.trim();
-    if (title.isNotEmpty) {
-      ref.read(currentTripProvider.notifier).renameTrip(title);
+    final notifier = ref.read(currentTripProvider.notifier);
+    if (widget.isCreation) {
+      final title = _tripNameController.text.trim();
+      if (title.isNotEmpty) notifier.renameTrip(title);
     }
-    ref.read(currentTripProvider.notifier).addBlankDay();
+    // #655 — on the day the Author picked, an empty passage to place nodes
+    // on (#626); only with no day picked does Blank canvas add a day. It
+    // used to call addBlankDay() every time, appending Day N+1.
+    final target = _targetDay;
+    if (target != null) {
+      notifier.addBlankPassage(target.id, _blankMode!);
+    } else {
+      notifier.addBlankDay();
+    }
     context.go('/plan');
   }
 
@@ -817,9 +897,11 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
   Future<void> _generate() async {
     // The TRIP NAME field only renames on Enter (`onSubmitted`) — flush it
     // here too so clicking Generate directly doesn't silently discard it.
-    final title = _tripNameController.text.trim();
-    if (title.isNotEmpty) {
-      ref.read(currentTripProvider.notifier).renameTrip(title);
+    if (widget.isCreation) {
+      final title = _tripNameController.text.trim();
+      if (title.isNotEmpty) {
+        ref.read(currentTripProvider.notifier).renameTrip(title);
+      }
     }
     setState(() {
       _generating = true;
@@ -827,9 +909,8 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
       _errorIsOutsideArea = false;
     });
     try {
-      final targetDay = ref.read(plannerTargetDayIdProvider);
       await ref.read(currentTripProvider.notifier).generateSegment(
-            dayId: targetDay,
+            dayId: _targetDay?.id,
             start: _start!,
             end: _shape == 'loop' ? null : _end,
             via: _via,
@@ -839,7 +920,6 @@ class _NewRouteScreenState extends ConsumerState<NewRouteScreen> {
             theme: _theme,
             targetM: _targetM,
           );
-      ref.read(plannerTargetDayIdProvider.notifier).state = null;
       if (mounted) context.go('/plan');
     } catch (e) {
       debugPrint('generate failed: $e');

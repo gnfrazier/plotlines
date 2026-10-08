@@ -273,7 +273,7 @@ void main() {
       await _pumpTab(tester, trip: blankDay(), selection: ('d1', 'gone'));
       expect(find.textContaining('Add a passage to this day first'), findsNothing);
       await _arm(tester);
-      expect(find.textContaining("It starts this day's passage: Ride"), findsOneWidget);
+      expect(find.textContaining("It starts a new passage: Ride"), findsOneWidget);
     });
 
     testWidgets('placing the first node creates the passage with it, routed through',
@@ -336,7 +336,7 @@ void main() {
       await _settle(tester);
       await tester.tap(find.text('Hike'));
       await _settle(tester);
-      expect(find.textContaining("It starts this day's passage: Hike"), findsOneWidget);
+      expect(find.textContaining("It starts a new passage: Hike"), findsOneWidget);
     });
 
     testWidgets('Esc backs out of new-passage placement', (tester) async {
@@ -346,6 +346,34 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await _settle(tester);
       _expectDisarmed(container, before);
+    });
+  });
+
+  // #659 (F18) — a day that has passages but none selected used to offer no
+  // map action at all; a node-built passage could only be started on an
+  // empty day.
+  group('a day with passages but none selected', () {
+    testWidgets('Add node on a new passage starts one beside the others', (tester) async {
+      final container =
+          await _pumpTab(tester, trip: _trip().copyWith(modes: const {'cycling'}), selection: null);
+      expect(find.widgetWithText(PlotButton, 'Add node on a new passage'), findsOneWidget);
+
+      await tester.tap(find.text('Add node on a new passage'));
+      await _settle(tester);
+      expect(find.textContaining('It starts a new passage: Ride'), findsOneWidget);
+      await _tapMap(tester);
+      await tester.scrollUntilVisible(find.text('Save node'), 300,
+          scrollable: find
+              .descendant(of: find.byType(NodeEditorForm), matching: find.byType(Scrollable))
+              .first);
+      await tester.tap(find.text('Save node'));
+      await _settle(tester);
+
+      final day = container.read(currentTripProvider).days.first;
+      expect(day.segments.map((s) => s.id).take(2), ['s1', 's2']);
+      expect(day.segments, hasLength(3));
+      expect(routesFromNodes(day.segments.last), isTrue);
+      expect(container.read(selectedSegmentProvider), ('d1', day.segments.last.id));
     });
   });
 }

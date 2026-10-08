@@ -164,6 +164,19 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     return day.id;
   }
 
+  /// #655 — an empty passage on [dayId], travelled by [mode], for the
+  /// Author to build from placed nodes (#626): New Route's Blank canvas on a
+  /// day they picked. Selected, so the Route tab opens on it. Returns its id.
+  String addBlankPassage(String dayId, String mode) {
+    final segment = Segment(id: _uuid.v4(), mode: mode, shape: 'point_to_point');
+    _edit('Add a passage', () {
+      final day = state.days.firstWhere((d) => d.id == dayId);
+      _replaceDay(day.copyWith(segments: [...day.segments, segment]));
+    });
+    _ref.read(selectedSegmentProvider.notifier).state = (dayId, segment.id);
+    return segment.id;
+  }
+
   Day _dayOrNew(String? dayId) {
     if (dayId != null) {
       return state.days.firstWhere((d) => d.id == dayId);
@@ -996,8 +1009,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     String dayId,
     String segmentId,
     String alternateId, {
-    PlanningMode mode = PlanningMode.explore,
+    PlanningMode? mode,
   }) async {
+    // #654 — the day's own posture unless the caller names one.
+    final PlanningMode planning = mode ?? _ref.read(dayPlanningModeProvider(dayId));
     final day = state.days.firstWhere((d) => d.id == dayId);
     final segment = day.segments.firstWhere((s) => s.id == segmentId);
     final current = segment.alternates.firstWhere((a) => a.id == alternateId);
@@ -1013,7 +1028,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     }
     final region = await client.ensureRegion(bbox.bboxWsen,
         networkType: networkTypeForMode(segment.mode));
-    final weightsPayload = _solverWeights(segment.weights, mode);
+    final weightsPayload = _solverWeights(segment.weights, planning);
     final resolved = await client.generateSegment(
       region: region,
       start: drawn.first,
@@ -1869,8 +1884,10 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// segment survives the re-solve.
   ///
   /// [mode] is FR117/A0's planning posture for the day this segment belongs
-  /// to (`dayPlanningModeProvider`; explore by default so every existing
-  /// caller keeps its prior behavior). ARCH §7.7: compose never sends
+  /// to. Omitted, it is that day's own (`dayPlanningModeProvider`) — #654:
+  /// it used to default to explore, so the stale list re-solved a Compose
+  /// day's passage as Explore and it came back different from the rail's
+  /// own Regenerate. ARCH §7.7: compose never sends
   /// `target_m` — the solve reaches every via-anchor and reports whatever
   /// length that produces — but the Author's own explore-mode target is
   /// never cleared by it, only left out of the request, so a day switching
@@ -1878,8 +1895,9 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   Future<void> regenerateSegment(
     String dayId,
     String segmentId, {
-    PlanningMode mode = PlanningMode.explore,
+    PlanningMode? mode,
   }) async {
+    final PlanningMode planning = mode ?? _ref.read(dayPlanningModeProvider(dayId));
     final day = state.days.firstWhere((d) => d.id == dayId);
     final old = day.segments.firstWhere((s) => s.id == segmentId);
     // #626 / #640 — start and finish nodes are the route's ends on every
@@ -1901,7 +1919,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     }
     final region = await client.ensureRegion(bbox.bboxWsen, networkType: networkTypeForMode(old.mode));
     final weights = old.weights;
-    final weightsPayload = _solverWeights(weights, mode);
+    final weightsPayload = _solverWeights(weights, planning);
     final resolved = await client.generateSegment(
       region: region,
       start: inputs.start,
@@ -1924,7 +1942,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
       theme: (weightsPayload != null && weightsPayload.isNotEmpty)
           ? (weights?.name ?? 'balanced')
           : 'balanced',
-      targetM: composeAwareTargetM(mode, old.targetDistance),
+      targetM: composeAwareTargetM(planning, old.targetDistance),
       weights: weightsPayload,
     );
     // #348 — an alternate's marks are distances along *this* line, so a
@@ -1961,7 +1979,7 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
     final distanceBand = (old.targetDistance?.minM != null || old.targetDistance?.maxM != null)
         ? Band(attribute: 'distance_m', min: old.targetDistance!.minM, max: old.targetDistance!.maxM)
         : null;
-    final violations = mode == PlanningMode.explore
+    final violations = planning == PlanningMode.explore
         ? bandViolations(merged.metrics, [...old.bands, if (distanceBand != null) distanceBand])
         : const <Violation>[];
     // `Segment.copyWith` never overrides `id` (see segment.dart) — rebuild
@@ -2165,13 +2183,15 @@ class CurrentTripNotifier extends StateNotifier<Trip> {
   /// puts a passage before the alternates hanging off it — so a day whose line
   /// and branch are both stale re-solves the line first and measures the
   /// branch against the route it will actually leave.
-  Future<void> resolveAllStale({PlanningMode mode = PlanningMode.explore}) async {
+  ///
+  /// #654 — each item in its own day's planning mode: a Compose day's stale
+  /// passage re-solves as Compose, exactly as the rail's Regenerate would.
+  Future<void> resolveAllStale() async {
     for (final item in tripStaleItems(state)) {
       if (item.isAlternate) {
-        await regenerateAlternate(item.dayId, item.segmentId, item.alternateId!,
-            mode: mode);
+        await regenerateAlternate(item.dayId, item.segmentId, item.alternateId!);
       } else {
-        await regenerateSegment(item.dayId, item.segmentId, mode: mode);
+        await regenerateSegment(item.dayId, item.segmentId);
       }
     }
   }

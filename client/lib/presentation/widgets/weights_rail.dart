@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 
 import '../../data/routing_client.dart';
+import '../../data/sidecar_manager.dart' show CapabilityStatus;
 import '../../domain/domain.dart';
 import '../../state/current_trip_provider.dart';
 import '../../state/messages_provider.dart';
@@ -109,6 +110,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
   bool _addingBand = false;
   String? _error;
 
+  /// #656 — a solve the sidecar refused because the region is still
+  /// building: a quiet wait line, never the error banner.
+  bool _waitingOnRegion = false;
+
   @override
   void didUpdateWidget(covariant WeightsRail oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -118,6 +123,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
       // flags when it resolves), it just no longer owns this rail's UI.
       setState(() {
         _error = null;
+        _waitingOnRegion = false;
         _regenerating = false;
         _diagnosing = false;
         _addingBand = false;
@@ -135,7 +141,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         decoration: BoxDecoration(border: Border(right: BorderSide(color: c.border))),
         padding: const EdgeInsets.all(PlotSpacing.s5),
         child: Text(
-          'Select a segment on the map or in Logistics to edit its weights.',
+          'Select a passage on the map or in Logistics to edit its weights.',
           style: PlotTypography.body(c.textMuted),
         ),
       );
@@ -145,6 +151,8 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         .read(currentTripProvider.notifier)
         .updateSegmentWeights(widget.dayId, segment.id, w);
     final mode = ref.watch(dayPlanningModeProvider(widget.dayId));
+    // #656 — the trip region's routing readiness, as New Route reads it.
+    final routing = ref.watch(tripRoutingCapabilityProvider);
     final df = ref.watch(displayFormatProvider);
 
     final messages = ref.watch(messagesProvider);
@@ -371,7 +379,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
       const SizedBox(height: PlotSpacing.s3),
       // FR38 / O6 — this passage's own arc stage. "none" is a real, distinct
       // choice (most segments carry no arc beat).
-      heading('ARC (O6 / FR38)'),
+      heading('ARC'),
       const SizedBox(height: PlotSpacing.s2),
       Wrap(
         spacing: PlotSpacing.s2,
@@ -483,6 +491,36 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // #656 — the trip region's routing readiness, read the way
+                  // New Route reads it, first in the rail like the other
+                  // reasons Generate waits: a region still queued or building
+                  // is the quiet wait notice, a failed one the failure card
+                  // with its Try again. In the scroll rather than the action
+                  // plane, so the card can't overflow a short window.
+                  if (!routing.ready || routing.provisional || routing.refreshing) ...[
+                    CapabilityWarmingNotice(
+                      key: const ValueKey('rail-routing-capability'),
+                      capabilityLabel: 'Routing',
+                      status: routing,
+                      onRetry: () => ref.read(tripRegionKeyProvider.notifier).retry(),
+                    ),
+                    const SizedBox(height: PlotSpacing.s2),
+                  ] else if (_waitingOnRegion) ...[
+                    Row(
+                      key: const ValueKey('rail-routing-wait'),
+                      children: [
+                        Icon(Icons.hourglass_top, size: 15, color: c.textMuted),
+                        const SizedBox(width: PlotSpacing.s2),
+                        Expanded(
+                          child: Text(
+                            'Routing is still getting this area ready. Try again in a moment.',
+                            style: PlotTypography.small(c.textSecondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: PlotSpacing.s2),
+                  ],
                   // Why Regenerate is disabled, stated where it is seen
                   // first rather than inside a task that may be closed.
                   // #626 — a passage built from placed nodes solves first
@@ -548,11 +586,11 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                         // the button, not in its label: a long label wrapped
                         // and doubled the action plane's height (#328).
                         child: Tooltip(
-                          message: segment.bands.isEmpty ? 'Add a band under Tune to diagnose' : '',
+                          message: _whyNoDiagnose(segment, routing) ?? '',
                           child: PlotButton(
                             label: _diagnosing ? 'Diagnosing…' : 'Diagnose',
                             variant: PlotButtonVariant.secondary,
-                            onPressed: (_diagnosing || segment.bands.isEmpty || segment.metrics?.distanceM == null)
+                            onPressed: (_diagnosing || _whyNoDiagnose(segment, routing) != null)
                                 ? null
                                 : () => _diagnose(segment),
                           ),
@@ -568,6 +606,7 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
                                 ? 'Generate'
                                 : 'Regenerate',
                         onPressed: (_regenerating ||
+                                !routing.ready ||
                                 _composeNeedsTarget(mode, segment) ||
                                 _needsRoutePoints(segment))
                             ? null
@@ -608,16 +647,33 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
     );
   }
 
+  /// Why Diagnose is disabled, said on its tooltip; null when it isn't.
+  /// #656 / F21 — there was no reason at all once a band existed but the
+  /// passage hadn't been solved.
+  static String? _whyNoDiagnose(Segment segment, CapabilityStatus routing) {
+    if (segment.bands.isEmpty) return 'Add a band under Tune to diagnose';
+    if (segment.metrics?.distanceM == null) return 'Generate the route first';
+    if (!routing.ready) return 'Routing isn\'t ready for this area yet';
+    return null;
+  }
+
   Future<void> _regenerate(Segment segment, PlanningMode mode) async {
     setState(() {
       _regenerating = true;
       _error = null;
+      _waitingOnRegion = false;
     });
     try {
       await ref
           .read(currentTripProvider.notifier)
           .regenerateSegment(widget.dayId, segment.id, mode: mode);
     } on RoutingException catch (e) {
+      if (isRoutingNotReady(e)) {
+        // #656 — the region is building (a race with the readiness poll):
+        // a wait, never the error banner.
+        if (mounted) setState(() => _waitingOnRegion = true);
+        return;
+      }
       if (mounted) {
         setState(() => _error =
             failureSentence(e, fallback: 'The route couldn\'t be re-solved. Try again.'));
@@ -736,13 +792,19 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
     try {
       final client = ref.read(routingClientProvider);
       final bbox = ref.read(tripBboxProvider);
-      if (bbox == null) {
-        throw StateError('no trip bbox — draw the trip area (FR120) before diagnosing bands');
+      // #653 — the solve's own ends, so a passage built from nodes (no
+      // stored start) diagnoses from its first route-through point.
+      final inputs = routeSolveInputs(segment);
+      if (bbox == null || inputs == null) {
+        setState(() => _error = bbox == null
+            ? 'Draw the trip area before diagnosing this passage.'
+            : 'This passage has nothing to route between yet.');
+        return;
       }
       final region = await client.ensureRegion(bbox.bboxWsen, networkType: networkTypeForMode(segment.mode));
       final jobId = await client.submitDiagnose(
         region: region,
-        start: segment.start!,
+        start: inputs.start,
         targetM: segment.metrics!.distanceM!,
         // FR8/A8: distance is never dropped from the explore search's
         // constraint set — the Author's (possibly widened) target-distance
@@ -759,13 +821,9 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
               max: segment.targetDistance!.maxM,
             ),
         ],
-        via: segment.via,
+        via: inputs.via,
       );
-      Diagnosis? result;
-      while (result == null) {
-        await Future<void>.delayed(const Duration(milliseconds: 400));
-        result = await client.pollDiagnose(jobId);
-      }
+      final result = await client.awaitDiagnosis(jobId);
       if (!mounted) return;
       await showConflictDialog(
         context,
@@ -777,7 +835,10 @@ class _WeightsRailState extends ConsumerState<WeightsRail> {
         ],
         onApplyRelaxation: (offer) => _applyRelaxation(segment, offer),
       );
-    } on RoutingException catch (e) {
+    } catch (e) {
+      // #653 — every failure is a sentence; a non-routing error used to
+      // escape this handler and reset the button with nothing said.
+      debugPrint('diagnose failed: $e');
       if (mounted) {
         setState(() => _error =
             failureSentence(e, fallback: 'Diagnose didn\'t finish. Try again.'));
@@ -948,7 +1009,7 @@ class _TargetDistanceFieldState extends ConsumerState<_TargetDistanceField> {
         if (banded) ...[
           const SizedBox(height: PlotSpacing.s2),
           Text(
-            'Banded by default — never dropped from the search, only widened (FR8).',
+            'Banded by default — never dropped from the search, only widened.',
             style: PlotTypography.small(c.textMuted),
           ),
           const SizedBox(height: PlotSpacing.s1),
@@ -1299,7 +1360,7 @@ class _SpineEditor extends ConsumerWidget {
             child: const _SpineAddChip(),
           )
         else if (anchors.isEmpty)
-          Text('Promote a place first (Curation) to add it to this spine.',
+          Text('Promote a place on the Layers or Content tab first to add it to this spine.',
               style: PlotTypography.small(c.textMuted)),
       ],
     );

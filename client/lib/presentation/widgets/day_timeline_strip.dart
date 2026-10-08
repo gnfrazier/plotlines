@@ -74,7 +74,7 @@ class DayTimelineStrip extends ConsumerWidget {
                   icon: const Icon(Icons.add, size: 18),
                   onPressed: () {
                     ref.read(plannerTargetDayIdProvider.notifier).state = null;
-                    context.push('/new');
+                    context.push('/add-route');
                   },
                 ),
               ],
@@ -96,7 +96,7 @@ class DayTimelineStrip extends ConsumerWidget {
                         actions: [
                           EmptyStateAction('Add a route day', () {
                             ref.read(plannerTargetDayIdProvider.notifier).state = null;
-                            context.push('/new');
+                            context.push('/add-route');
                           }),
                           EmptyStateAction('Add a rest day', () {
                             final id = ref
@@ -143,7 +143,7 @@ class _DaySegmentStrip extends ConsumerWidget {
           actions: [
             EmptyStateAction('Add a passage', () {
               ref.read(plannerTargetDayIdProvider.notifier).state = day.id;
-              context.push('/new');
+              context.push('/add-route');
             }),
             EmptyStateAction('Make it a rest day',
                 () => ref.read(currentTripProvider.notifier).setDayKind(day.id, 'rest')),

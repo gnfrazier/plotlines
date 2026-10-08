@@ -83,9 +83,19 @@ final _router = GoRouter(
       builder: (context, state) =>
           NewRouteScreen(initialCenter: state.extra as List<double>?),
     ),
+    // Issue #655 — New Route from the trip shell: a route added to a trip
+    // that exists, not step 4 of creating one.
+    GoRoute(
+      path: '/add-route',
+      builder: (context, state) => const NewRouteScreen(isCreation: false),
+    ),
     // Wireframe screens 01/02/03/04 — one persistent tabbed shell per trip,
     // not four separate routes (see trip_shell_screen.dart).
-    GoRoute(path: '/plan', builder: (context, state) => const TripShellScreen()),
+    // Issue #658 — `?tab=roster` (any of `tripShellTabs`) opens on that tab.
+    GoRoute(
+      path: '/plan',
+      builder: (context, state) => TripShellScreen(initialTab: state.uri.queryParameters['tab']),
+    ),
     // Wireframe screen 06 — Preferences & About merged into one screen.
     GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
     // K11 (FR138) — the privacy statement, reachable from the About pane on

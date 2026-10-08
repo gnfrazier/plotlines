@@ -233,7 +233,7 @@ const Map<MessageId, String> baseLocalePatterns = {
   MessageId.roleReveal: '{role}: {reveal}',
   MessageId.roleOffset: 'offset {at}',
   MessageId.roleOffsetLine: '{type} offset: {at}',
-  MessageId.roleHazardAlwaysVisible: 'hazard/technical crux — cannot be hidden (FR115)',
+  MessageId.roleHazardAlwaysVisible: 'hazard/technical crux — cannot be hidden',
   MessageId.roleArcStage: 'arc: {arc}',
   MessageId.roleWithheldUntilArrival: '{role} is revealed on arrival — not shown yet.',
   MessageId.roleVisibleBeforeDeparture: 'Visible to a Character before departure.',
@@ -525,7 +525,7 @@ String messageArbSource() {
     ..writeln('{')
     ..writeln('  "@@locale": "en",')
     ..writeln('  "@@x-generated-by": "client/tool/gen_message_arb.dart from '
-        'lib/domain/message_template.dart + message_catalog.dart (FR145 / M14)",');
+        'lib/domain/message_template.dart + message_catalog.dart",');
   final ids = MessageId.values;
   for (var i = 0; i < ids.length; i++) {
     final id = ids[i];

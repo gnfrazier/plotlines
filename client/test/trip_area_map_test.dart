@@ -82,6 +82,7 @@ Widget _harness({
   required bool drawing,
   TripBbox? bbox,
   required ValueChanged<TripBbox> onProposeChange,
+  VoidCallback? onTooSmall,
 }) {
   return ProviderScope(
     overrides: [sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager())],
@@ -92,6 +93,7 @@ Widget _harness({
           bbox: bbox,
           drawing: drawing,
           onProposeChange: onProposeChange,
+          onTooSmall: onTooSmall,
         ),
       ),
     ),
@@ -147,13 +149,17 @@ void main() {
     // At the harness's z9 one logical pixel is ~250 m here, so half a pixel
     // of height is a ~125 m sliver: #628's 110 m × 6 m press, scaled.
     var calls = 0;
-    await tester.pumpWidget(_harness(drawing: true, onProposeChange: (_) => calls++));
+    var tooSmall = 0;
+    await tester.pumpWidget(_harness(
+        drawing: true, onProposeChange: (_) => calls++, onTooSmall: () => tooSmall++));
     await _settleMap(tester);
 
     await tester.dragFrom(const Offset(200, 150), const Offset(120, 0.5));
     await _settleMap(tester);
 
     expect(calls, 0);
+    // #659 (F13) — and the refusal is said, not silent.
+    expect(tooSmall, 1);
   });
 
   testWidgets('dragging while not in draw mode never proposes a new bbox', (tester) async {

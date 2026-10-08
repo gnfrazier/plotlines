@@ -64,7 +64,7 @@ class _ContentTabState extends ConsumerState<ContentTab> {
         child: Padding(
           padding: const EdgeInsets.all(PlotSpacing.s6),
           child: Text(
-            'Select a segment on the Route tab to curate its nodes.',
+            'Select a passage on the Route tab to curate its nodes.',
             style: PlotTypography.body(c.textMuted),
             textAlign: TextAlign.center,
           ),
@@ -92,7 +92,11 @@ class _ContentTabState extends ConsumerState<ContentTab> {
                 // segment's; before this the panel's own promotion never
                 // reached the map beside it.
                 anchors: anchorMapPoints(widget.trip.anchors),
-                center: segment.start,
+                // #653 — the passage's own line, centred on where its solve
+                // starts: a passage built from nodes has no stored start.
+                polyline: segment.geometry?.coordinates ?? const [],
+                polylineArcStage: segment.arcStage,
+                center: routeSolveInputs(segment)?.start ?? segment.start,
                 onTap: (point) => setState(() {
                   _selectedNodeId = null;
                   _pendingCoord = point;

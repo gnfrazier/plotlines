@@ -27,3 +27,12 @@ bool isOutsideRoutingArea(Object error) =>
     error is RoutingException &&
     error.statusCode == 422 &&
     (error.reason?.contains("outside this graph's region") ?? false);
+
+/// Issue #656 — a solve refused because the region's graph is still queued
+/// or building (`service/app.py`'s `503 routing not ready for region …`).
+/// A wait, not a failure: the surface says so quietly and the Author tries
+/// again once the region is ready (#522, #573).
+bool isRoutingNotReady(Object error) =>
+    error is RoutingException &&
+    error.statusCode == 503 &&
+    (error.reason?.startsWith('routing not ready') ?? false);

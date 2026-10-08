@@ -12,9 +12,13 @@ import 'package:go_router/go_router.dart';
 
 import 'package:plotlines_client/data/app_database.dart';
 import 'package:plotlines_client/data/routing_client.dart';
+import 'package:plotlines_client/domain/domain.dart';
 import 'package:plotlines_client/domain/trip_bbox.dart';
+import 'package:plotlines_client/presentation/map/trip_area_map.dart';
 import 'package:plotlines_client/presentation/map/map_attribution.dart';
 import 'package:plotlines_client/presentation/screens/trip_area_screen.dart';
+import 'package:plotlines_client/state/authoring_undo_provider.dart';
+import 'package:plotlines_client/state/current_trip_provider.dart';
 import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/trip_bbox_provider.dart';
 
@@ -276,4 +280,65 @@ void main() {
       expect(find.textContaining('A large area.'), warned ? findsOneWidget : findsNothing);
     });
   }
+
+  // #659 (F14) — shrinking the area and removing the anchors left outside is
+  // one decision, so one undo step. It used to be two: *Remove N places*,
+  // then *Change the trip area*.
+  testWidgets('shrink and remove anchors is one undo step, and undo restores both',
+      (tester) async {
+    const existing = TripBbox(minLat: 39.9, minLon: -105.4, maxLat: 40.1, maxLon: -105.1);
+    const smaller = TripBbox(minLat: 39.95, minLon: -105.35, maxLat: 40.05, maxLon: -105.25);
+    final container = _containerFor(
+      overrides: [tripBboxProvider.overrideWith((ref) => TripBboxNotifier()..set(existing))],
+    );
+    container.read(currentTripProvider.notifier).open(Trip(
+          id: 't',
+          title: 'Trip',
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+          days: [
+            Day(id: 'd1', index: 1, nodes: [
+              Node(id: 'n1', kind: NodeKind.poi, coord: const [-105.15, 40.08], title: 'Far camp'),
+            ]),
+          ],
+        ));
+    await tester.pumpWidget(_harness(
+      container,
+      router: GoRouter(initialLocation: '/trip-area', routes: [
+        GoRoute(path: '/trip-area', builder: (_, _) => const TripAreaScreen(isCreation: false)),
+      ]),
+    ));
+    await _settleMap(tester);
+
+    tester.widget<TripAreaMap>(find.byType(TripAreaMap)).onProposeChange(smaller);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove this anchor'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(tripBboxProvider), smaller);
+    expect(container.read(currentTripProvider).days.single.nodes, isEmpty);
+    expect(container.read(authoringUndoProvider).history, ['Change the trip area']);
+
+    container.read(authoringUndoProvider.notifier).undo();
+    await tester.pump();
+    expect(container.read(tripBboxProvider), existing);
+    expect(container.read(currentTripProvider).days.single.nodes.single.id, 'n1');
+    // The region's settle window and the snackbar run out before teardown.
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  // #659 (F24) — during creation the location prompt was a dialog over the
+  // library, so that is where back lands, and the button says so.
+  testWidgets('back during creation names the library', (tester) async {
+    await tester.pumpWidget(_harness(
+      _containerFor(),
+      router: GoRouter(initialLocation: '/trip-area', routes: [
+        GoRoute(path: '/trip-area', builder: (_, _) => const TripAreaScreen(isCreation: true)),
+      ]),
+    ));
+    await _settleMap(tester);
+
+    expect(find.byTooltip('Back to the library'), findsOneWidget);
+    expect(find.byTooltip('Back to the location prompt'), findsNothing);
+  });
 }

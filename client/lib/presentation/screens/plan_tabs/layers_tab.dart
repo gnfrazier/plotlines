@@ -386,13 +386,15 @@ class _LayersTabState extends ConsumerState<LayersTab> {
   /// already-promoted candidate routes the Author to editing it instead of
   /// silently duplicating the anchor (FR106).
   void _promote(Candidate candidate) {
+    // #659 (F20) — with no day to attach it to, the anchor is promoted
+    // unattached (ordinary working state, Q2) and the Author is told; this
+    // used to return and say nothing.
     final day = _activeDay;
-    if (day == null) return;
     final roles = [
       Role(
         id: _uuid.v4(),
         kind: roleKindFromAffinity(candidate.roleAffinity),
-        dayId: day.id,
+        dayId: day?.id,
       ),
     ];
     try {
@@ -403,13 +405,16 @@ class _LayersTabState extends ConsumerState<LayersTab> {
             area: areaFromCandidate(candidate),
             provenance: provenanceFromCandidate(candidate),
           );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Promoted "${anchor.title ?? candidate.layer}"')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(day == null
+            ? 'Promoted "${anchor.title ?? candidate.layer}" — not attached to a day, '
+                'since the trip has none yet'
+            : 'Promoted "${anchor.title ?? candidate.layer}"'),
+      ));
     } on DuplicatePromotionException {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Already promoted — edit its roles in the Anchors view')),
+            content: Text('Already promoted — edit its roles on the Content tab')),
       );
     }
   }

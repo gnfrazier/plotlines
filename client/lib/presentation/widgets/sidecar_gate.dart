@@ -70,7 +70,7 @@ class _FullScreenWait extends StatelessWidget {
               // as "working", not "hung".
               const _RouteSweep(),
               const SizedBox(height: PlotSpacing.s5),
-              Text('Plotting the route graph', style: PlotTypography.title(c.textPrimary)),
+              Text('Starting the routing engine', style: PlotTypography.title(c.textPrimary)),
               const SizedBox(height: PlotSpacing.s2),
               Text(detail,
                   textAlign: TextAlign.center,

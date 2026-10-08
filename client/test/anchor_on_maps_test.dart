@@ -28,6 +28,7 @@ import 'package:plotlines_client/state/providers.dart';
 import 'package:plotlines_client/state/trip_bbox_provider.dart';
 import 'package:plotlines_client/state/trip_candidates_provider.dart';
 import 'support/display_units.dart';
+import 'support/routing_ready.dart';
 
 const _bbox = TripBbox(minLat: 39.9, minLon: -105.4, maxLat: 40.1, maxLon: -105.1);
 
@@ -95,6 +96,9 @@ const _oldFort = Candidate(
 ProviderContainer _container({CurationClient? curation}) {
   final c = ProviderContainer(overrides: [
     metricUnits(),
+    // The Route tab's rail reads routing readiness (#656); this file is
+    // about anchors, not that.
+    routingReady(),
     sidecarManagerProvider.overrideWith((ref) => _FakeSidecarManager()),
     tripBboxProvider.overrideWith((ref) => TripBboxNotifier()..set(_bbox)),
     // Only the Layers tab reads the database (layer selection); the other

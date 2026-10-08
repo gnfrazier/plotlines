@@ -33,17 +33,26 @@ import 'plan_tabs/logistics_tab.dart';
 import 'plan_tabs/roster_tab.dart';
 import 'plan_tabs/route_tab.dart';
 
+/// The shell's tabs, in order, by the name `/plan?tab=` takes (#658).
+const tripShellTabs = ['route', 'logistics', 'layers', 'content', 'roster', 'export', 'read'];
+
 class TripShellScreen extends ConsumerStatefulWidget {
-  const TripShellScreen({super.key});
+  const TripShellScreen({super.key, this.initialTab});
+
+  /// The tab the shell opens on, one of [tripShellTabs]; ROUTE when null or
+  /// unknown. #658 — the library card's *Manage roster & preferences* opened
+  /// ROUTE like every other action on the card.
+  final String? initialTab;
 
   @override
   ConsumerState<TripShellScreen> createState() => _TripShellScreenState();
 }
 
 class _TripShellScreenState extends ConsumerState<TripShellScreen> with SingleTickerProviderStateMixin {
-  late final _tabController = TabController(length: 7, vsync: this)..addListener(_handleTabChange);
+  late int _activeTabIndex = tripShellTabs.indexOf(widget.initialTab ?? '').clamp(0, 6);
+  late final _tabController =
+      TabController(length: 7, vsync: this, initialIndex: _activeTabIndex)..addListener(_handleTabChange);
   String? _activeDayId;
-  int _activeTabIndex = 0;
 
   /// The trip whose sync-alert interrupt has already been raised this session,
   /// so opening the shell doesn't re-interrupt on every rebuild (C11 / FR27 /

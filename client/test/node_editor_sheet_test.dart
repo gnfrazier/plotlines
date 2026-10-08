@@ -165,14 +165,16 @@ void main() {
       }
     });
 
-    testWidgets('narration is labelled as authoring-only', (tester) async {
-      // E4: playback is field execution and out of desktop MVP. The label is
-      // what stops an Author expecting the desktop build to read it aloud.
+    testWidgets('narration says it plays in the field, not here', (tester) async {
+      // E4: playback is field execution and out of desktop MVP. The line is
+      // what stops an Author expecting the desktop build to read it aloud;
+      // since #639 it says so without the story id or "desktop MVP".
       final (container, _) = await _pumpForm(tester);
       addTearDown(container.dispose);
 
-      expect(find.textContaining('authoring only'), findsOneWidget);
-      expect(find.textContaining('Playback is field execution'), findsOneWidget);
+      expect(find.text('NARRATION TRIGGER'), findsOneWidget);
+      expect(find.textContaining('It plays in the field, not here'), findsOneWidget);
+      expect(find.textContaining('E4'), findsNothing);
     });
   });
 

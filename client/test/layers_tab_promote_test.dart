@@ -220,4 +220,23 @@ void main() {
     // `PlotBadge` upper-cases its label.
     expect(find.text('OLD FORT'), findsOneWidget);
   });
+
+  // #659 (F20) — on a trip with no days the tap used to do nothing and say
+  // nothing. It promotes the anchor unattached, ordinary working state (Q2).
+  testWidgets('with no day to attach to, the candidate is promoted unattached and said so',
+      (tester) async {
+    final curation = _ScriptedCurationClient()..next = [_candidate()];
+    final container = _openTrip(curation);
+    await tester.pumpWidget(_harness(container));
+    await _settle(tester);
+    await container.read(tripCandidatesProvider.notifier).fetch(bbox: _bbox, liveLayers: {'historic'});
+    await _settle(tester);
+
+    await tester.tap(find.byTooltip('Old Fort'));
+    await tester.pump();
+
+    final anchor = container.read(currentTripProvider).anchors.single;
+    expect(anchor.roles.single.dayId, isNull);
+    expect(find.textContaining('not attached to a day'), findsOneWidget);
+  });
 }
