@@ -1,4 +1,4 @@
-import 'dart:ui' show AppExitResponse;
+import 'dart:ui' show AppExitResponse, PlatformDispatcher;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:plotlines_ui/plotlines_ui.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'presentation/map/vector_tile_provider.dart';
 import 'presentation/screens/new_route_screen.dart';
 import 'presentation/screens/privacy_screen.dart';
 import 'presentation/screens/settings_screen.dart';
@@ -22,6 +23,8 @@ import 'state/settings_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PlatformDispatcher.instance.onError =
+      ignoreAbandonedTileJobs(PlatformDispatcher.instance.onError);
   await _initDesktopWindow();
   runApp(const ProviderScope(child: PlotlinesApp()));
 }
