@@ -14,7 +14,9 @@ library;
 
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' show ErrorCallback;
 
+import 'package:executor_lib/executor_lib.dart' show CancellationException;
 import 'package:flutter/widgets.dart' show ValueKey;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -67,6 +69,18 @@ VectorTileLayer basemapVectorLayer({
       maximumZoom: basemapMaximumZoom.toDouble(),
       cacheFolder: basemapCacheFolderCallback(tilesArchiveId),
     );
+
+/// Issue #673 — the `PlatformDispatcher.onError` handler `main()` installs.
+/// `vector_map_tiles` (9.0.0-beta.11) abandons a tile's remaining jobs when
+/// the tile is cancelled mid-load, and the executor then fails them with a
+/// [CancellationException] nothing listens for — a burst of "Unhandled
+/// Exception: Cancelled" on every quick pan or zoom. That error is a dropped
+/// tile, not a fault, so it is marked handled; every other error goes to
+/// [next], or is left unhandled for the engine to log. Remove once a
+/// `vector_map_tiles` release carries greensopinion/flutter-vector-map-tiles#286.
+ErrorCallback ignoreAbandonedTileJobs(ErrorCallback? next) =>
+    (error, stack) =>
+        error is CancellationException || (next?.call(error, stack) ?? false);
 
 /// Reads tiles from the sidecar rather than local disk. `baseUrl` is the
 /// same `SidecarManager.baseUrl` every other client (`RoutingClient`,

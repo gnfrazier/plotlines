@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:executor_lib/executor_lib.dart' show CancellationException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart'
     show ProviderException, Retryable, TileIdentity, VectorTileLayerMode;
@@ -355,6 +356,32 @@ void main() {
       } finally {
         await server.stop();
       }
+    });
+  });
+
+  // Issue #673 — a tile job the basemap abandoned on cancel reaches
+  // `PlatformDispatcher.onError` as uncaught; only that error is swallowed.
+  group('ignoreAbandonedTileJobs', () {
+    test('marks a cancelled tile job handled', () {
+      final handler = ignoreAbandonedTileJobs(null);
+      expect(handler(CancellationException(), StackTrace.empty), isTrue);
+    });
+
+    test('leaves any other error unhandled', () {
+      final handler = ignoreAbandonedTileJobs(null);
+      expect(handler(StateError('real fault'), StackTrace.empty), isFalse);
+    });
+
+    test('passes any other error to the handler it wraps, and only that', () {
+      final seen = <Object>[];
+      final handler = ignoreAbandonedTileJobs((error, _) {
+        seen.add(error);
+        return true;
+      });
+      final fault = StateError('real fault');
+      expect(handler(fault, StackTrace.empty), isTrue);
+      expect(handler(CancellationException(), StackTrace.empty), isTrue);
+      expect(seen, [fault]);
     });
   });
 }

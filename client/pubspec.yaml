@@ -41,6 +41,9 @@ dependencies:
   intl: ^0.20.3
   flutter_map: ^8.3.1
   vector_map_tiles: ^9.0.0-beta.11
+  # Issue #673 — only for `CancellationException`, which `vector_map_tiles`
+  # throws but does not export (`ignoreAbandonedTileJobs`).
+  executor_lib: ^1.1.2
   latlong2: ^0.10.1
   drift: ^2.34.3
   path: ^1.9.1
