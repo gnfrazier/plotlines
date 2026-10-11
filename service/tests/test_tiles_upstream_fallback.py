@@ -220,3 +220,82 @@ def test_a_reopened_trip_serves_its_cached_tiles_while_the_graph_still_builds(
     assert upstream_reads == []
     key = next(iter(tiles_ready["regions"]))
     assert tiles_ready["regions"][key] == {"ready": True}
+
+
+# A small area inside the z10 `_OUTSIDE_HOME` tile: the tile overlaps it but
+# is not contained by it, the case `AreaIndex.resolve` would miss.
+_HELD_AREA = (-105.30, 39.99, -105.25, 40.03)
+
+
+def _held_area_cache(tmp_path: Path, tiles: dict) -> Path:
+    """A cache root holding one indexed basemap area, as an earlier session
+    leaves it, before any app (and so any region) exists."""
+    from plotlines_core import cache_areas
+    from plotlines_core.cache_layout import CacheLayout
+
+    cache = tmp_path / "cache"
+    archive = CacheLayout(cache).tile_archive(_HELD_AREA)
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    build_archive(archive, tiles, bounds=_HELD_AREA)
+    cache_areas.AreaIndex(cache).register(_HELD_AREA, cache_areas.PAYLOAD_BASEMAP, archive)
+    return cache
+
+
+def test_a_held_areas_tile_is_served_before_any_region_is_ensured(
+    tmp_path: Path, upstream: Path, monkeypatch,
+) -> None:
+    """#675: offline, a reopened trip's map asked for tiles while its
+    `POST /regions` was still on the way. `/tiles` knew only ensured
+    regions, so every such tile went upstream and answered 503, though
+    each was in the area's archive on disk. The held area now answers
+    first, and the upstream is never asked."""
+    cache = _held_area_cache(tmp_path, {_OUTSIDE_HOME: b"held-tile"})
+    upstream_reads: list = []
+
+    def unreachable(self, z, x, y):
+        upstream_reads.append((z, x, y))
+        raise OSError("network is unreachable")
+
+    monkeypatch.setattr(UpstreamTileReader, "tile", unreachable)
+    client = TestClient(create_app(cache, tiles_upstream=upstream))
+    try:
+        assert client.app.state.readiness.snapshot() == []
+        resp = client.get("/tiles/{}/{}/{}".format(*_OUTSIDE_HOME))
+    finally:
+        client.app.state.readiness.shutdown()
+    assert resp.status_code == 200
+    assert resp.content == b"held-tile"
+    assert upstream_reads == []
+
+
+def test_a_tile_the_held_archive_lacks_still_falls_through_to_the_upstream(
+    tmp_path: Path, upstream: Path,
+) -> None:
+    z, x, y = _OUTSIDE_HOME
+    cache = _held_area_cache(tmp_path, {(z + 1, 2 * x, 2 * y): b"other"})
+    client = TestClient(create_app(cache, tiles_upstream=upstream))
+    try:
+        resp = client.get("/tiles/{}/{}/{}".format(*_OUTSIDE_HOME))
+    finally:
+        client.app.state.readiness.shutdown()
+    assert resp.status_code == 200
+    assert resp.content == b"upstream-tile"
+
+
+def test_an_area_the_index_no_longer_holds_stops_answering(tmp_path: Path) -> None:
+    """The opened archive is dropped once the index stops holding its path
+    (a prune or a refresh), so a retired area is never served from a
+    leftover handle."""
+    from plotlines_core import cache_areas
+
+    cache = _held_area_cache(tmp_path, {_OUTSIDE_HOME: b"held-tile"})
+    client = TestClient(create_app(cache))
+    readiness = client.app.state.readiness
+    try:
+        assert client.get("/tiles/{}/{}/{}".format(*_OUTSIDE_HOME)).status_code == 200
+        readiness.areas.forget(_HELD_AREA, cache_areas.PAYLOAD_BASEMAP)
+        readiness._drop_unheld_archives()
+        assert readiness._held_tiles == {}
+        assert client.get("/tiles/{}/{}/{}".format(*_OUTSIDE_HOME)).status_code == 404
+    finally:
+        readiness.shutdown()

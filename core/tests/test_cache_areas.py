@@ -170,6 +170,35 @@ def test_each_payload_ages_on_its_own_ttl(index, tmp_path, clock):
     assert not index.resolve(INSIDE, A.PAYLOAD_ELEVATION).stale
 
 
+# -- intersecting (#675) ---------------------------------------------------- #
+
+
+def test_an_area_crossed_by_a_bbox_intersects_though_it_does_not_resolve(index, tmp_path):
+    path = _touch(CacheLayout(tmp_path).tile_archive(AREA))
+    index.register(AREA, A.PAYLOAD_BASEMAP, path)
+    assert index.resolve(CROSSING, A.PAYLOAD_BASEMAP) is None
+    assert [h.path for h in index.intersecting(CROSSING, A.PAYLOAD_BASEMAP)] == [path]
+
+
+def test_an_area_only_touching_a_bbox_edge_does_not_intersect(index, tmp_path):
+    index.register(AREA, A.PAYLOAD_BASEMAP, _touch(CacheLayout(tmp_path).tile_archive(AREA)))
+    east_neighbour = (AREA[2], AREA[1], AREA[2] + 0.1, AREA[3])
+    assert index.intersecting(east_neighbour, A.PAYLOAD_BASEMAP) == []
+    assert index.intersecting(INSIDE, A.PAYLOAD_ELEVATION) == []
+
+
+def test_intersecting_ranks_fresh_before_stale_then_smallest(index, tmp_path, clock):
+    layout = CacheLayout(tmp_path)
+    stale_small = _touch(layout.tile_archive(SMALL_AREA))
+    index.register(SMALL_AREA, A.PAYLOAD_BASEMAP, stale_small)
+    clock.advance_days(A.TTL_DAYS[A.PAYLOAD_BASEMAP] + 1)
+    fresh_big = _touch(layout.tile_archive(AREA))
+    index.register(AREA, A.PAYLOAD_BASEMAP, fresh_big)
+    hits = index.intersecting(INSIDE, A.PAYLOAD_BASEMAP)
+    assert [h.path for h in hits] == [fresh_big, stale_small]
+    assert [h.stale for h in hits] == [False, True]
+
+
 def test_a_candidate_set_at_another_version_never_resolves(index, tmp_path):
     path = _touch(CacheLayout(tmp_path).candidate_set(AREA))
     index.register(AREA, A.PAYLOAD_CANDIDATES, path, version="old/1.0")
