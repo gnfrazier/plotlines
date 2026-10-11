@@ -2247,6 +2247,13 @@ class Readiness:
         )
         self._refresh_inflight: set[tuple[str, str]] = set()
         self._refresh_failed_at: dict[tuple[str, str], float] = {}
+        # Issue #675 — basemap archives of held areas `/tiles` has opened,
+        # keyed by path, so a reopened trip's tiles come off disk before its
+        # region is ensured (offline, the upstream they used to fall through
+        # to is unreachable). A refresh writes a new path, and the entry for
+        # one that left the index is dropped after each prune pass.
+        self._held_tiles: dict[Path, Archive | None] = {}
+        self._held_tiles_lock = threading.Lock()
 
     def shutdown(self) -> None:
         """Stop accepting builds and abandon any still queued. In-flight
@@ -2779,6 +2786,45 @@ class Readiness:
             raise RuntimeError("the refreshed DEM couldn't be read")
         self.areas.register(area_bbox, cache_areas.PAYLOAD_ELEVATION, Path(written))
 
+    def held_area_tile(self, z: int, x: int, y: int):
+        """Issue #675 — one tile from any held area's basemap archive, as
+        `(data, info)`, or `None`. Memory and local disk only, never an
+        outbound call, so it is safe on a request thread (D66). Fresh areas
+        are tried before stale ones (`AreaIndex.intersecting`); a stale
+        archive still beats an upstream that may not answer."""
+        tile_box = _tile_bbox(z, x, y)
+        for hit in self.areas.intersecting(tile_box, cache_areas.PAYLOAD_BASEMAP):
+            archive = self._held_archive(hit.path)
+            if archive is None:
+                continue
+            data = archive.tile(z, x, y)
+            if data is not None:
+                return data, archive.info()
+        return None
+
+    def _held_archive(self, path: Path) -> "Archive | None":
+        with self._held_tiles_lock:
+            if path in self._held_tiles:
+                return self._held_tiles[path]
+        try:
+            archive = Archive(path) if path.exists() else None
+        except Exception as exc:  # noqa: BLE001 — an unreadable file is a miss, never a 500
+            log.warning("held tiles: archive unreadable path=%s: %s", path, exc)
+            archive = None
+        with self._held_tiles_lock:
+            # A racing request may have opened it first; keep that one.
+            return self._held_tiles.setdefault(path, archive)
+
+    def _drop_unheld_archives(self) -> None:
+        """Forget opened archives whose path the index no longer holds (a
+        prune or a refresh retired it). Not closed here: a request thread may
+        still be reading one, and the mapping is released once nothing
+        refers to it."""
+        held = self.areas.indexed_paths()
+        with self._held_tiles_lock:
+            for path in [p for p in self._held_tiles if p.resolve() not in held]:
+                del self._held_tiles[path]
+
     def cache_in_use(self) -> tuple[list[Path], list[tuple[float, float, float, float]]]:
         """The files open regions are reading (never deleted under them —
         Windows refuses, and a mapped archive would go blank) and their
@@ -2812,6 +2858,7 @@ class Readiness:
         except Exception:  # noqa: BLE001 — retried on the next pass
             log.warning("cache prune: pass failed", exc_info=True)
             return []
+        self._drop_unheld_archives()
         freed = sum(p.bytes_freed for p in pruned)
         log.info("cache prune: removed %d payload(s), %d bytes", len(pruned), freed)
         return pruned
@@ -4222,8 +4269,10 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
         any upstream work (FR93) — a request outside the tile pyramid never
         touches an archive at all. Answered from (a) any ensured region's
         on-demand cache extracted for that trip's own bbox, checked first
-        since it is the Author's actual area, then (b) the committed home
-        region archive (FR96), then (c) the configured `--tiles-upstream`
+        since it is the Author's actual area, then (a2) any held area's
+        basemap archive on disk, ensured region or not (#675), then (b) the
+        committed home region archive (FR96), then (c) the configured
+        `--tiles-upstream`
         itself, one tile at a time — and 404, honestly, if none has data for
         this address rather than ever substituting another region's tile
         (the exact silence issue #154 was filed over, on the routing side).
@@ -4237,6 +4286,14 @@ def create_app(cache_dir: Path, mode: str = "sidecar", *,
             data = region.tiles_archive.tile(z, x, y)
             if data is not None:
                 return _tile_response(data, region.tiles_archive.info())
+
+        # Issue #675 — any area this device already holds a basemap for,
+        # whether or not a region over it has been ensured yet. A reopened
+        # trip's map asks for tiles while its `POST /regions` is still on
+        # the way; before this they went upstream, which offline is a 503.
+        held = state.held_area_tile(z, x, y)
+        if held is not None:
+            return _tile_response(*held)
 
         data = home_tiles.tile(z, x, y)
         if data is not None:

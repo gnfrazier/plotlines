@@ -143,6 +143,12 @@ def bbox_contains(outer: BBox, inner: BBox) -> bool:
             and outer[2] >= inner[2] - _EPS and outer[3] >= inner[3] - _EPS)
 
 
+def bbox_intersects(a: BBox, b: BBox) -> bool:
+    """Whether `a` and `b` overlap with positive area. A shared edge does
+    not count: a tile that only touches an area's edge holds none of it."""
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
 def _area_deg2(bbox: BBox) -> float:
     return max(0.0, bbox[2] - bbox[0]) * max(0.0, bbox[3] - bbox[1])
 
@@ -432,6 +438,29 @@ class AreaIndex:
                     fetched_at=rec.fetched_at, pin=rec.pin, version=rec.version,
                     stale=stale, age_days=age))
         return best[1] if best else None
+
+    def intersecting(self, bbox: BBox, payload: str) -> list[AreaHit]:
+        """Every held area that overlaps `bbox` and holds `payload`, fresh
+        before stale and smallest first — issue #675. `resolve` asks for an
+        area that *contains* a bbox; a basemap tile at an area's edge is in
+        that area's archive (an extract takes every intersecting tile) yet
+        not inside its bbox, so `/tiles` asks this instead and lets the
+        archive say whether it has the address."""
+        now = self._clock()
+        ranked: list[tuple[tuple[bool, float], AreaHit]] = []
+        with self._lock:
+            records = list(self._areas.values())
+        for area in records:
+            rec = area.payloads.get(payload)
+            if rec is None or not bbox_intersects(area.bbox, bbox):
+                continue
+            stale, age = self._stale(payload, rec, now)
+            ranked.append(((stale, _area_deg2(area.bbox)), AreaHit(
+                area_bbox=area.bbox, payload=payload, path=self._abs(rec.path),
+                fetched_at=rec.fetched_at, pin=rec.pin, version=rec.version,
+                stale=stale, age_days=age)))
+        ranked.sort(key=lambda r: r[0])
+        return [hit for _, hit in ranked]
 
     def reserve(self, bbox: BBox) -> BBox:
         """The bbox to fetch for a new area around `bbox` (:func:`pad_bbox`)."""
